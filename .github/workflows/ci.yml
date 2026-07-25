@@ -11,6 +11,8 @@ jobs:
   ci:
     name: Run CI
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest
 
     steps:
       - name: Checkout repository

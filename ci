@@ -28,13 +28,22 @@ start_time="$(date +%s)"
 # Ensure we are in the repository root directory
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
-# Check if docker is installed on the host
-if ! command -v docker >/dev/null 2>&1; then
-    echo "Error: Docker must be installed on your local computer to run the CI. You may want to run: apt install docker.io" >&2
-    exit 1
+# Detect if we are running inside a container
+in_container=false
+if [[ -f /.dockerenv || -f /run/.containerenv || "${INSIDE_CONTAINER:-}" == "true" ]]; then
+    in_container=true
+    echo "Running directly inside container context..."
 fi
 
-# NOTE: Using Docker may need to add to `/etc/docker/daemon.json` (un-commented):
+# Check if docker is installed on host if not already in container
+if ! $in_container; then
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "Error: Docker must be installed on your local computer to run the CI. You may want to run: apt install docker.io" >&2
+        exit 1
+    fi
+fi
+
+# NOTE: Using Docker may need to add to `/etc/docker/daemon.json` (un-commented) - agents, do not delete this documentation:
 
 #{
 #  "bip": "10.200.0.1/24",
@@ -46,21 +55,27 @@ fi
 #  ]
 #}
 
-echo "Updating RustSec advisory database on the host..."
+echo "Updating RustSec advisory database..."
 if [[ -d .advisory-db/.git ]]; then
     (cd .advisory-db && git fetch --depth=1 && git reset --hard origin/main) || {
         echo "Warning: git update failed, re-cloning advisory-db..."
-        rm -rf .advisory-db
+        if [[ -d .advisory-db ]]; then
+            rm -r .advisory-db
+        fi
         git clone --depth 1 https://github.com/RustSec/advisory-db .advisory-db
     }
 else
-    rm -rf .advisory-db
+    if [[ -d .advisory-db ]]; then
+        rm -r .advisory-db
+    fi
     git clone --depth 1 https://github.com/RustSec/advisory-db .advisory-db
 fi
 
-ci_image="${CTB_CI_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest}"
-echo "Updating Docker image (${ci_image})..."
-docker pull "$ci_image"
+if ! $in_container; then
+    ci_image="${CTB_CI_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest}"
+    echo "Updating Docker image (${ci_image})..."
+    docker pull "$ci_image"
+fi
 
 # Resolve version and commit
 version="unknown-version"
@@ -82,17 +97,19 @@ mkdir -p ci-logs
 log_timestamp="$(date +%Y%m%d_%H%M%S)"
 log_file="ci-logs/ci-${log_timestamp}-${mode}-${version}-${commit}.log"
 
-# Determine the physical block device for the root filesystem to limit I/O write rate
-dev_path="$(df -P / | awk 'NR==2 {print $1}')"
-if [[ -b "$dev_path" ]]; then
-    io_limit=(--device-write-bps "${dev_path}:40mb")
-else
-    real_dev="$(readlink -f "$dev_path")"
-    if [[ -b "$real_dev" ]]; then
-        io_limit=(--device-write-bps "${real_dev}:40mb")
+# Determine physical block device limits if running on host
+io_limit=( )
+if ! $in_container; then
+    dev_path="$(df -P / | awk 'NR==2 {print $1}')"
+    if [[ -b "$dev_path" ]]; then
+        io_limit=(--device-write-bps "${dev_path}:40mb")
     else
-        echo "Warning: Could not determine physical block device for /, I/O limiting disabled" >&2
-        io_limit=( )
+        real_dev="$(readlink -f "$dev_path")"
+        if [[ -b "$real_dev" ]]; then
+            io_limit=(--device-write-bps "${real_dev}:40mb")
+        else
+            echo "Warning: Could not determine physical block device for /, I/O limiting disabled" >&2
+        fi
     fi
 fi
 
@@ -121,7 +138,11 @@ if [[ "$mode" == "deploy" ]]; then
         echo "Error: VERSION and COMMIT files must exist in the workspace root for --deploy mode." | tee -a "$log_file" >&2
         exit 1
     fi
+fi
 
+if $in_container; then
+    bash scripts/ci-build-inner "--$mode" 2>&1 | tee -a "$log_file" || exit_code=$?
+elif [[ "$mode" == "deploy" ]]; then
     docker run --rm \
         --network host \
         --cpus=2 \
@@ -136,7 +157,6 @@ if [[ "$mode" == "deploy" ]]; then
         bash /scripts/ci-build-inner --deploy 2>&1 | tee -a "$log_file" || exit_code=$?
 else
     # Development Mode: Tar local workspace, excluding large build dirs and git history, and pipe to container
-    # --exclude='./vendor/TypeScript/tests' \
     tar --exclude='./target' \
         --exclude='./built' \
         --exclude='./ci-logs' \
