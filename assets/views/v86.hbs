@@ -69,6 +69,7 @@ function initV86() {
     };
 
     if (cfg.state) {
+        delete v86Options.net_device_type;
         v86Options.initial_state = { url: cfg.state };
     } else {
         v86Options.bzimage_initrd_from_filesystem = true;

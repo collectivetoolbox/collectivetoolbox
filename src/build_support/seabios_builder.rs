@@ -67,7 +67,7 @@ fn _aligndown(pos: usize, alignbytes: usize) -> usize {
     pos & !mask
 }
 
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+#[expect(clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Legacy seabios builder logic")]
 pub fn run_buildversion(args: &[String]) -> Result<()> {
     let mut outfile = String::new();
     let mut extraversion = String::new();
@@ -125,7 +125,7 @@ pub fn run_buildversion(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::string_slice)]
+#[expect(clippy::string_slice, reason = "Legacy vgafixup string slicing")]
 pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
     let content = fs::read_to_string(infilename)
         .with_context(|| format!("Failed to read {}", infilename.display()))?;
@@ -154,7 +154,7 @@ pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::string_slice)]
+#[expect(clippy::string_slice, reason = "Legacy handle_leal string slicing")]
 fn handle_leal(sline: &str) -> String {
     let rest = sline.get(4..).unwrap_or("").trim();
     if rest.contains("(%esp)") {
@@ -209,7 +209,7 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::as_conversions, clippy::cast_precision_loss)]
+#[expect(clippy::as_conversions, clippy::cast_precision_loss, reason = "Checkrom byte size calculations")]
 pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfile: &Path) -> Result<()> {
     let rawdata = fs::read(rawfile)
         .with_context(|| format!("Failed to read {}", rawfile.display()))?;
@@ -311,7 +311,7 @@ pub fn run_layoutrom(
     Ok(())
 }
 
-#[allow(clippy::indexing_slicing, clippy::string_slice)]
+#[expect(clippy::indexing_slicing, clippy::string_slice, reason = "Objdump parsing string slicing")]
 fn parse_objdump(path: &Path, fileid: &str, out_sections: &mut Vec<Section>) -> Result<()> {
     let content = fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;

@@ -382,7 +382,7 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
     let rustc_status = Command::new("rustc")
         .args([
             "--target",
-            "i686-unknown-linux-gnu",
+            "i586-unknown-linux-gnu",
             "-C",
             "opt-level=s",
             "-C",
@@ -681,6 +681,35 @@ fn find_linux_modules_dir(json: &str) -> PathBuf {
 
 /// Ensure v86 WASM and SeaBIOS binaries are compiled into `built/v86_out`
 /// without ever modifying or cluttering source directories.
+fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
+    let makefile_path = v86_tmp.join("Makefile");
+    if makefile_path.is_file() {
+        let content = fs::read_to_string(&makefile_path)?;
+        let mangled = content
+            .replace("java -jar", "echo 'ERROR: java is not permitted in build' && false # java_disabled")
+            .replace("./gen/generate_", "echo 'ERROR: node is not permitted in build' && false # node_disabled_");
+        fs::write(&makefile_path, mangled)?;
+    }
+
+    let gen_dir = v86_tmp.join("gen");
+    if gen_dir.is_dir() {
+        if let Ok(entries) = fs::read_dir(&gen_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("js") {
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        let mangled = content
+                            .replace("#!/usr/bin/env node", "#!/usr/bin/env disabled_node")
+                            .replace("node ", "disabled_node ");
+                        let _ = fs::write(&path, mangled);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
     let v86_out_dir = project_root.join("built/v86_out");
     let wasm_file = v86_out_dir.join("build/v86.wasm");
@@ -693,58 +722,51 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
     fs::create_dir_all(v86_out_dir.join("build"))?;
     fs::create_dir_all(v86_out_dir.join("bios"))?;
 
-    let v86_src = project_root.join("vendor/v86");
-
-    let make_res = Command::new("make")
-        .args(["-C", v86_src.to_str().unwrap_or(""), "build/v86.wasm"])
-        .status();
-
-    if make_res.as_ref().map(|s| s.success()).unwrap_or(false) && v86_src.join("build/v86.wasm").is_file() {
-        fs::copy(v86_src.join("build/v86.wasm"), &wasm_file)?;
-        fs::remove_dir_all(v86_src.join("build")).ok();
-    }
-
-    // Build seabios-tool binary
-    let _ = Command::new("cargo")
-        .args(["build", "-p", "ctb-build-support", "--bin", "seabios-tool"])
-        .current_dir(project_root)
-        .status();
-
-    let seabios_tool_bin = project_root.join("target/debug/seabios-tool");
-
-    let seabios_src = project_root.join("vendor/seabios");
-    let seabios_tmp = project_root.join("built/v86_build_tmp/seabios");
-
-    if seabios_tmp.exists() {
-        fs::remove_dir_all(&seabios_tmp).ok();
-    }
-
-    if seabios_src.is_dir() {
-        if let Some(parent) = seabios_tmp.parent() {
+    if !wasm_file.is_file() {
+        let v86_src = project_root.join("vendor/v86");
+        let v86_tmp = project_root.join("built/v86_build_tmp/v86");
+        if v86_tmp.exists() {
+            fs::remove_dir_all(&v86_tmp).ok();
+        }
+        if let Some(parent) = v86_tmp.parent() {
             fs::create_dir_all(parent)?;
         }
-        let _ = Command::new("cp")
-            .args(["-r", seabios_src.to_str().unwrap_or(""), seabios_tmp.to_str().unwrap_or("")])
+        let cp_res = Command::new("cp")
+            .args(["-r", v86_src.to_str().unwrap_or(""), v86_tmp.to_str().unwrap_or("")])
             .status();
+        if cp_res.as_ref().map(|s| s.success()).unwrap_or(false) {
+            if let Err(e) = mangle_v86_build_scripts(&v86_tmp) {
+                println!("cargo:warning=Failed to mangle v86 build scripts: {e:?}");
+            }
+            let x86_table_js = v86_src.join("gen/x86_table.js");
+            let gen_dir = v86_tmp.join("src/rust/gen");
+            if let Err(e) = crate::v86_generator::generate_all_tables(&x86_table_js, &gen_dir) {
+                println!("cargo:warning=Failed to generate v86 Rust instruction tables natively: {e:?}");
+            }
 
-        let _ = Command::new("make")
-            .args([
-                "-C",
-                seabios_tmp.to_str().unwrap_or(""),
-                &format!("PYTHON={}", seabios_tool_bin.display()),
-            ])
-            .status();
+            let make_res = Command::new("make")
+                .args(["-C", v86_tmp.to_str().unwrap_or(""), "build/v86.wasm"])
+                .status();
+            if make_res.as_ref().map(|s| s.success()).unwrap_or(false) && v86_tmp.join("build/v86.wasm").is_file() {
+                fs::copy(v86_tmp.join("build/v86.wasm"), &wasm_file)?;
+            }
+            fs::remove_dir_all(&v86_tmp).ok();
+        }
+    }
 
-        let out_dir = seabios_tmp.join("out");
-        for bin_name in ["bios.bin", "vgabios.bin"] {
-            let src = out_dir.join(bin_name);
-            let dst_name = if bin_name == "bios.bin" { "seabios.bin" } else { bin_name };
-            if src.is_file() {
-                fs::copy(&src, v86_out_dir.join("bios").join(dst_name))?;
+    if !bios_file.is_file() {
+        let prebuilt_bios_dir = project_root.join("built/assets/web/vendor/v86/bios");
+        if prebuilt_bios_dir.is_dir() {
+            if let Ok(entries) = fs::read_dir(&prebuilt_bios_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("bin") {
+                        let fname = entry.file_name();
+                        fs::copy(&path, v86_out_dir.join("bios").join(fname)).ok();
+                    }
+                }
             }
         }
-
-        fs::remove_dir_all(&seabios_tmp).ok();
     }
 
     Ok(v86_out_dir)
@@ -754,7 +776,7 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
 mod tests {
     use super::*;
 
-    #[crate::ctb_test]
+    #[test]
     fn test_build_custom_initrd() {
         let json_path = Path::new("vendor/v86_images/guix/guix-fs.json");
         if json_path.is_file() {
@@ -768,5 +790,31 @@ mod tests {
             assert!(metadata.len() > 1000, "Generated initrd file is too small!");
             let _ = fs::remove_file(&initrd_out);
         }
+    }
+
+    #[test]
+    fn test_mangle_v86_build_scripts() {
+        let temp = std::env::temp_dir().join("ctb_test_mangle_v86");
+        let _ = fs::create_dir_all(&temp);
+        let makefile = temp.join("Makefile");
+        fs::write(&makefile, "default:\n\tjava -jar closure.jar\n\t./gen/generate_jit.js\n").unwrap();
+
+        let gen_dir = temp.join("gen");
+        let _ = fs::create_dir_all(&gen_dir);
+        let js_script = gen_dir.join("generate_jit.js");
+        fs::write(&js_script, "#!/usr/bin/env node\nnode test.js\n").unwrap();
+
+        mangle_v86_build_scripts(&temp).expect("mangle scripts");
+
+        let mangled_makefile = fs::read_to_string(&makefile).unwrap();
+        assert!(!mangled_makefile.contains("java -jar"));
+        assert!(!mangled_makefile.contains("./gen/generate_"));
+        assert!(mangled_makefile.contains("ERROR: java is not permitted in build"));
+
+        let mangled_js = fs::read_to_string(&js_script).unwrap();
+        assert!(!mangled_js.contains("#!/usr/bin/env node"));
+        assert!(mangled_js.contains("#!/usr/bin/env disabled_node"));
+
+        let _ = fs::remove_dir_all(&temp);
     }
 }

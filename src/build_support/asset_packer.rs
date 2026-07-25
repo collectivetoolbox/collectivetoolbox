@@ -897,6 +897,15 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
             .join("nls")
             .display()
     );
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root
+            .join("vendor")
+            .join("v86")
+            .join("gen")
+            .join("x86_table.js")
+            .display()
+    );
     Ok(())
 }
 
