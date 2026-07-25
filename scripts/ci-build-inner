@@ -41,12 +41,12 @@ apt-get update && apt-get install -y \
     file \
     xz-utils
 
+apt-get remove -y nodejs npm 2>/dev/null || true
+
 if command -v npm || command -v npx || command -v node; then
     echo "node is not a permitted dependency."
     exit 1
 fi
-
-apt-get remove -y nodejs npm 2>/dev/null || true
 
 if ! command -v guix >/dev/null 2>&1; then
     echo "Installing GNU Guix..."
