@@ -58,8 +58,9 @@ else
     git clone --depth 1 https://github.com/RustSec/advisory-db .advisory-db
 fi
 
-echo "Updating Docker debian:stable image..."
-docker pull debian:stable
+ci_image="${CTB_CI_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest}"
+echo "Updating Docker image (${ci_image})..."
+docker pull "$ci_image"
 
 # Resolve version and commit
 version="unknown-version"
@@ -131,7 +132,7 @@ if [[ "$mode" == "deploy" ]]; then
         -v "$(pwd)/COMMIT":/COMMIT:ro \
         -v "$(pwd)/scripts/ci-build-inner":/scripts/ci-build-inner:ro \
         -v "$(pwd)/.advisory-db":/advisory-db:ro \
-        debian:stable \
+        "$ci_image" \
         bash /scripts/ci-build-inner --deploy 2>&1 | tee -a "$log_file" || exit_code=$?
 else
     # Development Mode: Tar local workspace, excluding large build dirs and git history, and pipe to container
@@ -152,7 +153,7 @@ else
             --memory-swap=44g \
             "${io_limit[@]}" \
             -v "$(pwd)/.advisory-db":/advisory-db:ro \
-            debian:stable \
+            "$ci_image" \
             bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev" 2>&1 | tee -a "$log_file" || exit_code=$?
 fi
 
