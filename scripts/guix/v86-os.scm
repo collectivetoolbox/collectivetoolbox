@@ -24,7 +24,6 @@
                         (device "host9p")
                         (mount-point "/")
                         (type "9p")
-                        (title 'device)
                         (options "trans=virtio,cache=loose")
                         (needed-for-boot? #t))
                       %base-file-systems))

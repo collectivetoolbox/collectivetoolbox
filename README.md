@@ -47,7 +47,7 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Check for workspace lint setup correct: `cd ~/ctoolbox || exit 1; cargo workspace-lints -v`
 - Quick build and run: `cd ~/ctoolbox || exit 1; RUST_BACKTRACE=1 ./run-linux`
 - Run a single test: `cargo test spans_attach_request_and_stream_fields -- --nocapture`
-- Build Docker container (NOT required, used for CI and dev container; remember to update the date to match): `pushd ~/ctoolbox/scripts/docker || exit 1; docker build . --network=host; docker push ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest`
+- Build Docker container (NOT required, used for CI and dev container; remember to update the image hash and date to match): `pushd ~/ctoolbox/scripts/docker || exit 1; docker build . --network=host; docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
 

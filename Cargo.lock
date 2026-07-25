@@ -3219,9 +3219,6 @@ dependencies = [
 [[package]]
 name = "ctb-nopersonality"
 version = "0.1.0"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "ctb-renderer"

@@ -3,8 +3,16 @@
 //! Ignores `EPERM` failure when setting personality in unprivileged
 //! build containers during Guix image builds.
 
-use libc::{c_long, c_ulong, dlsym, EPERM, RTLD_NEXT};
+use std::ffi::{c_char, c_long, c_ulong, c_void};
 use std::io::Error;
+
+const RTLD_NEXT: *mut c_void = -1_isize as *mut c_void;
+const EPERM: i32 = 1;
+
+#[allow(unsafe_code)]
+unsafe extern "C" {
+    fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+}
 
 type OrigPersonalityFn = unsafe extern "C" fn(c_ulong) -> c_long;
 
