@@ -47,9 +47,33 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Check for workspace lint setup correct: `cd ~/ctoolbox || exit 1; cargo workspace-lints -v`
 - Quick build and run: `cd ~/ctoolbox || exit 1; RUST_BACKTRACE=1 ./run-linux`
 - Run a single test: `cargo test spans_attach_request_and_stream_fields -- --nocapture`
-- Build Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/.devcontainer || exit 1; docker build . --network=host`
+- Build Docker container (NOT required, used for CI and dev container; remember to update the date to match): `pushd ~/ctoolbox/scripts/docker || exit 1; docker build . --network=host; docker push ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
+
+#### Pushing Docker container
+
+##### Step 1: Create the Classic Token
+
+   1. Go to GitHub.com and click your profile picture (top right) -> Settings.
+   2. Scroll to the bottom of the left sidebar and click Developer settings.
+   3. Expand Personal access tokens and select Tokens (classic).
+   4. Click Generate new token -> Generate new token (classic).
+   5. Give it a name (e.g., "Docker Push Token").
+   6. Check only the box for write:packages. (Note: read:packages will auto-select, which is fine).
+   7. Scroll to the bottom, click Generate token, and copy the token immediately (you will never see it again).
+
+##### Step 2: Push Image
+
+Remember to update the date to match.
+
+`./scripts/docker-push 2026-jul-25`
+
+* Press Enter. It will ask for a Password.
+* Paste the classic token you copied in Step 1 and press Enter.
+* It should say Login Succeeded.
+
+Running in docker: `docker run -it ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25 bash`
 
 ### Updating:
 
