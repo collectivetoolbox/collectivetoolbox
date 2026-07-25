@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE rss SYSTEM "http://my.netscape.com/publish/formats/rss-0.91.dtd">
+<rss version="0.91">
+<channel>
+<pubDate>Thu, 08 Jul 1999 07:00:00 GMT</pubDate>
+<lastBuildDate>Thu, 08 Jul 1999 16:20:26 GMT</lastBuildDate>
+<docs>http://example.com/url</docs>
+<description>Example Netscape-style RSS 0.91.</description>
+<link>http://www.example.com/</link>
+<title>Example example</title>
+<image>
+<link>http://www.example.com/</link>
+<title>Example example</title>
+<url>http://www.example.com/gifs/example.gif</url>
+<height>40</height>
+<width>78</width>
+<description>Example example? Example!</description>
+</image>
+<managingEditor>example@example.com (Example Name)</managingEditor>
+<webMaster>example@example.com (Example Name)</webMaster>
+<language>en-us</language>
+<item>
+<title>Example</title>
+<link>http://example.com</link>
+<description>Example</description>
+</item>
+</channel>
+</rss>

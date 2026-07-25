@@ -1,0 +1,236 @@
+/* Base Web Component Shadow DOM reset/functional styles */
+:host(.no-transition),
+:host(.no-transition) *,
+:host(.no-transition) ::slotted(*) {
+    transition: none;
+}
+
+/* Light DOM reset for loading/transition state */
+ctb-button.no-transition,
+ctb-button.no-transition * {
+    transition: none;
+}
+
+:host {
+    all: initial;
+    color: inherit;
+    color-scheme: inherit;
+    display: inline-block;
+    position: relative;
+    border-radius: var(--ctb-btn-border-radius, 24px);
+    box-sizing: border-box;
+    vertical-align: middle;
+    height: var(--ctb-btn-height, 48px);
+    outline: transparent 0 solid;
+    border: var(--ctb-btn-border, none);
+
+    /* Component defaults via CSS variables */
+    --ctb-btn-font-family: var(--sans-serif);
+    --ctb-btn-font-size: 16px;
+    --ctb-btn-font-weight: 500;
+    --ctb-btn-color: var(--foreground);
+}
+
+:host([multiline]) {
+    height: auto;
+    min-height: var(--ctb-btn-height, 48px);
+}
+
+:host([multiline]) .ctb-btn-container {
+    height: auto;
+    min-height: inherit;
+}
+
+:host([multiline]) ::slotted(a),
+:host([multiline]) ::slotted(button),
+:host([multiline]) ::slotted(label) {
+    height: auto;
+    min-height: inherit;
+}
+
+:host([ready]) {
+    transition: none;
+}
+
+:host([ready][icon-only]) {
+    width: var(--ctb-btn-height, 48px);
+}
+
+:host([ready][icon-only]) ::slotted(a), :host([ready][icon-only]) ::slotted(button) {
+    padding: 0;
+}
+
+.ctb-btn-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+:host([ready]) ::slotted(a), :host([ready]) ::slotted(button), :host([ready]) ::slotted(label) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ctb-btn-gap, 0.5rem);
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    margin: 0;
+    padding: var(--ctb-btn-padding, 12px 24px);
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-family: var(--ctb-btn-font-family, inherit);
+    font-size: var(--ctb-btn-font-size, 16px);
+    font-weight: var(--ctb-btn-font-weight, 500);
+    line-height: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    outline: none;
+    box-shadow: none;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+::slotted(input[type="radio"]) {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+/* Selected / Active State */
+:host([ready][selected]) {
+    background-color: #e9e9e9;
+    color: inherit;
+    border-color: #8d8d8d;
+    box-shadow: none;
+}
+
+/* Disabled State */
+:host([ready][disabled]) {
+    cursor: not-allowed;
+    opacity: 0.65;
+    pointer-events: none;
+    box-shadow: none;
+}
+:host([ready][disabled]) ::slotted(a), :host([ready][disabled]) ::slotted(button), :host([ready][disabled]) ::slotted(label) {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Focus Styling */
+:host([ready]:focus-within) {
+    outline-offset: calc(var(--focusRingWidth) * -1);
+    outline: var(--focusRingWidth) solid var(--focusRingColor);
+    box-shadow: none;
+}
+
+/* Fallback styling for progressive enhancement (when JS is disabled/not loaded) */
+ctb-button:not(:defined) {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+ctb-button:not(:defined) > a,
+ctb-button:not(:defined) > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-sizing: border-box;
+    cursor: pointer;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: var(--ctb-btn-font-family);
+    font-size: var(--ctb-btn-font-size);
+    font-weight: var(--ctb-btn-font-weight);
+    transition: none;
+    height: var(--ctb-btn-height, 48px);
+}
+
+/* Fallback for icon-only buttons when JS is disabled */
+ctb-button:not([ready]) > a:has(> img:only-child):not(.btn-link),
+ctb-button:not([ready]) > button:has(> img:only-child):not(.btn-link),
+.btn:has(> img:only-child):not(.btn-link):not(ctb-button[ready] *),
+button:not([type="radio"]):not([type="checkbox"]):has(> img:only-child):not(.btn-link):not(ctb-button[ready] *) {
+    width: var(--ctb-btn-height, 48px);
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* Fallback focus outline styling */
+.btn:not(.btn-link):focus-visible,
+button:not([type="radio"]):not([type="checkbox"]):not(.btn-link):focus-visible,
+input[type="file"]::file-selector-button:focus-visible {
+    outline-offset: calc(var(--focusRingWidth) * -1);
+    outline: var(--focusRingWidth) solid var(--focusRingColor);
+    box-shadow: none;
+}
+
+input[type="file"]::file-selector-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-family: var(--ctb-btn-font-family, inherit);
+    font-size: var(--ctb-btn-font-size, 16px);
+    font-weight: var(--ctb-btn-font-weight, 500);
+    transition: none;
+    height: var(--ctb-btn-height, 48px);
+    border: none;
+    background: transparent;
+    color: var(--ctb-btn-color);
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Light DOM styling for upgraded button elements and slotted elements to override global/Tailwind resets */
+ctb-button[ready] {
+    border: var(--ctb-btn-border, none);
+}
+
+ctb-button[ready] > a,
+ctb-button[ready] > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ctb-btn-gap, 0.5rem);
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    margin: 0;
+    padding: var(--ctb-btn-padding, 12px 24px);
+    background: transparent;
+    border: none;
+    color: var(--ctb-btn-color);
+    font-family: var(--ctb-btn-font-family, inherit);
+    font-size: var(--ctb-btn-font-size, 16px);
+    font-weight: var(--ctb-btn-font-weight, 500);
+    line-height: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    outline: none;
+    box-shadow: none;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+ctb-button[ready][multiline] > a,
+ctb-button[ready][multiline] > button {
+    height: auto;
+    min-height: inherit;
+}
+
+
+

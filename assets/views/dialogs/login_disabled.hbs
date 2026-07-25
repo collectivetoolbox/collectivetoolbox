@@ -1,0 +1,21 @@
+<div class="w-full h-full mx-auto flex flex-col justify-evenly content-center items-center">
+    {{#if serve_public_web_site_only}}
+    <p>
+        Login is currently unavailable. In the meantime, why not <a href="/subscribe" class="link-external" target="_blank">sign up for our mailing list?</A>
+    </p>
+    {{else}}
+    Login is currently disabled in PC settings. To enable login, please go to the PC settings page.
+    {{/if}}
+
+    <a href="/" class="btn">
+        {{> icons._icon name="home" alt="" }}
+        <span>Back Home</span>
+    </a>
+
+    <br><br>
+
+    <a href="/pc-settings" class="btn">
+        {{> icons._icon name="settings" alt="" }}
+        <span>PC Settings</span>
+    </a>
+</div>

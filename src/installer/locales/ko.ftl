@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = 설치 마법사에 오신 것을 환영합니다
+theme = 테마:
+theme-auto = 🔄 자동 감지
+theme-light = ☀ 밝게
+theme-dark = 🌙 어둡게
+quick-install = 빠른 설치
+customize = 사용자 지정...
+quick-install-prompt = 기본 설정으로 빠른 설치를 사용하시겠습니까?
+read-license-button = 전체 라이선스 텍스트 읽기...
+read-license-prompt = (또는 'l'을 눌러 전체 라이선스 텍스트 읽기):
+license-header = 라이선스
+press-enter-to-return = Enter 키를 눌러 되돌아가기...
+press-enter-to-continue = Enter 키를 눌러 계속하기...
+pager-continue = -- 더 보기 -- (Enter로 계속, q로 종료):
+intro-invalid-input = 라이선스를 보려면 ‘y’ 또는 ‘n’, 또는 'l'을 입력하십시오.
+prompt-invalid-yes-or-no = 'y' 또는 'n'을 입력하세요.
+prompt-enter-choice = 선택 입력 [1-{ $choice }, 기본값={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = 설치 옵션
+install-dir = 설치 디렉터리:
+storage-dir = 저장소 디렉터리:
+add-to-start-menu = 시작 메뉴에 추가:
+add-to-dock = 도크에 추가:
+add-desktop-shortcut = 바탕화면 아이콘 생성:
+add-to-path = PATH에 추가:
+language = 언어 🌏︎:
+storage-dir-note = 참고: 저장소 디렉터리는 데이터베이스, 로그 및 사용자 데이터에 사용됩니다. 충분한 디스크 공간이 있는지 확인하세요.
+browse = 찾아보기...
+options-configured = 옵션이 성공적으로 구성되었습니다.
+parent-directory-not-exists = 경고: 상위 디렉터리 '{ $path }'가 존재하지 않습니다.
+create-dir-during-installation = 설치 중에 생성하시겠습니까?
+enter-number-range = 1부터 { $max } 사이의 숫자를 입력하세요.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = 위치 선택
+file-picker-select-folder = 폴더 선택
+file-picker-select-file = 파일 선택
+file-picker-save-file = 파일 저장
+file-picker-back = 뒤로 (Alt+B)
+file-picker-forward = 앞으로 (Alt+F)
+file-picker-up = 위로 (Alt+U)
+file-picker-refresh = 새로 고침 (Alt+R)
+file-picker-new-folder = 새 폴더 (Alt+N)
+file-picker-create = 만들기 (Alt+E)
+file-picker-cancel-new-folder = 취소 (Alt+A)
+file-picker-more-menu = 더... (Alt+H)
+file-picker-show-hidden = 숨김 파일 표시 (Alt+H)
+file-picker-path = 경로:
+file-picker-file-name = 파일 이름:
+file-picker-places = 위치
+file-picker-home = 홈
+file-picker-desktop = 바탕 화면
+file-picker-documents = 문서
+file-picker-downloads = 다운로드
+file-picker-this-pc = 이 PC
+file-picker-empty = (비어 있음)
+file-picker-invalid-path = 잘못된 경로: { $path }
+file-picker-folder-exists = '{ $name }'이(가) 이미 존재합니다
+file-picker-create-folder-failed = 폴더 생성 실패: { $error }
+file-picker-folder-name-empty = 폴더 이름은 비워 둘 수 없습니다
+file-picker-ok = 확인 (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = 구성 요소 선택
+components-instruction = 설치할 구성 요소를 선택하세요:
+complete = 전체
+complete-tooltip = 전체 설치를 위해 모든 선택적 구성 요소 선택
+minimal = 최소
+minimal-tooltip = 최소 설치를 위해 필수 구성 요소만 선택
+selected-size = 선택됨: { $selected } (전체 { $total } 중)
+storage-space-note = 이 파일 크기는 응용 프로그램 자체에 필요한 저장 공간을 반영합니다. 사용자의 문서는 추가 공간을 차지합니다. 필요한 공간이 확실하지 않으면 최소 20GB의 여유 공간을 권장합니다.
+required = (필수)
+toggle-prompt = 전환할 구성 요소 번호를 입력하세요:
+option-toggle = 전환
+option-continue = 계속
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = 설치 중...
+overall-progress = 전체 진행률: { $completed }/{ $total } 파일
+current-file = 현재 파일: { $path }
+chunk-progress = 청크 { $current }/{ $total }
+installation-log = 설치 로그:
+starting-installation = 설치를 시작합니다...
+downloading-file = 다운로드 중: { $path } ({ $chunks } 청크)
+downloading-chunk = 청크 { $current }/{ $total } 다운로드 중...
+using-cached-chunk = 캐시된 청크 { $current }/{ $total } 사용 중
+file-installed = 설치됨: { $path } ({ $size } 바이트)
+retry-error = 재시도 { $attempt }/{ $max }: { $message }
+error = 오류: { $message }
+retry = 재시도
+cancel = 취소
+installation-complete-count = 설치 완료: { $count }개 파일이 설치되었습니다.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = 설치 완료!
+install-success = { $app }이(가) 성공적으로 설치되었습니다.
+quick-install-success = { $app }이(가) 성공적으로 설치되었습니다.
+launch-after-install = 닫은 후 { $app } 실행
+finish = 완료
+summary = 요약:
+start-menu-shortcut = 시작 메뉴 바로 가기: { $value }
+dock-shortcut = 도크 바로 가기: { $value }
+desktop-shortcut = 바탕화면 바로가기: { $value }
+added-to-path = PATH에 추가됨: { $value }
+yes = 예
+no = 아니오
+launch-now-prompt = 지금 { $app }을(를) 실행하시겠습니까?
+launching = { $app }을(를) 실행하는 중...
+thank-you = { $app }을(를) 설치해 주셔서 감사합니다!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = 설치 복구
+repair-description = 설치를 확인하고 복구합니다. 누락되거나 손상된 파일은 다시 다운로드됩니다.
+current-installation = 현재 설치:
+location = 위치: { $path }
+start-repair = 복구 시작
+starting-repair = 복구를 시작합니다...
+continue-repair-prompt = 복구를 계속하시겠습니까?
+repair-cancelled = 복구가 취소되었습니다.
+repair-complete = 복구 완료!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = { $app } 제거
+uninstall-warning = 경고: 시스템에서 응용 프로그램이 제거됩니다.
+will-be-removed = 다음 항목이 제거됩니다:
+application-files = 응용 프로그램 파일: { $path }
+desktop-shortcuts = 바로 가기 (시작 메뉴/도크 및 바탕 화면)
+path-modifications = PATH 수정
+data-not-removed = 참고: 데이터 파일은 제거되지 않습니다.
+data-location = 데이터 위치: { $path }
+uninstall = 제거
+starting-uninstall = 제거를 시작합니다...
+confirm-uninstall-prompt = 정말로 제거하시겠습니까?
+uninstall-cancelled = 제거가 취소되었습니다.
+removing-files = 파일 제거 중...
+uninstall-complete = { $app }이(가) 제거되었습니다.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← 뒤로
+next = 다음 →
+install = 설치 →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = 이 마법사가 설치 과정을 안내합니다. 설치 옵션을 사용자 지정하거나 기본값을 사용할 수 있습니다.
+unattended-mode = 무인 모드로 실행 중 - 기본값을 사용합니다.
+yes-no-help = 'y' 또는 'n'을 입력하세요.
+number-choice-help = 1에서 { $max } 사이의 숫자를 입력하세요.
+what-to-do = 무엇을 하시겠습니까?
+parent-dir-warning = 경고: 상위 디렉터리 '{ $path }'이(가) 존재하지 않습니다.
+create-dir-prompt = 설치 중에 생성하시겠습니까?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } 설치 프로그램
+window-repair = { $app } - 복구
+window-uninstall = { $app } - 제거

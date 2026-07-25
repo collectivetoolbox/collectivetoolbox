@@ -1,0 +1,15 @@
+[package]
+name = "ctb-renderer"
+edition = "2024"
+
+[lib]
+path="renderer.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+
+serde = "1.0.228"
+
+[lints]
+workspace = true

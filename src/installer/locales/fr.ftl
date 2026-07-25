@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Bienvenue dans l'assistant d'installation
+theme = Thème :
+theme-auto = 🔄 Détection automatique
+theme-light = ☀ Clair
+theme-dark = 🌙 Sombre
+quick-install = Installation rapide
+customize = Personnaliser...
+quick-install-prompt = Utiliser l'installation rapide avec les paramètres par défaut ?
+read-license-button = Lire le texte complet de la licence...
+read-license-prompt = (ou 'l' pour lire le texte complet de la licence) :
+license-header = Licence
+press-enter-to-return = Appuyez sur Entrée pour revenir...
+press-enter-to-continue = Appuyez sur Entrée pour continuer...
+pager-continue = -- Plus -- (Entrée pour continuer, q pour fermer) :
+intro-invalid-input = Veuillez entrer 'y' ou 'n', ou 'l' pour la licence.
+prompt-invalid-yes-or-no = Veuillez entrer 'o' ou 'n'.
+prompt-enter-choice = Entrez le choix [1-{ $choice }, défaut={ $default }] :
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Options d'installation
+install-dir = Répertoire d'installation :
+storage-dir = Répertoire de stockage :
+add-to-start-menu = Ajouter au menu Démarrer :
+add-to-dock = Ajouter au Dock :
+add-desktop-shortcut = Créer une icône sur le bureau :
+add-to-path = Ajouter au PATH :
+language = Langue 🌏︎ :
+storage-dir-note = Remarque : Le répertoire de stockage sera utilisé pour les bases de données, les journaux et les données utilisateur. Assurez-vous qu'il y a suffisamment d'espace disque disponible.
+browse = Parcourir...
+options-configured = Options configurées avec succès.
+parent-directory-not-exists = Attention : Le répertoire parent '{ $path }' n'existe pas.
+create-dir-during-installation = Le créer pendant l'installation ?
+enter-number-range = Veuillez entrer un nombre entre 1 et { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Sélectionnez l'emplacement
+file-picker-select-folder = Sélectionnez le dossier
+file-picker-select-file = Sélectionnez un fichier
+file-picker-save-file = Enregistrer le fichier
+file-picker-back = Retour (Alt+B)
+file-picker-forward = Avancer (Alt+F)
+file-picker-up = Haut (Alt+U)
+file-picker-refresh = Rafraîchir (Alt+R)
+file-picker-new-folder = Nouveau dossier (Alt+N)
+file-picker-create = Créer (Alt+E)
+file-picker-cancel-new-folder = Annuler (Alt+A)
+file-picker-more-menu = Plus... (Alt+M)
+file-picker-show-hidden = Afficher les fichiers cachés (Alt+H)
+file-picker-path = Chemin d'accès :
+file-picker-file-name = Nom du fichier :
+file-picker-places = Lieux
+file-picker-home = Domicile
+file-picker-desktop = Bureau
+file-picker-documents = Documents
+file-picker-downloads = Téléchargements
+file-picker-this-pc = Ce PC
+file-picker-empty = (vide)
+file-picker-invalid-path = Chemin d'accès invalide : { $path }
+file-picker-folder-exists = '{ $name }' existe déjà
+file-picker-create-folder-failed = Impossible de créer le dossier : { $error }
+file-picker-folder-name-empty = Le nom de dossier ne peut être vide
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Sélectionner les composants
+components-instruction = Choisissez les composants à installer :
+complete = Complète
+complete-tooltip = Sélectionner tous les composants optionnels pour une installation complète
+minimal = Minimale
+minimal-tooltip = Sélectionner uniquement les composants requis pour une installation minimale
+selected-size = Sélectionné : { $selected } (sur { $total } au total)
+storage-space-note = Ces tailles de fichiers reflètent l'espace de stockage nécessaire pour l'application elle-même. Vos propres documents occuperont de l'espace supplémentaire ; si vous n'êtes pas sûr de vos besoins, nous recommandons d'avoir au moins 20 Go de libre.
+required = (requis)
+toggle-prompt = Entrez le numéro du composant à basculer :
+option-toggle = Basculer
+option-continue = Continuer
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Installation en cours...
+overall-progress = Progression globale : { $completed }/{ $total } fichiers
+current-file = Fichier actuel : { $path }
+chunk-progress = Fragment { $current }/{ $total }
+installation-log = Journal d'installation :
+starting-installation = Démarrage de l'installation...
+downloading-file = Téléchargement : { $path } ({ $chunks } fragments)
+downloading-chunk = Téléchargement du fragment { $current }/{ $total }...
+using-cached-chunk = Utilisation du fragment en cache { $current }/{ $total }
+file-installed = Installé : { $path } ({ $size } octets)
+retry-error = Tentative { $attempt }/{ $max } : { $message }
+error = Erreur : { $message }
+retry = Réessayer
+cancel = Annuler
+installation-complete-count = Installation terminée : { $count } fichiers installés.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Installation terminée !
+install-success = { $app } a été installé avec succès.
+quick-install-success = { $app } a maintenant été installé avec succès.
+launch-after-install = Lancer { $app } après la fermeture
+finish = Terminer
+summary = Résumé :
+start-menu-shortcut = Raccourci dans le menu Démarrer : { $value }
+dock-shortcut = Raccourci dans le Dock : { $value }
+desktop-shortcut = Raccourci bureau : { $value }
+added-to-path = Ajouté au PATH : { $value }
+yes = Oui
+no = Non
+launch-now-prompt = Lancer { $app } maintenant ?
+launching = Lancement de { $app }...
+thank-you = Merci d'avoir installé { $app } !
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Réparer l'installation
+repair-description = Ceci vérifiera et réparera votre installation. Les fichiers manquants ou corrompus seront retéléchargés.
+current-installation = Installation actuelle :
+location = Emplacement : { $path }
+start-repair = Démarrer la réparation
+starting-repair = Démarrage de la réparation...
+continue-repair-prompt = Continuer avec la réparation ?
+repair-cancelled = Réparation annulée.
+repair-complete = Réparation terminée !
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Désinstaller { $app }
+uninstall-warning = Attention : Ceci supprimera l'application de votre système.
+will-be-removed = Les éléments suivants seront supprimés :
+application-files = Fichiers de l'application : { $path }
+desktop-shortcuts = Raccourcis (Menu Démarrer/Dock et Bureau)
+path-modifications = Modifications du PATH
+data-not-removed = Remarque : Vos fichiers de données ne seront PAS supprimés.
+data-location = Emplacement des données : { $path }
+uninstall = Désinstaller
+starting-uninstall = Démarrage de la désinstallation...
+confirm-uninstall-prompt = Êtes-vous sûr de vouloir désinstaller ?
+uninstall-cancelled = Désinstallation annulée.
+removing-files = Suppression des fichiers...
+uninstall-complete = { $app } a été désinstallé.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Retour
+next = Suivant →
+install = Installer →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Cet assistant vous guidera tout au long du processus d'installation. Vous pouvez personnaliser les options d'installation ou utiliser les valeurs par défaut.
+unattended-mode = Exécution en mode sans surveillance - utilisation des valeurs par défaut.
+yes-no-help = Veuillez entrer 'o' ou 'n'.
+number-choice-help = Veuillez entrer un nombre entre 1 et { $max }.
+what-to-do = Que souhaitez-vous faire ?
+parent-dir-warning = Attention : Le répertoire parent '{ $path }' n'existe pas.
+create-dir-prompt = Le créer pendant l'installation ?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Installateur { $app }
+window-repair = { $app } - Réparation
+window-uninstall = { $app } - Désinstallation

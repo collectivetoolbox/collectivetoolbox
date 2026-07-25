@@ -1,0 +1,20 @@
+[package]
+name = "ctb-formats-html"
+edition = "2024"
+
+[lib]
+path="html.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+html2text = "0.16.5"
+ammonia = "4"
+html-escape = "0.2.13"
+include_dir = { version = "0.7.4", features = ["glob"] }
+regex = "1.12.2"
+fancy-regex = "0.17.0"
+
+[lints]
+workspace = true

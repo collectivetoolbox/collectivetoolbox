@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+
+<rdf:RDF
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns="http://purl.org/rss/1.0/"
+>
+
+  <channel rdf:about="http://www.example.com/xml/news.rss">
+    <title>Example.com</title>
+    <link>http://example.com/pub</link>
+    <description>
+      Example.com features a example example example.
+    </description>
+
+    <image rdf:resource="http://example.com/universal/images/xml_tiny.gif" />
+    <items>
+      <rdf:Seq>
+        <rdf:li resource="http://example.com/pub/2000/08/09/xslt/xslt.html" />
+        <rdf:li resource="http://example.com/pub/2000/08/09/rdfdb/index.html" />
+      </rdf:Seq>
+    </items>
+
+  </channel>
+
+  <image rdf:about="http://example.com/universal/images/xml_tiny.gif">
+    <title>Example.com</title>
+    <link>http://www.example.com</link>
+    <url>http://example.com/universal/images/xml_tiny.gif</url>
+  </image>
+
+  <item rdf:about="http://example.com/pub/2000/08/09/xslt/xslt.html">
+    <title>Examples have Hard Line Wrapping</title>
+    <link>http://example.com/pub/2000/08/09/xslt/xslt.html</link>
+    <description>
+     This example has hard line wrapping. This example has hard line
+     wrapping. This example has hard line wrapping. This example has
+     hard line wrapping.
+    </description>
+  </item>
+
+  <item rdf:about="http://example.com/pub/2000/08/09/rdfdb/index.html">
+    <title>Examples are Fun!</title>
+    <link>http://example.com/pub/2000/08/09/rdfdb/index.html</link>
+    <description>
+     It's an example! Description! Ok, that's enough of that.
+    </description>
+  </item>
+
+</rdf:RDF>

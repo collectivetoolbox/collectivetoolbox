@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+mkdir -p built/src
+
+git archive HEAD -o built/src/src.zip
+HASH_SRC="$(guix hash built/src/src.zip)"
+
+tar -cf built/src/vendor.tar ./vendor
+HASH_VENDOR="$(guix hash built/src/vendor.tar)"
+
+cp packaging/guix/generated/ctoolbox-workspace-rust-crates.scm packaging/guix/generated/ctoolbox_1.scm
+template="$(<packaging/guix/ctoolbox.scm)"
+
+echo "${template//0placeholder1/"$HASH_SRC"}" >> packaging/guix/generated/ctoolbox_1.scm
+
+template="$(<packaging/guix/generated/ctoolbox_1.scm)"
+echo "${template//0placeholder2/"$HASH_VENDOR"}" > packaging/guix/generated/ctoolbox.scm
+rm packaging/guix/generated/ctoolbox_1.scm
+
+# Keep failed build directory:
+# Note that you may have to delete the retained directory from /tmp manually, if
+# later builds start failing.
+# guix build -K -f packaging/guix/generated/ctoolbox.scm
+guix build -f packaging/guix/generated/ctoolbox.scm
+
+rm built/src/vendor.tar

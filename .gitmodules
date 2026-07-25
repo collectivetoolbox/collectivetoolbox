@@ -1,0 +1,6 @@
+[submodule "vendor"]
+	path = vendor
+	url = https://gitlab.com/collectivetoolbox/ctb-c-vendored.git
+[submodule "packaging/homebrew-tap"]
+	path = packaging/homebrew-tap
+	url = https://github.com/collectivetoolbox/homebrew-tap

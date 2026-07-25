@@ -1,0 +1,89 @@
+r/an/dcaFromAscii an/content
+    assertIsByteArray an/content
+    new an/res
+    new n/l
+    set n/l count an/content
+    new n/c
+    set n/c 0
+    while lt n/c n/l
+        set an/res append an/res dcFromFormat 'ascii' anFromN get an/content n/c
+        set n/c add n/c 1
+    assertIsDcArray an/res
+    return an/res
+
+r/an/dcaToAscii an/content
+    assertIsDcArray an/content
+    new an/res
+    new n/l
+    set n/l count an/content
+    new n/c
+    set n/c 0
+    new an/temp
+    new n/dcAtIndex
+    while lt n/c n/l
+        set n/dcAtIndex get an/content n/c
+        set an/temp dcToFormat 'utf8' n/dcAtIndex
+        if arrNonempty an/temp
+            if isAsciiByte get an/temp 0
+                set an/res append an/res an/temp
+            else
+                exportWarningUnmappable n/c n/dcAtIndex
+        else
+            exportWarningUnmappable n/c n/dcAtIndex
+        set n/c add n/c 1
+    assertIsByteArray an/res
+    return an/res
+
+r/b/isAsciiByte n/n
+    new b/temp
+    set b/temp intIsBetween n/n 0 127
+    return b/temp
+
+r/b/asciiIsDigit n/n
+    new b/temp
+    set b/temp intIsBetween n/n 48 57
+    return b/temp
+
+r/b/asciiIsPrintable n/n
+    new b/temp
+    set b/temp intIsBetween n/n 32 126
+    return b/temp
+
+r/b/asciiIsSpace n/n
+    new b/temp
+    set b/temp eq n/n 32
+    return b/temp
+
+r/b/asciiIsNewline n/n
+    new b/t1
+    set b/t1 eq n/n 10
+    new b/t2
+    set b/t2 or b/t1 eq n/n 13
+    return b/t2
+
+r/b/asciiIsLetterUpper n/n
+    new b/temp
+    set b/temp intIsBetween n/n 65 90
+    return b/temp
+
+r/b/asciiIsLetterLower n/n
+    new b/temp
+    set b/temp intIsBetween n/n 97 122
+    return b/temp
+
+r/b/asciiIsLetter n/n
+    new b/temp
+    set b/temp asciiIsLetterLower n/n
+    set b/temp or b/temp asciiIsLetterUpper n/n
+    return b/temp
+
+r/b/asciiIsAlphanum n/n
+    new b/temp
+    set b/temp asciiIsLetter n/n
+    set b/temp or b/temp asciiIsDigit n/n
+    return b/temp
+
+r/an/crlf
+    new an/temp
+    set an/temp ( 13 10 )
+    return an/temp

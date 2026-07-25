@@ -1,0 +1,1 @@
+These tests currently rely on an external browser as a dependency. They are not required to build or use ctoolbox. I'd like to eventually get them to be runnable using a browser within Guix to minimize binary dependencies for all testing, but haven't looked into that yet.

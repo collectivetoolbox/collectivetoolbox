@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-wtf8"
+edition = "2024"
+
+[lib]
+path="wtf8.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-unicode = { path = "../unicode" }
+ctb-formats-utilities = { path = "../utilities" }
+
+[lints]
+workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "ctb-formats-lnk"
+edition = "2024"
+
+[lib]
+path="lnk.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+lnk = { version = "0.6.3", features = ["binwrite"] }
+binrw = "0.15"
+include_dir = { version = "0.7.4", features = ["glob"] }
+
+[lints]
+workspace = true

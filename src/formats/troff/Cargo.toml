@@ -1,0 +1,17 @@
+[package]
+name = "ctb-formats-troff"
+edition = "2024"
+
+[lib]
+path="troff.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+num_enum = "0.7.5"
+include_dir = { version = "0.7.4", features = ["glob"] }
+
+[lints]
+workspace = true

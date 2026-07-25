@@ -1,0 +1,18 @@
+[package]
+name = "ctb-formats-dctext"
+edition = "2024"
+
+[lib]
+path="dctext.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utf-8e-128 = { path = "../utf_8e_128" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-eite = { path = "../eite" }
+ctb-formats-utf8 = { path = "../utf8" }
+const-default = { version = "1.0", features = ["derive"] }
+
+[lints]
+workspace = true

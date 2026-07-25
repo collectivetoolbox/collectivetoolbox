@@ -1,0 +1,19 @@
+[build]
+# rustflags = ["--cfg", "tokio_unstable"]
+# You may need to adjust this depending on your system.
+# This is to avoid overloading the system when building.
+jobs = 6
+incremental = false
+
+[target.i586-unknown-linux-musl]
+linker = "scripts/i586-musl-gcc"
+
+[env]
+# Resolves 'scripts/i586-musl-gcc' relative to this config file
+CC_i586_unknown_linux_musl = { value = "scripts/i586-musl-gcc", relative = true }
+CC_x86_64_unknown_linux_musl = { value = "scripts/x86_64-musl-gcc", relative = true }
+
+PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-linux-musl" }
+PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_musl = { value = "/usr/include/x86_64-linux-musl" }
+
+

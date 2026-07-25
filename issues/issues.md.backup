@@ -1,0 +1,11 @@
+- [ ] Icons do not have consistent size (compare "Restart" and "Reload")
+- [ ] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
+  - [ ] Make the debug logging less of a footgun somehow?
+- [ ] Web UI: Errors should have a clear way of knowing whether they are serious errors that require a restart, or "normal" errors like password didn't match.
+- [ ] Implement collapse_filtered and collapse_only in base.rs
+- [ ] Add test for getting help function
+- [ ] Support for request logging
+- [ ] Record a build ID and expose it via --version
+- [ ] Register domain names?
+
+

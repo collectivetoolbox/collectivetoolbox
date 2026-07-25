@@ -1,0 +1,17 @@
+<form action="/nodes/create" method="POST" class="w-80 flex flex-col gap-4">
+    <textarea name="node_content"></textarea>
+    <div class="flex justify-between">
+        <a href="{{#if _request.back_url}}{{_request.back_url}}{{else}}/nodes{{/if}}" class="btn">
+            {{> icons._icon name="cancel" alt="" }}
+            <span>Cancel</span>
+        </a>
+        <button type="submit" class="btn-primary">
+            {{> icons._icon name="save" alt="" }}
+            <span>Save</span>
+        </button>
+        <select name="node_type">
+            <option value="data">Data</option>
+            <option value="statements">Statements</option>
+        </select>
+    </div>
+</form>

@@ -1,0 +1,23 @@
+[package]
+name = "ctb-formats-syndication"
+edition = "2024"
+
+[lib]
+path="syndication.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-html = { path = "../html" }
+ctb-formats-uri = { path = "../uri" }
+ctb-formats-utf8 = { path = "../utf8" }
+
+xml = "1.2.1"
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+chrono = "0.4.43"
+dateparser = "0.2.1"
+
+[lints]
+workspace = true

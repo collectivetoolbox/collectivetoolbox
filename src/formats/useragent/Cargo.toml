@@ -1,0 +1,19 @@
+[package]
+name = "ctb-formats-useragent"
+edition = "2024"
+
+[lib]
+path="useragent.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+ua-parser = "0.2.2"
+include_dir = { version = "0.7.4", features = ["glob"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml = "0.9.34"
+
+[lints]
+workspace = true

@@ -1,0 +1,20 @@
+[package]
+name = "ctb-workspace-x11-client-egui"
+edition = "2024"
+
+[lib]
+path="x11_client_egui.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-storage-minimal = { path = "../../storage/minimal" }
+ctb-workspace-x11-client = { path = "../x11_client" }
+
+egui = { version = "0.33.3", features = ["accesskit"], default-features = false }
+egui_software_backend = { path = "../../../vendor/egui_software_backend", features = [ "accesskit" ] }
+
+yaxi = { path = "../../../vendor/yaxi", features = [ "clipboard" ] }
+
+[lints]
+workspace = true

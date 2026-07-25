@@ -1,0 +1,73 @@
+- [ ] Adjust downloading source etc. to not require native support
+    - [ ] Use built in file browsing and selection for node upload, too, especially for big files. Can allow streaming import without needing to write to /tmp (which it sounds like may not be configured securely on some systems)
+- [ ] Implement installer - see installation.md
+- [ ] Other tasks from index.hbs
+- [ ] Will it fall over if the executable path/filename or the cache path contains invalid UTF-8?
+- [ ] Automatic updates
+    - [ ] Server serves a signed index file (JSON?) with an index of buzhash chunks in the current version and their checksums, as well as a whole-file checksum, and the version number
+    - [ ] If the server's version number is newer than the client's, the client downloads the index, verifies its signature, and compares its chunks against the server's
+    - [ ] If any chunks differ, client downloads them from the server
+    - [ ] Client reconstructs the whole new build and compares it against the whole-file checksum
+    - [ ] If the checksum matches, client moves it to a temp location and runs its build command and checks that the version number matches what the server says it's meant to be
+    - [ ] If that's all OK, the client runs it with command-line argument saying that it should wait until PID (of current running client) exits, and then replace the (path of current running client) with the updated build.
+    - [ ] Once the updated build has been copied into place, the temp-file-location copy that is running should start up the newly updated copy in its final location, with command-line argument telling it to delete the temp file
+    - [ ] More details in duck.ai_2025-09-06_16-10-56-updates.txt
+- [ ] The consequences are greater for mixing up one character with another when they are full documents. So, the use of L prefix and the subsequent id being simply a misused Dc is a bad idea. Instead, encode the subsequent id probably with base17b or however EITE did it, in the Unicode PUA with its own UUID. Maybe also include the *user* ID. Consider using a snowflake id or similar, because multiple offline sessions can’t generate unique consecutive IDs. Snowflake id isn’t long enough; 10-bit machine id would run out quickly when every new login would be a new “machine” in effect.
+- [ ] Local storage API
+    - [ ] Redb, probably
+- [ ] Built-in/self-sufficient GUI rendering. Later!
+- [ ] Graph implementation
+    - [ ] Local node creation
+    - [ ] Relationship types
+    - [ ] Relationships
+    - [ ] Revisions
+    - [ ] Attestations
+    - [ ] History page for a node
+        - [ ] Withdrawn and valid attestations
+        - [ ] Optionally shows its immediate relationships, and their withdrawn and valid attestations
+    - [ ] Relationship lookup indices
+    - [ ] Query system
+    - [ ] Graph-driven word stemming and search
+    - [ ] Import test data (sample subset of MusicBrainz?) and be able to make useful queries with it
+    - [ ] Multiple local graphs
+    - [ ] Ability to copy nodes from one graph to another
+        - [ ] With or without history, default to without - just applying the current state of all trusted attestations
+    - [ ] Graph collaboration over the network
+        - [ ] Attestation model: attestations could be signed by an identity; trusted attestations would be treated as valid. That would require indices to be fragmented across multiple untrusted clients.
+    - [ ] Local documents could depend on networked ones (from a shared library or other team members' private graphs)
+- [ ] Document editing
+    - [ ] For a normal document, editing would work by creating a node to represent the document, then subsequent edits would be separate nodes that contain revisions of it. The document could then be accessed from the original node id and the latest revision would be shown-this requires an index recording the current state of the graph as computed from all valid attestations.
+- [ ] Server-side storage API (for updates, user data, etc)
+    - [ ] Back it with Cloudflare R2?
+        - [ ] Server uploads to object storage, and keeps an index locally. API read requests would query the index, look up the object location, and return the URL in storage - traffic wouldn't need to pass through the server for reads, only writes.
+            - [ ] Does object storage have a way to grant a client write access to a single path, so all they'd do on the server side is get a one-time-use token, then write it themselves?
+    - [ ] User data read/writes would need an authenticated session, scoped to the user who owns the data
+        - [ ] Facility for users to share some data with others, separate from their own app backup/sync, would be needed:
+            - [ ] Scoped, somehow: a user sharing something shouldn't then let it be re-shared.
+            - [ ] Probably start by implementing teams, so data would be available within a team.
+            - [ ] Asynchronous: Need to be able to collaborate. Storage API would need to be low enough latency for CRDTs to not be laggy.
+            - [ ] Anything like this that relies on server sync will probably need some thought put into spam/misuse prevention, no matter how it's metered or managed
+    - [ ] App updates would *not* need an authenticated session.
+- [ ] How can clients talk to each other when two clients are online and need to communicate, without $$$ server bandwidth?
+    - [ ] STUN and TURN servers?
+        - [ ] These relay traffic between NATed WebRTC clients.
+        - [ ] How to ensure it's authenticated and only used for the app?
+    - [ ] API for negotiation of what other clients are available to connect to.
+        - [ ] Pools of online clients by microservice and/or user's team? Like a Zoom meeting.
+            - [ ] E.g. app update bandwidth sharing could get a pool (like Windows Update), when a client hits it, it would receive a list of other clients it could connect connect to.
+            - [ ] Again, API authentication
+    - [ ] Once clients are connected between each other, they'd need some sort of API for interacting with each other.
+    - [ ] Some way of making sure clients can't be disruptive of each other - libre software, so even with authentication and only paid users I can imagine there would be some people with accidental or even malicious clients
+- [ ] Insert permission system for a shared reference library?
+    - [ ] Metered, paid, can of worms
+- [ ] What if users need to talk to outside services?
+    - [ ] This would need something like Tailscale (viz. WebVM/CheerpX)
+    - [ ] Another metered, paid can of worms
+- [ ] Anything else needed to use Web+v86 (or other emulation) as a desktop-equivalent platform?
+- [ ] HIBP+https://github.com/zxcvbn-ts/zxcvbn checks on registration/login/PW change? (on PW change, check both old and new and suggest change old if it was seen before) Full Pwned Passwords dataset could be 30+GB (largest record: hash prefix 00000, converting suffixes to bytes = 28753 bytes * (16^5 prefixes))
+- [ ] Screen-scraping malware (or just screenshotting) can capture user data inadvertently. Since it would have its own screenshot tool, is there a way when using Wayland to blank out relevant regions of the window (when it's doing its own rendering) like Firefox does?
+- [ ] Consider storing keys additionally in OS keychain/credential vault for better UX with auto-unlock on login.
+- [ ] Use filesystem permissions; on Unix set 0700, on Windows apply ACLs for the user SID.
+
+    
+

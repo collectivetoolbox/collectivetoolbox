@@ -1,0 +1,13 @@
+[package]
+name = "ctb-formats-json"
+edition = "2024"
+
+[lib]
+path="json.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+[lints]
+workspace = true

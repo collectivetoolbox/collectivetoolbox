@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-pdf"
+edition = "2024"
+
+[lib]
+path = "pdf.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+# unpdf = "0.7.0"
+include_dir = { version = "0.7.4", features = ["glob"] }
+
+[lints]
+workspace = true

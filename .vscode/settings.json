@@ -1,0 +1,18 @@
+{
+    "editor.wordWrap": "bounded",
+    "editor.rulers": [
+        80
+    ],
+    "telemetry.feedback.enabled": false,
+    "telemetry.editStats.enabled": false,
+    "files.watcherExclude": {
+        "**/vendor/ctb-vendored": true,
+        "**/vendor/x11/c_src": true
+    },
+    "search.exclude": {
+        "**/vendor/ctb-vendored": true,
+        "**/vendor/x11/c_src": true
+    },
+    "deno.enable": true,
+    "deno.config": "./deno.json"
+}

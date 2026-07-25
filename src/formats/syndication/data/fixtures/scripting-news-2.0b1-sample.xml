@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<scriptingNews>
+	<header>
+		<copyright>Copyright 1997-1999 Example.</copyright>
+		<scriptingNewsVersion>2.0b1</scriptingNewsVersion>
+		<pubDate>Thu, 02 Sep 1999 07:00:00 GMT</pubDate>
+		<lastBuildDate>Fri, 03 Sep 1999 02:01:40 GMT</lastBuildDate>
+		<docs>http://www.example.com/example</docs>
+		<channelDescription>Example description.</channelDescription>
+		<channelLink>http://www.example.com/</channelLink>
+		<channelTitle>Example Channel</channelTitle>
+		<imageLink>http://www.example.com/</imageLink>
+		<imageTitle>Example Channel</imageTitle>
+		<imageUrl>http://www.example.com/gifs/example.gif</imageUrl>
+		<managingEditor>example@example.com (Example Name)</managingEditor>
+		<webmaster>example@example.com (Example Name)</webmaster>
+		<language>en-US</language>
+		<imageHeight>40</imageHeight>
+		<imageWidth>78</imageWidth>
+		<imageCaption>Exapmle example</imageCaption>
+	</header>
+	<item>
+		<text>The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem &lt;i&gt;ipsum&lt;/i&gt;.</text>
+		<link>
+			<url>http://www.example.com/stories/1234</url>
+			<linetext>Example example</linetext>
+		</link>
+	</item>
+	<item>
+		<text>Example example!</text>
+		<link>
+			<url>http://www.example.com/1234</url>
+			<linetext>Example example</linetext>
+		</link>
+	</item>
+	<item>
+		<text>The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum.</text>
+		<link>
+			<url>http://www.example.org/xml/</url>
+			<linetext>Other Example</linetext>
+		</link>
+	</item>
+</scriptingNews>

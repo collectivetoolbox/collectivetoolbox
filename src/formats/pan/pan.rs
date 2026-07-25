@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: MIT */
+
+//! Pan-format helpers used by formatting functions.
+
+/* The files in this pan crate are mostly LLM-generated, so may not be copyrightable, but for the avoidance of doubt:
+Copyright © 2026 Collective Toolbox Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
+
+use include_dir::{Dir, include_dir};
+
+/// Array-related formatting helpers.
+pub mod array;
+/// Date formatting and parsing helpers.
+pub mod date;
+/// Miscellaneous helpers.
+pub mod functions;
+/// Math and numeric helpers.
+pub mod math;
+/// Output parsed database to other formats.
+pub mod output;
+/// Parser for .pan files.
+pub mod parser;
+/// String manipulation helpers.
+pub mod string;
+/// Time formatting and parsing helpers.
+pub mod time;
+
+static PAN_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+pub(crate) fn get_pan_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&PAN_DATA_DIR, key)
+}
+
+#[cfg(test)]
+mod tests {}

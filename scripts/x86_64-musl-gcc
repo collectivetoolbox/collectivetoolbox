@@ -1,0 +1,4 @@
+#!/bin/sh
+
+script_folder=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+"$script_folder/musl-gcc" --x86_64 "$@"

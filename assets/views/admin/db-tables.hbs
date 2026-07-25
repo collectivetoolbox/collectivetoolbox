@@ -1,0 +1,32 @@
+<div class="flex flex-col gap-4">
+    <h2>Database Tables</h2>
+
+    <div class="flex flex-col gap-2 mb-4">
+        <h3>Select Database</h3>
+        <div class="flex flex-wrap gap-2">
+            {{#each databases}}
+                {{#if this.is_active}}
+                    <button type="button" class="btn btn-primary" disabled>{{this.name}}</button>
+                {{else}}
+                    <a href="/debug/db-tables?db_name={{this.name}}" class="btn btn-secondary">{{this.name}}</a>
+                {{/if}}
+            {{/each}}
+        </div>
+    </div>
+
+    <h3>Tables in: <code>{{current_db}}</code></h3>
+    <ul class="flex flex-col gap-2">
+        {{#each tables}}
+            <li>
+                <a href="/debug/db-tables/{{this}}?db_name={{../current_db}}" class="link"><code>{{this}}</code></a>
+            </li>
+        {{/each}}
+    </ul>
+    <div class="flex justify-start mt-4">
+        <a href="/home" class="btn btn-secondary">
+            {{> icons._icon name="arrow-left" alt="" }}
+            <span>Back to Home</span>
+        </a>
+    </div>
+</div>
+

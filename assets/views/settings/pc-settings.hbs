@@ -1,0 +1,417 @@
+<div class="w-full h-full mx-auto flex flex-col justify-evenly content-center items-center">
+    <p>
+        PC settings: These options apply to all users on this computer.
+    </p>
+    <form action="/pc-settings" method="POST" class="w-80 flex flex-col gap-4">
+        <table>
+            <tbody>
+                <tr class="border-b-[1rem] border-b-transparent">
+                    <td>
+                        <label>Show users on login screen:</label>
+                    </td>
+                    <td>
+                        <input type="radio" name="show_users" id="show_users_true" class="w-full ml-2" value="true"
+                            {{#if show_users }} checked {{/if}}>
+                        <label for="show_users_true">Yes</label>
+                        <input type="radio" name="show_users" id="show_users_false" class="w-full ml-2" value="false"
+                            {{#unless show_users }} checked {{/unless}}>
+                        <label for="show_users_false">No</label>
+                        <label class="ml-2">
+                            <input type="checkbox" name="show_users_default" class="form-default-adjacent"
+                                {{#if show_users_default }} checked {{/if}}>
+                            Default
+                        </label>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <details>
+            <summary>Settings for running the service</summary>
+            <p>
+                These settings are used by the main {{official_application_name}} website, which itself is hosted by the same
+                binary as the main application.
+            </p>
+            <p>
+                However, {{official_application_name}} is meant to be used with the official server instance, so using these
+                settings yourself will most likely always be UNSUPPORTED.
+            </p>
+            <table>
+                <tbody>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Bind to IP:</label>
+                        </td>
+                        <td>
+                            <input type="text" name="bind_to_ip" class="w-full ml-2" value="{{ bind_to_ip }}"
+                                regex="{{ bind_to_ip_regex }}">
+                            <label class="ml-2">
+                                <input type="checkbox" name="bind_to_ip_default" class="form-default-adjacent"
+                                    {{#if bind_to_ip_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Server URL:</label>
+                        </td>
+                        <td>
+                            <input type="text" name="server_url" class="w-full ml-2" value="{{ server_url }}">
+                            <label class="ml-2">
+                                <input type="checkbox" name="server_url_default" class="form-default-adjacent"
+                                    {{#if server_url_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Domain name:</label>
+                        </td>
+                        <td>
+                            <input type="text" name="domain_name" class="w-full ml-2" value="{{ domain_name }}">
+                            <label class="ml-2">
+                                <input type="checkbox" name="domain_name_default" class="form-default-adjacent"
+                                    {{#if domain_name_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Fixed HTTP port number, to make the web UI listen on a specific port:</label>
+                        </td>
+                        <td>
+                            <input type="number" name="fixed_http_port" class="w-full ml-2"
+                                value="{{ fixed_http_port }}" min="0" max="65535">
+                            <label class="ml-2">
+                                <input type="checkbox" name="fixed_http_port_default" class="form-default-adjacent"
+                                    {{#if fixed_http_port_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Fixed HTTPS port number, to make the web UI listen on a specific port:</label>
+                        </td>
+                        <td>
+                            <input type="number" name="fixed_https_port" class="w-full ml-2"
+                                value="{{ fixed_https_port }}" min="0" max="65535">
+                            <label class="ml-2">
+                                <input type="checkbox" name="fixed_https_port_default" class="form-default-adjacent"
+                                    {{#if fixed_https_port_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>HTTP redirect:<br>When HTTPS is configured, tries to start an HTTP server on the
+                                fixed HTTP port (80) to redirect to HTTPS.</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="http_redirect" id="http_redirect_true" class="w-full ml-2"
+                                value="true" {{#if http_redirect }} checked {{/if}}>
+                            <label for="http_redirect_true">Yes</label>
+                            <input type="radio" name="http_redirect" id="http_redirect_false" class="w-full ml-2"
+                                value="false" {{#unless http_redirect }} checked {{/unless}}>
+                            <label for="http_redirect_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="http_redirect_default" class="form-default-adjacent"
+                                    {{#if http_redirect_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Redirect www. to non-www:<br>When enabled, requests to hosts starting with
+                                <code>www.</code> are redirected to the equivalent host without it.</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="redirect_www_to_non_www" id="redirect_www_to_non_www_true" class="w-full ml-2"
+                                value="true" {{#if redirect_www_to_non_www }} checked {{/if}}>
+                            <label for="redirect_www_to_non_www_true">Yes</label>
+                            <input type="radio" name="redirect_www_to_non_www" id="redirect_www_to_non_www_false" class="w-full ml-2"
+                                value="false" {{#unless redirect_www_to_non_www }} checked {{/unless}}>
+                            <label for="redirect_www_to_non_www_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="redirect_www_to_non_www_default" class="form-default-adjacent"
+                                    {{#if redirect_www_to_non_www_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>TLS Certificate:<br><small>The certificate shown here may be different from the one
+                                    used for the final connection when using Cloudflare or similar CDNs.</small></label>
+                        </td>
+                        <td>
+                            <textarea name="tls_certificate" class="w-full ml-2"
+                                rows="5">{{ tls_certificate }}</textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="tls_certificate_default" class="form-default-adjacent"
+                                    {{#if tls_certificate_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>TLS Private Key:</label>
+                        </td>
+                        <td>
+                            {{#if tls_private_key_set }}
+                            Key is already set. Entering a new key will replace the existing one.
+                            {{/if}}
+                            <textarea name="tls_private_key" class="w-full ml-2" rows="5"></textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="tls_private_key_default" class="form-default-adjacent"
+                                    {{#if tls_private_key_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>TLS Client Verification Certificate:<br><small>Verify that incoming requests are signed with this certificate, for instance for ensuring that all requests are coming from a CDN provider.</small></label>
+                        </td>
+                        <td>
+                            <textarea name="tls_client_verification_cert" class="w-full ml-2"
+                                rows="5">{{ tls_client_verification_cert }}</textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="tls_client_verification_cert_default" class="form-default-adjacent"
+                                    {{#if tls_client_verification_cert_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    {{! **Evaluation: `release_public_key` vs `dev_signing_public_key`**
+
+After reviewing the codebase, these **should remain separate settings**. Here's why:
+
+1. **Different deployment contexts:**
+   - `dev_signing_public_key` is stored **alongside the private key** on the developer machine for convenience (so the dev can verify their own signatures locally)
+   - `release_public_key` is configured on **production servers** that receive and serve releases but should never have access to the private key
+
+2. **Different trust models:**
+   - On a dev machine, both keys exist together for signing and self-verification
+   - On a server, only the public key exists for verification of uploaded releases
+   - On client installations, only a public key is needed to verify downloads
+
+3. **Key rotation support:** The implementation plan mentions key rotation with `revoked_key_ids`. Having separate settings allows:
+   - Dev machine to have the current signing keypair
+   - Servers to have multiple trusted public keys configured during rotation periods
+   - Different instances to trust different keys if needed
+
+4. **Security principle:** The separation enforces that `dev_signing_private_key` + `dev_signing_public_key` are a matched pair on the dev side, while `release_public_key` is explicitly the "verification-only" key for production.
+
+**Recommendation:** Keep both settings. The naming could be clearer—consider renaming to `signing_public_key` (for dev) and `verification_public_key` (for server/client), but the current separation is architecturally correct.
+                    }}
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Dev signing public key:</small></label>
+                        </td>
+                        <td>
+                            <textarea name="dev_signing_public_key" class="w-full ml-2"
+                                rows="5">{{ dev_signing_public_key }}</textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="dev_signing_public_key_default" class="form-default-adjacent"
+                                    {{#if dev_signing_public_key_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Dev signing private key:</label>
+                        </td>
+                        <td>
+                            {{#if dev_signing_private_key_set }}
+                            Key is already set. Entering a new key will replace the existing one.
+                            {{/if}}
+                            <textarea name="dev_signing_private_key" class="w-full ml-2" rows="5"></textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="dev_signing_private_key_default" class="form-default-adjacent"
+                                    {{#if dev_signing_private_key_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Release public key:</small></label>
+                        </td>
+                        <td>
+                            <textarea name="release_public_key" class="w-full ml-2"
+                                rows="5">{{ release_public_key }}</textarea>
+                            <label class="ml-2">
+                                <input type="checkbox" name="release_public_key_default" class="form-default-adjacent"
+                                    {{#if release_public_key_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    {{#if show_users }}
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Set admin users (prevents editing settings on this page without being logged in as
+                                one of these users; once set, can't be unset without being logged in as an
+                                admin):</label>
+                        </td>
+                        <td>
+                            <ul>
+                                {{#each users}}
+                                <li>
+                                    <label>
+                                        <input type="checkbox" name="admin_users" value="{{this.local_id}}" {{#if
+                                            this.admin}} checked {{/if}}>
+                                        {{#if this.display_name}}
+                                        {{this.display_name}}
+                                        {{else}}
+                                        {{this.username}}
+                                        {{/if}}
+                                    </label>
+                                </li>
+                                {{/each}}
+                            </ul>
+                        </td>
+                    </tr>
+                    {{/if}}
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Serve public web site only:</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="serve_public_web_site_only" id="serve_public_web_site_only_true" class="w-full ml-2" value="true"
+                                {{#if serve_public_web_site_only }} checked {{/if}}>
+                            <label for="serve_public_web_site_only_true">Yes</label>
+                            <input type="radio" name="serve_public_web_site_only" id="serve_public_web_site_only_false" class="w-full ml-2"
+                                value="false" {{#unless serve_public_web_site_only }} checked {{/unless}}>
+                            <label for="serve_public_web_site_only_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="serve_public_web_site_only_default" class="form-default-adjacent"
+                                    {{#if serve_public_web_site_only_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Log stack should include file writer even when running without debug
+                                assertions:</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="log_stack_file" id="log_stack_file_true" class="w-full ml-2"
+                                value="true" {{#if log_stack_file }} checked {{/if}}>
+                            <label for="log_stack_file_true">Yes</label>
+                            <input type="radio" name="log_stack_file" id="log_stack_file_false" class="w-full ml-2"
+                                value="false" {{#unless log_stack_file }} checked {{/unless}}>
+                            <label for="log_stack_file_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="log_stack_file_default" class="form-default-adjacent"
+                                    {{#if log_stack_file_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Log Web requests to separate file:</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="access_log_mode" id="access_log_mode_off" class="w-full ml-2"
+                                value="off" {{#if access_log_mode_off }} checked {{/if}}>
+                            <label for="access_log_mode_off">No</label>
+                            
+                            <input type="radio" name="access_log_mode" id="access_log_mode_errors" class="w-full ml-2"
+                                value="errors" {{#if access_log_mode_errors }} checked {{/if}}>
+                            <label for="access_log_mode_errors">Errors Only</label>
+                            
+                            <input type="radio" name="access_log_mode" id="access_log_mode_on" class="w-full ml-2"
+                                value="on" {{#if access_log_mode_on }} checked {{/if}}>
+                            <label for="access_log_mode_on">Yes (All)</label>
+                            
+                            <label class="ml-2">
+                                <input type="checkbox" name="access_log_mode_default" class="form-default-adjacent"
+                                    {{#if access_log_mode_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>
+                                {{#if admin_password_set }}
+                                Admin password to save changes:
+                                {{else}}
+                                Admin password to set:
+                                {{/if}}
+                            </label>
+                        </td>
+                        <td>
+                            <input type="password" name="admin_password" {{#if admin_password_set }} required {{/if}}
+                                class="w-full ml-2" value="">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h2>Feature flags</h2>
+            <table>
+                <tbody>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Login:</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="feature_login" id="feature_login_true" class="w-full ml-2"
+                                value="true" {{#if feature_login }} checked {{/if}}>
+                            <label for="feature_login_true">Yes</label>
+                            <input type="radio" name="feature_login" id="feature_login_false" class="w-full ml-2"
+                                value="false" {{#unless feature_login }} checked {{/unless}}>
+                            <label for="feature_login_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="feature_login_default" class="form-default-adjacent"
+                                    {{#if feature_login_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                        <td>
+                            <label>Registration:</label>
+                        </td>
+                        <td>
+                            <input type="radio" name="feature_registration" id="feature_registration_true"
+                                class="w-full ml-2" value="true" {{#if feature_registration }} checked {{/if}}>
+                            <label for="feature_registration_true">Yes</label>
+                            <input type="radio" name="feature_registration" id="feature_registration_false"
+                                class="w-full ml-2" value="false" {{#unless feature_registration }} checked {{/unless}}>
+                            <label for="feature_registration_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="feature_registration_default" class="form-default-adjacent"
+                                    {{#if feature_registration_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </details>
+        <div class="flex justify-between">
+            <a href="/" class="btn">
+                {{> icons._icon name="arrow-left" alt="" }}
+                <span>Cancel</span>
+            </a>
+            <button type="submit" class="btn-primary">
+                {{> icons._icon name="save" alt="" }}
+                <span>Save Changes</span>
+            </button>
+        </div>
+    </form>
+    <h2>About This Software</h2>
+    <p>Running {{ crate_name }} version {{ crate_version }}<br>
+        Built on {{ build_date }} from commit {{ commit }}<br>
+        <!-- TODO <a href="https:///" target="_blank" rel="noopener noreferrer">Website</a> -->
+    </p>
+</div>

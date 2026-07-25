@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+trap 'mv src/installer/locales/en-US.ftl.bak src/installer/locales/en-US.ftl' ERR
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+cd "$SCRIPT_DIR/.." || exit 1
+
+# Moving it won't work; it has to be copied because it will error with "Downloaded translations don't match the current project configuration." if the source file does not exist.
+cp src/installer/locales/en-US.ftl src/installer/locales/en-US.ftl.bak
+crowdin download
+mv src/installer/locales/en-US.ftl.bak src/installer/locales/en-US.ftl
+
+# In all files in src/installer/locales that aren't en-US.ftl, delete lines beginning with
+# `# English (US) - Primary translation file for`
+# and
+# `# This is the reference file`.
+
+find src/installer/locales -type f ! -name "en-US.ftl" -exec sed -i '/^# English (US) - Primary translation file for/d' {} + -exec sed -i '/^# This is the reference file/d' {} +

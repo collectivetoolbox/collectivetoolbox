@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# This script runs the provided command without network access. It is meant for use in CI container; it will not work without root.
+
+set -euo pipefail
+
+if [[ $# -eq 0 ]]; then
+    echo "Usage: $0 <command> [args...]" >&2
+    exit 1
+fi
+
+exec unshare -rn nice -n 10 "$@" || exit "Failed to run task without network."

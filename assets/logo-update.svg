@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="249.659"
+   height="24.048"
+   viewBox="0 0 66.056 6.363"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="logo-update.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.1108793"
+     inkscape:cx="116.30225"
+     inkscape:cy="119.85527"
+     inkscape:window-width="2259"
+     inkscape:window-height="1199"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4" />
+  <defs
+     id="defs2">
+    <linearGradient
+       id="a">
+      <stop
+         offset="0"
+         stop-color="#fff"
+         stop-opacity=".41"
+         id="stop1" />
+      <stop
+         offset="1"
+         stop-color="#fff"
+         stop-opacity="0"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       xlink:href="#a"
+       id="c"
+       x1="83.643"
+       x2="78.039"
+       y1="115.603"
+       y2="117.661"
+       gradientTransform="translate(-1.2 -1.793) scale(1.0149)"
+       gradientUnits="userSpaceOnUse" />
+    <path
+       id="b"
+       d="M36.069 295.112h1250.402v204.393H36.069z" />
+  </defs>
+  <path
+     fill="#3f8bff"
+     d="m3.48 6.363 2.883-2.884A2.039 2.039 0 0 0 3.479.596 2.039 2.039 0 0 0 .596 3.48z"
+     id="path3" />
+  <path
+     fill="url(#c)"
+     d="m77.133 120.434 2.88-2.875a2.04 2.04 0 0 0 .11-2.774l-4.49 4.115z"
+     vector-effect="non-scaling-stroke"
+     id="path4"
+     transform="translate(-73.663 -114.064)" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.50978px;font-family:Hubballi;-inkscape-font-specification:Hubballi;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.388968;stroke-opacity:0.143911"
+     x="6.9481173"
+     y="2.6161947"
+     id="text4"
+     transform="scale(1.0108462,0.9892702)"><tspan
+       sodipodi:role="line"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.50978px;font-family:Hubballi;-inkscape-font-specification:Hubballi;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.388968"
+       x="6.9481173"
+       y="2.6161947"
+       id="tspan5">COLLECTIVE</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.4195px;font-family:Hubballi;-inkscape-font-specification:Hubballi;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.381181;stroke-opacity:0.143911"
+     x="7.0248375"
+     y="6.3755474"
+     id="text6"
+     transform="scale(1.0073052,0.9927478)"><tspan
+       sodipodi:role="line"
+       id="tspan6"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Hubballi;-inkscape-font-specification:Hubballi;stroke-width:0.381181"
+       x="7.0248375"
+       y="6.3755474">TOOLBOX</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.24294px;font-family:Hubballi;-inkscape-font-specification:Hubballi;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.193453;stroke-opacity:0.143911"
+     x="24.222244"
+     y="5.8008437"
+     id="text7"
+     transform="scale(1.0292757,0.97155698)"><tspan
+       sodipodi:role="line"
+       id="tspan7"
+       style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Gentium Plus';-inkscape-font-specification:'Gentium Plus';stroke-width:0.193453"
+       x="24.222244"
+       y="5.8008437">alpha</tspan></text>
+</svg>

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<rdf:RDF
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+xmlns="http://channel.netscape.com/rdf/simple/0.9/">
+
+  <channel>
+    <title>Example Dot Org</title>
+    <link>http://www.example.org</link>
+    <description>the Example
+      web site</description>
+  </channel>
+
+  <image>
+    <title>Example</title>
+    <url>http://www.example.org/images/example.gif</url>
+    <link>http://www.example.org</link>
+  </image>
+
+  <item>
+    <title>New Status Updates</title>
+    <link>http://www.example.org/status/</link>
+  </item>
+
+</rdf:RDF>

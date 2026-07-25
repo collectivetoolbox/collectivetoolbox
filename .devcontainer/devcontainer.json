@@ -1,0 +1,36 @@
+{
+  "name": "Antigravity Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "options": [
+      "--network=host"
+    ]
+  },
+  "runArgs": [
+    "--network=host"
+  ],
+  "remoteUser": "root",
+  "containerEnv": {
+    "PLAYWRIGHT_CHROMIUM_ARGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
+    "CHROMIUM_FLAGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
+    "PATH": "/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/current-profile/bin:${containerEnv:PATH}",
+    "BASH_ENV": "/etc/profile.d/umask.sh"
+  },
+  "postStartCommand": "setfacl -R -d -m u::rwx,g::rwx,o::rwx /workspaces/ctoolbox 2>/dev/null || true; nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &",
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/common-utils:1": {},
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
+  "forwardPorts": [3000],
+  "customizations": {
+    "antigravity": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": ["denoland.vscode-deno", "rust-lang.rust-analyzer", "bradlc.vscode-tailwindcss", "wayou.vscode-todo-highlight"]
+    }
+  }
+}

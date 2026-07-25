@@ -1,0 +1,56 @@
+<div class="flex flex-col gap-6">
+    <div class="flex flex-row justify-between items-center border-b pb-4">
+        <h2>View Node</h2>
+        <div class="flex flex-row gap-2">
+            {{#if is_admin}}
+                <a href="/nodes/{{node.graph_id}}/{{node.id}}/publish" class="btn btn-primary">Publish</a>
+                <a href="/nodes/{{node.graph_id}}/{{node.id}}/publish-as" class="btn">Publish as...</a>
+            {{/if}}
+            <a href="/nodes" class="btn">
+                {{> icons._icon name="arrow-left" alt="" }}
+                <span>Back to Nodes</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-4 card">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <strong>Node ID:</strong>
+                <code>{{node.id}}</code>
+            </div>
+            <div>
+                <strong>Graph ID:</strong>
+                <code>{{node.graph_id}}</code>
+            </div>
+            <div>
+                <strong>Node Type (Format):</strong>
+                <code>{{node.node_type}}</code>
+            </div>
+            <div>
+                <strong>Size:</strong>
+                <span>{{node.data_len}} bytes</span>
+            </div>
+            {{#if node.checksum}}
+            <div class="md:col-span-2">
+                <strong>SHA-256 Checksum:</strong>
+                <code>{{node.checksum}}</code>
+            </div>
+            {{/if}}
+        </div>
+
+        <div class="flex flex-col gap-2 mt-4">
+            <strong>Content:</strong>
+            {{#if node.is_data}}
+                <pre><code>{{node.hex_dump}}</code></pre>
+            {{else}}
+                <pre><code>{{node.display_content}}</code></pre>
+            {{/if}}
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-2 card mt-4">
+        <h3>Relationships</h3>
+        <p class="muted">No relationships found.</p>
+    </div>
+</div>

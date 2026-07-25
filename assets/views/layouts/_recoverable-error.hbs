@@ -1,0 +1,17 @@
+<template id="recoverable-error-template">
+    <div class="modal-box modal-box-glass">
+        <div class="modal-header">
+            <h2 class="modal-title">Recoverable Error</h2>
+        </div>
+        <div class="modal-body flex flex-col gap-4">
+            <p class="recoverable-error-title indent-0 text-center"></p>
+            <p class="error-modal-content indent-0 text-start max-h-24 overflow-auto whitespace-pre p-2"></p>
+        </div>
+        <div class="modal-footer justify-center">
+            <button type="button" data-modal-close>
+                {{> icons._icon name="check" alt="" }}
+                <span>OK</span>
+            </button>
+        </div>
+    </div>
+</template>

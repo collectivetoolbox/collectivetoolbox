@@ -1,0 +1,35 @@
+
+
+   <?xml version="1.0" encoding="utf-8"?>
+   <feed xmlns="http://www.w3.org/2005/Atom">
+
+     <title>Example Feed</title>
+	<subtitle>An example.</subtitle>
+	<link href="http://example.org/feed/" rel="self" />
+	<link href="http://example.org/" />
+	<id>urn:uuid:60a76c80-d399-11d9-b91C-0003939e0af6</id>
+	<updated>2003-12-13T18:30:02Z</updated>
+
+
+	<entry>
+		<title>Examples Example Example</title>
+		<link href="http://example.org/2003/12/13/atom03" />
+		<link rel="alternate" type="text/html" href="http://example.org/2003/12/13/atom03.html"/>
+		<link rel="edit" href="http://example.org/2003/12/13/atom03/edit"/>
+		<id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
+        <published>2003-11-09T17:23:02Z</published>
+		<updated>2003-12-13T18:30:02Z</updated>
+		<summary>Summary example.</summary>
+		<content type="xhtml">
+			<div xmlns="http://www.w3.org/1999/xhtml">
+				<p>Example text for the entry content.</p>
+			</div>
+		</content>
+		<author>
+			<name>Example Name</name>
+			<uri>http://example.org/</uri>
+			<email>example@example.com</email>
+		</author>
+	</entry>
+
+</feed>

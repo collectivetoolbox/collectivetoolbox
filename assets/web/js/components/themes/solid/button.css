@@ -1,0 +1,126 @@
+/* Solid theme variable definitions */
+
+/* Map variables based on variant inside solid theme host */
+:host([ready]) {
+    --solid-bg: var(--solid-secondary-bg);
+    --solid-border: var(--solid-secondary-border);
+    --solid-shadow: var(--solid-secondary-shadow);
+    --solid-hover-bg: var(--solid-secondary-hover-bg);
+    --solid-hover-border: var(--solid-secondary-hover-border);
+    --solid-hover-shadow: var(--solid-secondary-hover-shadow);
+    --solid-active-bg: var(--solid-secondary-active-bg);
+    --solid-active-border: var(--solid-secondary-active-border);
+    --ctb-btn-border-radius: 8px; /* solid theme border radius */
+    --ctb-btn-border: 1px solid var(--solid-border);
+    --focusRingWidth: 1.5px;
+    --focusRingColor: light-dark(rgba(206, 97, 1, 0.6), rgba(249, 115, 22, 0.6));
+}
+
+:host([ready][variant="primary"]) {
+    --solid-bg: var(--solid-primary-bg);
+    --solid-border: var(--solid-primary-border);
+    --solid-shadow: var(--solid-primary-shadow);
+    --solid-hover-bg: var(--solid-primary-hover-bg);
+    --solid-hover-border: var(--solid-primary-hover-border);
+    --solid-hover-shadow: var(--solid-primary-hover-shadow);
+    --solid-active-bg: var(--solid-primary-active-bg);
+    --solid-active-border: var(--solid-primary-active-border);
+}
+
+/* Solid Theme Shadow DOM Styles */
+:host {
+    border: 1px solid transparent;
+    background-color: transparent;
+}
+
+:host([ready]) {
+    background-color: var(--solid-bg);
+    border: 1px solid var(--solid-border);
+    box-shadow: var(--solid-shadow);
+}
+
+:host([ready][icon-only]) {
+    border-radius: var(--ctb-btn-border-radius, 8px);
+}
+
+:host([ready]:hover) {
+    background-color: var(--solid-hover-bg);
+    border-color: var(--solid-hover-border);
+    box-shadow: var(--solid-hover-shadow);
+    transform: translateY(-1px);
+}
+
+:host([ready]:active) {
+    background-color: var(--solid-active-bg);
+    border-color: var(--solid-active-border);
+    transform: translateY(0);
+}
+
+:host([ready][selected]) {
+    background-color: var(--solid-active-bg);
+    border-color: var(--solid-active-border);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    transform: translateY(0);
+}
+
+:host([ready][selected]:active) {
+    background-color: light-dark(#d1d5db, #374151);
+}
+
+/* Solid fallback style rules */
+html[data-ctb-ui-theme="solid"] {
+    --background-color: light-dark(#fff1f2, black);
+    --background-image: url('/resources/Abstract-Polygon-Background-16x10.svg');
+
+    ctb-button:not([ready]) > a:not(.btn-link),
+    ctb-button:not([ready]) > button:not(.btn-link),
+    .btn:not(.btn-link):not(ctb-button[ready] *),
+    button:not([type="radio"]):not([type="checkbox"]):not(.btn-link):not(ctb-button[ready] *),
+    input[type="file"]::file-selector-button {
+        background-color: var(--solid-secondary-bg);
+        border: 1px solid var(--solid-secondary-border);
+        box-shadow: var(--solid-secondary-shadow);
+        border-radius: 8px;
+        padding: var(--ctb-btn-padding);
+
+        &:hover {
+            background-color: var(--solid-secondary-hover-bg);
+            border-color: var(--solid-secondary-hover-border);
+            transform: translateY(-1px);
+        }
+
+        &:active {
+            background-color: var(--solid-secondary-active-bg);
+            border-color: var(--solid-secondary-active-border);
+            transform: translateY(0);
+        }
+    }
+
+    ctb-button:not([ready])[variant="primary"] > a:not(.btn-link),
+    ctb-button:not([ready])[variant="primary"] > button:not(.btn-link),
+    .btn-primary:not(.btn-link):not(ctb-button[ready] *),
+    input[type="file"].btn-primary::file-selector-button {
+        background-color: var(--solid-primary-bg);
+        color: var(--solid-primary-fg);
+        border: 1px solid var(--solid-primary-border);
+        box-shadow: var(--solid-primary-shadow);
+
+        &:hover {
+            background-color: var(--solid-primary-hover-bg);
+            border-color: var(--solid-primary-hover-border);
+        }
+
+        &:active {
+            background-color: var(--solid-primary-active-bg);
+            border-color: var(--solid-primary-active-border);
+            transform: translateY(0);
+        }
+    }
+
+    ctb-button:not([ready]) > a:has(> img:only-child):not(.btn-link),
+    ctb-button:not([ready]) > button:has(> img:only-child):not(.btn-link),
+    .btn:has(> img:only-child):not(.btn-link):not(ctb-button[ready] *),
+    button:not([type="radio"]):not([type="checkbox"]):has(> img:only-child):not(.btn-link):not(ctb-button[ready] *) {
+        border-radius: 8px;
+    }
+}

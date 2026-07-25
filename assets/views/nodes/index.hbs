@@ -1,0 +1,46 @@
+<div class="flex flex-col gap-4">
+    <div class="flex flex-row justify-between items-center pb-2 border-b">
+        <h2>Nodes</h2>
+        <div class="flex flex-row gap-2">
+            <a href="/nodes/create" class="btn btn-primary">
+                {{> icons._icon name="add" alt="" }}
+                <span>Create Node</span>
+            </a>
+            <a href="/nodes/upload" class="btn">
+                {{> icons._icon name="upload" alt="" }}
+                <span>Upload Node</span>
+            </a>
+        </div>
+    </div>
+
+    {{#if nodes}}
+        <div class="overflow-x-auto">
+            <table class="w-full text-start border-collapse">
+                <thead>
+                    <tr class="border-b">
+                        <th class="py-2 px-4">ID</th>
+                        <th class="py-2 px-4">Type</th>
+                        <th class="py-2 px-4">Preview</th>
+                        <th class="py-2 px-4">Size (Bytes)</th>
+                        <th class="py-2 px-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each nodes}}
+                        <tr class="border-b">
+                            <td class="py-2 px-4"><code>{{this.id}}</code></td>
+                            <td class="py-2 px-4"><code>{{this.node_type}}</code></td>
+                            <td class="py-2 px-4"><code>{{this.preview}}</code></td>
+                            <td class="py-2 px-4">{{this.data_len}}</td>
+                            <td class="py-2 px-4">
+                                <a href="/nodes/view?id={{this.id}}&amp;graph={{this.graph_id}}" class="btn btn-secondary">View</a>
+                            </td>
+                        </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+    {{else}}
+        <p>No nodes found. Create one to get started!</p>
+    {{/if}}
+</div>

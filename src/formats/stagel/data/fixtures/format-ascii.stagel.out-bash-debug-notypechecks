@@ -1,0 +1,141 @@
+dcaFromAscii() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaFromAscii:format-ascii'; 
+
+    StageL_assertIsByteArray "$(join_by $'\037' "${intArrayContent[@]}")"
+    intArrayRes=()
+    intL='0'
+    intL="$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")"
+    intC='0'
+    intC='0'
+    while [[ "true" == "$(StageL_lt "$intC" "$intL")" ]]; do
+        intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_dcFromFormat 'ascii' "$(StageL_anFromN "$(StageL_get "$(join_by $'\037' "${intArrayContent[@]}")" "$intC")")")")"
+        intC="$(StageL_add "$intC" '1')"
+    done
+    StageL_assertIsDcArray "$(join_by $'\037' "${intArrayRes[@]}")"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")";StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaToAscii() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaToAscii:format-ascii'; 
+
+    StageL_assertIsDcArray "$(join_by $'\037' "${intArrayContent[@]}")"
+    intArrayRes=()
+    intL='0'
+    intL="$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")"
+    intC='0'
+    intC='0'
+    intArrayTemp=()
+    intDcAtIndex='0'
+    while [[ "true" == "$(StageL_lt "$intC" "$intL")" ]]; do
+        intDcAtIndex="$(StageL_get "$(join_by $'\037' "${intArrayContent[@]}")" "$intC")"
+        intArrayTemp="$(StageL_dcToFormat 'utf8' "$intDcAtIndex")"
+        if [[ "true" == "$(StageL_arrNonempty "$(join_by $'\037' "${intArrayTemp[@]}")")" ]]; then
+            if [[ "true" == "$(StageL_isAsciiByte "$(StageL_get "$(join_by $'\037' "${intArrayTemp[@]}")" '0')")" ]]; then
+                intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(join_by $'\037' "${intArrayTemp[@]}")")"
+                        else
+                StageL_exportWarningUnmappable "$intC" "$intDcAtIndex"
+            fi
+                else
+            StageL_exportWarningUnmappable "$intC" "$intDcAtIndex"
+        fi
+        intC="$(StageL_add "$intC" '1')"
+    done
+    StageL_assertIsByteArray "$(join_by $'\037' "${intArrayRes[@]}")"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")";StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+isAsciiByte() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'isAsciiByte:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_intIsBetween "$intN" '0' '127')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsDigit() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsDigit:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_intIsBetween "$intN" '48' '57')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsPrintable() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsPrintable:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_intIsBetween "$intN" '32' '126')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsSpace() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsSpace:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_eq "$intN" '32')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsNewline() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsNewline:format-ascii'; 
+
+    boolT1='false'
+    boolT1="$(StageL_eq "$intN" '10')"
+    boolT2='false'
+    boolT2="$(StageL_or "$boolT1" "$(StageL_eq "$intN" '13')")"
+
+    boolReturn="$boolT2";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsLetterUpper() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsLetterUpper:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_intIsBetween "$intN" '65' '90')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsLetterLower() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsLetterLower:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_intIsBetween "$intN" '97' '122')"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsLetter() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsLetter:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_asciiIsLetterLower "$intN")"
+    boolTemp="$(StageL_or "$boolTemp" "$(StageL_asciiIsLetterUpper "$intN")")"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+asciiIsAlphanum() {
+    intN="$1"; shift; StageL_internalDebugCollect "int N = $intN; "; StageL_internalDebugStackEnter 'asciiIsAlphanum:format-ascii'; 
+
+    boolTemp='false'
+    boolTemp="$(StageL_asciiIsLetter "$intN")"
+    boolTemp="$(StageL_or "$boolTemp" "$(StageL_asciiIsDigit "$intN")")"
+
+    boolReturn="$boolTemp";StageL_internalDebugStackExit; print "$boolReturn"
+}
+
+crlf() {
+    StageL_internalDebugStackEnter 'crlf:format-ascii'; 
+
+    intArrayTemp=()
+    intArrayTemp=( '13' '10' )
+
+    intArrayReturn="$(join_by $'\037' "${intArrayTemp[@]}")";StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}

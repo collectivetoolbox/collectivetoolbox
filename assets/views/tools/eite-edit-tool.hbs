@@ -1,0 +1,89 @@
+<header class="eite-tool-header">
+    <h2>IT Environment: Edit Document Tool</h2>
+    <button type="button" id="toggleViewportButton" class="btn eite-fullscreen-btn">
+        {{> icons._icon name="popout" alt="" }}
+        <span>Toggle Full Viewport</span>
+    </button>
+</header>
+
+<div id="overlay">
+    <div id="overlayLoadingSpinner" class="loadingSpinner"></div>
+</div>
+
+<section id="mainBox">
+    <div id="mainRow">
+        <div id="DcSelection">
+            <span>Click to insert:</span>
+            <input type="text" id="searchDcs" placeholder="Search…"/>
+            <button type="button" id="dcsShowAllButton" class="btn hidden">← Show All</button>
+        </div>
+        <div id="editorColumn">
+            <div class="formatOptions">
+                <div>Edit as:</div>
+                <select id="editFormat" disabled>
+                    <option value="">[not loaded]</option>
+                </select>
+            </div>
+            <div id="currentDcLabelGroup">
+                <div id="currentDcLabel"></div>
+                <div id="currentDcId"></div>
+            </div>
+            <textarea id="inputarea" disabled></textarea>
+        </div>
+        <div id="eiteDocumentRoot"></div>
+    </div>
+    
+    <div id="editorButtons">
+        <div class="impExpButtonColumn">
+            <div class="formatOptions">
+                <div>Import as:</div>
+                <select id="inFormat" disabled>
+                    <option value="">[not loaded]</option>
+                </select>
+            </div>
+            <button type="button" id="ImportDocument" class="btn" disabled>Import</button>
+        </div>
+        <div class="impExpButtonColumn">
+            <div class="formatOptions">
+                <div>Export as:</div>
+                <select id="outFormat" disabled>
+                    <option value="">[not loaded]</option>
+                </select>
+            </div>
+            <button type="button" id="ExportDocument" class="btn" disabled>Export</button>
+        </div>
+        <button type="button" id="RunDocument" class="btn btn-primary" disabled>Run</button>
+    </div>
+</section>
+
+<div id="notificationOverlay"></div>
+
+<template id="documentRootLoadingSpinnerTemplate">
+    <div class="documentRootOverlay">
+        <div class="loadingSpinner"></div>
+    </div>
+</template>
+<template id="exportNotifyTemplate">
+    <div class="exportNotification"></div>
+</template>
+<template id="importDialogTemplate">
+    <div class="importDialog">
+        <div>Imported document will replace current contents of edit field.</div>
+        <button type="button" class="btn importFromFileBtn">Import from file</button>
+        <button type="button" class="btn importFromUrlBtn">Import from URL</button>
+        <button type="button" class="btn closeImportDiaBtn">Cancel</button>
+    </div>
+</template>
+<template id="alertDialogTemplate">
+    <div class="importDialog">
+        <div class="alertDialogMessageRegion"></div>
+        <button type="button" class="btn closeAlertDiaBtn">Okay</button>
+    </div>
+</template>
+<template id="doneButtonTemplate">
+    <button type="button" class="btn doneEditingBtn" disabled>Done</button>
+</template>
+
+<input type="file" id="filepicker">
+
+<script src="/js/tools/eite-edit-tool.js"></script>

@@ -1,0 +1,16 @@
+[package]
+name = "ctb-formats-perl"
+edition = "2024"
+
+[lib]
+path="perl.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+base64 = "0.22.1"
+
+[lints]
+workspace = true

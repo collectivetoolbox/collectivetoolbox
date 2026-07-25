@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Maligayang pagdating sa wizard ng pag-install
+theme = Tema:
+theme-auto = 🔄 Awtomatikong tuklas
+theme-light = ☀ Maliwanag
+theme-dark = 🌙 Madilim
+quick-install = Mabilis na Pag-install
+customize = I-customize...
+quick-install-prompt = Gamitin ang mabilis na pag-install gamit ang mga default na setting?
+read-license-button = Basahin ang buong teksto ng lisensya...
+read-license-prompt = (o 'l' para basahin ang buong teksto ng lisensya):
+license-header = Lisensya
+press-enter-to-return = Pindutin ang Enter upang bumalik...
+press-enter-to-continue = Pindutin ang Enter upang magpatuloy...
+pager-continue = -- Higit pa -- (Enter para magpatuloy, q para isara):
+intro-invalid-input = Pakipasok ang 'y' o 'n', o 'l' para sa lisensya.
+prompt-invalid-yes-or-no = Pakipasok ang 'y' o 'n'.
+prompt-enter-choice = Piliin ang numero [1-{ $choice }, default={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Mga Opsyon sa Pag-install
+install-dir = Direktoryo ng pag-install:
+storage-dir = Direktoryo ng imbakan:
+add-to-start-menu = Idagdag sa Start Menu:
+add-to-dock = Idagdag sa Dock:
+add-desktop-shortcut = Idagdag shortcut sa Desktop:
+add-to-path = Idagdag sa PATH:
+language = Wika 🌏︎:
+storage-dir-note = Paalala: Ang direktoryo ng imbakan ang gagamitin para sa mga database, log, at data ng gumagamit. Tiyaking may sapat na puwang sa disk.
+browse = Mag-browse...
+options-configured = Matagumpay na na-configure ang mga opsyon.
+parent-directory-not-exists = Babala: Hindi umiiral ang parent directory na '{ $path }'.
+create-dir-during-installation = Lilikhain ba ito habang ini-install?
+enter-number-range = Pakipasok ang isang numero mula 1 hanggang { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Piliin ang Lokasyon
+file-picker-select-folder = Piliin ang Folder
+file-picker-select-file = Piliin ang File
+file-picker-save-file = I-save ang File
+file-picker-back = Bumalik (Alt+B)
+file-picker-forward = Pasulong (Alt+F)
+file-picker-up = Pataas (Alt+U)
+file-picker-refresh = I-refresh (Alt+R)
+file-picker-new-folder = Bagong Folder (Alt+N)
+file-picker-create = Gumawa (Alt+E)
+file-picker-cancel-new-folder = Kanselahin (Alt+A)
+file-picker-more-menu = Pa... (Alt+M)
+file-picker-show-hidden = Ipakita ang Nakatagong Mga File (Alt+H)
+file-picker-path = Landas:
+file-picker-file-name = Pangalan ng file:
+file-picker-places = Mga Lokasyon
+file-picker-home = Tahanan
+file-picker-desktop = Desktop
+file-picker-documents = Mga Dokumento
+file-picker-downloads = Mga Download
+file-picker-this-pc = Ang PC na ito
+file-picker-empty = (walang laman)
+file-picker-invalid-path = Di-wastong landas: { $path }
+file-picker-folder-exists = '{ $name }' ay umiiral na
+file-picker-create-folder-failed = Nabigong lumikha ng folder: { $error }
+file-picker-folder-name-empty = Hindi maaaring walang laman ang pangalan ng folder
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Piliin ang Mga Komponent
+components-instruction = Piliin kung aling mga komponent ang i-install:
+complete = Buo
+complete-tooltip = Piliin ang lahat ng opsyonal na komponent para sa kumpletong pag-install
+minimal = Minimal
+minimal-tooltip = Piliin lamang ang mga kinakailangang komponent para sa pinakamababang pag-install
+selected-size = Napili: { $selected } (sa { $total } kabuuan)
+storage-space-note = Ipinapakita ng mga sukat ng file na ito ang imbakan na kailangan ng mismong aplikasyon. Ang iyong mga dokumento ay kukuha pa ng dagdag na puwang; kung hindi ka sigurado, inirerekumenda namin na magkaroon ng hindi bababa sa 20 GB na bakante.
+required = (kinakailangan)
+toggle-prompt = Ipasok ang numero ng komponent upang i-toggle:
+option-toggle = I-toggle
+option-continue = Magpatuloy
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Ini-install...
+overall-progress = Kabuuang progreso: { $completed }/{ $total } file
+current-file = Kasalukuyang file: { $path }
+chunk-progress = Bahagi { $current }/{ $total }
+installation-log = Log ng pag-install:
+starting-installation = Sinisimulan ang pag-install...
+downloading-file = Dini-download: { $path } ({ $chunks } bahagi)
+downloading-chunk = Dini-download ang bahagi { $current }/{ $total }...
+using-cached-chunk = Ginagamit ang naka-cache na bahagi { $current }/{ $total }
+file-installed = Na-install: { $path } ({ $size } bytes)
+retry-error = Uulitin { $attempt }/{ $max }: { $message }
+error = Error: { $message }
+retry = Subukan muli
+cancel = Kanselahin
+installation-complete-count = Kumpleto na ang pag-install: { $count } file ang na-install.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Kumpleto na ang Pag-install!
+install-success = Matagumpay na na-install ang { $app }.
+quick-install-success = Matagumpay na ngayong na-install ang { $app }.
+launch-after-install = Ilunsad ang { $app } pagkatapos isara
+finish = Tapusin
+summary = Buod:
+start-menu-shortcut = Shortcut sa Start Menu: { $value }
+dock-shortcut = Shortcut sa Dock: { $value }
+desktop-shortcut = Shortcut sa Desktop: { $value }
+added-to-path = Idinagdag sa PATH: { $value }
+yes = Oo
+no = Hindi
+launch-now-prompt = Ilulunsad ba ang { $app } ngayon?
+launching = Ilulunsad ang { $app }...
+thank-you = Salamat sa pag-install ng { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Ayusin ang Pag-install
+repair-description = Iva-verify at aayusin nito ang iyong pag-install. Ang nawawala o corrupt na mga file ay idi-download muli.
+current-installation = Kasalukuyang pag-install:
+location = Lokasyon: { $path }
+start-repair = Simulan ang Pag-aayos
+starting-repair = Sinisimulan ang pag-aayos...
+continue-repair-prompt = Magpapatuloy ba sa pag-aayos?
+repair-cancelled = Kanselado ang pag-aayos.
+repair-complete = Tapos na ang pag-aayos!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = I-uninstall ang { $app }
+uninstall-warning = Babala: Tatanggalin nito ang aplikasyon mula sa iyong sistema.
+will-be-removed = Ang mga sumusunod ay tatanggalin:
+application-files = Mga file ng aplikasyon: { $path }
+desktop-shortcuts = Mga shortcut (Start Menu/Dock at Desktop)
+path-modifications = Mga pagbabago sa PATH
+data-not-removed = Paalala: Hindi tatanggalin ang iyong mga data file.
+data-location = Lokasyon ng data: { $path }
+uninstall = I-uninstall
+starting-uninstall = Sinisimulan ang pag-uninstall...
+confirm-uninstall-prompt = Sigurado ka bang gusto mong i-uninstall?
+uninstall-cancelled = Kanselado ang pag-uninstall.
+removing-files = Tinatanggal ang mga file...
+uninstall-complete = Na-uninstall na ang { $app }.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Bumalik
+next = Susunod →
+install = I-install →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Gabay ng wizard na ito sa proseso ng pag-install. Maaari mong i-customize ang mga opsyon sa pag-install o gamitin ang mga default.
+unattended-mode = Tumatakbo sa unattended mode - gumagamit ng mga default na halaga.
+yes-no-help = Pakipasok ang 'y' o 'n'.
+number-choice-help = Pakipasok ang isang numero mula 1 hanggang { $max }.
+what-to-do = Ano ang nais mong gawin?
+parent-dir-warning = Babala: Hindi umiiral ang parent directory na '{ $path }'.
+create-dir-prompt = Lilikhain ba ito habang ini-install?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Installer ng { $app }
+window-repair = { $app } - Ayusin
+window-uninstall = { $app } - I-uninstall

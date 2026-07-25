@@ -1,0 +1,117 @@
+1:1:0
+start-document
+
+1:1:0
+filename
+format-html
+1:2:0
+ident-r-an
+ 100 99 97 84 111 72 116 109 108
+1:17:0
+ident-an
+ 100 99 73 110
+1:23:0
+newline
+
+2:6:0
+indent
+
+2:6:1
+command
+assertIsDcArray
+2:22:1
+ident-an
+ 100 99 73 110
+2:28:1
+newline
+
+3:6:1
+command
+new
+3:10:1
+ident-an
+ 111 117 116
+3:15:1
+newline
+
+4:6:1
+command
+set
+4:10:1
+ident-an
+ 111 117 116
+4:17:1
+command
+strToByteArray
+4:32:1
+literal-s
+ 60 33 68 79 67 84 89 80 69 32 104 116 109 108 62 60 104 116 109 108 62 60 104 101 97 100 62 60 116 105 116 108 101 62 60 47 116 105 116 108 101 62 60 47 104 101 97 100 62 60 98 111 100 121 62
+4:88:1
+newline
+
+5:6:1
+command
+set
+5:10:1
+ident-an
+ 111 117 116
+5:17:1
+command
+append
+5:24:1
+ident-an
+ 111 117 116
+5:31:1
+command
+dcaToHtmlFragment
+5:49:1
+ident-an
+ 100 99 73 110
+5:55:1
+newline
+
+6:6:1
+command
+set
+6:10:1
+ident-an
+ 111 117 116
+6:17:1
+command
+append
+6:24:1
+ident-an
+ 111 117 116
+6:31:1
+command
+strToByteArray
+6:46:1
+literal-s
+ 60 47 98 111 100 121 62 60 47 104 116 109 108 62
+6:61:1
+newline
+
+7:6:1
+command
+assertIsByteArray
+7:24:1
+ident-an
+ 111 117 116
+7:29:1
+newline
+
+8:6:1
+command
+return
+8:13:1
+ident-an
+ 111 117 116
+8:18:1
+newline
+
+9:1:0
+dedent
+
+9:1:0
+end-document
+

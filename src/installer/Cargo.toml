@@ -1,0 +1,77 @@
+[package]
+name = "ctb-installer"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+path = "installer.rs"
+
+[[bin]]
+name = "ctoolbox-installer"
+path = "bin.rs"
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+ctb-formats-applescript = { path = "../formats/applescript" }
+ctb-formats-base64 = { path = "../formats/base64" }
+ctb-formats-hexdump = { path = "../formats/hexdump" }
+ctb-formats-lnk = { path = "../formats/lnk" }
+ctb-formats-alias = { path = "../formats/alias" }
+ctb-storage-minimal = { path = "../storage/minimal" }
+ctb-workspace-x11-client = { path = "../workspace/x11_client" }
+ctb-workspace-x11-client-egui = { path = "../workspace/x11_client_egui" }
+
+include_dir = { version = "0.7.4", features = ["glob"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+ed25519-dalek = { version = "2.2.0", features = ["serde", "rand_core", "zeroize"] }
+fastcdc = "3.2.1"
+sha2 = "0.10.9"
+semver = { version = "1.0", features = ["serde"] }
+chrono = { version = "0.4.43", features = ["serde"] }
+base64 = "0.22"
+zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
+hex = "0.4.3"
+rand = "0.9.2"
+dirs = "6.0"
+# Default-features false: Otherwise, it drags in epaint_default_fonts, which uses a nonfree license.
+egui = { version = "0.33.3", features = ["accesskit"], default-features = false }
+egui_extras = "0.33.3"
+tokio = { version = "1.49", features = ["fs", "io-util", "time"] }
+flate2 = "1.1"  # Used for gzip_after_install feature in install.rs
+fluent = "0.17"
+intl-memoizer = "0.5"  # Thread-safe memoizer for fluent bundles
+unic-langid = "0.9"  # Language ID parsing for i18n
+brotli = "8.0.2"
+# FIXME: Temporary dependency override to use rand_core 0.6 for ed25519-dalek until it upgrades to rand_core 0.9
+rand_core06 = { package = "rand_core", version = "0.6.4" }
+dark-light = { git = "https://github.com/rust-dark-light/dark-light.git", rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961" }
+sys-locale = "0.3.2"
+clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
+nix = { version = "0.30", features = ["fs", "signal"] }
+rustls = "0.23"
+
+
+# Note: Linking will fail without setting this for egui-winit.
+egui-winit = { version = "0.33.3", features = ["accesskit", "clipboard", "links", "wayland"], default-features = false }
+
+#kas = { version = "0.17.0", features = ["wayland", "soft"] }
+#kas-widgets = "0.17.1"
+
+# Note, if commenting out the GUI, it's much easier to comment out the GUI than to comment out the entire installer module.
+
+# PATCHED, adds AccessKit integration:
+# FOR STATIC BUILD; comment out for dynamic:
+egui_software_backend = { path = "../../vendor/egui_software_backend", features = [ "accesskit" ], default-features = true }
+#constify = { path = "../../vendor/egui_software_backend/constify" }
+
+# UPSTREAM:
+# FOR DYNAMIC BUILD; comment out for static:
+#egui_software_backend = { git = "https://github.com/DGriffin91/egui_software_backend.git" }
+
+[dev-dependencies]
+tempfile = "3.24.0"
+tokio = { version = "1.49", features = ["full", "test-util"] }
+
+[lints]
+workspace = true

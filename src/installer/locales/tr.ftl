@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Kurulum sihirbazına hoş geldiniz
+theme = Tema:
+theme-auto = 🔄 Otomatik algıla
+theme-light = ☀ Açık
+theme-dark = 🌙 Koyu
+quick-install = Hızlı Kurulum
+customize = Özelleştir...
+quick-install-prompt = Varsayılan ayarlarla hızlı kurulumu kullanılsın mı?
+read-license-button = Tam lisans metnini oku...
+read-license-prompt = (veya tam lisansı okumak için 'l'):
+license-header = Lisans
+press-enter-to-return = Geri dönmek için Enter'a basın...
+press-enter-to-continue = Devam etmek için Enter'a basın...
+pager-continue = -- Daha fazla -- (Devam için Enter, kapatmak için q):
+intro-invalid-input = Lütfen 'y' veya 'n' girin, veya lisans için 'l'.
+prompt-invalid-yes-or-no = Lütfen 'y' veya 'n' girin.
+prompt-enter-choice = Seçimi girin [1-{ $choice }, varsayılan={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Kurulum Seçenekleri
+install-dir = Kurulum dizini:
+storage-dir = Depolama dizini:
+add-to-start-menu = Başlat Menüsüne ekle:
+add-to-dock = Dock'a ekle:
+add-desktop-shortcut = Masaüstüne kısayol ekle:
+add-to-path = PATH'e ekle:
+language = Dil 🌏︎:
+storage-dir-note = Not: Depolama dizini veritabanları, günlükler ve kullanıcı verileri için kullanılacaktır. Yeterli disk alanı olduğundan emin olun.
+browse = Gözat...
+options-configured = Seçenekler başarıyla yapılandırıldı.
+parent-directory-not-exists = Uyarı: Üst dizin '{ $path }' mevcut değil.
+create-dir-during-installation = Kurulum sırasında oluşturulsun mu?
+enter-number-range = Lütfen 1 ile { $max } arasında bir sayı girin.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Konumu Seç
+file-picker-select-folder = Klasörü Seç
+file-picker-select-file = Dosyayı Seç
+file-picker-save-file = Dosyayı Kaydet
+file-picker-back = Geri (Alt+B)
+file-picker-forward = İleri (Alt+F)
+file-picker-up = Yukarı (Alt+U)
+file-picker-refresh = Yenile (Alt+R)
+file-picker-new-folder = Yeni Klasör (Alt+N)
+file-picker-create = Oluştur (Alt+E)
+file-picker-cancel-new-folder = İptal (Alt+A)
+file-picker-more-menu = Daha fazla... (Alt+M)
+file-picker-show-hidden = Gizli Dosyaları Göster (Alt+H)
+file-picker-path = Yol:
+file-picker-file-name = Dosya adı:
+file-picker-places = Konumlar
+file-picker-home = Ev
+file-picker-desktop = Masaüstü
+file-picker-documents = Belgeler
+file-picker-downloads = İndirilenler
+file-picker-this-pc = Bilgisayarım
+file-picker-empty = (boş)
+file-picker-invalid-path = Geçersiz yol: { $path }
+file-picker-folder-exists = '{ $name }' zaten mevcut
+file-picker-create-folder-failed = Klasör oluşturulamadı: { $error }
+file-picker-folder-name-empty = Klasör adı boş olamaz
+file-picker-ok = Tamam (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Bileşenleri Seçin
+components-instruction = Yüklenecek bileşenleri seçin:
+complete = Tam
+complete-tooltip = Tam kurulum için tüm isteğe bağlı bileşenleri seçin
+minimal = Minimal
+minimal-tooltip = Sadece gerekli bileşenleri seçin (minimal kurulum)
+selected-size = Seçilen: { $selected } (toplam { $total })
+storage-space-note = Bu dosya boyutları uygulamanın kendisinin gerektirdiği depolamayı gösterir. Kendi belgeleriniz ek alan kaplayacaktır; ne kadar gerektiğinden emin değilseniz en az 20 GB boş alan öneririz.
+required = (gerekli)
+toggle-prompt = Açıp kapatmak için bileşen numarasını girin:
+option-toggle = Aç/Kapat
+option-continue = Devam
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Yükleniyor...
+overall-progress = Genel ilerleme: { $completed }/{ $total } dosya
+current-file = Mevcut dosya: { $path }
+chunk-progress = Parça { $current }/{ $total }
+installation-log = Kurulum günlüğü:
+starting-installation = Kurulum başlatılıyor...
+downloading-file = İndiriliyor: { $path } ({ $chunks } parça)
+downloading-chunk = Parça indiriliyor { $current }/{ $total }...
+using-cached-chunk = Önbellekten kullanılıyor parça { $current }/{ $total }
+file-installed = Yüklendi: { $path } ({ $size } bayt)
+retry-error = Yeniden dene { $attempt }/{ $max }: { $message }
+error = Hata: { $message }
+retry = Yeniden dene
+cancel = İptal
+installation-complete-count = Kurulum tamamlandı: { $count } dosya yüklendi.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Kurulum Tamamlandı!
+install-success = { $app } başarıyla yüklendi.
+quick-install-success = { $app } şimdi başarıyla yüklendi.
+launch-after-install = Kapatıldıktan sonra { $app } başlat
+finish = Bitir
+summary = Özet:
+start-menu-shortcut = Başlat Menüsü kısayolu: { $value }
+dock-shortcut = Dock kısayolu: { $value }
+desktop-shortcut = Masaüstü kısayolu: { $value }
+added-to-path = PATH'e eklendi: { $value }
+yes = Evet
+no = Hayır
+launch-now-prompt = Şimdi { $app } başlatılsın mı?
+launching = { $app } başlatılıyor...
+thank-you = { $app }'i yüklediğiniz için teşekkürler!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Kurulumu Onar
+repair-description = Bu işlem kurulumu doğrulayacak ve onaracaktır. Eksik veya bozuk dosyalar yeniden indirilecektir.
+current-installation = Mevcut kurulum:
+location = Konum: { $path }
+start-repair = Onarımı Başlat
+starting-repair = Onarım başlatılıyor...
+continue-repair-prompt = Onarıma devam edilsin mi?
+repair-cancelled = Onarım iptal edildi.
+repair-complete = Onarım tamamlandı!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = { $app } Kaldır
+uninstall-warning = Uyarı: Bu, uygulamayı sisteminizden kaldıracaktır.
+will-be-removed = Aşağıdakiler kaldırılacaktır:
+application-files = Uygulama dosyaları: { $path }
+desktop-shortcuts = Kısayollar (Başlat Menüsü/Dock ve Masaüstü)
+path-modifications = PATH değişiklikleri
+data-not-removed = Not: Veri dosyalarınız KALDIRILMAYACAK.
+data-location = Veri konumu: { $path }
+uninstall = Kaldır
+starting-uninstall = Kaldırma başlatılıyor...
+confirm-uninstall-prompt = Kaldırmak istediğinizden emin misiniz?
+uninstall-cancelled = Kaldırma iptal edildi.
+removing-files = Dosyalar kaldırılıyor...
+uninstall-complete = { $app } kaldırıldı.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Geri
+next = İleri →
+install = Yükle →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Bu sihirbaz sizi kurulum sürecinde yönlendirecektir. Kurulum seçeneklerini özelleştirebilir veya varsayılanları kullanabilirsiniz.
+unattended-mode = Gözetimsiz modda çalışılıyor - varsayılan değerler kullanılıyor.
+yes-no-help = Lütfen 'y' veya 'n' girin.
+number-choice-help = Lütfen 1 ile { $max } arasında bir sayı girin.
+what-to-do = Ne yapmak istersiniz?
+parent-dir-warning = Uyarı: Üst dizin '{ $path }' mevcut değil.
+create-dir-prompt = Kurulum sırasında oluşturulsun mu?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } Kurucusu
+window-repair = { $app } - Onar
+window-uninstall = { $app } - Kaldır

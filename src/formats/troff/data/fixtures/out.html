@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="creator" content="ctoolbox v0.1.0 convert_man_troff_to_html">
+    <title>test(1)</title>
+  </head>
+  <body>
+    <h1 id="test-1">test(1)</h1>
+<p>Text after &quot;.TH&quot;.
+</p>
+    <h2 id="test-1.section-heading">Section Heading</h2>
+<p>Text after section heading &quot;.SH&quot;.
+</p>
+    <h3 id="test-1.section-heading.sub-section-heading">Sub-Section Heading</h3>
+<p>Text after sub-section heading &quot;.SS&quot;.
+</p>
+    <p>Paragraph using &quot;.P&quot;. Now is the time for all good men to come to the aid of their country.
+</p>
+    <p>Paragraph using &quot;.LP&quot;. Now is the time for all good men to come to the aid of their country.
+</p>
+    <p>Paragraph using &quot;.PP&quot;. Now is the time for all good men to come to the aid of their country.
+</p>
+    <ul>
+    <li style="list-style-type: none; margin-left: 2.5em;">Indented paragraph (&quot;.IP&quot;) with default values.
+    <li style="margin-left: 2.5em;">Bullet paragraph (&quot;.IP&quot;) with default values.
+    <li style="margin-left: 10em;">Bullet paragraph (&quot;.IP&quot;) with value &quot;20&quot;.
+    <li style="margin-left: 2in;">Bullet paragraph (&quot;.IP&quot;) with value &quot;2i&quot;.
+</ul>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;">Tag<br>
+Tagged paragraph (&quot;.TP&quot;) with default values.
+</p>
+    <p style="margin-left: 2.5em; text-indent: -2.5em;">Tag<br>
+Tagged paragraph (&quot;.TP&quot;) with value &quot;5&quot;.
+</p>
+    <p style="margin-left: 2in; text-indent: -2in;">Tag<br>
+Tagged paragraph (&quot;.TP&quot;) with value &quot;2i&quot;.
+</p>
+    <h3 id="test-1.section-heading.font-styles">Font Styles</h3>
+<p>&quot;.B&quot; for bold text:
+<strong>Bold Text.</strong>
+</p>
+    <p>&quot;.BI&quot; for alternating bold and italic:
+<strong>Bold</strong><em>Italic</em><strong>Bold</strong><em>Italic.</em>
+
+</p>
+    <p>&quot;.BR&quot; for alternating bold and regular:
+<strong>foo</strong>(1)<strong>bar</strong>(2)<strong>baz</strong>(3).
+
+</p>
+    <p>&quot;.I&quot; for italic text:
+<em>Italic Text.</em>
+</p>
+    <p>&quot;.IB&quot; for alternating italics and bold:
+<em>Italic</em><strong>Bold</strong><em>Italic</em><strong>Bold.</strong>
+
+</p>
+    <p>&quot;.IR&quot; for alternating italics and regular:
+<em>Italic</em>Regular<em>Italic</em>Regular.
+
+</p>
+    <p>&quot;.RB&quot; for alternating regular and boldface:
+Regular<strong>Bold</strong>Regular<strong>Bold.</strong>
+
+</p>
+    <p>&quot;.SB&quot; for small boldface:
+<small style="font-weight: bold;">small boldface.</small>
+</p>
+    <p>&quot;.SM&quot; for small:
+<small>small text.</small>
+</p>
+    <h3 id="test-1.section-heading.links">Links</h3>
+<p>&quot;.MT&quot; and &quot;.ME&quot; to surround an email address:
+<a href="mailto:user@example.com">Alex User
+</a>
+</p>
+    <p>&quot;.UR&quot; and &quot;.UE&quot; to surround URLs:
+<a href="https://www.example.com/">Example Web Site
+</a>
+</p>
+    <h3 id="test-1.section-heading.monospaced-text">Monospaced Text</h3>
+<p>&quot;.EX&quot; and &quot;.EE&quot; to surround monospaced examples:
+</p>
+    <pre>#include &lt;stdio.h>
+int
+main(void)
+{
+  puts(&quot;Hello, World!&quot;);
+}
+</pre>
+    <p>&quot;.nf&quot; and &quot;.fi&quot; to surround monospaced examples:
+</p>
+    <pre>&lt;!DOCTYPE html>
+&lt;html>
+  &lt;head>
+    &lt;title>Page title&lt;/title>
+  &lt;/head>
+  &lt;body>
+    &lt;h1>Page Heading&lt;/h1>
+    &lt;p>Now is the time for all good men to come to the aid of their country.&lt;/p>
+  &lt;/body>
+&lt;/html>
+</pre>
+    <h3 id="test-1.section-heading.relative-inset">Relative Inset</h3>
+<p>&quot;.RS&quot; and &quot;.RE&quot; to indent blocks:
+    <div style="margin-left: 0.5in;">
+</p>
+    <p>Inset paragraph and example with default value.
+</p>
+    <pre>#include &lt;stdio.h>
+int
+main(void)
+{
+  puts(&quot;Hello, World!&quot;);
+}
+</pre>
+    </div>
+    <div style="margin-left: 10em;">
+    <p>Inset paragraph and example with value of 20.
+</p>
+    <pre>#include &lt;stdio.h>
+int
+main(void)
+{
+  puts(&quot;Hello, World!&quot;);
+}
+</pre>
+    </div>
+    <div style="margin-left: 10em;">
+    <p>Inset paragraph and example using &quot;.in&quot; with value of 10.
+</p>
+    <pre>#include &lt;stdio.h>
+int
+main(void)
+{
+  puts(&quot;Hello, World!&quot;);
+}
+</pre>
+    </div>
+    <h2 id="test-1.synopsis">Synopsis</h2>
+<p>Synopsis using &quot;.SY&quot; and &quot;.YS&quot;:
+</p>
+    <p style="font-family: monospace;"><strong>program</strong>
+<strong>--option</strong>
+[
+<strong>--option</strong>
+<em>value</em>
+]
+</p>
+    <h3 id="test-1.synopsis.sub-synopsis">Sub-Synopsis</h3>
+<p>Sentence with &quot;.br&quot; after &quot;for&quot;: Now is the time for
+<br>
+all good men to come to the aid of their country.
+Space after &quot;.sp&quot;:
+<br>&nbsp;<br>
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+This is the rest of the current paragraph.
+  </body>
+</html>

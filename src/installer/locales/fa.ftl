@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = خوش‌آمدید به جادوگر نصب
+theme = پوسته:
+theme-auto = 🔄 تشخیص خودکار
+theme-light = ☀ روشن
+theme-dark = 🌙 تاریک
+quick-install = نصب سریع
+customize = سفارشی‌سازی...
+quick-install-prompt = از نصب سریع با تنظیمات پیش‌فرض استفاده شود؟
+read-license-button = متن کامل مجوز را بخوانید...
+read-license-prompt = (یا 'l' برای خواندن متن کامل مجوز):
+license-header = مجوز
+press-enter-to-return = برای بازگشت Enter را فشار دهید...
+press-enter-to-continue = برای ادامه Enter را فشار دهید...
+pager-continue = -- بیشتر -- (Enter برای ادامه، q برای بستن):
+intro-invalid-input = لطفاً 'y' یا 'n' را وارد کنید، یا برای مجوز 'l'.
+prompt-invalid-yes-or-no = لطفاً 'y' یا 'n' را وارد کنید.
+prompt-enter-choice = انتخاب را وارد کنید [1-{ $choice }، پیش‌فرض={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = گزینه‌های نصب
+install-dir = پوشهٔ نصب:
+storage-dir = پوشهٔ ذخیره‌سازی:
+add-to-start-menu = افزودن به منوی شروع:
+add-to-dock = افزودن به داک:
+add-desktop-shortcut = افزودن میان‌بر به دسکتاپ:
+add-to-path = افزودن به PATH:
+language = زبان 🌏︎:
+storage-dir-note = توجه: پوشهٔ ذخیره‌سازی برای پایگاه‌داده‌ها، لاگ‌ها و داده‌های کاربر استفاده خواهد شد. مطمئن شوید فضای دیسک کافی موجود است.
+browse = مرور...
+options-configured = گزینه‌ها با موفقیت پیکربندی شدند.
+parent-directory-not-exists = هشدار: پوشهٔ والد '{ $path }' وجود ندارد.
+create-dir-during-installation = در هنگام نصب ایجاد شود؟
+enter-number-range = لطفاً عددی بین 1 و { $max } وارد کنید.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = انتخاب مکان
+file-picker-select-folder = انتخاب پوشه
+file-picker-select-file = انتخاب فایل
+file-picker-save-file = ذخیرهٔ فایل
+file-picker-back = بازگشت (Alt+B)
+file-picker-forward = جلو (Alt+F)
+file-picker-up = بالا (Alt+U)
+file-picker-refresh = تازه‌سازی (Alt+R)
+file-picker-new-folder = پوشهٔ جدید (Alt+N)
+file-picker-create = ایجاد (Alt+E)
+file-picker-cancel-new-folder = انصراف (Alt+A)
+file-picker-more-menu = بیشتر... (Alt+M)
+file-picker-show-hidden = نمایش فایل‌های مخفی (Alt+H)
+file-picker-path = مسیر:
+file-picker-file-name = نام فایل:
+file-picker-places = مکان‌ها
+file-picker-home = خانه
+file-picker-desktop = دسکتاپ
+file-picker-documents = اسناد
+file-picker-downloads = دانلودها
+file-picker-this-pc = این رایانه
+file-picker-empty = (خالی)
+file-picker-invalid-path = مسیر نامعتبر: { $path }
+file-picker-folder-exists = '{ $name }' از قبل وجود دارد
+file-picker-create-folder-failed = ایجاد پوشه ناموفق بود: { $error }
+file-picker-folder-name-empty = نام پوشه نمی‌تواند خالی باشد
+file-picker-ok = تأیید (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = انتخاب مؤلفه‌ها
+components-instruction = مؤلفه‌هایی که می‌خواهید نصب شوند را انتخاب کنید:
+complete = کامل
+complete-tooltip = انتخاب همهٔ مؤلفه‌های اختیاری برای نصب کامل
+minimal = حداقلی
+minimal-tooltip = تنها مؤلفه‌های لازم را برای نصب حداقلی انتخاب کنید
+selected-size = انتخاب‌شده: { $selected } (از مجموع { $total })
+storage-space-note = این اندازه‌های فایل نشان‌دهندهٔ فضای مورد نیاز برنامه هستند. اسناد شما فضای اضافی اشغال خواهند کرد؛ اگر مطمئن نیستید، پیشنهاد می‌کنیم حداقل ۲۰ گیگابایت فضای خالی داشته باشید.
+required = (الزامی)
+toggle-prompt = شمارهٔ مؤلفه را برای تغییر وارد کنید:
+option-toggle = تغییر
+option-continue = ادامه
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = در حال نصب...
+overall-progress = پیشرفت کلی: { $completed }/{ $total } فایل
+current-file = فایل فعلی: { $path }
+chunk-progress = قطعه { $current }/{ $total }
+installation-log = لاگ نصب:
+starting-installation = شروع نصب...
+downloading-file = در حال دانلود: { $path } ({ $chunks } قطعه)
+downloading-chunk = در حال دانلود قطعهٔ { $current }/{ $total }...
+using-cached-chunk = استفاده از قطعهٔ کش‌شده { $current }/{ $total }
+file-installed = نصب شد: { $path } ({ $size } بایت)
+retry-error = تلاش مجدد { $attempt }/{ $max }: { $message }
+error = خطا: { $message }
+retry = تلاش مجدد
+cancel = لغو
+installation-complete-count = نصب کامل شد: { $count } فایل نصب شد.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = نصب با موفقیت انجام شد!
+install-success = { $app } با موفقیت نصب شد.
+quick-install-success = { $app } اکنون با موفقیت نصب شد.
+launch-after-install = اجرای { $app } پس از بسته شدن
+finish = پایان
+summary = خلاصه:
+start-menu-shortcut = میان‌بر منوی شروع: { $value }
+dock-shortcut = میان‌بر داک: { $value }
+desktop-shortcut = میان‌بر دسکتاپ: { $value }
+added-to-path = افزوده شده به PATH: { $value }
+yes = بله
+no = خیر
+launch-now-prompt = آیا اکنون { $app } اجرا شود؟
+launching = در حال اجرای { $app }...
+thank-you = از نصب { $app } متشکریم!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = تعمیر نصب
+repair-description = این فرآیند نصب شما را بررسی و تعمیر خواهد کرد. فایل‌های گمشده یا خراب دوباره دانلود خواهند شد.
+current-installation = نصب فعلی:
+location = مکان: { $path }
+start-repair = شروع تعمیر
+starting-repair = شروع تعمیر...
+continue-repair-prompt = ادامه برای تعمیر؟
+repair-cancelled = تعمیر لغو شد.
+repair-complete = تعمیر انجام شد!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = حذف نصب { $app }
+uninstall-warning = هشدار: این عمل برنامه را از سیستم شما حذف می‌کند.
+will-be-removed = موارد زیر حذف خواهند شد:
+application-files = فایل‌های برنامه: { $path }
+desktop-shortcuts = میان‌برها (منوی شروع/داک و دسکتاپ)
+path-modifications = تغییرات PATH
+data-not-removed = توجه: فایل‌های دادهٔ شما حذف نخواهند شد.
+data-location = محل داده‌ها: { $path }
+uninstall = حذف نصب
+starting-uninstall = شروع حذف نصب...
+confirm-uninstall-prompt = آیا از حذف نصب مطمئن هستید؟
+uninstall-cancelled = حذف نصب لغو شد.
+removing-files = در حال حذف فایل‌ها...
+uninstall-complete = { $app } حذف شد.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← بازگشت
+next = بعدی →
+install = نصب →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = این جادوگر شما را در فرآیند نصب راهنمایی می‌کند. می‌توانید گزینه‌های نصب را سفارشی کنید یا از مقادیر پیش‌فرض استفاده کنید.
+unattended-mode = در حالت بدون‌نظارت اجرا می‌شود - استفاده از مقادیر پیش‌فرض.
+yes-no-help = لطفاً 'y' یا 'n' را وارد کنید.
+number-choice-help = لطفاً عددی بین 1 و { $max } وارد کنید.
+what-to-do = چه کاری می‌خواهید انجام دهید؟
+parent-dir-warning = هشدار: پوشهٔ والد '{ $path }' وجود ندارد.
+create-dir-prompt = در هنگام نصب ایجاد شود؟
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = نصب‌کنندهٔ { $app }
+window-repair = { $app } - تعمیر
+window-uninstall = { $app } - حذف نصب

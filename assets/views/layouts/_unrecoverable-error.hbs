@@ -1,0 +1,30 @@
+<template id="unrecoverable-error-template">
+    <div class="modal-box modal-box-glass max-w-2xl">
+        <div class="modal-header">
+            <h2 class="modal-title">Unrecoverable Error</h2>
+        </div>
+        <div class="modal-body flex flex-col lg:flex-row gap-4 items-center">
+            <img src="/resources/icons/openclipart-1502946408.svg" alt=""
+                style="filter: hue-rotate(230deg) brightness(1.2);" class="max-w-[8rem] max-h-[8rem] m-4">
+            <div class="flex flex-col gap-4 grow w-full">
+                <p class="indent-0 text-center">{{site_name}} has run into an unrecoverable error. Please <button type="button" onclick="location.reload()" class="btn-link">restart {{site_name}}</button>.</p>
+                <p class="error-modal-content indent-0 text-start max-h-24 overflow-auto whitespace-pre p-2"></p>
+            </div>
+        </div>
+        <div class="modal-footer flex flex-wrap justify-between items-center gap-2">
+            <div>
+                <a href="#" data-modal-close class="btn-close">Ignore</a>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="location.reload()">
+                    {{> icons._icon name="restart" alt="" }}
+                    <span>Restart PC</span>
+                </button>
+                <button type="button" onclick="location.reload()">
+                    {{> icons._icon name="reload" alt="" }}
+                    <span>Reload Toolbox</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>

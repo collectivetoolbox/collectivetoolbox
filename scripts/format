@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+commit() {
+    pushd ~/ctoolbox/vendor || exit 1
+    git add . || true
+    git commit -m format || true
+    popd || exit 1
+    pushd ~/ctoolbox || exit 1
+    git add . || true
+    git commit -m format || true
+    popd || exit 1
+}
+
+quick=false
+if [[ "${1-}" == "--quick" ]]; then
+    quick=true
+fi
+
+trap 'echo "ERROR: Aborting"; pushd ~/ctoolbox; git checkout origin/main -- vendor; git commit -m "Revert vendor directory changes";' EXIT;
+pushd ~/ctoolbox || exit 1
+
+if [[ "$quick" == false ]]; then
+    cargo fix --workspace ||  { echo "ERROR: cargo fix --workspace failed"; exit 1; }
+    commit
+    cargo fix --workspace --lib -p ctoolbox --tests ||  { echo "ERROR: cargo fix --lib -p ctoolbox --tests failed"; exit 1; }
+    commit
+    cargo fix --workspace --lib -p ctoolbox ||  { echo "ERROR: cargo fix --lib -p ctoolbox failed"; exit 1; }
+    commit
+    cargo clippy --workspace --fix || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
+    commit
+    cargo clippy --workspace --fix --lib -p ctoolbox --tests || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox --tests failed"; exit 1; }
+    commit
+    cargo clippy --workspace --fix --lib -p ctoolbox || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox failed"; exit 1; }
+fi
+
+commit
+cargo fmt --all ||  { echo "ERROR: cargo fmt --all failed"; exit 1; }
+commit
+
+git checkout origin/main -- vendor
+git commit -m "Revert vendor directory changes"
+popd
+trap - EXIT

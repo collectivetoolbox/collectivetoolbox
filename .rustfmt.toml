@@ -1,0 +1,6 @@
+wrap_comments = true
+normalize_comments = true
+group_imports = "StdExternalCrate"
+max_width = 80
+doc_comment_code_block_width = 80
+comment_width = 80

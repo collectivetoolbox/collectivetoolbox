@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Change directory to the script's parent directory (the repo root)
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+if [[ "${1-}" == "--release" ]]; then
+    ./build --quick --no-test linux-x64 || exit 1
+else
+    ./build --quick --no-test --debug linux-x64 || exit 1
+fi

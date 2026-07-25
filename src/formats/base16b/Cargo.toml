@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-base16b"
+edition = "2024"
+
+[lib]
+path="base16b.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-unicode = { path = "../unicode" }
+
+[lints]
+workspace = true

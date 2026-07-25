@@ -1,0 +1,23 @@
+[package]
+name = "ctb-formats-javascript-boa-host"
+edition = "2024"
+
+[lib]
+path = "boa_host.rs"
+
+[dependencies]
+ctb-utilities = { path = "../../../utilities" }
+anyhow = "1.0"
+boa_engine = { git = "https://github.com/boa-dev/boa.git", rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4", features = ["annex-b"] }
+#boa_engine = { version = "0.21.1", features = ["annex-b"] }
+#boa_runtime = { version = "0.21.1", features = ["annex-b"] }
+boa_runtime = { git = "https://github.com/boa-dev/boa.git", rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4", features = ["annex-b"] }
+#boa_runtime = { version = "0.21.1" }
+boa_string = { git = "https://github.com/boa-dev/boa.git", rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4" }
+boa_parser = { git = "https://github.com/boa-dev/boa.git", rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4" }
+boa_gc = { git = "https://github.com/boa-dev/boa.git", rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4" }
+#boa_string = { version = "0.21.1" }
+#boa_parser = { version = "0.21.1" }
+#boa_gc = { version = "0.21.1" }
+include_dir = { version = "0.7.4", features = ["glob"] }
+tempfile = "3"

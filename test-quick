@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Change directory to the script's parent directory (the repo root)
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+./build --quick --test-only --no-js-tests --debug linux-x64 || exit 1

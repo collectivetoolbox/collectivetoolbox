@@ -1,0 +1,556 @@
+dcaToUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaToUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    StageL_assertIsDcArray "$(join_by $'\037' "${intArrayContent[@]}")"
+    intArrayRes=()
+    intArrayToOutput=()
+    intArrayToOutput="$(join_by $'\037' "${intArrayContent[@]}")"
+    intArrayTemp=()
+    intDcAtIndex='0'
+    intArrayUnmappables=()
+    intUnmappablesCount='0'
+    intUnmappablesCounter='0'
+    intArrayUnmappablesIntermediatePacked=()
+    boolFoundAnyUnmappables='false'
+    boolFoundAnyUnmappables='false'
+    strArrayVariantSettings=()
+    strArrayVariantSettings="$(StageL_utf8VariantSettings 'out')"
+    boolDcBasenbEnabled='false'
+    boolDcBasenbEnabled="$(StageL_contains "$(join_by $'\037' "${strArrayVariantSettings[@]}")" 'dcBasenb')"
+    boolDcBasenbFragmentEnabled='false'
+    boolDcBasenbFragmentEnabled="$(StageL_contains "$(join_by $'\037' "${strArrayVariantSettings[@]}")" 'dcBasenbFragment')"
+    intArrayToOutput="$(StageL_dcPreprocessForFormat "$(join_by $'\037' "${intArrayToOutput[@]}")" 'utf8' 'out')"
+    intL='0'
+    intL="$(StageL_count "$(join_by $'\037' "${intArrayToOutput[@]}")")"
+    intC='0'
+    intC='0'
+    while [[ "true" == "$(StageL_le "$intC" "$intL")" ]]; do
+        # Start by getting the character's UTF8 equivalent and putting it in an/temp. This might be empty, if the character can't be mapped to UTF8.
+        if [[ "true" == "$(StageL_lt "$intC" "$intL")" ]]; then
+            intDcAtIndex="$(StageL_get "$(join_by $'\037' "${intArrayToOutput[@]}")" "$intC")"
+            intArrayTemp="$(StageL_dcToFormat 'utf8' "$intDcAtIndex")"
+        fi
+        # Could the character be mapped? If not, stick it in the unmappables array or warn as appropriate.
+        if [[ "true" == "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayTemp[@]}")")")" ]]; then
+            if [[ "true" == "$(StageL_lt "$intC" "$intL")" ]]; then
+                if [[ "true" == "$boolDcBasenbEnabled" ]]; then
+                    intArrayUnmappables="$(StageL_push "$(join_by $'\037' "${intArrayUnmappables[@]}")" "$intDcAtIndex")"
+                                else
+                    StageL_exportWarningUnmappable "$intC" "$intDcAtIndex"
+                fi
+            fi
+        fi
+        # If we've reached the end of the input string or the last character was mappable, convert the an/unmappables array to PUA characters and append that result to the output string
+        if [[ "true" == "$boolDcBasenbEnabled" ]]; then
+            if [[ "true" == "$(StageL_or "$(StageL_eq "$intC" "$intL")" "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayTemp[@]}")")")")" ]]; then
+                intUnmappablesCount="$(StageL_count "$(join_by $'\037' "${intArrayUnmappables[@]}")")"
+                if [[ "true" == "$(StageL_ne '0' "$intUnmappablesCount")" ]]; then
+                    if [[ "true" == "$(StageL_not "$boolFoundAnyUnmappables")" ]]; then
+                        if [[ "true" == "$(StageL_not "$boolDcBasenbFragmentEnabled")" ]]; then
+                            intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_getArmoredUtf8EmbeddedStartUuid )")"
+                        fi
+                    fi
+                    boolFoundAnyUnmappables='true'
+                    # We've gotten to the end of a string of unmappable characters, so convert them to PUA characters
+                    intUnmappablesCounter='0'
+                    while [[ "true" == "$(StageL_lt "$intUnmappablesCounter" "$intUnmappablesCount")" ]]; do
+                        # The packing method for this works basically like UTF8, where each character is mapped to a series of bytes. So, first get the bytearray for the character we're on. Each character should be packed separately, to make it easy to spot where one character ends and the next begins.
+                        intArrayUnmappablesIntermediatePacked="$(StageL_append "$(join_by $'\037' "${intArrayUnmappablesIntermediatePacked[@]}")" "$(StageL_pack32 "$(StageL_get "$(join_by $'\037' "${intArrayUnmappables[@]}")" "$intUnmappablesCounter")")")"
+                        intUnmappablesCounter="$(StageL_add "$intUnmappablesCounter" '1')"
+                        intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_byteArrayToBase17bUtf8 "$(join_by $'\037' "${intArrayUnmappablesIntermediatePacked[@]}")")")"
+                        intArrayUnmappablesIntermediatePacked=(  )
+                    done
+                    intArrayUnmappables=(  )
+                    intArrayUnmappablesIntermediatePacked=(  )
+                fi
+            fi
+        fi
+        # Stick the current character onto the result array
+        if [[ "true" == "$(StageL_lt "$intC" "$intL")" ]]; then
+            intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(join_by $'\037' "${intArrayTemp[@]}")")"
+        fi
+        # and finally increment the loop counter
+        intC="$(StageL_add "$intC" '1')"
+    done
+    if [[ "true" == "$(StageL_and "$boolDcBasenbEnabled" "$boolFoundAnyUnmappables")" ]]; then
+        if [[ "true" == "$(StageL_not "$boolDcBasenbFragmentEnabled")" ]]; then
+            intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_getArmoredUtf8EmbeddedEndUuid )")"
+        fi
+    fi
+    StageL_assertIsByteArray "$(join_by $'\037' "${intArrayRes[@]}")"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaFromUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaFromUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    intArrayRes=()
+    intArrayRemaining=()
+    intArrayRemaining="$(join_by $'\037' "${intArrayContent[@]}")"
+    intArrayTemp=()
+    intArrayLatestChar=()
+    intDcBasenbUuidMonitorState='0'
+    intDcBasenbUuidMonitorState='0'
+    intDcBasenbUuidMonitorReprocessNeededCount='0'
+    intDcBasenbUuidMonitorReprocessNeededCount='0'
+    strArrayVariantSettings=()
+    strArrayVariantSettings="$(StageL_utf8VariantSettings 'in')"
+    boolDcBasenbEnabled='false'
+    boolDcBasenbEnabled="$(StageL_contains "$(join_by $'\037' "${strArrayVariantSettings[@]}")" 'dcBasenb')"
+    boolInDcBasenbSection='false'
+    boolInDcBasenbSection='false'
+    if [[ "true" == "$boolDcBasenbEnabled" ]]; then
+        boolInDcBasenbSection="$(StageL_contains "$(join_by $'\037' "${strArrayVariantSettings[@]}")" 'dcBasenbFragment')"
+    fi
+    intSkipThisChar='0'
+    intSkipThisChar='0'
+    intArrayCollectedDcBasenbChars=()
+    intCollectedDcBasenbCharsCount='0'
+    intCollectedDcBasenbCharsCounter='0'
+    intArrayCurrentUnmappableChar=()
+    intTempArrayCount='0'
+    while [[ "true" == "$(StageL_not "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")")")" ]]; do
+        intArrayTemp=(  )
+        intArrayLatestChar="$(StageL_pack32 "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayRemaining[@]}")")")"
+        if [[ "true" == "$boolDcBasenbEnabled" ]]; then
+            # Dcbasenb is enabled, so process characters accordingly.
+            if [[ "true" == "$(StageL_not "$boolInDcBasenbSection")" ]]; then
+                # Not in a dcbasenb section, so look out for the UUID in case we run into one
+                # All this code down to "(End of code section)" is only looking for UUIDs, and can mostly be disregarded for purposes of understanding the decoder logic.
+                # 8 characters for uuid. Probably a better way to do this but oh well. Got them with new TextEncoder().encode('[char]'); etc.
+                if [[ "true" == "$(StageL_ne '0' "$intDcBasenbUuidMonitorReprocessNeededCount")" ]]; then
+                    # We're reprocessing potential UUID chars that didn't match a UUID after all, so don't check them for being a UUID. FIXME: Non-UUID char being reprocessed followed by 244 141 129 157 etc. (a potential UUID) would NOT be checked to be a UUID here. It should handle correctly the situation where there's potential but not a UUID, followed by potential and is a UUID, overlapping, like that.
+                    intDcBasenbUuidMonitorReprocessNeededCount="$(StageL_sub "$intDcBasenbUuidMonitorReprocessNeededCount" '1')"
+                                else
+                    # Check for a UUID.
+                    if [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '0')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '141' '129' '157')")" ]]; then
+                            intDcBasenbUuidMonitorState='1'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '1')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '139' '182' '128')")" ]]; then
+                            intDcBasenbUuidMonitorState='2'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '2')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '188' '183' '162')")" ]]; then
+                            intDcBasenbUuidMonitorState='3'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '3')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '186' '128' '138')")" ]]; then
+                            intDcBasenbUuidMonitorState='4'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '4')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '184' '165' '142')")" ]]; then
+                            intDcBasenbUuidMonitorState='5'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '5')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '136' '186' '141')")" ]]; then
+                            intDcBasenbUuidMonitorState='6'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '6')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '178' '139' '160')")" ]]; then
+                            intDcBasenbUuidMonitorState='7'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '7')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '143' '186' '144')")" ]]; then
+                            intDcBasenbUuidMonitorState='0'
+                            intArrayLatestChar=(  )
+                            boolInDcBasenbSection='true'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                    fi
+                    if [[ "true" == "$(StageL_ne '0' "$intDcBasenbUuidMonitorReprocessNeededCount")" ]]; then
+                        # It's necessary to reprocess the number of bytes that were consumed while checking for a UUID
+                        intTempArrayCount="$(StageL_sub "$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")" "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")")"
+                        intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayContent[@]}")" "$intTempArrayCount" "$(StageL_add "$intTempArrayCount" "$(StageL_mul '4' "$intDcBasenbUuidMonitorReprocessNeededCount")")")"
+                    fi
+                fi
+                        else
+                # Dcbasenb support is enabled, and we're inside a dcbasenb region. Process chars accordingly.
+                if [[ "true" == "$(StageL_ne '0' "$intDcBasenbUuidMonitorReprocessNeededCount")" ]]; then
+                    # Reprocessing non-UUID chars that could have been a UUID. Again, FIXME same as for the start UUID reprocessing bug mentioned in the earlier FIXME.
+                    intDcBasenbUuidMonitorReprocessNeededCount="$(StageL_sub "$intDcBasenbUuidMonitorReprocessNeededCount" '1')"
+                                else
+                    # Look for a dcbasenb region end UUID.
+                    if [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '0')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '188' '133' '185')")" ]]; then
+                            intDcBasenbUuidMonitorState='1'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '1')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '180' '182' '175')")" ]]; then
+                            intDcBasenbUuidMonitorState='2'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '2')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '136' '161' '186')")" ]]; then
+                            intDcBasenbUuidMonitorState='3'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '3')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '191' '148' '138')")" ]]; then
+                            intDcBasenbUuidMonitorState='4'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '4')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '134' '178' '166')")" ]]; then
+                            intDcBasenbUuidMonitorState='5'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '5')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '141' '184' '130')")" ]]; then
+                            intDcBasenbUuidMonitorState='6'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '6')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '243' '178' '128' '176')")" ]]; then
+                            intDcBasenbUuidMonitorState='7'
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                                        elif [[ "true" == "$(StageL_eq "$intDcBasenbUuidMonitorState" '7')" ]]; then
+                        if [[ "true" == "$(StageL_arrEq "$(join_by $'\037' "${intArrayLatestChar[@]}")" "$(join_by $'\037' '244' '143' '188' '157')")" ]]; then
+                            intDcBasenbUuidMonitorState='0'
+                            intArrayLatestChar=(  )
+                            boolInDcBasenbSection='false'
+                            # Handle any remaining collected DcBasenb characters
+                            if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")" ]]; then
+                                intArrayCollectedDcBasenbChars="$(StageL_byteArrayFromBase17bUtf8 "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+                                if [[ "true" == "$(StageL_excepArr "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")" ]]; then
+                                    StageL_importWarning "$(StageL_sub "$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")" "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")" )" 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.'
+                                    intArrayCollectedDcBasenbChars=(  )
+                                fi
+                                intCollectedDcBasenbCharsCount="$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+                                intCollectedDcBasenbCharsCounter='0'
+                                while [[ "true" == "$(StageL_lt "$intCollectedDcBasenbCharsCounter" "$intCollectedDcBasenbCharsCount")" ]]; do
+                                    intArrayCurrentUnmappableChar="$(StageL_utf8BytesFromDecimalChar "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")"
+                                    intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_unpack32 "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+                                    intCollectedDcBasenbCharsCounter="$(StageL_add "$intCollectedDcBasenbCharsCounter" "$(StageL_count "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+                                done
+                                intArrayCollectedDcBasenbChars=(  )
+                            fi
+                                                else
+                            intDcBasenbUuidMonitorReprocessNeededCount="$intDcBasenbUuidMonitorState"
+                            intDcBasenbUuidMonitorState='0'
+                        fi
+                    fi
+                    if [[ "true" == "$(StageL_ne '0' "$intDcBasenbUuidMonitorReprocessNeededCount")" ]]; then
+                        # It's necessary to reprocess the number of bytes that were consumed while checking for a UUID
+                        intTempArrayCount="$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")"
+                        intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayContent[@]}")" "$intTempArrayCount" "$(StageL_add "$intTempArrayCount" "$(StageL_mul '4' "$intDcBasenbUuidMonitorReprocessNeededCount")")")"
+                    fi
+                fi
+                # (End of code section) (see explanation above)
+            fi
+            if [[ "true" == "$(StageL_eq '0' "$intDcBasenbUuidMonitorState")" ]]; then
+                # Process the current character: if we're in a dcbasenb section, check if it is a dcbasenb character and collect it for decoding. Otherwise, decode the preceding run of dcbasenb chars as a chunk and append that to the result.
+                if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayLatestChar[@]}")")")" ]]; then
+                    # There is a latest char (latestChar has more than 0 elems), so work on it
+                    if [[ "true" == "$(StageL_and "$boolInDcBasenbSection" "$(StageL_and "$(StageL_isBasenbChar "$(join_by $'\037' "${intArrayLatestChar[@]}")")" "$(StageL_not "$(StageL_isBasenbDistinctRemainderChar "$(join_by $'\037' "${intArrayLatestChar[@]}")")")")")" ]]; then
+                        # The character is a dcbasenb char and we're in a dcbasenb section, so collect the character for decoding.
+                        # Should decode each character as a single batch with the end of the run denoted by isBasenbDistinctRemainderChar, so don't match those here.
+                        intArrayCollectedDcBasenbChars="$(StageL_append "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")" "$(join_by $'\037' "${intArrayLatestChar[@]}")")"
+                        intSkipThisChar="$(StageL_count "$(join_by $'\037' "${intArrayLatestChar[@]}")")"
+                                        else
+                        # Not a basenb char (or not in a dcbasenb section), so decode the ones we've collected, if there are any
+                        if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")" ]]; then
+                            if [[ "true" == "$(StageL_isBasenbDistinctRemainderChar "$(join_by $'\037' "${intArrayLatestChar[@]}")")" ]]; then
+                                intArrayCollectedDcBasenbChars="$(StageL_push "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")" "$(join_by $'\037' "${intArrayLatestChar[@]}")")"
+                            fi
+                            intArrayCollectedDcBasenbChars="$(StageL_byteArrayFromBase17bUtf8 "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+                            if [[ "true" == "$(StageL_excepArr "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")" ]]; then
+                                StageL_importWarning "$(StageL_sub "$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")" "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")" )" 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.'
+                                intArrayCollectedDcBasenbChars=(  )
+                            fi
+                            intCollectedDcBasenbCharsCount="$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+                            intCollectedDcBasenbCharsCounter='0'
+                            while [[ "true" == "$(StageL_lt "$intCollectedDcBasenbCharsCounter" "$intCollectedDcBasenbCharsCount")" ]]; do
+                                intArrayCurrentUnmappableChar="$(StageL_utf8BytesFromDecimalChar "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")"
+                                intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_unpack32 "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+                                intCollectedDcBasenbCharsCounter="$(StageL_add "$intCollectedDcBasenbCharsCounter" "$(StageL_count "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+                            done
+                            intArrayCollectedDcBasenbChars=(  )
+                        fi
+                    fi
+                                else
+                    # The latest char was the last char of a confirmed UUID.
+                    intSkipThisChar='4'
+                fi
+            fi
+        fi
+        intTempArrayCount="$(StageL_count "$(join_by $'\037' "${intArrayLatestChar[@]}")")"
+        if [[ "true" == "$(StageL_eq '0' "$intDcBasenbUuidMonitorState")" ]]; then
+            # (We're not trying to spot a UUID right now: either the current char couldn't be one, or we confirmed it's not part of one and are re-processing this char.)
+            if [[ "true" == "$(StageL_ne '0' "$intSkipThisChar")" ]]; then
+                # The current character was a dcbasenb character, so it was stuck onto the collectedDcBasenbChars array and so we defer working on it until later. (Or, it was the last character of a confirmed UUID; either way, it doesn't get processed now.)
+                intTempArrayCount="$intSkipThisChar"
+                intSkipThisChar='0'
+                        else
+                # Not skipping the current char, so decode it from Unicode normally.
+                intArrayTemp="$(join_by $'\037' "${intArrayLatestChar[@]}")"
+                intArrayTempFromUnicode=()
+                intArrayTempFromUnicode="$(StageL_dcFromFormat 'unicode' "$(join_by $'\037' "${intArrayTemp[@]}")")"
+                if [[ "true" == "$(StageL_le '1' "$(StageL_count "$(join_by $'\037' "${intArrayTempFromUnicode[@]}")")")" ]]; then
+                    if [[ "true" == "$(StageL_ne '-1' "$(StageL_get "$(join_by $'\037' "${intArrayTempFromUnicode[@]}")" '0')")" ]]; then
+                        intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(join_by $'\037' "${intArrayTempFromUnicode[@]}")")"
+                    fi
+                fi
+            fi
+        fi
+        # Place in an/remaining the substring of input that has not been processed yet.
+        intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayRemaining[@]}")" "$intTempArrayCount" '-1')"
+    done
+    if [[ "true" == "$boolDcBasenbEnabled" ]]; then
+        # Handle any remaining collected DcBasenb characters
+        if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")" ]]; then
+            intArrayCollectedDcBasenbChars="$(StageL_byteArrayFromBase17bUtf8 "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+            if [[ "true" == "$(StageL_excepArr "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")" ]]; then
+                StageL_importWarning "$(StageL_sub "$(StageL_count "$(join_by $'\037' "${intArrayContent[@]}")")" "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")" )" 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.'
+                intArrayCollectedDcBasenbChars=(  )
+            fi
+            intCollectedDcBasenbCharsCount="$(StageL_count "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")"
+            intCollectedDcBasenbCharsCounter='0'
+            while [[ "true" == "$(StageL_lt "$intCollectedDcBasenbCharsCounter" "$intCollectedDcBasenbCharsCount")" ]]; do
+                intArrayCurrentUnmappableChar="$(StageL_utf8BytesFromDecimalChar "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayCollectedDcBasenbChars[@]}")")")"
+                intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_unpack32 "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+                intCollectedDcBasenbCharsCounter="$(StageL_add "$intCollectedDcBasenbCharsCounter" "$(StageL_count "$(join_by $'\037' "${intArrayCurrentUnmappableChar[@]}")")")"
+            done
+        fi
+    fi
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+utf8VariantSettings() {
+    strDirection="$1"; shift; StageL_internalDebugCollect "str Direction = $strDirection; "; StageL_internalDebugStackEnter 'utf8VariantSettings:format-utf8'; StageL_assertIsStr "$strDirection"
+
+    strArrayRes=()
+    strArrayRes="$(StageL_getEnabledVariantsForFormat 'utf8' "$strDirection")"
+
+    strArrayReturn="$(join_by $'\037' "${strArrayRes[@]}")"; StageL_assertIsStrArray "$(join_by $'\037' "${strArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${strArrayReturn[@]}")"
+}
+
+dcaFromUnicodeChar() {
+    intChar="$1"; shift; StageL_internalDebugCollect "int Char = $intChar; "; StageL_internalDebugStackEnter 'dcaFromUnicodeChar:format-utf8'; StageL_assertIsInt "$intChar"
+
+    # Takes a character number, not a byte array.
+    intArrayRes=()
+    intArrayTemp=()
+    intArrayTemp="$(StageL_dcFromFormat 'unicode' "$(StageL_anFromN "$intChar")")"
+    if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayTemp[@]}")")")" ]]; then
+        intArrayRes="$(StageL_push "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_get "$(join_by $'\037' "${intArrayTemp[@]}")" '0')")"
+    fi
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcToUnicodeCharArray() {
+    intDc="$1"; shift; StageL_internalDebugCollect "int Dc = $intDc; "; StageL_internalDebugStackEnter 'dcToUnicodeCharArray:format-utf8'; StageL_assertIsInt "$intDc"
+
+    # Returns a character number, not a byte array.
+    intArrayRes=()
+    intArrayTemp=()
+    intArrayTemp="$(StageL_dcToFormat 'unicode' "$intDc")"
+    if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayTemp[@]}")")")" ]]; then
+        intArrayRes="$(StageL_push "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayTemp[@]}")")")"
+    fi
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaToDcbnbUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaToDcbnbUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    # convenience wrapper
+    intArrayRes=()
+    StageL_pushExportSettings "$(StageL_getFormatId 'utf8')" 'variants:dcBasenb,'
+    intArrayRes="$(StageL_dcaToUtf8 "$(join_by $'\037' "${intArrayContent[@]}")")"
+    StageL_popExportSettings "$(StageL_getFormatId 'utf8')"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaFromDcbnbUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaFromDcbnbUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    # convenience wrapper
+    intArrayRes=()
+    StageL_pushImportSettings "$(StageL_getFormatId 'utf8')" 'variants:dcBasenb,'
+    intArrayRes="$(StageL_dcaFromUtf8 "$(join_by $'\037' "${intArrayContent[@]}")")"
+    StageL_popImportSettings "$(StageL_getFormatId 'utf8')"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaToDcbnbFragmentUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaToDcbnbFragmentUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    # convenience wrapper
+    intArrayRes=()
+    StageL_pushExportSettings "$(StageL_getFormatId 'utf8')" 'variants:dcBasenb dcBasenbFragment,skip_prefilter_semantic:,skip_prefilter_code:,'
+    intArrayRes="$(StageL_dcaToUtf8 "$(join_by $'\037' "${intArrayContent[@]}")")"
+    StageL_popExportSettings "$(StageL_getFormatId 'utf8')"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcaFromDcbnbFragmentUtf8() {
+    IFS=$'\037' read -r -a intArrayContent <<< "$1"; shift; StageL_internalDebugCollect "intArray Content = $intArrayContent; "; StageL_internalDebugStackEnter 'dcaFromDcbnbFragmentUtf8:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayContent[@]}")"
+
+    # convenience wrapper
+    intArrayRes=()
+    StageL_pushImportSettings "$(StageL_getFormatId 'utf8')" 'variants:dcBasenb dcBasenbFragment,'
+    intArrayRes="$(StageL_dcaFromUtf8 "$(join_by $'\037' "${intArrayContent[@]}")")"
+    StageL_popImportSettings "$(StageL_getFormatId 'utf8')"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+utf8CharArrayFromByteArray() {
+    IFS=$'\037' read -r -a intArrayIn <<< "$1"; shift; StageL_internalDebugCollect "intArray In = $intArrayIn; "; StageL_internalDebugStackEnter 'utf8CharArrayFromByteArray:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayIn[@]}")"
+
+    intArrayRes=()
+    intArrayRemaining=()
+    intArrayRemaining="$(join_by $'\037' "${intArrayIn[@]}")"
+    intTemp='0'
+    while [[ "true" == "$(StageL_lt '0' "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")")" ]]; do
+        intTemp="$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayRemaining[@]}")")"
+        intArrayRes="$(StageL_push "$(join_by $'\037' "${intArrayRes[@]}")" "$intTemp")"
+        intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayRemaining[@]}")" "$(StageL_count "$(StageL_utf8BytesFromDecimalChar "$intTemp")" )" '-1')"
+    done
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+byteArrayFromUtf8CharArray() {
+    IFS=$'\037' read -r -a intArrayIn <<< "$1"; shift; StageL_internalDebugCollect "intArray In = $intArrayIn; "; StageL_internalDebugStackEnter 'byteArrayFromUtf8CharArray:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayIn[@]}")"
+
+    intArrayRes=()
+    intCount='0'
+    intI='0'
+    intCount="$(StageL_count "$(join_by $'\037' "${intArrayIn[@]}")")"
+    intI='0'
+    while [[ "true" == "$(StageL_lt "$intI" "$intCount")" ]]; do
+        intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(StageL_utf8BytesFromDecimalChar "$(StageL_get "$(join_by $'\037' "${intArrayIn[@]}")" "$intI")")")"
+        intI="$(StageL_add '1' "$intI")"
+    done
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcbnbGetFirstChar() {
+    IFS=$'\037' read -r -a intArrayIn <<< "$1"; shift; StageL_internalDebugCollect "intArray In = $intArrayIn; "; StageL_internalDebugStackEnter 'dcbnbGetFirstChar:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayIn[@]}")"
+
+    # Return the first character of a dcbnb string (doesn't do any conversion; returns dcbnb)
+    intArrayRes=()
+    if [[ "true" == "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayIn[@]}")")")" ]]; then
+
+        intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+    fi
+    boolContinue='false'
+    boolContinue='true'
+    intArrayNextUtf8=()
+    intArrayRemaining=()
+    intArrayRemaining="$(join_by $'\037' "${intArrayIn[@]}")"
+    intTempArrayCount='0'
+    while [[ "true" == "$boolContinue" ]]; do
+        intArrayNextUtf8="$(StageL_pack32 "$(StageL_firstCharOfUtf8String "$(join_by $'\037' "${intArrayRemaining[@]}")")")"
+        if [[ "true" == "$(StageL_not "$(StageL_isBasenbChar "$(join_by $'\037' "${intArrayNextUtf8[@]}")")")" ]]; then
+            if [[ "true" == "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayRes[@]}")")")" ]]; then
+                intArrayRes="$(join_by $'\037' "${intArrayNextUtf8[@]}")"
+            fi
+            boolContinue='false'
+                else
+            intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayRes[@]}")" "$(join_by $'\037' "${intArrayNextUtf8[@]}")")"
+            if [[ "true" == "$(StageL_isBasenbDistinctRemainderChar "$(join_by $'\037' "${intArrayNextUtf8[@]}")")" ]]; then
+                boolContinue='false'
+                        else
+                intTempArrayCount="$(StageL_count "$(join_by $'\037' "${intArrayNextUtf8[@]}")")"
+                intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayRemaining[@]}")" "$intTempArrayCount" '-1')"
+            fi
+        fi
+    done
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
+
+dcbnbGetLastChar() {
+    IFS=$'\037' read -r -a intArrayIn <<< "$1"; shift; StageL_internalDebugCollect "intArray In = $intArrayIn; "; StageL_internalDebugStackEnter 'dcbnbGetLastChar:format-utf8'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayIn[@]}")"
+
+    # Return the last character of a dcbnb string (doesn't do any conversion; returns dcbnb)
+    intArrayRes=()
+    if [[ "true" == "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayIn[@]}")")")" ]]; then
+
+        intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+    fi
+    boolContinue='false'
+    boolContinue='true'
+    intArrayNextUtf8=()
+    intArrayRemaining=()
+    intArrayRemaining="$(join_by $'\037' "${intArrayIn[@]}")"
+    intTempArrayCount='0'
+    intTempArrayCount='0'
+    boolPastFirstBasenbRemainderChar='false'
+    boolPastFirstBasenbRemainderChar='false'
+    while [[ "true" == "$boolContinue" ]]; do
+        if [[ "true" == "$(StageL_ne '0' "$(StageL_count "$(join_by $'\037' "${intArrayRemaining[@]}")")")" ]]; then
+            intArrayNextUtf8="$(StageL_pack32 "$(StageL_lastCharOfUtf8String "$(join_by $'\037' "${intArrayRemaining[@]}")")")"
+                else
+            intArrayNextUtf8=(  )
+        fi
+        if [[ "true" == "$(StageL_not "$(StageL_isBasenbChar "$(join_by $'\037' "${intArrayNextUtf8[@]}")")")" ]]; then
+            if [[ "true" == "$(StageL_eq '0' "$(StageL_count "$(join_by $'\037' "${intArrayRes[@]}")")")" ]]; then
+                intArrayRes="$(join_by $'\037' "${intArrayNextUtf8[@]}")"
+            fi
+            boolContinue='false'
+                else
+            if [[ "true" == "$(StageL_isBasenbDistinctRemainderChar "$(join_by $'\037' "${intArrayNextUtf8[@]}")")" ]]; then
+                if [[ "true" == "$boolPastFirstBasenbRemainderChar" ]]; then
+                    boolContinue='false'
+                                else
+                    intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayNextUtf8[@]}")" "$(join_by $'\037' "${intArrayRes[@]}")")"
+                    intTempArrayCount="$(StageL_count "$(join_by $'\037' "${intArrayNextUtf8[@]}")")"
+                    intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayRemaining[@]}")" '0' "$(StageL_add '-1' "$(StageL_mul '-1' "$intTempArrayCount")")")"
+                    boolPastFirstBasenbRemainderChar='true'
+                fi
+                        else
+                intArrayRes="$(StageL_append "$(join_by $'\037' "${intArrayNextUtf8[@]}")" "$(join_by $'\037' "${intArrayRes[@]}")")"
+                intTempArrayCount="$(StageL_count "$(join_by $'\037' "${intArrayNextUtf8[@]}")")"
+                intArrayRemaining="$(StageL_anSubset "$(join_by $'\037' "${intArrayRemaining[@]}")" '0' "$(StageL_add '-1' "$(StageL_mul '-1' "$intTempArrayCount")")")"
+            fi
+        fi
+    done
+
+    intArrayReturn="$(join_by $'\037' "${intArrayRes[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}
