@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+read_secret() {
+	local prompt="$1"
+	local secret
+	read -r -s -p "$prompt" secret
+	echo >&2
+	printf '%s' "$secret"
+}
+
+mydate="$1"
+
+PASS="$(read_secret "Personal access token (classic) for collectivetoolbox@github: ")"
+
+DOCKER_CONFIG=$(mktemp -d) && echo "$PASS" | docker --config "$DOCKER_CONFIG" login ghcr.io -u collectivetoolbox --password-stdin && docker --config "$DOCKER_CONFIG" push ghcr.io/collectivetoolbox/collectivetoolbox-"$mydate":latest
