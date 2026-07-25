@@ -1,0 +1,589 @@
+#!/usr/bin/env bash
+
+# rsync must be installed on the server
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+repository="$(pwd)"
+
+usage() {
+	cat <<'USAGE'
+Usage:
+	./deploy [quick|all]
+
+Modes:
+	quick     Build + deploy the server binary target (linux-x64).
+	all       Build + deploy all targets (linux-x64 and linux-x86). This is the
+              default.
+
+Notes:
+	- Releases are uploaded into the server user's storage directory so the
+	  update server can serve them from /releases/...
+	- This script currently uses sshpass (password-based SSH). SSH keys are
+	  recommended. (FIXME?)
+USAGE
+}
+
+read_secret() {
+	local prompt="$1"
+	local secret
+	read -r -s -p "$prompt" secret
+	echo >&2
+	printf '%s' "$secret"
+}
+
+mode_quick=0
+skip_clean=""
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		"quick")
+			mode_quick=1
+			;;
+		"--quick")
+			mode_quick=1
+			;;
+		"all")
+			mode_quick=0
+			;;
+		"--clean")
+			skip_clean=0
+			;;
+		"--skip-clean"|"--no-clean")
+			skip_clean=1
+			;;
+		"-h"|"--help"|"help")
+			usage
+			exit 0
+			;;
+		*)
+			echo "Unknown option/argument: $1" >&2
+			usage >&2
+			exit 1
+			;;
+	esac
+	shift
+done
+
+if [[ "$skip_clean" == "" ]]; then
+    echo "Please choose whether to --clean (will make sure docs are up to date) or to --skip-clean (which will build faster)."
+    exit 1
+fi
+
+# Read deployment targets
+user="$(<~/ctb-deploy.username)" || exit 1
+sudoer_user="$(<~/ctb-deploy.sudoer-username)" || exit 1
+server_user="$(<~/ctb-deploy.server-username)" || exit 1
+server="$(<~/ctb-deploy.ip)" || exit 1
+port="$(<~/ctb-deploy.port)" || exit 1
+
+PASS="$(read_secret "Password for ${user}@${server}: ")"
+SERVER_USER_PASS="$(read_secret "Password for ${server_user}@${server}: ")"
+SUDOER_USER_PASS="$(read_secret "Password for ${sudoer_user}@${server}: ")"
+
+if [[ -f ~/ctb-deploy.global-graph-pass ]]; then
+	GLOBAL_GRAPH_PASS="$(<~/ctb-deploy.global-graph-pass)"
+else
+	GLOBAL_GRAPH_PASS="$(read_secret "Password for global graph server user: ")"
+fi
+
+cd "$repository" || exit 1
+
+# Increase patch version number. The line in Cargo.toml looks like `version = "0.1.1"`
+perl -0777 -pe 's/^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"/"version = \"${1}.${2}." . ($3+1) . "\""/me' -i Cargo.toml
+
+# Trigger cargo to update Cargo.lock with the new version.
+cargo metadata --format-version=1 --no-deps >/dev/null
+
+# Automatically commit the version bump if there are changes.
+if ! git diff --quiet Cargo.toml Cargo.lock; then
+	git commit -m "chore: Automatically bump package version on deploy" Cargo.toml Cargo.lock
+fi
+
+version="$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "ctoolbox") | .version')"
+commit="$(git rev-parse HEAD)"
+commitAndVersion="$version-$commit"
+
+host_platform() {
+	local os arch
+	os="$(uname -s)"
+	arch="$(uname -m)"
+	if [[ "$os" != "Linux" ]]; then
+		echo "Unsupported host OS: $os" >&2
+		exit 1
+	fi
+	case "$arch" in
+		x86_64|amd64)
+			printf '%s' "linux-x64"
+			;;
+		i386|i486|i586|i686)
+			printf '%s' "linux-x86"
+			;;
+		*)
+			echo "Unsupported host arch: $arch" >&2
+			exit 1
+			;;
+	esac
+}
+
+storage_dir_linux() {
+	printf '%s' ".local/share/collectivetoolbox"
+}
+
+release_targets() {
+    if [[ "$mode_quick" -eq 1 ]]; then
+	    printf '%s\n' "linux-x64"
+    else
+	    printf '%s\n' "linux-x64" "linux-x86"
+    fi
+}
+
+base_input_dir="$repository/../ctb_release/input"
+[[ -d "$base_input_dir" ]] && rm -r "$base_input_dir"
+mkdir -p "$base_input_dir" || exit 1
+
+cd "$repository" || exit 1
+
+
+
+if [[ "$skip_clean" == "0" ]]; then
+    cargo clean # Otherwise, the docs can end up with stale sidebar, it seems like
+fi
+
+# Ensure sshpass is available to supply the password non-interactively.
+if ! command -v sshpass >/dev/null 2>&1; then
+	echo "sshpass is required but not installed. Please install sshpass or use SSH keys." >&2
+	exit 1
+fi
+
+# Build relevant targets. Keep glibc builds available via ./build, but do
+# not publish them on the standard download surface.
+mapfile -t targets < <(release_targets)
+if [[ "${#targets[@]}" -eq 0 ]]; then
+    echo "No release targets configured" >&2
+    exit 1
+fi
+
+for target in "${targets[@]}"; do
+    # Only build docs on first target; it'll be reused
+    if [[ "$target" == "${targets[0]}" ]]; then
+        ./build --release --docs "$target"
+    else
+        ./build --release "$target"
+    fi
+done
+
+cd "$repository/vendor/ctb-vendored" || exit 1
+"$repository/scripts/vendor-dependencies"
+
+git archive --format=tar HEAD -o "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
+
+cd "$repository" || exit 1
+
+# Archive application source code (including vendored code). Keep the .tar
+# uncompressed for better chunk deduplication between releases.
+cd "$repository/vendor" || exit 1
+git archive --format=tar HEAD -o vendor.tar
+cp vendor.tar "$base_input_dir/vendor.tar"
+
+cd "$repository/packaging/homebrew-tap" || exit 1
+git archive --format=tar HEAD -o "$repository/packaging/homebrew-tap/homebrew-tap.tar"
+
+cd "$repository" || exit 1
+git archive --format=tar --add-file=vendor/vendor.tar --add-file="$repository/packaging/homebrew-tap/homebrew-tap.tar" HEAD -o \
+	"$base_input_dir/ctoolbox-src-$commitAndVersion.tar"
+
+cd "$repository" || exit 1
+
+# Prepare release input directories.
+output_dir="$repository/../ctb_release/releases"
+mkdir -p "$output_dir" || exit 1
+
+for target in "${targets[@]}"; do
+    input_dir="$base_input_dir/$target"
+    mkdir "$input_dir" || exit 1
+    cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
+    cp "built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
+    if [[ -f "built/$target/v86_images.rsrc" ]]; then
+        cp "built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
+    elif [[ -f "built/v86_images.rsrc" ]]; then
+        cp "built/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
+    fi
+    cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
+    # IMPORTANT: keep this artifact uncompressed so fastcdc chunking can
+    # deduplicate effectively between releases.
+    cp "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" \
+        "$input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
+    # IMPORTANT: keep this artifact uncompressed so fastcdc chunking can
+    # deduplicate effectively between releases.
+    cp "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" \
+        "$input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
+    # Optional: add additional artifacts here (icecat pack, etc).
+    # Per-file settings can be provided via sidecar *.ctb-artifact.json.
+done
+
+# Run dev-sign for each target and update local latest symlinks.
+host="$(host_platform)"
+devsign_bin="$repository/built/$host/ctoolbox"
+if [[ ! -x "$devsign_bin" ]]; then
+    echo "Expected dev-sign binary not found: $devsign_bin" >&2
+    echo "Try building the host target: ./build --release" >&2
+    exit 1
+fi
+
+echo "Updating Guix packaging..."
+
+cd "$repository" || exit 1
+cp packaging/guix/rust-crates.tmpl packaging/guix/generated/ctb-workspace-rust-crates.scm
+guix import --insert=packaging/guix/generated/ctb-workspace-rust-crates.scm crate --lockfile=Cargo.lock ctb-workspace
+
+# Calculate deterministic gzip SHA256 hashes for Homebrew formula.
+echo "Calculating Homebrew release hashes..."
+deps_sha="$("$devsign_bin" ctb-dev-gz-sha256 "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar")"
+src_sha="$("$devsign_bin" ctb-dev-gz-sha256 "$base_input_dir/ctoolbox-src-$commitAndVersion.tar")"
+
+echo "Updating Homebrew formula..."
+cat <<EOF > "$repository/packaging/homebrew-tap/Formula/ctoolbox.rb"
+# GENERATED! Do not edit directly. This file is automatically generated by the deploy script.
+class Ctoolbox < Formula
+  desc "Collective Toolbox: A graph‑based workspace for linking documents and data"
+  homepage "https://collectivetoolbox.com/"
+  url "https://collectivetoolbox.com/releases/src/ctoolbox-src-$version-$commit.tar.gz"
+  version "$version"
+  sha256 "$src_sha"
+
+  # We use env :userpaths to preserve the host's rustup and musl-tools paths in CI.
+  env :userpaths
+
+  depends_on "cargo-deny" => :build
+  depends_on "pkg-config" => :build
+  depends_on "rust" => :build
+
+  resource "dependencies" do
+    url "https://collectivetoolbox.com/releases/src/ctoolbox-dependencies-$version-$commit.tar.gz"
+    sha256 "$deps_sha"
+  end
+
+  def install
+    # bison expat libffi meson ninja
+    # Extract vendor.tar inside the vendor/ directory to restore git-archived path dependencies.
+    mkdir "-p", "vendor"
+    system "tar", "-xf", "vendor.tar", "-C", "vendor"
+
+    # Stage dependencies to vendor/ctb-vendored
+    (buildpath/"vendor/ctb-vendored").mkpath
+    resource("dependencies").stage(buildpath/"vendor/ctb-vendored")
+
+    # Configure Cargo to run offline and use the vendored sources
+    File.open(".cargo/config.toml", "a") do |f|
+      f.write <<~EOS
+
+        [source.crates-io]
+        replace-with = "vendored-sources"
+
+        [source.vendored-sources]
+        directory = "vendor/ctb-vendored/vendor"
+
+        [source."https://github.com/boa-dev/boa.git"]
+        git = "https://github.com/boa-dev/boa.git"
+        rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
+        replace-with = "vendored-sources"
+
+        [source."https://github.com/rust-dark-light/dark-light.git"]
+        git = "https://github.com/rust-dark-light/dark-light.git"
+        rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
+        replace-with = "vendored-sources"
+      EOS
+    end
+
+    rm "./vendor/TypeScript-built.tar" # Remove the TypeScript-built tarball to avoid using it in the build
+
+    # Run the offline build using the provided runner script (which sandboxes network access)
+    system "./scripts/run-without-network", "./build", "--release", "--no-tests", "--no-docs", "linux-x64"
+    system "./build", "--release", "--no-tests", "--no-docs", "linux-x64"
+
+    # Install the binaries
+    bin.install "built/linux-x64/ctoolbox"
+    bin.install "built/linux-x64/ctoolbox.rsrc"
+  end
+
+  test do
+    # Simple validation command to verify the installation
+    assert_match "Collective Toolbox", shell_output("#{bin}/ctoolbox help")
+  end
+end
+EOF
+
+cd "$repository" || exit 1
+git add packaging || exit 1
+git commit -m "chore: Automatically update packaging for version $version" || true
+
+# Auto-commit the updated formula in the Homebrew Tap repository.
+if [[ -d "$repository/packaging/homebrew-tap/.git" ]]; then
+    echo "Committing Homebrew formula updates..."
+    cd "$repository/packaging/homebrew-tap" || exit 1
+    git add Formula/ctoolbox.rb || exit 1
+    git commit -m "chore: Automatically update Formula for version $version" || true
+    cd "$repository" || exit 1
+fi
+
+for target in "${targets[@]}"; do
+    "$devsign_bin" ctb-dev-sign \
+        --input-dir "$base_input_dir/$target" \
+        --output-dir "$output_dir" \
+        --platform "$target"
+
+    latest_manifest="$(ls -1t "$output_dir/ctb-$target-"*-*.json | head -n 1)"
+    ln -sfn "$(basename "$latest_manifest")" "$output_dir/ctb-$target-latest.json"
+    ln -sfn "$(basename "$latest_manifest").sig" "$output_dir/ctb-$target-latest.json.sig"
+done
+
+# Upload releases into the server user's storage directory.
+remote_storage="/home/$server_user/$(storage_dir_linux)"
+remote_releases="$remote_storage/releases"
+
+SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${user}@${server}" \
+    "mkdir -p '$remote_releases'" || exit 1
+
+SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz \
+    "$output_dir/" \
+    "${user}@${server}:$remote_releases/" || exit 1
+
+# Verify that the uploaded manifests and chunk directory are present before
+# proceeding to remote signature/hash validation.
+SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${user}@${server}" bash -s \
+    "$remote_releases" "${targets[@]}" <<'REMOTE_CHECK'
+set -euo pipefail
+
+releases_dir="$1"
+shift
+
+test -d "$releases_dir"
+test -d "$releases_dir/bh"
+
+for target in "$@"; do
+test -f "$releases_dir/ctb-$target-latest.json"
+done
+REMOTE_CHECK
+
+# Ensure server-side latest symlinks point at the most recent manifests.
+SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${user}@${server}" bash -s \
+    "$server_user" "$(storage_dir_linux)" "${targets[@]}" <<'REMOTE_SCRIPT'
+set -euo pipefail
+
+server_user="$1"
+storage_rel="$2"
+shift 2
+
+releases_dir="/home/$server_user/$storage_rel/releases"
+cd "$releases_dir" || exit 1
+
+for target in "$@"; do
+latest="$(ls -1t "ctb-$target-"*-*.json | head -n 1)"
+ln -sfn "$latest" "ctb-$target-latest.json"
+ln -sfn "$latest.sig" "ctb-$target-latest.json.sig"
+done
+REMOTE_SCRIPT
+
+# Optional (but recommended): verify uploaded releases using the server user's
+# configured release_public_key.
+remote_verify_bin="/home/${server_user}/deploy/ctoolbox"
+if SSHPASS="$SERVER_USER_PASS" sshpass -e ssh -p "${port}" "${server_user}@${server}" \
+    test -x "$remote_verify_bin"; then
+    for target in "${targets[@]}"; do
+        SSHPASS="$SERVER_USER_PASS" sshpass -e ssh -p "${port}" "${server_user}@${server}" \
+            "$remote_verify_bin ctb-dev-release-check --platform '$target'" || exit 1
+    done
+else
+    echo "Skipping remote release verification; not found: $remote_verify_bin" >&2
+fi
+
+for target in "${targets[@]}"; do
+    input_dir="$base_input_dir/$target"
+    rm "$input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
+    rm "$input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
+done
+
+# Ensure the permissions/groups setup is applied every deploy. This is intended
+# to be safe to re-run (idempotent).
+SSHPASS="$SUDOER_USER_PASS" sshpass -e rsync -e "ssh -p ${port}" -avz \
+    "$repository"/scripts/setup-permissions-groups \
+    "${sudoer_user}@${server}:/tmp/ctb-setup-permissions-groups"
+
+SSHPASS="$SUDOER_USER_PASS" sshpass -e ssh -p "${port}" "${sudoer_user}@${server}" \
+    chmod 0700 /tmp/ctb-setup-permissions-groups
+
+printf '%s\n' "$SUDOER_USER_PASS" | \
+    SSHPASS="$SUDOER_USER_PASS" sshpass -e ssh -p "${port}" "${sudoer_user}@${server}" \
+        "sudo -S -p '' USER_SERVER='$server_user' USER_DEPLOYER='$user' /tmp/ctb-setup-permissions-groups"
+
+SSHPASS="$SUDOER_USER_PASS" sshpass -e ssh -p "${port}" "${sudoer_user}@${server}" \
+    rm -f /tmp/ctb-setup-permissions-groups
+
+# Use sshpass with rsync and ssh so the password is reused.
+SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz --chmod=0750 \
+    "$base_input_dir"/linux-x64/ctoolbox \
+    "${user}@${server}:/home/${server_user}/deploy/ctoolbox-${commit}"
+
+SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz \
+    "$base_input_dir"/linux-x64/ctoolbox.rsrc \
+    "${user}@${server}:/home/${server_user}/deploy/ctoolbox-${commit}.rsrc"
+
+today="$(date +%Y%m%d_%H%M%S)"
+7z a "$repository"/../ctb-deploys/"$today".7z "$base_input_dir" || exit 1
+
+# Upload systemd unit file
+SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz \
+    "$repository"/scripts/ctoolbox.service \
+    "${user}@${server}:/home/${server_user}/.config/systemd/user/ctoolbox.service"
+
+# Gracefully restart the service via ssh (using sshpass)
+SSHPASS="$SERVER_USER_PASS" sshpass -e ssh -p "${port}" "${server_user}@${server}" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
+commit="$1"
+server_user="$2"
+systemctl --user stop ctoolbox || true
+# Wait for process to exit gracefully (timeout after 30s)
+timeout 30 bash -c 'while systemctl --user is-active --quiet ctoolbox; do sleep 0.5; done' || true
+REMOTE_SCRIPT
+
+SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${user}@${server}" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
+commit="$1"
+server_user="$2"
+
+# Update symlink to new binary
+ln -sfn "/home/$server_user/deploy/ctoolbox-$commit" "/home/$server_user/deploy/ctoolbox"
+ln -sfn "/home/$server_user/deploy/ctoolbox-$commit.rsrc" "/home/$server_user/deploy/ctoolbox.rsrc"
+REMOTE_SCRIPT
+
+SSHPASS="$SUDOER_USER_PASS" sshpass -e ssh -p "${port}" "${sudoer_user}@${server}" bash -s "$server_user" <<'REMOTE_SCRIPT'
+set -x
+server_user="$1"
+
+sudo bash -c 'echo setcap -r /home/"$0"/deploy/ctoolbox-*' "$server_user" || true
+sudo bash -c 'setcap '\''cap_net_bind_service=+ep'\'' "$(readlink /home/"$0"/deploy/ctoolbox)"' "$server_user"
+REMOTE_SCRIPT
+
+SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${user}@${server}" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
+commit="$1"
+server_user="$2"
+
+cd /home/"$server_user"/deploy || exit 1
+find . -maxdepth 1 -type f -name "ctoolbox-*" \
+	! -name "ctoolbox-$commit" \
+	! -name "ctoolbox-$commit.rsrc" \
+	! -name "ctoolbox-dependencies-$commit.tar.gz" \
+	! -name "ctoolbox-src-$commit.tar.gz" \
+	-exec rm {} \; || true
+REMOTE_SCRIPT
+
+SSHPASS="$SERVER_USER_PASS" sshpass -e ssh -p "${port}" "${server_user}@${server}" bash -s "${commit@Q}" "${server_user@Q}" "${GLOBAL_GRAPH_PASS@Q}" "${version@Q}" <<'REMOTE_SCRIPT'
+commit="$1"
+server_user="$2"
+GLOBAL_GRAPH_PASS="$3"
+version="$4"
+
+systemctl --user daemon-reload
+# FIXME: Not sure if that's what's needed to make it start on reboot, but enable just says it's not found
+#systemctl --user enable ctoolbox
+systemctl --user start ctoolbox
+systemctl --user status ctoolbox
+
+# Read settings to find fixed port
+settings_file="/home/${server_user}/.local/share/collectivetoolbox/config/pc_settings.json"
+web_port=8080
+proto="http"
+domain_name=""
+
+if [ -f "$settings_file" ]; then
+    https_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_https_port // empty' "$settings_file")
+    http_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_http_port // empty' "$settings_file")
+    domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r '.domain_name // empty' "$settings_file")
+
+    if [ -n "$https_port" ]; then
+        web_port="$https_port"
+        proto="https"
+    elif [ -n "$http_port" ]; then
+        web_port="$http_port"
+        proto="http"
+    fi
+fi
+
+if [ -n "$domain_name" ]; then
+    host_target="$domain_name"
+else
+    host_target="127.0.0.1"
+fi
+
+url="${proto}://${host_target}:${web_port}"
+
+echo "Polling ${url}/api/update-status until server is responsive and reporting version ${version}..."
+responsive=0
+for i in {1..60}; do
+    response=$(curl -s -k "${url}/api/update-status" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$response" ]; then
+        reported_version=$(echo "$response" | /home/${server_user}/deploy/ctoolbox jq -r '.server_version // empty' 2>/dev/null)
+        if [ "$reported_version" = "$version" ]; then
+            echo "Server is responsive and reporting version ${version}!"
+            responsive=1
+            break
+        fi
+    fi
+    sleep 1
+done
+
+if [[ "$responsive" -eq 0 ]]; then
+    echo "Error: Server failed to become responsive and report version ${version} on ${url} within 60 seconds." >&2
+    exit 1
+fi
+
+# Clean up any existing stale token file or directory
+token_dir="/home/${server_user}/.local/share/collectivetoolbox"
+token_file="${token_dir}/setup_token"
+
+if [ -f "$token_file" ]; then
+    rm "$token_file"
+fi
+
+# Generate a secure one-time setup token
+setup_token=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+mkdir -p "$token_dir"
+echo "$setup_token" > "$token_file"
+chmod 600 "$token_file"
+
+# Send POST request to setup global user
+echo "Setting up global user database..."
+escaped_pass=$(/home/${server_user}/deploy/ctoolbox json-escape "$GLOBAL_GRAPH_PASS")
+response=$(curl -s -k -X POST -H 'Content-Type: application/json' -H "X-Ctb-Setup-Token: $setup_token" -d "{\"password\":$escaped_pass}" "${url}/api/sync/setup-global-user")
+
+if [ -f "$token_file" ]; then
+    rm "$token_file"
+fi
+
+if echo "$response" | grep -q '"success":true'; then
+    echo "Global user setup successful!"
+else
+    echo "Global user setup failed: $response"
+    exit 1
+fi
+
+sleep 10
+
+systemctl --user status ctoolbox
+REMOTE_SCRIPT
+
+# Clear sensitive vars from the environment
+unset PASS SERVER_USER_PASS SUDOER_USER_PASS
+
+echo "$version" > VERSION
+echo "$commit" > COMMIT
+
+git add VERSION COMMIT
+git commit -m 'chore: Increase version after deploy'
+
+#./scripts/git-release "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" "$version" "$commit"
+
+echo
+echo
+echo "Deploy done! If you use a CDN, don't forget to purge the cache."

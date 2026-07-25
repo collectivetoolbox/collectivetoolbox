@@ -1,0 +1,16 @@
+[package]
+name = "ctb-formats-base64"
+edition = "2024"
+
+[lib]
+path="base64.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+base64 = "0.22.1"
+
+[lints]
+workspace = true

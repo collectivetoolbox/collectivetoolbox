@@ -1,0 +1,6 @@
+First ID in region,Last ID in region,Count of IDs in region,Block name,Description of region
+0,1114111,1114112,(refer to Unicode block names),Unicode.
+1114112,1114409,298,Document Characters,"Existing Dc IDs, offset such that the first ID (former Dc 0) is now 1114112, and the last ID (former Dc 297) is 1114409. To convert from an old Dc ID to a new global graph Dc ID, add 1114112."
+1114410,4294967295,4293852887,Document Characters,Reserved for additional Dcs.
+4294967296,8589934591,4294967296,Reserved (Data),"Reserved for Unicode properties, Unihan, a snapshot of Wikidata, and any other commonly-useful data sets."
+8589934592,12884901887,4294967296,System,"Initial allocation block for system documents, code, and UI components."

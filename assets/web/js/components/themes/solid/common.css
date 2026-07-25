@@ -1,0 +1,27 @@
+html[data-ctb-ui-theme="solid"] {
+    --focusRingWidth: 1.5px;
+    --card-border-radius: 0.25rem;
+    --page-border-radius: 0.5rem;
+    --home-section-bg: light-dark(white, black);
+    --home-section-shadow: 0px 2px 4px 0px light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.58));
+
+    /* Secondary Solid */
+    --solid-secondary-bg: light-dark(#ffffff, #111827);
+    --solid-secondary-border: light-dark(#e3ca84, rgba(255, 255, 255, 0.08));
+    --solid-secondary-shadow: var(--en-shadow);
+    --solid-secondary-hover-bg: light-dark(#f9fafb, #1f2937);
+    --solid-secondary-hover-border: light-dark(#d1b772, rgba(255, 255, 255, 0.15));
+    --solid-secondary-hover-shadow: var(--en-shadow);
+    --solid-secondary-active-bg: light-dark(#f3f4f6, #111827);
+    --solid-secondary-active-border: light-dark(#d1b772, rgba(255, 255, 255, 0.15));
+
+    /* Primary Solid */
+    --solid-primary-bg: light-dark(#ffd2aa, #26198c);
+    --solid-primary-border: transparent;
+    --solid-primary-shadow: 0 6px 18px 0 light-dark(rgba(206,97,1,0.12), rgba(249,115,22,0.12));
+    --solid-primary-hover-bg: light-dark(#ffc291, #3121b3);
+    --solid-primary-hover-border: transparent;
+    --solid-primary-hover-shadow: 0 6px 18px 0 light-dark(rgba(206,97,1,0.18), rgba(249,115,22,0.18));
+    --solid-primary-active-bg: light-dark(#e0b38c, #1f1470);
+    --solid-primary-active-border: transparent;
+}

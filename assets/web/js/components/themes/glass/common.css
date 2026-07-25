@@ -1,0 +1,66 @@
+/* Glass theme-wide variable definitions */
+/* Based on https://github.com/reimar/glass-button
+
+MIT License
+
+Copyright (c) 2023 David Darnes
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+html[data-ctb-ui-theme="glass"] {
+    /* Glass Theme variables (defaults) */
+    --background-color: light-dark(#fff1f2, black);
+    --background-image: url('/resources/Abstract-Polygon-Background-16x10.svg');
+    --blur: 8px;
+    --highLightIntensity: 0.75;
+    --lightAngle: -20deg;
+    --focusRingWidth: 1.5px;
+    --focusRingColor: rgba(134, 136, 255, 0.5);
+    --card-border-radius: 0.5rem;
+    --page-border-radius: 2rem;
+    --strokeWidth: 1.5px;
+    --home-section-bg: light-dark(white, black);
+    --home-section-shadow: 0px 2px 4px 0px light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.58));
+    --glass-tint-color: #ffffff;
+    --glass-bg-opacity: 0.025;
+    --glass-bg: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-bg-opacity) * 100%), transparent);
+    --glass-outline-opacity: 0.05;
+    --glass-outline: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-outline-opacity) * 100%), transparent);
+    --glass-shadow-inset: inset 0 0 12px rgba(255, 255, 255, 0.1);
+    --glass-shadow-outsets: 0px 0px 3px rgba(0, 0, 0, 0.03), 0px 2px 13px rgba(0, 0, 0, 0.05), 0px 3px 28px rgba(0, 0, 0, 0.08), 0px 6px 50px rgba(0, 0, 0, 0.1);
+    --glass-hover-bg-opacity: 0.05;
+    --glass-hover-bg: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-hover-bg-opacity) * 100%), transparent);
+    --glass-active-bg-opacity: 0.125;
+    --glass-active-bg: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-active-bg-opacity) * 100%), transparent);
+    --glass-hover-shadow-inset: 0 0 2.8rem 0px rgba(0, 0, 0, 0.39) inset;
+    --glass-active-shadow-inset: 0 0 1.5rem 0px light-dark(rgba(0, 0, 0, 0.39), rgba(0, 0, 0, 0.6)) inset, 0 0 0.5rem 0px light-dark(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 1)) inset;
+    --glass-hover-brightness: 1.15;
+    --glass-active-brightness: 1.05;
+
+    --glass-shadow-color: #ffffff;
+    --glass-active-shadow-color: #ffffff;
+    --glass-active-shadow-color-dark: #000000;
+    --glass-text-shadow: drop-shadow(0px 0px 5px var(--glass-shadow-color));
+    --glass-active-text-shadow: drop-shadow(0px 0px 5px light-dark(var(--glass-active-shadow-color), var(--glass-active-shadow-color-dark)));
+    --glass-label-shadow: drop-shadow(0px 0px 10px var(--glass-shadow-color)) drop-shadow(0px 0px 5px var(--glass-shadow-color));
+    --glass-label-shadow-active: drop-shadow(0px 0px 10px var(--glass-shadow-color)) drop-shadow(0px 0px 5px var(--glass-shadow-color));
+    --glass-label-shadow-active-dark: drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark)) drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark)) drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark));
+
+    /* Focus styling */
+    --focus-outline-color: rgba(134, 136, 255, 0.5);
+}

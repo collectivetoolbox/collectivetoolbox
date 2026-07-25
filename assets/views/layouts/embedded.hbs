@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>{{site_name}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/app.css">
+    <script>
+        if (window.top === window.self) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("embed");
+            window.location.replace(url.toString());
+        } else {
+            document.addEventListener("click", function(event) {
+                const link = event.target.closest("a");
+                if (!link) return;
+                try {
+                    const url = new URL(link.href, window.location.href);
+                    if (
+                        url.origin === window.location.origin &&
+                        url.pathname.startsWith("/docs") &&
+                        !url.pathname.startsWith("/docs/lib")
+                    ) {
+                        if (!url.searchParams.has("embed")) {
+                            url.searchParams.set("embed", "1");
+                            link.href = url.toString();
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parsing errors for invalid links
+                }
+            });
+        }
+    </script>
+</head>
+
+<body class="w-full h-full pt-4 sm:px-4 bg-rose-50 flex flex-col" id="root">
+    <div class="flex flex-col w-full gap-y-4 grow">
+        <div class="flex flex-col w-full gap-y-4 grow" role="main">
+            {{{ content }}}
+        </div>
+    </div>
+</body>
+
+</html>

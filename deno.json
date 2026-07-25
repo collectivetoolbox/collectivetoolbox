@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"],
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "types": ["./assets/web/js/globals.d.ts"],
+    "paths": {
+      "jquery": ["vendor/DefinitelyTyped-partial/jquery"]
+    }
+  },
+  "exclude": [
+    "built/**",
+    "assets/web/vendor/**",
+    "assets/web/app.old.js",
+    "assets/web/rust-worker.js"
+  ],
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended"
+      ],
+      "include": [
+        "eqeqeq",
+        "require-jsdoc",
+        "require-param",
+        "require-returns"
+      ],
+      "exclude": [
+        "no-window",
+        "no-window-prefix"
+      ]
+    },
+    "include": [
+      "assets/web/"
+    ]
+  }
+}
+

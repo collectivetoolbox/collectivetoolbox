@@ -1,0 +1,16 @@
+[package]
+name = "ctb-v86-posix-init"
+version = "0.1.0"
+edition = "2024"
+description = "Minimal 32-bit POSIX Rust init process for v86 Guix bootloader"
+
+[lib]
+path = "v86_posix_init.rs"
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+
+[lints]
+workspace = true

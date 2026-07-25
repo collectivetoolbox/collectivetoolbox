@@ -1,0 +1,90 @@
+[package]
+name = "ctb-utilities"
+edition = "2024"
+
+[lib]
+path="utilities.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-test-macro = { path = "ctb_test_macro" }
+ctb-ipc-macro = { path = "ctb_ipc_macro" }
+ctb-workspace-ipc-macro = { path = "ctb_workspace_ipc_macro" }
+
+inventory = "0.3"
+postcard = { version = "1.1.3", features = ["use-std"] }
+
+async-trait = "0.1.89"
+workspace-filter = "0.1.0"
+tracing = "0.1.44"
+tracing-core = "0.1.36"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "ansi", "tracing-log", "registry"] }
+tracing-appender = "0.2.4"
+anyhow = "1.0.100"
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+yansi = "1.0.1"
+jaq-core = "2.2"
+jaq-std = "2.1"
+jaq-json = { version = "1.1", features = [ "parse" ] }
+# For the moment, use old version 0.2 as 0.4 change to lexer.exactly_one causes error.
+hifijson = "0.2"
+thiserror = "2.0"
+clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
+humantime = "2.3.0"
+fork = "0.6.0"
+passwords = { version = "3.1", features = [ "crypto" ] }
+sysinfo = "0.37"
+unicode-segmentation = "1.12.0"
+argon2 = "0.5.3"
+zeroize = { version = "1.8.2", features = [ "zeroize_derive" ]}
+fs2 = "0.4.3"
+base64 = "0.22.1"
+hex = "0.4.3"
+vergen-gix = { version = "9.1.0", features = ["build", "cargo", "rustc", "si"] }
+log = "0.4"
+directories = "6.0.0"
+include_dir = { version = "0.7.4", features = ["glob"] }
+memmap2 = "0.9.9"
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+nix = { version = "0.30", features = ["fs", "signal"] }
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+smart-default = "0.7.1"
+csv = "1.4.0"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.9.2"
+regex = "1.12.4"
+reqwest = { version = "0.13.4", features = [ "blocking", "brotli", "gzip", "json" ] }
+webpki-root-certs = "1.0.7"
+clubcard = { version = "0.3.3", features = [ "builder" ] }
+clubcard-crlite = { version = "0.3.2", features = [ "builder" ] }
+sha2 = "0.10.9"
+rustls = "0.23"
+rustls-platform-verifier = "0.7.0"
+x509-parser = "0.16.0"
+semver = { version = "1.0", features = ["serde"] }
+constcat = "0.6.1"
+ed25519-dalek = { version = "2.2.0", features = ["serde"] }
+voprf = "0.5.0"
+rand_08 = { package = "rand", version = "0.8" }
+rand_core_06 = { package = "rand_core", version = "0.6" }
+
+
+
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_UI_Shell", "Win32_Foundation", "Win32_System_Com"] }
+
+[build-dependencies]
+anyhow = "1.0.100"
+vergen-gix = { version = "9.1.0", features = ["build", "cargo", "rustc", "si"] }
+workspace-filter-build = "0.1"
+cargo_metadata = "0.23.1"
+ctb-build-support = { path = "../build_support" }
+
+[lints]
+workspace = true
+
+[features]
+default = []
+tracing-test-no-env-filter = []

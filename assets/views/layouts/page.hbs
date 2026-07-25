@@ -1,0 +1,24 @@
+<div class="w-full flex flex-col grow card card-translucent overflow-auto page-content">
+    {{#if _request.breadcrumbs}}
+    <div class="mb-4">
+        {{#each _request.breadcrumbs}}
+            {{#if this.url}}
+                {{#if @index}}
+                    <span>› <a href="{{this.url}}" class="breadcrumb capitalize">{{this.label}}</a></span>
+                {{else}}
+                    › <a href="{{this.url}}" class="breadcrumb capitalize">{{this.label}}</a>
+                {{/if}}
+            {{else}}
+                {{#if @index}}
+                    <span>› <span class="breadcrumb capitalize">{{this.label}}</span></span>
+                {{else}}
+                    › <span class="breadcrumb capitalize">{{this.label}}</span>
+                {{/if}}
+            {{/if}}
+        {{/each}}
+    </div>
+    {{/if}}
+    <div>
+        {{{ content }}}
+    </div>
+</div>

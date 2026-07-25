@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+if [[ "${1-}" == "debug" || "${1-}" == "--debug" || -n "${RUST_BACKTRACE-}" ]]; then
+    ./build --debug linux-x64 || exit 1
+else
+    ./build linux-x64 || exit 1
+fi
+
+pushd built/linux-x64 || exit 1
+
+RUST_BACKTRACE=1 RUST_LIB_BACKTRACE=1 ./ctoolbox "$@"

@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-uri"
+edition = "2024"
+
+[lib]
+path="uri.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+include_dir = { version = "0.7.4", features = ["glob"] }
+
+[lints]
+workspace = true

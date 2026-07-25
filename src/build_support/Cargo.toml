@@ -1,0 +1,44 @@
+[package]
+name = "ctb-build-support"
+edition = "2024"
+description = "Asset packing and other preparation for ctoolbox build process"
+
+[lib]
+path = "build_support.rs"
+crate-type = ["lib"]
+
+[[bin]]
+name = "lint-patches"
+path = "bin/lint_patches.rs"
+
+[[bin]]
+name = "refresh-asset-bundle"
+path = "bin/refresh_asset_bundle.rs"
+
+[[bin]]
+name = "lint-helper"
+path = "bin/lint_helper.rs"
+
+[[bin]]
+name = "seabios-tool"
+path = "bin/seabios_tool.rs"
+
+[dependencies]
+anyhow = "1.0.100"
+ctb-formats-ctb-asset-bundle = { path = "../formats/ctb_asset_bundle" }
+fs2 = "0.4.3"
+syn = { version = "2.0.114", features = ["full", "visit"] }
+cargo_metadata = "0.23.1"
+quote = "1.0"
+xmltree = "0.12.0"
+toml = "0.9.8"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+sha2 = "0.10.9"
+zstd = "0.13.3"
+tar = "0.4.43"
+
+[lints]
+workspace = true
+

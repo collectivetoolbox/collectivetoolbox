@@ -1,0 +1,17 @@
+[package]
+name = "ctb-ipc-macro"
+edition = "2024"
+description = """
+ctb-ipc procedural macro for generating IPC glue code.
+"""
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = {version = "1.0.105", default-features = false}
+quote = {version = "1.0"}
+syn = {version = "2.0", default-features = false, features = ["full", "parsing", "printing", "proc-macro"]}
+
+[lints]
+workspace = true

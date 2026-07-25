@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = انسٹالیشن وزرڈ میں خوش آمدید
+theme = تھیم:
+theme-auto = 🔄 خودکار شناخت
+theme-light = ☀ ہلکا
+theme-dark = 🌙 اندھیرا
+quick-install = جلدی انسٹال
+customize = حسبِ منشا کریں...
+quick-install-prompt = کیا آپ ڈیفالٹ ترتیبات کے ساتھ جلدی انسٹال استعمال کرنا چاہتے ہیں؟
+read-license-button = مکمل لائسنس کا متن پڑھیں...
+read-license-prompt = (یا مکمل لائسنس کا متن پڑھنے کے لیے 'l' دبائیں):
+license-header = لائسنس
+press-enter-to-return = واپس جانے کے لیے انٹر دبائیں...
+press-enter-to-continue = جاری رکھنے کے لیے انٹر دبائیں...
+pager-continue = -- مزید -- (جاری رکھنے کے لیے انٹر، بند کرنے کے لیے q):
+intro-invalid-input = براہِ کرم 'y' یا 'n' درج کریں، یا لائسنس کے لیے 'l'۔
+prompt-invalid-yes-or-no = براہ کرم 'y' یا 'n' درج کریں۔
+prompt-enter-choice = اپنا انتخاب درج کریں [1-{ $choice }, ڈیفالٹ={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = انسٹالیشن اختیارات
+install-dir = انسٹالیشن ڈائریکٹری:
+storage-dir = اسٹوریج ڈائریکٹری:
+add-to-start-menu = اسٹارٹ مینو میں شامل کریں:
+add-to-dock = ڈاک میں شامل کریں:
+add-desktop-shortcut = ڈیسک ٹاپ آئیکن بنائیں:
+add-to-path = PATH میں شامل کریں:
+language = زبان 🌏︎:
+storage-dir-note = نوٹ: اسٹوریج ڈائریکٹری ڈیٹا بیس، لاگز، اور صارف ڈیٹا کے لیے استعمال ہوگی۔ براہِ کرم کافی ڈسک اسپیس دستیاب رکھیں۔
+browse = براؤز کریں...
+options-configured = اختیارات کامیابی کے ساتھ ترتیب دیے گئے۔
+parent-directory-not-exists = انتباہ: پیرنٹ ڈائریکٹری '{ $path }' موجود نہیں ہے۔
+create-dir-during-installation = کیا انسٹالیشن کے دوران اسے بناؤں؟
+enter-number-range = براہ کرم 1 اور { $max } کے درمیان کوئی عدد درج کریں۔
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = مقام منتخب کریں
+file-picker-select-folder = فولڈر منتخب کریں
+file-picker-select-file = فائل منتخب کریں
+file-picker-save-file = فائل محفوظ کریں
+file-picker-back = واپس (Alt+B)
+file-picker-forward = اگلا (Alt+F)
+file-picker-up = اوپر (Alt+U)
+file-picker-refresh = تازہ کاری (Alt+R)
+file-picker-new-folder = نیا فولڈر (Alt+N)
+file-picker-create = بناؤ (Alt+E)
+file-picker-cancel-new-folder = منسوخ کریں (Alt+A)
+file-picker-more-menu = مزید... (Alt+M)
+file-picker-show-hidden = پوشیدہ فائلیں دکھائیں (Alt+H)
+file-picker-path = پتہ:
+file-picker-file-name = فائل کا نام:
+file-picker-places = مقامات
+file-picker-home = ہوم
+file-picker-desktop = ڈیسک ٹاپ
+file-picker-documents = دستاویزات
+file-picker-downloads = ڈاؤن لوڈز
+file-picker-this-pc = یہ پی سی
+file-picker-empty = (خالی)
+file-picker-invalid-path = غلط راستہ: { $path }
+file-picker-folder-exists = '{ $name }' پہلے سے موجود ہے
+file-picker-create-folder-failed = فولڈر بنانے میں ناکامی: { $error }
+file-picker-folder-name-empty = فولڈر کا نام خالی نہیں ہو سکتا
+file-picker-ok = ٹھیک ہے (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = اجزاء منتخب کریں
+components-instruction = وہ اجزاء منتخب کریں جنہیں انسٹال کرنا ہے:
+complete = مکمل
+complete-tooltip = مکمل انسٹالیشن کے لیے تمام اختیاری اجزاء منتخب کریں
+minimal = کم از کم
+minimal-tooltip = کم از کم انسٹالیشن کے لیے صرف ضروری اجزاء منتخب کریں
+selected-size = منتخب شدہ: { $selected } (کل { $total } میں سے)
+storage-space-note = یہ فائل سائز صرف ایپلیکیشن کے لیے درکار اسٹوریج دکھا رہے ہیں۔ آپ کے ذاتی دستاویزات اضافی جگہ لیں گے؛ اگر آپ کو یقین نہیں تو کم از کم 20 GB خالی رکھنے کی سفارش کی جاتی ہے۔
+required = (ضروری)
+toggle-prompt = اجزاء کا نمبر داخل کریں تاکہ ٹوگل ہو:
+option-toggle = ٹوگل کریں
+option-continue = جاری رکھیں
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = انسٹال کیا جا رہا ہے...
+overall-progress = مجموعی پیش رفت: { $completed }/{ $total } فائلیں
+current-file = موجودہ فائل: { $path }
+chunk-progress = چنک { $current }/{ $total }
+installation-log = انسٹالیشن لاگ:
+starting-installation = انسٹالیشن شروع کی جا رہی ہے...
+downloading-file = ڈاؤن لوڈ کیا جا رہا ہے: { $path } ({ $chunks } چنکس)
+downloading-chunk = چنک ڈاؤن لوڈ کیا جا رہا ہے { $current }/{ $total }...
+using-cached-chunk = محفوظ شدہ چنک استعمال کیا جا رہا ہے { $current }/{ $total }
+file-installed = انسٹال ہو گئی: { $path } ({ $size } بائٹس)
+retry-error = دوبارہ کوشش { $attempt }/{ $max }: { $message }
+error = غلطی: { $message }
+retry = دوبارہ کوشش کریں
+cancel = منسوخ کریں
+installation-complete-count = انسٹالیشن مکمل: { $count } فائلیں انسٹال ہو چکی ہیں۔
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = انسٹالیشن مکمل!
+install-success = { $app } کامیابی کے ساتھ انسٹال ہو گیا ہے۔
+quick-install-success = { $app } اب کامیابی کے ساتھ انسٹال ہو گیا ہے۔
+launch-after-install = بند کرنے کے بعد { $app } شروع کریں
+finish = ختم کریں
+summary = خلاصہ:
+start-menu-shortcut = اسٹارٹ مینو شارٹ کٹ: { $value }
+dock-shortcut = ڈاک شارٹ کٹ: { $value }
+desktop-shortcut = ڈیسک ٹاپ شارٹ کٹ: { $value }
+added-to-path = PATH میں شامل کیا گیا: { $value }
+yes = ہاں
+no = نہیں
+launch-now-prompt = کیا آپ اب { $app } شروع کرنا چاہتے ہیں؟
+launching = { $app } شروع کیا جا رہا ہے...
+thank-you = { $app } انسٹال کرنے کا شکریہ!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = انسٹالیشن کی مرمت
+repair-description = یہ آپ کی انسٹالیشن کی جانچ اور مرمت کرے گا۔ غائب یا خراب فائلیں دوبارہ ڈاؤن لوڈ کی جائیں گی۔
+current-installation = موجودہ انسٹالیشن:
+location = مقام: { $path }
+start-repair = مرمت شروع کریں
+starting-repair = مرمت شروع کی جا رہی ہے...
+continue-repair-prompt = کیا آپ مرمت جاری رکھنا چاہتے ہیں؟
+repair-cancelled = مرمت منسوخ کر دی گئی۔
+repair-complete = مرمت مکمل ہو گئی!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = { $app } ان انسٹال کریں
+uninstall-warning = انتباہ: اس سے ایپلیکیشن آپ کے سسٹم سے ہٹائی جائے گی۔
+will-be-removed = درج ذیل ہٹایا جائے گا:
+application-files = ایپلیکیشن فائلیں: { $path }
+desktop-shortcuts = شارٹ کٹس (اسٹارٹ مینو/ڈاک اور ڈیسک ٹاپ)
+path-modifications = PATH میں تبدیلیاں
+data-not-removed = نوٹ: آپ کی ڈیٹا فائلیں حذف نہیں کی جائیں گی۔
+data-location = ڈیٹا مقام: { $path }
+uninstall = ان انسٹال کریں
+starting-uninstall = ان انسٹال شروع کیا جا رہا ہے...
+confirm-uninstall-prompt = کیا آپ واقعی ان انسٹال کرنا چاہتے ہیں؟
+uninstall-cancelled = ان انسٹال منسوخ کر دیا گیا۔
+removing-files = فائلیں ہٹائی جا رہی ہیں...
+uninstall-complete = { $app } ان انسٹال ہو گیا ہے۔
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← واپس
+next = آگے →
+install = انسٹال →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = یہ وزرڈ آپ کو انسٹالیشن کے عمل سے گزرائے گا۔ آپ انسٹالیشن اختیارات تخصیص کر سکتے ہیں یا ڈیفالٹس استعمال کر سکتے ہیں۔
+unattended-mode = غیر حاضر موڈ میں چل رہا ہے - ڈیفالٹ اقدار استعمال کی جا رہی ہیں۔
+yes-no-help = براہِ کرم 'y' یا 'n' درج کریں۔
+number-choice-help = براہِ کرم 1 اور { $max } کے درمیان کوئی نمبر درج کریں۔
+what-to-do = آپ کیا کرنا چاہیں گے؟
+parent-dir-warning = انتباہ: پیرنٹ ڈائریکٹری '{ $path }' موجود نہیں ہے۔
+create-dir-prompt = کیا اسے انسٹالیشن کے دوران بنانا ہے؟
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } انسٹالر
+window-repair = { $app } - مرمت
+window-uninstall = { $app } - ان انسٹال

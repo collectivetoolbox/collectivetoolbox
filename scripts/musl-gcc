@@ -1,0 +1,190 @@
+#!/bin/sh
+
+set -eu
+
+arch="$(uname -m)"
+if [ "$1" = "--i586" ]; then
+    shift
+    arch="i586"
+elif [ "$1" = "--x86_64" ]; then
+    shift
+    arch="x86_64"
+fi
+
+if [ "$arch" = "i586" ] || [ "$arch" = "i686" ] || [ "$arch" = "i386" ]; then
+    arch="i586"
+fi
+
+if [ "$arch" != "x86_64" ] && [ "$arch" != "i586" ]; then
+    echo "Unsupported architecture for musl-gcc wrapper: $arch" >&2
+    exit 1
+fi
+
+pick_first_dir() {
+	for candidate in "$@"; do
+		if [ -d "$candidate" ]; then
+			echo "$candidate"
+			return 0
+		fi
+	done
+	return 1
+}
+
+pick_first_cmd() {
+    for candidate in "$@"; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+has_arg() {
+    needle="$1"
+    shift
+    for arg in "$@"; do
+        if [ "$arg" = "$needle" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+looks_like_sysroot() {
+    root="$1"
+    [ -n "$root" ] || return 1
+    [ -d "$root" ] || return 1
+    if [ -d "$root/include" ] && [ -d "$root/lib" ]; then
+        return 0
+    fi
+    if [ -d "$root/usr/include" ] && [ -d "$root/usr/lib" ]; then
+        return 0
+    fi
+    return 1
+}
+
+archstring="x86_64-linux-musl"
+if [ "$arch" = "i586" ]; then
+    archstring="i386-linux-musl"
+fi
+
+# --- changed: compute env prefix and read vars using it ---
+prefix="CTB_X86_64_MUSL_"
+if [ "$arch" = "i586" ]; then
+	prefix="CTB_I586_MUSL_"
+fi
+
+# read SYSROOT from CTB_*_SYSROOT if set
+sysroot="$(eval "echo \${${prefix}SYSROOT:-}")"
+if [ -z "$sysroot" ]; then
+    if [ "$arch" = "i586" ]; then
+        sysroot="$(pick_first_dir \
+            /usr/i386-linux-musl \
+            /usr/i686-linux-musl \
+            /usr/local/i386-linux-musl \
+            /opt/i386-linux-musl \
+            2>/dev/null || true)"
+    else
+        sysroot="$(pick_first_dir \
+            /usr/x86_64-linux-musl \
+            /usr/local/x86_64-linux-musl \
+            /opt/x86_64-linux-musl \
+            2>/dev/null || true)"
+    fi
+fi
+
+# Guard against accidentally treating a headers directory (e.g.
+# /usr/include/<arch>-linux-musl) as a sysroot. A sysroot must contain both
+# headers and libraries (or a /usr/{include,lib} subtree).
+if [ -n "$sysroot" ] && ! looks_like_sysroot "$sysroot"; then
+	sysroot=""
+fi
+
+# read INCLUDEDIR and LIBDIR from CTB_*_INCLUDEDIR / CTB_*_LIBDIR if set
+includedir="$(eval "echo \${${prefix}INCLUDEDIR:-}")"
+if [ -z "$includedir" ] && [ -n "$sysroot" ] && [ -d "$sysroot/include" ]; then
+	includedir="$sysroot/include"
+fi
+if [ -z "$includedir" ] && [ -d "/usr/include/$archstring" ]; then
+	includedir="/usr/include/$archstring"
+fi
+
+libdir="$(eval "echo \${${prefix}LIBDIR:-}")"
+if [ -z "$libdir" ] && [ -n "$sysroot" ] && [ -d "$sysroot/lib" ]; then
+	libdir="$sysroot/lib"
+fi
+if [ -z "$libdir" ] && [ -d "/usr/lib/$archstring" ]; then
+	libdir="/usr/lib/$archstring"
+fi
+# --- end changed region ---
+
+if [ -z "$libdir" ] || { [ ! -e "$libdir/libc.a" ] && [ ! -e "$libdir/libc.so" ]; }; then
+	cat >&2 <<EOF
+error: $arch musl libc not found for C linking.
+
+The build is invoking: scripts/$arch-musl-gcc ... -lc
+but the linker can't resolve -lc for this arch.
+
+If $arch is i586:
+
+This wrapper currently uses musl-gcc; for i586 builds you also need an i386/i686
+musl sysroot that contains libc.a/libc.so.
+
+Fix options:
+  1) Install an i386/i686 musl toolchain (recommended), e.g. an i686-linux-musl-gcc
+     cross compiler with its sysroot.
+  2) Point this wrapper at your sysroot:
+     ${prefix}SYSROOT=/path/to/i386-linux-musl
+     (or set ${prefix}LIBDIR and ${prefix}INCLUDEDIR)
+
+Looked for libc.a/libc.so in:
+  LIBDIR=$libdir
+  SYSROOT=$sysroot
+  ENV_PREFIX=$prefix
+EOF
+	exit 1
+fi
+
+cc="$(eval "echo \${${prefix}CC:-}")"
+width="64"
+if [ "$arch" = "i586" ]; then
+    width="32"
+fi
+
+# Prefer an arch-specific musl GCC driver when available (Debian installs
+# /usr/bin/i386-linux-musl-gcc for 32-bit musl), because a native `musl-gcc`
+# can still pull in the host-arch crt objects even with -m32.
+if [ -z "$cc" ]; then
+    if [ "$arch" = "i586" ]; then
+        cc="$(pick_first_cmd i386-linux-musl-gcc i686-linux-musl-gcc musl-gcc 2>/dev/null || true)"
+    else
+        cc="$(pick_first_cmd x86_64-linux-musl-gcc musl-gcc 2>/dev/null || true)"
+    fi
+fi
+
+if [ -z "$cc" ]; then
+    echo "error: no musl gcc driver found in PATH" >&2
+    exit 1
+fi
+
+if [ -n "$sysroot" ] && [ -n "$includedir" ]; then
+    set -- --sysroot="$sysroot" "$@"
+fi
+
+# -L affects -l resolution, but GCC's crt objects (Scrt1.o, crti.o, crtn.o)
+# are found via its startfile search path. Add -B so the right-arch crt
+# objects are picked when building with -m32/-m64.
+if [ -n "$libdir" ]; then
+    set -- -B"$libdir" -L"$libdir" "$@"
+fi
+
+if [ -n "$includedir" ]; then
+    set -- -isystem "$includedir" "$@"
+fi
+
+# Only add -m32/-m64 if caller didn't already specify one.
+if ! has_arg "-m32" "$@" && ! has_arg "-m64" "$@"; then
+    set -- -m"$width" "$@"
+fi
+exec "$cc" "$@"

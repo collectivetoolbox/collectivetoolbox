@@ -1,0 +1,347 @@
+<div class="w-full grow card card-translucent overflow-auto page-content">
+    {{!-- Status Banner --}}
+    <div class="card card-warning max-w-[48rem] mx-auto mb-6">
+        {{!-- <div class="card bg-red-50 dark:bg-[#330000] max-w-[40rem] mx-auto"> --}}
+            <div class="p-4 leading-relaxed">
+                <strong>Pre-alpha preview:</strong> This is a hobby project in an early stage. It is provided “as is”
+                and is not suitable for security‑critical or business‑critical use. Many features and hyperlinks are
+                incomplete or missing. Documented features are aspirational and subject to change. See license details
+                in
+                <a href="#licensing">the source code downloads linked below</a>.
+            </div>
+        </div>
+
+        {{!-- Hero / Value Proposition --}}
+        <section class="home-section home-section-decoration">
+            <div>
+                <h1 class="home-hero-title mb-4">{{site_name}}</h1>
+                <p class="home-hero-tagline mb-3">
+                    A graph‑based (<em><a href="#graph">what's a graph?</a></em>) workspace for linking documents and
+                    data—across local and shared knowledge—so you can query, explore, and build reports with clarity.
+                </p>
+                <p>
+                    Built with a focus on user respect and transparency. Free‑software licensing for study and
+                    modification; paid hosting planned for convenience and reliability.
+                </p>
+
+                {{!-- Primary CTAs --}}
+                <div class="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
+                    <a href="/subscribe" class="btn btn-primary link-external" target="_blank">
+                        Subscribe to newsletter for updates
+                    </a>
+                    <a href="/newsletters" class="btn btn-secondary">
+                        Read past newsletters
+                    </a>
+                    {{!-- <a href="/docs" class="btn btn-secondary link-open-in-frame" target="_blank">
+                        Read documentation
+                    </a> --}}
+                    <a href="#download" class="btn btn-secondary link-anchor">
+                        Download preview
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        {{!-- Audience Sections: SMBs and Individuals --}}
+        <section class="home-section">
+            <div class="grid sm:grid-cols-2 sm:gap-12">
+                <div class="px-0">
+                    <h2 class="home-subsection-title mb-2">For Businesses</h2>
+                    <p class="mb-3">
+                        A BI and groupware platform for linking multiple datasets—internal sources and shared graph
+                        resources—into a unified semantic view. Query, join, and visualize without locking yourself into
+                        a single format.
+                    </p>
+                    <ul class="list-disc pl-5 ">
+                        <li>Combine datasets with semantic links</li>
+                        <li>Reference and link shared concepts and datasets from a global graph</li>
+                        <li>Query across documents and relationships</li>
+                        <li>Build reports and visualizations from graph queries</li>
+                        <li>Optional team sharing of documents and graphs</li>
+                    </ul>
+                </div>
+
+                <div class="p-5">
+                    <h2 class="home-subsection-title mb-2">For Individuals</h2>
+                    <p class="mb-3">
+                        A structured, synchronized desktop-like environment for your documents. Link notes, references,
+                        and media to shared concepts and run powerful queries.
+                    </p>
+                    <ul class="list-disc pl-5 ">
+                        <li>Semantic tagging of local documents</li>
+                        <li>Link to global concepts (places, people, topics)</li>
+                        <li>Sync across devices</li>
+                        <li>Search and query over structure and content</li>
+                        <li>Build personal knowledge bases</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        {{!-- How it Works --}}
+        <section class="home-section">
+            <div>
+                <h2 class="mb-4">How it works</h2>
+                <div class="grid sm:grid-cols-3 sm:gap-12">
+                    <div class="px-0 py-4">
+                        <h3 class="mb-2">Graphs of documents</h3>
+                        <p>
+                            Everything is a node: documents, relationships, tags—even sub‑documents. Work with data at
+                            the level of abstraction that works for you: from simple statements
+                            (e.g., “blue” is an instance of “color”) to rich interactive documents. In {{site_name}}, relationships are also nodes, and able to have relationships themselves, making them first-class entities for querying and reporting.
+                        </p>
+                    </div>
+                    <div class="px-0 py-4">
+                        <h3 class="mb-2">Local and global knowledge</h3>
+                        <p>
+                            Maintain one or more local graphs. Reference concepts from a shared global graph to align
+                            data to common
+                            entities and vocabularies.
+                        </p>
+                    </div>
+                    <div class="px-0 py-4">
+                        <h3 class="mb-2">Query and explore</h3>
+                        <p>
+                            Run queries across documents and relationships. Planned: a visual query builder and optional
+                            AI assistance
+                            to translate natural language into graph queries.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{!-- Graph basics --}}
+        <section id="graph" class="home-section">
+            <div class="grid md:grid-cols-2 md:gap-6 items-center">
+                <div>
+                    <h2 class="mb-4">Graphs, in everyday terms</h2>
+                    <p class="mb-3">
+                        A <strong>graph</strong> is just a way of saying “dots and lines that show how
+                        things are connected.” {{site_name}} uses this idea to model your notes,
+                        documents, and concepts.
+                    </p>
+                    <ul class="list-disc pl-5 mb-3">
+                        <li>
+                            <strong>Nodes</strong> are the “things” in your world — a person, a
+                            company, a document, a tag, or a place.
+                        </li>
+                        <li>
+                            <strong>Relationships</strong> are the links between those things, like
+                            “works at”, “mentions”, or “is part of”.
+                        </li>
+                        <li>
+                            <strong>Properties</strong> are details you attach to a node or
+                            relationship, such as a title, date, or status.
+                        </li>
+                    </ul>
+                    <p>
+                        A <strong>graph database</strong> stores data in this connected form. That
+                        makes it easier to ask questions like “Which documents mention the same
+                        project?” or “Who works with which team?” without forcing everything into
+                        rigid tables.
+                    </p>
+                </div>
+
+                <div class="p-4">
+                    <h3 class="mb-3">Simple example</h3>
+                    <p class="mb-3">
+                        Below, each circle is a node. The arrows show relationships between them.
+                        In the app, you can create many more nodes and connections, then query over
+                        the whole graph.
+                    </p>
+                    <img src="/resources/graph-example.svg"
+                        alt="Simple graph example showing nodes and relationships: three circles, one labeled Person, Company, and Document connected by relationships such as works at and writes." class="pt-4 dark-invert w-full" />
+                </div>
+            </div>
+        </section>
+
+        {{!-- Current Preview / Demo Scope --}}
+        <section class="home-section">
+            <div>
+                <h2 class="mb-4">Preview status</h2>
+                <p class="mb-4">
+                    The current alpha is a technical demo: a simple HTML UI to create nodes and view relationships
+                    (relationships are nodes). Expect limited functionality while the core graph implementation
+                    stabilizes.
+                </p>
+                <div class="grid md:grid-cols-2 md:gap-6">
+                    <div class="p-4">
+                        <h3 class="mb-2">Demo features (in progress)</h3>
+                        <ul class="list-disc pl-5 ">
+                            <li>HTML UI on localhost</li>
+                            <li>View list of documents</li>
+                            <li>Add new documents</li>
+                            <li>Store relationships in a basic concept graph</li>
+                        </ul>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="mb-2">MVP roadmap</h3>
+                        <ul class="list-disc pl-5 ">
+                            <li>Registration and secure login</li>
+                            <li>Document editing, revisions, sync</li>
+                            <li>Shared global graph with references</li>
+                            <li>Keyword search</li>
+                            <li>Subscription service</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="p-4 mt-6">
+                    <h3 class="mb-2">Future ideas</h3>
+                    <ul class="list-disc pl-5 ">
+                        <li>Collaborative real‑time editing</li>
+                        <li>Deterministic document rendering and interactivity</li>
+                        <li>Browser extension for embedding</li>
+                        <li>Multimedia documents</li>
+                        <li>Desktop UI and “boot to {{site_name}}”</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        {{!-- Downloads --}}
+        <section id="download" class="home-section">
+            <div>
+                <h2 class="mb-4">Downloads</h2>
+                <p class="mb-3">
+                    A hosted demo is planned. The desktop version will generally perform better. The web demo runs the
+                    same software inside a VM.
+                </p>
+                <p class="mb-4">
+                    Recommended: 1&nbsp;GB disk for the app, plus 10&nbsp;GB+ for your data. RAM TBD. System requirements
+                    similar to
+                    <a href="https://www.firefox.com/firefox/system-requirements/" target="_blank"
+                        class="link-external">Firefox</a>. Linux kernel version 3.2 or later is required for Linux builds. A CPU that supports the SSE2 instruction set is currently required for x86 and x86-64 builds. (If you don't know what that means, you're probably fine.) If you would like to use a graphical interface, then a Wayland, X11, or compatible display server is required. <code>glibc</code> is <em>not</em> required. <small>I'd love to add support for older CPUs and OSes eventually, but I'm currently not pursuing that: it would be a lot of work (requiring patched dependencies), and there would be security implications that would warrant making it a separate build with an extra-big scary warning.</small>
+                </p>
+                <div class="flex flex-col gap-4">
+                    {{! compiled-css-helper: order-first order-1 order-2 order-3 }}
+                    <div class="p-4 order-first">
+                        <a href="/login">[Planned] Try online (limited performance)</a>
+                    </div>
+
+                    <details class="p-4 {{linux_class}}" {{linux_expanded}}>
+                        <summary class="cursor-pointer">Linux</summary>
+                        <p class="mt-3 mb-4">Choose an architecture, then either the small online installer or the self-contained offline bundle.</p>
+                        <p class="mt-3 mb-4"><small>These are static builds using musl. If you prefer glibc, you can build from source; I try to keep it working but it's less tested.</small></p>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="p-4">
+                                <h3 class="mb-2">Linux x86_64</h3>
+                                <p class="mb-3">Recommended for common Linux systems.</p>
+                                <p class="mb-2">
+                                     <a href="/installer-linux-x64" class="link-download">Download online installer{{#if sizes.linux_x64_installer}} ({{sizes.linux_x64_installer}}){{/if}}</a>
+                                </p>
+                                <small class="block mb-3">Small download. Requires internet access during installation.</small>
+                                <p class="mb-2">
+                                     <a href="/releases/linux-x64/latest.tar" class="link-download">Download offline bundle{{#if sizes.linux_x64_offline}} ({{sizes.linux_x64_offline}}){{/if}}</a>
+                                </p>
+                                <small class="block">Self-contained tarball with the installer binary, release manifest, and chunk data. Supports resumable downloads.</small>
+
+                                {{#if sizes.linux_x64_installer_checksum}}
+{{!-- This includes code tags, so it needs to be un-indented. --}}
+{{> layouts._installer-checksum checksum=sizes.linux_x64_installer_checksum platform="linux-x64" server_url=server_url }}
+                                {{/if}}
+                            </div>
+                            <div class="p-4">
+                                <h3 class="mb-2">Linux x86</h3>
+                                <p class="mb-3">For 32-bit Linux systems with SSE2 support.</p>
+                                <p class="mb-2">
+                                     <a href="/installer-linux-x86" class="link-download">Download online installer{{#if sizes.linux_x86_installer}} ({{sizes.linux_x86_installer}}){{/if}}</a>
+                                </p>
+                                <small class="block mb-3">Small download. Requires internet access during installation.</small>
+                                <p class="mb-2">
+                                     <a href="/releases/linux-x86/latest.tar" class="link-download">Download offline bundle{{#if sizes.linux_x86_offline}} ({{sizes.linux_x86_offline}}){{/if}}</a>
+                                </p>
+                                <small class="block">Self-contained tarball with the installer binary, release manifest, and chunk data. Supports resumable downloads.</small>
+
+                                {{#if sizes.linux_x86_installer_checksum}}
+{{!-- This includes code tags, so it needs to be un-indented. --}}
+{{> layouts._installer-checksum checksum=sizes.linux_x86_installer_checksum platform="linux-x86" server_url=server_url }}
+                                {{/if}}
+                            </div>
+                        </div>
+                        <small class="block mt-4">If your file manager does not offer an “executable” checkbox, you can use <code>chmod +x /path/to/installer-file</code> on the command line before launching the installer.</small>
+                        <!-- <p>Package manager options (work-in-progress):</p>
+                        <ul>
+                            <li>Homebrew: <code>brew trust collectivetoolbox/homebrew-tap; brew install --verbose collectivetoolbox/homebrew-tap/ctoolbox</code> - you may also want to <code>brew unlink rust</code> afterwards to avoid it breaking versions installed by <code>rustup</code>.</li>
+                            <li>Guix: <code>https://github.com/collectivetoolbox/collectivetoolbox/blob/main/packaging/guix/ctoolbox.scm</code></li>
+                        </ul> -->
+                    </details>
+
+                    <details class="p-4 {{windows_class}}" {{windows_expanded}}>
+                        <summary class="cursor-pointer">Windows</summary>
+                        <p class="mt-3">Planned. Windows installer builds are not yet published on this page.</p>
+                    </details>
+
+                    <details class="p-4 {{macos_class}}" {{macos_expanded}}>
+                        <summary class="cursor-pointer">macOS</summary>
+                        <p class="mt-3">Planned. macOS installer builds are not yet published on this page.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        {{!-- Documentation --}}
+        <section class="home-section">
+            <div>
+                <h2 class="mb-4">Documentation</h2>
+                <p>
+                    See the <a href="/docs" target="_blank" class="link-open-in-frame">documentation index</a>
+                    for user and developer guides.
+                </p>
+            </div>
+        </section>
+
+        {{!-- Licensing and Service Model --}}
+        <section class="home-section" id="licensing">
+            <div>
+                <h2 class="mb-4">Project structure</h2>
+                <p class="mb-3">
+                    {{site_name}} is <a href="https://www.fsf.org/about/what-is-free-software" target="_blank"
+                        class="link-external">free software</a> (AGPL‑3 and others; most application code is AGPL-3+). You may study and modify the code; see
+                    the
+                    <a href="/src.tar.gz" class="link-download">source code{{#if sizes.src_tar_gz}} ({{sizes.src_tar_gz}}){{/if}}</a> (tar.gz) for license details. <a
+                        href="/dependencies.tar.gz" class="link-download">Source code of
+                        dependencies{{#if sizes.dependencies_tar_gz}} ({{sizes.dependencies_tar_gz}}){{/if}}</a> (tar.gz) is also available.
+                </p>
+                <p class="mb-3">
+                    A paid subscription service is planned for hosted convenience:
+                </p>
+                <ul class="list-disc pl-5 mb-2">
+                    <li>Hosted instance accessible from anywhere</li>
+                    <li>Remote backup of your data</li>
+                    <li>Cloud synchronization</li>
+                    <li>Network services for browser access</li>
+                </ul>
+                <p>
+                    Terms of service for hosting will include conditions specific to the service, separate from the
+                    software license.
+                </p>
+            </div>
+        </section>
+
+        {{!-- Pricing --}}
+        <section class="home-section">
+            <div>
+                <h2 class="mb-4">Pricing and finances</h2>
+                <p class="mb-3">
+                    Target pricing: a moderately priced subscription. Final pricing will be set to ensure sustainability
+                    and responsible margins.
+                    Goal: approximately $1–$5 per month for typical individual use.
+                </p>
+                <p>
+                    To avoid loss‑leader dynamics, users will be billed at least at cost to support ongoing reliability.
+                    We'd like you to be able to depend on the service to be around in the long term.
+                </p>
+
+                {{!-- Secondary CTA --}}
+                <div class="mt-6">
+                    <a href="/subscribe" class="btn btn-primary link-external" target="_blank">Get pricing updates</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="flex flex-col w-full items-center py-10 gap-4">
+            <a href="#" class="link-anchor">Back to top</a>
+            <a href="/privacy-policy">Privacy and Cookies Policy</a>
+        </section>
+    </div>

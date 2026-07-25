@@ -1,0 +1,18 @@
+[package]
+name = "ctb-network"
+edition = "2024"
+
+[lib]
+path="network.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+async-trait = "0.1.89"
+futures = "0.3"
+# matchbox_socket = "0.14"
+futures-timer = { version = "3" }
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+
+[lints]
+workspace = true

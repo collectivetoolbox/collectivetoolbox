@@ -1,0 +1,107 @@
+<div class="w-full max-w-lg mx-auto flex flex-col justify-start content-center items-center p-6 gap-6">
+    <div class="w-full text-center">
+        <h2>Subscription & Tokens</h2>
+        <p class="tagline text-center">Manage your anonymous synchronization subscription.</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="w-full p-4 border border-solid rounded-lg white-black flex flex-col gap-2">
+        <h3 class="m-0">Your Account Status</h3>
+        <p><strong>Username:</strong> {{username}}</p>
+        <p><strong>Subscription Status:</strong>
+            {{#if is_subscribed}}
+                <strong class="status-active">Active</strong> (Expires: {{expiry_formatted}})
+            {{else}}
+                <strong class="status-inactive">Inactive</strong>
+            {{/if}}
+        </p>
+        <p><strong>Remaining Sync Tokens:</strong> {{quota}} tokens</p>
+    </div>
+
+    <!-- Checkout Mock Form -->
+    <form action="/home/subscribe" method="POST" class="w-full flex flex-col gap-4">
+        <h3>Mock Checkout</h3>
+
+        <!-- Payment Type Toggle -->
+        <div class="flex flex-col gap-2">
+            <label for="payment_type">Payment Method:</label>
+            <select name="payment_type" id="payment_type" onchange="togglePaymentFields()" class="w-full p-2 border rounded" required>
+                <option value="check">Paper Check</option>
+                {{!-- <option value="check">ACH Transfer</option> --}}
+                <option value="card">Credit Card</option>
+            </select>
+        </div>
+
+        <!-- Credit Card Fields -->
+        <div id="card_fields" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+                <label for="card_number">Card Number:</label>
+                <input type="text" id="card_number" name="card_number" placeholder="1234 5678 1234 5678" class="w-full p-2 border rounded">
+            </div>
+            <div class="flex gap-4">
+                <div class="flex flex-col gap-1 flex-1">
+                    <label for="card_expiry">Expiry Date:</label>
+                    <input type="text" id="card_expiry" name="card_expiry" placeholder="MM/YY" class="w-full p-2 border rounded">
+                </div>
+                <div class="flex flex-col gap-1 flex-1">
+                    <label for="card_cvv">CVV:</label>
+                    <input type="text" id="card_cvv" name="card_cvv" placeholder="123" class="w-full p-2 border rounded">
+                </div>
+            </div>
+        </div>
+
+        <!-- Paper Check Fields -->
+        <div id="check_fields" class="flex flex-col gap-3 hidden">
+            <div class="flex flex-col gap-1">
+                <label for="check_routing">Routing Number:</label>
+                <input type="text" id="check_routing" name="check_routing" placeholder="021000021" class="w-full p-2 border rounded">
+            </div>
+            <div class="flex flex-col gap-1">
+                <label for="check_account">Account Number:</label>
+                <input type="text" id="check_account" name="check_account" placeholder="1234567890" class="w-full p-2 border rounded">
+            </div>
+        </div>
+
+        <!-- Quick Pay Options Slots -->
+        <div class="border-t pt-4 mt-2">
+            <p class="tagline">Alternative Quick Pay methods (Future integration slots):</p>
+            <div class="flex flex-wrap gap-2 justify-center items-center">
+                <div class="p-2 border border-dashed rounded opacity-50"><small>Apple Pay</small></div>
+                <div class="p-2 border border-dashed rounded opacity-50"><small>Google Pay</small></div>
+                <div class="p-2 border border-dashed rounded opacity-50"><small>Samsung Pay</small></div>
+                <div class="p-2 border border-dashed rounded opacity-50"><small>PayPal</small></div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-between mt-4">
+            <a href="/home" class="btn">
+                {{> icons._icon name="arrow-left" alt="" }}
+                <span>Back to Home</span>
+            </a>
+            <button type="submit" class="btn-primary">
+                {{> icons._icon name="credit-card" alt="" }}
+                <span>Subscribe & Credit 100 Tokens</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function togglePaymentFields() {
+        const paymentType = document.getElementById("payment_type").value;
+        const cardFields = document.getElementById("card_fields");
+        const checkFields = document.getElementById("check_fields");
+
+        if (paymentType === "card") {
+            cardFields.classList.remove("hidden");
+            checkFields.classList.add("hidden");
+        } else {
+            cardFields.classList.add("hidden");
+            checkFields.classList.remove("hidden");
+        }
+    }
+
+    // Run initially to ensure correct fields are visible
+    document.addEventListener("DOMContentLoaded", togglePaymentFields);
+</script>

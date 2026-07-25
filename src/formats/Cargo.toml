@@ -1,0 +1,52 @@
+[package]
+name = "ctb-formats"
+edition = "2024"
+
+[lib]
+path="formats.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+ctb-formats-alias = { path = "alias" }
+ctb-formats-applescript = { path = "applescript" }
+ctb-formats-base16b = { path = "base16b" }
+ctb-formats-base64 = { path = "base64" }
+ctb-formats-checksum = { path = "checksum" }
+ctb-formats-ctb-asset-bundle = { path = "ctb_asset_bundle" }
+ctb-formats-dceutils = { path = "dceutils" }
+ctb-formats-dctext = { path = "dctext" }
+ctb-formats-dpkg = { path = "dpkg" }
+ctb-formats-eite = { path = "eite" }
+ctb-formats-encoding = { path = "encoding" }
+ctb-formats-hexdump = { path = "hexdump" }
+ctb-formats-html = { path = "html" }
+ctb-formats-internetarchive = { path = "internetarchive" }
+ctb-formats-ipaddr = { path = "ipaddr" }
+ctb-formats-javascript = { path = "javascript" }
+ctb-formats-json = { path = "json" }
+ctb-formats-lnk = { path = "lnk" }
+ctb-formats-markdown = { path = "markdown" }
+ctb-formats-math = { path = "math" }
+ctb-formats-multipart = { path = "multipart" }
+ctb-formats-pan = { path = "pan" }
+ctb-formats-perl = { path = "perl" }
+ctb-formats-pdf = { path = "pdf" }
+ctb-formats-pem = { path = "pem" }
+ctb-formats-stagel = { path = "stagel" }
+ctb-formats-syndication = { path = "syndication" }
+ctb-formats-troff = { path = "troff" }
+ctb-formats-unicode = { path = "unicode" }
+ctb-formats-uri = { path = "uri" }
+ctb-formats-useragent = { path = "useragent" }
+ctb-formats-utf-8e-128 = { path = "utf_8e_128" }
+ctb-formats-utf8 = { path = "utf8" }
+ctb-formats-warc = { path = "warc" }
+ctb-formats-wfscan = { path = "wfscan" }
+ctb-formats-wtf8 = { path = "wtf8" }
+ctb-formats-utilities = { path = "utilities" }
+
+uuid = { version = "1.19.0", features = [ "v4", "macro-diagnostics", "js" ] }
+
+[lints]
+workspace = true

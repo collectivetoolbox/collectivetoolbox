@@ -1,0 +1,275 @@
+/* Based on https://github.com/reimar/glass-button
+
+MIT License
+
+Copyright (c) 2023 David Darnes
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+:root {
+    /* Button specific typography and spacing defaults */
+    --ctb-btn-border-radius: 24px;
+    --ctb-btn-padding: 12px 16px;
+    --ctb-btn-font-family: var(--sans-serif);
+    --ctb-btn-font-size: 16px;
+}
+
+/* Primary Glass variant overrides */
+:host([ready][variant="primary"]) {
+    --glass-tint-color: light-dark(#ffd2aa, #1d00ff);
+    --glass-bg-opacity: 0.15;
+    --glass-outline-opacity: 0.25;
+    --glass-hover-bg: color-mix(in srgb, var(--glass-tint-color) 10%, rgba(255, 255, 255, 0.15));
+    --glass-active-bg: color-mix(in srgb, var(--glass-tint-color) 15%, rgba(255, 255, 255, 0.3));
+    --glass-primary-shadow-color: light-dark(rgba(206, 97, 1, 0.15), rgba(249, 115, 22, 0.15));
+    --glass-shadow-outsets: 0 6px 18px 0 var(--glass-primary-shadow-color),
+                            0px 2px 13px var(--glass-primary-shadow-color),
+                            0px 3px 28px var(--glass-primary-shadow-color);
+    --glass-shadow-inset: inset 0 0 12px rgba(255, 255, 255, 0.15);
+    --glass-hover-brightness: 1.2;
+    --glass-active-brightness: 1.1;
+    --focusRingColor: light-dark(rgba(206, 97, 1, 0.6), rgba(249, 115, 22, 0.6));
+}
+
+/* Glass Theme Shadow DOM Styles */
+:host {
+    --glass-bg: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-bg-opacity) * 100%), transparent);
+    --glass-outline: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-outline-opacity) * 100%), transparent);
+    --glass-shadow-inset: inset 0 0 12px light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.1));
+    outline: var(--glass-outline) 0 solid;
+    background: transparent;
+    --strokeWidth: var(--focusRingWidth, 1.5px);
+}
+
+:host([ready]) {
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(120%);
+    backdrop-filter: blur(var(--blur)) saturate(120%);
+    background: var(--glass-bg);
+    box-shadow: var(--glass-shadow-inset), var(--glass-shadow-outsets);
+    outline-offset: calc(var(--strokeWidth) * -1);
+    outline: var(--glass-outline) var(--strokeWidth) solid;
+    transition: all 250ms;
+}
+
+:host([ready][selected]) {
+    background: color-mix(in srgb, var(--glass-tint-color) 12%, rgba(255, 255, 255, 0.22));
+    box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:host([ready][selected]:active) {
+    background: var(--glass-active-bg);
+    box-shadow: var(--glass-active-shadow-inset);
+}
+
+:host([ready]:focus-within) {
+    outline-offset: calc(var(--focusRingWidth, 1.5px) * -1);
+    outline: var(--focusRingWidth, 1.5px) solid var(--focusRingColor, #0000ff);
+    box-shadow: var(--glass-shadow-inset), var(--glass-shadow-outsets);
+}
+
+:host([ready]:hover) {
+    background: var(--glass-hover-bg);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    filter: var(--glass-text-shadow) brightness(var(--glass-hover-brightness, 1.15));
+    box-shadow: var(--glass-hover-shadow-inset);
+}
+
+:host([ready]:active) {
+    background: var(--glass-active-bg);
+    box-shadow: var(--glass-active-shadow-inset);
+    filter: var(--glass-active-text-shadow) brightness(var(--glass-active-brightness, 1.05));
+}
+
+:host([ready][multiline]) {
+    --ctb-btn-padding: 12px 24px;
+}
+
+:host([ready][icon-only]) {
+    border-radius: 50%;
+}
+
+::slotted(a), ::slotted(button), ::slotted(label) {
+    z-index: 3;
+    transition: background 250ms, box-shadow 250ms, filter 250ms, transform 250ms, outline-color 250ms, border-color 250ms, color 250ms;
+}
+
+:host([ready]:hover) ::slotted(a), :host([ready]:hover) ::slotted(button), :host([ready]:hover) ::slotted(label) {
+    filter: var(--glass-label-shadow);
+}
+
+:host([ready]:active) ::slotted(a), :host([ready]:active) ::slotted(button), :host([ready]:active) ::slotted(label) {
+    filter: var(--glass-label-shadow-active);
+}
+
+@media (prefers-color-scheme: dark) {
+    :host([ready]:active) ::slotted(a), :host([ready]:active) ::slotted(button), :host([ready]:active) ::slotted(label) {
+        filter: var(--glass-label-shadow-active-dark);
+    }
+}
+
+.ctb-glass-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    display: block;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.ctb-glass-overlay [class*="highlight"] {
+    border: white var(--strokeWidth) solid;
+    border-radius: inherit;
+    inset: 0;
+    position: absolute;
+    z-index: 2;
+    filter: blur(0.3px);
+}
+
+.ctb-glass-overlay .highlight-1-base {
+    opacity: calc(var(--highLightIntensity) / 4);
+    mask-image: linear-gradient(var(--lightAngle), transparent 50%, black);
+    -webkit-mask-image: linear-gradient(var(--lightAngle), transparent 50%, black);
+}
+
+.ctb-glass-overlay .highlight-1-spot {
+    opacity: calc(var(--highLightIntensity) / 2);
+    mask-image: linear-gradient(var(--lightAngle), transparent 80%, black);
+    -webkit-mask-image: linear-gradient(var(--lightAngle), transparent 80%, black);
+}
+
+.ctb-glass-overlay .highlight-2-base {
+    opacity: calc(var(--highLightIntensity) / 4);
+    mask-image: linear-gradient(calc(180deg - var(--lightAngle) * -1), transparent 50% 0, black);
+    -webkit-mask-image: linear-gradient(calc(180deg - var(--lightAngle) * -1), transparent 50% 0, black);
+}
+
+.ctb-glass-overlay .highlight-2-spot {
+    opacity: calc(var(--highLightIntensity) / 2);
+    mask-image: linear-gradient(calc(180deg - var(--lightAngle) * -1), transparent 80% 0, black);
+    -webkit-mask-image: linear-gradient(calc(180deg - var(--lightAngle) * -1), transparent 80% 0, black);
+}
+
+.ctb-glass-overlay .gloss-1 {
+    height: 60%;
+    background: linear-gradient(rgba(255, 255, 255, 0.0), rgba(255, 255, 255, 0.4));
+    border-radius: inherit;
+    inset: 0;
+    position: absolute;
+    z-index: 0;
+    mix-blend-mode: overlay;
+}
+
+.btn-primary .ctb-glass-overlay .gloss-1 {
+    background: linear-gradient(rgba(255, 255, 255, 0.0), rgba(255, 255, 255, 1));
+}
+
+/* Glass fallback style rules */
+html:not([data-ctb-ui-theme="solid"]):not([data-ctb-ui-theme="simple"]) {
+    ctb-button:not([ready]) > a:not(.btn-link),
+    ctb-button:not([ready]) > button:not(.btn-link),
+    .btn:not(.btn-link):not(ctb-button[ready] *),
+    button:not([type="radio"]):not([type="checkbox"]):not(.btn-link):not(ctb-button[ready] *),
+    input[type="file"]::file-selector-button {
+        --glass-bg: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-bg-opacity) * 100%), transparent);
+        --glass-outline: color-mix(in srgb, var(--glass-tint-color) calc(var(--glass-outline-opacity) * 100%), transparent);
+        --glass-shadow-inset: inset 0 0 12px light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.1));
+        -webkit-backdrop-filter: blur(var(--blur)) saturate(120%);
+        backdrop-filter: blur(var(--blur)) saturate(120%);
+        background: var(--glass-bg);
+        border-radius: var(--ctb-btn-border-radius);
+        padding: var(--ctb-btn-padding);
+        box-shadow: var(--glass-shadow-inset), var(--glass-shadow-outsets);
+        outline-offset: calc(var(--strokeWidth) * -1);
+        outline: var(--glass-outline) var(--strokeWidth) solid;
+        color: inherit;
+        border: none;
+
+        --glass-shadow-color: #ffffff;
+        --glass-active-shadow-color: #ffffff;
+        --glass-active-shadow-color-dark: #000000;
+        --glass-text-shadow: drop-shadow(0px 0px 5px var(--glass-shadow-color));
+        --glass-active-text-shadow: drop-shadow(0px 0px 5px light-dark(var(--glass-active-shadow-color), var(--glass-active-shadow-color-dark)));
+        --glass-label-shadow: drop-shadow(0px 0px 10px var(--glass-shadow-color)) drop-shadow(0px 0px 5px var(--glass-shadow-color));
+        --glass-label-shadow-active: drop-shadow(0px 0px 10px var(--glass-shadow-color)) drop-shadow(0px 0px 5px var(--glass-shadow-color));
+        --glass-label-shadow-active-dark: drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark)) drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark)) drop-shadow(0px 3px 3px var(--glass-active-shadow-color-dark));
+
+        &:focus-visible {
+            outline-offset: calc(var(--focusRingWidth, 1.5px) * -1);
+            outline: var(--focusRingWidth, 1.5px) solid var(--focusRingColor, #0000ff);
+            box-shadow: var(--glass-shadow-inset), var(--glass-shadow-outsets);
+        }
+
+        &:hover {
+            background: var(--glass-hover-bg);
+            -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+            backdrop-filter: blur(var(--blur)) saturate(140%);
+            filter: brightness(var(--glass-hover-brightness, 1.15));
+            box-shadow: var(--glass-hover-shadow-inset);
+
+            & > :not([class*="highlight"]):not([class*="gloss"]) {
+                filter: var(--glass-label-shadow);
+            }
+        }
+
+        &:active {
+            background: var(--glass-active-bg);
+            box-shadow: var(--glass-active-shadow-inset);
+            filter: brightness(var(--glass-active-brightness, 1.05));
+
+            & > :not([class*="highlight"]):not([class*="gloss"]) {
+                filter: var(--glass-label-shadow-active);
+                @media (prefers-color-scheme: dark) {
+                    filter: var(--glass-label-shadow-active-dark);
+                }
+            }
+        }
+    }
+
+    ctb-button:not([ready])[variant="primary"] > a:not(.btn-link),
+    ctb-button:not([ready])[variant="primary"] > button:not(.btn-link),
+    .btn-primary:not(.btn-link):not(ctb-button[ready] *),
+    input[type="file"].btn-primary::file-selector-button {
+        --glass-tint-color: light-dark(#ffd2aa, #1d00ff);
+        --glass-bg-opacity: 0.15;
+        --glass-outline-opacity: 0.25;
+        --glass-primary-shadow-color: light-dark(rgba(206, 97, 1, 0.15), rgba(249, 115, 22, 0.15));
+        --glass-shadow-outsets: 0 6px 18px 0 var(--glass-primary-shadow-color),
+                                0px 2px 13px var(--glass-primary-shadow-color),
+                                0px 3px 28px var(--glass-primary-shadow-color);
+        --glass-shadow-inset: inset 0 0 12px rgba(255, 255, 255, 0.15);
+        --focusRingColor: light-dark(rgba(206, 97, 1, 0.6), rgba(249, 115, 22, 0.6));
+        background: var(--glass-bg);
+        box-shadow: var(--glass-shadow-inset), var(--glass-shadow-outsets);
+        outline: var(--glass-outline) var(--strokeWidth) solid;
+        color: light-dark(black, white);
+
+        &:hover {
+            --glass-tint-color: light-dark(#ffd2aa, #1d00ff);
+            --glass-hover-bg: color-mix(in srgb, var(--glass-tint-color) 10%, rgba(255, 255, 255, 0.15));
+            background: var(--glass-hover-bg);
+        }
+
+        &:active {
+            --glass-tint-color: light-dark(#ffd2aa, #1d00ff);
+            --glass-active-bg: color-mix(in srgb, var(--glass-tint-color) 15%, rgba(255, 255, 255, 0.3));
+            background: var(--glass-active-bg);
+        }
+    }
+}

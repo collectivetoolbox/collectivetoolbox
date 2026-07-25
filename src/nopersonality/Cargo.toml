@@ -1,0 +1,15 @@
+[package]
+name = "ctb-nopersonality"
+version = "0.1.0"
+edition = "2024"
+description = "LD_PRELOAD shim for overriding personality() in containerized Guix builds"
+
+[lib]
+path = "nopersonality.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+libc = "0.2"
+
+[lints]
+workspace = true

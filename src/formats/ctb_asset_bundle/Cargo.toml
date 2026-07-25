@@ -1,0 +1,17 @@
+[package]
+name = "ctb-formats-ctb-asset-bundle"
+edition = "2024"
+
+[lib]
+path = "ctb_asset_bundle.rs"
+crate-type = ["lib"]
+
+[dependencies]
+anyhow = "1.0.100"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+sha2 = "0.10.9"
+uuid = { version = "1.19.0", features = ["v4"] }
+
+[lints]
+workspace = true

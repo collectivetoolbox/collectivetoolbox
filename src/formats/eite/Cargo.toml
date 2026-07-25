@@ -1,0 +1,24 @@
+[package]
+name = "ctb-formats-eite"
+edition = "2024"
+
+[lib]
+path="eite.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-base16b = { path = "../base16b" }
+ctb-formats-base64 = { path = "../base64" }
+ctb-formats-utf8 = { path = "../utf8" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-wtf8 = { path = "../wtf8" }
+
+include_dir = { version = "0.7.4", features = ["glob"] }
+csv = "1.4.0"
+serde = "1.0.228"
+const-default = { version = "1.0", features = ["derive"] }
+malachite = "0.9.0" # arbitrary-precision math
+
+[lints]
+workspace = true

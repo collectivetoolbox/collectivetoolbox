@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Selamat datang di wizard instalasi
+theme = Tema:
+theme-auto = 🔄 Deteksi otomatis
+theme-light = ☀ Terang
+theme-dark = 🌙 Gelap
+quick-install = Instal Cepat
+customize = Sesuaikan...
+quick-install-prompt = Gunakan instalasi cepat dengan pengaturan default?
+read-license-button = Baca teks lisensi lengkap...
+read-license-prompt = (atau tekan ‘l’ untuk membaca teks lisensi lengkap):
+license-header = Lisensi
+press-enter-to-return = Tekan Enter untuk kembali...
+press-enter-to-continue = Tekan Enter untuk melanjutkan...
+pager-continue = -- Lebih lanjut -- (Tekan Enter untuk melanjutkan, q untuk menutup):
+intro-invalid-input = Silakan masukkan ‘y’ atau ‘n’, atau ‘l’ untuk lisensi.
+prompt-invalid-yes-or-no = Silakan masukkan ‘y’ atau ‘n’.
+prompt-enter-choice = Masukkan pilihan [1-{ $choice }, default={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Opsi Instalasi
+install-dir = Direktori instalasi:
+storage-dir = Direktori penyimpanan:
+add-to-start-menu = Tambahkan ke Menu Mulai:
+add-to-dock = Tambahkan ke Dock:
+add-desktop-shortcut = Buat ikon desktop:
+add-to-path = Tambahkan ke PATH:
+language = Bahasa 🌏︎:
+storage-dir-note = Catatan: Direktori penyimpanan akan digunakan untuk database, log, dan data pengguna. Pastikan ruang disk yang cukup tersedia.
+browse = Telusuri...
+options-configured = Opsi berhasil dikonfigurasi.
+parent-directory-not-exists = Peringatan: Direktori induk ‘{ $path }’ tidak ada.
+create-dir-during-installation = Buat selama instalasi?
+enter-number-range = Silakan masukkan angka antara 1 dan { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Pilih Lokasi
+file-picker-select-folder = Pilih Folder
+file-picker-select-file = Pilih File
+file-picker-save-file = Simpan File
+file-picker-back = Kembali (Alt+B)
+file-picker-forward = Lanjut (Alt+F)
+file-picker-up = Atas (Alt+U)
+file-picker-refresh = Segarkan (Alt+R)
+file-picker-new-folder = Folder Baru (Alt+N)
+file-picker-create = Buat (Alt+E)
+file-picker-cancel-new-folder = Batal (Alt+A)
+file-picker-more-menu = Lebih... (Alt+M)
+file-picker-show-hidden = Tampilkan File Tersembunyi (Alt+H)
+file-picker-path = Jalur:
+file-picker-file-name = Nama file:
+file-picker-places = Tempat
+file-picker-home = Beranda
+file-picker-desktop = Desktop
+file-picker-documents = Dokumen
+file-picker-downloads = Unduhan
+file-picker-this-pc = Komputer Ini
+file-picker-empty = (kosong)
+file-picker-invalid-path = Jalur tidak valid: { $path }
+file-picker-folder-exists = ‘{ $name }’ sudah ada
+file-picker-create-folder-failed = Gagal membuat folder: { $error }
+file-picker-folder-name-empty = Nama folder tidak boleh kosong
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Pilih Komponen
+components-instruction = Pilih komponen mana yang akan diinstal:
+complete = Lengkap
+complete-tooltip = Pilih semua komponen opsional untuk instalasi lengkap
+minimal = Minimal
+minimal-tooltip = Pilih hanya komponen yang diperlukan untuk instalasi minimal
+selected-size = Dipilih: { $selected } (dari { $total } total)
+storage-space-note = Ukuran file ini mencerminkan penyimpanan yang dibutuhkan oleh aplikasi itu sendiri. Dokumen Anda sendiri akan memakan ruang tambahan; jika Anda tidak yakin berapa yang Anda butuhkan, kami merekomendasikan memiliki setidaknya 20 GB kosong.
+required = (diperlukan)
+toggle-prompt = Masukkan nomor komponen untuk beralih:
+option-toggle = Alihkan
+option-continue = Lanjutkan
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Menginstal...
+overall-progress = Kemajuan keseluruhan: { $completed }/{ $total } file
+current-file = File saat ini: { $path }
+chunk-progress = Potongan { $current }/{ $total }
+installation-log = Log instalasi:
+starting-installation = Memulai instalasi...
+downloading-file = Mengunduh: { $path } ({ $chunks } potongan)
+downloading-chunk = Mengunduh potongan { $current }/{ $total }...
+using-cached-chunk = Menggunakan potongan cache { $current }/{ $total }
+file-installed = Terinstal: { $path } ({ $size } byte)
+retry-error = Coba lagi { $attempt }/{ $max }: { $message }
+error = Kesalahan: { $message }
+retry = Coba Lagi
+cancel = Batal
+installation-complete-count = Instalasi selesai: { $count } file terinstal.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Instalasi Selesai!
+install-success = { $app } telah berhasil diinstal.
+quick-install-success = { $app } telah berhasil diinstal.
+launch-after-install = Jalankan { $app } setelah ditutup
+finish = Selesai
+summary = Ringkasan:
+start-menu-shortcut = Pintas Menu Mulai: { $value }
+dock-shortcut = Pintas Dock: { $value }
+desktop-shortcut = Pintas Desktop: { $value }
+added-to-path = Ditambahkan ke PATH: { $value }
+yes = Ya
+no = Tidak
+launch-now-prompt = Jalankan { $app } sekarang?
+launching = Menjalankan { $app }...
+thank-you = Terima kasih telah menginstal { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Perbaiki Instalasi
+repair-description = Ini akan memverifikasi dan memperbaiki instalasi Anda. File yang hilang atau rusak akan diunduh ulang.
+current-installation = Instalasi saat ini:
+location = Lokasi: { $path }
+start-repair = Mulai Perbaikan
+starting-repair = Memulai perbaikan...
+continue-repair-prompt = Lanjutkan dengan perbaikan?
+repair-cancelled = Perbaikan dibatalkan.
+repair-complete = Perbaikan selesai!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Hapus Instalasi { $app }
+uninstall-warning = Peringatan: Ini akan menghapus aplikasi dari sistem Anda.
+will-be-removed = Berikut yang akan dihapus:
+application-files = File aplikasi: { $path }
+desktop-shortcuts = Pintas (Menu Mulai/Dock dan Desktop)
+path-modifications = Modifikasi PATH
+data-not-removed = Catatan: File data Anda TIDAK akan dihapus.
+data-location = Lokasi data: { $path }
+uninstall = Hapus Instalasi
+starting-uninstall = Memulai penghapusan instalasi...
+confirm-uninstall-prompt = Apakah Anda yakin ingin menghapus instalasi?
+uninstall-cancelled = Penghapusan instalasi dibatalkan.
+removing-files = Menghapus file...
+uninstall-complete = { $app } telah dihapus instalasinya.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Kembali
+next = Selanjutnya →
+install = Instal →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Wizard ini akan memandu Anda melalui proses instalasi. Anda dapat menyesuaikan opsi instalasi atau menggunakan nilai default.
+unattended-mode = Berjalan dalam mode tanpa pengawasan - menggunakan nilai default.
+yes-no-help = Silakan masukkan 'y' atau 'n'.
+number-choice-help = Silakan masukkan angka antara 1 dan { $max }.
+what-to-do = Apa yang ingin Anda lakukan?
+parent-dir-warning = Peringatan: Direktori induk '{ $path }' tidak ada.
+create-dir-prompt = Buat selama instalasi?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Penginstal { $app }
+window-repair = { $app } - Perbaikan
+window-uninstall = { $app } - Hapus Instalasi

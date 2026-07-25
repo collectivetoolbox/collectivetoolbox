@@ -1,0 +1,12 @@
+dcaToHtml() {
+    IFS=$'\037' read -r -a intArrayDcIn <<< "$1"; shift; StageL_internalDebugCollect "intArray DcIn = $intArrayDcIn; "; StageL_internalDebugStackEnter 'dcaToHtml:format-html'; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayDcIn[@]}")"
+
+    StageL_assertIsDcArray "$(join_by $'\037' "${intArrayDcIn[@]}")"
+    intArrayOut=()
+    intArrayOut="$(StageL_strToByteArray '<!DOCTYPE html><html><head><title></title></head><body>')"
+    intArrayOut="$(StageL_append "$(join_by $'\037' "${intArrayOut[@]}")" "$(StageL_dcaToHtmlFragment "$(join_by $'\037' "${intArrayDcIn[@]}")")")"
+    intArrayOut="$(StageL_append "$(join_by $'\037' "${intArrayOut[@]}")" "$(StageL_strToByteArray '</body></html>')")"
+    StageL_assertIsByteArray "$(join_by $'\037' "${intArrayOut[@]}")"
+
+    intArrayReturn="$(join_by $'\037' "${intArrayOut[@]}")"; StageL_assertIsIntArray "$(join_by $'\037' "${intArrayReturn[@]}")"; StageL_internalDebugStackExit; print "$(join_by $'\037' "${intArrayReturn[@]}")"
+}

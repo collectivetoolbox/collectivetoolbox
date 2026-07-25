@@ -1,0 +1,7 @@
+# $SiteName
+
+> $SiteName is a graph‑based workspace for linking documents and data—across local and shared knowledge—so you can query, explore, and build reports with clarity. Built with a focus on user respect and transparency. Free‑software licensing for study and modification; paid hosting planned for convenience and reliability.
+
+## Docs
+
+- [Library documentation for developers]($SiteURL/docs/lib): Comprehensive documentation (generated Rustdoc).

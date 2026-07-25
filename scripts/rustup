@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# For some reason rustup seems to lose my targets every time I update.
+
+default='1.92'
+versions=( '1.90' '1.92' )
+targets=( x86_64-pc-windows-gnu x86_64-unknown-linux-musl i586-unknown-linux-musl x86_64-unknown-linux-gnu i586-unknown-linux-gnu )
+
+for target in "${targets[@]}"; do
+    for version in "${versions[@]}"; do
+        rustup target add "$target" --toolchain "$version"
+    done
+done
+
+rustup default "$default"

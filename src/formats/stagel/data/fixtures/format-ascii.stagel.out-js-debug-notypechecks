@@ -1,0 +1,143 @@
+async function dcaFromAscii(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaFromAscii:format-ascii');  let intArrayReturn;
+
+    StageL_assertIsByteArray(intArrayContent);
+    let intArrayRes = [];
+    let intL = 0;
+    intL = StageL_count(intArrayContent);
+    let intC = 0;
+    intC = 0;
+    while (StageL_lt(intC, intL)) {
+        intArrayRes = StageL_append(intArrayRes, StageL_dcFromFormat('ascii', StageL_anFromN(StageL_get(intArrayContent, intC))));
+        intC = StageL_add(intC, 1);
+    }
+    StageL_assertIsDcArray(intArrayRes);
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaToAscii(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaToAscii:format-ascii');  let intArrayReturn;
+
+    StageL_assertIsDcArray(intArrayContent);
+    let intArrayRes = [];
+    let intL = 0;
+    intL = StageL_count(intArrayContent);
+    let intC = 0;
+    intC = 0;
+    let intArrayTemp = [];
+    let intDcAtIndex = 0;
+    while (StageL_lt(intC, intL)) {
+        intDcAtIndex = StageL_get(intArrayContent, intC);
+        intArrayTemp = StageL_dcToFormat('utf8', intDcAtIndex);
+        if (StageL_arrNonempty(intArrayTemp)) {
+            if (StageL_isAsciiByte(StageL_get(intArrayTemp, 0))) {
+                intArrayRes = StageL_append(intArrayRes, intArrayTemp);
+            }
+            else {
+                StageL_exportWarningUnmappable(intC, intDcAtIndex);
+            }
+        }
+        else {
+            StageL_exportWarningUnmappable(intC, intDcAtIndex);
+        }
+        intC = StageL_add(intC, 1);
+    }
+    StageL_assertIsByteArray(intArrayRes);
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function isAsciiByte(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('isAsciiByte:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_intIsBetween(intN, 0, 127);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsDigit(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsDigit:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_intIsBetween(intN, 48, 57);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsPrintable(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsPrintable:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_intIsBetween(intN, 32, 126);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsSpace(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsSpace:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_eq(intN, 32);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsNewline(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsNewline:format-ascii');  let boolReturn;
+
+    let boolT1 = false;
+    boolT1 = StageL_eq(intN, 10);
+    let boolT2 = false;
+    boolT2 = StageL_or(boolT1, StageL_eq(intN, 13));
+
+    boolReturn = boolT2;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsLetterUpper(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsLetterUpper:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_intIsBetween(intN, 65, 90);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsLetterLower(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsLetterLower:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_intIsBetween(intN, 97, 122);
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsLetter(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsLetter:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_asciiIsLetterLower(intN);
+    boolTemp = StageL_or(boolTemp, StageL_asciiIsLetterUpper(intN));
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function asciiIsAlphanum(intN) {
+    StageL_internalDebugCollect('int N = ' + intN + '; '); StageL_internalDebugStackEnter('asciiIsAlphanum:format-ascii');  let boolReturn;
+
+    let boolTemp = false;
+    boolTemp = StageL_asciiIsLetter(intN);
+    boolTemp = StageL_or(boolTemp, StageL_asciiIsDigit(intN));
+
+    boolReturn = boolTemp;StageL_internalDebugStackExit(); return boolReturn;
+}
+
+async function crlf() {
+    StageL_internalDebugStackEnter('crlf:format-ascii'); let intArrayReturn;
+
+    let intArrayTemp = [];
+    intArrayTemp = [ 13, 10 ];
+
+    intArrayReturn = intArrayTemp;StageL_internalDebugStackExit(); return intArrayReturn;
+}

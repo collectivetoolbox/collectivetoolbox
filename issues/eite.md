@@ -1,0 +1,13 @@
+- [ ] Currently, it seems that dca_to_utf8 with basenb turned on will encode UTF-8 up until it hits something unmappable. It then appears to switch into basenb mode, starts encapsulation, and begins encoding until the end of the string, encoding unmappables to basenb and saving mappable characters raw. This has a couple issues:
+    - [ ] It doesn't account for private-use characters that overlap with basenb ranges. They should  probably be encoded as basenb, as if they were totally unmappable Dcs, to avoid ambiguity. (This currently only applies to UTF-8 decoded from the base64-encapsulation Dcs.)
+    - [ ] It means it's not obvious how to edit it: when the end-encapsulation UUID doesn't show up until the very end of the string, you can't just copy-and-paste the blob of Basenb characters around to edit the string since they'd lose their end UUID. I think the default behavior should be to collect maximal runs of unmappable characters until it finds the first mappable one, then encode those runs as self-contained Basenb runs.
+- [ ] Add a test for otherwise-valid base64-encapsulation Dcs being escaped using the escape Dc.
+- [ ] Test for and implement escaping the escape Dc.
+- [ ] Add methods to compute a UTF-8 UUID and vice versa.
+    - [ ] Compute and add UTF-8 UUIDs for base64-encapsulated general binary data, which are currently all 0s.
+    - [ ] Implement base64-encapsulated binary data, if there's anything else to do? And/or add tests.
+- [ ] Implement ELAD and other formats?
+- [ ] Split runtime off into a separate crate?
+- [ ] Refactor remaining complexity in EiteState to just be for the runtime, and move it there?
+- [ ] Refactor giant methods in utf8.rs into smaller pieces
+- [ ] 

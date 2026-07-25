@@ -1,0 +1,84 @@
+[package]
+name = "ctb-io-webui"
+edition = "2024"
+
+[lib]
+path="webui.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-build-support = { path = "../../build_support" }
+ctb-utilities = { path = "../../utilities" }
+ctb-storage = { path = "../../storage" }
+ctb-installer = { path = "../../installer" }
+ctb-formats-ipaddr = { path = "../../formats/ipaddr" }
+ctb-formats-hexdump = { path = "../../formats/hexdump" }
+ctb-formats-html = { path = "../../formats/html" }
+ctb-formats-markdown = { path = "../../formats/markdown" }
+ctb-formats-multipart = { path = "../../formats/multipart" }
+ctb-formats-pem = { path = "../../formats/pem" }
+ctb-formats-syndication = { path = "../../formats/syndication" }
+ctb-formats-useragent = { path = "../../formats/useragent" }
+ctb-formats-dctext = { path = "../../formats/dctext" }
+ctb-formats-eite = { path = "../../formats/eite" }
+
+axum = { version = "0.8.8", features = [ "multipart", "macros" ] }
+axum-server = { version = "0.8.0", features = [ "tls-rustls" ] }
+axum_typed_multipart = "0.16.5"
+axum-extra = { version = "0.12.5", features = [ "cookie", "form", "file-stream" ]}
+axum-core = { version = "0.5.6" }
+tower-http = { version = "0.6.8", features = ["compression-full", "cors", "trace"] }
+zeroize = { version = "1.8.2", features = [ "zeroize_derive" ]}
+rand = "0.9.2"
+tower = "0.5.3"
+bytes = "1.11.0"
+http = "1.4.0"
+http-body = "1.0.1"
+http-body-util = "0.1.3"
+chrono = "0.4.43"
+pin-project = "1"
+serde_html_form = "0.4.0"
+handlebars = "6.4.0"
+maplit = "1.0.2"
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+tracing = "0.1.44"
+portpicker = "0.1.1"
+mime_guess = "2.0.5"
+tokio-util = { version = "0.7.18", features = ["codec"] }
+base64 = "0.22.1"
+futures = "0.3"
+futures-core = { version = "0.3", default-features = false }
+cfg-if = "1.0"
+webbrowser = "1.0.6"
+# Blocked on https://github.com/servo/servo/issues/18343
+# libservo = { git = "https://github.com/servo/servo", rev = "454d6052b4a3b396573e93f190413a4877daa902" }
+arc-swap = { version = "1" }
+rustls = { version = "0.23", default-features = false }
+rustls-pki-types = { version = "1.14", features = ["std"] }
+tokio-rustls = { version = "0.26", default-features = false }
+pin-project-lite = "0.2.16"
+fs-err = { version = "3", features = ["tokio"] }
+async-compression = { version = "0.4.42", features = ["tokio", "gzip", "zlib", "brotli"] }
+brotli = "8.0.2"
+flate2 = "1.1"
+regex = "1.12.4"
+semver = "1.0.28"
+miniz_oxide = "0.9.1"
+include_dir = { version = "0.7.4", features = ["glob"] }
+
+# These two are for axum test_client which I had to import with no changes to
+# retain deprecated Host extractor.
+reqwest = { version = "0.13", features = ["json", "stream", "multipart"] }
+tower-service = "0.3"
+serde_core = "1.0.228"
+
+# [target.'cfg(not( target_os = "linux" ))'.dependencies]
+# wry = "0.54.0"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# LLM-generated; use with caution!
+
+# Setup permissions using UNIX groups (no ACLs).
+#
+# - deployer user can rsync the service binary into /home/server/deploy (write)
+# - server user has only read+execute on /home/server/deploy and enclosed binary (no write)
+# - deployer user can update /home/server/.config/systemd/user/ctoolbox.service (write)
+#
+# Run as root: sudo ./setup-permissions-groups.sh
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  setup-permissions-groups
+
+This script is intended to be safe to re-run (idempotent).
+
+Inputs can be provided via:
+      ~/ctb-deploy.server-username
+      ~/ctb-deploy.username
+EOF
+}
+
+USER_SERVER="${USER_SERVER:-}"
+USER_DEPLOYER="${USER_DEPLOYER:-}"
+
+if [ -z "${USER_SERVER}" ] && [ -r ~/ctb-deploy.server-username ]; then
+  USER_SERVER="$(<~/ctb-deploy.server-username)" || exit 1
+fi
+
+if [ -z "${USER_DEPLOYER}" ] && [ -r ~/ctb-deploy.username ]; then
+  USER_DEPLOYER="$(<~/ctb-deploy.username)" || exit 1
+fi
+
+if [ -z "${USER_SERVER}" ] || [ -z "${USER_DEPLOYER}" ]; then
+  echo "ERROR: missing server/deployer user; pass flags or set env vars." >&2
+  usage >&2
+  exit 2
+fi
+
+HOME_SERVER="/home/${USER_SERVER}"
+DEPLOYER_DIR="${HOME_SERVER}/deploy"
+SYSTEMD_DIR="${HOME_SERVER}/.config/systemd/user"
+SYSTEMD_WANTS_DIR="${SYSTEMD_DIR}/default.target.wants"
+CONFIG_DIR="${HOME_SERVER}/.local/share/collectivetoolbox/config"
+CONFIG_FILE="${HOME_SERVER}/.local/share/collectivetoolbox/config/pc_settings.json"
+SERVICE_FILE="${SYSTEMD_DIR}/ctoolbox.service"
+WANTS_SERVICE_FILE="${SYSTEMD_WANTS_DIR}/ctoolbox.service"
+
+# Helpers
+err() { echo "ERROR: $*" >&2; exit 1; }
+need_cmd() { command -v "$1" >/dev/null 2>&1 || err "required command '$1' not found"; }
+
+# Require root
+[ "$(id -u)" -eq 0 ] || err "This script must be run as root."
+
+# Ensure users exist
+id "${USER_SERVER}" >/dev/null 2>&1 || err "user ${USER_SERVER} does not exist"
+id "${USER_DEPLOYER}" >/dev/null 2>&1 || err "user ${USER_DEPLOYER} does not exist"
+
+need_cmd usermod
+need_cmd mkdir
+need_cmd chown
+need_cmd chmod
+need_cmd getent
+need_cmd touch
+
+# Determine server's primary group name
+SERVER_PRIMARY_GROUP="$(id -gn "${USER_SERVER}")"
+if [ -z "${SERVER_PRIMARY_GROUP}" ]; then
+  err "Could not determine primary group of ${USER_SERVER}"
+fi
+
+echo "Using group '${SERVER_PRIMARY_GROUP}' (server's primary group)."
+
+# 1) Add deployer to server's primary group so deployer can use group permissions in /home/server
+if id -nG "${USER_DEPLOYER}" | tr ' ' '\n' | grep -qx "${SERVER_PRIMARY_GROUP}"; then
+  echo "${USER_DEPLOYER} is already in group ${SERVER_PRIMARY_GROUP}."
+else
+  echo "Adding ${USER_DEPLOYER} to group ${SERVER_PRIMARY_GROUP} (so it can traverse/read group-protected items)..."
+  usermod -a -G "${SERVER_PRIMARY_GROUP}" "${USER_DEPLOYER}"
+  echo "Note: ${USER_DEPLOYER} must re-login (or restart sshd session) before new group membership appears for that user."
+fi
+
+# 2) Ensure /home/server is traversable by group members (so deployer can reach subdirs)
+# Keep owner as server; make sure group has execute (traverse). Use 750 so others have no access.
+echo "Setting ${HOME_SERVER} permissions to 750 (owner rwx, group rx, others none)."
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}"
+chmod 750 "${HOME_SERVER}"
+
+# 3) Create /home/server/deploy, make deployer the owner and server group the group.
+#    Owner (deployer) = rwx, Group (server) = r-x, Others = none.
+#    Use setgid so new files/dirs inherit the directory group (server) and server keeps read access on new content.
+echo "Creating ${DEPLOYER_DIR} and setting owner to ${USER_DEPLOYER}, group to ${SERVER_PRIMARY_GROUP}."
+mkdir -p "${DEPLOYER_DIR}"
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${DEPLOYER_DIR}"
+# mode 2750: setgid + rwx (owner) + r-x (group) + --- (other)
+chmod 2750 "${DEPLOYER_DIR}"
+
+# 4) Systemd user directory - allow deployer to create/replace service file while server only has read access.
+# We'll make the directory owned by deployer and group = server, with group read+execute for server.
+echo "Creating systemd user directory ${SYSTEMD_DIR} (owner=${USER_DEPLOYER}, group=${SERVER_PRIMARY_GROUP})."
+mkdir -p "${SYSTEMD_WANTS_DIR}"
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SYSTEMD_DIR}"
+# mode 750: owner rwx (deployer), group rx (server), others none
+chmod 750 "${SYSTEMD_DIR}"
+chmod 750 "${SYSTEMD_WANTS_DIR}"
+
+# 5) Create the service file (if missing) and set owner to deployer so deployer can update it.
+#    Make group = server and permissions 0640 so server (via group) can read but not write.
+if [ ! -e "${SERVICE_FILE}" ]; then
+  echo "Creating empty service file ${SERVICE_FILE}"
+  touch "${SERVICE_FILE}"
+fi
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SERVICE_FILE}"
+# mode 0640: owner rw, group r, others none
+chmod 0640 "${SERVICE_FILE}"
+ln -s -f "${SERVICE_FILE}" "${WANTS_SERVICE_FILE}"
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${WANTS_SERVICE_FILE}"
+chmod 0640 "${WANTS_SERVICE_FILE}"
+
+echo "Creating settings directory ${CONFIG_DIR} (owner=${USER_DEPLOYER}, group=${SERVER_PRIMARY_GROUP})."
+mkdir -p "${CONFIG_DIR}"
+# chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local" || true
+# chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local/share" || true
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local/share/collectivetoolbox" || true
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${CONFIG_DIR}"
+chmod 750 "${CONFIG_DIR}"
+
+if [ ! -e "${CONFIG_FILE}" ]; then
+  echo "Creating empty service file ${CONFIG_FILE}"
+  touch "${CONFIG_FILE}"
+fi
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${CONFIG_FILE}"
+chmod 0640 "${CONFIG_FILE}"
+
+CACHE_DIR="${HOME_SERVER}/.cache/collectivetoolbox"
+echo "Creating cache directory ${CACHE_DIR} (owner=${USER_SERVER}, group=${SERVER_PRIMARY_GROUP})."
+mkdir -p "${CACHE_DIR}"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.cache" || true
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${CACHE_DIR}"
+chmod 750 "${CACHE_DIR}"
+
+if command -v loginctl >/dev/null 2>&1; then
+  loginctl enable-linger "${USER_SERVER}"
+else
+  echo "Note: loginctl not found; skipping linger enable." >&2
+fi
+
+cat <<EOF
+
+Done.
+
+Summary of the configuration applied:
+- ${DEPLOYER_DIR}:
+    owner = ${USER_DEPLOYER}
+    group = ${SERVER_PRIMARY_GROUP}
+    mode  = 2750 (setgid + owner rwx, group r-x, others ---)
+    => deployer (owner) can write; server (group member) has read+execute but no write.
+    => new files inherit group ${SERVER_PRIMARY_GROUP} (so server will have read on new items if file perms allow).
+
+- ${SYSTEMD_DIR}:
+    owner = ${USER_DEPLOYER}
+    group = ${SERVER_PRIMARY_GROUP}
+    mode  = 750 (owner rwx, group r-x)
+    => deployer can create/replace files; server can read/list but not write.
+
+- ${SERVICE_FILE}:
+    owner = ${USER_DEPLOYER}
+    group = ${SERVER_PRIMARY_GROUP}
+    mode  = 0640 (owner rw, group r)
+    => deployer (owner) can update the file; server (group) can read only.
+
+Important notes & recommendations:
+- After this script adds ${USER_DEPLOYER} to group ${SERVER_PRIMARY_GROUP}, the deployer user needs to re-login (open a new SSH session) for the new group membership to apply when rsyncing.
+- When rsyncing the binary as the deployer user, ensure the binary is uploaded with the executable bit and group-read+execute for server. Example:
+    rsync -av --chmod=0755 ./myservice ${USER_DEPLOYER}@server:${DEPLOYER_DIR}/
+  This makes the file owner-executable and group-executable so server can execute/read.
+- If you prefer that newly created files automatically include group execute (for binaries), make sure deployer's umask allows it or always use rsync's --chmod.
+- Adding ${USER_DEPLOYER} to ${SERVER_PRIMARY_GROUP} gives that user group-level visibility into files/directories where group has permissions. Review any other directories in /home/${USER_SERVER} that rely on group permissions.
+
+Alternatives:
+- Use a dedicated shared group (e.g. "server-deployer") and avoid adding deployer to the server primary group (this reduces the blast radius), or
+- Make deployer not the owner of the systemd file but allow write via group (requires either adding server to the shared group or different ownership choices).
+
+EOF

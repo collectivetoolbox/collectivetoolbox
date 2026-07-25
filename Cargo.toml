@@ -1,0 +1,274 @@
+[package]
+name = "ctoolbox"
+version = "0.1.49"
+edition = "2024"
+license = "AGPL-3.0-or-later AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND GPL-3.0-only AND LGPL-3.0-only"
+
+[workspace]
+exclude = ["assets/web/vendor/v86"]
+
+[package.metadata.winresource]
+# Not sure if there's any way to make this respect the branding switch. It may need its own patch.
+ProductName = "Collective Toolbox"
+LegalCopyright = "Licensed under the AGPL 3+. See license text in application for details."
+
+[profile.dev]
+incremental = false
+debug = 1
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+debug = 0
+opt-level = 0
+
+[profile.dev.package.ctb-formats-javascript]
+opt-level = 3
+
+[profile.dev.package.boa_engine]
+opt-level = 3
+
+[profile.dev.package.boa_runtime]
+opt-level = 3
+
+[profile.dev.package.boa_parser]
+opt-level = 3
+
+[profile.dev.package.boa_gc]
+opt-level = 3
+
+[profile.test]
+inherits = "dev"
+
+[profile.test.package.ctb-formats-javascript]
+opt-level = 3
+
+[profile.test.package.boa_engine]
+opt-level = 3
+
+[profile.test.package.boa_runtime]
+opt-level = 3
+
+[profile.test.package.boa_parser]
+opt-level = 3
+
+[profile.test.package.boa_gc]
+opt-level = 3
+
+[profile.release]
+overflow-checks = true
+lto = "thin"
+
+[lib]
+crate-type = ["lib"]
+
+[[bin]]
+name = "ctoolbox"
+path = "src/bin.rs"
+
+[env]
+# Due to https://github.com/rust-lang/cargo/issues/10094 (I think it may be that
+# issue) this does not work, which will prevent building ctoolbox using Cargo
+# without wrapping in the build script.
+#MOZJS_FROM_SOURCE = { value = "1", force = true }
+# Try to stop mozjs build locking up the system
+#MAKEFLAGS = { value = "-j1", force = true }
+#CARGO_MAKEFLAGS = { value = "-j1", force = true }
+# Blocked on https://github.com/servo/servo/issues/18343
+
+[build-dependencies]
+anyhow = "1.0.100"
+vergen-gix = { version = "9.1.0", features = ["build", "cargo", "rustc", "si"] }
+ctb-build-support = { path = "src/build_support" }
+winresource = "0.1.30"
+
+[dependencies]
+
+################################ SUB-CRATES ####################################
+
+# These are also included in this repository. They have their own Cargo.toml
+# files and dependencies.
+
+ctb-build-support = { path = "src/build_support" }
+ctb-cli = { path = "src/cli" }
+ctb-formats = { path = "src/formats" }
+ctb-formats-alias = { path = "src/formats/alias" }
+ctb-formats-applescript = { path = "src/formats/applescript" }
+ctb-formats-base16b = { path = "src/formats/base16b" }
+ctb-formats-base64 = { path = "src/formats/base64" }
+ctb-formats-checksum = { path = "src/formats/checksum" }
+ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
+ctb-formats-dceutils = { path = "src/formats/dceutils" }
+ctb-formats-dctext = { path = "src/formats/dctext" }
+ctb-formats-dpkg = { path = "src/formats/dpkg" }
+ctb-formats-eite = { path = "src/formats/eite" }
+ctb-formats-encoding = { path = "src/formats/encoding" }
+ctb-formats-hexdump = { path = "src/formats/hexdump" }
+ctb-formats-html = { path = "src/formats/html" }
+ctb-formats-internetarchive = { path = "src/formats/internetarchive" }
+ctb-formats-ipaddr = { path = "src/formats/ipaddr" }
+ctb-formats-javascript = { path = "src/formats/javascript" }
+ctb-formats-javascript-boa-host = { path = "src/formats/javascript/boa_host" }
+ctb-formats-javascript-bootstrap-ts = { path = "src/formats/javascript/bootstrap_ts" }
+ctb-formats-json = { path = "src/formats/json" }
+ctb-formats-lnk = { path = "src/formats/lnk" }
+ctb-formats-markdown = { path = "src/formats/markdown" }
+ctb-formats-math = { path = "src/formats/math" }
+ctb-formats-multipart = { path = "src/formats/multipart" }
+ctb-formats-pan = { path = "src/formats/pan" }
+ctb-formats-perl = { path = "src/formats/perl" }
+ctb-formats-pdf = { path = "src/formats/pdf" }
+ctb-formats-pem = { path = "src/formats/pem" }
+ctb-formats-stagel = { path = "src/formats/stagel" }
+ctb-formats-syndication = { path = "src/formats/syndication" }
+ctb-formats-troff = { path = "src/formats/troff" }
+ctb-formats-unicode = { path = "src/formats/unicode" }
+ctb-formats-uri = { path = "src/formats/uri" }
+ctb-formats-useragent = { path = "src/formats/useragent" }
+ctb-formats-utf-8e-128 = { path = "src/formats/utf_8e_128" }
+ctb-formats-utf8 = { path = "src/formats/utf8" }
+ctb-formats-utilities = { path = "src/formats/utilities" }
+ctb-formats-warc = { path = "src/formats/warc" }
+ctb-formats-wfscan = { path = "src/formats/wfscan" }
+ctb-formats-wtf8 = { path = "src/formats/wtf8" }
+ctb-io = { path = "src/io" }
+ctb-io-webui = { path = "src/io/webui" }
+ctb-installer = { path = "src/installer" }
+ctb-network = { path = "src/network" }
+ctb-renderer = { path = "src/renderer" }
+ctb-runtime = { path = "src/runtime" }
+ctb-storage = { path = "src/storage" }
+ctb-storage-minimal = { path = "src/storage/minimal" }
+ctb-storage-asset-bundle-locator = { path = "src/storage/asset_bundle_locator" }
+ctb-utilities = { path = "src/utilities" }
+ctb-workspace = { path = "src/workspace" }
+ctb-workspace-ipc = { path = "src/workspace/ipc" }
+ctb-workspace-x11-client = { path = "src/workspace/x11_client" }
+ctb-workspace-x11-client-egui = { path = "src/workspace/x11_client_egui" }
+ctb-nopersonality = { path = "src/nopersonality" }
+ctb-v86-posix-init = { path = "src/v86_posix_init" }
+
+# NOTE: These are not normal dependencies. They're proc-macros, which need their
+# own crates. THEY ALSO HAVE THEIR OWN DEPENDENCIES.
+ctb-ipc-macro = { path = "src/utilities/ctb_ipc_macro" }
+ctb-test-macro = { path = "src/utilities/ctb_test_macro" }
+ctb-workspace-ipc-macro = { path = "src/utilities/ctb_workspace_ipc_macro" }
+
+#############################  END SUB-CRATES ##################################
+
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+nix = { version = "0.30", features = ["fs", "signal"] }
+
+# Dependencies to use later: "chacha20poly1305", "opaque-ke", "roaring"
+
+# sevenz-rust2 = { version = "0.20.2", features = ["brotli", "deflate", "lz4"] }
+xkbcommon-rs = "0.1.2"
+deno_lint = "0.84.1"
+rustls = "0.23"
+
+[features]
+# This controls if the ctb_test macro tries to set up the workspace test harness
+default = ["ctb-harness"]
+debug = []
+ctb-harness = []
+
+[package.metadata.cargo-shear]
+ignored = []
+
+[workspace.metadata.cargo-shear]
+ignored = ["ctb-utilities", "ctb-formats-utilities", "ctb-utilities-x11-client"]
+
+[workspace.lints.rust]
+# This does use some unsafe code for IPC (because shared memory requires it);
+# those cases are marked with `#[allow(unsafe_code)]`.
+unsafe_code = "deny"
+unused_must_use = "deny"
+non_snake_case = "deny" # This bit me because of some constants
+
+[workspace.lints.clippy]
+# Some of this based on https://emschwartz.me/your-clippy-config-should-be-stricter/#my-configs
+pedantic = { level = "warn", priority = -1 }
+as_conversions = "deny"
+unnecessary_fallible_conversions = "deny"
+try_err = "deny"
+ok_expect = "deny"
+expect_used = "warn"
+# This doesn't seem to work:
+#[cfg(test) indexing_slicing = "warn"]
+unwrap_in_result = "warn"
+panic_in_result_fn = "warn"
+collapsible_if = "allow"
+must_use_candidate = "allow"
+needless_range_loop = "allow"
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+unused_imports = "allow"
+allow_attributes = "warn"
+allow_attributes_without_reason = "deny"
+#Panic
+string_slice = "deny"
+indexing_slicing = "deny"
+# Ideally get rid of all panics other than "todo"/"unimplemented"/maybe "unreachable", but there were some places I'm not sure how.
+unwrap_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+get_unwrap = "warn"
+unchecked_time_subtraction = "deny"
+
+# Avoid silent failing
+let_underscore_future = "warn"
+let_underscore_must_use = "warn"
+map_err_ignore = "warn"
+unused_result_ok = "warn"
+assertions_on_result_states = "warn"
+
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+large_futures = "warn"
+
+mem_forget = "warn"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_safety_comment = "warn"
+
+# Math
+float_cmp = "warn"
+float_cmp_const = "warn"
+lossy_float_literal = "deny"
+cast_sign_loss = "deny"
+invalid_upcast_comparisons = "deny"
+# I think these next there are no-ops because I have as_conversions = deny
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+cast_possible_truncation = "deny"
+arithmetic_side_effects = "deny"
+
+rc_mutex = "deny"
+debug_assert_with_mut_call = "deny"
+iter_not_returning_iterator = "deny"
+expl_impl_clone_on_copy = "deny"
+infallible_try_from = "deny"
+dbg_macro = "deny"
+
+[patch.crates-io]
+egui-winit = { path = "vendor/egui-winit" }
+# matchbox_socket = { path = "vendor/matchbox_socket" }
+smithay-clipboard = { path = "vendor/smithay-clipboard" }
+softbuffer = { path = "vendor/softbuffer" }
+winit = { path = "vendor/winit" }
+
+# FIXME: Temporary patches to wayland-scanner and zbus-xml to update quick-xml past vulnerable version. Once these dependencies support quick-xml 0.41, remove these.
+wayland-scanner = { path = "vendor/wayland-scanner" }
+zbus_xml = { path = "vendor/zbus_xml" }
+
+# Remove hard dependency on io_uring feature which ftbfs
+turso_sdk_kit = { path = "vendor/turso_sdk_kit" }
+
+#tiny-xlib = { path = "vendor/tiny-xlib" }
+#x11-dl = { path = "vendor/x11-dl" }
+x11rb = { path = "vendor/x11rb" }
+xkbcommon-rs = { path = "vendor/xkbcommon-rs" }
+yaxi = { path = "vendor/yaxi" }
+warcat = { path = "vendor/warcat" }

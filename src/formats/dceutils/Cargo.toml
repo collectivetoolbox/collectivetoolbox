@@ -1,0 +1,19 @@
+[package]
+name = "ctb-formats-dceutils"
+edition = "2024"
+
+[lib]
+path="dceutils.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-hexdump = { path = "../hexdump" }
+ctb-formats-base64 = { path = "../base64" }
+ctb-formats-encoding = { path = "../encoding" }
+csv = "1.4.0"
+
+[lints]
+workspace = true
+

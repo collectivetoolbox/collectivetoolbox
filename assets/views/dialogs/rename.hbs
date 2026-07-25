@@ -1,0 +1,29 @@
+<div class="w-full h-full mx-auto flex flex-col justify-evenly content-center items-center">
+    <form action="/rename" method="POST" class="w-80 flex flex-col gap-4">
+        <div class="text-center mb-2">
+            Your username <strong>{{ username }}</strong> is already taken on the remote server. Please choose a different unique username. Your local display name will remain <strong>{{ username }}</strong>.
+        </div>
+        <table>
+            <tbody>
+                <tr class="border-b-[1rem] border-b-transparent">
+                    <td>
+                        <label>New Username:</label>
+                    </td>
+                    <td>
+                        <input type="text" name="new_username" class="w-full ml-2" required>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="flex justify-between">
+            <a href="/" class="btn">
+                {{> icons._icon name="arrow-left" alt="" }}
+                <span>Cancel</span>
+            </a>
+            <button type="submit" class="btn-primary">
+                {{> icons._icon name="home" alt="" }}
+                <span>Rename</span>
+            </button>
+        </div>
+    </form>
+</div>

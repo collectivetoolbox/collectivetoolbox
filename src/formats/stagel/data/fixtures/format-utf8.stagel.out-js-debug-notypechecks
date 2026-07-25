@@ -1,0 +1,597 @@
+async function dcaToUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaToUtf8:format-utf8');  let intArrayReturn;
+
+    StageL_assertIsDcArray(intArrayContent);
+    let intArrayRes = [];
+    let intArrayToOutput = [];
+    intArrayToOutput = intArrayContent;
+    let intArrayTemp = [];
+    let intDcAtIndex = 0;
+    let intArrayUnmappables = [];
+    let intUnmappablesCount = 0;
+    let intUnmappablesCounter = 0;
+    let intArrayUnmappablesIntermediatePacked = [];
+    let boolFoundAnyUnmappables = false;
+    boolFoundAnyUnmappables = false;
+    let strArrayVariantSettings = [];
+    strArrayVariantSettings = StageL_utf8VariantSettings('out');
+    let boolDcBasenbEnabled = false;
+    boolDcBasenbEnabled = StageL_contains(strArrayVariantSettings, 'dcBasenb');
+    let boolDcBasenbFragmentEnabled = false;
+    boolDcBasenbFragmentEnabled = StageL_contains(strArrayVariantSettings, 'dcBasenbFragment');
+    intArrayToOutput = StageL_dcPreprocessForFormat(intArrayToOutput, 'utf8', 'out');
+    let intL = 0;
+    intL = StageL_count(intArrayToOutput);
+    let intC = 0;
+    intC = 0;
+    while (StageL_le(intC, intL)) {
+        /* Start by getting the character's UTF8 equivalent and putting it in an/temp. This might be empty, if the character can't be mapped to UTF8. */
+        if (StageL_lt(intC, intL)) {
+            intDcAtIndex = StageL_get(intArrayToOutput, intC);
+            intArrayTemp = StageL_dcToFormat('utf8', intDcAtIndex);
+        }
+        /* Could the character be mapped? If not, stick it in the unmappables array or warn as appropriate. */
+        if (StageL_eq(0, StageL_count(intArrayTemp))) {
+            if (StageL_lt(intC, intL)) {
+                if (boolDcBasenbEnabled) {
+                    intArrayUnmappables = StageL_push(intArrayUnmappables, intDcAtIndex);
+                }
+                else {
+                    StageL_exportWarningUnmappable(intC, intDcAtIndex);
+                }
+            }
+        }
+        /* If we've reached the end of the input string or the last character was mappable, convert the an/unmappables array to PUA characters and append that result to the output string */
+        if (boolDcBasenbEnabled) {
+            if (StageL_or(StageL_eq(intC, intL), StageL_ne(0, StageL_count(intArrayTemp)))) {
+                intUnmappablesCount = StageL_count(intArrayUnmappables);
+                if (StageL_ne(0, intUnmappablesCount)) {
+                    if (StageL_not(boolFoundAnyUnmappables)) {
+                        if (StageL_not(boolDcBasenbFragmentEnabled)) {
+                            intArrayRes = StageL_append(intArrayRes, StageL_getArmoredUtf8EmbeddedStartUuid());
+                        }
+                    }
+                    boolFoundAnyUnmappables = true;
+                    /* We've gotten to the end of a string of unmappable characters, so convert them to PUA characters */
+                    intUnmappablesCounter = 0;
+                    while (StageL_lt(intUnmappablesCounter, intUnmappablesCount)) {
+                        /* The packing method for this works basically like UTF8, where each character is mapped to a series of bytes. So, first get the bytearray for the character we're on. Each character should be packed separately, to make it easy to spot where one character ends and the next begins. */
+                        intArrayUnmappablesIntermediatePacked = StageL_append(intArrayUnmappablesIntermediatePacked, StageL_pack32(StageL_get(intArrayUnmappables, intUnmappablesCounter)));
+                        intUnmappablesCounter = StageL_add(intUnmappablesCounter, 1);
+                        intArrayRes = StageL_append(intArrayRes, StageL_byteArrayToBase17bUtf8(intArrayUnmappablesIntermediatePacked));
+                        intArrayUnmappablesIntermediatePacked = [  ];
+                    }
+                    intArrayUnmappables = [  ];
+                    intArrayUnmappablesIntermediatePacked = [  ];
+                }
+            }
+        }
+        /* Stick the current character onto the result array */
+        if (StageL_lt(intC, intL)) {
+            intArrayRes = StageL_append(intArrayRes, intArrayTemp);
+        }
+        /* and finally increment the loop counter */
+        intC = StageL_add(intC, 1);
+    }
+    if (StageL_and(boolDcBasenbEnabled, boolFoundAnyUnmappables)) {
+        if (StageL_not(boolDcBasenbFragmentEnabled)) {
+            intArrayRes = StageL_append(intArrayRes, StageL_getArmoredUtf8EmbeddedEndUuid());
+        }
+    }
+    StageL_assertIsByteArray(intArrayRes);
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaFromUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaFromUtf8:format-utf8');  let intArrayReturn;
+
+    let intArrayRes = [];
+    let intArrayRemaining = [];
+    intArrayRemaining = intArrayContent;
+    let intArrayTemp = [];
+    let intArrayLatestChar = [];
+    let intDcBasenbUuidMonitorState = 0;
+    intDcBasenbUuidMonitorState = 0;
+    let intDcBasenbUuidMonitorReprocessNeededCount = 0;
+    intDcBasenbUuidMonitorReprocessNeededCount = 0;
+    let strArrayVariantSettings = [];
+    strArrayVariantSettings = StageL_utf8VariantSettings('in');
+    let boolDcBasenbEnabled = false;
+    boolDcBasenbEnabled = StageL_contains(strArrayVariantSettings, 'dcBasenb');
+    let boolInDcBasenbSection = false;
+    boolInDcBasenbSection = false;
+    if (boolDcBasenbEnabled) {
+        boolInDcBasenbSection = StageL_contains(strArrayVariantSettings, 'dcBasenbFragment');
+    }
+    let intSkipThisChar = 0;
+    intSkipThisChar = 0;
+    let intArrayCollectedDcBasenbChars = [];
+    let intCollectedDcBasenbCharsCount = 0;
+    let intCollectedDcBasenbCharsCounter = 0;
+    let intArrayCurrentUnmappableChar = [];
+    let intTempArrayCount = 0;
+    while (StageL_not(StageL_eq(0, StageL_count(intArrayRemaining)))) {
+        intArrayTemp = [  ];
+        intArrayLatestChar = StageL_pack32(StageL_firstCharOfUtf8String(intArrayRemaining));
+        if (boolDcBasenbEnabled) {
+            /* Dcbasenb is enabled, so process characters accordingly. */
+            if (StageL_not(boolInDcBasenbSection)) {
+                /* Not in a dcbasenb section, so look out for the UUID in case we run into one */
+                /* All this code down to "(End of code section)" is only looking for UUIDs, and can mostly be disregarded for purposes of understanding the decoder logic. */
+                /* 8 characters for uuid. Probably a better way to do this but oh well. Got them with new TextEncoder().encode('[char]'); etc. */
+                if (StageL_ne(0, intDcBasenbUuidMonitorReprocessNeededCount)) {
+                    /* We're reprocessing potential UUID chars that didn't match a UUID after all, so don't check them for being a UUID. FIXME: Non-UUID char being reprocessed followed by 244 141 129 157 etc. (a potential UUID) would NOT be checked to be a UUID here. It should handle correctly the situation where there's potential but not a UUID, followed by potential and is a UUID, overlapping, like that. */
+                    intDcBasenbUuidMonitorReprocessNeededCount = StageL_sub(intDcBasenbUuidMonitorReprocessNeededCount, 1);
+                }
+                else {
+                    /* Check for a UUID. */
+                    if (StageL_eq(intDcBasenbUuidMonitorState, 0)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 141, 129, 157 ])) {
+                            intDcBasenbUuidMonitorState = 1;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 1)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 139, 182, 128 ])) {
+                            intDcBasenbUuidMonitorState = 2;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 2)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 188, 183, 162 ])) {
+                            intDcBasenbUuidMonitorState = 3;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 3)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 186, 128, 138 ])) {
+                            intDcBasenbUuidMonitorState = 4;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 4)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 184, 165, 142 ])) {
+                            intDcBasenbUuidMonitorState = 5;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 5)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 136, 186, 141 ])) {
+                            intDcBasenbUuidMonitorState = 6;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 6)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 178, 139, 160 ])) {
+                            intDcBasenbUuidMonitorState = 7;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 7)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 143, 186, 144 ])) {
+                            intDcBasenbUuidMonitorState = 0;
+                            intArrayLatestChar = [  ];
+                            boolInDcBasenbSection = true;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    if (StageL_ne(0, intDcBasenbUuidMonitorReprocessNeededCount)) {
+                        /* It's necessary to reprocess the number of bytes that were consumed while checking for a UUID */
+                        intTempArrayCount = StageL_sub(StageL_count(intArrayContent), StageL_count(intArrayRemaining));
+                        intArrayRemaining = StageL_anSubset(intArrayContent, intTempArrayCount, StageL_add(intTempArrayCount, StageL_mul(4, intDcBasenbUuidMonitorReprocessNeededCount)));
+                    }
+                }
+            }
+            else {
+                /* Dcbasenb support is enabled, and we're inside a dcbasenb region. Process chars accordingly. */
+                if (StageL_ne(0, intDcBasenbUuidMonitorReprocessNeededCount)) {
+                    /* Reprocessing non-UUID chars that could have been a UUID. Again, FIXME same as for the start UUID reprocessing bug mentioned in the earlier FIXME. */
+                    intDcBasenbUuidMonitorReprocessNeededCount = StageL_sub(intDcBasenbUuidMonitorReprocessNeededCount, 1);
+                }
+                else {
+                    /* Look for a dcbasenb region end UUID. */
+                    if (StageL_eq(intDcBasenbUuidMonitorState, 0)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 188, 133, 185 ])) {
+                            intDcBasenbUuidMonitorState = 1;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 1)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 180, 182, 175 ])) {
+                            intDcBasenbUuidMonitorState = 2;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 2)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 136, 161, 186 ])) {
+                            intDcBasenbUuidMonitorState = 3;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 3)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 191, 148, 138 ])) {
+                            intDcBasenbUuidMonitorState = 4;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 4)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 134, 178, 166 ])) {
+                            intDcBasenbUuidMonitorState = 5;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 5)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 141, 184, 130 ])) {
+                            intDcBasenbUuidMonitorState = 6;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 6)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 243, 178, 128, 176 ])) {
+                            intDcBasenbUuidMonitorState = 7;
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    else if (StageL_eq(intDcBasenbUuidMonitorState, 7)) {
+                        if (StageL_arrEq(intArrayLatestChar, [ 244, 143, 188, 157 ])) {
+                            intDcBasenbUuidMonitorState = 0;
+                            intArrayLatestChar = [  ];
+                            boolInDcBasenbSection = false;
+                            /* Handle any remaining collected DcBasenb characters */
+                            if (StageL_ne(0, StageL_count(intArrayCollectedDcBasenbChars))) {
+                                intArrayCollectedDcBasenbChars = StageL_byteArrayFromBase17bUtf8(intArrayCollectedDcBasenbChars);
+                                if (StageL_excepArr(intArrayCollectedDcBasenbChars)) {
+                                    StageL_importWarning(StageL_sub(StageL_count(intArrayContent), StageL_count(intArrayRemaining), ), 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.');
+                                    intArrayCollectedDcBasenbChars = [  ];
+                                }
+                                intCollectedDcBasenbCharsCount = StageL_count(intArrayCollectedDcBasenbChars);
+                                intCollectedDcBasenbCharsCounter = 0;
+                                while (StageL_lt(intCollectedDcBasenbCharsCounter, intCollectedDcBasenbCharsCount)) {
+                                    intArrayCurrentUnmappableChar = StageL_utf8BytesFromDecimalChar(StageL_firstCharOfUtf8String(intArrayCollectedDcBasenbChars));
+                                    intArrayRes = StageL_append(intArrayRes, StageL_unpack32(intArrayCurrentUnmappableChar));
+                                    intCollectedDcBasenbCharsCounter = StageL_add(intCollectedDcBasenbCharsCounter, StageL_count(intArrayCurrentUnmappableChar));
+                                }
+                                intArrayCollectedDcBasenbChars = [  ];
+                            }
+                        }
+                        else {
+                            intDcBasenbUuidMonitorReprocessNeededCount = intDcBasenbUuidMonitorState;
+                            intDcBasenbUuidMonitorState = 0;
+                        }
+                    }
+                    if (StageL_ne(0, intDcBasenbUuidMonitorReprocessNeededCount)) {
+                        /* It's necessary to reprocess the number of bytes that were consumed while checking for a UUID */
+                        intTempArrayCount = StageL_count(intArrayRemaining);
+                        intArrayRemaining = StageL_anSubset(intArrayContent, intTempArrayCount, StageL_add(intTempArrayCount, StageL_mul(4, intDcBasenbUuidMonitorReprocessNeededCount)));
+                    }
+                }
+                /* (End of code section) (see explanation above) */
+            }
+            if (StageL_eq(0, intDcBasenbUuidMonitorState)) {
+                /* Process the current character: if we're in a dcbasenb section, check if it is a dcbasenb character and collect it for decoding. Otherwise, decode the preceding run of dcbasenb chars as a chunk and append that to the result. */
+                if (StageL_ne(0, StageL_count(intArrayLatestChar))) {
+                    /* There is a latest char (latestChar has more than 0 elems), so work on it */
+                    if (StageL_and(boolInDcBasenbSection, StageL_and(StageL_isBasenbChar(intArrayLatestChar), StageL_not(StageL_isBasenbDistinctRemainderChar(intArrayLatestChar))))) {
+                        /* The character is a dcbasenb char and we're in a dcbasenb section, so collect the character for decoding. */
+                        /* Should decode each character as a single batch with the end of the run denoted by isBasenbDistinctRemainderChar, so don't match those here. */
+                        intArrayCollectedDcBasenbChars = StageL_append(intArrayCollectedDcBasenbChars, intArrayLatestChar);
+                        intSkipThisChar = StageL_count(intArrayLatestChar);
+                    }
+                    else {
+                        /* Not a basenb char (or not in a dcbasenb section), so decode the ones we've collected, if there are any */
+                        if (StageL_ne(0, StageL_count(intArrayCollectedDcBasenbChars))) {
+                            if (StageL_isBasenbDistinctRemainderChar(intArrayLatestChar)) {
+                                intArrayCollectedDcBasenbChars = StageL_push(intArrayCollectedDcBasenbChars, intArrayLatestChar);
+                            }
+                            intArrayCollectedDcBasenbChars = StageL_byteArrayFromBase17bUtf8(intArrayCollectedDcBasenbChars);
+                            if (StageL_excepArr(intArrayCollectedDcBasenbChars)) {
+                                StageL_importWarning(StageL_sub(StageL_count(intArrayContent), StageL_count(intArrayRemaining), ), 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.');
+                                intArrayCollectedDcBasenbChars = [  ];
+                            }
+                            intCollectedDcBasenbCharsCount = StageL_count(intArrayCollectedDcBasenbChars);
+                            intCollectedDcBasenbCharsCounter = 0;
+                            while (StageL_lt(intCollectedDcBasenbCharsCounter, intCollectedDcBasenbCharsCount)) {
+                                intArrayCurrentUnmappableChar = StageL_utf8BytesFromDecimalChar(StageL_firstCharOfUtf8String(intArrayCollectedDcBasenbChars));
+                                intArrayRes = StageL_append(intArrayRes, StageL_unpack32(intArrayCurrentUnmappableChar));
+                                intCollectedDcBasenbCharsCounter = StageL_add(intCollectedDcBasenbCharsCounter, StageL_count(intArrayCurrentUnmappableChar));
+                            }
+                            intArrayCollectedDcBasenbChars = [  ];
+                        }
+                    }
+                }
+                else {
+                    /* The latest char was the last char of a confirmed UUID. */
+                    intSkipThisChar = 4;
+                }
+            }
+        }
+        intTempArrayCount = StageL_count(intArrayLatestChar);
+        if (StageL_eq(0, intDcBasenbUuidMonitorState)) {
+            /* (We're not trying to spot a UUID right now: either the current char couldn't be one, or we confirmed it's not part of one and are re-processing this char.) */
+            if (StageL_ne(0, intSkipThisChar)) {
+                /* The current character was a dcbasenb character, so it was stuck onto the collectedDcBasenbChars array and so we defer working on it until later. (Or, it was the last character of a confirmed UUID; either way, it doesn't get processed now.) */
+                intTempArrayCount = intSkipThisChar;
+                intSkipThisChar = 0;
+            }
+            else {
+                /* Not skipping the current char, so decode it from Unicode normally. */
+                intArrayTemp = intArrayLatestChar;
+                let intArrayTempFromUnicode = [];
+                intArrayTempFromUnicode = StageL_dcFromFormat('unicode', intArrayTemp);
+                if (StageL_le(1, StageL_count(intArrayTempFromUnicode))) {
+                    if (StageL_ne(-1, StageL_get(intArrayTempFromUnicode, 0))) {
+                        intArrayRes = StageL_append(intArrayRes, intArrayTempFromUnicode);
+                    }
+                }
+            }
+        }
+        /* Place in an/remaining the substring of input that has not been processed yet. */
+        intArrayRemaining = StageL_anSubset(intArrayRemaining, intTempArrayCount, -1);
+    }
+    if (boolDcBasenbEnabled) {
+        /* Handle any remaining collected DcBasenb characters */
+        if (StageL_ne(0, StageL_count(intArrayCollectedDcBasenbChars))) {
+            intArrayCollectedDcBasenbChars = StageL_byteArrayFromBase17bUtf8(intArrayCollectedDcBasenbChars);
+            if (StageL_excepArr(intArrayCollectedDcBasenbChars)) {
+                StageL_importWarning(StageL_sub(StageL_count(intArrayContent), StageL_count(intArrayRemaining), ), 'An invalid base17b UTF8 input was encountered. Probably it was incorrectly truncated.');
+                intArrayCollectedDcBasenbChars = [  ];
+            }
+            intCollectedDcBasenbCharsCount = StageL_count(intArrayCollectedDcBasenbChars);
+            intCollectedDcBasenbCharsCounter = 0;
+            while (StageL_lt(intCollectedDcBasenbCharsCounter, intCollectedDcBasenbCharsCount)) {
+                intArrayCurrentUnmappableChar = StageL_utf8BytesFromDecimalChar(StageL_firstCharOfUtf8String(intArrayCollectedDcBasenbChars));
+                intArrayRes = StageL_append(intArrayRes, StageL_unpack32(intArrayCurrentUnmappableChar));
+                intCollectedDcBasenbCharsCounter = StageL_add(intCollectedDcBasenbCharsCounter, StageL_count(intArrayCurrentUnmappableChar));
+            }
+        }
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function utf8VariantSettings(strDirection) {
+    StageL_internalDebugCollect('str Direction = ' + strDirection + '; '); StageL_internalDebugStackEnter('utf8VariantSettings:format-utf8');  let strArrayReturn;
+
+    let strArrayRes = [];
+    strArrayRes = StageL_getEnabledVariantsForFormat('utf8', strDirection);
+
+    strArrayReturn = strArrayRes;StageL_internalDebugStackExit(); return strArrayReturn;
+}
+
+async function dcaFromUnicodeChar(intChar) {
+    StageL_internalDebugCollect('int Char = ' + intChar + '; '); StageL_internalDebugStackEnter('dcaFromUnicodeChar:format-utf8');  let intArrayReturn;
+
+    /* Takes a character number, not a byte array. */
+    let intArrayRes = [];
+    let intArrayTemp = [];
+    intArrayTemp = StageL_dcFromFormat('unicode', StageL_anFromN(intChar));
+    if (StageL_ne(0, StageL_count(intArrayTemp))) {
+        intArrayRes = StageL_push(intArrayRes, StageL_get(intArrayTemp, 0));
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcToUnicodeCharArray(intDc) {
+    StageL_internalDebugCollect('int Dc = ' + intDc + '; '); StageL_internalDebugStackEnter('dcToUnicodeCharArray:format-utf8');  let intArrayReturn;
+
+    /* Returns a character number, not a byte array. */
+    let intArrayRes = [];
+    let intArrayTemp = [];
+    intArrayTemp = StageL_dcToFormat('unicode', intDc);
+    if (StageL_ne(0, StageL_count(intArrayTemp))) {
+        intArrayRes = StageL_push(intArrayRes, StageL_firstCharOfUtf8String(intArrayTemp));
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaToDcbnbUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaToDcbnbUtf8:format-utf8');  let intArrayReturn;
+
+    /* convenience wrapper */
+    let intArrayRes = [];
+    StageL_pushExportSettings(StageL_getFormatId('utf8'), 'variants:dcBasenb,');
+    intArrayRes = StageL_dcaToUtf8(intArrayContent);
+    StageL_popExportSettings(StageL_getFormatId('utf8'));
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaFromDcbnbUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaFromDcbnbUtf8:format-utf8');  let intArrayReturn;
+
+    /* convenience wrapper */
+    let intArrayRes = [];
+    StageL_pushImportSettings(StageL_getFormatId('utf8'), 'variants:dcBasenb,');
+    intArrayRes = StageL_dcaFromUtf8(intArrayContent);
+    StageL_popImportSettings(StageL_getFormatId('utf8'));
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaToDcbnbFragmentUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaToDcbnbFragmentUtf8:format-utf8');  let intArrayReturn;
+
+    /* convenience wrapper */
+    let intArrayRes = [];
+    StageL_pushExportSettings(StageL_getFormatId('utf8'), 'variants:dcBasenb dcBasenbFragment,skip_prefilter_semantic:,skip_prefilter_code:,');
+    intArrayRes = StageL_dcaToUtf8(intArrayContent);
+    StageL_popExportSettings(StageL_getFormatId('utf8'));
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcaFromDcbnbFragmentUtf8(intArrayContent) {
+    StageL_internalDebugCollect('intArray Content = ' + intArrayContent + '; '); StageL_internalDebugStackEnter('dcaFromDcbnbFragmentUtf8:format-utf8');  let intArrayReturn;
+
+    /* convenience wrapper */
+    let intArrayRes = [];
+    StageL_pushImportSettings(StageL_getFormatId('utf8'), 'variants:dcBasenb dcBasenbFragment,');
+    intArrayRes = StageL_dcaFromUtf8(intArrayContent);
+    StageL_popImportSettings(StageL_getFormatId('utf8'));
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function utf8CharArrayFromByteArray(intArrayIn) {
+    StageL_internalDebugCollect('intArray In = ' + intArrayIn + '; '); StageL_internalDebugStackEnter('utf8CharArrayFromByteArray:format-utf8');  let intArrayReturn;
+
+    let intArrayRes = [];
+    let intArrayRemaining = [];
+    intArrayRemaining = intArrayIn;
+    let intTemp = 0;
+    while (StageL_lt(0, StageL_count(intArrayRemaining))) {
+        intTemp = StageL_firstCharOfUtf8String(intArrayRemaining);
+        intArrayRes = StageL_push(intArrayRes, intTemp);
+        intArrayRemaining = StageL_anSubset(intArrayRemaining, StageL_count(StageL_utf8BytesFromDecimalChar(intTemp), ), -1);
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function byteArrayFromUtf8CharArray(intArrayIn) {
+    StageL_internalDebugCollect('intArray In = ' + intArrayIn + '; '); StageL_internalDebugStackEnter('byteArrayFromUtf8CharArray:format-utf8');  let intArrayReturn;
+
+    let intArrayRes = [];
+    let intCount = 0;
+    let intI = 0;
+    intCount = StageL_count(intArrayIn);
+    intI = 0;
+    while (StageL_lt(intI, intCount)) {
+        intArrayRes = StageL_append(intArrayRes, StageL_utf8BytesFromDecimalChar(StageL_get(intArrayIn, intI)));
+        intI = StageL_add(1, intI);
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcbnbGetFirstChar(intArrayIn) {
+    StageL_internalDebugCollect('intArray In = ' + intArrayIn + '; '); StageL_internalDebugStackEnter('dcbnbGetFirstChar:format-utf8');  let intArrayReturn;
+
+    /* Return the first character of a dcbnb string (doesn't do any conversion; returns dcbnb) */
+    let intArrayRes = [];
+    if (StageL_eq(0, StageL_count(intArrayIn))) {
+
+        intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+    }
+    let boolContinue = false;
+    boolContinue = true;
+    let intArrayNextUtf8 = [];
+    let intArrayRemaining = [];
+    intArrayRemaining = intArrayIn;
+    let intTempArrayCount = 0;
+    while (boolContinue) {
+        intArrayNextUtf8 = StageL_pack32(StageL_firstCharOfUtf8String(intArrayRemaining));
+        if (StageL_not(StageL_isBasenbChar(intArrayNextUtf8))) {
+            if (StageL_eq(0, StageL_count(intArrayRes))) {
+                intArrayRes = intArrayNextUtf8;
+            }
+            boolContinue = false;
+        }
+        else {
+            intArrayRes = StageL_append(intArrayRes, intArrayNextUtf8);
+            if (StageL_isBasenbDistinctRemainderChar(intArrayNextUtf8)) {
+                boolContinue = false;
+            }
+            else {
+                intTempArrayCount = StageL_count(intArrayNextUtf8);
+                intArrayRemaining = StageL_anSubset(intArrayRemaining, intTempArrayCount, -1);
+            }
+        }
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}
+
+async function dcbnbGetLastChar(intArrayIn) {
+    StageL_internalDebugCollect('intArray In = ' + intArrayIn + '; '); StageL_internalDebugStackEnter('dcbnbGetLastChar:format-utf8');  let intArrayReturn;
+
+    /* Return the last character of a dcbnb string (doesn't do any conversion; returns dcbnb) */
+    let intArrayRes = [];
+    if (StageL_eq(0, StageL_count(intArrayIn))) {
+
+        intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+    }
+    let boolContinue = false;
+    boolContinue = true;
+    let intArrayNextUtf8 = [];
+    let intArrayRemaining = [];
+    intArrayRemaining = intArrayIn;
+    let intTempArrayCount = 0;
+    intTempArrayCount = 0;
+    let boolPastFirstBasenbRemainderChar = false;
+    boolPastFirstBasenbRemainderChar = false;
+    while (boolContinue) {
+        if (StageL_ne(0, StageL_count(intArrayRemaining))) {
+            intArrayNextUtf8 = StageL_pack32(StageL_lastCharOfUtf8String(intArrayRemaining));
+        }
+        else {
+            intArrayNextUtf8 = [  ];
+        }
+        if (StageL_not(StageL_isBasenbChar(intArrayNextUtf8))) {
+            if (StageL_eq(0, StageL_count(intArrayRes))) {
+                intArrayRes = intArrayNextUtf8;
+            }
+            boolContinue = false;
+        }
+        else {
+            if (StageL_isBasenbDistinctRemainderChar(intArrayNextUtf8)) {
+                if (boolPastFirstBasenbRemainderChar) {
+                    boolContinue = false;
+                }
+                else {
+                    intArrayRes = StageL_append(intArrayNextUtf8, intArrayRes);
+                    intTempArrayCount = StageL_count(intArrayNextUtf8);
+                    intArrayRemaining = StageL_anSubset(intArrayRemaining, 0, StageL_add(-1, StageL_mul(-1, intTempArrayCount)));
+                    boolPastFirstBasenbRemainderChar = true;
+                }
+            }
+            else {
+                intArrayRes = StageL_append(intArrayNextUtf8, intArrayRes);
+                intTempArrayCount = StageL_count(intArrayNextUtf8);
+                intArrayRemaining = StageL_anSubset(intArrayRemaining, 0, StageL_add(-1, StageL_mul(-1, intTempArrayCount)));
+            }
+        }
+    }
+
+    intArrayReturn = intArrayRes;StageL_internalDebugStackExit(); return intArrayReturn;
+}

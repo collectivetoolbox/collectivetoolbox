@@ -1,0 +1,18 @@
+{{!-- Parameters:
+    - button-route
+    - button-method
+    - button-style: link, primary, secondary
+    - button-href
+    - button-icon
+    - button-label
+--}}
+
+<form action="{{ button-route }}" method="{{ button-method }}" class="">
+    {{!-- TODO: CSRF --}}
+    <div class="flex justify-between">
+        <button type="submit" class="btn-primary">
+            {{#if button-icon}}{{> icons._icon name=button-icon alt="" }}{{/if}}
+            <span>{{ button-label }}</span>
+        </button>
+    </div>
+</form>

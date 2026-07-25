@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<rss version="0.91">
+	<channel>
+		<title>Example</title>
+		<link>http://example.com</link>
+		<description>News about Examples</description>
+		<language>en-us</language>
+		<copyright>Copyright 2000, Example team.</copyright>
+		<managingEditor>editor@example.com</managingEditor>
+		<webMaster>webmaster@example.com</webMaster>
+		<image>
+			<title>Example</title>
+			<url>http://example.com/images/mynetscape88.gif</url>
+			<link>http://example.com</link>
+			<width>88</width>
+			<height>31</height>
+			<description>News about Examples</description>
+			</image>
+		<item>
+			<title>Examples</title>
+			<link>http://example.com/read.php?item=24</link>
+			<description>Example post content</description>
+			</item>
+		<item>
+			<title>Syndication discussions hot up</title>
+			<link>http://example.com/read.php?item=23</link>
+			<description>Example document content</description>
+			</item>
+		<item>
+			<title>Examples are very exampley</title>
+			<link>http://example.com/read.php?item=22</link>
+			<description>The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum. L'orem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum.</description>
+			</item>
+		</channel>
+	</rss>

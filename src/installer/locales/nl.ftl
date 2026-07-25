@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Welkom bij de installatie-wizard
+theme = Thema:
+theme-auto = 🔄 Automatisch detecteren
+theme-light = ☀ Licht
+theme-dark = 🌙 Donker
+quick-install = Snelle installatie
+customize = Aanpassen...
+quick-install-prompt = Snelle installatie gebruiken met standaardinstellingen?
+read-license-button = Volledige licentietekst lezen...
+read-license-prompt = (of 'l' om de volledige licentietekst te lezen):
+license-header = Licentie
+press-enter-to-return = Druk op Enter om terug te keren...
+press-enter-to-continue = Druk op Enter om door te gaan...
+pager-continue = -- Meer -- (Enter om door te gaan, q om te sluiten):
+intro-invalid-input = Voer 'y' of 'n' in, of 'l' voor de licentie.
+prompt-invalid-yes-or-no = Voer 'y' of 'n' in.
+prompt-enter-choice = Kies [1-{ $choice }, standaard={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Installatie-opties
+install-dir = Installatiemap:
+storage-dir = Opslagmap:
+add-to-start-menu = Toevoegen aan Startmenu:
+add-to-dock = Toevoegen aan Dock:
+add-desktop-shortcut = Snelkoppeling naar Bureaublad toevoegen:
+add-to-path = Toevoegen aan PATH:
+language = Taal 🌏︎:
+storage-dir-note = Opmerking: de opslagmap wordt gebruikt voor databases, logbestanden en gebruikersgegevens. Zorg dat voldoende schijfruimte beschikbaar is.
+browse = Bladeren...
+options-configured = Opties succesvol geconfigureerd.
+parent-directory-not-exists = Waarschuwing: bovenliggende map '{ $path }' bestaat niet.
+create-dir-during-installation = Tijdens installatie aanmaken?
+enter-number-range = Voer een getal in tussen 1 en { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Locatie selecteren
+file-picker-select-folder = Map selecteren
+file-picker-select-file = Bestand selecteren
+file-picker-save-file = Bestand opslaan
+file-picker-back = Terug (Alt+B)
+file-picker-forward = Vooruit (Alt+F)
+file-picker-up = Omhoog (Alt+U)
+file-picker-refresh = Vernieuwen (Alt+R)
+file-picker-new-folder = Nieuwe map (Alt+N)
+file-picker-create = Aanmaken (Alt+E)
+file-picker-cancel-new-folder = Annuleren (Alt+A)
+file-picker-more-menu = Meer... (Alt+M)
+file-picker-show-hidden = Verborgen bestanden tonen (Alt+H)
+file-picker-path = Pad:
+file-picker-file-name = Bestandsnaam:
+file-picker-places = Locaties
+file-picker-home = Home
+file-picker-desktop = Bureaublad
+file-picker-documents = Documenten
+file-picker-downloads = Downloads
+file-picker-this-pc = Deze pc
+file-picker-empty = (leeg)
+file-picker-invalid-path = Ongeldig pad: { $path }
+file-picker-folder-exists = '{ $name }' bestaat al
+file-picker-create-folder-failed = Maken van map mislukt: { $error }
+file-picker-folder-name-empty = Mapnaam mag niet leeg zijn
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Componenten selecteren
+components-instruction = Kies welke componenten geïnstalleerd moeten worden:
+complete = Volledig
+complete-tooltip = Selecteer alle optionele componenten voor een volledige installatie
+minimal = Minimale
+minimal-tooltip = Alleen vereiste componenten selecteren voor een minimale installatie
+selected-size = Geselecteerd: { $selected } (van in totaal { $total })
+storage-space-note = Deze bestandsgroottes geven de opslagruimte aan die de applicatie zelf nodig heeft. Je eigen documenten nemen extra ruimte in; als je niet zeker weet wat je nodig hebt, adviseren we minimaal 20 GB vrij te houden.
+required = (vereist)
+toggle-prompt = Voer het componentnummer in om te wisselen:
+option-toggle = Wisselen
+option-continue = Doorgaan
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Installeren...
+overall-progress = Totale voortgang: { $completed }/{ $total } bestanden
+current-file = Huidig bestand: { $path }
+chunk-progress = Deel { $current }/{ $total }
+installation-log = Installatielog:
+starting-installation = Installatie starten...
+downloading-file = Downloaden: { $path } ({ $chunks } delen)
+downloading-chunk = Downloaden deel { $current }/{ $total }...
+using-cached-chunk = Gebruik gecachet deel { $current }/{ $total }
+file-installed = Geïnstalleerd: { $path } ({ $size } bytes)
+retry-error = Herhaal { $attempt }/{ $max }: { $message }
+error = Fout: { $message }
+retry = Opnieuw proberen
+cancel = Annuleren
+installation-complete-count = Installatie voltooid: { $count } bestanden geïnstalleerd.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Installatie voltooid!
+install-success = { $app } is succesvol geïnstalleerd.
+quick-install-success = { $app } is nu succesvol geïnstalleerd.
+launch-after-install = { $app } starten na sluiten
+finish = Voltooien
+summary = Samenvatting:
+start-menu-shortcut = Startmenu-snelkoppeling: { $value }
+dock-shortcut = Dock-snelkoppeling: { $value }
+desktop-shortcut = Bureaublad-snelkoppeling: { $value }
+added-to-path = Toegevoegd aan PATH: { $value }
+yes = Ja
+no = Nee
+launch-now-prompt = { $app } nu starten?
+launching = { $app } wordt gestart...
+thank-you = Bedankt voor het installeren van { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Installatie repareren
+repair-description = Dit controleert en repareert uw installatie. Ontbrekende of beschadigde bestanden worden opnieuw gedownload.
+current-installation = Huidige installatie:
+location = Locatie: { $path }
+start-repair = Reparatie starten
+starting-repair = Reparatie starten...
+continue-repair-prompt = Doorgaan met reparatie?
+repair-cancelled = Reparatie geannuleerd.
+repair-complete = Reparatie voltooid!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Verwijderen van { $app }
+uninstall-warning = Waarschuwing: hierdoor wordt de applicatie van uw systeem verwijderd.
+will-be-removed = Het volgende wordt verwijderd:
+application-files = Applicatiebestanden: { $path }
+desktop-shortcuts = Snelkoppelingen (Startmenu/Dock en Bureaublad)
+path-modifications = Wijzigingen in PATH
+data-not-removed = Opmerking: uw gegevensbestanden worden NIET verwijderd.
+data-location = Locatie van gegevens: { $path }
+uninstall = Verwijderen
+starting-uninstall = Verwijderen starten...
+confirm-uninstall-prompt = Weet u zeker dat u wilt verwijderen?
+uninstall-cancelled = Verwijderen geannuleerd.
+removing-files = Bestanden verwijderen...
+uninstall-complete = { $app } is verwijderd.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Terug
+next = Volgende →
+install = Installeren →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Deze wizard begeleidt u door het installatieproces. U kunt de installatie-opties aanpassen of de standaardwaarden gebruiken.
+unattended-mode = Wordt uitgevoerd in onbemand modus - standaardwaarden worden gebruikt.
+yes-no-help = Voer 'y' of 'n' in.
+number-choice-help = Voer een getal in tussen 1 en { $max }.
+what-to-do = Wat wilt u doen?
+parent-dir-warning = Waarschuwing: bovenliggende map '{ $path }' bestaat niet.
+create-dir-prompt = Tijdens installatie aanmaken?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } Installatieprogramma
+window-repair = { $app } - Repareren
+window-uninstall = { $app } - Verwijderen

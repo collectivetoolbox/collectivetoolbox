@@ -1,0 +1,16 @@
+<form action="/nodes/upload" method="POST" enctype="multipart/form-data" class="w-80 flex flex-col gap-4">
+    <ctb-file-input button-text="Choose File">
+        <input type="file" name="node_content"></input>
+    </ctb-file-input>
+    <input type="hidden" name="node_type" value="data">
+    <div class="flex justify-between">
+        <a href="/home" class="btn">
+            {{> icons._icon name="cancel" alt="" }}
+            <span>Cancel</span>
+        </a>
+        <button type="submit" class="btn-primary">
+            {{> icons._icon name="save" alt="" }}
+            <span>Save</span>
+        </button>
+    </div>
+</form>

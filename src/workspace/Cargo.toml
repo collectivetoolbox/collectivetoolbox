@@ -1,0 +1,48 @@
+[package]
+name = "ctb-workspace"
+edition = "2024"
+
+[lib]
+path="workspace.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+ctb-cli = { path = "../cli" }
+ctb-formats = { path = "../formats" }
+ctb-formats-base64 = { path = "../formats/base64" }
+ctb-installer = { path = "../installer" }
+ctb-io = { path = "../io" }
+ctb-network = { path = "../network" }
+ctb-renderer = { path = "../renderer" }
+ctb-runtime = { path = "../runtime" }
+ctb-storage = { path = "../storage" }
+ctb-workspace-x11-client = { path = "x11_client" }
+ctb-workspace-x11-client-egui = { path = "x11_client_egui" }
+ctb-workspace-ipc = { path = "./ipc" }
+
+portpicker = "0.1.1"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+text_io = "0.1.13"
+once_cell = "1.21.3"
+serde = "1.0.228"
+sysinfo = "0.37"
+ctrlc = { version = "3.5", features = [ "termination" ]}
+backtrace = "0.3.76"
+clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+tracing = "0.1.44" # `tracing::instrument` doesn't work without this
+async-trait = "0.1.89"
+rustls = "0.23"
+chrono = "0.4.43"
+rand = "0.9"
+regex = "1.12.2"
+semver = "1.0.28"
+tower = "0.5.2"
+reqwest = "0.13.4"
+# Axum for tests
+axum = { version = "0.8.8", features = [ "multipart", "macros" ] }
+axum-server = { version = "0.8.0", features = [ "tls-rustls" ] }
+
+[lints]
+workspace = true

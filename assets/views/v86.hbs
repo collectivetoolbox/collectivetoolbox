@@ -1,0 +1,157 @@
+<div class="flex flex-col h-full w-full p-4 gap-4">
+    <div class="flex flex-wrap items-center gap-3">
+        <h2>{{title}}</h2>
+
+        <div class="flex items-center gap-2">
+            <label for="os-profile-select">Profile:</label>
+            <select id="os-profile-select" class="p-1 border rounded" onchange="window.location.href='/v86/' + this.value">
+                <option value="guix" {{#if (eq profile "guix")}}selected{{/if}}>Guix System i686 (GUI)</option>
+                <option value="alpine" {{#if (eq profile "alpine")}}selected{{/if}}>Alpine Linux i386 (GUI)</option>
+                <option value="arch" {{#if (eq profile "arch")}}selected{{/if}}>Arch Linux 32 (GUI)</option>
+            </select>
+        </div>
+        <button id="v86-start-pause" class="button ctb-button">Pause</button>
+        <button id="v86-reset" class="button ctb-button">Reset</button>
+        <button id="v86-fullscreen" class="button ctb-button">Fullscreen</button>
+        <button id="v86-save-state" class="button ctb-button">Save State</button>
+        <label class="button ctb-button cursor-pointer">
+            Restore State <input id="v86-restore-state" type="file" style="display: none;">
+        </label>
+    </div>
+
+    <hr>
+
+    <div id="screen_container" class="flex-1 w-full bg-black flex items-center justify-center overflow-auto" style="min-height: 480px;">
+        <div style="white-space: pre; font: 14px monospace; line-height: 14px; color: #fff;"></div>
+        <canvas width="1024" height="768" style="display: none;"></canvas>
+    </div>
+</div>
+
+<script type="module">
+import { V86 } from "/vendor/v86/src/browser/starter.js?v=1";
+
+function initV86() {
+    var profile = "{{profile}}";
+    var imageConfig = {
+        guix: {
+            baseurl: "/vendor/v86_images/guix/guix-rootfs-flat/",
+            basefs: "/vendor/v86_images/guix/guix-fs.json",
+            cmdline: "rw root=host9p rootfstype=9p rootflags=trans=virtio,cache=loose modules=virtio_pci tsc=reliable vga=0x344 video=vesafb:ypan,vremap:8 console=ttyS0 console=tty0 init=/init"
+        },
+        alpine: {
+            baseurl: "/images/alpine/alpine-rootfs-flat/",
+            basefs: "/images/alpine/alpine-fs.json",
+            cmdline: "rw root=host9p rootfstype=9p rootflags=trans=virtio,cache=loose modules=virtio_pci tsc=reliable vga=0x344"
+        },
+        arch: {
+            baseurl: "/vendor/v86_images/arch/",
+            state: "/vendor/v86_images/arch/arch_state-v3.bin.zst"
+        }
+    };
+
+    var cfg = imageConfig[profile] || imageConfig.guix;
+
+    var v86Options = {
+        wasm_path: "/vendor/v86/build/v86.wasm",
+        memory_size: 512 * 1024 * 1024,
+        vga_memory_size: 8 * 1024 * 1024,
+        screen_container: document.getElementById("screen_container"),
+        bios: { url: "/vendor/v86/bios/seabios.bin" },
+        vga_bios: { url: "/vendor/v86/bios/vgabios.bin" },
+        net_device_type: "virtio",
+        filesystem: cfg.basefs ? {
+            baseurl: cfg.baseurl,
+            basefs: cfg.basefs
+        } : {
+            baseurl: cfg.baseurl
+        },
+        autostart: true
+    };
+
+    if (cfg.state) {
+        v86Options.initial_state = { url: cfg.state };
+    } else {
+        v86Options.bzimage_initrd_from_filesystem = true;
+        v86Options.cmdline = cfg.cmdline;
+        if (profile === "guix") {
+            v86Options.initrd = { url: "/vendor/v86_images/guix/guix_posix_initrd.cpio.gz" };
+        }
+    }
+
+    var emulator = window.emulator = new V86(v86Options);
+
+    emulator.add_listener("emulator-ready", function() {
+        if (emulator.screen_adapter) {
+            emulator.screen_adapter.set_mode(true);
+        }
+    });
+
+    var isRunning = true;
+    var startPauseBtn = document.getElementById("v86-start-pause");
+    if (startPauseBtn) {
+        startPauseBtn.onclick = function() {
+            if (isRunning) {
+                emulator.stop();
+                startPauseBtn.innerText = "Resume";
+                isRunning = false;
+            } else {
+                emulator.run();
+                startPauseBtn.innerText = "Pause";
+                isRunning = true;
+            }
+        };
+    }
+
+    var resetBtn = document.getElementById("v86-reset");
+    if (resetBtn) {
+        resetBtn.onclick = function() {
+            emulator.restart();
+        };
+    }
+
+    var fsBtn = document.getElementById("v86-fullscreen");
+    if (fsBtn) {
+        fsBtn.onclick = function() {
+            emulator.screen_go_fullscreen();
+        };
+    }
+
+    var saveBtn = document.getElementById("v86-save-state");
+    if (saveBtn) {
+        saveBtn.onclick = async function() {
+            const new_state = await emulator.save_state();
+            var a = document.createElement("a");
+            a.download = "v86state.bin";
+            a.href = window.URL.createObjectURL(new Blob([new_state]));
+            a.dataset.downloadurl = "application/octet-stream:" + a.download + ":" + a.href;
+            a.click();
+        };
+    }
+
+    var restoreBtn = document.getElementById("v86-restore-state");
+    if (restoreBtn) {
+        restoreBtn.onchange = function() {
+            if (this.files.length) {
+                var filereader = new FileReader();
+                emulator.stop();
+                filereader.onload = async function(e) {
+                    await emulator.restore_state(e.target.result);
+                    emulator.run();
+                    if (startPauseBtn) startPauseBtn.innerText = "Pause";
+                    isRunning = true;
+                };
+                filereader.readAsArrayBuffer(this.files[0]);
+                this.value = "";
+            }
+        };
+    }
+    console.log("Guix v86 X11 system initialized with custom POSIX initrd.");
+}
+
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initV86);
+} else {
+    initV86();
+}
+</script>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>{{site_name}}</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="/vendor/coi-serviceworker/coi-serviceworker.js" type="module" id="serviceworker"></script>
+
+    {{!--
+    <script type="module" src="/app.js"></script> --}}
+
+    <link rel="stylesheet" href="/app.css">
+
+    {{!-- TODO: Add some JSON, particularly whether the browser has multiple windows support - see FIXME below --}}
+
+    <link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon_180.png">
+    <script type="module" src="/app.js"></script>
+    <meta name="description" content="A graph‑based workspace for linking documents and data—across local and shared knowledge—so you can query, explore, and build reports with clarity. Built with a focus on user respect and transparency. Free‑software licensing for study and modification; paid hosting planned for convenience and reliability.">
+    <script>
+        // if URL is not `/`, redirect to `/#autoload-[path]`
+        if (window.location.pathname !== "/") {
+            const newUrl = `/#autoload-${encodeURI(`${window.location.pathname.substring(1)}${window.location.search}${window.location.hash}`)}`;
+            window.location.href = newUrl;
+        }
+    </script>
+</head>
+
+<body class="w-full h-full pt-4 sm:px-4 bg-rose-50 flex flex-col" id="root" data-ctb-build-version="{{ ui_build_version }}" data-ctb-build-date="{{ ui_build_date }}">
+    <div class="hidden grow card card-translucent overflow-auto flex-col" id="modal-content-frame-container" role="dialog" aria-modal="true" aria-label="Content Frame">
+        <div class="flex flex-row">
+            {{!-- FIXME: This should check if the browser supports multiple windows and if not, hide this button --}}
+            <div class="ml-auto mr-4">
+                <button type="button" onclick="ctb.modal.popout()" title="Open in new window">
+                    {{> icons._icon name="popout" alt="Open in new window" }}
+                </button>
+            </div>
+            <div class="mx-0">
+                <button type="button" onclick="ctb.modal.close()" title="Close">
+                    {{> icons._icon name="close" alt="Close" }}
+                </button>
+            </div>
+        </div>
+        <iframe src="about:blank" id="modal-content-frame"></iframe>
+    </div>
+    <div class="hidden" id="modal-content-frame-backdrop"></div>
+    {{> layouts._unrecoverable-error }}
+    {{> layouts._recoverable-error }}
+
+    <!-- Notification Templates and Container -->
+    <div id="toast-container"></div>
+
+    <template id="toast-template">
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-icon">
+                <img class="icon" src="" alt="">
+            </div>
+            <div class="toast-content"></div>
+            <button class="toast-close" aria-label="Close">
+                {{> icons._icon name="close" alt="Close" }}
+            </button>
+            <div class="toast-progress"></div>
+        </div>
+    </template>
+
+    <template id="alert-banner-template">
+        <div class="alert-banner" role="alert">
+            <div class="alert-banner-icon">
+                <img class="icon" src="" alt="">
+            </div>
+            <div class="alert-banner-content"></div>
+            <button class="alert-banner-dismiss" aria-label="Dismiss">
+                {{> icons._icon name="close" alt="Close" }}
+            </button>
+        </div>
+    </template>
+
+    <script>0</script>
+    <!-- fix FOUC (https://stackoverflow.com/questions/21147149/flash-of-unstyled-content-fouc-in-firefox-only-is-ff-slow-renderer) -->
+
+    <div class="flex flex-col w-full gap-y-4 grow">
+
+        {{> layouts._proxy-notice }}
+
+        {{> layouts._nav }}
+
+        <div class="flex flex-col w-full gap-y-4 grow" role="main">
+            {{{ content }}}
+        </div>
+
+    </div>
+    <div class="h-4 min-h-4 w-full"></div>
+
+    {{> layouts._sidebar }}
+</body>
+
+</html>

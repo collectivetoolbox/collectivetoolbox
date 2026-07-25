@@ -1,0 +1,32 @@
+- [ ] If there's already a system config file, skip all this.
+- [ ] First, determine environment:
+  - tty
+  - video terminal
+  - GUI (with or without system browser - use system browser if available)
+      - Mac with GUI
+      - Windows with GUI
+      - X
+          + Run full screen if no WM running
+      - Wayland
+      - ...
+  - ...
+- [ ] Try to detect from the environment, and if not available, ask:
+    - [ ] Language?
+    - [ ] Light or dark UI theme?
+    - [ ] Keyboard layout?
+    - [ ] Mouse/pointer and if needed, pointer calibration?
+    - [ ] Screen reader?
+- [ ] With the "best" UI mode for the environment, for some definition of best, ask the user:
+    - [ ] What UI to use? (so if the guessed "best" one isn't what the user wants, they can pick a different one, or use the bundled browser instead of system browser)
+    - [ ] If it's not already on $PATH, should it install itself?
+        - [ ] If there's an existing version, check if it's an older or newer build and ask the user
+        - [ ] Install systemwide or just for this user?
+        - [ ] Add desktop/start menu icons? Display manager session configuration?
+  - [ ] Configure additional settings now or later?
+      - [ ] Would open settings menu with things like:
+          - [ ] Serve website and services publicly?
+              - [ ] Domain name/certificate?
+          - [ ] Whether to open to login screen, home page, ...?
+          
+
+

@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Chào mừng đến với trình hướng dẫn cài đặt
+theme = Giao diện:
+theme-auto = 🔄 Tự động phát hiện
+theme-light = ☀ Sáng
+theme-dark = 🌙 Tối
+quick-install = Cài đặt nhanh
+customize = Tùy chỉnh...
+quick-install-prompt = Sử dụng cài đặt nhanh với cài đặt mặc định?
+read-license-button = Đọc toàn bộ nội dung giấy phép...
+read-license-prompt = (hoặc nhấn 'l' để đọc toàn bộ nội dung giấy phép):
+license-header = Giấy phép
+press-enter-to-return = Nhấn Enter để quay lại...
+press-enter-to-continue = Nhấn Enter để tiếp tục...
+pager-continue = -- Tiếp tục -- (Nhấn Enter để tiếp tục, q để đóng):
+intro-invalid-input = Vui lòng nhập 'y' hoặc 'n', hoặc 'l' để xem giấy phép.
+prompt-invalid-yes-or-no = Vui lòng nhập 'y' hoặc 'n'.
+prompt-enter-choice = Nhập lựa chọn [1-{ $choice }, mặc định={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Tùy chọn cài đặt
+install-dir = Thư mục cài đặt:
+storage-dir = Thư mục lưu trữ:
+add-to-start-menu = Thêm vào Menu Bắt đầu:
+add-to-dock = Thêm vào Dock:
+add-desktop-shortcut = Tạo biểu tượng desktop:
+add-to-path = Thêm vào PATH:
+language = Ngôn ngữ 🌏︎:
+storage-dir-note = Lưu ý: Thư mục lưu trữ sẽ được sử dụng cho cơ sở dữ liệu, nhật ký và dữ liệu người dùng. Đảm bảo có đủ dung lượng đĩa.
+browse = Duyệt...
+options-configured = Tùy chọn đã được cấu hình thành công.
+parent-directory-not-exists = Cảnh báo: Thư mục cha '{ $path }' không tồn tại.
+create-dir-during-installation = Tạo nó trong quá trình cài đặt?
+enter-number-range = Vui lòng nhập một số từ 1 đến { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Chọn Vị trí
+file-picker-select-folder = Chọn Thư mục
+file-picker-select-file = Chọn Tệp
+file-picker-save-file = Lưu Tệp
+file-picker-back = Quay lại (Alt+B)
+file-picker-forward = Tiếp theo (Alt+F)
+file-picker-up = Lên (Alt+U)
+file-picker-refresh = Tải lại (Alt+R)
+file-picker-new-folder = Thư mục mới (Alt+N)
+file-picker-create = Tạo (Alt+E)
+file-picker-cancel-new-folder = Hủy (Alt+A)
+file-picker-more-menu = Xem thêm... (Alt+M)
+file-picker-show-hidden = Hiển thị tệp ẩn (Alt+H)
+file-picker-path = Đường dẫn:
+file-picker-file-name = Tên tệp:
+file-picker-places = Vị trí
+file-picker-home = Trang chủ
+file-picker-desktop = Màn hình nền
+file-picker-documents = Tài liệu
+file-picker-downloads = Tải xuống
+file-picker-this-pc = Máy tính này
+file-picker-empty = (trống)
+file-picker-invalid-path = Đường dẫn không hợp lệ: { $path }
+file-picker-folder-exists = '{ $name }' đã tồn tại
+file-picker-create-folder-failed = Không thể tạo thư mục: { $error }
+file-picker-folder-name-empty = Tên thư mục không thể để trống
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Chọn thành phần
+components-instruction = Chọn thành phần nào để cài đặt:
+complete = Đầy đủ
+complete-tooltip = Chọn tất cả thành phần tùy chọn cho cài đặt đầy đủ
+minimal = Tối thiểu
+minimal-tooltip = Chỉ chọn các thành phần bắt buộc cho cài đặt tối thiểu
+selected-size = Đã chọn: { $selected } (trong tổng số { $total })
+storage-space-note = Các kích thước tệp này phản ánh dung lượng lưu trữ cần thiết cho chính ứng dụng. Tài liệu của riêng bạn sẽ chiếm thêm dung lượng; nếu bạn không chắc mình cần bao nhiêu, chúng tôi khuyên bạn nên có ít nhất 20 GB trống.
+required = (bắt buộc)
+toggle-prompt = Nhập số thành phần để chuyển đổi:
+option-toggle = Chuyển đổi
+option-continue = Tiếp tục
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Đang cài đặt...
+overall-progress = Tiến độ tổng thể: { $completed }/{ $total } tệp
+current-file = Tệp hiện tại: { $path }
+chunk-progress = Phần { $current }/{ $total }
+installation-log = Nhật ký cài đặt:
+starting-installation = Bắt đầu cài đặt...
+downloading-file = Đang tải: { $path } ({ $chunks } phần)
+downloading-chunk = Đang tải phần { $current }/{ $total }...
+using-cached-chunk = Sử dụng phần đã lưu { $current }/{ $total }
+file-installed = Đã cài đặt: { $path } ({ $size } byte)
+retry-error = Thử lại { $attempt }/{ $max }: { $message }
+error = Lỗi: { $message }
+retry = Thử lại
+cancel = Hủy
+installation-complete-count = Cài đặt hoàn tất: { $count } tệp đã được cài đặt.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Cài đặt hoàn tất!
+install-success = { $app } đã được cài đặt thành công.
+quick-install-success = { $app } đã được cài đặt thành công.
+launch-after-install = Khởi chạy { $app } sau khi đóng
+finish = Hoàn thành
+summary = Tóm tắt:
+start-menu-shortcut = Lối tắt trong Menu Bắt đầu: { $value }
+dock-shortcut = Lối tắt trong Dock: { $value }
+desktop-shortcut = Lối tắt trên Desktop: { $value }
+added-to-path = Đã thêm vào PATH: { $value }
+yes = Có
+no = Không
+launch-now-prompt = Khởi chạy { $app } ngay bây giờ?
+launching = Đang khởi chạy { $app }...
+thank-you = Cảm ơn bạn đã cài đặt { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Sửa chữa cài đặt
+repair-description = Điều này sẽ xác minh và sửa chữa cài đặt của bạn. Các tệp bị thiếu hoặc bị hỏng sẽ được tải lại.
+current-installation = Cài đặt hiện tại:
+location = Vị trí: { $path }
+start-repair = Bắt đầu sửa chữa
+starting-repair = Đang bắt đầu sửa chữa...
+continue-repair-prompt = Tiếp tục sửa chữa?
+repair-cancelled = Sửa chữa đã bị hủy.
+repair-complete = Sửa chữa hoàn tất!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Gỡ cài đặt { $app }
+uninstall-warning = Cảnh báo: Điều này sẽ xóa ứng dụng khỏi hệ thống của bạn.
+will-be-removed = Những thứ sau sẽ bị xóa:
+application-files = Tệp ứng dụng: { $path }
+desktop-shortcuts = Lối tắt (Menu Bắt đầu/Dock và Màn hình nền)
+path-modifications = Sửa đổi PATH
+data-not-removed = Lưu ý: Các tệp dữ liệu của bạn KHÔNG bị xóa.
+data-location = Vị trí dữ liệu: { $path }
+uninstall = Gỡ cài đặt
+starting-uninstall = Đang bắt đầu gỡ cài đặt...
+confirm-uninstall-prompt = Bạn có chắc chắn muốn gỡ cài đặt không?
+uninstall-cancelled = Gỡ cài đặt đã bị hủy.
+removing-files = Đang xóa tệp...
+uninstall-complete = { $app } đã được gỡ cài đặt.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Quay lại
+next = Tiếp theo →
+install = Cài đặt →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Trình hướng dẫn này sẽ dẫn bạn qua quá trình cài đặt. Bạn có thể tùy chỉnh các tùy chọn cài đặt hoặc sử dụng mặc định.
+unattended-mode = Chạy ở chế độ không giám sát - sử dụng giá trị mặc định.
+yes-no-help = Vui lòng nhập 'y' hoặc 'n'.
+number-choice-help = Vui lòng nhập số từ 1 đến { $max }.
+what-to-do = Bạn muốn làm gì?
+parent-dir-warning = Cảnh báo: Thư mục cha '{ $path }' không tồn tại.
+create-dir-prompt = Tạo trong quá trình cài đặt?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Trình cài đặt { $app }
+window-repair = { $app } - Sửa chữa
+window-uninstall = { $app } - Gỡ cài đặt

@@ -1,0 +1,7 @@
+doc-valid-idents = ["StageL", "StageR", "UserLand", "AppleScript", "CRLite", "SQLite", "WebPKI", "DcText", "DcArray", "DcId", "DcList", "DcUtf", "DcUTF", "DcIds", ".."]
+allowed-wildcard-imports = [ "utilities" ]
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-dbg-in-tests = true

@@ -1,0 +1,8 @@
+r/an/dcaToHtml an/dcIn
+    assertIsDcArray an/dcIn
+    new an/out
+    set an/out strToByteArray '<!DOCTYPE html><html><head><title></title></head><body>'
+    set an/out append an/out dcaToHtmlFragment an/dcIn
+    set an/out append an/out strToByteArray '</body></html>'
+    assertIsByteArray an/out
+    return an/out

@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Добро пожаловать в мастер установки
+theme = Тема:
+theme-auto = 🔄 Автоопределение
+theme-light = ☀ Светлая
+theme-dark = 🌙 Тёмная
+quick-install = Быстрая установка
+customize = Настроить...
+quick-install-prompt = Использовать быструю установку с настройками по умолчанию?
+read-license-button = Читать полный текст лицензии...
+read-license-prompt = (или 'l' читать полный текст лицензии):
+license-header = Лицензия
+press-enter-to-return = Нажмите Enter для возврата...
+press-enter-to-continue = Нажмите Enter для продолжения...
+pager-continue = -- Больше -- (Enter для продолжения, q для закрытия):
+intro-invalid-input = Пожалуйста, введите 'y' или 'n' или 'l' для лицензии.
+prompt-invalid-yes-or-no = Пожалуйста, введите 'y' или 'n'.
+prompt-enter-choice = Введите выбор [1-{ $choice }, по умолчанию={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Параметры установки
+install-dir = Каталог установки:
+storage-dir = Каталог хранения:
+add-to-start-menu = Добавить в меню «Пуск»:
+add-to-dock = Добавить в Dock:
+add-desktop-shortcut = Создать значок на рабочем столе:
+add-to-path = Добавить в PATH:
+language = Язык 🌏︎:
+storage-dir-note = Примечание: Каталог хранения будет использоваться для баз данных, журналов и пользовательских данных. Убедитесь в наличии достаточного места на диске.
+browse = Обзор...
+options-configured = Параметры успешно настроены.
+parent-directory-not-exists = Внимание: Родительский каталог '{ $path }' не существует.
+create-dir-during-installation = Создать его во время установки?
+enter-number-range = Пожалуйста, введите число от 1 до { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Выбрать расположение
+file-picker-select-folder = Выбрать папку
+file-picker-select-file = Выбрать файл
+file-picker-save-file = Сохранить файл
+file-picker-back = Назад (Alt+B)
+file-picker-forward = Вперед (Alt+F)
+file-picker-up = Вверх (Alt+U)
+file-picker-refresh = Обновить (Alt+R)
+file-picker-new-folder = Новая папка (Alt+N)
+file-picker-create = Создать (Alt+E)
+file-picker-cancel-new-folder = Отмена (Alt+A)
+file-picker-more-menu = Подробнее... (Alt+M)
+file-picker-show-hidden = Показать скрытые файлы (Alt+H)
+file-picker-path = Путь:
+file-picker-file-name = Имя файла:
+file-picker-places = Места
+file-picker-home = Домашний
+file-picker-desktop = Рабочий стол
+file-picker-documents = Документы
+file-picker-downloads = Скачивания
+file-picker-this-pc = Этот ПК
+file-picker-empty = (пусто)
+file-picker-invalid-path = Недопустимый путь: { $path }
+file-picker-folder-exists = '{ $name }' уже существует
+file-picker-create-folder-failed = Не удалось создать папку: { $error }
+file-picker-folder-name-empty = Имя папки не может быть пустым
+file-picker-ok = ОК (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Выбор компонентов
+components-instruction = Выберите компоненты для установки:
+complete = Полная
+complete-tooltip = Выбрать все дополнительные компоненты для полной установки
+minimal = Минимальная
+minimal-tooltip = Выбрать только обязательные компоненты для минимальной установки
+selected-size = Выбрано: { $selected } (из { $total } всего)
+storage-space-note = Эти размеры файлов отражают пространство, необходимое самому приложению. Ваши собственные документы займут дополнительное место; если вы не уверены, сколько вам нужно, мы рекомендуем иметь не менее 20 ГБ свободного места.
+required = (обязательно)
+toggle-prompt = Введите номер компонента для переключения:
+option-toggle = Переключить
+option-continue = Продолжить
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Установка...
+overall-progress = Общий прогресс: { $completed }/{ $total } файлов
+current-file = Текущий файл: { $path }
+chunk-progress = Блок { $current }/{ $total }
+installation-log = Журнал установки:
+starting-installation = Начало установки...
+downloading-file = Загрузка: { $path } ({ $chunks } блоков)
+downloading-chunk = Загрузка блока { $current }/{ $total }...
+using-cached-chunk = Использование кэшированного блока { $current }/{ $total }
+file-installed = Установлено: { $path } ({ $size } байт)
+retry-error = Попытка { $attempt }/{ $max }: { $message }
+error = Ошибка: { $message }
+retry = Повторить
+cancel = Отмена
+installation-complete-count = Установка завершена: { $count } файлов установлено.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = Установка завершена!
+install-success = { $app } успешно установлен.
+quick-install-success = { $app } был успешно установлен.
+launch-after-install = Запустить { $app } после закрытия
+finish = Готово
+summary = Итог:
+start-menu-shortcut = Ярлык в меню «Пуск»: { $value }
+dock-shortcut = Ярлык в Dock: { $value }
+desktop-shortcut = Ярлык на рабочем столе: { $value }
+added-to-path = Добавлено в PATH: { $value }
+yes = Да
+no = Нет
+launch-now-prompt = Запустить { $app } сейчас?
+launching = Запуск { $app }...
+thank-you = Спасибо за установку { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Восстановление установки
+repair-description = Это проверит и восстановит вашу установку. Отсутствующие или повреждённые файлы будут загружены заново.
+current-installation = Текущая установка:
+location = Расположение: { $path }
+start-repair = Начать восстановление
+starting-repair = Начало восстановления...
+continue-repair-prompt = Продолжить восстановление?
+repair-cancelled = Восстановление отменено.
+repair-complete = Восстановление завершено!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Удаление { $app }
+uninstall-warning = Внимание: Это удалит приложение из вашей системы.
+will-be-removed = Будет удалено следующее:
+application-files = Файлы приложения: { $path }
+desktop-shortcuts = Ярлыки (Главное меню/Док и Рабочий стол)
+path-modifications = Изменения PATH
+data-not-removed = Примечание: Ваши файлы данных НЕ будут удалены.
+data-location = Расположение данных: { $path }
+uninstall = Удалить
+starting-uninstall = Начало удаления...
+confirm-uninstall-prompt = Вы уверены, что хотите удалить?
+uninstall-cancelled = Удаление отменено.
+removing-files = Удаление файлов...
+uninstall-complete = { $app } был удалён.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Назад
+next = Далее →
+install = Установить →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Этот мастер проведёт вас через процесс установки. Вы можете настроить параметры установки или использовать значения по умолчанию.
+unattended-mode = Работа в автоматическом режиме - используются значения по умолчанию.
+yes-no-help = Пожалуйста, введите 'д' или 'н'.
+number-choice-help = Пожалуйста, введите число от 1 до { $max }.
+what-to-do = Что вы хотите сделать?
+parent-dir-warning = Внимание: Родительский каталог '{ $path }' не существует.
+create-dir-prompt = Создать его во время установки?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Установщик { $app }
+window-repair = { $app } - Восстановление
+window-uninstall = { $app } - Удаление

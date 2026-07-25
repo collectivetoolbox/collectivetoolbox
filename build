@@ -1,0 +1,438 @@
+#!/usr/bin/env bash
+
+# Automake/autoreconf are required
+# It probably also requires python because of X11 (sigh)
+# Debian dependencies:
+
+# sudo dpkg --add-architecture i386
+# sudo apt-get update
+# sudo apt-get install build-essential libssl-dev musl-tools bison patch perl
+# sudo apt-get install gcc-multilib libssl-dev:i386 musl-dev:i386
+# sudo apt-get install mingw-w64
+# sudo apt-get install libwayland-dev libwayland-dev:i386
+# sudo apt-get install meson ninja-build libffi-dev libffi-dev:i386 libexpat1-dev libexpat1-dev:i386
+
+# Vendored X11 dependencies:
+# https://packages.debian.org/trixie/libxi-dev
+# https://packages.debian.org/trixie/libxkbcommon-dev
+# https://packages.debian.org/trixie/libx11-dev
+# https://packages.debian.org/trixie/libxcb1-dev
+# https://packages.debian.org/trixie/libxcursor-dev
+# https://packages.debian.org/trixie/libxfixes-dev
+
+# Rust targets:
+# rustup target add x86_64-pc-windows-gnu
+# rustup target add x86_64-unknown-linux-musl
+# rustup target add i586-unknown-linux-musl
+# rustup target add x86_64-unknown-linux-gnu
+# rustup target add i586-unknown-linux-gnu
+# For v86:
+# rustup target add wasm32-unknown-unknown
+
+# Remember when manually cross compiling: use required RUSTFLAGS:
+# RUSTFLAGS="-C target-feature=+sse,+sse2" cargo build --target i586-unknown-linux-musl
+# This script does that automatically for you.
+
+# Requires GNU Guix for source-bootstrapped v86 OS images and IceCat.
+# See https://guix.gnu.org/manual/en/html_node/Installation.html
+# guix system image --system=i686-linux --image-type=tarball scripts/guix/v86-os.scm
+# guix install icecat; guix pack -S /opt/gnu/bin=bin -RR icecat
+
+# FIXME: On Windows/Mac, it should probably use the system browser instead of IceCat; alternatively the whole thing could be stuffed into WSL2 though that is a little less obvious for users.
+
+# uftrace, not required but useful for debugging:
+# sudo apt install pandoc libdw-dev python3-dev libncursesw5-dev pkg-config libluajit-5.1-dev libcapstone-dev libtraceevent-dev
+# https://github.com/namhyung/uftrace
+# Seems like it needs rustup default nightly
+# and then building something like:
+# RUSTFLAGS="-Z instrument-mcount -C passes=ee-instrument<post-inline>" cargo build --features debug --bins
+# then ~/uftrace/uftrace  '~/ctoolbox/ctoolbox/target/debug/ctoolbox'
+# but that doesn't seem to work properly for me
+
+# Tests in unix.rs assume `sleep` command is available.
+
+# ring-core/type_check.h:29:42: error: static assertion failed: "uint64_t is insufficient precision for n0"
+# This error was caused by not having a 32-bit sysroot for musl-gcc. Adding musl-dev:i386 and pointing musl-gcc to it with -isystem /usr/include/i386-linux-musl seems to have taken care of that particular issue.
+
+set -euxo pipefail
+
+# Change directory to the script's parent directory (the repo root)
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+# Later, should verify correct feature flags are set on crates. They have a tendency to get added by Cargo by other dependencies, which then break the builds.
+# Known problems:
+
+# Winit - x11-dlopen; wayland-csd-adwaita; client_system. (The last makes it try C wayland library instead of Rust.)
+# smithay-clipboard: client_system
+
+release="release"
+selected_release=""
+build_docs=""
+platform=""
+run_tests="true"
+js_test="true"
+build_binaries="true"
+build_installer="true"
+lints="true"
+branding="false"
+offline=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --release)
+            if [[ "$selected_release" == "debug" ]]; then
+                echo "--release and --debug are mutually exclusive." >&2
+                exit 1
+            fi
+            release="release"
+            selected_release="release"
+            ;;
+        --debug)
+            if [[ "$selected_release" == "release" ]]; then
+                echo "--release and --debug are mutually exclusive." >&2
+                exit 1
+            fi
+            release="debug"
+            selected_release="debug"
+            ;;
+        --docs)
+            build_docs="true"
+            ;;
+        --doc)
+            build_docs="true"
+            ;;
+        --no-docs)
+            build_docs="false"
+            ;;
+        --no-doc)
+            build_docs="false"
+            ;;
+        --tests-only)
+            build_binaries="false"
+            ;;
+        --test-only)
+            build_binaries="false"
+            ;;
+        --docs-only)
+            build_binaries="false"
+            run_tests="false"
+            js_test="false"
+            lints="false"
+            build_docs="true"
+            ;;
+        --doc-only)
+            build_binaries="false"
+            run_tests="false"
+            js_test="false"
+            lints="false"
+            build_docs="true"
+            ;;
+        --no-test)
+            run_tests="false"
+            js_test="false"
+            ;;
+        --no-tests)
+            run_tests="false"
+            js_test="false"
+            ;;
+        --no-js-tests)
+            js_test="false"
+            ;;
+        --branding)
+            branding="true"
+            ;;
+        --no-branding)
+            branding="false"
+            ;;
+        --installer)
+            build_installer="true"
+            ;;
+        --no-installer)
+            build_installer="false"
+            ;;
+        --lints)
+            lints="true"
+            ;;
+        --lint)
+            lints="true"
+            ;;
+        --no-lints)
+            lints="false"
+            ;;
+        --no-lint)
+            lints="false"
+            ;;
+        --quick)
+            build_docs="false"
+            build_installer="false"
+            lints="false"
+            ;;
+        --offline)
+            offline="--offline"
+            ;;
+        --*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -n "$platform" ]]; then
+                echo "Only one platform argument is supported." >&2
+                exit 1
+            fi
+            platform="$1"
+            ;;
+    esac
+
+    shift
+done
+
+if [[ -f ~/"ctb-deploy.branding-enabled" ]]; then
+    branding="true"
+fi
+
+if [[ -z "$build_docs" ]]; then
+    if [[ "$release" == "release" ]]; then
+        build_docs="true"
+    else
+        # Debug build; skip building docs if possible
+        if [[ -d "target/doc" ]]; then
+            build_docs="false"
+        else
+            build_docs="true"
+        fi
+    fi
+fi
+
+if [[ "$build_docs" == "true" ]]; then
+    echo "Building documentation..."
+
+    # Documenting private items leads to a ctb_formats_javascript::string::inventory documentation folder which is huge (>262MB).
+    cargo doc --workspace --offline --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
+fi
+
+# Run lint script
+if [[ "$lints" == "true" ]]; then
+    ./scripts/lint ${offline} || exit 1
+fi
+
+supported_platforms=(
+    "linux-x64"
+    "linux-x86"
+    "linux-x64-gnu"
+    "linux-x86-gnu"
+    # Future:
+    # "windows-x64"
+    # "mac-x64"
+    # "mac-arm64"
+)
+
+list_platforms() {
+    printf '%s\n' "${supported_platforms[@]}"
+}
+
+detect_platform() {
+    local os arch
+    os="$(uname -s)"
+    arch="$(uname -m)"
+
+    if [[ "$os" != "Linux" ]]; then
+        echo "Unsupported host OS for auto-detect: $os" >&2
+        echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
+        exit 1
+    fi
+
+    case "$arch" in
+        x86_64|amd64)
+            printf '%s' "linux-x64"
+            ;;
+        i386|i486|i586|i686)
+            printf '%s' "linux-x86"
+            ;;
+        *)
+            echo "Unsupported host architecture for auto-detect: $arch" >&2
+            echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
+            exit 1
+            ;;
+    esac
+}
+
+if [[ "$platform" == "--list-platforms" || "$platform" == "list-platforms" || "$platform" == "platforms" ]]; then
+    list_platforms
+    exit 0
+fi
+
+declare -a platforms
+if [[ -z "$platform" ]]; then
+    platforms=("$(detect_platform)")
+elif [[ "$platform" == "all" ]]; then
+    platforms=("${supported_platforms[@]}")
+else
+    platforms=("$platform")
+fi
+
+for p in "${platforms[@]}"; do
+    echo "Building for platform $p with release profile $release..."
+    if [[ "$p" == "linux-x64" ]]; then
+        target=x86_64-unknown-linux-musl
+    elif [[ "$p" == "linux-x86" ]]; then
+        target="i586-unknown-linux-musl"
+    elif [[ "$p" == "linux-x64-gnu" ]]; then
+        target="x86_64-unknown-linux-gnu"
+    elif [[ "$p" == "linux-x86-gnu" ]]; then
+        target="i586-unknown-linux-gnu"
+    elif [[ "$p" == "windows-x64" ]]; then
+        target="x86_64-pc-windows-gnu"
+    elif [[ "$p" == "mac-x64" ]]; then
+        target="x86_64-apple-darwin"
+    elif [[ "$p" == "mac-arm64" ]]; then
+        target="aarch64-apple-darwin"
+    else
+        echo "Unknown or unimplemented target $p."
+        exit 1
+    fi
+
+    #Ring requires SSE2 https://github.com/briansmith/ring/issues/1999#issuecomment-2151011318
+    # See also https://salsa.debian.org/rust-team/debcargo-conf/-/blob/d586098f2597e5b5a1dcbf87af5268b3b84206e1/src/ring/debian/patches/use-generic-implementation-on-non-sse2-x86.patch
+    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1095863
+    RUSTFLAGS=
+    if [[ "$target" == *-unknown-linux-* ]] || [[ "$target" == *-unknown-linux-* ]]; then
+        # I think there may be AGPL compatibility issues that would prevent static linking on Mac or Windows, so this is Linux-only for now.
+        RUSTFLAGS=" -C target-feature=+crt-static"
+    fi
+    if [[ "$target" == "i586-unknown-linux-gnu" ]] || [[ "$target" == "i586-unknown-linux-musl" ]]; then
+        RUSTFLAGS="$RUSTFLAGS -C target-feature=+sse,+sse2"
+    fi
+
+    # Try to set build concurrency to something reasonable
+    export MAKEFLAGS="-j$(($(nproc)/2))"
+
+    if [[ ! -f "built/v86_out/build/v86.wasm" || ! -f "built/v86_out/bios/seabios.bin" ]]; then
+        echo "=== Building v86 WASM and SeaBIOS in temporary build folder ==="
+        cargo build -p ctb-build-support --bin seabios-tool
+        seabios_tool_bin="$PWD/target/debug/seabios-tool"
+
+        v86_tmp_dir="built/v86_build_tmp"
+        rm -rf "$v86_tmp_dir"
+        mkdir -p "$v86_tmp_dir"
+        cp -r vendor/v86 "$v86_tmp_dir/v86"
+        cp -r vendor/seabios "$v86_tmp_dir/seabios"
+
+        make -C "$v86_tmp_dir/v86" build/v86.wasm
+        make -C "$v86_tmp_dir/seabios" PYTHON="$seabios_tool_bin"
+
+        mkdir -p built/v86_out/build
+        mkdir -p built/v86_out/bios
+        cp "$v86_tmp_dir/v86/build/v86.wasm" built/v86_out/build/
+        if [[ -f "$v86_tmp_dir/seabios/out/bios.bin" ]]; then
+            cp "$v86_tmp_dir/seabios/out/bios.bin" built/v86_out/bios/seabios.bin
+        fi
+        if [[ -f "$v86_tmp_dir/seabios/out/vgabios.bin" ]]; then
+            cp "$v86_tmp_dir/seabios/out/vgabios.bin" built/v86_out/bios/vgabios.bin
+        fi
+
+        rm -rf "$v86_tmp_dir"
+        rm -rf vendor/v86/build
+        rm -rf vendor/seabios/out
+    fi
+
+    if [[ "$js_test" == "true" ]]; then
+        echo "=== Running JavaScript tests ==="
+        cargo run $offline -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
+    fi
+
+    if [[ "$run_tests" == "true" ]]; then
+        # Run tests if RUST_LOG is set (to get more verbose output). By default
+        # even debug tests are quiet.
+        if [[ -n "${RUST_LOG-}" ]]; then
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- --nocapture || exit 1
+        else
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- || exit 1
+        fi
+    fi
+
+    if [[ "$build_binaries" == "true" ]]; then
+        if [[ "$release" == "release" ]]; then
+            CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --release
+            if [[ "$build_installer" == "true" ]]; then
+                CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" --release
+            fi
+        else
+            # Cargo errors if you pass --debug for some reason
+            # SLOW builds - add to RUSTFLAGS only when needed: ` -C passes=ee-instrument<post-inline>`
+            CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --features debug
+            if [[ "$build_installer" == "true" ]]; then
+                CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" # --features debug
+            fi
+        fi
+    fi
+
+    if [[ "$build_binaries" == "true" ]]; then
+        mkdir -p built/"$p"
+
+        # Confirm that the built binary is statically linked
+        if [[ "$target" == *"linux-musl" ]]; then
+            if [[ "$build_installer" == "true" ]]; then
+                binaries=("ctoolbox" "ctoolbox-installer")
+            else
+                binaries=("ctoolbox")
+            fi
+            for bin in "${binaries[@]}"; do
+                binloc="target/$target/$release/$bin"
+                ldd_out="$(ldd "$binloc" 2>&1)" || true
+                ldd_match_1=false
+                if printf '%s' "$ldd_out" | grep -q 'statically linked'; then
+                    ldd_match_1=true
+                fi
+                ldd_match_2=false
+                if printf '%s' "$ldd_out" | grep -q 'not a dynamic executable'; then
+                    ldd_match_2=true
+                fi
+                if [[ "$ldd_match_1" == false ]]; then
+                    if [[ "$ldd_match_2" == false ]]; then
+                        echo "$bin is not statically linked per ldd!" >&2
+                        exit 1
+                    fi
+                fi
+
+                file_out="$(file "$binloc")"
+                file_match_1=false
+                if printf '%s' "$file_out" | grep -q 'static-pie linked'; then
+                    file_match_1=true
+                fi
+                file_match_2=false
+                if printf '%s' "$file_out" | grep -q 'statically linked'; then
+                    file_match_2=true
+                fi
+                if [[ "$file_match_1" == false ]]; then
+                    if [[ "$file_match_2" == false ]]; then
+                        echo "$bin is not statically linked per file!" >&2
+                        exit 1
+                    fi
+                fi
+
+                if readelf -d "$binloc" | grep -q 'NEEDED'; then
+                    echo "$bin is not statically linked per readelf!" >&2
+                    exit 1
+                fi
+            done
+        else
+            echo "Skipping static linkage check for target $target"
+        fi
+
+        cp "target/$target/$release/ctoolbox" built/"$p"/
+        if [[ "$build_installer" == "true" ]]; then
+            cp "target/$target/$release/ctoolbox-installer" built/"$p"/
+        fi
+        echo "Built for platform $p"
+        cp built/ctoolbox.rsrc built/"$p"/
+        if [[ -f built/v86_images.rsrc ]]; then
+            cp built/v86_images.rsrc built/"$p"/
+        fi
+    fi
+done
+
+# cp built/web/vendor/coi-serviceworker/coi-serviceworker.js built/web/
+
+find built/ -name '.gitignore' -delete

@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+mode="dev"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        "--deploy")
+            mode="deploy"
+            ;;
+        "-h"|"--help"|"help")
+            echo "Usage: ./ci [--deploy]"
+            echo "Modes:"
+            echo "  (no args)  Development Mode: Runs CI on current local working state"
+            echo "  --deploy   Deploy Mode: Verifies uploaded release tarballs based on VERSION and COMMIT files"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+start_time="$(date +%s)"
+
+# Ensure we are in the repository root directory
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+# Check if docker is installed on the host
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker must be installed on your local computer to run the CI. You may want to run: apt install docker.io" >&2
+    exit 1
+fi
+
+# NOTE: Using Docker may need to add to `/etc/docker/daemon.json` (un-commented):
+
+#{
+#  "bip": "10.200.0.1/24",
+#  "default-address-pools": [
+#    {
+#      "base": "10.200.1.0/24",
+#      "size": 28
+#    }
+#  ]
+#}
+
+echo "Updating RustSec advisory database on the host..."
+if [[ -d .advisory-db/.git ]]; then
+    (cd .advisory-db && git fetch --depth=1 && git reset --hard origin/main) || {
+        echo "Warning: git update failed, re-cloning advisory-db..."
+        rm -rf .advisory-db
+        git clone --depth 1 https://github.com/RustSec/advisory-db .advisory-db
+    }
+else
+    rm -rf .advisory-db
+    git clone --depth 1 https://github.com/RustSec/advisory-db .advisory-db
+fi
+
+echo "Updating Docker debian:stable image..."
+docker pull debian:stable
+
+# Resolve version and commit
+version="unknown-version"
+if [[ -f VERSION ]]; then
+    version="$(cat VERSION)"
+elif command -v cargo >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    version="$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "ctoolbox") | .version' 2>/dev/null || echo "unknown-version")"
+fi
+
+commit="unknown-commit"
+if [[ -f COMMIT ]]; then
+    commit="$(cat COMMIT)"
+elif command -v git >/dev/null 2>&1; then
+    commit="$(git rev-parse HEAD 2>/dev/null || echo "unknown-commit")"
+fi
+
+# Create logs directory
+mkdir -p ci-logs
+log_timestamp="$(date +%Y%m%d_%H%M%S)"
+log_file="ci-logs/ci-${log_timestamp}-${mode}-${version}-${commit}.log"
+
+# Determine the physical block device for the root filesystem to limit I/O write rate
+dev_path="$(df -P / | awk 'NR==2 {print $1}')"
+if [[ -b "$dev_path" ]]; then
+    io_limit=(--device-write-bps "${dev_path}:40mb")
+else
+    real_dev="$(readlink -f "$dev_path")"
+    if [[ -b "$real_dev" ]]; then
+        io_limit=(--device-write-bps "${real_dev}:40mb")
+    else
+        echo "Warning: Could not determine physical block device for /, I/O limiting disabled" >&2
+        io_limit=( )
+    fi
+fi
+
+# Print run info
+{
+  echo "=================================================="
+  echo "CI Run Started: $(date)"
+  echo "Mode:          $mode"
+  echo "Version:       $version"
+  echo "Commit:        $commit"
+  echo "Log file:      $log_file"
+  if [[ "${#io_limit[@]}" != 0 ]]; then
+      echo "I/O Limit:" "${io_limit[@]}"
+  else
+      echo "I/O Limit:     None (disabled)"
+  fi
+  echo "=================================================="
+} | tee -a "$log_file"
+
+# Run CI check
+set -o pipefail
+exit_code=0
+
+if [[ "$mode" == "deploy" ]]; then
+    if [[ ! -f VERSION || ! -f COMMIT ]]; then
+        echo "Error: VERSION and COMMIT files must exist in the workspace root for --deploy mode." | tee -a "$log_file" >&2
+        exit 1
+    fi
+
+    docker run --rm \
+        --network host \
+        --cpus=2 \
+        --memory=4g \
+        --memory-swap=44g \
+        "${io_limit[@]}" \
+        -v "$(pwd)/VERSION":/VERSION:ro \
+        -v "$(pwd)/COMMIT":/COMMIT:ro \
+        -v "$(pwd)/scripts/ci-build-inner":/scripts/ci-build-inner:ro \
+        -v "$(pwd)/.advisory-db":/advisory-db:ro \
+        debian:stable \
+        bash /scripts/ci-build-inner --deploy 2>&1 | tee -a "$log_file" || exit_code=$?
+else
+    # Development Mode: Tar local workspace, excluding large build dirs and git history, and pipe to container
+    # --exclude='./vendor/TypeScript/tests' \
+    tar --exclude='./target' \
+        --exclude='./built' \
+        --exclude='./ci-logs' \
+        --exclude='.git' \
+        --exclude='./.advisory-db' \
+        --exclude='./vendor/upstream-for-reference' \
+        --exclude='./vendor/*.tar.gz' \
+        --exclude='./vendor/*.tar' \
+        -cf - . | \
+        docker run --rm -i \
+            --network host \
+            --cpus=2 \
+            --memory=4g \
+            --memory-swap=44g \
+            "${io_limit[@]}" \
+            -v "$(pwd)/.advisory-db":/advisory-db:ro \
+            debian:stable \
+            bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev" 2>&1 | tee -a "$log_file" || exit_code=$?
+fi
+
+echo "--------------------------------------------------" | tee -a "$log_file"
+if [[ $exit_code -eq 0 ]]; then
+    echo "CI Run Succeeded! Log saved to: $log_file" | tee -a "$log_file"
+else
+    echo "CI Run Failed! Exit code: $exit_code. Log saved to: $log_file" | tee -a "$log_file" >&2
+fi
+# Calculate total time
+elapsed_seconds=$(($(date +%s) - start_time))
+hours=$((elapsed_seconds / 3600))
+minutes=$(((elapsed_seconds % 3600) / 60))
+seconds=$((elapsed_seconds % 60))
+printf "Total time: %02d:%02d:%02d\n" $hours $minutes $seconds | tee -a "$log_file"
+echo "--------------------------------------------------" | tee -a "$log_file"
+
+exit $exit_code

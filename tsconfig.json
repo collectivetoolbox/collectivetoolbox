@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "paths": {
+      "jquery": ["./vendor/DefinitelyTyped-partial/jquery"]
+    }
+  },
+  "include": [
+    "assets/web/**/*"
+  ],
+  "exclude": [
+    "built/**",
+    "assets/web/vendor/**/*",
+    "assets/web/app.old.js",
+    "assets/web/rust-worker.js"
+  ]
+}

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+cd .. || exit 1
+
+# Find all workspace member directories from `cargo metadata`
+workspace_root="$(cargo metadata --no-deps --format-version 1 2>/dev/null | jq -r '.workspace_root')"
+if [[ -z "$workspace_root" ]]; then
+    echo "Failed to determine workspace root." >&2
+    exit 1
+fi
+
+# Get list of package directories (unique)
+mapfile -t dirs < <(cargo metadata --no-deps --format-version 1 \
+    | jq -r '.packages[] | select(.source == null) | .manifest_path' \
+    | xargs -n1 dirname | sort -u)
+
+# If you prefer to only run members (not all packages), use workspace_members:
+# mapfile -t dirs < <(cargo metadata --no-deps --format-version 1 \
+#   | jq -r '.workspace_members[]' \
+#   | sed 's/^[^ ]* //' \
+#   | xargs -n1 dirname | sort -u)
+
+base_dir="$(pwd)"
+
+for dir in "${dirs[@]}"; do
+    echo "==> Processing: $dir"
+      if [[ ! -f "$dir/Cargo.toml" ]]; then
+        echo "Skipping (no Cargo.toml): $dir"
+        continue
+    fi
+
+    mkdir -p "src-expanded"  # Create output directory for expanded code
+
+    pushd "$dir" >/dev/null || exit 1
+    # run cargo expand for library targets only; errors continue to next crate
+    if cargo metadata --no-deps --format-version 1 | jq -r --arg DIR "$dir" \
+        '.packages[] | select(.manifest_path | startswith($DIR)) | .targets[] | select(.kind[] | contains("lib")) | .name' | grep -q .; then
+        dir_no_slashes="${dir//\//-}"
+        dir_expanded="${dir_no_slashes##*/}"
+        echo "Expanding library target in $dir to src-expanded/$dir_expanded-expanded.rs"
+        if ! cargo expand --lib --theme none > "$base_dir/src-expanded/$dir_expanded-expanded.rs"; then
+          echo "cargo expand failed in $dir" >&2
+        fi
+        echo "Done expanding library target in $dir to src-expanded/$dir_expanded-expanded.rs"
+    else
+       echo "No library target found in $dir; skipping."
+    fi
+    popd >/dev/null || exit 1
+done
+
+echo "Done."

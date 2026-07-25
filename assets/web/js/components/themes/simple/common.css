@@ -1,0 +1,52 @@
+/* Simple theme-wide variable definitions and overrides */
+html[data-ctb-ui-theme="simple"] {
+    --foreground: light-dark(black, white);
+    --background: light-dark(white, black);
+    --card-border-radius: 0px;
+    --page-border-radius: 0px;
+    --home-section-separator: 2px inset var(--foreground);
+    --outer-shadow: none;
+}
+
+html[data-ctb-ui-theme="simple"] body {
+    background-image: none;
+    background-color: light-dark(white, black);
+    color: light-dark(black, white);
+}
+
+/* Classic blue (or purple when clicked/visited) links */
+html[data-ctb-ui-theme="simple"] a:not(.button):not(.btn) {
+    color: light-dark(blue, #5dbbff);
+    text-decoration: underline;
+}
+
+html[data-ctb-ui-theme="simple"] a:not(.button):not(.btn):visited {
+    color: light-dark(purple, #d8b4fe);
+}
+
+html[data-ctb-ui-theme="simple"] a:not(.button):not(.btn):active {
+    color: light-dark(purple, #d8b4fe);
+}
+
+html[data-ctb-ui-theme="simple"] button.btn-link,
+html[data-ctb-ui-theme="simple"] a.btn-link,
+html[data-ctb-ui-theme="simple"] .btn-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: light-dark(blue, #5dbbff);
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    display: inline;
+}
+
+html[data-ctb-ui-theme="simple"] button.btn-link:visited,
+html[data-ctb-ui-theme="simple"] a.btn-link:visited,
+html[data-ctb-ui-theme="simple"] .btn-link:visited,
+html[data-ctb-ui-theme="simple"] button.btn-link:active,
+html[data-ctb-ui-theme="simple"] a.btn-link:active,
+html[data-ctb-ui-theme="simple"] .btn-link:active {
+    color: light-dark(purple, #d8b4fe);
+}

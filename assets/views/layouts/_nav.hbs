@@ -1,0 +1,26 @@
+<div id="nav" class="flex flex-row w-full max-h-16 p-2 justify-between items-center card card-translucent" role="navigation" aria-label="Main navigation">
+    <div class="flex flex-col md:flex-row md:items-center pl-4">
+        <a href="/" class="pr-2 md:pr-4 py-1 md:py-4 logo">
+            <img src="/logo.svg" alt="{{site_name}} Logo" />
+        </a>
+        <div class="tagline flex flex-col leading-none h-[1.7rem] justify-between">
+            <span>Desktop Knowledge Graph</span>
+            <small><em>alpha</em></small>
+        </div>
+    </div>
+
+    <div class="flex flex-row items-center gap-4">
+        <a href="#sidebar" class="btn" title="Toggle sidebar">
+            {{> icons._icon name="menu" alt="Toggle sidebar" }}
+        </a>
+
+        <a href="/login" class="btn {{#if _request.logged_in_user}}hidden{{/if}}" id="login-btn">
+            {{> icons._icon name="home" alt="" }}
+            <span class="whitespace-nowrap">Register or Log In</span>
+        </a>
+        <a href="/logout" class="btn {{#unless _request.logged_in_user}}hidden{{/unless}}" id="logout-btn">
+            {{> icons._icon name="home" alt="" }}
+            <span class="whitespace-nowrap">Log Out</span>
+        </a>
+    </div>
+</div>

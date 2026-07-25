@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# This is meant to be a hot-reload watcher for development. Unfortunately it no longer works practically, as the build time has grown. If I can pull down the build time, this could get resurrected.
+# Needs inotify-tools package
+
+set -euxo pipefail
+
+./run-web &
+
+disown -a
+
+# https://superuser.com/questions/181517/how-to-execute-a-command-whenever-a-file-changes
+cd src
+echo "$(pwd)"
+inotifywait -re close_write,moved_to,create -m . |
+#inotifywait -m . |
+while read -r directory events filename; do
+    echo "Event: $filename $directory $events"
+    if [[ "$directory" =~ ./built/.* ]] || [[ "$filename" == ".keep" ]] || [[ "$directory" =~ .*/pkg/ ]]; then
+        echo "Skipping $filename"
+        continue
+    fi
+    echo "Event accepted: $filename $directory $events"
+    # https://stackoverflow.com/questions/28195821/how-can-i-interrupt-or-debounce-an-inotifywait-loop
+    jobs -p | xargs kill || true
+    (
+        pushd .. || exit 1
+        ./build --wasm &
+        popd || exit 1
+    ) &
+    echo "Skipping $(timeout 5 cat | wc -l) further changes"
+done

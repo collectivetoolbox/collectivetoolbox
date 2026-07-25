@@ -1,0 +1,2 @@
+- `entities-html32.csv`: Data from https://www.w3.org/TR/2018/SPSD-html32-20180315/#latin1
+- `entities-netscape-1999.csv`: Data from https://www.rssboard.org/html-entities

@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = インストールウィザードへようこそ
+theme = テーマ：
+theme-auto = 🔄 自動検出
+theme-light = ☀ ライト
+theme-dark = 🌙 ダーク
+quick-install = クイックインストール
+customize = カスタマイズ...
+quick-install-prompt = デフォルト設定でクイックインストールを使用しますか？
+read-license-button = ライセンス全文を読む...
+read-license-prompt = （または 『l』 でライセンス全文を読む）：
+license-header = ライセンス
+press-enter-to-return = Enter キーを押して戻る...
+press-enter-to-continue = Enter キーを押して続行...
+pager-continue = -- 続き -- (Enter で続行、q で終了)：
+intro-invalid-input = 『y』 または 『n』、ライセンス確認には 『l』 を入力してください。
+prompt-invalid-yes-or-no = 『y』 または 『n』 を入力してください。
+prompt-enter-choice = 選択を入力 [1-{ $choice }, デフォルト={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = インストールオプション
+install-dir = インストール先：
+storage-dir = ストレージディレクトリ：
+add-to-start-menu = スタートメニューに追加:
+add-to-dock = Dockに追加：
+add-desktop-shortcut = デスクトップアイコンを作成：
+add-to-path = PATHに追加：
+language = 言語 🌏︎：
+storage-dir-note = 注意：ストレージディレクトリはデータベース、ログ、ユーザーデータに使用されます。十分なディスク容量があることを確認してください。
+browse = 参照…
+options-configured = オプションが正常に設定されました。
+parent-directory-not-exists = 警告: 親ディレクトリ 『{ $path }』 が存在しません。
+create-dir-during-installation = インストール中に作成しますか？
+enter-number-range = 1 から { $max } までの数字を入力してください。
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = 場所を選択
+file-picker-select-folder = フォルダを選択
+file-picker-select-file = ファイルを選択
+file-picker-save-file = ファイルを保存
+file-picker-back = 戻る (Alt+B)
+file-picker-forward = 進む (Alt+F)
+file-picker-up = 上へ (Alt+U)
+file-picker-refresh = 更新 (Alt+R)
+file-picker-new-folder = 新規フォルダ (Alt+N)
+file-picker-create = 作成 (Alt+E)
+file-picker-cancel-new-folder = キャンセル (Alt+A)
+file-picker-more-menu = もっと... (Alt+M)
+file-picker-show-hidden = 隠しファイルを表示 (Alt+H)
+file-picker-path = パス：
+file-picker-file-name = ファイル名：
+file-picker-places = 場所
+file-picker-home = ホーム
+file-picker-desktop = デスクトップ
+file-picker-documents = ドキュメント
+file-picker-downloads = ダウンロード
+file-picker-this-pc = このPC
+file-picker-empty = (空)
+file-picker-invalid-path = 無効なパス：{ $path }
+file-picker-folder-exists = 『{ $name }』 は既に存在します
+file-picker-create-folder-failed = フォルダの作成に失敗しました：{ $error }
+file-picker-folder-name-empty = フォルダ名は空にできません
+file-picker-ok = OK (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = コンポーネントの選択
+components-instruction = インストールするコンポーネントを選択してください：
+complete = 完全
+complete-tooltip = 完全インストールのためにすべてのオプションコンポーネントを選択
+minimal = 最小
+minimal-tooltip = 最小インストールのために必須コンポーネントのみを選択
+selected-size = 選択済み：{ $selected }（合計 { $total }）
+storage-space-note = これらのファイルサイズはアプリケーション自体に必要なストレージを反映しています。ご自身のドキュメントは追加の容量を使用します。必要な容量が不明な場合は、少なくとも20 GBの空き容量を推奨します。
+required = （必須）
+toggle-prompt = 切り替えるコンポーネント番号を入力：
+option-toggle = 切り替え
+option-continue = 続行
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = インストール中...
+overall-progress = 全体の進捗：{ $completed }/{ $total } ファイル
+current-file = 現在のファイル：{ $path }
+chunk-progress = チャンク { $current }/{ $total }
+installation-log = インストールログ：
+starting-installation = インストールを開始しています...
+downloading-file = ダウンロード中：{ $path }（{ $chunks } チャンク）
+downloading-chunk = チャンク { $current }/{ $total } をダウンロード中...
+using-cached-chunk = キャッシュされたチャンク { $current }/{ $total } を使用中
+file-installed = インストール完了：{ $path }（{ $size } バイト）
+retry-error = 再試行 { $attempt }/{ $max }：{ $message }
+error = エラー：{ $message }
+retry = 再試行
+cancel = キャンセル
+installation-complete-count = インストール完了：{ $count } ファイルがインストールされました。
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = インストール完了！
+install-success = { $app } が正常にインストールされました。
+quick-install-success = { $app } のインストールが正常に完了しました。
+launch-after-install = 閉じた後に { $app } を起動
+finish = 完了
+summary = 概要：
+start-menu-shortcut = スタートメニューのショートカット: { $value }
+dock-shortcut = Dockショートカット：{ $value }
+desktop-shortcut = デスクトップショートカット：{ $value }
+added-to-path = PATHに追加：{ $value }
+yes = はい
+no = いいえ
+launch-now-prompt = 今すぐ { $app } を起動しますか？
+launching = { $app } を起動しています...
+thank-you = { $app } をインストールしていただきありがとうございます！
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = インストールの修復
+repair-description = インストールを確認して修復します。欠落または破損したファイルは再ダウンロードされます。
+current-installation = 現在のインストール：
+location = 場所：{ $path }
+start-repair = 修復を開始
+starting-repair = 修復を開始しています...
+continue-repair-prompt = 修復を続行しますか？
+repair-cancelled = 修復がキャンセルされました。
+repair-complete = 修復完了！
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = { $app } のアンインストール
+uninstall-warning = 警告：これによりアプリケーションがシステムから削除されます。
+will-be-removed = 以下が削除されます：
+application-files = アプリケーションファイル：{ $path }
+desktop-shortcuts = ショートカット (スタートメニュー/ドックとデスクトップ)
+path-modifications = PATHの変更
+data-not-removed = 注意：データファイルは削除されません。
+data-location = データの場所：{ $path }
+uninstall = アンインストール
+starting-uninstall = アンインストールを開始しています...
+confirm-uninstall-prompt = 本当にアンインストールしますか？
+uninstall-cancelled = アンインストールがキャンセルされました。
+removing-files = ファイルを削除しています...
+uninstall-complete = { $app } がアンインストールされました。
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← 戻る
+next = 次へ →
+install = インストール →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = このウィザードがインストールプロセスをご案内します。インストールオプションをカスタマイズするか、デフォルト値を使用できます。
+unattended-mode = 無人モードで実行中 - デフォルト値を使用しています。
+yes-no-help = 'y' または 'n' を入力してください。
+number-choice-help = 1 から { $max } の間の数字を入力してください。
+what-to-do = 何をしますか？
+parent-dir-warning = 警告：親ディレクトリ '{ $path }' が存在しません。
+create-dir-prompt = インストール中に作成しますか？
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } インストーラー
+window-repair = { $app } - 修復
+window-uninstall = { $app } - アンインストール

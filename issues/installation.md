@@ -1,0 +1,62 @@
+- ctb_installer_support library crate with a dependency on ctb_utilities
+  - Alternatively: have it be a subcrate of ctb_utilities
+- ctb_workspace (the main app) or alteratively ctoolbox crate itself would depend on ctb_installer_support
+- The installer would need ~4 conceptual pieces: the GUI installer itself (what is usually thought of as an "installer", responsible for install/repair/upgrade/downgrade/uninstall flows), a tool for local code signing, the server component responsible for serving the updates, and a version of the GUI installer embedded directly in the app itself for updates after it has ben installed.
+- The installer (ctb_installer binary crate, with minimal dependencies) should be cross-platform and use a lightweight pure-Rust toolkit (egui+winit+accesskit?) to draw its interface when running as GUI, or operate in text mode (simple Q-and-A style, not Curses-style) otherwise. It should support a typical installer flow:
+  - check if there's an existing build and whether it's the same, older or newer, and inform the user, offering to upgrade or downgrade, reinstall (=repair), or uninstall (use `semver` crate for version check, and also check the build date)
+  - introduction and a way to either select options or just-install-it-now (also check if the server can be reached, a few times, with a Retry/Quit button if failed),
+    - include a toggle for light-on-dark or dark-on-light color scheme here; autodetecting from the system, from PC settings (which needs a new system-wide default setting for this separate from individual sessions' or users' settings for uses like this), or from previous installation JSON file to start
+  - if options are selected:
+    - a way to choose the path to install the application in;
+    - a way to choose the path to use for the storage dir (which is configurable; the app gets it with the `get_storage_dir()` function),
+    - a way to choose what components to install in a tree-view (Office 2000-style (minus the CD options), where each item can be installed or omitted unless it's got sub-items, in which case it has a "partially installed" option),
+    - whether to install a desktop icon
+    - whether to install a start menu icon (or on Mac I guess this would be add to the dock?)
+    - whether to add to $PATH
+    - system language (autodetect; offer option)
+    - preference for "light-on-dark" or "dark-on-light" color scheme (autodetect or use manually toggled value from first screen; offer it in the list of options)
+    - keyboard layout
+    - default UI mode: currently web UI is the only option, but more will be on the way
+  - progress bars, overall and per-file, as each file is downloaded and installed
+  - verification of each chunk as it's downloaded; retry a couple times with backoff if any chunks have any errors
+  - Store which chunks are already downloaded in a temp manifest so interrupted downloads resume.
+  - a nice visual of each file chunk as it's being downloaded
+  - textual log frames in the window: one reporting "successfully downloaded chunk whatever" and "successfully installed file whatever"
+  - record each installed file as a JSON file in the default storage directory (not the configurable storage directory) so it can be easily uninstalled, as well as what features and settings were selected for installation, and the version number and build date/time, and the JSON file version;
+  - wrap-up screen offering to open after install has completed
+  - reinstall (repair)/uninstall options if it's already installed
+- The tool for local code signing (this would be run on the dev machine, not the server, and would be called by the deploy script) would just be a command-line --ctb-dev-sign flag that would
+  - hash the binary and any required assets (currently: tarred copy of icecat; tarred copy of dependency source code);
+  - split them to ~64kb chunks using buzhash;
+  - create a signed and dated JSON manifest file for them hashed fragments, using a developer private key saved in the pc_settings;
+    - extensible JSON manifest file features:
+      - manifest format version number (1),
+      - ctoolbox version number,
+      - platform of this release (Windows or Linux for now),
+      - build date,
+      - build channel/whether it's a prerelease (currently all are prereleases)
+      - signature covering the other json values (in other words, if you omit the signature from the JSON, the resulting JSON file would be signed, I suppose?),
+      - a `revoked_keys` list in the manifest and a key version/ID,
+      - checksum of each file,
+      - whether each file should be gzipped once reconstructed and installed (this is relevant for the tarball of source code and the icecat binary, which should *not* be zipped on the server so they can be deduplicated, but *should* be zipped locally so they're not hogging the disk)
+      - human-readable strings identifying the feature associated with each file together with the ISO language code of the string in question (e.g. "IceCat Binary" for en-us - this would then be the string used for the togglable feature in the installer; multiple files could represent a single togglable feature that would turn on or off installing all those files)
+      - `requires: ["feature_id"]`, so that the tree-view installer has a way to know that "Feature B requires Feature A",
+      - install path of each file,
+      - individual chunk hashes of each fragment,
+  - copy the ~/ctb_release/releases/ctb-[platform]-[datetime].json and ~/ctb_release/releases/bh/[hash-per-fragment];
+  - (finally, the deploy script would rsync the ~/ctb_release/releases folder to the server, and the latest JSON manifest symlinked to releases/ctb-[platform]-latest.json by the deploy script, before continuing with the rest of the normal deploy process)
+  - Eventually, I'd like to add Authenticode/SmartScreen/Gatekeeper signing for Windows and Mac if I can figure out how, but for now I'm not worrying about that.
+- The pieces that would run on the server:
+  - a --ctb-dev-release-check flag that would check the signature against the developer public key configured on the server (the server would never know the dev private key) and check all file hashes and that the fragments matched checksum after reconstructing them (the deploy script would be responsible for actually deploying the release, replacing the running server and restarting the systemd service, since the server process runs as a minimally-privileged user that can't write to itself)
+  - routes in the Axum web service that would return either the JSON manifest or a specific version of the manifest, a JSON with the dev public key I guess(? I'm not sure how public signing keys for verification get distributed for software?), or JSON with any given file fragment by hash (or just its bytes, but I'm leaning toward wrapping it in JSON in case I want to add metadata later; I imagine with compression it wouldn't make a huge difference)
+  - (Yes, bsdiff would make smaller updates, but over time I think it would take up more space on the server, which is at a premium.)
+  - a --ctb-dev-release-expire flag that would delete any chunks only used by releases older than a configurable age
+- The embedded installer would:
+  - Have an option to drop into the GUI install/uninstall/etc. flow by running ctoolbox --install; in which case it would run the same flow as the online installer but it would expect the application and all necessary files to be already present and assembled in the current directory and just copy them into place
+    - Any installed copy should have a --make-offline-installer option that packages up the existing installation and manifest into a tarball (an outer folder with files corresponding to each file from the manifest, and then the runnable ctoolbox binary beside it, which is just a copy of the normal binary) as a portable copy for use with this --install option.
+  - Support unattended automatic upgrades:
+    - It would check the features and settings that were enabled at installation time to know what to install, whether to install a desktop file, etc.
+    - It would also have a way to access it through a menu, or when running ctoolbox --update on the command line, that would check for available updates
+    - It would automatically check for updates when starting up (assuming it could reach the server) and once daily at a time set randomly for the installation and saved in the pc_settings on first run
+    - Automatic upgrades would happen in the background, and would probably mean downloading the files in the background, then making a copy of the running binary in a new file, quitting the running binary, starting the copied binary with --ctb-automatic-update that would delete the old binary and move the new version into place, before starting that one and then exiting; the upgraded binary would detect that it had been upgraded and delete the temp copied binary. Do a "canary" first-run check that reverts if the app crashes within N seconds of upgrading. This should happen as quickly and as close to atomic as possible. It should prompt the user before actually installing the upgrade, like "An upgrade is available. You can restart now, or wait." "wait" would pause it for a few hours and then it would prompt again. If the prompt isn't answered in ~5 min, assume the user's inactive and it's a good time to perform the upgrade. This would need some sort of polling for the current webUI to implement, since it is using a user-initiated-request model, which doesn't have a way to show server-triggered notifications in real time.
+      - There's already a socket-based IPC system, so it might make sense to provide a WebSocket piece of this for server push.

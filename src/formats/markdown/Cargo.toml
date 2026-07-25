@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-markdown"
+edition = "2024"
+
+[lib]
+path="markdown.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+markdown = "1.0.0"
+
+[lints]
+workspace = true

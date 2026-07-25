@@ -1,0 +1,62 @@
+<div id="sidebar" role="navigation" aria-label="Sidebar">
+    <ul class="flex flex-col m-0 p-4 space-y-4 list-none">
+        <ctb-segmented-control>
+            <fieldset name="color-theme-setting">
+                <legend>Color scheme:</legend>
+                <ctb-button>
+                    <input type="radio" id="color-theme-setting-auto" name="color-theme-setting" value="auto" checked />
+                    <label for="color-theme-setting-auto" title="Automatically detect color scheme">
+                        {{> icons._icon name="light-dark" alt="" }}
+                        <span>Auto</span>
+                    </label>
+                </ctb-button>
+                <ctb-button>
+                    <input type="radio" id="color-theme-setting-light" name="color-theme-setting" value="light" />
+                    <label for="color-theme-setting-light" title="Use light color scheme">
+                        {{> icons._icon name="sun" alt="" }}
+                        <span>Light</span>
+                    </label>
+                </ctb-button>
+                <ctb-button>
+                    <input type="radio" id="color-theme-setting-dark" name="color-theme-setting" value="dark" />
+                    <label for="color-theme-setting-dark" title="Use dark color scheme">
+                        {{> icons._icon name="moon" alt="" }}
+                        <span>Dark</span>
+                    </label>
+                </ctb-button>
+            </fieldset>
+        </ctb-segmented-control>
+
+        <ctb-segmented-control>
+            <fieldset name="btn-theme-setting">
+                <legend>Visual theme:</legend>
+                <ctb-button>
+                    <input type="radio" id="btn-theme-setting-glass" name="btn-theme-setting" value="glass" checked />
+                    <label for="btn-theme-setting-glass" title="Use glass style theme">
+                        <span>Glass</span>
+                    </label>
+                </ctb-button>
+                <ctb-button>
+                    <input type="radio" id="btn-theme-setting-solid" name="btn-theme-setting" value="solid" />
+                    <label for="btn-theme-setting-solid" title="Use solid style theme">
+                        <span>Solid</span>
+                    </label>
+                </ctb-button>
+                <ctb-button>
+                    <input type="radio" id="btn-theme-setting-simple" name="btn-theme-setting" value="simple" />
+                    <label for="btn-theme-setting-simple" title="Use simple style theme">
+                        <span>Simple</span>
+                    </label>
+                </ctb-button>
+            </fieldset>
+        </ctb-segmented-control>
+
+        <li><a href="/privacy-policy">Privacy and Cookies Policy</a></li>
+        <li><a href="/docs/LICENSE.md">License</a></li>
+        <li><a href="/docs/TRADEMARKS.md">Trademark Policy</a></li>
+
+        {{#unless is_branded_build}}
+        <p>This is an unofficial build of <a href="{{official_url}}" target="_blank">{{official_application_name}}</a>. It is not supplied or endorsed by {{official_application_name}}.</p>
+        {{/unless}}
+    </ul>
+</div>

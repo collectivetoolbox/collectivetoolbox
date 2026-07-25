@@ -1,0 +1,29 @@
+/target
+/src-expanded
+
+# ignore everything under built
+/built/**
+
+# don't ignore the assets directory itself (so negations inside work)
+!/built/assets/
+
+# ignore everything inside assets
+/built/assets/**
+
+# un-ignore the single .keep file (keep this so that the PROJECT_DIR is not
+# empty, which would prevent it compiling)
+!/built/assets/.keep
+
+# copied from vendor/ folder by asset_packer::copy_vendored_typescript
+/src/formats/javascript/bootstrap_ts/data/TypeScript
+
+# Used by the lint script
+/tsconfig.tmp.json
+
+# Cached v86 OS image builds (fs.json + 9pfs chunks)
+/vendor/v86_images/
+
+/ci-logs
+/.advisory-db
+
+/old

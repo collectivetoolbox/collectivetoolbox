@@ -1,0 +1,17 @@
+<div class="flex flex-col gap-6 max-w-2xl mx-auto">
+    <div class="border-b pb-4">
+        <h2>Publish As...</h2>
+    </div>
+
+    <form method="GET" action="/nodes/{{graph_id}}/{{node_id}}/publish" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="target_id">Enter the new global graph node ID to use:</label>
+            <input type="text" id="target_id" name="target_id" class="input-text" required placeholder="e.g. 8589934595">
+        </div>
+
+        <div class="flex flex-row gap-4 mt-2">
+            <button type="submit" class="btn btn-primary">Continue</button>
+            <a href="/nodes/view?id={{node_id}}&amp;graph={{graph_id}}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>

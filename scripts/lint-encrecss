@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+# Search assets/views/ recursively for utility font-* or text-* classes in Handlebars templates
+# Excluded: text-start, text-end, text-center, text-justify
+# Matches are outputted, and the script exits with 1 if any match is found.
+if grep -P -r '(?<=^|[\s"'\'':])(?!(?:text-start|text-end|text-center|text-justify)\b)(?:font|text)-[a-zA-Z0-9_-]+' assets/views/; then
+    echo ""
+    echo "Non-layout EncreCSS classes detected. Font family and color should be"
+    echo "omitted so they can be managed by the theming system. Monospace/small/bold/large/headings"
+    echo "should use semantic HTML, with styling managed by tag-level CSS. Particularly"
+    echo "weird cases of styling may need a dedicated CSS class, but that's a last resort as it won't be presented to CLI users anyway."
+    exit 1
+fi

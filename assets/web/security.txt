@@ -1,0 +1,4 @@
+Contact: mailto:$ContactEmail
+Expires: 2029-01-01T00:00:00.000Z
+Preferred-Languages: en
+Policy: $SiteURL/security-report-policy

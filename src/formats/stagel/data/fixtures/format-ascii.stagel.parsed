@@ -1,0 +1,1101 @@
+1:1:0
+start-document
+
+1:1:0
+filename
+format-ascii
+1:2:0
+ident-r-an
+ 100 99 97 70 114 111 109 65 115 99 105 105
+1:20:0
+ident-an
+ 99 111 110 116 101 110 116
+1:29:0
+newline
+
+2:6:0
+indent
+
+2:6:1
+command
+assertIsByteArray
+2:24:1
+ident-an
+ 99 111 110 116 101 110 116
+2:33:1
+newline
+
+3:6:1
+command
+new
+3:10:1
+ident-an
+ 114 101 115
+3:15:1
+newline
+
+4:6:1
+command
+new
+4:10:1
+ident-n
+ 108
+4:12:1
+newline
+
+5:6:1
+command
+set
+5:10:1
+ident-n
+ 108
+5:14:1
+command
+count
+5:20:1
+ident-an
+ 99 111 110 116 101 110 116
+5:29:1
+newline
+
+6:6:1
+command
+new
+6:10:1
+ident-n
+ 99
+6:12:1
+newline
+
+7:6:1
+command
+set
+7:10:1
+ident-n
+ 99
+7:14:1
+literal-n
+0
+7:14:1
+newline
+
+8:6:1
+command
+while
+8:12:1
+command
+lt
+8:15:1
+ident-n
+ 99
+8:19:1
+ident-n
+ 108
+8:21:1
+newline
+
+9:10:1
+indent
+
+9:10:2
+command
+set
+9:14:2
+ident-an
+ 114 101 115
+9:21:2
+command
+append
+9:28:2
+ident-an
+ 114 101 115
+9:35:2
+command
+dcFromFormat
+9:48:2
+literal-s
+ 97 115 99 105 105
+9:56:2
+command
+anFromN
+9:64:2
+command
+get
+9:68:2
+ident-an
+ 99 111 110 116 101 110 116
+9:79:2
+ident-n
+ 99
+9:81:2
+newline
+
+10:10:2
+command
+set
+10:14:2
+ident-n
+ 99
+10:18:2
+command
+add
+10:22:2
+ident-n
+ 99
+10:26:2
+literal-n
+1
+10:26:2
+newline
+
+11:6:1
+dedent
+
+11:6:1
+command
+assertIsDcArray
+11:22:1
+ident-an
+ 114 101 115
+11:27:1
+newline
+
+12:6:1
+command
+return
+12:13:1
+ident-an
+ 114 101 115
+12:18:1
+newline
+
+13:1:1
+newline
+
+14:2:0
+dedent
+
+14:2:0
+ident-r-an
+ 100 99 97 84 111 65 115 99 105 105
+14:18:0
+ident-an
+ 99 111 110 116 101 110 116
+14:27:0
+newline
+
+15:6:0
+indent
+
+15:6:1
+command
+assertIsDcArray
+15:22:1
+ident-an
+ 99 111 110 116 101 110 116
+15:31:1
+newline
+
+16:6:1
+command
+new
+16:10:1
+ident-an
+ 114 101 115
+16:15:1
+newline
+
+17:6:1
+command
+new
+17:10:1
+ident-n
+ 108
+17:12:1
+newline
+
+18:6:1
+command
+set
+18:10:1
+ident-n
+ 108
+18:14:1
+command
+count
+18:20:1
+ident-an
+ 99 111 110 116 101 110 116
+18:29:1
+newline
+
+19:6:1
+command
+new
+19:10:1
+ident-n
+ 99
+19:12:1
+newline
+
+20:6:1
+command
+set
+20:10:1
+ident-n
+ 99
+20:14:1
+literal-n
+0
+20:14:1
+newline
+
+21:6:1
+command
+new
+21:10:1
+ident-an
+ 116 101 109 112
+21:16:1
+newline
+
+22:6:1
+command
+new
+22:10:1
+ident-n
+ 100 99 65 116 73 110 100 101 120
+22:20:1
+newline
+
+23:6:1
+command
+while
+23:12:1
+command
+lt
+23:15:1
+ident-n
+ 99
+23:19:1
+ident-n
+ 108
+23:21:1
+newline
+
+24:10:1
+indent
+
+24:10:2
+command
+set
+24:14:2
+ident-n
+ 100 99 65 116 73 110 100 101 120
+24:26:2
+command
+get
+24:30:2
+ident-an
+ 99 111 110 116 101 110 116
+24:41:2
+ident-n
+ 99
+24:43:2
+newline
+
+25:10:2
+command
+set
+25:14:2
+ident-an
+ 116 101 109 112
+25:22:2
+command
+dcToFormat
+25:33:2
+literal-s
+ 117 116 102 56
+25:40:2
+ident-n
+ 100 99 65 116 73 110 100 101 120
+25:50:2
+newline
+
+26:10:2
+command
+if
+26:13:2
+command
+arrNonempty
+26:25:2
+ident-an
+ 116 101 109 112
+26:31:2
+newline
+
+27:14:2
+indent
+
+27:14:3
+command
+if
+27:17:3
+command
+isAsciiByte
+27:29:3
+command
+get
+27:33:3
+ident-an
+ 116 101 109 112
+27:41:3
+literal-n
+0
+27:41:3
+newline
+
+28:18:3
+indent
+
+28:18:4
+command
+set
+28:22:4
+ident-an
+ 114 101 115
+28:29:4
+command
+append
+28:36:4
+ident-an
+ 114 101 115
+28:43:4
+ident-an
+ 116 101 109 112
+28:49:4
+newline
+
+29:14:3
+dedent
+
+29:14:3
+command
+else
+29:17:3
+newline
+
+30:18:3
+indent
+
+30:18:4
+command
+exportWarningUnmappable
+30:42:4
+ident-n
+ 99
+30:46:4
+ident-n
+ 100 99 65 116 73 110 100 101 120
+30:56:4
+newline
+
+31:10:3
+dedent
+
+31:10:2
+dedent
+
+31:10:2
+command
+else
+31:13:2
+newline
+
+32:14:2
+indent
+
+32:14:3
+command
+exportWarningUnmappable
+32:38:3
+ident-n
+ 99
+32:42:3
+ident-n
+ 100 99 65 116 73 110 100 101 120
+32:52:3
+newline
+
+33:10:2
+dedent
+
+33:10:2
+command
+set
+33:14:2
+ident-n
+ 99
+33:18:2
+command
+add
+33:22:2
+ident-n
+ 99
+33:26:2
+literal-n
+1
+33:26:2
+newline
+
+34:6:1
+dedent
+
+34:6:1
+command
+assertIsByteArray
+34:24:1
+ident-an
+ 114 101 115
+34:29:1
+newline
+
+35:6:1
+command
+return
+35:13:1
+ident-an
+ 114 101 115
+35:18:1
+newline
+
+36:1:1
+newline
+
+37:2:0
+dedent
+
+37:2:0
+ident-r-b
+ 105 115 65 115 99 105 105 66 121 116 101
+37:18:0
+ident-n
+ 110
+37:20:0
+newline
+
+38:6:0
+indent
+
+38:6:1
+command
+new
+38:10:1
+ident-b
+ 116 101 109 112
+38:15:1
+newline
+
+39:6:1
+command
+set
+39:10:1
+ident-b
+ 116 101 109 112
+39:17:1
+command
+intIsBetween
+39:30:1
+ident-n
+ 110
+39:34:1
+literal-n
+0
+39:36:1
+literal-n
+127
+39:38:1
+newline
+
+40:6:1
+command
+return
+40:13:1
+ident-b
+ 116 101 109 112
+40:18:1
+newline
+
+41:1:1
+newline
+
+42:2:0
+dedent
+
+42:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 68 105 103 105 116
+42:19:0
+ident-n
+ 110
+42:21:0
+newline
+
+43:6:0
+indent
+
+43:6:1
+command
+new
+43:10:1
+ident-b
+ 116 101 109 112
+43:15:1
+newline
+
+44:6:1
+command
+set
+44:10:1
+ident-b
+ 116 101 109 112
+44:17:1
+command
+intIsBetween
+44:30:1
+ident-n
+ 110
+44:34:1
+literal-n
+48
+44:37:1
+literal-n
+57
+44:38:1
+newline
+
+45:6:1
+command
+return
+45:13:1
+ident-b
+ 116 101 109 112
+45:18:1
+newline
+
+46:1:1
+newline
+
+47:2:0
+dedent
+
+47:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 80 114 105 110 116 97 98 108 101
+47:23:0
+ident-n
+ 110
+47:25:0
+newline
+
+48:6:0
+indent
+
+48:6:1
+command
+new
+48:10:1
+ident-b
+ 116 101 109 112
+48:15:1
+newline
+
+49:6:1
+command
+set
+49:10:1
+ident-b
+ 116 101 109 112
+49:17:1
+command
+intIsBetween
+49:30:1
+ident-n
+ 110
+49:34:1
+literal-n
+32
+49:37:1
+literal-n
+126
+49:39:1
+newline
+
+50:6:1
+command
+return
+50:13:1
+ident-b
+ 116 101 109 112
+50:18:1
+newline
+
+51:1:1
+newline
+
+52:2:0
+dedent
+
+52:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 83 112 97 99 101
+52:19:0
+ident-n
+ 110
+52:21:0
+newline
+
+53:6:0
+indent
+
+53:6:1
+command
+new
+53:10:1
+ident-b
+ 116 101 109 112
+53:15:1
+newline
+
+54:6:1
+command
+set
+54:10:1
+ident-b
+ 116 101 109 112
+54:17:1
+command
+eq
+54:20:1
+ident-n
+ 110
+54:24:1
+literal-n
+32
+54:25:1
+newline
+
+55:6:1
+command
+return
+55:13:1
+ident-b
+ 116 101 109 112
+55:18:1
+newline
+
+56:1:1
+newline
+
+57:2:0
+dedent
+
+57:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 78 101 119 108 105 110 101
+57:21:0
+ident-n
+ 110
+57:23:0
+newline
+
+58:6:0
+indent
+
+58:6:1
+command
+new
+58:10:1
+ident-b
+ 116 49
+58:13:1
+newline
+
+59:6:1
+command
+set
+59:10:1
+ident-b
+ 116 49
+59:15:1
+command
+eq
+59:18:1
+ident-n
+ 110
+59:22:1
+literal-n
+10
+59:23:1
+newline
+
+60:6:1
+command
+new
+60:10:1
+ident-b
+ 116 50
+60:13:1
+newline
+
+61:6:1
+command
+set
+61:10:1
+ident-b
+ 116 50
+61:15:1
+command
+or
+61:18:1
+ident-b
+ 116 49
+61:23:1
+command
+eq
+61:26:1
+ident-n
+ 110
+61:30:1
+literal-n
+13
+61:31:1
+newline
+
+62:6:1
+command
+return
+62:13:1
+ident-b
+ 116 50
+62:16:1
+newline
+
+63:1:1
+newline
+
+64:2:0
+dedent
+
+64:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 76 101 116 116 101 114 85 112 112 101 114
+64:25:0
+ident-n
+ 110
+64:27:0
+newline
+
+65:6:0
+indent
+
+65:6:1
+command
+new
+65:10:1
+ident-b
+ 116 101 109 112
+65:15:1
+newline
+
+66:6:1
+command
+set
+66:10:1
+ident-b
+ 116 101 109 112
+66:17:1
+command
+intIsBetween
+66:30:1
+ident-n
+ 110
+66:34:1
+literal-n
+65
+66:37:1
+literal-n
+90
+66:38:1
+newline
+
+67:6:1
+command
+return
+67:13:1
+ident-b
+ 116 101 109 112
+67:18:1
+newline
+
+68:1:1
+newline
+
+69:2:0
+dedent
+
+69:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 76 101 116 116 101 114 76 111 119 101 114
+69:25:0
+ident-n
+ 110
+69:27:0
+newline
+
+70:6:0
+indent
+
+70:6:1
+command
+new
+70:10:1
+ident-b
+ 116 101 109 112
+70:15:1
+newline
+
+71:6:1
+command
+set
+71:10:1
+ident-b
+ 116 101 109 112
+71:17:1
+command
+intIsBetween
+71:30:1
+ident-n
+ 110
+71:34:1
+literal-n
+97
+71:37:1
+literal-n
+122
+71:39:1
+newline
+
+72:6:1
+command
+return
+72:13:1
+ident-b
+ 116 101 109 112
+72:18:1
+newline
+
+73:1:1
+newline
+
+74:2:0
+dedent
+
+74:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 76 101 116 116 101 114
+74:20:0
+ident-n
+ 110
+74:22:0
+newline
+
+75:6:0
+indent
+
+75:6:1
+command
+new
+75:10:1
+ident-b
+ 116 101 109 112
+75:15:1
+newline
+
+76:6:1
+command
+set
+76:10:1
+ident-b
+ 116 101 109 112
+76:17:1
+command
+asciiIsLetterLower
+76:36:1
+ident-n
+ 110
+76:38:1
+newline
+
+77:6:1
+command
+set
+77:10:1
+ident-b
+ 116 101 109 112
+77:17:1
+command
+or
+77:20:1
+ident-b
+ 116 101 109 112
+77:27:1
+command
+asciiIsLetterUpper
+77:46:1
+ident-n
+ 110
+77:48:1
+newline
+
+78:6:1
+command
+return
+78:13:1
+ident-b
+ 116 101 109 112
+78:18:1
+newline
+
+79:1:1
+newline
+
+80:2:0
+dedent
+
+80:2:0
+ident-r-b
+ 97 115 99 105 105 73 115 65 108 112 104 97 110 117 109
+80:22:0
+ident-n
+ 110
+80:24:0
+newline
+
+81:6:0
+indent
+
+81:6:1
+command
+new
+81:10:1
+ident-b
+ 116 101 109 112
+81:15:1
+newline
+
+82:6:1
+command
+set
+82:10:1
+ident-b
+ 116 101 109 112
+82:17:1
+command
+asciiIsLetter
+82:31:1
+ident-n
+ 110
+82:33:1
+newline
+
+83:6:1
+command
+set
+83:10:1
+ident-b
+ 116 101 109 112
+83:17:1
+command
+or
+83:20:1
+ident-b
+ 116 101 109 112
+83:27:1
+command
+asciiIsDigit
+83:40:1
+ident-n
+ 110
+83:42:1
+newline
+
+84:6:1
+command
+return
+84:13:1
+ident-b
+ 116 101 109 112
+84:18:1
+newline
+
+85:1:1
+newline
+
+86:2:0
+dedent
+
+86:2:0
+ident-r-an
+ 99 114 108 102
+86:10:0
+newline
+
+87:6:0
+indent
+
+87:6:1
+command
+new
+87:10:1
+ident-an
+ 116 101 109 112
+87:16:1
+newline
+
+88:6:1
+command
+set
+88:10:1
+ident-an
+ 116 101 109 112
+88:18:1
+literal-an-start
+
+88:20:1
+literal-n
+13
+88:23:1
+literal-n
+10
+88:26:1
+literal-an-end
+
+88:26:1
+newline
+
+89:6:1
+command
+return
+89:13:1
+ident-an
+ 116 101 109 112
+89:19:1
+newline
+
+90:1:0
+dedent
+
+90:1:0
+end-document
+

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>💙COLLECTIVE Toolbox</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="coi-serviceworker.js" type="module" id="serviceworker"></script>
+
+    <script type="module" src="app.js"></script>
+
+    <link rel="stylesheet" href="./app.css">
+
+    <link rel="shortcut icon" href="./favicon.ico" type="image/vnd.microsoft.icon">
+    <link rel="icon" href="./favicon.ico" sizes="any">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./favicon_180.png">
+</head>
+
+<body class="w-full h-full p-4 bg-rose-50" id="root">
+    <script>0</script>
+    <!-- fix FOUC (https://stackoverflow.com/questions/21147149/flash-of-unstyled-content-fouc-in-firefox-only-is-ff-slow-renderer) -->
+
+    <div class="w-full mx-auto flex flex-col justify-evenly">
+        <img src="logo.svg" alt="{{site_name}} Logo" class="w-full md:w-1/2 mx-auto" />
+        <div class="flex flex-col">
+            <p class="sr-only">Loading...</p>
+            <div class="flex flex-row gap-x-4 h-6 md:h-10 justify-center" title="Loading...">
+                <div class="bg-[#3f8bff] rounded-full motion-safe:animate-[bounce_2s_infinite] h-6 w-6 md:h-10 md:w-10">
+                </div>
+                <div
+                    class="bg-[#3f8bff] rounded-full motion-safe:animate-[bounce_2s_infinite_200ms] h-6 w-6 md:h-10 md:w-10">
+                </div>
+                <div
+                    class="bg-[#3f8bff] rounded-full motion-safe:animate-[bounce_2s_infinite_400ms] h-6 w-6 md:h-10 md:w-10">
+                </div>
+            </div>
+            <div class="mx-auto delay-show mt-8 text-center">
+                If you don't see anything else happening by now, something probably went wrong. Sorry 🥺👉👈 Try reloading?
+                <br>
+                Not currently working in Firefox: <a href="https://bugzil.la/1360870">Bug 1360870</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

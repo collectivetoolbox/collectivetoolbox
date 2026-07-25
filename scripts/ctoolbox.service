@@ -1,0 +1,14 @@
+[Unit]
+Description=Collective Toolbox Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/ctb/deploy/ctoolbox
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

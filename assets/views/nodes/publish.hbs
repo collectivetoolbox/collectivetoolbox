@@ -1,0 +1,35 @@
+<div class="flex flex-col gap-6 max-w-2xl mx-auto">
+    <div class="border-b pb-4">
+        <h2>Confirm Publishing</h2>
+    </div>
+
+    {{#if error}}
+        <div class="alert alert-error mb-4">
+            {{error}}
+        </div>
+    {{/if}}
+
+    <div class="card flex flex-col gap-4">
+        <p>
+            This will publish the current node, <strong>@L{{node_id}}@</strong>, to the global graph, to
+            {{#if target_id}}
+                the ID <strong>{{target_id}}</strong> in the <strong>{{block_name}}</strong> block.
+            {{else}}
+                the <strong>next available ID</strong> in the <strong>System</strong> block.
+            {{/if}}
+        </p>
+        <p>
+            This action cannot be undone. Are you sure you would like to continue?
+        </p>
+    </div>
+
+    <form method="POST" action="/nodes/{{graph_id}}/{{node_id}}/publish">
+        {{#if target_id}}
+            <input type="hidden" name="target_id" value="{{target_id}}">
+        {{/if}}
+        <div class="flex flex-row gap-4 mt-4">
+            <button type="submit" class="btn btn-primary">Yes, Publish</button>
+            <a href="/nodes/view?id={{node_id}}&amp;graph={{graph_id}}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>

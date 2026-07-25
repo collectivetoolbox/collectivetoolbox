@@ -1,0 +1,39 @@
+<?XML VERSION="1.0"?>
+<!DOCTYPE scriptingNews SYSTEM "http://www.scripting.com/dtd/scriptingNews.dtd">
+<scriptingNews>
+	<header>
+		<copyright>Copyright 1997 Example.</copyright>
+		<scriptingNewsVersion>1.0a2</scriptingNewsVersion>
+		<pubDate>Fri, 26 Dec 1997 08:00:00 GMT</pubDate>
+		<lastBuildDate>Sat, 27 Dec 1997 21:05:42 GMT</lastBuildDate>
+		<docs>http://www.example.com/example</docs>
+	</header>
+	<item>
+		<text>The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet <i>Lorem ipsum.</i></text>
+		<link>
+			<url>http://www.example.com/97/12/news26.xml</url>
+			<linetext>Teaser</linetext>
+		</link>
+	</item>
+	<item>
+		<text>Example example foo bar.</text>
+		<link>
+			<url>http://www.example.com/stories/example.html</url>
+			<linetext>Example example</linetext>
+		</link>
+	</item>
+	<item>
+		<text>Lorem ipsum. The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum.</text>
+		<link>
+			<url>http://www.example.org/example.html</url>
+			<linetext>Example example</linetext>
+		</link>
+	</item>
+	<item>
+		<text>Third example The example example. Lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum. <i>Thanks!</i></text>
+		<link>
+			<url>http://www.example.com/stories/example3.html</url>
+			<linetext>some example</linetext>
+		</link>
+	</item>
+</scriptingNews>

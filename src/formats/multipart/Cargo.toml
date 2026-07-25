@@ -1,0 +1,17 @@
+[package]
+name = "ctb-formats-multipart"
+edition = "2024"
+
+[lib]
+path="multipart.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+reqwest = { version = "0.13", features = [ "multipart", "blocking" ]}
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+
+[lints]
+workspace = true

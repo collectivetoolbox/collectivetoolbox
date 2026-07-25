@@ -1,0 +1,12 @@
+async function dcaToHtml(intArrayDcIn) {
+     StageL_assertIsIntArray(intArrayDcIn); let intArrayReturn;
+
+    StageL_assertIsDcArray(intArrayDcIn);
+    let intArrayOut = [];
+    intArrayOut = StageL_strToByteArray('<!DOCTYPE html><html><head><title></title></head><body>');
+    intArrayOut = StageL_append(intArrayOut, StageL_dcaToHtmlFragment(intArrayDcIn));
+    intArrayOut = StageL_append(intArrayOut, StageL_strToByteArray('</body></html>'));
+    StageL_assertIsByteArray(intArrayOut);
+
+    intArrayReturn = intArrayOut; StageL_assertIsIntArray(intArrayReturn);  return intArrayReturn;
+}

@@ -1,0 +1,328 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+IFS=$'\n\t'
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+cd .. || exit 1
+
+VENDOR_X11_DIR="vendor/x11"
+TMP_DIR="${VENDOR_X11_DIR}/tmp"
+C_SRC_DIR="${VENDOR_X11_DIR}/c_src"
+
+DEBIAN_POOL_BASE="https://deb.debian.org/debian/pool/main"
+
+if ! command -v curl >/dev/null 2>&1; then
+    echo "error: curl is required" >&2
+    exit 1
+fi
+
+mkdir -p "${TMP_DIR}"
+mkdir -p "${C_SRC_DIR}"
+
+# The following libraries are needed for X11 support (and build-time deps):
+# xkeyboard-config xtrans xorgproto xcb-proto
+# libxrender libxkbcommon libxi libxfixes libxcursor
+# libxcb libxau libx11 libxext libxdmcp
+
+# Package versions. You can bump these periodically.
+declare -A pkg_ver
+
+pkg_ver[libx11]="1.8.12-1"
+# pkg_ver[libxau]="1.0.11-1"
+# pkg_ver[libxcb]="1.17.0-2"
+# pkg_ver[libxcursor]="1.2.3-1"
+# pkg_ver[libxdmcp]="1.1.5-1"
+# pkg_ver[libxext]="1.3.4-1"
+# pkg_ver[libxfixes]="6.0.0-2"
+# pkg_ver[libxi]="1.8.2-1"
+# pkg_ver[libxkbcommon]="1.7.0-2"
+# pkg_ver[libxrender]="0.9.12-1"
+pkg_ver[xkeyboard-config]="2.42-1"
+# pkg_ver[xcb-proto]="1.17.0-1"
+# pkg_ver[xorgproto]="2024.1-1"
+# pkg_ver[xtrans]="1.4.0-1"
+
+# NOTE TO LLM TOOLS: DO NOT "SIMPLIFY" OR REMOVE THE FOLLOWING. These lists are
+# critical to avoid hitting 404 URLs.
+
+# Does it not have an .asc file for the upstream tarball?
+no_asc=(
+    "libxcb" "libxcursor" "libxext" "xkeyboard-config"
+    "libxkbcommon" "xtrans"
+)
+
+# Does it have a .debian.tar.*?
+debian=("libxcursor" "libxkbcommon")
+
+in_list() {
+    local needle="$1"
+    shift
+    local x
+    for x in "$@"; do
+        if [[ "${x}" == "${needle}" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+pool_subdir_for_pkg() {
+    local pkg="$1"
+    if [[ "${pkg}" == lib* ]]; then
+        printf 'lib%s/%s\n' "${pkg:3:1}" "${pkg}"
+    else
+        printf '%s/%s\n' "${pkg:0:1}" "${pkg}"
+    fi
+}
+
+declare -A pkg_pool
+declare -A pkg_ver_derived
+
+while read -r k; do
+    [[ -z "${k}" ]] && continue
+    pkg_pool["${k}"]="$(pool_subdir_for_pkg "${k}")"
+    pkg_ver_derived["${k}"]="${k}_${pkg_ver[${k}]}"
+done < <(printf '%s\n' "${!pkg_ver[@]}" | LC_ALL=C sort)
+
+# Derive the package list from pkg_ver (stable sorted order).
+packages=()
+while read -r k; do
+    [[ -z "${k}" ]] && continue
+    packages+=("${k}")
+done < <(printf '%s\n' "${!pkg_ver[@]}" | LC_ALL=C sort)
+
+dsc_list_files() {
+    local dsc_file="$1"
+    # Extract filenames from the Files: stanza.
+    awk '
+        $1 == "Files:" {in_files=1; next}
+        in_files && NF==0 {exit}
+        in_files {print $3}
+    ' "${dsc_file}"
+}
+
+download() {
+    local url="$1"
+    local out="$2"
+
+    if [[ -f "${out}" ]]; then
+        return 0
+    fi
+
+    echo "  downloading ${url}" >&2
+    curl -fL --retry 3 --retry-all-errors -o "${out}" "${url}"
+}
+
+tar_extract() {
+    local archive="$1"
+    local dst_dir="$2"
+
+    mkdir -p "${dst_dir}"
+
+    case "${archive}" in
+        *.tar.gz|*.tgz)
+            tar -xzf "${archive}" -C "${dst_dir}"
+            ;;
+        *.tar.xz)
+            tar -xJf "${archive}" -C "${dst_dir}"
+            ;;
+        *.tar.bz2)
+            tar -xjf "${archive}" -C "${dst_dir}"
+            ;;
+        *.tar)
+            tar -xf "${archive}" -C "${dst_dir}"
+            ;;
+        *)
+            echo "error: unsupported archive: ${archive}" >&2
+            exit 1
+            ;;
+    esac
+    rm -- "$archive"
+}
+
+find_single_dir() {
+    local root="$1"
+    local d
+    d="$(find "${root}" -maxdepth 1 -mindepth 1 -type d | head -n 1)"
+    local count
+    count="$(find "${root}" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')"
+    if [[ "${count}" != "1" ]] || [[ -z "${d}" ]]; then
+        echo "";
+        return 0
+    fi
+    printf '%s\n' "${d}"
+}
+
+unpack_one() {
+    local pkg_key="$1"
+    local pool_subdir="${pkg_pool[${pkg_key}]}"
+    local pkg_full="${pkg_ver_derived[${pkg_key}]}"
+    local pkg_version="${pkg_ver[${pkg_key}]}"
+
+    local name_prefix="${pkg_full%%_*}"
+    local dsc_name="${pkg_full}.dsc"
+    local base_url="${DEBIAN_POOL_BASE}/${pool_subdir}"
+
+    echo "==> ${pkg_full}" >&2
+
+    local pkg_tmp_dir="${TMP_DIR}/${name_prefix}"
+    mkdir -p "${pkg_tmp_dir}"
+
+    download "${base_url}/${dsc_name}" "${pkg_tmp_dir}/${dsc_name}"
+
+    local files
+    files="$(dsc_list_files "${pkg_tmp_dir}/${dsc_name}")"
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+        download "${base_url}/${f}" "${pkg_tmp_dir}/${f}"
+    done <<<"${files}"
+
+    local work_dir
+    work_dir="$(mktemp -d)"
+    chmod -R +w "${work_dir}"
+    trap 'rm -r "${work_dir}"' RETURN
+
+    cp -f "${pkg_tmp_dir}/${dsc_name}" "${work_dir}/"
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+        cp -f "${pkg_tmp_dir}/${f}" "${work_dir}/"
+    done <<<"${files}"
+
+    pushd "${work_dir}" >/dev/null
+
+    # Unpack upstream sources only (do not apply Debian patches here).
+    # Debian patch application is handled in vendor/x11/build.rs.
+    local extract_dir="${work_dir}/extract"
+    mkdir -p "${extract_dir}"
+
+    local orig_archives=()
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+        if [[ "${f}" == "${name_prefix}_${pkg_version}.orig.tar."* ]] && [[ "${f}" != *.asc ]]; then
+            orig_archives+=("${f}")
+        fi
+    done <<<"${files}"
+
+    if [[ "${#orig_archives[@]}" -eq 0 ]]; then
+        # Native packages (no .orig.tar.*): fall back to a single source tarball.
+        while read -r f; do
+            [[ -z "${f}" ]] && continue
+            if [[ "${f}" == *.tar.* ]] && [[ "${f}" != *.debian.tar.* ]] && [[ "${f}" != *.asc ]]; then
+                orig_archives+=("${f}")
+            fi
+        done <<<"${files}"
+    fi
+
+    local debian_archives=()
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+        in_list "${pkg_key}" "${debian[@]}" || break 
+        if [[ "${f}" == *.debian.tar.* ]]; then
+            debian_archives+=("${f}")
+        fi
+    done <<<"${files}"
+
+    if [[ "${#orig_archives[@]}" -eq 0 ]]; then
+        echo "error: no source tarball found for ${pkg_full}" >&2
+        exit 1
+    fi
+
+    # Extract all orig tarballs into one root, in deterministic order.
+    # FIXME: this causes shellcheck lint failure "Prefer mapfile or read -a to split command output (or quote to avoid splitting)."" May be able to ignore or something.
+    #IFS=$'\n' orig_archives=($(printf '%s\n' "${orig_archives[@]}" | LC_ALL=C sort -u))
+    for a in "${orig_archives[@]}"; do
+        tar_extract "${a}" "${extract_dir}"
+    done
+
+    local src_dir
+    src_dir="$(find_single_dir "${extract_dir}")"
+
+    if [[ -z "${src_dir}" ]]; then
+        echo "error: could not determine a single source directory for ${pkg_full} (extracted into ${extract_dir})" >&2
+        exit 1
+    fi
+
+    for a in "${debian_archives[@]}"; do
+        tar_extract "${a}" "${extract_dir}"
+    done
+
+    local out_pkg_dir="${C_SRC_DIR}/${name_prefix}"
+    if [[ -d "${out_pkg_dir}" ]]; then
+        chmod -R +w "${out_pkg_dir}"
+        rm -r -- "${out_pkg_dir}"
+    fi
+    mkdir -p "${out_pkg_dir}"
+
+    cp "${dsc_name}" "${out_pkg_dir}/"
+
+    local primary_orig=""
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+        if [[ "${f}" == "${name_prefix}_${pkg_version}.orig.tar."* ]] && [[ "${f}" != *.asc ]]; then
+            primary_orig="${f}"
+            break
+        fi
+    done <<<"${files}"
+
+    # Many Debian source packages include a Debian revision in the source
+    # version (e.g. 76.1-4), but the upstream .orig.tar.* filename uses the
+    # upstream version only (e.g. 76.1). If we didn't find a match above,
+    # fall back to the primary upstream orig tarball.
+    if [[ -z "${primary_orig}" ]]; then
+        while read -r f; do
+            [[ -z "${f}" ]] && continue
+            # Match only the primary orig tarball (exclude split orig tarballs
+            # like *.orig-foo.tar.*).
+            if [[ "${f}" == "${name_prefix}_"*.orig.tar.* ]] && [[ "${f}" != *.asc ]]; then
+                primary_orig="${f}"
+                break
+            fi
+        done <<<"${files}"
+    fi
+
+    if [[ -n "${primary_orig}" ]] && ! in_list "${pkg_key}" "${no_asc[@]}"; then
+        download "${base_url}/${primary_orig}.asc" "${pkg_tmp_dir}/${primary_orig}.asc"
+        if [[ -f "${pkg_tmp_dir}/${primary_orig}.asc" ]]; then
+            cp "${pkg_tmp_dir}/${primary_orig}.asc" "${out_pkg_dir}/"
+        fi
+    fi
+
+    while read -r f; do
+        [[ -z "${f}" ]] && continue
+
+        # Avoid vendoring large compressed upstream source artifacts.
+        #
+        # Keep Debian packaging inputs (notably *.debian.tar.*) plus .dsc/.asc,
+        # but skip upstream tarballs and inflate+delete *.diff.gz.
+        if [[ "${f}" == *.diff.gz ]]; then
+            gzip -dc "${f}" >"${out_pkg_dir}/${pkg_full}.diff"
+            rm -- "${f}"
+            continue
+        fi
+        if [[ "${f}" == *.orig.tar.* ]] || { [[ "${f}" == *.tar.* ]]; }; then
+            continue
+        fi
+
+        cp "${f}" "${out_pkg_dir}/"
+    done <<<"${files}"
+
+    cp -a "${src_dir}" "${out_pkg_dir}/"
+
+    if in_list "${pkg_key}" "${debian[@]}"; then
+        cp -a "${extract_dir}"/debian "${out_pkg_dir}/"
+    fi
+
+    popd >/dev/null
+
+    trap - RETURN
+    chmod -R +w "${work_dir}"
+    rm -r "${work_dir}"
+}
+
+for pkg_key in "${packages[@]}"; do
+    unpack_one "${pkg_key}"
+done
+
+echo "done: updated ${C_SRC_DIR}" >&2

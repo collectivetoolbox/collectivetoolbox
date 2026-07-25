@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = Bienvenido al asistente de instalación
+theme = Tema:
+theme-auto = 🔄 Autodetectar
+theme-light = ☀ Claro
+theme-dark = 🌙 Oscuro
+quick-install = Instalación rápida
+customize = Personalizar...
+quick-install-prompt = ¿Usar instalación rápida con configuración predeterminada?
+read-license-button = Leer el texto completo de la licencia...
+read-license-prompt = (o «l» para leer el texto completo de la licencia):
+license-header = Licencia
+press-enter-to-return = Pulse Intro para volver...
+press-enter-to-continue = Pulse Intro para continuar...
+pager-continue = -- Más -- (Intro para continuar, q para cerrar):
+intro-invalid-input = Introduzca «y» o «n», o «l» para la licencia.
+prompt-invalid-yes-or-no = Introduzca «y» o «n».
+prompt-enter-choice = Introduzca la opción [1-{ $choice }, predeterminada={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = Opciones de instalación
+install-dir = Directorio de instalación:
+storage-dir = Directorio de almacenamiento:
+add-to-start-menu = Añadir al menú Inicio:
+add-to-dock = Añadir al Dock:
+add-desktop-shortcut = Crear icono de escritorio:
+add-to-path = Agregar a PATH:
+language = Idioma 🌏︎:
+storage-dir-note = Nota: El directorio de almacenamiento se usará para bases de datos, registros y datos de usuario. Asegúrese de que haya suficiente espacio en disco disponible.
+browse = Examinar...
+options-configured = Opciones configuradas correctamente.
+parent-directory-not-exists = Advertencia: El directorio principal «{ $path }» no existe.
+create-dir-during-installation = ¿Desea crearlo durante la instalación?
+enter-number-range = Introduzca un número entre 1 y { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = Seleccionar ubicación
+file-picker-select-folder = Seleccionar carpeta
+file-picker-select-file = Seleccionar archivo
+file-picker-save-file = Guardar archivo
+file-picker-back = Atrás (Alt+B)
+file-picker-forward = Adelante (Alt+F)
+file-picker-up = Arriba (Alt+U)
+file-picker-refresh = Actualizar (Alt+R)
+file-picker-new-folder = Nueva carpeta (Alt+N)
+file-picker-create = Crear (Alt+E)
+file-picker-cancel-new-folder = Cancelar (Alt+A)
+file-picker-more-menu = Más... (Alt+M)
+file-picker-show-hidden = Mostrar archivos ocultos (Alt+H)
+file-picker-path = Ruta:
+file-picker-file-name = Nombre del archivo:
+file-picker-places = Ubicaciones
+file-picker-home = Inicio
+file-picker-desktop = Escritorio
+file-picker-documents = Documentos
+file-picker-downloads = Descargas
+file-picker-this-pc = Este PC
+file-picker-empty = (vacío)
+file-picker-invalid-path = Ruta no válida: { $path }
+file-picker-folder-exists = «{ $name }» ya existe
+file-picker-create-folder-failed = Error al crear la carpeta: { $error }
+file-picker-folder-name-empty = El nombre de la carpeta no puede estar vacío.
+file-picker-ok = Aceptar (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = Seleccionar componentes
+components-instruction = Elija qué componentes instalar:
+complete = Completa
+complete-tooltip = Seleccionar todos los componentes opcionales para una instalación completa
+minimal = Mínima
+minimal-tooltip = Seleccionar solo los componentes requeridos para una instalación mínima
+selected-size = Seleccionado: { $selected } (de { $total } total)
+storage-space-note = Estos tamaños de archivo reflejan el almacenamiento necesario para la aplicación. Sus propios documentos ocuparán espacio adicional; si no está seguro de cuánto necesitará, recomendamos tener al menos 20 GB libres.
+required = (requerido)
+toggle-prompt = Ingrese el número de componente para alternar:
+option-toggle = Alternar
+option-continue = Continuar
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = Instalando...
+overall-progress = Progreso general: { $completed }/{ $total } archivos
+current-file = Archivo actual: { $path }
+chunk-progress = Fragmento { $current }/{ $total }
+installation-log = Registro de instalación:
+starting-installation = Iniciando instalación...
+downloading-file = Descargando: { $path } ({ $chunks } fragmentos)
+downloading-chunk = Descargando fragmento { $current }/{ $total }...
+using-cached-chunk = Usando fragmento en caché { $current }/{ $total }
+file-installed = Instalado: { $path } ({ $size } bytes)
+retry-error = Reintento { $attempt }/{ $max }: { $message }
+error = Error: { $message }
+retry = Reintentar
+cancel = Cancelar
+installation-complete-count = Instalación completa: { $count } archivos instalados.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = ¡Instalación completada!
+install-success = { $app } se ha instalado correctamente.
+quick-install-success = { $app } se ha instalado correctamente.
+launch-after-install = Iniciar { $app } después de cerrar
+finish = Finalizar
+summary = Resumen:
+start-menu-shortcut = Acceso directo al menú Inicio: { $value }
+dock-shortcut = Acceso directo al Dock: { $value }
+desktop-shortcut = Acceso directo en escritorio: { $value }
+added-to-path = Agregado a PATH: { $value }
+yes = Sí
+no = No
+launch-now-prompt = ¿Iniciar { $app } ahora?
+launching = Iniciando { $app }...
+thank-you = ¡Gracias por instalar { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = Reparar instalación
+repair-description = Esto verificará y reparará su instalación. Los archivos faltantes o dañados se volverán a descargar.
+current-installation = Instalación actual:
+location = Ubicación: { $path }
+start-repair = Iniciar reparación
+starting-repair = Iniciando reparación...
+continue-repair-prompt = ¿Continuar con la reparación?
+repair-cancelled = Reparación cancelada.
+repair-complete = ¡Reparación completa!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = Desinstalar { $app }
+uninstall-warning = Advertencia: Esto eliminará la aplicación de su sistema.
+will-be-removed = Se eliminará lo siguiente:
+application-files = Archivos de la aplicación: { $path }
+desktop-shortcuts = Accesos directos (menú Inicio/Dock y escritorio)
+path-modifications = Modificaciones de PATH
+data-not-removed = Nota: Sus archivos de datos NO se eliminarán.
+data-location = Ubicación de datos: { $path }
+uninstall = Desinstalar
+starting-uninstall = Iniciando desinstalación...
+confirm-uninstall-prompt = ¿Está seguro de que desea desinstalar?
+uninstall-cancelled = Desinstalación cancelada.
+removing-files = Eliminando archivos...
+uninstall-complete = { $app } ha sido desinstalado.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← Atrás
+next = Siguiente →
+install = Instalar →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = Este asistente le guiará a través del proceso de instalación. Puede personalizar las opciones de instalación o usar los valores predeterminados.
+unattended-mode = Ejecutando en modo desatendido - usando valores predeterminados.
+yes-no-help = Por favor ingrese 's' o 'n'.
+number-choice-help = Por favor ingrese un número entre 1 y { $max }.
+what-to-do = ¿Qué le gustaría hacer?
+parent-dir-warning = Advertencia: El directorio padre '{ $path }' no existe.
+create-dir-prompt = ¿Crearlo durante la instalación?
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = Instalador de { $app }
+window-repair = { $app } - Reparar
+window-uninstall = { $app } - Desinstalar

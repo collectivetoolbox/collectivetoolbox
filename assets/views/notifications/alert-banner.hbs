@@ -1,0 +1,18 @@
+{{!-- Parameters: level (info/warning/error/debug), message, dismissible (bool) --}}
+<div class="alert-banner alert-banner-{{#if level}}{{level}}{{else}}info{{/if}}" role="alert">
+    <div class="alert-banner-icon">
+        {{#if level}}
+            {{> icons._icon name=level alt=level }}
+        {{else}}
+            {{> icons._icon name="info" alt=level }}
+        {{/if}}
+    </div>
+    <div class="alert-banner-content">
+        {{#if message}}{{message}}{{else}}{{{content}}}{{/if}}
+    </div>
+    {{#if dismissible}}
+    <button class="alert-banner-dismiss" aria-label="Dismiss">
+        {{> icons._icon name="close" alt="Close" }}
+    </button>
+    {{/if}}
+</div>

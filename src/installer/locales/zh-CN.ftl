@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = 欢迎使用安装向导
+theme = 主题：
+theme-auto = 🔄 自动检测
+theme-light = ☀ 浅色
+theme-dark = 🌙 深色
+quick-install = 快速安装
+customize = 自定义...
+quick-install-prompt = 使用默认设置进行快速安装？
+read-license-button = 阅读完整的许可文本...
+read-license-prompt = (或 'l' 阅读整个许可文本)：
+license-header = 许可协议
+press-enter-to-return = 按Enter返回...
+press-enter-to-continue = 按Enter键继续...
+pager-continue = -- 更多 -- (按Enter继续，按q关闭):
+intro-invalid-input = 请输入 'y' 或 'n' 或 'l' 以获取许可证。
+prompt-invalid-yes-or-no = 请输入 'y' 或 'n'。
+prompt-enter-choice = 输入选择 [1-{ $choice }, 默认 ={ $default }]：
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = 安装选项
+install-dir = 安装目录：
+storage-dir = 存储目录：
+add-to-start-menu = 添加到开始菜单：
+add-to-dock = 添加到Dock：
+add-desktop-shortcut = 创建桌面图标：
+add-to-path = 添加到 PATH：
+language = 语言 🌏︎：
+storage-dir-note = 注意：存储目录将用于数据库、日志和用户数据。请确保有足够的磁盘空间。
+browse = 浏览...
+options-configured = 选项配置成功。
+parent-directory-not-exists = 警告：父目录 '{ $path }' 不存在。
+create-dir-during-installation = 在安装过程中创建它？
+enter-number-range = 请输入 1 到 { $max } 之间的数字。
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = 选择位置
+file-picker-select-folder = 选择文件夹
+file-picker-select-file = 选择文件
+file-picker-save-file = 保存文件
+file-picker-back = 返回(Alt+B)
+file-picker-forward = 前进(Alt+F)
+file-picker-up = 上 (Alt+U)
+file-picker-refresh = 刷新 (Alt+R)
+file-picker-new-folder = 新文件夹 (Alt+N)
+file-picker-create = 创建 (Alt+E)
+file-picker-cancel-new-folder = 取消 (Alt+A)
+file-picker-more-menu = 更多... (Alt+M)
+file-picker-show-hidden = 显示隐藏文件 (Alt+H)
+file-picker-path = 路径：
+file-picker-file-name = 文件名：
+file-picker-places = 位置
+file-picker-home = 主页
+file-picker-desktop = 桌面
+file-picker-documents = 文档
+file-picker-downloads = 下载
+file-picker-this-pc = 此电脑
+file-picker-empty = (空)
+file-picker-invalid-path = 路径无效：{ $path }
+file-picker-folder-exists = ‘{ $name }’ 已存在
+file-picker-create-folder-failed = 创建文件夹失败：{ $error }
+file-picker-folder-name-empty = 文件夹名称不能为空
+file-picker-ok = 确定 (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = 选择组件
+components-instruction = 选择要安装的组件：
+complete = 完整
+complete-tooltip = 选择所有可选组件以进行完整安装
+minimal = 最小
+minimal-tooltip = 仅选择必需组件以进行最小安装
+selected-size = 已选择：{ $selected }（共 { $total }）
+storage-space-note = 这些文件大小反映了应用程序本身所需的存储空间。您自己的文档将占用额外空间；如果您不确定需要多少，我们建议至少保留 20 GB 的可用空间。
+required = （必需）
+toggle-prompt = 输入要切换的组件编号：
+option-toggle = 切换
+option-continue = 继续
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = 正在安装...
+overall-progress = 总体进度：{ $completed }/{ $total } 个文件
+current-file = 当前文件：{ $path }
+chunk-progress = 块 { $current }/{ $total }
+installation-log = 安装日志：
+starting-installation = 正在开始安装...
+downloading-file = 正在下载：{ $path }（{ $chunks } 个块）
+downloading-chunk = 正在下载块 { $current }/{ $total }...
+using-cached-chunk = 使用缓存的块 { $current }/{ $total }
+file-installed = 已安装：{ $path }（{ $size } 字节）
+retry-error = 重试 { $attempt }/{ $max }：{ $message }
+error = 错误：{ $message }
+retry = 重试
+cancel = 取消
+installation-complete-count = 安装完成：已安装 { $count } 个文件。
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = 安装完成！
+install-success = { $app } 已成功安装。
+quick-install-success = { $app } 已成功安装。
+launch-after-install = 关闭后启动 { $app }
+finish = 完成
+summary = 摘要：
+start-menu-shortcut = 开始菜单快捷方式：{ $value }
+dock-shortcut = Dock快捷方式：{ $value }
+desktop-shortcut = 桌面快捷方式：{ $value }
+added-to-path = 已添加到 PATH：{ $value }
+yes = 是
+no = 否
+launch-now-prompt = 现在启动 { $app }？
+launching = 正在启动 { $app }...
+thank-you = 感谢您安装 { $app }！
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = 修复安装
+repair-description = 这将验证并修复您的安装。缺失或损坏的文件将被重新下载。
+current-installation = 当前安装：
+location = 位置：{ $path }
+start-repair = 开始修复
+starting-repair = 正在开始修复...
+continue-repair-prompt = 继续修复？
+repair-cancelled = 修复已取消。
+repair-complete = 修复完成！
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = 卸载 { $app }
+uninstall-warning = 警告：这将从您的系统中删除应用程序。
+will-be-removed = 以下内容将被删除：
+application-files = 应用程序文件：{ $path }
+desktop-shortcuts = 快捷方式（开始菜单/Dock 和桌面）
+path-modifications = PATH 修改
+data-not-removed = 注意：您的数据文件不会被删除。
+data-location = 数据位置：{ $path }
+uninstall = 卸载
+starting-uninstall = 正在开始卸载...
+confirm-uninstall-prompt = 您确定要卸载吗？
+uninstall-cancelled = 卸载已取消。
+removing-files = 正在删除文件...
+uninstall-complete = { $app } 已被卸载。
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = ← 返回
+next = 下一步 →
+install = 安装 →
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = 本向导将引导您完成安装过程。您可以自定义安装选项或使用默认值。
+unattended-mode = 正在以无人值守模式运行 - 使用默认值。
+yes-no-help = 请输入 'y' 或 'n'。
+number-choice-help = 请输入 1 到 { $max } 之间的数字。
+what-to-do = 您想做什么？
+parent-dir-warning = 警告：父目录 '{ $path }' 不存在。
+create-dir-prompt = 在安装过程中创建它？
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = { $app } 安装程序
+window-repair = { $app } - 修复
+window-uninstall = { $app } - 卸载

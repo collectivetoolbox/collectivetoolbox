@@ -1,0 +1,62 @@
+<div class="flex flex-col gap-4">
+    <h2>Table: <code>{{table_name}}</code> <small>(in {{current_db}})</small></h2>
+
+    <div class="overflow-x-auto sticky-table-container">
+        <table class="w-full text-start border-collapse">
+            <thead>
+                <tr class="border-b">
+                    {{#each columns}}
+                        <th class="py-2 px-4"><code>{{this}}</code></th>
+                    {{/each}}
+                </tr>
+            </thead>
+            <tbody>
+                {{#each values}}
+                    <tr class="border-b">
+                        {{#each this}}
+                            <td class="py-2 px-4">
+                                {{#if this.link_url}}
+                                    <a href="{{this.link_url}}"><code>{{this.value}}</code></a>
+                                {{else}}
+                                    <code>{{this.value}}</code>
+                                {{/if}}
+                            </td>
+                        {{/each}}
+                    </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 py-4 border-t border-b">
+        <div>
+            Showing page {{page}} of {{total_pages}} ({{total_rows}} total rows)
+        </div>
+        <div class="flex gap-2">
+            {{#if has_prev}}
+                <a href="/debug/db-tables/{{table_name}}?db_name={{current_db}}&page={{prev_page}}" class="btn btn-secondary">
+                    &larr; Previous
+                </a>
+            {{else}}
+                <button type="button" class="btn btn-secondary" disabled>&larr; Previous</button>
+            {{/if}}
+
+            {{#if has_next}}
+                <a href="/debug/db-tables/{{table_name}}?db_name={{current_db}}&page={{next_page}}" class="btn btn-secondary">
+                    Next &rarr;
+                </a>
+            {{else}}
+                <button type="button" class="btn btn-secondary" disabled>Next &rarr;</button>
+            {{/if}}
+        </div>
+    </div>
+
+    <div class="flex justify-start mt-4">
+        <a href="/debug/db-tables?db_name={{current_db}}" class="btn btn-secondary">
+            {{> icons._icon name="arrow-left" alt="" }}
+            <span>Back to Tables</span>
+        </a>
+    </div>
+</div>
+

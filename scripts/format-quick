@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+commit() {
+    pushd ~/ctoolbox/vendor || exit 1
+    git add . || true
+    git commit -m 'style: Commit before formatting automatically' || true
+    popd || exit 1
+    pushd ~/ctoolbox || exit 1
+    git add . || true
+    git commit -m 'style: Format automatically' || true
+    popd || exit 1
+}
+
+commit
+cargo fmt --all ||  { echo "ERROR: cargo fmt --all failed"; exit 1; }
+commit

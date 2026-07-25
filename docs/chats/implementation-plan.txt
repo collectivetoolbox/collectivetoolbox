@@ -1,0 +1,472 @@
+Hi Copilot,
+
+Here's an overview for my desktop graph database app (written in Rust). Could you develop a manageable step-by-step implementation plan for me? I've gotten some initial UI working, but user/application data and logic are not yet implemented.
+
+
+
+Each user can have one or more local graphs, and there will eventually also be a shared global graph/shared library that will fill a similar role to Wikidata, in providing resources about common concepts that can be queried and integrated into users' documents in their local graph. Users' individual graphs can be made able to be shared within a team if they so choose. A user will always have at least one primary graph, and its data should be stored indistinguishably from cached global graph data to avoid indicating how much individual data they have (as it might be 100% cached global data, or 0%). The user's primary graph can't be shared. Other graphs would indicate how much data they contained. Revoking access to a shared graph wouldn't revoke access to data already read and copied, but it should prevent new reads of both preexisting and newly added data.
+
+Nodes from local graphs can reference nodes in other local graphs, and nodes in the global graph. Nodes in the global graph can only reference the global graph. I'd like to prioritize getting a single-user local graph working first, a global graph as the second priority, leaving shared local graphs for last as I anticipate the ACL stuff to be the hardest piece.
+
+- Users have some basic public info stored in redb (key-value) databases.
+- The actual user data will be stored in individual redb databases, and indices in Roaring bitmaps. [Later note: Moved to using Turso as the database instead of redb.]
+    - Malware with admin/root on the same machine is out of scope to protect against, but data should be encrypted at rest in case a machine is stolen. I can't count on users having their own disk encryption.
+    - Each user's redb databases will be encrypted using rage crate so that other users can't read their data, using a per-user key.
+    - Databases will be limited in size, broken up by ID ranges, because if a user has a ton of data, it should be able to be partly or wholly offloaded onto cloud/external storage/whatever, and big files are inconvenient. Once a database reaches ~32MB after compression, it'll roll over to a new one, and the ranges in each file recorded in a separate index database.
+    - The databases will use redb's in-memory database backing, and will be compressed and encrypted when they're not being read.
+    - The databases will be append-only, with garbage collection repacking once some threshold of deleted data within them has been reached - this will hopefully avoid frequent and rewrites of older databases - at most 4 or 5 32MB chunks would need to be rewritten for a single new node, I think, and new writes could be buffered in memory and actually committed in the background to hopefully make that less painful.
+    - Updates should happen atomically by then acquiring a lock on each file on disk to be modified, checking if any files with pending writes are present, if a complete new updated graph database fragment is already present it implies a failed previous transaction so delete any pending indices and re-derive them from the pending database fragment, then finish the pending write, and then do the new write, then appending a new entry to the graph and relevant indices, compressing/encrypting in memory, then write out the pending new files, then move them into place, then release the lock. You wrote earlier that "Transactionality across multiple redb files and “fragments” is not automatic; careful boundaries or a 2PC-like approach are needed." I hope this addresses that point.
+    - To avoid leaking too much metadata, after compression and encryption, the database files will be padded to 32MB.
+    - Indices would be stored and queried as Roaring bitmaps, again rolling over and split at 32MB.
+    - For very hot indexes, maintain a small write-optimized delta structure (append-only list or small roaring) periodically merged into the main bitmap.
+    - I think indices would need to be combined into single files if they were much less than 32MB when possible, because each node would need its own set of indices, which would get extremely large if each one took up 32MB no matter how little data it held.
+
+In ~/.local/share/collectivetoolbox (or equivalent on other OS):
+
+```
+config/pc_settings.json # Settings readable by any user, cryptographically signed by an admin
+users/ids.redb # Key-value: user name -> user id
+users/auth.redb # user id -> PHC password hash
+users/pictures.redb # user id -> user picture
+users/pubkeys.redb # user_id -> pubkey
+users/key_encryption_key_params.redb # user id -> {argon2_params, salt}
+graphs/0/0 # User 0's data for graph 0, including any global graph data
+graphs/0/0/manifest.redb.enc # Mapping of what databases and ID ranges are in what files. (e.g. "3_node_has_instances" => "12711 12899 [UUID]") If more than 32MB of index are needed, it would become a "meta-index" and only point to the other chunks of the index.
+graphs/0/0/keys.redb.enc # wrapped GK, FK wraps, ACL entries
+graphs/0/0/data/[UUID] # Database fragment
+graphs/0/0/data/[UUID] # Index fragment
+graphs/0/0/data/[UUID] # Database fragment
+graphs/0/0/data/[UUID] # Database fragment
+graphs/0/0/data/[UUID] # Index fragment
+graphs/0/0/data/[UUID] # Index fragment
+[etc...]
+graphs/1/3 # User 1's data for their 3rd graph, same structure as above
+```
+
+The databases a user would have, which get saved into their folder, would include:
+
+- For each of the user's graphs:
+  - The original data in their graph (semantic triples and documents)
+  - Index of what graph ID ranges are held in what graph database files
+  - Indices into the graph:
+    - node type has instances
+    - node is origin in relationships
+    - node is target in relationships
+    - string has node: "x" (25)
+- For the global graph, locally cached parts of all of the above.
+
+The idea being that features should be implemented through set operations on the indices.
+
+You also provided these details. I know everyone says "don't roll your own cryptography" (and I am definitively not qualified to). Most of this I don't understand (yet!), so I'm just leaving it here with some tweaks and comments so you can take it into account in an implementation plan "Simply explained".
+
+# Key management and encryption strategy
+- Use a layered key hierarchy with envelope encryption. Avoid deriving the data key directly from the password. [NOTE: I'm not clear on what here should be stored in the shared databases that are readable by all users and used for the login process, versus what should be exclusively readable after login.]
+  - Per-user KEK (key-encryption key): derived from password via Argon2id with a unique per-user salt and stored Argon parameters.
+  - Per-user DEK (data-encryption key): random 256-bit, wrapped by KEK (AEAD). Changing password = rewrap DEK only; no data rewrite.
+  - Per-graph key (GK): random 256-bit. Encrypt content/file keys with GK. GK is wrapped by the user’s DEK (for personal graphs) or by access control entries (for shared graphs).
+  - Per-file key (FK): random 256-bit per DB file/segment. File contents are encrypted under FK (AEAD). FK is wrapped by GK. [NOTE: I'm not clear on why a per-file key is needed?]
+- For shared graphs (team access):
+  - Maintain key slots: GK wrapped for each authorized principal (user public key/age recipient). Revoke access by:
+    - Rotating GK and re-wrapping for remaining users (fast, prevents future reads of updates).
+    - Optionally rotating FKs and re-encrypting contents in background for forward secrecy.
+- Crypto building blocks:
+  - Password KDF: Argon2id with calibrated memory/time; store salt and parameters in PHC format.
+  - AEAD: XChaCha20-Poly1305 (nonce misuse-resistant, streaming-friendly) or AES-GCM-SIV (if HW AES acceleration available).
+  - Public-key wrapping: age/X25519 recipients (age/rage ecosystem), or libsodium sealed boxes.
+  - Secrets handling: secrecy and zeroize crates; lock memory on supported OS if practical.
+
+# Integrity and freshness:
+  - Always use AEAD and include associated data that binds: graph_id, file_id, version, and segment index.
+  - For offloaded/cloud segments, store a signed manifest with Merkle root over objects to detect missing/replayed chunks.
+
+# Passwords and auth data
+- Store password hashes and KEK salts/params separately.
+  - Password verification hash: Argon2id with its own salt and parameters (PHC string). Never reuse salts between hash and KEK.
+  - Optional pepper (application-level secret) stored in OS secret storage or server KMS.
+- user_passwords.redb: Store user_id -> {phc_hash} only; keep derivation context separate for KEK.
+
+# Sharing and revocation details
+  - Prevent decryption of future updates and rekeyed keys,
+  - Optionally rotate file keys and re-encrypt content to block decryption from stored ciphertext in shared storage.
+- Maintain an access control list with:
+  - Principal ID, public key, created_at, revoked_at, and key-slot material (wrapped GK).
+  - For auditability, record key rotations and signer identity.
+
+# Config signing and rollback protection
+- If pc_settings.json must be signed:
+  - Use Ed25519; include a version and monotonic counter/timestamp in the signed payload.
+  - Store trusted admin public keys in a protected config store; use “trust on first use” or provisioned roots.
+  - Persist last-accepted version to prevent rollback to older signed configs.
+
+# Crash consistency and durability
+- Ensure fsync after writing encrypted segments, manifest, and indexes in the right order:
+  - Write new segment -> fsync
+  - Update encrypted FK wrap if needed -> fsync
+  - Update manifest/index last -> fsync
+- On startup, run a small recovery routine that replays/repairs partially completed operations using write-intent records.
+
+# Performance & parameters
+  - Argon2id parameters: calibrate at startup to ~250–500 ms on target hardware; record chosen params per user in PHC. [NOTE: I don't get this - calibrating to hardware means if the user's running on a slow computer, all an attacker would have to do is copy the data out to reduce its security. Using a fixed, secure number of rounds feels better to me, and just accepting that it might be slow. Especially when the account data gets synced between machines, tying the argon2id settings to the specific hardware they signed up on doesn't sound right to me.]
+  - Nonce strategy: XChaCha20-Poly1305 with random 192-bit nonce per chunk; store nonce alongside chunk.
+  - AEAD: XChaCha20-Poly1305 via orion or libsodium (sodiumoxide). Nonce: random 24 bytes per object/chunk; include AAD.
+  - Ed25519 signatures for config with ed25519-dalek; include version/counter and created_at in signed JSON.
+
+# Key objects:
+  - KEK = Argon2id(password, salt, params)
+  - DEK encrypted_blob = AEAD_Enc(KEK, DEK, aad=user_id)
+  - GK encrypted_blob = AEAD_Enc(DEK, GK, aad=graph_id)
+  - FK encrypted_blob = AEAD_Enc(GK, FK, aad=shard_id)
+  - Each shard file = AEAD_Enc(FK, shard_plaintext, aad=(graph_id, shard_id, version))
+
+# Revocation and sharing workflow
+  - Share graph with user B:
+    - Add key slot: wrap GK to user B’s public key (age/X25519) or AEAD under user B’s DEK.
+    - Update ACL and manifest; commit atomically.
+  - Revoke user B:
+    - Rotate GK; re-wrap for remaining users; update ACL/manifest.
+    - Optionally rotate FKs and re-encrypt shards in background to remove access to stored ciphertext with old GK.
+    - Make sure UI is clear that it can't guarantee revocation of access to data already read since it might have been copied.
+
+
+
+
+
+
+Here’s a practical, staged implementation plan to take your Rust desktop graph database from concept to a robust single-user product, then expand to global cache and finally shared graphs. It is organized as milestones with concrete deliverables, acceptance criteria, and guidance on data layout, crypto, and crash safety. I’ve also answered your key open questions at the end.
+
+High-level phases
+- Phase 0: Foundations and scaffolding
+- Phase 1: Single-user graph core (unshared)
+- Phase 2: Reliability, performance, and ergonomics
+- Phase 3: Global graph cache
+- Phase 4: Team/shared graphs and ACLs
+- Phase 5: Offloading/cloud, Merkle manifests, and advanced ops
+
+Milestone-by-milestone plan
+
+Milestone 0 — Repo scaffolding and core crates
+Goal: Establish clean boundaries so you can implement features incrementally and swap internals without UI churn.
+
+- Create crates/modules:
+  - app-ui-integration: bridge UI events to core APIs; no persistence here.
+  - core-model: IDs, node/edge types, graph semantics, query API traits.
+  - storage: redb-backed in-memory stores, shard/manifest formats, I/O, fsync/atomic renames, locks.
+  - index: roaring bitmaps and delta layers; set-ops utilities.
+  - crypto: KEK/DEK/GK/FK key hierarchy, AEAD wrappers, Argon2id, ed25519 signing, age wrappers, secrecy/zeroize handling.
+  - auth: user registry, PHC hashes, KEK params, DEK wrapping.
+  - recovery: write-intent logs, startup repair.
+  - config: signed pc_settings.json verification and TOFU [Trust On First Use] roots (stubbed initially).
+
+- Decisions/datatypes:
+  - ID widths: u64 for node/edge IDs; u32 for graph_id; shard_id = UUID (16 bytes).
+  - Roaring: use roaring::RoaringBitmap64.
+  - Compression: zstd (zstd-safe) with level tuned later.
+  - AEAD: chacha20poly1305 crate with XChaCha20Poly1305; or orion. Use random 24-byte nonces per object.
+  - Locks: parking_lot::Mutex/RwLock; file locks with fs2.
+
+Acceptance criteria:
+- Clean compilation with empty shells.
+- CI building on your dev OSes.
+- Basic logging/tracing (tracing crate) wired and config toggles.
+
+Milestone 1 — User management, key hierarchy, and directory layout (single-user)
+Goal: Implement secure user creation/login and on-disk layout with encrypted blobs—no graph yet.
+
+- On-disk layout (Linux example; adjust for OS):
+  - ~/.local/share/collectivetoolbox/
+    - config/pc_settings.json (unsigned initially)
+    - users/ids.redb
+    - users/auth.redb                   # user_id -> PHC password hash (verification only)
+    - users/key_encryption_key_params.redb  # user_id -> Argon2id params+salt (for KEK)
+    - users/wrapped_dek.redb            # user_id -> AEAD_Enc(KEK, DEK, aad=user_id)
+    - users/pubkeys.redb                # user_id -> age/ed25519 pubkeys (prep for sharing)
+    - graphs/<user_id>/<graph_id>/
+      - manifest.redb.enc               # AEAD under GK (single-user) or DEK
+      - keys.redb.enc                   # GK wraps, FK wraps, ACL entries (for now: GK wrapped by DEK)
+      - data/<uuid>.dat                 # encrypted, padded. Redb or Roaring index (indistinguishable without the decrypted manifest)
+- Implement auth crate:
+  - Create user: allocate user_id, write ids.redb; derive KEK from password with stored per-user salt/params; generate random 256-bit DEK; store PHC hash for login; store wrapped DEK into users/wrapped_dek.redb.
+  - Login: verify PHC hash; derive KEK; unwrap DEK. Keep DEK only in memory with secrecy and zeroize; avoid logging secrets.
+
+- Crypto crate:
+  - KEK: Argon2id(password, salt, params).
+  - AEAD: XChaCha20-Poly1305.
+  - API: wrap_key(kek, dek, aad), unwrap_key(…), seal_bytes(key, aad, plaintext), open_bytes(…).
+
+Acceptance criteria:
+- Can create a user and log in/out.
+- On-disk stores created, with wrapped DEK present.
+- Secrets wiped after use (zeroize on Drop).
+
+Milestone 2 — Minimal single-user graph storage (no indices yet)
+Goal: Persist a small local graph with encrypted shards and a manifest; append-only write path with atomic commit.
+
+- Core-model:
+  - Types: Node {id, type, props}, Edge {id, origin, relation, target, props}, Document (optional).
+  - Graph API (MVP): add_node, add_edge, get_node, get_outgoing(node), get_incoming(node), list_nodes_by_type(type).
+
+- Storage internals:
+  - In-memory redb: Use an in-memory redb instance per graph session for nodes/edges.
+  - Shards: Object “snapshot” files that contain a range of IDs; serialized chunk with zstd, then AEAD under FK; pad to 32 MB after encryption. Store unpadded_len and metadata in header.
+  - Manifest (encrypted): map from logical DB partitions to shards:
+    - segments: [ { kind: "nodes"|"edges"|"doc"|"index", id_range: [start,end], shard_uuid, version } ]
+    - Also track FK wraps per shard_uuid (or keep FK wraps in keys.redb.enc).
+  - Keys file (encrypted): GK wrapped by DEK. For this MVP, one GK per graph. FK per shard, wrapped by GK.
+
+- Write flow (MVP):
+  - Allocate IDs, write to in-memory redb.
+  - On flush/commit: determine segments to persist or extend; produce new shard(s) (32MB target logical chunks before compression; then pad to 32MB after encryption).
+  - Generate FK per new shard, encrypt shard, write to temp file; fsync.
+  - Update keys.redb.enc with new FK wraps; fsync.
+  - Update manifest.redb.enc; fsync.
+  - Atomic rename/move temp -> final for shards and metadata; fsync containing dir.
+  - Lock ordering: graph-global lock prevents concurrent writers; per-file locks as needed.
+
+- Read flow:
+  - On open graph: decrypt manifest using GK; then map which shards hold which ID ranges; open and cache needed shards minimally.
+
+Acceptance criteria:
+- Add/read nodes and edges after restart with no indices.
+- Files appear padded to 32MB minimum after encryption (combine very small indices later).
+- Crash-safety basic: power-cut after shard write should not corrupt prior state.
+
+Milestone 3 — Indices v1 and set-ops API
+Goal: Implement core indices and a query layer that uses set operations.
+
+- Indices to implement:
+  - node_type_has_instances: type_id -> Roaring64 of node_ids.
+  - node_is_origin_in_relationships: node_id -> Roaring64 of edge_ids or target_ids by relation type.
+  - node_is_target_in_relationships: node_id -> Roaring64 of edge_ids or origin_ids by relation type.
+  - string_has_node_exact: string_id -> Roaring64 of node_ids. Add a string table: exact strings -> string_id.
+
+- Delta structure:
+  - For each hot index, maintain a small append-only delta (in-memory Roaring64 + WAL shard on commit) that periodically merges into the main bitmap.
+  - Persist index shards similarly to data shards (encrypted, padded); maintain index meta in manifest.
+
+- Query API (core-model/index):
+  - set_ops: and, or, and_not over bitmaps.
+  - High-level queries:
+    - nodes_by_type(type_id) -> iter node_ids
+    - neighbors(node_id, relation?) -> node_ids
+    - nodes_by_exact_string(s) -> node_ids
+    - compose queries via set algebra
+
+Acceptance criteria:
+- Functional queries over indices return correct results across restarts.
+- Merging deltas reduces read amplification; simple policy (e.g., merge when delta > 5% of base).
+
+Milestone 4 — Transactionality and recovery (write-intent journal)
+Goal: Make multi-file commits robust and repairable.
+
+- Write-intent record:
+  - Create a small plaintext+signature or AEAD blob “commit_<uuid>.intent” in graph dir capturing:
+    - planned new shard UUIDs, their temp paths and metadata hashes
+    - new keys file hash (if updated)
+    - new manifest hash and version counter
+  - Commit sequence:
+    1) Write intent; fsync.
+    2) Write shards; fsync each.
+    3) Update keys.redb.enc; fsync.
+    4) Update manifest.redb.enc; fsync.
+    5) Mark intent completed (rename/remove); fsync dir.
+
+- Recovery on open:
+  - If any intent exists:
+    - Validate presence of all referenced files; if shards present but manifest not updated, finish steps 3-4; if shards missing, roll back by deleting temps; re-derive indices from present shards if needed.
+    - Ensure version counters monotonic.
+
+- Locks:
+  - Per-graph exclusive writer lock; readers see last consistent manifest.
+
+Acceptance criteria:
+- Fault-injection tests simulate crashes between each step and always recover to a valid state.
+- No partial commits visible to readers.
+
+Milestone 5 — Garbage collection and compaction
+Goal: Append-only with periodic repacking and bounded rewrite costs.
+
+- Mark-sweep:
+  - Track tombstones for deleted nodes/edges in a small in-memory structure flushed as a WAL shard.
+  - GC triggers when deleted ratio in a shard > threshold (e.g., 20%).
+  - Repack by reading live entries into a new shard; update manifest; old shard scheduled for secure delete (optional) then removed.
+
+- Index compaction:
+  - Merge deltas into base; if base + delta < half of 32MB target, coalesce with adjacent small index shards to approach ~32MB padded chunk.
+
+Acceptance criteria:
+- Deletions reclaim space over time; queries ignore tombstoned entries.
+- GC never breaks crash consistency (the write-intent protocol still applies).
+
+Milestone 6 — Performance hardening
+Goal: Reasonable performance on commodity laptops/desktops.
+
+- Tuning:
+  - Batch writes; coalesce small updates into fewer shards.
+  - Compress-then-encrypt streaming to minimize RAM spikes.
+  - Cache hot shards decrypted in memory; limit cache size; LRU eviction.
+  - Background tasks: delta merges and GC on idle.
+
+- Argon2id strategy:
+  - Choose fixed baseline params with a minimum security floor; allow higher cost on fast machines but never below the baseline. Record params per-user (PHC).
+
+Acceptance criteria:
+- Latency budget: basic add_node+add_edge under X ms for typical graphs; query QPS within target.
+- CPU/memory usage stable for hour-long sessions.
+
+Milestone 7 — Global graph cache (read-only)
+Goal: Add a global graph concept cached locally inside the primary local graph, indistinguishable from local nodes for storage footprint.
+
+- Model:
+  - Introduce origin flag per node/edge: Local | GlobalCache | Shared (future).
+  - Enforce: global graph nodes cannot reference local graphs; local nodes can reference global.
+
+- Storage:
+  - Keep global-cached shards in the same graph directory as the user’s primary graph; same shard/index machinery; no separate disclosure of volume. Mark origin internally in the data so logic can enforce constraints.
+
+- Fetch/cache:
+  - Provide a loader API to import batches of global nodes/edges into local cache shards with their own GK/FKs (still wrapped by user’s DEK in single-user case).
+
+Acceptance criteria:
+- App can import global content and use it seamlessly; storage indistinguishable from local (file sizes, counts).
+- Constraints enforced (global-only references).
+
+Milestone 8 — Config signing and rollback protection
+Goal: Signed settings with monotonic counters.
+
+- config crate:
+  - pc_settings.json payload includes version and created_at/counter.
+  - Verify with stored admin Ed25519 keys; TOFU or provisioned root.
+  - Persist last-accepted version and reject rollback.
+
+Acceptance criteria:
+- Invalid/old configs rejected; valid signed updates accepted.
+
+Milestone 9 — Shared graphs and ACLs (MVP)
+Goal: Introduce ACLs, key slots, and revocation semantics. Keep scope tight.
+
+- keys.redb.enc structure:
+  - GK ciphertext slots: one per authorized principal:
+    - For personal graphs: GK wrapped by DEK (as today).
+    - For shared graphs: GK wrapped to each user with age/X25519; store recipient info, created_at, revoked_at.
+  - FK wraps: FK wrapped by GK per shard.
+
+- Sharing:
+  - Add principal to ACL: generate a new GK if rotating is desired or reuse current GK; wrap GK to the user’s age public key; bump manifest version atomically.
+  - Revocation:
+    - Rotate GK; re-wrap for remaining principals.
+    - Optionally rotate FKs and re-encrypt shards in background to protect against stored ciphertext.
+    - UI copy explains limits (cannot retract data already read/copied).
+
+- Access control enforcement:
+  - Gate graph open operations by presence of a usable key slot; record audit entries (local log) of key rotations.
+
+Acceptance criteria:
+- Share/unshare works locally with multiple users on the same machine (simulate by separate user_ids).
+- Revoked users cannot read new updates; optional FK rotation revokes access to stored ciphertext if enabled.
+
+Milestone 10 — Offloading/cloud storage (optional advanced)
+Goal: Allow moving shards to external or remote storage with integrity/freshness protection.
+
+- Manifest extensions:
+  - Signed manifest with Merkle root over objects; store per-object SHA-256.
+  - Local cache of offloaded shards with lazy fetch and eviction.
+
+- Providers:
+  - Local external drive path, S3-compatible, or WebDAV module.
+
+Acceptance criteria:
+- Offloaded shards fetch on demand; tampering detected via signatures/Merkle; no metadata leakage beyond padded sizes.
+
+Key implementation details and guidance
+
+Data and file formats
+- Shard file format (conceptual):
+  - Header (small, unpadded): {graph_id, shard_uuid, shard_kind, version, aad_hash, unpadded_len, nonce}
+  - Ciphertext: AEAD_Enc(FK, serialized_payload, aad=(graph_id, shard_uuid, version, kind))
+  - Padding: expand to exactly 32MB (or configurable block size); small items coalesce to approach block size.
+- Manifest.redb.enc:
+  - Compact redb db serialized then AEAD under GK.
+  - Contains:
+    - segments: map (kind, id_range) -> shard_uuid
+    - shard_meta: shard_uuid -> {fk_wrap, size, created_at}
+    - index_meta: for meta-indices that point to sub-chunks when >32MB total
+    - version counter
+- keys.redb.enc:
+  - gk_wraps: {principal_id -> age_ciphertext or AEAD_Enc(DEK, GK)}
+  - fk_wraps: {shard_uuid -> AEAD_Enc(GK, FK, aad=shard_uuid)}
+  - acl: entries with created_at, revoked_at, signer
+
+Transactions and atomicity
+- Use create-temp + atomic rename for all writes. On Linux/macOS rename is atomic; on Windows use ReplaceFile or MoveFileEx with MOVEFILE_REPLACE_EXISTING. Always fsync file and parent directory.
+- Global writer lock per graph; readers re-open manifest on change notification.
+
+Indices and set operations
+- Keep index read paths simple and composable:
+  - Compose results via Roaring operations; expose streaming iterators to limit memory.
+  - For “string has node: x (25)”, implement a string table: exact_string -> string_id; then string_id -> Roaring64 of node_ids. Normalize case/Unicode per your UX needs.
+
+Performance notes
+- Choose zstd compression level balancing CPU/size (start with 3–6).
+- Cache decrypted shards (LRU) with a cap (e.g., 256–1024 MB based on settings).
+- Batch small updates; flush on timer or on explicit “save” action to avoid fragment churn.
+
+Testing strategy
+- Unit tests for crypto wrappers with known-answer tests.
+- Property tests for index set operations.
+- Fault injection for commit sequence (failpoints between each fsync).
+- Fuzz tests for manifest parsing/recovery.
+- Performance smoke tests on sample graphs.
+
+Telemetry and diagnostics
+- Structured tracing for every commit step (intent written, shard fsync ok, keys updated, manifest updated, completed).
+- A “doctor” command to validate shards, manifests, and index coherence, and to rebuild indices if needed.
+
+Addressing your open questions
+
+1) What is stored pre-login vs post-login?
+- Pre-login (readable but not useful without secrets):
+  - users/ids.redb
+  - users/auth.redb (PHC verification hashes)
+  - users/key_encryption_key_params.redb (KEK params+salt)
+  - users/wrapped_dek.redb (DEK encrypted under KEK)
+  - users/pubkeys.redb
+- Post-login (requires DEK/GK to decrypt):
+  - graphs/*/manifest.redb.enc
+  - graphs/*/keys.redb.enc (though presence is visible, contents are encrypted)
+  - shards and index files (encrypted)
+
+2) Why a per-file key (FK)?
+- Benefits:
+  - Compartmentalization: one shard compromise doesn’t help decrypt others.
+  - Fast rotation: can rotate just FKs during revocation to protect against stored ciphertext.
+  - Corruption isolation: detect/replace a shard without rekeying the graph.
+- If you want to simplify early: derive FK = HKDF(GK, “shard_key” || shard_uuid) and skip storing wraps. Later you can switch to random FK + stored wrap without changing ciphertext layout if you keep the same AEAD AAD structure.
+
+3) Argon2id: fixed vs calibrated?
+- Use a floor with optional tuning:
+  - Pick a conservative baseline (e.g., m=256–512MB, t=2–4, p=1–2) that is acceptable on low-end hardware.
+  - Optionally increase on faster machines, but never go below the baseline. Store the chosen params per-user in PHC for reproducibility across machines.
+  - This avoids weakening security when data is copied to faster hardware and avoids tying to a single device.
+
+4) “redb in-memory then compress/encrypt when not being read”—how?
+- Keep an in-memory redb instance as the working set during a session.
+- On commit, serialize the relevant partitions into shard payloads, compress+encrypt, and write to disk atomically.
+- On reopen, only load needed shards into memory; you don’t need to load everything—just rehydrate requested partitions lazily.
+
+5) Hiding local vs global data volume
+- Store global-cache shards in the same graph directory with identical padding and metadata patterns as local shards. Internally, mark origin to enforce reference rules and for UI logic. Avoid separate directories or distinguishing filenames.
+
+Initial backlog (actionable next steps)
+- Implement Milestone 0 scaffolding and logging.
+- Implement Milestone 1 user creation/login with wrapped DEK; write simple CLI to create/list users.
+- Implement Milestone 2 basic graph persistence:
+  - In-memory redb schema for nodes/edges
+  - Shard writer/reader with AEAD and padding
+  - Encrypted manifest and keys file
+  - Atomic write flow with fsyncs
+- Integrate with your existing UI: add node, add edge, list nodes.
+- Implement Milestone 3 indices for node types and basic neighbor queries; wire set-ops to simple query panel.
+- Add Milestone 4 write-intent and recovery routine; build fault-injection tests.
+- Iterate on performance and memory use; choose Argon2 baseline.
+
+If you’d like, I can sketch the key Rust traits and data structures (e.g., Crypto, ShardStore, ManifestStore, IndexStore, GraphEngine) and a minimal commit/recovery flow next.

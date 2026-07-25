@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Note for agents: for Clippy lints specifically, it's worth giving `RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets --keep-going` a try and get that clean before running this script.
+# Also note that there's a `--quick` option for this script that will make it run more quickly.
+
+# Change directory to the script's parent directory (the repo root)
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+
+./scripts/lint "$@" || exit 1

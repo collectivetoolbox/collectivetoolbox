@@ -1,0 +1,150 @@
+
+# ─── Application ──────────────────────────────────────────────────────────────
+# app-name = Collective Toolbox
+# ─── Intro Screen ─────────────────────────────────────────────────────────────
+welcome-message = مرحباً بك في معالج التثبيت
+theme = المظهر:
+theme-auto = 🔄 اكتشاف تلقائي
+theme-light = ☀ فاتح
+theme-dark = 🌙 داكن
+quick-install = تثبيت سريع
+customize = تخصيص...
+quick-install-prompt = استخدام التثبيت السريع مع الإعدادات الافتراضية؟
+read-license-button = قراءة نص الترخيص الكامل...
+read-license-prompt = (أو 'l' لقراءة النص الكامل للترخيص):
+license-header = ترخيص
+press-enter-to-return = اضغط Enter للعودة...
+press-enter-to-continue = اضغط Enter للمتابعة...
+pager-continue = -- المزيد -- (اضغط Enter للمتابعة — اضغط الحرف الإنجليزي 'q' للإغلاق):
+intro-invalid-input = الرجاء إدخال 'y' أو 'n' أو 'l' للترخيص.
+prompt-invalid-yes-or-no = الرجاء إدخال 'y' أو 'n'.
+prompt-enter-choice = أدخل الخيار [1-{ $choice }، الافتراضي ={ $default }]:
+# ─── Options Screen ───────────────────────────────────────────────────────────
+options-title = خيارات التثبيت
+install-dir = مجلد التثبيت:
+storage-dir = مجلد التخزين:
+add-to-start-menu = إضافة إلى قائمة البداية:
+add-to-dock = إضافة إلى Dock:
+add-desktop-shortcut = إنشاء اختصار سطح المكتب:
+add-to-path = إضافة إلى PATH:
+language = اللغة 🌏︎:
+storage-dir-note = ملاحظة: سيتم استخدام مجلد التخزين لقواعد البيانات والسجلات وبيانات المستخدم. تأكد من توفر مساحة كافية على القرص.
+browse = استعراض...
+options-configured = تم تكوين الخيارات بنجاح.
+parent-directory-not-exists = تحذير: المجلد الأصل '{ $path }' غير موجود.
+create-dir-during-installation = إنشاءه في أثناء التثبيت؟
+enter-number-range = الرجاء إدخال رقم بين 1 و { $max }.
+# ─── File Picker ──────────────────────────────────────────────────────────────
+file-picker-title = اختر موقعا
+file-picker-select-folder = حدد الملف
+file-picker-select-file = حدّد الملف
+file-picker-save-file = حفظ الملف
+file-picker-back = الرجوع (Alt+B)
+file-picker-forward = التقدم (Alt+F)
+file-picker-up = أعلى (Alt+U)
+file-picker-refresh = التحديث (Alt+R)
+file-picker-new-folder = مجلد جديد (Alt+N)
+file-picker-create = إنشاء (Alt+E)
+file-picker-cancel-new-folder = إلغاء (Alt+A)
+file-picker-more-menu = المزيد... (Alt+M)
+file-picker-show-hidden = إظهار الملفات المخفية (Alt+H)
+file-picker-path = المسار:
+file-picker-file-name = اسم الملف:
+file-picker-places = المنازل
+file-picker-home = الدليل الرئيسي
+file-picker-desktop = سطح المكتب
+file-picker-documents = المستندات
+file-picker-downloads = التحميلات
+file-picker-this-pc = هذا الكمبيوتر
+file-picker-empty = (فارغ)
+file-picker-invalid-path = مسار غير صالح: { $path }
+file-picker-folder-exists = '{ $name }' موجود بالفعل
+file-picker-create-folder-failed = فشل في إنشاء المجلد: { $error }
+file-picker-folder-name-empty = اسم المجلد لا يمكن أن يكون فارغاً
+file-picker-ok = موافق (Alt+O)
+# ─── Components Screen ────────────────────────────────────────────────────────
+components-title = اختيار المكونات
+components-instruction = اختر المكونات المراد تثبيتها:
+complete = كامل
+complete-tooltip = تحديد جميع المكونات الاختيارية للتثبيت الكامل
+minimal = أدنى
+minimal-tooltip = تحديد المكونات المطلوبة فقط للتثبيت الأدنى
+selected-size = المحدد: { $selected } (من إجمالي { $total })
+storage-space-note = تعكس أحجام الملفات هذه مساحة التخزين المطلوبة للتطبيق نفسه. ستشغل مستنداتك الخاصة مساحة إضافية؛ إذا لم تكن متأكدًا مما تحتاج إليه، نوصي بتوفير مساحة خالية لا تقل عن 20 جيجابايت.
+required = (مطلوب)
+toggle-prompt = أدخل رقم المكون للتبديل:
+option-toggle = تبديل
+option-continue = متابعة
+# ─── Progress Screen ──────────────────────────────────────────────────────────
+progress-title = جارٍ التثبيت...
+overall-progress = التقدم الإجمالي: { $completed }/{ $total } ملفات
+current-file = الملف الحالي: { $path }
+chunk-progress = الجزء { $current }/{ $total }
+installation-log = سجل التثبيت:
+starting-installation = بدء التثبيت...
+downloading-file = جارٍ التنزيل: { $path } ({ $chunks } أجزاء)
+downloading-chunk = جارٍ تنزيل الجزء { $current }/{ $total }...
+using-cached-chunk = استخدام الجزء المخزن مؤقتاً { $current }/{ $total }
+file-installed = تم التثبيت: { $path } ({ $size } بايت)
+retry-error = إعادة المحاولة { $attempt }/{ $max }: { $message }
+error = خطأ: { $message }
+retry = إعادة المحاولة
+cancel = إلغاء
+installation-complete-count = اكتمل التثبيت: تم تثبيت { $count } ملف.
+# ─── Complete Screen ──────────────────────────────────────────────────────────
+complete-title = اكتمل التثبيت!
+install-success = تم تثبيت { $app } بنجاح.
+quick-install-success = { $app } تم تثبيت بنجاح الآن.
+launch-after-install = تشغيل { $app } بعد الإغلاق
+finish = إنهاء
+summary = الملخص:
+start-menu-shortcut = اختصار قائمة البداية: { $value }
+dock-shortcut = اختصار Dock: { $value }
+desktop-shortcut = اختصار سطح المكتب: { $value }
+added-to-path = تمت الإضافة إلى PATH: { $value }
+yes = نعم
+no = لا
+launch-now-prompt = تشغيل { $app } الآن؟
+launching = جارٍ تشغيل { $app }...
+thank-you = شكراً لتثبيت { $app }!
+# ─── Repair Screen ────────────────────────────────────────────────────────────
+repair-title = إصلاح التثبيت
+repair-description = سيقوم هذا بالتحقق من التثبيت وإصلاحه. سيتم إعادة تنزيل الملفات المفقودة أو التالفة.
+current-installation = التثبيت الحالي:
+location = الموقع: { $path }
+start-repair = بدء الإصلاح
+starting-repair = جارٍ بدء الإصلاح...
+continue-repair-prompt = متابعة الإصلاح؟
+repair-cancelled = تم إلغاء الإصلاح.
+repair-complete = اكتمل الإصلاح!
+# ─── Uninstall Screen ─────────────────────────────────────────────────────────
+uninstall-title = إلغاء تثبيت { $app }
+uninstall-warning = تحذير: سيؤدي هذا إلى إزالة التطبيق من نظامك.
+will-be-removed = سيتم إزالة ما يلي:
+application-files = ملفات التطبيق: { $path }
+desktop-shortcuts = اختصارات (قائمة البداية/Dock وسطح المكتب)
+path-modifications = تعديلات PATH
+data-not-removed = ملاحظة: لن يتم إزالة ملفات البيانات الخاصة بك.
+data-location = موقع البيانات: { $path }
+uninstall = إلغاء التثبيت
+starting-uninstall = جارٍ بدء إلغاء التثبيت...
+confirm-uninstall-prompt = هل أنت متأكد من أنك تريد إلغاء التثبيت؟
+uninstall-cancelled = تم إلغاء عملية إلغاء التثبيت.
+removing-files = جارٍ إزالة الملفات...
+uninstall-complete = تم إلغاء تثبيت { $app }.
+# ─── Navigation ───────────────────────────────────────────────────────────────
+back = → رجوع
+next = ← التالي
+install = ← تثبيت
+# ─── TUI-specific ─────────────────────────────────────────────────────────────
+tui-intro-guidance = سيرشدك هذا المعالج خلال عملية التثبيت. يمكنك تخصيص خيارات التثبيت أو استخدام الإعدادات الافتراضية.
+unattended-mode = يعمل في وضع غير مراقب - يستخدم القيم الافتراضية.
+yes-no-help = الرجاء إدخال 'y' أو 'n'.
+number-choice-help = الرجاء إدخال رقم بين 1 و { $max }.
+what-to-do = ماذا تريد أن تفعل؟
+parent-dir-warning = تحذير: المجلد الأصل '{ $path }' غير موجود.
+create-dir-prompt = إنشاؤه أثناء التثبيت؟
+# ─── Window Titles ────────────────────────────────────────────────────────────
+window-installer = مثبت { $app }
+window-repair = { $app } - إصلاح
+window-uninstall = { $app } - إلغاء التثبيت

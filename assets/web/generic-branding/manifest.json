@@ -1,0 +1,24 @@
+{
+    "theme_color": "#3f8bff",
+    "background_color": "#fff1f2",
+    "orientation": "any",
+    "display": "standalone",
+    "dir": "auto",
+    "lang": "en-US",
+    "name": "CTUnofficialBuild",
+    "short_name": "CTUnofficialBuild",
+    "icons": [
+        {
+            "src": "favicon_192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "favicon_512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}

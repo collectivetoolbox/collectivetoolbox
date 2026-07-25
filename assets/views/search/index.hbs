@@ -1,0 +1,13 @@
+<form action="/nodes/create" method="POST" class="w-80 flex flex-col gap-4">
+    <input name="search-text" type="text"></input>
+    <div class="flex justify-between">
+        <a href="/nodes" class="btn">
+            {{> icons._icon name="arrow-left" alt="" }}
+            <span>Cancel</span>
+        </a>
+        <button type="submit" class="btn-primary">
+            {{> icons._icon name="home" alt="" }}
+            <span>Save</span>
+        </button>
+    </div>
+</form>

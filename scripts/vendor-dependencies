@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+cd ~/ctoolbox/vendor/ctb-vendored || exit 1
+cargo vendor --frozen --manifest-path ~/ctoolbox/Cargo.toml
+git add . || true
+git commit -m 'deps: Automatically update dependencies' || true
+find vendor -name '*.gitignore' -exec mv {} {}-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved \; 
+git add . || true
+git commit -m 'deps: Automatically update dependencies (reset .gitignores)' || true
+git add . || true
+git commit -m 'deps: Automatically update dependencies (post resetting .gitignores)' || true
+cd .. || exit 1
+git add ctb-vendored || true
+git commit -m 'deps: Automatically update dependencies' || true

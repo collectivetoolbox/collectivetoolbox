@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+if [[ ! -f "vendor/TypeScript-built.tar" ]]; then
+    cargo run -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript
+fi
+
+if [[ ! -f "vendor/v86_images/guix/guix-fs.json" ]]; then
+    ./scripts/guix/build-v86-guix-image.sh
+fi
+
+
+
+cargo run -p ctb-build-support --bin refresh-asset-bundle --release -- "$PWD"

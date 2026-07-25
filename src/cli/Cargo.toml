@@ -1,0 +1,34 @@
+[package]
+name = "ctb-cli"
+edition = "2024"
+
+[lib]
+path="cli.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../utilities" }
+ctb-formats-ctb-asset-bundle = { path = "../formats/ctb_asset_bundle" }
+ctb-formats-eite = { path = "../formats/eite" }
+ctb-formats-internetarchive = { path = "../formats/internetarchive" }
+ctb-formats-javascript = { path = "../formats/javascript" }
+ctb-formats-pan = { path = "../formats/pan" }
+ctb-formats-stagel = { path = "../formats/stagel" }
+ctb-formats-pdf = { path = "../formats/pdf" }
+ctb-formats-warc = { path = "../formats/warc" }
+ctb-formats-wfscan = { path = "../formats/wfscan" }
+ctb-formats-checksum = { path = "../formats/checksum" }
+ctb-formats-dceutils = { path = "../formats/dceutils" }
+ctb-formats-hexdump = { path = "../formats/hexdump" }
+ctb-storage = { path = "../storage" }
+ctb-installer = { path = "../installer" }
+
+clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
+termsize = "0.1"
+futures = "0.3"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+tokio = { version = "1.49.0", features = ["full"] }
+tempfile = "3.12.0"
+
+[lints]
+workspace = true

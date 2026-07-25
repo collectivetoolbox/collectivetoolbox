@@ -1,0 +1,431 @@
+//! "UTF-8e-128" encoding and decoding (UTF-8 extended to 128-bit integers)
+
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
+
+// FIXME: Can this be simplified by leaning on Rust's native UTF-8 en/decoding?
+
+/// Encodes a Unicode scalar value or an extended (> U+10FFFF) 128‑bit integer
+/// using the UTF‑8e‑128 scheme.
+///
+/// For values <= `0x10_FFFF` this produces standard UTF‑8 (1–4 bytes).
+/// For larger values it emits:
+///   0:  0xFF
+///   1:  10LLLLLL   (1 <= L <= 22) number of payload continuation bytes
+///   2+: L payload continuation bytes 10bbbbbb ... (big‑endian 6‑bit groups)
+/// Returns the number of bytes written.
+///
+/// Panics if the provided buffer is too small (needs up to 24 bytes).
+#[allow(clippy::indexing_slicing, arithmetic_side_effects, reason = "meh lazy, indexing and arithemtic also helps readability here")]
+pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
+    // Standard UTF-8 path (unchanged) for values within Unicode range
+    if codepoint <= 0x10FFFF {
+        let cp = u32::try_from(codepoint)
+            .expect("Failed to create u32; range checked");
+        // (Optional) Reject surrogate range if you only want Unicode scalar values.
+        // if (0xD800..=0xDFFF).contains(&cp) {
+        //     // An alternative here might be to assign them higher Dcs, or
+        //     // since this encoding can hold 132 bits, to stuff them into that
+        //     // unused space
+        //     panic!("Cannot encode surrogate as scalar");
+        // }
+        if cp <= 0x7F {
+            buf[0] = u8::try_from(cp).expect("Failed to create byte");
+            return 1;
+        } else if cp <= 0x7FF {
+            buf[0] =
+                0xC0 | (u8::try_from(cp >> 6).expect("Failed to create byte"));
+            buf[1] = 0x80
+                | (u8::try_from(cp & 0x3F).expect("Failed to create byte"));
+            return 2;
+        } else if cp <= 0xFFFF {
+            buf[0] =
+                0xE0 | (u8::try_from(cp >> 12).expect("Failed to create byte"));
+            buf[1] = 0x80
+                | (u8::try_from((cp >> 6) & 0x3F)
+                    .expect("Failed to create byte"));
+            buf[2] = 0x80
+                | (u8::try_from(cp & 0x3F).expect("Failed to create byte"));
+            return 3;
+        }
+        buf[0] =
+            0xF0 | (u8::try_from(cp >> 18).expect("Failed to create byte"));
+        buf[1] = 0x80
+            | (u8::try_from((cp >> 12) & 0x3F).expect("Failed to create byte"));
+        buf[2] = 0x80
+            | (u8::try_from((cp >> 6) & 0x3F).expect("Failed to create byte"));
+        buf[3] =
+            0x80 | (u8::try_from(cp & 0x3F).expect("Failed to create byte"));
+        return 4;
+    }
+
+    // Extended form
+    // Determine bit length
+    let bits = 128
+        - usize::try_from(codepoint.leading_zeros())
+            .expect("Failed to create usize"); // codepoint > 0x10FFFF so bits >= 21
+    let mut l = bits.div_ceil(6); // minimal number of 6-bit groups
+    if l == 0 {
+        l = 1;
+    }
+    assert!(l <= 22, "Value requires more than 132 bits?");
+
+    assert!(buf.len() >= 2 + l, "Buffer too small for extended encoding");
+
+    // Extract groups big-endian: groups[0] is first (most significant) group
+    let mut groups = [0u8; 22];
+    {
+        let mut tmp = codepoint;
+        for i in 0..l {
+            groups[l - 1 - i] =
+                u8::try_from(tmp & 0x3F).expect("Failed to create byte");
+            tmp >>= 6;
+        }
+        debug_assert!(tmp == 0);
+    }
+
+    // Canonical rule: first payload group must be non-zero (value > 0)
+    debug_assert!(groups[0] != 0);
+
+    buf[0] = 0xFF;
+    buf[1] = 0x80 | u8::try_from(l).expect("Failed to create byte"); // length continuation byte
+
+    for i in 0..l {
+        buf[2 + i] = 0x80 | groups[i];
+    }
+
+    // Additional canonical check for 128-bit max if l == 22:
+    // top 4 bits of first payload group must be zero (they are the unused padding bits).
+    if l == 22 {
+        debug_assert!(
+            (groups[0] & 0x3C) == 0,
+            "Non-zero padding bits in 22-byte encoding"
+        );
+    }
+
+    2 + l
+}
+
+/// Decodes one UTF‑8 / UTF‑8e‑128 codepoint from the provided byte slice.
+/// On success returns Some((value, `length_consumed`)), else None.
+/// Enforces canonical (no overlong) encodings for both standard and extended forms.
+#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary decoding uses index access")]
+pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
+    let first = *bytes.first()?;
+    if first == 0xFF {
+        // Extended form
+        let h = *bytes.get(1)?;
+        if (h & 0xC0) != 0x80 {
+            return None;
+        }
+        let l = usize::from(h & 0x3F);
+        if l == 0 || l > 22 {
+            return None;
+        }
+        if bytes.len() < l.saturating_add(2) {
+            return None;
+        }
+
+        // Gather groups
+        let mut groups = [0u8; 22];
+        for i in 0..l {
+            let b = bytes[i.saturating_add(2)];
+            if (b & 0xC0) != 0x80 {
+                return None;
+            }
+            groups[i] = b & 0x3F;
+        }
+
+        // Canonical: first group not zero
+        if groups[0] == 0 {
+            return None;
+        }
+
+        // If l == 22, top 4 bits of first group (padding) must be zero.
+        if l == 22 && (groups[0] & 0x3C) != 0 {
+            return None;
+        }
+
+        // Reconstruct value pruning leading padding bits if total bits > 128
+        let total_bits = l.saturating_mul(6);
+        let extra = total_bits.saturating_sub(128); // 0..=4
+        if extra > 4 {
+            return None; // should not happen with l<=22 and u128 output
+        }
+
+        // Ensure the extra (padding) high bits are zero
+        if extra > 0 && (groups[0] >> (6usize.saturating_sub(extra))) != 0 {
+            return None;
+        }
+
+        let mut value: u128 = 0;
+        if extra < 6 {
+            // Take lower (6 - extra) bits of first group
+            let first_payload_bits = groups[0] & ((1u8 << (6usize.saturating_sub(extra))).saturating_sub(1));
+            value = u128::from(first_payload_bits);
+        }
+        for i in 1..l {
+            value = (value << 6) | u128::from(groups[i]);
+        }
+
+        // Must not overlap with standard range
+        if value <= 0x10FFFF {
+            return None;
+        }
+
+        return Some((value, l.saturating_add(2)));
+    }
+
+    // Standard UTF-8 decoding
+    if first < 0x80 {
+        return Some((u128::from(first), 1));
+    }
+
+    // Determine expected length and initial mask / prefix
+    let (len, min_val, max_val_mask) = if (first & 0xE0) == 0xC0 {
+        // 110xxxxx
+        (2usize, 0x80u32, 0x1F)
+    } else if (first & 0xF0) == 0xE0 {
+        // 1110xxxx
+        (3usize, 0x800u32, 0x0F)
+    } else if (first & 0xF8) == 0xF0 {
+        // 11110xxx
+        (4usize, 0x10000u32, 0x07)
+    } else {
+        return None;
+    };
+
+    if bytes.len() < len {
+        return None;
+    }
+
+    let mut val: u32 = u32::from(first & max_val_mask);
+    for i in 1..len {
+        let b = bytes[i];
+        if (b & 0xC0) != 0x80 {
+            return None;
+        }
+        val = (val << 6) | u32::from(b & 0x3F);
+    }
+
+    // Overlong check
+    if val < min_val {
+        return None;
+    }
+
+    // Unicode max (U+10FFFF)
+    if val > 0x10FFFF {
+        return None;
+    }
+
+    // Optional: reject surrogate range for scalar value canonicality.
+    // if (0xD800..=0xDFFF).contains(&val) {
+    //     return None;
+    // }
+
+    Some((u128::from(val), len))
+}
+
+/// Generalized UTF-8 encoding for u128.
+/// Returns a `Vec<u8>` containing the encoded bytes.
+#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary encoding uses index access")]
+pub fn encode_utf_8e_128(codepoint: u128) -> Vec<u8> {
+    let mut buf = [0u8; 24];
+    let encoded_len = encode_utf_8e_128_buf(&mut buf, codepoint);
+    buf[..encoded_len].to_vec()
+}
+
+/// Decodes one generalized UTF-8 codepoint from bytes.
+/// Returns Some((value, `length_consumed`)), or the replacement character on error.
+#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary decoding uses index access")]
+pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
+    if bytes.is_empty() {
+        return None;
+    }
+
+    let mut buf = [0u8; 24];
+    let used_len = bytes.len().min(24);
+    buf[..used_len].copy_from_slice(&bytes[..used_len]);
+
+    if let Some(x) = decode_utf_8e_128_buf(&buf) {
+        Some(x)
+    } else {
+        // Overwrite buffer with replacement character [0xEF, 0xBF, 0xBD]
+        buf[0] = 0xEF;
+        buf[1] = 0xBF;
+        buf[2] = 0xBD;
+        for b in &mut buf[3..] {
+            *b = 0;
+        }
+        // Return replacement character and length
+        Some((0xFFFD, 3))
+    }
+}
+
+#[ipc_method]
+/// Encode a u128 codepoint using the `utf_8e_128` format.
+pub fn encode(codepoint: u128) -> Vec<u8> {
+    encode_utf_8e_128(codepoint)
+}
+
+#[ipc_method]
+/// Decode bytes using the `utf_8e_128` format.
+///
+/// Returns `(value, used_len)` on success, or `None` if the bytes are not a
+/// valid prefix for the encoding.
+pub fn decode(bytes: Vec<u8>) -> Option<(u128, usize)> {
+    decode_utf_8e_128(&bytes)
+}
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_standard_ascii() {
+        let mut buf = [0u8; 24];
+        for ch in [0x00u128, 0x41, 0x7F] {
+            let n = encode_utf_8e_128_buf(&mut buf, ch);
+            let (v, m) = decode_utf_8e_128_buf(&buf[..n]).unwrap();
+            assert_eq!(v, ch);
+            assert_eq!(n, m);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_standard_multibyte() {
+        let samples = [
+            0x80u128, 0x7FF, 0x800, 0x1234, 0x20AC, 0xFFFF, 0x10000, 0x10FFFF,
+        ];
+        let mut buf = [0u8; 24];
+        for cp in samples {
+            let n = encode_utf_8e_128_buf(&mut buf, cp);
+            let (v, m) = decode_utf_8e_128_buf(&buf[..n]).unwrap();
+            assert_eq!(v, cp);
+            assert_eq!(n, m);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_extended_simple() {
+        let mut buf = [0u8; 24];
+        let cp = 0x10FFFFu128 + 1;
+        let n = encode_utf_8e_128_buf(&mut buf, cp);
+        assert!(n >= 3);
+        assert_eq!(buf[0], 0xFF);
+        let (v, m) = decode_utf_8e_128_buf(&buf[..n]).unwrap();
+        assert_eq!(v, cp);
+        assert_eq!(n, m);
+    }
+
+    #[crate::ctb_test]
+    fn test_extended_large() {
+        let mut buf = [0u8; 24];
+        let cp = u128::MAX;
+        let n = encode_utf_8e_128_buf(&mut buf, cp);
+        assert_eq!(buf[0], 0xFF);
+        let (v, m) = decode_utf_8e_128_buf(&buf[..n]).unwrap();
+        assert_eq!(v, cp);
+        assert_eq!(n, m);
+    }
+
+    #[crate::ctb_test]
+    fn test_malformed() {
+        assert!(decode_utf_8e_128_buf(&[]).is_none());
+        assert!(decode_utf_8e_128_buf(&[0x80]).is_none()); // continuation as start
+        assert!(decode_utf_8e_128_buf(&[0xFF]).is_none()); // incomplete extended
+    }
+
+    #[crate::ctb_test]
+    fn test_overlaps_rejected() {
+        // If value <= U+10FFFF must be encoded in standard form; constructing extended form should be rejected.
+        // Manually craft extended for 0x41
+        let bytes = vec![0xFF, 0x81, 0xC1]; // length=1, payload=0x01 -> value=1 (<= U+10FFFF)
+        assert!(decode_utf_8e_128_buf(&bytes).is_none());
+
+        // Construct an extended encoding for a value in standard range (should decode to None)
+        // Manually: value = 0x10FFFF (should have used standard form)
+        let mut bytes = Vec::new();
+        bytes.push(0xFF);
+        // Determine minimal groups for 0x10FFFF
+        let val = 0x10FFFFu128;
+        let bits = 128usize.saturating_sub(
+            usize::try_from(val.leading_zeros()).expect("Failed to create usize"),
+        );
+        let l = bits.div_ceil(6);
+        bytes.push(0x80 | u8::try_from(l).expect("Failed to create byte"));
+        let mut groups = [0u8; 22];
+        let mut tmp = val;
+        for i in 0..l {
+            groups[l.saturating_sub(1).saturating_sub(i)] =
+                u8::try_from(tmp & 0x3F).expect("Failed to create byte");
+            tmp >>= 6;
+        }
+        for i in 0..l {
+            bytes.push(0x80 | groups[i]);
+        }
+        assert!(decode_utf_8e_128_buf(&bytes).is_none());
+    }
+
+    #[crate::ctb_test]
+    fn test_encode_utf_8e_128_buf_basic() {
+        let mut buf = [0u8; 24];
+        // ASCII
+        let n = encode_utf_8e_128_buf(&mut buf, 0x41);
+        assert_eq!(&buf[..n], &[0x41]);
+        // 2-byte
+        let n = encode_utf_8e_128_buf(&mut buf, 0x80);
+        assert_eq!(&buf[..n], &[0xC2, 0x80]);
+        // 3-byte
+        let n = encode_utf_8e_128_buf(&mut buf, 0x800);
+        assert_eq!(&buf[..n], &[0xE0, 0xA0, 0x80]);
+        // 4-byte
+        let n = encode_utf_8e_128_buf(&mut buf, 0x10000);
+        assert_eq!(&buf[..n], &[0xF0, 0x90, 0x80, 0x80]);
+        // Extended
+        encode_utf_8e_128_buf(&mut buf, 0x1_0000_0000);
+        assert_eq!(buf[0], 0xFF);
+    }
+
+    #[crate::ctb_test]
+    fn test_decode_utf_8e_128_buf_basic() {
+        // ASCII
+        let res = decode_utf_8e_128_buf(&[0x41]);
+        assert_eq!(res, Some((0x41, 1)));
+        // 2-byte
+        let res = decode_utf_8e_128_buf(&[0xC2, 0x80]);
+        assert_eq!(res, Some((0x80, 2)));
+        // 3-byte
+        let res = decode_utf_8e_128_buf(&[0xE0, 0xA0, 0x80]);
+        assert_eq!(res, Some((0x800, 3)));
+        // 4-byte
+        let res = decode_utf_8e_128_buf(&[0xF0, 0x90, 0x80, 0x80]);
+        assert_eq!(res, Some((0x10000, 4)));
+    }
+
+    #[crate::ctb_test]
+    fn test_encode_decode_utf_8e_128() {
+        // Roundtrip
+        for &cp in &[
+            0x41u128,
+            0x80,
+            0x800,
+            0x10000,
+            0x10FFFF,
+            0x1_0000_0000,
+            u128::MAX,
+        ] {
+            let encoded = encode_utf_8e_128(cp);
+            let decoded = decode_utf_8e_128(&encoded).unwrap();
+            assert_eq!(decoded.0, cp);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_decode_utf_8e_128_replacement() {
+        // Invalid input returns replacement character
+        let res = decode_utf_8e_128(&[0xFF]);
+        assert_eq!(res, Some((0xFFFD, 3)));
+    }
+}

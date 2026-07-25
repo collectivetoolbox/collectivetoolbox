@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+# Change directory to the repository root
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+offline=""
+quick=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --offline)
+            offline="--offline"
+            ;;
+        --quick)
+            quick="--quick"
+            ;;
+    esac
+    shift
+done
+
+# Documentation needs to exist to build linter (it's fine if it's not up to date, but does need to be there).
+if [[ ! -f target/x86_64-unknown-linux-musl/doc/index.html ]] || [[ ! -f target/x86_64-unknown-linux-musl/doc/help.html ]]; then
+    echo "Docs not found. Building..."
+    cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl || exit 1
+fi
+
+pushd assets || exit 1
+if grep --exclude-dir=vendor -r '!important'; then
+    echo "!important used in CSS"
+    exit 1
+fi
+popd || exit 1
+
+echo "=== Checking that patched crates are actually being used ==="
+./scripts/lint-patches || exit 1
+
+echo "=== Checking for unsafe file writes in tests ==="
+./scripts/lint-helper || exit 1
+
+echo "=== Checking for idiosyncratic styling ==="
+./scripts/lint-encrecss || exit 1
+
+echo "=== Checking test macro conventions ==="
+if rg '^\s*#\[test\]\s*$' src/ || rg '^\s*#\[tokio::test\]\s*$' src/; then
+    echo "Error: Standard test macros #[test] or #[tokio::test] found."
+    echo "Please update tests to use \`#[crate::ctb_test]\` or \`#[crate::ctb_test(\"tokio\")]\`."
+    exit 1
+fi
+
+echo "=== Running cargo clippy ==="
+if ! RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets $offline; then
+    echo "Clippy reported errors."
+    exit 1
+fi
+if ! RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets --tests $offline; then
+    echo "Clippy reported errors in tests."
+    exit 1
+fi
+
+echo "=== Running cargo deny ==="
+deny_flags=""
+if [[ -n "$offline" ]]; then
+    deny_flags="--disable-fetch"
+fi
+if ! cargo deny --workspace check $deny_flags; then
+    echo "cargo-deny reported errors."
+    exit 1
+fi
+
+if [[ ! -f "vendor/TypeScript-built.tar" ]]; then
+    echo "=== Building TypeScript-built.tar ==="
+    cargo run -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript
+fi
+
+if [[ ! -f "vendor/v86_images/guix/guix-fs.json" ]]; then
+    echo "=== Building Guix v86 image ==="
+    ./scripts/guix/build-v86-guix-image.sh
+fi
+
+
+
+echo "=== Running JavaScript linter ==="
+cargo run $offline -p ctb-formats-javascript --bin js-lint --release
+
+echo "=== Running JavaScript type checker ==="
+if [[ -n "$quick" ]];  then
+    if tsc; then
+        echo "TypeScript type checking passed using system tsc."
+    else
+        echo "Quick TypeScript type checking failed. Maybe leave off --quick to use the bundled tsc?"
+        exit 1
+    fi
+else
+    cargo run $offline -p ctb-formats-javascript --bin ts-check --release -- --add-types jquery
+fi
+

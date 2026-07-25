@@ -1,0 +1,16 @@
+[package]
+name = "ctb-formats-utf8"
+edition = "2024"
+
+[lib]
+path="utf8.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+deunicode = "1.6.2"
+
+[lints]
+workspace = true
