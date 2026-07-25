@@ -45,6 +45,7 @@ apt-get remove -y nodejs npm 2>/dev/null || true
 
 if command -v npm || command -v npx || command -v node; then
     echo "node is not a permitted dependency."
+    dpkg -S /usr/bin/npm || true
     exit 1
 fi
 
