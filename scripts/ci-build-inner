@@ -48,7 +48,9 @@ if ! command -v guix >/dev/null 2>&1; then
     curl -sSL -o /tmp/guix-install.sh https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
     chmod +x /tmp/guix-install.sh
     yes | /tmp/guix-install.sh || true
-    rm -f /tmp/guix-install.sh
+    if [[ -f /tmp/guix-install.sh ]]; then
+        rm /tmp/guix-install.sh
+    fi
     mkdir -p /etc/guix
     for key in /root/.config/guix/current/share/guix/*.pub; do
         /root/.config/guix/current/bin/guix archive --authorize < "$key" || true
@@ -65,16 +67,27 @@ fi
 
 
 if [[ "$mode" == "deploy" ]]; then
-    if [[ ! -f /VERSION || ! -f /COMMIT ]]; then
-        echo "Error: /VERSION or /COMMIT file not found in the container root (needed for --deploy)." >&2
+    version_file="/VERSION"
+    if [[ ! -f "$version_file" && -f VERSION ]]; then
+        version_file="VERSION"
+    fi
+    commit_file="/COMMIT"
+    if [[ ! -f "$commit_file" && -f COMMIT ]]; then
+        commit_file="COMMIT"
+    fi
+
+    if [[ ! -f "$version_file" || ! -f "$commit_file" ]]; then
+        echo "Error: VERSION or COMMIT file not found (needed for --deploy)." >&2
         exit 1
     fi
-    VERSION=$(cat /VERSION)
-    COMMIT=$(cat /COMMIT)
+    VERSION=$(cat "$version_file")
+    COMMIT=$(cat "$commit_file")
     echo "=== Running CI Deploy Verification for version ${VERSION}, commit ${COMMIT} ==="
 
     BUILD_DIR="/tmp/ctb-ci-build"
-    rm -rf "$BUILD_DIR"
+    if [[ -d "$BUILD_DIR" ]]; then
+        rm -r "$BUILD_DIR"
+    fi
     mkdir -p "$BUILD_DIR"
     cd "$BUILD_DIR"
 
@@ -170,11 +183,20 @@ rustup target add wasm32-unknown-unknown
 echo "Installing cargo-deny..."
 cargo install --locked cargo-deny
 
+advisory_dir=""
 if [[ -d /advisory-db ]]; then
-    echo "Setting up pre-cloned RustSec advisory database..."
+    advisory_dir="/advisory-db"
+elif [[ -d .advisory-db ]]; then
+    advisory_dir=".advisory-db"
+fi
+
+if [[ -n "$advisory_dir" ]]; then
+    echo "Setting up pre-cloned RustSec advisory database from ${advisory_dir}..."
     mkdir -p /root/.cargo/advisory-dbs
-    rm -rf /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
-    cp -r /advisory-db /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
+    if [[ -d /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691 ]]; then
+        rm -r /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
+    fi
+    cp -r "$advisory_dir" /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
 fi
 
 echo "Running offline build..."
