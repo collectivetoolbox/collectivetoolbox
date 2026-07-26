@@ -18,6 +18,7 @@ ctb-formats-pdf = { path = "../formats/pdf" }
 ctb-formats-warc = { path = "../formats/warc" }
 ctb-formats-wfscan = { path = "../formats/wfscan" }
 ctb-formats-checksum = { path = "../formats/checksum" }
+ctb-formats-compression = { path = "../formats/compression" }
 ctb-formats-dceutils = { path = "../formats/dceutils" }
 ctb-formats-hexdump = { path = "../formats/hexdump" }
 ctb-storage = { path = "../storage" }

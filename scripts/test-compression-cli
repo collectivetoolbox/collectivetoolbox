@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Change directory to repo root
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+echo "=== Running Compression CLI Smoke Tests ==="
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+TEST_FILE="$TMP_DIR/sample.txt"
+echo "The quick brown fox jumps over the lazy dog! 1234567890" > "$TEST_FILE"
+
+# Build ctoolbox binary if needed or use cargo run
+CARGO_CMD="cargo run -q -p ctoolbox --bin ctoolbox --"
+
+# 1. Test gzip compression & decompression via stdout streams
+$CARGO_CMD compress gzip "$TEST_FILE" -o - | $CARGO_CMD decompress gzip - -o - > "$TMP_DIR/out_stream.txt"
+diff -u "$TEST_FILE" "$TMP_DIR/out_stream.txt"
+
+# 2. Test gzip compression with default extension
+$CARGO_CMD compress gzip "$TEST_FILE"
+if [[ ! -f "$TEST_FILE.gz" ]]; then
+    echo "Error: Default output file $TEST_FILE.gz was not created." >&2
+    exit 1
+fi
+
+# 3. Test decompress with inferred format from .gz extension
+$CARGO_CMD decompress "$TEST_FILE.gz" --force
+if [[ ! -f "$TEST_FILE" ]]; then
+    echo "Error: Decompressed file $TEST_FILE was not created." >&2
+    exit 1
+fi
+
+# 4. Test decompress with no extension -> {filename}.decompressed
+NO_EXT_FILE="$TMP_DIR/compressed_data"
+$CARGO_CMD compress brotli "$TEST_FILE" -o "$NO_EXT_FILE"
+$CARGO_CMD decompress brotli "$NO_EXT_FILE" --force
+if [[ ! -f "$NO_EXT_FILE.decompressed" ]]; then
+    echo "Error: Decompressed file $NO_EXT_FILE.decompressed was not created." >&2
+    exit 1
+fi
+diff -u "$TEST_FILE" "$NO_EXT_FILE.decompressed"
+
+# 5. Test compatibility with system gzip if available
+if command -v gzip >/dev/null 2>&1; then
+    echo "Testing compatibility with system gzip..."
+    $CARGO_CMD compress gzip "$TEST_FILE" -o "$TMP_DIR/system_test.gz" --force
+    gzip -d -c "$TMP_DIR/system_test.gz" > "$TMP_DIR/system_out.txt"
+    diff -u "$TEST_FILE" "$TMP_DIR/system_out.txt"
+
+    gzip -c "$TEST_FILE" > "$TMP_DIR/system_in.gz"
+    $CARGO_CMD decompress "$TMP_DIR/system_in.gz" -o "$TMP_DIR/ctb_out.txt" --force
+    diff -u "$TEST_FILE" "$TMP_DIR/ctb_out.txt"
+fi
+
+# 6. Test round-trip for raw deflate and zlib
+$CARGO_CMD compress deflate "$TEST_FILE" -o "$TMP_DIR/raw.deflate" --force
+$CARGO_CMD decompress deflate "$TMP_DIR/raw.deflate" -o "$TMP_DIR/raw_out.txt" --force
+diff -u "$TEST_FILE" "$TMP_DIR/raw_out.txt"
+
+$CARGO_CMD compress zlib "$TEST_FILE" -o "$TMP_DIR/zlib.zz" --force
+$CARGO_CMD decompress zlib "$TMP_DIR/zlib.zz" -o "$TMP_DIR/zlib_out.txt" --force
+diff -u "$TEST_FILE" "$TMP_DIR/zlib_out.txt"
+
+echo "All compression CLI tests passed successfully!"

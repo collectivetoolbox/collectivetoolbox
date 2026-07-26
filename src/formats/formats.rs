@@ -13,6 +13,7 @@ pub use ctb_formats_applescript as applescript;
 pub use ctb_formats_base16b as base16b;
 pub use ctb_formats_base64 as base64;
 pub use ctb_formats_checksum as checksum;
+pub use ctb_formats_compression as compression;
 pub use ctb_formats_ctb_asset_bundle as ctb_asset_bundle;
 pub use ctb_formats_dceutils as dceutils;
 pub use ctb_formats_eite as eite;

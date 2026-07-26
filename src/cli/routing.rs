@@ -19,6 +19,8 @@ pub fn is_lightweight_command(command: &str) -> bool {
     matches!(
         command,
         "csum"
+            | "compress"
+            | "decompress"
             | "base2base"
             | "hex2dec"
             | "dec2hex"
@@ -350,6 +352,36 @@ pub enum Command {
         #[arg(long = "prefix-0x")]
         prefix_0x: bool,
     },
+    /// Compress a file or stdin using single-stream compression format
+    #[command(name = "compress")]
+    Compress {
+        /// Compression format (`brotli` / `.br`, `gzip` / `.gz`, `deflate` / `.deflate`, `zlib` / `.zz` / `.zl`)
+        format: String,
+        /// Input file path (or - for stdin)
+        #[arg(default_value = "-")]
+        file: PathBuf,
+        /// Output file path or - for stdout
+        #[arg(short = 'o', long = "output", alias = "file", value_name = "OUTPUT")]
+        output: Option<PathBuf>,
+        /// Force overwrite without prompting
+        #[arg(long = "force")]
+        force: bool,
+    },
+    /// Decompress a compressed file or stdin
+    #[command(name = "decompress")]
+    Decompress {
+        /// Optional compression format (`brotli`, `gzip`, `deflate`, `zlib`). If omitted, detected from file extension or magic bytes.
+        format: Option<String>,
+        /// Input file path (or - for stdin)
+        #[arg(default_value = "-")]
+        file: PathBuf,
+        /// Output file path or - for stdout
+        #[arg(short = 'o', long = "output", alias = "file", value_name = "OUTPUT")]
+        output: Option<PathBuf>,
+        /// Force overwrite without prompting
+        #[arg(long = "force")]
+        force: bool,
+    },
     /// Process a file using wfparser logic
     #[command(name = "wfparser")]
     Wfparser {
@@ -554,6 +586,26 @@ fn read_file_or_stdin(path: &std::path::Path) -> Result<Vec<u8>> {
             )
         })
     }
+}
+
+fn check_overwrite_prompt(path: &std::path::Path, force: bool) -> Result<bool> {
+    use std::io::IsTerminal;
+    if force || path == std::path::Path::new("-") || !path.exists() {
+        return Ok(true);
+    }
+    if std::io::stdin().is_terminal() {
+        eprint!(
+            "Output file '{path_display}' already exists. Overwrite? [y/N] ",
+            path_display = path.display()
+        );
+        let mut response = String::new();
+        std::io::stdin().read_line(&mut response)?;
+        let trimmed = response.trim().to_ascii_lowercase();
+        if trimmed != "y" && trimmed != "yes" {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 // ---------------------------
@@ -866,6 +918,132 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
             );
             Ok(ToolResult::immediate_ok(output.into_bytes()))
+        }
+        Command::Compress {
+            format,
+            file,
+            output,
+            force,
+        } => {
+            let compression_format =
+                ctb_formats_compression::CompressionFormat::try_from(format.as_str())?;
+            let data = read_file_or_stdin(file.as_path())?;
+            let compressed =
+                ctb_formats_compression::compress(&data, compression_format)?;
+
+            let target_path = match output {
+                Some(out_path) => out_path.clone(),
+                None => {
+                    if file.as_path() == std::path::Path::new("-") {
+                        PathBuf::from("-")
+                    } else {
+                        PathBuf::from(format!(
+                            "{}.{}",
+                            file.display(),
+                            compression_format.extension()
+                        ))
+                    }
+                }
+            };
+
+            if target_path.as_path() == std::path::Path::new("-") {
+                Ok(ToolResult::immediate_ok(compressed))
+            } else {
+                if !check_overwrite_prompt(&target_path, *force)? {
+                    return Ok(ToolResult::immediate_err(
+                        "Operation cancelled.\n".as_bytes().to_vec(),
+                        1,
+                    ));
+                }
+                std::fs::write(&target_path, &compressed)
+                    .with_context(|| format!("Failed to write to {}", target_path.display()))?;
+                Ok(ToolResult::immediate_ok(Vec::new()))
+            }
+        }
+        Command::Decompress {
+            format,
+            file,
+            output,
+            force,
+        } => {
+            let (input_path, raw_format) = match format {
+                Some(fmt_str) => {
+                    if let Ok(parsed_fmt) =
+                        ctb_formats_compression::CompressionFormat::try_from(fmt_str.as_str())
+                    {
+                        (file.clone(), Some(parsed_fmt))
+                    } else {
+                        let in_path = PathBuf::from(fmt_str);
+                        let inferred = in_path
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .and_then(ctb_formats_compression::CompressionFormat::from_extension);
+                        (in_path, inferred)
+                    }
+                }
+                None => {
+                    let inferred = file
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .and_then(ctb_formats_compression::CompressionFormat::from_extension);
+                    (file.clone(), inferred)
+                }
+            };
+
+            let data = read_file_or_stdin(input_path.as_path())?;
+
+            let compression_format = match raw_format {
+                Some(fmt) => fmt,
+                None => ctb_formats_compression::CompressionFormat::from_magic_bytes(&data)
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "Could not determine compression format for '{}'",
+                            input_path.display()
+                        )
+                    })?,
+            };
+
+            let decompressed =
+                ctb_formats_compression::decompress(&data, compression_format)?;
+
+            let target_path = match output {
+                Some(out_path) => out_path.clone(),
+                None => {
+                    if input_path.as_path() == std::path::Path::new("-") {
+                        PathBuf::from("-")
+                    } else {
+                        let filename_str = input_path.to_string_lossy();
+                        let known_exts = [".br", ".gz", ".deflate", ".zz", ".zl"];
+                        let mut stripped = None;
+                        for ext in known_exts {
+                            if filename_str.to_ascii_lowercase().ends_with(ext) {
+                                stripped = Some(PathBuf::from(
+                                    &filename_str[..filename_str.len().saturating_sub(ext.len())],
+                                ));
+                                break;
+                            }
+                        }
+                        match stripped {
+                            Some(s_path) => s_path,
+                            None => PathBuf::from(format!("{}.decompressed", input_path.display())),
+                        }
+                    }
+                }
+            };
+
+            if target_path.as_path() == std::path::Path::new("-") {
+                Ok(ToolResult::immediate_ok(decompressed))
+            } else {
+                if !check_overwrite_prompt(&target_path, *force)? {
+                    return Ok(ToolResult::immediate_err(
+                        "Operation cancelled.\n".as_bytes().to_vec(),
+                        1,
+                    ));
+                }
+                std::fs::write(&target_path, &decompressed)
+                    .with_context(|| format!("Failed to write to {}", target_path.display()))?;
+                Ok(ToolResult::immediate_ok(Vec::new()))
+            }
         }
         Command::Wfparser { file } => {
             let data = read_file_or_stdin(file.as_path())?;
