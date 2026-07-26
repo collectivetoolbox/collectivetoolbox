@@ -38,7 +38,7 @@
 - Use icon assets instead of inline SVG if available.
 - Avoid inline JavaScript or CSS in templates.
 - Prefer `rem` CSS units over `px`.
-- Do not create new ad-hoc components, such as button styling, unless specifically requested. If a specific concept, like ".btn-secondary" or ".btn-secondary.selected" is missing, add it to the appropriate component CSS file. Do not reinvent wheels.
+- Do not create new ad-hoc components, such as button styling, unless specifically requested. If a specific concept, like ".btn-secondary" or ".btn-secondary.selected" is missing, add it to the appropriate component CSS file. Do not reinvent wheels. Use CSS classes sparingly, to supplement HTML where needed without redundancy (use `<button>`, not `<button class="button">`).
 - If you reuse algorithms or code from another file, include a comment noting the source.
 - Never delete license blocks or copyright information.
 - Design guidelines are maintained in docs/design-system.md. It should be kept up to date with new UI components where applicable.

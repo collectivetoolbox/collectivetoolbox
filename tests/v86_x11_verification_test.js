@@ -84,7 +84,7 @@ async function waitForServer(url, timeoutMs = 60000) {
   for (let i = 0; i < 60; i++) {
     await page.waitForTimeout(1000);
     const state = await page.evaluate(() => {
-      const textDiv = document.querySelector('#screen_container div');
+      const textDiv = document.querySelector('#screen_container #screen') || document.querySelector('#screen_container div');
       const text = textDiv ? (textDiv.innerText || textDiv.textContent) : '';
       const serial = window.v86SerialBuffer || '';
       return { text, serial };
@@ -333,8 +333,8 @@ async function waitForServer(url, timeoutMs = 60000) {
   // GATE 6: VT & Canvas Display Mode Verification
   console.log("[GATE 6] Verifying VT & ScreenAdapter display mode (Canvas vs Text Div)...");
   const modeState = await page.evaluate(() => {
-    const canvas = document.querySelector('#screen_container canvas') || document.querySelector('canvas');
-    const textDiv = document.querySelector('#screen_container div');
+    const canvas = document.querySelector('#screen_container canvas#vga') || document.querySelector('#screen_container canvas') || document.querySelector('canvas');
+    const textDiv = document.querySelector('#screen_container #screen') || document.querySelector('#screen_container div');
     const canvasVisible = canvas && window.getComputedStyle(canvas).display !== 'none';
     const textDivVisible = textDiv && window.getComputedStyle(textDiv).display !== 'none';
     const canvasWidth = canvas ? canvas.width : 0;
