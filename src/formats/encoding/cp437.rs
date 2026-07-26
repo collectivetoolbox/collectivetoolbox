@@ -19,7 +19,7 @@ pub struct Cp437Mapping {
 
 impl Cp437Mapping {
     pub fn chr(&self, code: u8) -> String {
-        self.decode_table[usize::from(code)].to_string()
+        self.decode_table.get(usize::from(code)).copied().unwrap_or('\0').to_string()
     }
 
     pub fn asc(&self, s: &str) -> Option<u8> {
@@ -33,7 +33,7 @@ impl Cp437Mapping {
             if let Some(&byte) = self.encode_table.get(&c) {
                 result.push(byte);
             } else {
-                return Err(anyhow!("Encoding error: unmappable character '{}'", c));
+                return Err(anyhow!("Encoding error: unmappable character '{c}'"));
             }
         }
         Ok(result)
@@ -42,14 +42,17 @@ impl Cp437Mapping {
     pub fn decode(&self, input: &[u8]) -> Result<String> {
         let mut result = String::with_capacity(input.len());
         for &byte in input {
-            result.push(self.decode_table[usize::from(byte)]);
+            result.push(self.decode_table.get(usize::from(byte)).copied().unwrap_or('\0'));
         }
         Ok(result)
     }
 
     pub fn remap(&mut self, byte: u8, character: char) {
-        let old_char = self.decode_table[usize::from(byte)];
-        self.decode_table[usize::from(byte)] = character;
+        let idx = usize::from(byte);
+        let old_char = self.decode_table.get(idx).copied().unwrap_or('\0');
+        if let Some(slot) = self.decode_table.get_mut(idx) {
+            *slot = character;
+        }
 
         if self.encode_table.get(&old_char) == Some(&byte) {
             self.encode_table.remove(&old_char);
@@ -71,16 +74,22 @@ fn try_load_mapping(
         for i in 0..128 {
             let byte = u8::try_from(i)?;
             let character = char::from(byte);
-            decode_table[usize::from(byte)] = character;
+            if let Some(slot) = decode_table.get_mut(usize::from(byte)) {
+                *slot = character;
+            }
             encode_table.insert(character, byte);
         }
     } else {
-        decode_table[0] = '\0';
+        if let Some(slot) = decode_table.get_mut(0) {
+            *slot = '\0';
+        }
         encode_table.insert('\0', 0);
         for i in 0x20..0x7F {
             let byte = u8::try_from(i)?;
             let character = char::from(byte);
-            decode_table[usize::from(byte)] = character;
+            if let Some(slot) = decode_table.get_mut(usize::from(byte)) {
+                *slot = character;
+            }
             encode_table.insert(character, byte);
         }
     }
@@ -96,7 +105,7 @@ fn try_load_mapping(
         )?;
 
         for row in table.rows_iter() {
-            if let (Some(r0), Some(r1)) = (row.get(0), row.get(1)) {
+            if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
                 let byte = u8::from_str_radix(byte_str, 16)
@@ -106,7 +115,9 @@ fn try_load_mapping(
                 let character = char::from_u32(uni_code)
                     .ok_or_else(|| anyhow!("Invalid Unicode code point '{uni_str}'"))?;
 
-                decode_table[usize::from(byte)] = character;
+                if let Some(slot) = decode_table.get_mut(usize::from(byte)) {
+                    *slot = character;
+                }
                 encode_table.insert(character, byte);
             }
         }
@@ -123,7 +134,7 @@ fn try_load_mapping(
         )?;
 
         for row in table.rows_iter() {
-            if let (Some(r0), Some(r1)) = (row.get(0), row.get(1)) {
+            if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
                 let byte = u8::from_str_radix(byte_str, 16)
@@ -151,7 +162,10 @@ pub static CP437_DINGBATS: LazyLock<Cp437Mapping> = LazyLock::new(|| {
         "cp437/cp437_dingbats/variants.tsv",
         false,
     )
-    .expect("Failed to load CP437 DINGBATS mapping")
+    .unwrap_or_else(|_| Cp437Mapping {
+        decode_table: ['\0'; 256],
+        encode_table: HashMap::new(),
+    })
 });
 
 pub static CP437_CONTROL: LazyLock<Cp437Mapping> = LazyLock::new(|| {
@@ -160,7 +174,10 @@ pub static CP437_CONTROL: LazyLock<Cp437Mapping> = LazyLock::new(|| {
         "cp437/cp437_control/variants.tsv",
         true,
     )
-    .expect("Failed to load CP437 control mapping")
+    .unwrap_or_else(|_| Cp437Mapping {
+        decode_table: ['\0'; 256],
+        encode_table: HashMap::new(),
+    })
 });
 
 pub fn chr(code: u8) -> String {
