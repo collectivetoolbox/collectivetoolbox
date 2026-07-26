@@ -16,6 +16,10 @@ pub struct SEMSFormatSettings {
     pub strict: bool,
 }
 
+fn get_index(res: &[u32]) -> u64 {
+    u64::try_from(res.len()).unwrap_or(0)
+}
+
 /// Parse SEMS format (space-delimited integers with `#` comments).
 /// Comments are bracketed with Dc 246 (begin single-line comment) and Dc 248 (end).
 pub fn dca_from_sems(
@@ -30,11 +34,7 @@ pub fn dca_from_sems(
     let mut parser_state = "dc";
     let mut current_dc = String::new();
 
-    fn get_index(res: &[u32]) -> u64 {
-        res.len().try_into().unwrap_or(0)
-    }
-
-    let mut idx = 0;
+    let mut idx = 0usize;
     while let Some(&b) = content.get(idx) {
         match parser_state {
             "dc" => {
@@ -74,9 +74,10 @@ pub fn dca_from_sems(
                 // Append mapped Dc(s) from this unicode char byte
                 // (The original code treated bytes as Unicode scalar values)
                 let mut until_next_newline = Vec::new();
-                let mut i = 0;
-                while idx + i < content.len() {
-                    let b = content.get(idx + i).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+                let mut i = 0usize;
+                while idx.saturating_add(i) < content.len() {
+                    let offset = idx.saturating_add(i);
+                    let b = content.get(offset).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
                     if ascii_is_newline(b) {
                         parser_state = "dc";
                         // don't consume and advance past the newline here; give
@@ -84,8 +85,8 @@ pub fn dca_from_sems(
                         break;
                     }
                     until_next_newline.push(b);
-                    i += 1;
-                    if idx + i == content.len() {
+                    i = i.saturating_add(1);
+                    if idx.saturating_add(i) == content.len() {
                         // End of content reached; will handle end-of-file below
                         break;
                     }
@@ -98,14 +99,14 @@ pub fn dca_from_sems(
                 log.merge(&inner_log);
                 // End comment sentinel
                 res.push(248);
-                idx += i;
+                idx = idx.saturating_add(i);
             }
             _ => bail!(
                 "Internal error: unexpected parser state while parsing SEMS document"
             ),
         }
 
-        idx += 1;
+        idx = idx.saturating_add(1);
     }
 
     // End-of-file handling
@@ -141,8 +142,10 @@ pub fn dca_from_sems(
 }
 
 /// Export Dc array to SEMS format.
+///
 /// - Dc 246 begins a single-line comment region
 /// - Dc 248 ends the comment region
+///
 /// Comment contents are encoded with `dca_to_dcbnb_utf8`.
 pub fn dca_to_sems(dc_array: &[u32]) -> Result<(Vec<u8>, FormatLog)> {
     let mut log: FormatLog = FormatLog::default();

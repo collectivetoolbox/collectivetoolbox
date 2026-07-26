@@ -321,15 +321,13 @@ pub fn decode(
 }
 
 /// Public: count Unicode characters in the way Base16b does
-pub fn true_length(input_str: &str) -> usize {
+pub fn true_length(input_str: &str) -> Result<usize> {
     /*
     Count the number of characters in a string.
     This function can handle stings of mixed BMP plane and higher Unicode planes.
     Fixes a problem with Javascript which incorrectly that assumes each character is only one byte.
     */
-    let str_bytes = ucs2encode(&string_to_scalars(input_str))
-        .unwrap_or_default()
-        .len();
+    let str_bytes = ucs2encode(&string_to_scalars(input_str))?.len();
     let mut str_length: usize = 0;
     let mut tally_bytes = 0;
     while tally_bytes < str_bytes {
@@ -345,7 +343,7 @@ pub fn true_length(input_str: &str) -> usize {
         tally_bytes = tally_bytes.saturating_add(char_bytes);
         str_length = str_length.saturating_add(1);
     }
-    str_length
+    Ok(str_length)
 }
 
 #[cfg(test)]
@@ -365,9 +363,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_true_length() {
-        assert_eq!(true_length("aa"), 1);
-        assert_eq!(true_length("a𠜎"), 2);
-        assert_eq!(true_length("a🥴"), 2);
+        assert_eq!(true_length("aa").unwrap(), 1);
+        assert_eq!(true_length("a𠜎").unwrap(), 2);
+        assert_eq!(true_length("a🥴").unwrap(), 2);
     }
 
     #[crate::ctb_test]
