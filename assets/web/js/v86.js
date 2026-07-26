@@ -1,6 +1,3 @@
-// SPDX-License-Identifier for parts derived from v86: BSD-2-Clause AND MIT
-// See full license text at end of file.
-
 /**
  * v86 Emulator WebUI Integration
  *
@@ -8,7 +5,7 @@
  * mounting, canvas/terminal layout switching, and statistics monitoring.
  */
 
-// @ts-nocheck
+// @ts-nocheck: Third-party v86 module types are dynamically loaded at runtime
 import { V86 } from "/vendor/v86/src/browser/starter.js?v=1";
 
 /**
@@ -134,18 +131,18 @@ function initV86() {
         }
     });
 
-    let isRunning = true;
+    let _isRunning = true;
     const runBtn = document.getElementById("run");
     if (runBtn) {
         runBtn.onclick = function() {
             if (emulator.is_running()) {
                 emulator.stop();
                 runBtn.textContent = "Run";
-                isRunning = false;
+                _isRunning = false;
             } else {
                 emulator.run();
                 runBtn.textContent = "Pause";
-                isRunning = true;
+                _isRunning = true;
             }
             runBtn.blur();
         };
@@ -224,7 +221,9 @@ function initV86() {
             try {
                 const w = window.open("");
                 if (w) w.document.write(image.outerHTML);
-            } catch(e) {}
+            } catch (_err) {
+                /* Screenshot popup window blocked or ignored */
+            }
             screenshotBtn.blur();
         };
     }
@@ -268,7 +267,7 @@ function initV86() {
                 if (was_running) {
                     emulator.run();
                     if (runBtn) runBtn.textContent = "Pause";
-                    isRunning = true;
+                    _isRunning = true;
                 }
             };
             filereader.readAsArrayBuffer(file);
@@ -291,9 +290,9 @@ function initV86() {
      *
      * @param {object} disk Virtual disk device instance.
      * @param {string} default_name Fallback filename.
-     * @returns {Promise<void>}
+     * @returns {void}
      */
-    async function download_disk(disk, default_name) {
+    function download_disk(disk, default_name) {
         if (!disk) return;
         const buffer = disk.buffer;
         if (!buffer) return;
@@ -400,10 +399,10 @@ function initV86() {
         let capture = [];
         let capturing = false;
 
-        function do_capture(direction, data) {
+        const do_capture = (direction, data) => {
             capture.push({ direction, time: performance.now() / 1000, hex_dump: hex_dump(data) });
             netCapBtn.textContent = capture.length + " packets";
-        }
+        };
 
         netCapBtn.onclick = function() {
             if (!capturing) {
@@ -509,7 +508,7 @@ function initV86() {
     const sendFileEl = document.getElementById("filesystem_send_file");
     if (sendFileEl) {
         sendFileEl.onchange = function() {
-            for (let file of this.files) {
+            for (const file of this.files) {
                 emulator.create_file("/" + file.name, new Uint8Array(file));
             }
         };
@@ -687,7 +686,6 @@ if (document.readyState === "loading") {
 } else {
     initV86();
 }
-
 /*
 # LICENSE:
 
