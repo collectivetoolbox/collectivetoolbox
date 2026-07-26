@@ -3,16 +3,21 @@
 set -euo pipefail
 
 mode="dev"
+run_browser_tests=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         "--deploy")
             mode="deploy"
             ;;
+        "--browser-tests")
+            run_browser_tests=true
+            ;;
         "-h"|"--help"|"help")
-            echo "Usage: ./ci [--deploy]"
+            echo "Usage: ./ci [--deploy] [--browser-tests]"
             echo "Modes:"
-            echo "  (no args)  Development Mode: Runs CI on current local working state"
-            echo "  --deploy   Deploy Mode: Verifies uploaded release tarballs based on VERSION and COMMIT files"
+            echo "  (no args)       Development Mode: Runs CI on current local working state"
+            echo "  --deploy        Deploy Mode: Verifies uploaded release tarballs based on VERSION and COMMIT files"
+            echo "  --browser-tests Also run Playwright browser verification tests after successful build"
             exit 0
             ;;
         *)
@@ -175,6 +180,11 @@ else
             -v "$(pwd)/.advisory-db":/advisory-db:ro \
             "$ci_image" \
             bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev" 2>&1 | tee -a "$log_file" || exit_code=$?
+fi
+
+if [[ $exit_code -eq 0 && "$run_browser_tests" == "true" ]]; then
+    echo "Running browser verification tests..." | tee -a "$log_file"
+    bash scripts/ci-browser-tests 2>&1 | tee -a "$log_file" || exit_code=$?
 fi
 
 echo "--------------------------------------------------" | tee -a "$log_file"

@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Ensure we are in the repository root directory
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+echo "=================================================="
+echo "Starting Browser Verification Tests (Playwright)"
+echo "=================================================="
+
+# Locate ctoolbox binary
+binary_path=""
+if [[ -x "built/linux-x64/ctoolbox" ]]; then
+    binary_path="built/linux-x64/ctoolbox"
+elif [[ -x "built/ctoolbox" ]]; then
+    binary_path="built/ctoolbox"
+elif [[ -f "built/linux-x64/ctoolbox" ]]; then
+    chmod +x built/linux-x64/ctoolbox
+    binary_path="built/linux-x64/ctoolbox"
+elif [[ -f "built/ctoolbox" ]]; then
+    chmod +x built/ctoolbox
+    binary_path="built/ctoolbox"
+fi
+
+if [[ -z "$binary_path" ]]; then
+    echo "Error: ctoolbox binary not found in built/ directory." >&2
+    echo "Please build ctoolbox first (e.g. using ./build linux-x64 or ./ci)." >&2
+    exit 1
+fi
+
+echo "Using binary: $binary_path"
+
+# Check Node.js availability
+if ! command -v node >/dev/null 2>&1; then
+    echo "Error: Node.js is required to run Playwright tests." >&2
+    exit 1
+fi
+
+# Configure NODE_PATH for globally installed playwright
+global_npm_root="$(npm root -g 2>/dev/null || true)"
+export NODE_PATH="${NODE_PATH:-}:${global_npm_root}:/usr/local/lib/node_modules:/usr/lib/node_modules"
+
+# Ensure output logs directory exists
+mkdir -p ci-logs
+
+log_file="ci-logs/browser-tests-ctoolbox.log"
+if [[ -f "$log_file" ]]; then
+    rm "$log_file"
+fi
+
+# Start ctoolbox server process in background
+binary_dir="$(dirname "$binary_path")"
+echo "Launching ctoolbox server from $binary_dir in background..."
+
+(cd "$binary_dir" && RUST_BACKTRACE=1 ./ctoolbox) > "$log_file" 2>&1 &
+CTOOLBOX_PID=$!
+
+echo "ctoolbox started with PID: $CTOOLBOX_PID"
+
+# Register cleanup trap to ensure background process is killed on exit
+# shellcheck disable=SC2329
+cleanup() {
+    echo "Cleaning up background ctoolbox process (PID $CTOOLBOX_PID)..."
+    if kill -0 "$CTOOLBOX_PID" 2>/dev/null; then
+        kill "$CTOOLBOX_PID" 2>/dev/null || true
+        sleep 1
+        if kill -0 "$CTOOLBOX_PID" 2>/dev/null; then
+            kill -9 "$CTOOLBOX_PID" 2>/dev/null || true
+        fi
+    fi
+}
+trap cleanup EXIT
+
+# Wait for server readiness (up to 60 seconds)
+echo "Waiting for ctoolbox server to become ready..."
+server_ready=false
+# shellcheck disable=SC2034
+for i in $(seq 1 60); do
+    if curl -s -o /dev/null "http://127.0.0.1:8080" 2>/dev/null; then
+        server_ready=true
+        break
+    fi
+    # Also check if ctoolbox is bound to a different port via ss
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tlpn 2>/dev/null | grep -q ctoolbox; then
+            server_ready=true
+            break
+        fi
+    fi
+    sleep 1
+done
+
+if ! $server_ready; then
+    echo "Error: Server failed to start within 60 seconds." >&2
+    echo "--- ctoolbox log ---" >&2
+    cat "$log_file" >&2
+    echo "-------------------" >&2
+    exit 1
+fi
+
+echo "ctoolbox server is up and responding!"
+
+# Discover and run Playwright test files in tests/
+test_files=( )
+if [[ -f "tests/v86_arch_verification_test.js" ]]; then
+    test_files+=("tests/v86_arch_verification_test.js")
+fi
+if [[ -f "tests/v86_x11_verification_test.js" ]]; then
+    test_files+=("tests/v86_x11_verification_test.js")
+fi
+
+if [[ "${#test_files[@]}" -eq 0 ]]; then
+    echo "Warning: No test files found in tests/ matching verification pattern."
+    exit 0
+fi
+
+overall_exit=0
+for test_script in "${test_files[@]}"; do
+    echo "Running Playwright test: $test_script"
+    if node "$test_script"; then
+        echo "Passed: $test_script"
+    else
+        echo "Failed: $test_script" >&2
+        overall_exit=1
+    fi
+done
+
+echo "=================================================="
+if [[ $overall_exit -eq 0 ]]; then
+    echo "All browser verification tests passed successfully!"
+else
+    echo "Some browser verification tests failed!" >&2
+fi
+echo "=================================================="
+
+exit $overall_exit
