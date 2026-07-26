@@ -96,6 +96,7 @@ ctb-formats-applescript = { path = "src/formats/applescript" }
 ctb-formats-base16b = { path = "src/formats/base16b" }
 ctb-formats-base64 = { path = "src/formats/base64" }
 ctb-formats-checksum = { path = "src/formats/checksum" }
+ctb-formats-compression = { path = "src/formats/compression" }
 ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
 ctb-formats-dceutils = { path = "src/formats/dceutils" }
 ctb-formats-dctext = { path = "src/formats/dctext" }

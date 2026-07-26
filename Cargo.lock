@@ -2577,6 +2577,7 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "ctb-formats-checksum",
+ "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-eite",
@@ -2607,6 +2608,7 @@ dependencies = [
  "ctb-formats-base16b",
  "ctb-formats-base64",
  "ctb-formats-checksum",
+ "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dctext",
@@ -2686,6 +2688,17 @@ dependencies = [
  "ctb-formats-utilities",
  "ctb-utilities",
  "twox-hash",
+]
+
+[[package]]
+name = "ctb-formats-compression"
+version = "0.0.0"
+dependencies = [
+ "brotli",
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "flate2",
+ "include_dir",
 ]
 
 [[package]]
@@ -3489,6 +3502,7 @@ dependencies = [
  "ctb-formats-base16b",
  "ctb-formats-base64",
  "ctb-formats-checksum",
+ "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dctext",

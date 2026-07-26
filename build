@@ -341,6 +341,9 @@ for p in "${platforms[@]}"; do
     fi
 
     if [[ "$run_tests" == "true" ]]; then
+        echo "=== Running CLI compression tests ==="
+        bash scripts/test-compression-cli || exit 1
+
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
