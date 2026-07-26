@@ -43,6 +43,7 @@
 
 
 use anyhow::{Context, Result, bail};
+use std::fmt::Write;
 use std::fs;
 use std::path::Path;
 
@@ -67,7 +68,6 @@ fn _aligndown(pos: usize, alignbytes: usize) -> usize {
     pos & !mask
 }
 
-#[expect(clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Legacy seabios builder logic")]
 pub fn run_buildversion(args: &[String]) -> Result<()> {
     let mut outfile = String::new();
     let mut extraversion = String::new();
@@ -125,7 +125,6 @@ pub fn run_buildversion(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-#[expect(clippy::string_slice, reason = "Legacy vgafixup string slicing")]
 pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
     let content = fs::read_to_string(infilename)
         .with_context(|| format!("Failed to read {}", infilename.display()))?;
@@ -150,11 +149,10 @@ pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
     if let Some(parent) = outfilename.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(outfilename, out.join("\n") + "\n")?;
+    fs::write(outfilename, format!("{}\n", out.join("\n")))?;
     Ok(())
 }
 
-#[expect(clippy::string_slice, reason = "Legacy handle_leal string slicing")]
 fn handle_leal(sline: &str) -> String {
     let rest = sline.get(4..).unwrap_or("").trim();
     if rest.contains("(%esp)") {
@@ -175,21 +173,23 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
     if data.len() >= 26 {
         let pci1 = usize::from(data.get(24).copied().unwrap_or(0));
         let pci2 = usize::from(data.get(25).copied().unwrap_or(0));
-        let pcidata = pci1 | (pci2 << 8);
+        let pcidata = pci1 | (pci2.checked_shl(8).unwrap_or(0));
         if pcidata != 0 && data.len() >= pcidata.saturating_add(18) {
-            let blocks = u16::try_from(count / 512).unwrap_or(0).to_le_bytes();
+            let count_blocks = count.checked_div(512).unwrap_or(0);
+            let blocks = u16::try_from(count_blocks).unwrap_or(0).to_le_bytes();
             if let Some(slot) = data.get_mut(pcidata.saturating_add(16)) {
-                *slot = blocks[0];
+                *slot = blocks.first().copied().unwrap_or(0);
             }
             if let Some(slot) = data.get_mut(pcidata.saturating_add(17)) {
-                *slot = blocks[1];
+                *slot = blocks.get(1).copied().unwrap_or(0);
             }
         }
     }
 
     if data.len() >= 7 {
         if let Some(slot) = data.get_mut(2) {
-            *slot = u8::try_from(count / 512).unwrap_or(0);
+            let count_blocks = count.checked_div(512).unwrap_or(0);
+            *slot = u8::try_from(count_blocks).unwrap_or(0);
         }
         if let Some(slot) = data.get_mut(6) {
             *slot = 0;
@@ -209,7 +209,6 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
     Ok(())
 }
 
-#[expect(clippy::as_conversions, clippy::cast_precision_loss, reason = "Checkrom byte size calculations")]
 pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfile: &Path) -> Result<()> {
     let rawdata = fs::read(rawfile)
         .with_context(|| format!("Failed to read {}", rawfile.display()))?;
@@ -217,11 +216,11 @@ pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfil
     let datasize = rawdata.len();
     let mut finalsize = finalsize_kb.saturating_mul(1024);
     if finalsize == 0 {
-        finalsize = 64 * 1024;
-        if datasize > 64 * 1024 {
-            finalsize = 128 * 1024;
-            if datasize > 128 * 1024 {
-                finalsize = 256 * 1024;
+        finalsize = 64_usize.saturating_mul(1024);
+        if datasize > 64_usize.saturating_mul(1024) {
+            finalsize = 128_usize.saturating_mul(1024);
+            if datasize > 128_usize.saturating_mul(1024) {
+                finalsize = 256_usize.saturating_mul(1024);
             }
         }
     }
@@ -234,8 +233,16 @@ pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfil
     out.extend_from_slice(&rawdata);
 
     let free = finalsize.saturating_sub(datasize);
-    let pct = (datasize as f64 / finalsize as f64) * 100.0;
-    let kb = finalsize / 1024;
+    let datasize_u32 = u32::try_from(datasize).unwrap_or(u32::MAX);
+    let finalsize_u32 = u32::try_from(finalsize).unwrap_or(u32::MAX);
+    let datasize_f = f64::from(datasize_u32);
+    let finalsize_f = f64::from(finalsize_u32);
+    let pct = if finalsize_f > 0.0 {
+        (datasize_f / finalsize_f) * 100.0
+    } else {
+        0.0
+    };
+    let kb = finalsize.checked_div(1024).unwrap_or(0);
     println!("Total size: {datasize}  Fixed: {datasize}  Free: {free} (used {pct:.1}% of {kb}KiB rom)");
 
     if let Some(parent) = outfile.parent() {
@@ -311,7 +318,6 @@ pub fn run_layoutrom(
     Ok(())
 }
 
-#[expect(clippy::indexing_slicing, clippy::string_slice, reason = "Objdump parsing string slicing")]
 fn parse_objdump(path: &Path, fileid: &str, out_sections: &mut Vec<Section>) -> Result<()> {
     let content = fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
@@ -338,7 +344,7 @@ fn parse_objdump(path: &Path, fileid: &str, out_sections: &mut Vec<Section>) -> 
                 let size = usize::from_str_radix(p2, 16).unwrap_or(0);
                 let pow_str = p6.get(3..).unwrap_or("0");
                 let pow: u32 = pow_str.parse().unwrap_or(0);
-                let align = 1_usize << pow;
+                let align = 1_usize.checked_shl(pow).unwrap_or(1);
 
                 out_sections.push(Section {
                     name,
@@ -363,10 +369,10 @@ fn write_lds_16(path: &Path, text16: &[Section], fixed: &[(usize, Section)]) -> 
     body.push_str("    zonelow_base = 0x90000 ;\n    _zonelow_seg = 0x9000 ;\n");
 
     for (addr, sec) in fixed {
-        body.push_str(&format!("    {} 0x{:x} : {{ *({}) }}\n", sec.name, addr, sec.name));
+        let _ = writeln!(body, "    {} 0x{addr:x} : {{ *({}) }}", sec.name, sec.name);
     }
     for sec in text16 {
-        body.push_str(&format!("    {} : {{ *({}) }}\n", sec.name, sec.name));
+        let _ = writeln!(body, "    {} : {{ *({}) }}", sec.name, sec.name);
     }
 
     body.push_str("    /DISCARD/ : { *(.text*) *(.data*) *(.bss*) *(.rodata*) *(.note*) }\n}\n");
@@ -384,7 +390,7 @@ fn write_lds_simple(path: &Path, sections: &[Section], _name: &str) -> Result<()
     body.push_str("OUTPUT_FORMAT(\"elf32-i386\")\nOUTPUT_ARCH(\"i386\")\nSECTIONS\n{\n");
 
     for sec in sections {
-        body.push_str(&format!("    {} : {{ *({}) }}\n", sec.name, sec.name));
+        let _ = writeln!(body, "    {} : {{ *({}) }}", sec.name, sec.name);
     }
 
     body.push_str("    /DISCARD/ : { *(.text*) *(.data*) *(.bss*) *(.rodata*) *(.note*) }\n}\n");
