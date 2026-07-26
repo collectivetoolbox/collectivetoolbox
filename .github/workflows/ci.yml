@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  ci:
-    name: Run CI
+  build-ci:
+    name: Build & Core CI
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest
@@ -22,3 +22,50 @@ jobs:
 
       - name: Run CI script
         run: ./ci
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctoolbox-built
+          path: built/
+          retention-days: 1
+
+  browser-tests:
+    name: Playwright Browser Tests
+    needs: build-ci
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ctoolbox-built
+          path: built/
+
+      - name: Ensure binary execution permissions
+        run: |
+          if [[ -f built/linux-x64/ctoolbox ]]; then
+            chmod +x built/linux-x64/ctoolbox
+          fi
+          if [[ -f built/ctoolbox ]]; then
+            chmod +x built/ctoolbox
+          fi
+
+      - name: Run Playwright Browser Tests
+        run: ./scripts/ci-browser-tests
+
+      - name: Upload browser test results & screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: |
+            built/*.png
+            ci-logs/
+          retention-days: 7
+
