@@ -16,7 +16,6 @@ pub(crate) use ctb_utilities::*;
 /// Returns the number of bytes written.
 ///
 /// Panics if the provided buffer is too small (needs up to 24 bytes).
-#[allow(clippy::indexing_slicing, arithmetic_side_effects, reason = "meh lazy, indexing and arithemtic also helps readability here")]
 pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     // Standard UTF-8 path (unchanged) for values within Unicode range
     if codepoint <= 0x10FFFF {
@@ -109,7 +108,6 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
 /// Decodes one UTF‑8 / UTF‑8e‑128 codepoint from the provided byte slice.
 /// On success returns Some((value, `length_consumed`)), else None.
 /// Enforces canonical (no overlong) encodings for both standard and extended forms.
-#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary decoding uses index access")]
 pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
     let first = *bytes.first()?;
     if first == 0xFF {
@@ -228,7 +226,6 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
 
 /// Generalized UTF-8 encoding for u128.
 /// Returns a `Vec<u8>` containing the encoded bytes.
-#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary encoding uses index access")]
 pub fn encode_utf_8e_128(codepoint: u128) -> Vec<u8> {
     let mut buf = [0u8; 24];
     let encoded_len = encode_utf_8e_128_buf(&mut buf, codepoint);
@@ -237,7 +234,6 @@ pub fn encode_utf_8e_128(codepoint: u128) -> Vec<u8> {
 
 /// Decodes one generalized UTF-8 codepoint from bytes.
 /// Returns Some((value, `length_consumed`)), or the replacement character on error.
-#[allow(clippy::indexing_slicing, reason = "low-level custom UTF-8e-128 binary decoding uses index access")]
 pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
     if bytes.is_empty() {
         return None;

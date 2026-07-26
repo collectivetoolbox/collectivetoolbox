@@ -86,7 +86,6 @@ impl TarHeader {
     }
 
     /// Serializes the header to a 512-byte tar block.
-    #[allow(clippy::indexing_slicing, reason = "Safe: fixed-size header array with known bounds")]
     fn to_bytes(&self) -> [u8; 512] {
         let mut header = [0u8; 512];
 
@@ -681,8 +680,8 @@ pub fn download_offline_bundle_to_path(
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
-    #![allow(clippy::indexing_slicing, reason = "Tests use indexing for clarity")]
     use super::*;
     use chrono::Utc;
     use tempfile::TempDir;

@@ -55,13 +55,6 @@ use crate::types::IpcParamTransport;
 ///
 /// // Exposed as service="formats", method="utf_8e_128.encode"
 /// ```
-#[expect(
-    clippy::too_many_lines,
-    clippy::indexing_slicing,
-    clippy::question_mark,
-    clippy::needless_pass_by_value,
-    reason = "ipc_method_impl is a complex code generation function"
-)]
 pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     if !attr.is_empty() {
         if let Err(e) = syn::parse::<IpcMethodArgs>(attr) {

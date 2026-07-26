@@ -18,7 +18,6 @@ pub struct SEMSFormatSettings {
 
 /// Parse SEMS format (space-delimited integers with `#` comments).
 /// Comments are bracketed with Dc 246 (begin single-line comment) and Dc 248 (end).
-#[allow(clippy::arithmetic_side_effects, reason = "I guess it's ok")]
 pub fn dca_from_sems(
     content: &[u8],
     settings: &SEMSFormatSettings,
