@@ -2,7 +2,7 @@
 
 
 //! CLI binary entry point for `seabios-tool`.
-//! Replaces python script calls in SeaBIOS Makefile.
+//! Replaces python script calls in SeaBIOS `Makefile`.
 
 
 // From Makefile:
@@ -43,49 +43,50 @@ use std::path::Path;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+    let Some((_prog, args_tail)) = args.split_first() else {
         eprintln!("Usage: seabios-tool <script_or_command> [args...]");
         std::process::exit(1);
-    }
-
-    let cmd = &args[1];
-    let rest = &args[2..];
+    };
+    let Some((cmd, rest)) = args_tail.split_first() else {
+        eprintln!("Usage: seabios-tool <script_or_command> [args...]");
+        std::process::exit(1);
+    };
 
     if cmd.ends_with("buildversion.py") || cmd == "buildversion" {
         ctb_build_support::seabios_builder::run_buildversion(rest)?;
     } else if cmd.ends_with("vgafixup.py") || cmd == "vgafixup" {
-        if rest.len() < 2 {
+        let [infile, outfile, ..] = rest else {
             bail!("vgafixup requires <infilename> <outfilename>");
-        }
-        ctb_build_support::seabios_builder::run_vgafixup(Path::new(&rest[0]), Path::new(&rest[1]))?;
+        };
+        ctb_build_support::seabios_builder::run_vgafixup(Path::new(infile), Path::new(outfile))?;
     } else if cmd.ends_with("buildrom.py") || cmd == "buildrom" {
-        if rest.len() < 2 {
+        let [inname, outname, ..] = rest else {
             bail!("buildrom requires <inname> <outname>");
-        }
-        ctb_build_support::seabios_builder::run_buildrom(Path::new(&rest[0]), Path::new(&rest[1]))?;
+        };
+        ctb_build_support::seabios_builder::run_buildrom(Path::new(inname), Path::new(outname))?;
     } else if cmd.ends_with("checkrom.py") || cmd == "checkrom" {
-        if rest.len() < 4 {
+        let [objinfo, finalsize_str, rawfile, outfile, ..] = rest else {
             bail!("checkrom requires <objinfo> <finalsize> <rawfile> <outfile>");
-        }
-        let finalsize: usize = rest[1].parse().unwrap_or(0);
+        };
+        let finalsize: usize = finalsize_str.parse().unwrap_or(0);
         ctb_build_support::seabios_builder::run_checkrom(
-            Path::new(&rest[0]),
+            Path::new(objinfo),
             finalsize,
-            Path::new(&rest[2]),
-            Path::new(&rest[3]),
+            Path::new(rawfile),
+            Path::new(outfile),
         )?;
     } else if cmd.ends_with("layoutrom.py") || cmd == "layoutrom" {
-        if rest.len() < 7 {
+        let [in16, in32seg, in32flat, cfgfile, out16, out32seg, out32flat, ..] = rest else {
             bail!("layoutrom requires in16 in32seg in32flat cfgfile out16 out32seg out32flat");
-        }
+        };
         ctb_build_support::seabios_builder::run_layoutrom(
-            Path::new(&rest[0]),
-            Path::new(&rest[1]),
-            Path::new(&rest[2]),
-            Path::new(&rest[3]),
-            Path::new(&rest[4]),
-            Path::new(&rest[5]),
-            Path::new(&rest[6]),
+            Path::new(in16),
+            Path::new(in32seg),
+            Path::new(in32flat),
+            Path::new(cfgfile),
+            Path::new(out16),
+            Path::new(out32seg),
+            Path::new(out32flat),
         )?;
     } else {
         eprintln!("Unknown seabios-tool command: {cmd}");

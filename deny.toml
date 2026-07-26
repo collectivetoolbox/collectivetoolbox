@@ -126,7 +126,7 @@ exceptions = [
     # GPL-3.0-or-later is only for Guix packaging.
     # CC-BY-SA-3.0 is only for the animated soccer ball SVGs which as graphical assets are probably not intermixed with the software in a way that would cause the copyleft to apply, but I'm not a lawyer.
     # CC-BY-4.0 is only for the trademark policy document, which is not part of the software itself.
-    { allow = ["GPL-3.0-or-later", "CC-BY-SA-3.0", "CC-BY-4.0"], crate = "ctoolbox" },
+    { allow = ["GPL-3.0-or-later", "CC-BY-SA-3.0", "CC-BY-4.0", "GPL-3.0-only", "LGPL-3.0-only"], crate = "ctoolbox" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,
