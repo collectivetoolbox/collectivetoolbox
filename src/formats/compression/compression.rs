@@ -256,25 +256,34 @@ mod tests {
             .expect("Raw fixture missing");
         let gz = get_compression_data("fixtures/example2 with lemurs.pan.gz")
             .expect("Gz fixture missing");
+        let br = get_compression_data("fixtures/example2 with lemurs.pan.br")
+            .expect("Brotli fixture missing");
         let deflate = get_compression_data("fixtures/example2 with lemurs.pan.deflate")
             .expect("Deflate fixture missing");
         let zz = get_compression_data("fixtures/example2 with lemurs.pan.zz")
             .expect("Zlib fixture missing");
 
-        assert_eq!(decompress(&gz, CompressionFormat::Gzip).unwrap(), raw);
-        assert_eq!(
-            decompress(&deflate, CompressionFormat::Deflate).unwrap(),
-            raw
-        );
-        assert_eq!(decompress(&zz, CompressionFormat::Zlib).unwrap(), raw);
+        assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
-        let br = compress(&raw, CompressionFormat::Brotli).unwrap();
-        assert_eq!(decompress(&br, CompressionFormat::Brotli).unwrap(), raw);
+        // Byte-by-byte comparisons against raw fixture
+        let decomp_gz =
+            decompress(&gz, CompressionFormat::Gzip).expect("Gz decompress failed");
+        assert_eq!(decomp_gz.len(), raw.len());
+        assert_eq!(decomp_gz, raw, "Gz decompressed content byte-by-byte mismatch");
 
-        if let Some(embedded_br) = get_compression_data("fixtures/example2 with lemurs.pan.br") {
-            if let Ok(decomp) = decompress(&embedded_br, CompressionFormat::Brotli) {
-                assert_eq!(decomp, raw);
-            }
-        }
+        let decomp_br =
+            decompress(&br, CompressionFormat::Brotli).expect("Brotli decompress failed");
+        assert_eq!(decomp_br.len(), raw.len());
+        assert_eq!(decomp_br, raw, "Brotli decompressed content byte-by-byte mismatch");
+
+        let decomp_deflate =
+            decompress(&deflate, CompressionFormat::Deflate).expect("Deflate decompress failed");
+        assert_eq!(decomp_deflate.len(), raw.len());
+        assert_eq!(decomp_deflate, raw, "Deflate decompressed content byte-by-byte mismatch");
+
+        let decomp_zz =
+            decompress(&zz, CompressionFormat::Zlib).expect("Zlib decompress failed");
+        assert_eq!(decomp_zz.len(), raw.len());
+        assert_eq!(decomp_zz, raw, "Zlib decompressed content byte-by-byte mismatch");
     }
 }

@@ -17,10 +17,7 @@ fn codegen_output(
     s: &str,
 ) {
     output.push_str(s);
-    if s.ends_with('\n') {
-        *codegen_new_line = true;
-        *codegen_newline_looking_for_spaces = true;
-    } else if *codegen_newline_looking_for_spaces && s.ends_with("    ") {
+    if s.ends_with('\n') || (*codegen_newline_looking_for_spaces && s.ends_with("    ")) {
         *codegen_new_line = true;
         *codegen_newline_looking_for_spaces = true;
     } else {
@@ -63,10 +60,9 @@ fn codegen_format_type(
     };
     if result.is_empty() {
         if dont_die {
-            return Ok("".to_string());
-        } else {
-            bail!("{} is not a recognized type!", t);
+            return Ok(String::new());
         }
+        bail!("{t} is not a recognized type!");
     }
     if uppercase_first {
         let mut chars = result.chars();
@@ -520,7 +516,7 @@ fn codegen_routine_definition_start(
     }
 
     if debug_build {
-        for (k, (arg_type, arg_name)) in codegen_arg_list.iter().enumerate() {
+        for (arg_type, arg_name) in codegen_arg_list.iter() {
             let formatted_type = codegen_format_type(target_lang, arg_type, false, false)?;
             let uppercase_name = {
                 let mut chars = arg_name.chars();
@@ -996,13 +992,13 @@ pub fn codegen(
         loop_found = false;
         for i in 0..tokens.len() {
             if tokens.get(i).map(|t| t.typ.as_str()) == Some("loop-block") {
-                if i >= 1 && i + 4 < tokens.len() {
-                    let loop_src = tokens.get(i - 1).context("Missing loop_src")?.clone();
+                if i >= 1 && i.saturating_add(4) < tokens.len() {
+                    let loop_src = tokens.get(i.saturating_sub(1)).context("Missing loop_src")?.clone();
                     let loop_oper_pos = tokens.get(i).context("Missing loop_oper")?.pos.clone();
-                    let loop_idx = tokens.get(i + 1).context("Missing loop_idx")?.clone();
-                    let loop_elem = tokens.get(i + 2).context("Missing loop_elem")?.clone();
-                    let loop_newline = tokens.get(i + 3).context("Missing loop_newline")?.clone();
-                    let loop_indent = tokens.get(i + 4).context("Missing loop_indent")?.clone();
+                    let loop_idx = tokens.get(i.saturating_add(1)).context("Missing loop_idx")?.clone();
+                    let loop_elem = tokens.get(i.saturating_add(2)).context("Missing loop_elem")?.clone();
+                    let loop_newline = tokens.get(i.saturating_add(3)).context("Missing loop_newline")?.clone();
+                    let loop_indent = tokens.get(i.saturating_add(4)).context("Missing loop_indent")?.clone();
 
                     if loop_idx.typ != "ident-n" {
                         bail!("Loop index identifier must be an integer.");
@@ -1010,7 +1006,7 @@ pub fn codegen(
 
                     let parts: Vec<&str> = loop_indent.pos.split(':').collect();
                     let indent_level = parts.last().and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
-                    let next_indent = indent_level + 1;
+                    let next_indent = indent_level.saturating_add(1);
 
                     let replace_suffix = |pos: &str, new_ind: usize| -> Result<String> {
                         if let Some(idx) = pos.rfind(':') {
@@ -1026,31 +1022,33 @@ pub fn codegen(
                     let replacement = vec![
                         Token { pos: loop_oper_pos.clone(), typ: "command".to_string(), content: "new".to_string() },
                         Token { pos: loop_idx.pos.clone(), typ: "ident-n".to_string(), content: loop_idx.content.clone() },
-                        Token { pos: loop_oper_pos.clone(), typ: "newline".to_string(), content: "".to_string() },
+                        Token { pos: loop_oper_pos.clone(), typ: "newline".to_string(), content: String::new() },
                         Token { pos: loop_oper_pos.clone(), typ: "command".to_string(), content: "new".to_string() },
                         Token { pos: loop_elem.pos.clone(), typ: loop_elem.typ.clone(), content: loop_elem.content.clone() },
-                        Token { pos: loop_oper_pos.clone(), typ: "newline".to_string(), content: "".to_string() },
+                        Token { pos: loop_oper_pos.clone(), typ: "newline".to_string(), content: String::new() },
                         Token { pos: loop_oper_pos.clone(), typ: "command".to_string(), content: "while".to_string() },
                         Token { pos: loop_oper_pos.clone(), typ: "command".to_string(), content: "lt".to_string() },
                         Token { pos: loop_oper_pos.clone(), typ: "ident-n".to_string(), content: loop_idx.content.clone() },
                         Token { pos: loop_oper_pos.clone(), typ: "command".to_string(), content: "count".to_string() },
                         Token { pos: loop_src.pos.clone(), typ: loop_src.typ.clone(), content: loop_src.content.clone() },
-                        Token { pos: loop_newline.pos.clone(), typ: "newline".to_string(), content: "".to_string() },
-                        Token { pos: loop_indent.pos.clone(), typ: "indent".to_string(), content: "".to_string() },
+                        Token { pos: loop_newline.pos.clone(), typ: "newline".to_string(), content: String::new() },
+                        Token { pos: loop_indent.pos.clone(), typ: "indent".to_string(), content: String::new() },
                         Token { pos: loop_elem_pos_indented.clone(), typ: "command".to_string(), content: "set".to_string() },
                         Token { pos: loop_elem_pos_indented.clone(), typ: loop_elem.typ.clone(), content: loop_elem.content.clone() },
                         Token { pos: loop_elem_pos_indented.clone(), typ: "command".to_string(), content: "get".to_string() },
                         Token { pos: loop_elem_pos_indented.clone(), typ: loop_src.typ.clone(), content: loop_src.content.clone() },
                         Token { pos: loop_elem_pos_indented.clone(), typ: "ident-n".to_string(), content: loop_idx.content.clone() },
-                        Token { pos: loop_elem_pos_indented.clone(), typ: "newline".to_string(), content: "".to_string() },
+                        Token { pos: loop_elem_pos_indented.clone(), typ: "newline".to_string(), content: String::new() },
                         Token { pos: loop_idx_pos_indented.clone(), typ: "command".to_string(), content: "set".to_string() },
                         Token { pos: loop_idx_pos_indented.clone(), typ: "ident-n".to_string(), content: loop_idx.content.clone() },
                         Token { pos: loop_idx_pos_indented.clone(), typ: "command".to_string(), content: "inc".to_string() },
                         Token { pos: loop_idx_pos_indented.clone(), typ: "ident-n".to_string(), content: loop_idx.content.clone() },
-                        Token { pos: loop_idx_pos_indented.clone(), typ: "newline".to_string(), content: "".to_string() },
+                        Token { pos: loop_idx_pos_indented.clone(), typ: "newline".to_string(), content: String::new() },
                     ];
 
-                    tokens.splice(i - 1..=i + 4, replacement);
+                    let start_idx = i.saturating_sub(1);
+                    let end_idx = i.saturating_add(4);
+                    tokens.splice(start_idx..=end_idx, replacement);
                     loop_found = true;
                     break;
                 }
@@ -1076,16 +1074,16 @@ pub fn codegen(
     let mut j = 0;
     while j < tokens.len() {
         let current_token = tokens.get(j).context("Missing current token")?;
-        let next_token_content = tokens.get(j + 1).map(|t| t.content.as_str()).unwrap_or("");
-        let mut token_lookahead = tokens.get(j + 1).map(|t| t.typ.clone()).unwrap_or_default();
+        let next_token_content = tokens.get(j.saturating_add(1)).map_or("", |t| t.content.as_str());
+        let mut token_lookahead = tokens.get(j.saturating_add(1)).map(|t| t.typ.clone()).unwrap_or_default();
 
-        let mut codegen_indent = current_token.pos.split(':').last().and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
+        let mut codegen_indent = current_token.pos.split(':').next_back().and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
 
         if current_token.typ == "filename" {
-            filename = current_token.content.clone();
+            filename.clone_from(&current_token.content);
         } else if current_token.typ == "comment"
-            && state_stack.last().map(|s| s.as_str()) != Some("arglist")
-            && !state_stack.last().map(|s| s.starts_with("literal-a")).unwrap_or(false)
+            && state_stack.last().map(String::as_str) != Some("arglist")
+            && !state_stack.last().is_some_and(|s| s.starts_with("literal-a"))
         {
             codegen_comment(
                 target_lang,
@@ -1118,7 +1116,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_literal(target_lang, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-b" || t.typ == "ident-b") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-b" || t.typ == "ident-b") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1126,7 +1124,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_reference(target_lang, false, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-b" || t.typ == "ident-b") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-b" || t.typ == "ident-b") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1151,7 +1149,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_literal(target_lang, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-n" || t.typ == "ident-n") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-n" || t.typ == "ident-n") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1159,7 +1157,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_reference(target_lang, false, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-n" || t.typ == "ident-n") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-n" || t.typ == "ident-n") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1184,7 +1182,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_literal(target_lang, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-s" || t.typ == "ident-s") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-s" || t.typ == "ident-s") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1192,7 +1190,7 @@ pub fn codegen(
                             let mut lit = String::new();
                             codegen_reference(target_lang, false, &current_token.typ, &current_token.content, &mut lit, &mut false, &mut false)?;
                             codegen_array_literal.push_str(&lit);
-                            if tokens.get(j + 1).map_or(false, |t| t.typ == "literal-s" || t.typ == "ident-s") {
+                            if tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "literal-s" || t.typ == "ident-s") {
                                 codegen_array_literal.push_str(&codegen_array_entry_delimiter(target_lang, false));
                             }
                         }
@@ -1247,7 +1245,7 @@ pub fn codegen(
                         }
                         typ if typ.starts_with("ident-r-") => {
                             codegen_routine_name = ascii_dec_list_to_text(&current_token.content);
-                            if j >= 1 && tokens.get(j - 1).map_or(false, |t| t.typ != "start-document" && t.typ != "filename") {
+                            if j >= 1 && tokens.get(j.saturating_sub(1)).is_some_and(|t| t.typ != "start-document" && t.typ != "filename") {
                                 codegen_output(&mut output, &mut codegen_new_line, &mut codegen_newline_looking_for_spaces, "\n");
                             }
                             codegen_routine_type = current_token.typ.clone();
@@ -1372,7 +1370,7 @@ pub fn codegen(
                     if current_token.typ.starts_with("ident-") {
                         codegen_arg_list.push((current_token.typ.clone(), ascii_dec_list_to_text(&current_token.content)));
                         state_stack.pop();
-                        token_lookahead = tokens.get(j + 1).map(|t| t.typ.clone()).unwrap_or_default();
+                        token_lookahead = tokens.get(j.saturating_add(1)).map(|t| t.typ.clone()).unwrap_or_default();
                         codegen_command_invocation_start(
                             target_lang,
                             &mut codegen_routine_name,
@@ -1402,7 +1400,7 @@ pub fn codegen(
                     let is_arr_end = current_token.typ.starts_with("literal-a") && current_token.typ.ends_with("-end");
                     if is_arr_end {
                         codegen_arg_list.push((current_token.typ.clone(), codegen_array_literal.clone()));
-                        codegen_array_literal = "".to_string();
+                        codegen_array_literal = String::new();
                     } else if current_token.typ.starts_with("literal-") {
                         if current_state == "test" && test_parameter_found {
                             bail!(
@@ -1450,7 +1448,7 @@ pub fn codegen(
                                 codegen_indent_action(target_lang, codegen_indent, &mut output, &mut codegen_new_line, &mut codegen_newline_looking_for_spaces)?;
                                 codegen_test_indent_deferred = false;
                                 state_stack.push("code".to_string());
-                                block_stack.push(("plain-block".to_string(), "".to_string()));
+                                block_stack.push(("plain-block".to_string(), String::new()));
                             }
                         } else {
                             if current_state != "test" {
@@ -1540,13 +1538,13 @@ pub fn codegen(
                                 codegen_indent_action(target_lang, codegen_indent, &mut output, &mut codegen_new_line, &mut codegen_newline_looking_for_spaces)?;
                                 codegen_test_indent_deferred = false;
                                 state_stack.push("code".to_string());
-                                block_stack.push(("plain-block".to_string(), "".to_string()));
+                                block_stack.push(("plain-block".to_string(), String::new()));
                             }
                             j = j.saturating_sub(1);
                         }
                     } else if current_token.typ == "newline" {
                         if current_state != "test" {
-                            if block_stack.last().map(|b| b.0 != "else").unwrap_or(true) {
+                            if block_stack.last().map_or(true, |b| b.0 != "else") {
                                 codegen_command_invocation_arglist(
                                     target_lang,
                                     &mut codegen_routine_type,
@@ -1654,8 +1652,8 @@ pub fn codegen(
                             *last_state = "routine-definition-end".to_string();
                         }
                         state_stack.push("code".to_string());
-                        if current_token.typ == "newline" && tokens.get(j + 1).map_or(false, |t| t.typ == "indent") {
-                            j += 1;
+                        if current_token.typ == "newline" && tokens.get(j.saturating_add(1)).is_some_and(|t| t.typ == "indent") {
+                            j = j.saturating_add(1);
                         }
                     } else {
                         bail!("Routine definition unexpected token type {}", current_token.typ);
@@ -1666,15 +1664,15 @@ pub fn codegen(
                     j = j.saturating_sub(1);
                 }
                 "root" => {}
-                _ => bail!("Unimplemented code generation state {}", current_state),
+                _ => bail!("Unimplemented code generation state {current_state}"),
             }
         }
 
-        j += 1;
+        j = j.saturating_add(1);
     }
 
-    if block_stack.len() != 1 || block_stack.first().map_or(true, |b| b.0 != "root" || !b.1.is_empty()) {
-        bail!("Internal error: not all blocks were consumed! block stack: {:?}", block_stack);
+    if block_stack.len() != 1 || block_stack.first().is_none_or(|b| b.0 != "root" || !b.1.is_empty()) {
+        bail!("Internal error: not all blocks were consumed! block stack: {block_stack:?}");
     }
 
     Ok(output.into_bytes())
