@@ -1017,9 +1017,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                         let mut stripped = None;
                         for ext in known_exts {
                             if filename_str.to_ascii_lowercase().ends_with(ext) {
-                                stripped = Some(PathBuf::from(
-                                    &filename_str[..filename_str.len().saturating_sub(ext.len())],
-                                ));
+                                let cut_len = filename_str.len().saturating_sub(ext.len());
+                                if let Some(prefix) = filename_str.get(..cut_len) {
+                                    stripped = Some(PathBuf::from(prefix));
+                                }
                                 break;
                             }
                         }
