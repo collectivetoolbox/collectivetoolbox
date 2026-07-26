@@ -32,7 +32,7 @@
 //! <https://github.com/plan9foundation/plan9/blob/main/sys/src/cmd/troff2html/troff2html.c>
 //! <https://github.com/plan9foundation/plan9/tree/main/sys/src/cmd/troff>
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
 
 use std::env;
@@ -133,28 +133,28 @@ fn main() {
     }
 
     while i < args.len() {
-        let arg = &args[i];
+        let Some(arg) = args.get(i) else { break; };
         if !end_of_options && arg == "--author" {
             i = i.saturating_add(1);
             if i >= args.len() {
                 eprintln!("mantohtml: Missing author after --author.");
                 std::process::exit(1);
             }
-            state.author = Some(args[i].clone());
+            state.author = args.get(i).cloned();
         } else if !end_of_options && arg == "--chapter" {
             i = i.saturating_add(1);
             if i >= args.len() {
                 eprintln!("mantohtml: Missing chapter after --chapter.");
                 std::process::exit(1);
             }
-            state.chapter = Some(args[i].clone());
+            state.chapter = args.get(i).cloned();
         } else if !end_of_options && arg == "--copyright" {
             i = i.saturating_add(1);
             if i >= args.len() {
                 eprintln!("mantohtml: Missing copyright after --copyright.");
                 std::process::exit(1);
             }
-            state.copyright = Some(args[i].clone());
+            state.copyright = args.get(i).cloned();
         } else if !end_of_options && arg == "--css" {
             i = i.saturating_add(1);
             if i >= args.len() {
@@ -163,7 +163,7 @@ fn main() {
                 );
                 std::process::exit(1);
             }
-            state.css = Some(args[i].clone());
+            state.css = args.get(i).cloned();
         } else if !end_of_options && arg == "--help" {
             usage(None);
             return;
@@ -173,14 +173,14 @@ fn main() {
                 eprintln!("mantohtml: Missing subject after --subject.");
                 std::process::exit(1);
             }
-            state.subject = Some(args[i].clone());
+            state.subject = args.get(i).cloned();
         } else if !end_of_options && arg == "--title" {
             i = i.saturating_add(1);
             if i >= args.len() {
                 eprintln!("mantohtml: Missing title after --title.");
                 std::process::exit(1);
             }
-            state.title = Some(args[i].clone());
+            state.title = args.get(i).cloned();
         } else if !end_of_options && arg == "--version" {
             println!("{}", package_version());
             return;
@@ -247,7 +247,7 @@ pub fn convert_man_troff_to_html(
     Ok((buffer, log))
 }
 
-#[allow(clippy::too_many_lines, clippy::arithmetic_side_effects, reason = "+/- more readable")]
+#[expect(clippy::too_many_lines, clippy::arithmetic_side_effects, reason = "Legacy macro conversion dispatcher")]
 fn convert_man_from_data<W: Write>(
     state: &mut State,
     data: Vec<u8>,
@@ -748,56 +748,51 @@ fn html_header(state: &mut State, topic: &str, w: &mut impl Write) {
         return;
     }
     state.wrote_header = true;
-    writeln!(w, "<!DOCTYPE html>").ok();
-    writeln!(w, "<html>").ok();
-    writeln!(w, "  <head>").ok();
+    let _ = writeln!(w, "<!DOCTYPE html>");
+    let _ = writeln!(w, "<html>");
+    let _ = writeln!(w, "  <head>");
 
     if let Some(css) = &state.css {
         if css.starts_with("http://") || css.starts_with("https://") {
-            writeln!(
+            let _ = writeln!(
                 w,
                 "    <link rel=\"stylesheet\" type=\"text/css\" href=\"{}\">",
                 html_escape(css)
-            )
-            .ok();
+            );
         } else {
-            writeln!(w, "    <style><!--").ok();
+            let _ = writeln!(w, "    <style><!--");
             if let Ok(text) = fs::read_to_string(css) {
-                write!(w, "{text}").ok();
+                let _ = write!(w, "{text}");
             }
-            writeln!(w, "--></style>").ok();
+            let _ = writeln!(w, "--></style>");
         }
     }
     if let Some(author) = &state.author {
-        writeln!(
+        let _ = writeln!(
             w,
             "    <meta name=\"author\" content=\"{}\">",
             html_escape(author)
-        )
-        .ok();
+        );
     }
     if let Some(c) = &state.copyright {
-        writeln!(
+        let _ = writeln!(
             w,
             "    <meta name=\"copyright\" content=\"{}\">",
             html_escape(c)
-        )
-        .ok();
+        );
     }
-    writeln!(
+    let _ = writeln!(
         w,
         "    <meta name=\"creator\" content=\"{} v{} convert_man_troff_to_html\">",
         package_short_name(),
         package_version()
-    )
-    .ok();
+    );
     if let Some(subject) = &state.subject {
-        writeln!(
+        let _ = writeln!(
             w,
             "    <meta name=\"subject\" content=\"{}\">",
             html_escape(subject)
-        )
-        .ok();
+        );
     }
     let title = state.title.as_deref().unwrap_or({
         if topic.is_empty() {
@@ -806,21 +801,20 @@ fn html_header(state: &mut State, topic: &str, w: &mut impl Write) {
             topic
         }
     });
-    writeln!(w, "    <title>{}</title>", html_escape(title)).ok();
-    writeln!(w, "  </head>").ok();
-    writeln!(w, "  <body>").ok();
+    let _ = writeln!(w, "    <title>{}</title>", html_escape(title));
+    let _ = writeln!(w, "  </head>");
+    let _ = writeln!(w, "  <body>");
 
     if let Some(chapter) = &state.chapter {
         let anchor = html_anchor(chapter);
-        writeln!(w, "    <h1 id=\"{}\">{}</h1>", anchor, html_escape(chapter))
-            .ok();
+        let _ = writeln!(w, "    <h1 id=\"{}\">{}</h1>", anchor, html_escape(chapter));
     }
 }
 
 fn html_footer(state: &mut State, w: &mut impl Write) {
     if state.wrote_header {
-        writeln!(w, "  </body>").ok();
-        writeln!(w, "</html>").ok();
+        let _ = writeln!(w, "  </body>");
+        let _ = writeln!(w, "</html>");
         state.wrote_header = false;
     }
 }
@@ -832,27 +826,27 @@ fn push_font(state: &mut State, font: Font, w: &mut impl Write) {
     // Close previous
     if state.font != Font::Regular {
         match state.font {
-            Font::Bold => write!(w, "</strong>").ok(),
-            Font::Italic => write!(w, "</em>").ok(),
-            Font::Small => write!(w, "</small>").ok(),
-            Font::SmallBold => write!(w, "</small>").ok(),
-            Font::Monospace => write!(w, "</pre>").ok(),
-            Font::Regular => Some(()),
+            Font::Bold => { let _ = write!(w, "</strong>"); }
+            Font::Italic => { let _ = write!(w, "</em>"); }
+            Font::Small => { let _ = write!(w, "</small>"); }
+            Font::SmallBold => { let _ = write!(w, "</small>"); }
+            Font::Monospace => { let _ = write!(w, "</pre>"); }
+            Font::Regular => ()
         };
     }
     if state.in_block.is_none() {
-        write!(w, "<p>").ok();
+        let _ = write!(w, "<p>");
         state.in_block = Some("p");
     }
     match font {
-        Font::Regular => Some(()),
-        Font::Bold => write!(w, "<strong>").ok(),
-        Font::Italic => write!(w, "<em>").ok(),
-        Font::Small => write!(w, "<small>").ok(),
+        Font::Regular => (),
+        Font::Bold => { let _ = write!(w, "<strong>"); }
+        Font::Italic => { let _ = write!(w, "<em>"); }
+        Font::Small => { let _ = write!(w, "<small>"); }
         Font::SmallBold => {
-            write!(w, "<small style=\"font-weight: bold;\">").ok()
+            let _ = write!(w, "<small style=\"font-weight: bold;\">");
         }
-        Font::Monospace => write!(w, "<pre>").ok(),
+        Font::Monospace => { let _ = write!(w, "<pre>"); }
     };
     state.font = font;
 }
@@ -874,11 +868,11 @@ fn html_heading(
     }
 
     if state.in_link {
-        writeln!(w, "</a>").ok();
+        let _ = writeln!(w, "</a>");
         state.in_link = false;
     }
     if let Some(block) = state.in_block.take() {
-        writeln!(w, "</{block}>").ok();
+        let _ = writeln!(w, "</{block}>");
     }
 
     let heading_u8: u8 = heading.into();
@@ -891,49 +885,46 @@ fn html_heading(
     match heading {
         Heading::Topic => {
             state.atopic = html_anchor(raw);
-            write!(
+            let _ = write!(
                 w,
                 "    <h{} id=\"{}\">",
                 hlevel,
                 html_escape(&state.atopic)
-            )
-            .ok();
+            );
         }
         Heading::Section => {
             state.asection = html_anchor(raw);
-            write!(
+            let _ = write!(
                 w,
                 "    <h{} id=\"{}.{}\">",
                 hlevel,
                 html_escape(&state.atopic),
                 html_escape(&state.asection)
-            )
-            .ok();
+            );
         }
         Heading::Subsection => {
             let subsection = html_anchor(raw);
-            write!(
+            let _ = write!(
                 w,
                 "    <h{} id=\"{}.{}.{}\">",
                 hlevel,
                 html_escape(&state.atopic),
                 html_escape(&state.asection),
                 html_escape(&subsection)
-            )
-            .ok();
+            );
         }
     }
 
     man_puts(state, &title, w);
-    writeln!(w, "</h{hlevel}>").ok();
+    let _ = writeln!(w, "</h{hlevel}>");
 }
 
 fn capitalize_heading_words(s: &str) -> String {
     let mut title = s.as_bytes().to_vec();
     // Capitalize first letter of each word except "a", "and", "or", "the"
-    let mut i = 0;
+    let mut i = 0usize;
     while i < title.len() {
-        let ch = title[i];
+        let Some(&ch) = title.get(i) else { break; };
         if (char::from(ch)).is_ascii_alphabetic() {
             // Check if this is the start of a word (first letter or preceded by non-alpha)
             let is_start = i == 0;
@@ -945,15 +936,19 @@ fn capitalize_heading_words(s: &str) -> String {
 
             if is_start || !is_exception {
                 // Capitalize first letter
-                title[i] = ch.to_ascii_uppercase();
+                if let Some(elem) = title.get_mut(i) {
+                    *elem = ch.to_ascii_uppercase();
+                }
             }
 
             // Lowercase the rest of the word
             let mut j = i.saturating_add(1);
             while j < title.len()
-                && (char::from(title[j])).is_ascii_alphabetic()
+                && title.get(j).copied().map(char::from).is_some_and(|c| c.is_ascii_alphabetic())
             {
-                title[j] = title[j].to_ascii_lowercase();
+                if let Some(elem) = title.get_mut(j) {
+                    *elem = elem.to_ascii_lowercase();
+                }
                 j = j.saturating_add(1);
             }
             i = j;
@@ -961,15 +956,14 @@ fn capitalize_heading_words(s: &str) -> String {
             i = i.saturating_add(1);
         }
     }
-    String::from_utf8(title)
-        .expect("Should be valid UTF-8")
-        .clone()
+    String::from_utf8(title).unwrap_or_default()
 }
 
 // -----------------------------------------------------------------------------
 // Macro handling similar to man_xx
 // -----------------------------------------------------------------------------
 
+#[expect(clippy::too_many_arguments, reason = "Legacy macro conversion helper")]
 fn handle_xx(
     state: &mut State,
     a: Font,
@@ -998,29 +992,28 @@ fn handle_xx(
     let basepath = basepath.unwrap_or("");
     let original_font = state.font;
     let mut use_a = true;
-    let mut idx = 0;
+    let mut idx = 0usize;
     while idx < words.len() {
-        let word = &words[idx];
+        let Some(word) = words.get(idx) else { break; };
         // Attempt link detection for ".BR name (section)"
         let mut have_link = false;
         if a == Font::Bold
             && b == Font::Regular
             && use_a
-            && idx + 1 < words.len()
-            && words[idx + 1].starts_with('(')
-            && words[idx + 1].contains(')')
+            && idx.saturating_add(1) < words.len()
+            && words.get(idx.saturating_add(1)).is_some_and(|w| w.starts_with('(') && w.contains(')'))
         {
-            let sec = &words[idx + 1];
-            if let Some(endp) = sec.find(')') {
-                let section = &sec[1..endp];
-                if section.chars().next().is_some_and(|c| c.is_ascii_digit())
-                    && have_basepath
-                {
-                    let manfile = format!("{basepath}/{word}.{section}");
-                    if Path::new(&manfile).exists() {
-                        write!(w, "<a href=\"{}.html\">", html_escape(word))
-                            .ok();
-                        have_link = true;
+            if let Some(sec) = words.get(idx.saturating_add(1)) {
+                if let Some(endp) = sec.find(')') {
+                    let section = sec.get(1..endp).unwrap_or("");
+                    if section.chars().next().is_some_and(|c| c.is_ascii_digit())
+                        && have_basepath
+                    {
+                        let manfile = format!("{basepath}/{word}.{section}");
+                        if Path::new(&manfile).exists() {
+                            let _ = write!(w, "<a href=\"{}.html\">", html_escape(word));
+                            have_link = true;
+                        }
                     }
                 }
             }
@@ -1030,25 +1023,27 @@ fn handle_xx(
         man_puts(state, word, w);
 
         if have_link {
-            if idx + 1 < words.len() {
-                idx += 1;
+            if idx.saturating_add(1) < words.len() {
+                idx = idx.saturating_add(1);
                 push_font(state, b, w);
-                man_puts(state, &words[idx], w);
+                if let Some(w_next) = words.get(idx) {
+                    man_puts(state, w_next, w);
+                }
             }
-            write!(w, "</a>").ok();
+            let _ = write!(w, "</a>");
         } else {
             use_a = !use_a;
         }
-        idx += 1;
+        idx = idx.saturating_add(1);
     }
 
     push_font(state, original_font, w);
-    writeln!(w).ok();
+    let _ = writeln!(w);
     if !break_text.is_empty() {
-        writeln!(w, "{break_text}").ok();
+        let _ = writeln!(w, "{break_text}");
         break_text.clear();
     }
-    writeln!(w).ok();
+    let _ = writeln!(w);
 }
 
 // -----------------------------------------------------------------------------
@@ -1059,7 +1054,7 @@ fn flush_fragment(start: usize, end: usize, w: &mut impl Write, bytes: &[u8]) {
     if end > start {
         if let Some(slice) = bytes.get(start..end) {
             let text = String::from_utf8_lossy(slice);
-            write!(w, "{}", html_escape(&text)).ok();
+            let _ = write!(w, "{}", html_escape(&text));
         }
     }
 }
@@ -1071,15 +1066,15 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
 
     while let Some(&b) = bytes.get(i) {
         if b == b'\\' {
-            if bytes.get(i + 1).is_some() {
+            if bytes.get(i.saturating_add(1)).is_some() {
                 flush_fragment(fragment_start, i, w, bytes);
-                i += 1;
+                i = i.saturating_add(1);
 
-                let c = char::from(bytes[i]);
+                let c = char::from(bytes.get(i).copied().unwrap_or(0));
                 match c {
                     'f' => {
-                        if let Some(&b2) = bytes.get(i + 1) {
-                            i += 1;
+                        if let Some(&b2) = bytes.get(i.saturating_add(1)) {
+                            i = i.saturating_add(1);
                             let fch = char::from(b2);
                             match fch {
                                 'R' | 'P' => push_font(state, Font::Regular, w),
@@ -1089,62 +1084,62 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                                     eprintln!("mantohtml: Unknown font '\\f{fch}' ignored.");
                                 }
                             }
-                            i += 1;
+                            i = i.saturating_add(1);
                         } else {
-                            i += 1;
+                            i = i.saturating_add(1);
                         }
                     }
                     '*' => {
-                        i += 1;
+                        i = i.saturating_add(1);
                         if let Some(&bch) = bytes.get(i) {
                             let ch = char::from(bch);
                             if ch == '(' {
-                                i += 1;
-                                if let (Some(&bm1), Some(&bm2)) = (bytes.get(i), bytes.get(i + 1)) {
+                                i = i.saturating_add(1);
+                                if let (Some(&bm1), Some(&bm2)) = (bytes.get(i), bytes.get(i.saturating_add(1))) {
                                     let m1 = char::from(bm1);
                                     let m2 = char::from(bm2);
                                     let macro_id = format!("{m1}{m2}");
                                     match macro_id.as_str() {
-                                        "aq" => write!(w, "'").ok(),
-                                        "dq" => write!(w, "&quot;").ok(),
-                                        "lq" => write!(w, "&ldquo;").ok(),
-                                        "rq" => write!(w, "&rdquo;").ok(),
-                                        "Tm" => write!(w, "<sup>TM</sup>").ok(),
-                                        _ => Some(eprintln!(
-                                            "mantohtml: Unknown macro '\\*({m1}{m2})' ignored."
-                                        )),
+                                        "aq" => { let _ = write!(w, "'"); }
+                                        "dq" => { let _ = write!(w, "&quot;"); }
+                                        "lq" => { let _ = write!(w, "&ldquo;"); }
+                                        "rq" => { let _ = write!(w, "&rdquo;"); }
+                                        "Tm" => { let _ = write!(w, "<sup>TM</sup>"); }
+                                        _ => {
+                                            eprintln!("mantohtml: Unknown macro '\\*({m1}{m2})' ignored.");
+                                        }
                                     };
-                                    i += 2;
+                                    i = i.saturating_add(2);
                                 }
                             } else {
                                 match ch {
-                                    'R' => write!(w, "&reg;").ok(),
-                                    _ => Some(eprintln!(
-                                        "mantohtml: Unknown macro '\\*{ch}' ignored."
-                                    )),
+                                    'R' => { let _ = write!(w, "&reg;"); }
+                                    _ => {
+                                        eprintln!("mantohtml: Unknown macro '\\*{ch}' ignored.");
+                                    }
                                 };
-                                i += 1;
+                                i = i.saturating_add(1);
                             }
                         }
                     }
                     '(' => {
                         // \(... style
-                        if let Some(seq) = bytes.get(i..i + 3) {
+                        if let Some(seq) = bytes.get(i..i.saturating_add(3)) {
                             let token = String::from_utf8_lossy(seq);
                             match token.as_ref() {
-                                "(bu" => write!(w, "&middot;").ok(),
-                                "(em" => write!(w, "&mdash;").ok(),
-                                "(en" => write!(w, "&ndash;").ok(),
-                                "(ga" => write!(w, "`").ok(),
-                                "(ha" => write!(w, "^").ok(),
-                                "(ti" => write!(w, "~").ok(),
-                                _ => write!(w, "{}", html_escape(&token)).ok(),
+                                "(bu" => { let _ = write!(w, "&middot;"); }
+                                "(em" => { let _ = write!(w, "&mdash;"); }
+                                "(en" => { let _ = write!(w, "&ndash;"); }
+                                "(ga" => { let _ = write!(w, "`"); }
+                                "(ha" => { let _ = write!(w, "^"); }
+                                "(ti" => { let _ = write!(w, "~"); }
+                                _ => { let _ = write!(w, "{}", html_escape(&token)); }
                             };
-                            i += 3;
+                            i = i.saturating_add(3);
                         } else {
                             // Just treat literally
-                            write!(w, "(").ok();
-                            i += 1;
+                            let _ = write!(w, "(");
+                            i = i.saturating_add(1);
                         }
                     }
                     '[' => {
@@ -1154,108 +1149,107 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                             if bj == b']' {
                                 break;
                             }
-                            j += 1;
+                            j = j.saturating_add(1);
                         }
 
                         if matches!(bytes.get(j), Some(b']')) {
                         // token inside \[ ... ]
-                            let token_bytes = &bytes[i + 1..j];
+                            let token_bytes = bytes.get(i.saturating_add(1)..j).unwrap_or(&[]);
                             match token_bytes {
-                                b"aq" => write!(w, "'").ok(),
-                                b"co" => write!(w, "&copy;").ok(),
-                                b"cq" => write!(w, "&rsquo;").ok(),
-                                b"de" => write!(w, "&deg;").ok(),
-                                b"dq" => write!(w, "&quot;").ok(),
-                                b"lq" => write!(w, "&ldquo;").ok(),
-                                b"mc" => write!(w, "&mu;").ok(),
-                                b"oq" => write!(w, "&lsquo;").ok(),
-                                b"rg" => write!(w, "&reg;").ok(),
-                                b"rq" => write!(w, "&rdquo;").ok(),
-                                b"tm" => write!(w, "<sup>TM</sup>").ok(),
+                                b"aq" => { let _ = write!(w, "'"); }
+                                b"co" => { let _ = write!(w, "&copy;"); }
+                                b"cq" => { let _ = write!(w, "&rsquo;"); }
+                                b"de" => { let _ = write!(w, "&deg;"); }
+                                b"dq" => { let _ = write!(w, "&quot;"); }
+                                b"lq" => { let _ = write!(w, "&ldquo;"); }
+                                b"mc" => { let _ = write!(w, "&mu;"); }
+                                b"oq" => { let _ = write!(w, "&lsquo;"); }
+                                b"rg" => { let _ = write!(w, "&reg;"); }
+                                b"rq" => { let _ = write!(w, "&rdquo;"); }
+                                b"tm" => { let _ = write!(w, "<sup>TM</sup>"); }
                             // Unknown, output literally
                                 _ => {
                                     let token = String::from_utf8_lossy(token_bytes);
-                                    write!(w, "\\[{}]", html_escape(&token)).ok()
+                                    let _ = write!(w, "\\[{}]", html_escape(&token));
                                 }
                             };
-                            i = j + 1;
+                            i = j.saturating_add(1);
                         } else {
                         // Unterminated, output literally
-                            write!(w, "\\[").ok();
-                            i += 1;
+                            let _ = write!(w, "\\[");
+                            i = i.saturating_add(1);
                         }
                     }
                     'e' => {
                         // Escaped backslash
-                        write!(w, "\\").ok();
-                        i += 1;
+                        let _ = write!(w, "\\");
+                        i = i.saturating_add(1);
                     }
                     // Numeric escape like \123 (octal-ish in original)
                     d if d.is_ascii_digit() => {
                         let mut num = String::new();
                         num.push(d);
-                        i += 1;
+                        i = i.saturating_add(1);
 
                         if let Some(&b2) = bytes.get(i) {
                             let c2 = char::from(b2);
                             if c2.is_ascii_digit() {
                                 num.push(c2);
-                                i += 1;
+                                i = i.saturating_add(1);
                             }
                         }
                         if let Some(&b3) = bytes.get(i) {
                             let c3 = char::from(b3);
                             if c3.is_ascii_digit() {
                                 num.push(c3);
-                                i += 1;
+                                i = i.saturating_add(1);
                             }
                         }
 
                         if let Ok(v) = i32::from_str_radix(&num, 8) {
-                            write!(w, "&#{v};").ok();
+                            let _ = write!(w, "&#{v};");
                         }
                     }
                     other => {
                         // Pass through certain escapes; warn on unknown
                         match other {
                             '\\' | '"' | '\'' | '-' | ' ' => {
-                                write!(w, "{other}").ok();
+                                let _ = write!(w, "{other}");
                             }
                             _ => {
                                 eprintln!(
                                     "mantohtml: Unrecognized escape '\\{other}' ignored."
                                 );
-                                write!(w, "\\{other}").ok();
+                                let _ = write!(w, "\\{other}");
                             }
                         }
-                        i += 1;
+                        i = i.saturating_add(1);
                     }
                 }
 
                 fragment_start = i;
             } else {
-                i += 1;
+                i = i.saturating_add(1);
             }
-        } else if starts_with_url(&bytes[i..]) {
+        } else if starts_with_url(bytes.get(i..).unwrap_or(&[])) {
             flush_fragment(fragment_start, i, w, bytes);
-            let (url, consumed) = extract_url(&bytes[i..]);
-            write!(
+            let (url, consumed) = extract_url(bytes.get(i..).unwrap_or(&[]));
+            let _ = write!(
                 w,
                 "<a href=\"{}\">{}</a>",
                 html_escape(&url),
                 html_escape(&url)
-            )
-            .ok();
-            i += consumed;
+            );
+            i = i.saturating_add(consumed);
             fragment_start = i;
         } else if matches!(b, b'<' | b'&' | b'"') {
             flush_fragment(fragment_start, i, w, bytes);
             let ch = char::from(b);
-            write!(w, "{}", html_escape(&ch.to_string())).ok();
-            i += 1;
+            let _ = write!(w, "{}", html_escape(&ch.to_string()));
+            i = i.saturating_add(1);
             fragment_start = i;
         } else {
-            i += 1;
+            i = i.saturating_add(1);
         }
     }
 
@@ -1281,7 +1275,7 @@ fn extract_url(slice: &[u8]) -> (String, usize) {
         }
         if ",.)".contains(c)
             && (end.saturating_add(1) == chars.len()
-                || chars.get(end.saturating_add(1)).copied().map_or(true, |c| c.is_whitespace() || c == '\0'))
+                || chars.get(end.saturating_add(1)).copied().is_none_or(|c| c.is_whitespace() || c == '\0'))
         {
             break;
         }
@@ -1305,7 +1299,7 @@ fn parse_value(line: &mut &str) -> Option<String> {
     if l.starts_with('"') {
         l = l.get(1..).unwrap_or("");
         while !l.is_empty() {
-            let c = l.chars().next().unwrap();
+            let c = l.chars().next()?;
             if c == '"' {
                 l = l.get(1..).unwrap_or("");
                 break;
@@ -1322,7 +1316,7 @@ fn parse_value(line: &mut &str) -> Option<String> {
         }
     } else {
         while !l.is_empty() {
-            let c = l.chars().next().unwrap();
+            let c = l.chars().next()?;
             if c.is_whitespace() {
                 break;
             }
@@ -1330,7 +1324,7 @@ fn parse_value(line: &mut &str) -> Option<String> {
             l = l.get(c.len_utf8()..).unwrap_or("");
             if c == '\\' && !l.is_empty() {
                 // Keep escaped char
-                let c2 = l.chars().next().unwrap();
+                let c2 = l.chars().next()?;
                 out.push(c2);
                 l = l.get(c2.len_utf8()..).unwrap_or("");
             }
@@ -1387,13 +1381,13 @@ fn parse_measurement(line: &mut &str, defunit: char) -> Option<String> {
 
 fn close_block_if(state: &mut State, w: &mut impl Write) {
     if let Some(block) = state.in_block.take() {
-        writeln!(w, "</{block}>").ok();
+        let _ = writeln!(w, "</{block}>");
     }
 }
 
 fn close_link_if(state: &mut State, w: &mut impl Write) {
     if state.in_link {
-        writeln!(w, "</a>").ok();
+        let _ = writeln!(w, "</a>");
         state.in_link = false;
     }
 }
