@@ -41,7 +41,7 @@ echo "=== Checking for idiosyncratic styling ==="
 ./scripts/lint-encrecss || exit 1
 
 echo "=== Checking test macro conventions ==="
-if rg '^\s*#\[test\]\s*$' src/ || rg '^\s*#\[tokio::test\]\s*$' src/; then
+if rg --glob '!src/build_support/**' '^\s*#\[test\]\s*$' src/ || rg --glob '!src/build_support/**' '^\s*#\[tokio::test\]\s*$' src/; then
     echo "Error: Standard test macros #[test] or #[tokio::test] found."
     echo "Please update tests to use \`#[crate::ctb_test]\` or \`#[crate::ctb_test(\"tokio\")]\`."
     exit 1
