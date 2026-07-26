@@ -381,6 +381,8 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
     println!("Compiling dynamic 32-bit freestanding init binary with rustc...");
     let rustc_status = Command::new("rustc")
         .args([
+            "--edition",
+            "2024",
             "--target",
             "i586-unknown-linux-gnu",
             "-C",
