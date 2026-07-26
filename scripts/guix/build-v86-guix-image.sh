@@ -12,25 +12,39 @@ export PATH="/var/guix/profiles/per-user/root/current-profile/bin:/root/.config/
 
 mkdir -p "$OUT_FLAT_DIR"
 
-if ! command -v guix >/dev/null 2>&1; then
-    echo "Error: 'guix' command not found on build host."
-    echo "Guix is required to build the source-bootstrapped i686 image."
-    exit 1
+PREBUILT_TARBALL=""
+if [ -n "${PREBUILT_V86_TARBALL:-}" ] && [ -f "$PREBUILT_V86_TARBALL" ]; then
+    PREBUILT_TARBALL="$PREBUILT_V86_TARBALL"
+elif [ -f "/var/guix/v86-system-image.tar.gz" ]; then
+    PREBUILT_TARBALL="/var/guix/v86-system-image.tar.gz"
+elif [ -f "$OUT_DIR/v86-system-image.tar.gz" ]; then
+    PREBUILT_TARBALL="$OUT_DIR/v86-system-image.tar.gz"
 fi
 
-echo "Building ctb-nopersonality shared object in Rust..."
-mkdir -p "$WORKSPACE_ROOT/target/release"
-NOPERSONALITY_SO="$WORKSPACE_ROOT/target/release/libctb_nopersonality.so"
-rustc --edition 2024 --crate-type cdylib -O "$WORKSPACE_ROOT/src/nopersonality/nopersonality.rs" -o "$NOPERSONALITY_SO"
+if [ -n "$PREBUILT_TARBALL" ]; then
+    echo "Using prebuilt Guix system image tarball at: $PREBUILT_TARBALL"
+    TARBALL_IMG="$PREBUILT_TARBALL"
+else
+    if ! command -v guix >/dev/null 2>&1; then
+        echo "Error: 'guix' command not found on build host."
+        echo "Guix is required to build the source-bootstrapped i686 image."
+        exit 1
+    fi
 
-pkill -f guix-daemon 2>/dev/null || true
-sleep 1
-echo "Starting guix-daemon with nopersonality shim..."
-LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot >/dev/null 2>&1 &
-sleep 2
+    echo "Building ctb-nopersonality shared object in Rust..."
+    mkdir -p "$WORKSPACE_ROOT/target/release"
+    NOPERSONALITY_SO="$WORKSPACE_ROOT/target/release/libctb_nopersonality.so"
+    rustc --edition 2024 --crate-type cdylib -O "$WORKSPACE_ROOT/src/nopersonality/nopersonality.rs" -o "$NOPERSONALITY_SO"
 
-echo "Building Guix i686 system tarball image..."
-TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
+    pkill -f guix-daemon 2>/dev/null || true
+    sleep 1
+    echo "Starting guix-daemon with nopersonality shim..."
+    LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot >/dev/null 2>&1 &
+    sleep 2
+
+    echo "Building Guix i686 system tarball image..."
+    TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
+fi
 
 echo "Guix image built at: $TARBALL_IMG"
 echo "Processing image with v86_packer..."

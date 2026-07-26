@@ -30,6 +30,8 @@
 
 ### Installer
 
+Cherry-pick 30f41d4a5
+
 Add a Homebrew tap?
 
 db_impl has accumulated a whole bunch of unrelated concerns.
