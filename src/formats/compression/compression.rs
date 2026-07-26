@@ -51,11 +51,13 @@ impl CompressionFormat {
 
     /// Infers compression format from magic header bytes if possible.
     pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        if header.len() >= 2 && header[0] == 0x1f && header[1] == 0x8b {
-            return Some(Self::Gzip);
-        }
-        if header.len() >= 2 && header[0] == 0x78 && matches!(header[1], 0x01 | 0x9c | 0xda) {
-            return Some(Self::Zlib);
+        if let (Some(&b0), Some(&b1)) = (header.first(), header.get(1)) {
+            if b0 == 0x1f && b1 == 0x8b {
+                return Some(Self::Gzip);
+            }
+            if b0 == 0x78 && matches!(b1, 0x01 | 0x9c | 0xda) {
+                return Some(Self::Zlib);
+            }
         }
         None
     }

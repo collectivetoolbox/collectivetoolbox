@@ -97,7 +97,9 @@ impl TarHeader {
         };
         let name_bytes = name.as_bytes();
         let name_len = name_bytes.len().min(100);
-        header[0..name_len].copy_from_slice(&name_bytes[..name_len]);
+        if let (Some(dst), Some(src)) = (header.get_mut(..name_len), name_bytes.get(..name_len)) {
+            dst.copy_from_slice(src);
+        }
 
         // Mode (100-107): Octal ASCII with trailing space and null
         let mode_str = format!("{:07o}\0", self.mode);
