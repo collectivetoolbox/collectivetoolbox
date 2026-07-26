@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier for parts derived from v86: BSD-2-Clause AND MIT
+ See full license text at end of file. -->
+
 <div class="flex flex-col h-full w-full p-4 gap-4">
     <div class="flex flex-wrap items-center gap-3">
         <h2>{{title}}</h2>
@@ -6,25 +9,275 @@
             <label for="os-profile-select">Profile:</label>
             <select id="os-profile-select" class="p-1 border rounded" onchange="window.location.href='/v86/' + this.value">
                 <option value="guix" {{#if (eq profile "guix")}}selected{{/if}}>Guix System i686 (GUI)</option>
-                <option value="alpine" {{#if (eq profile "alpine")}}selected{{/if}}>Alpine Linux i386 (GUI)</option>
-                <option value="arch" {{#if (eq profile "arch")}}selected{{/if}}>Arch Linux 32 (GUI)</option>
+             <!--   <option value="alpine" {{#if (eq profile "alpine")}}selected{{/if}}>Alpine Linux i386 (GUI)</option> -->
+                <option value="arch" {{#if (eq profile "arch")}}selected{{/if}}>Arch Linux 32 (GUI, for testing)</option>
             </select>
         </div>
-        <button id="v86-start-pause" class="button ctb-button">Pause</button>
-        <button id="v86-reset" class="button ctb-button">Reset</button>
-        <button id="v86-fullscreen" class="button ctb-button">Fullscreen</button>
-        <button id="v86-save-state" class="button ctb-button">Save State</button>
-        <label class="button ctb-button cursor-pointer">
-            Restore State <input id="v86-restore-state" type="file" style="display: none;">
+
+        <hr>
+        <h4 id="setup">Setup</h4>
+        <table>
+            <tr>
+                <td width="350"><label for="cdrom_image">CD image</label></td>
+                <td>
+                    <input type="file" id="cdrom_image">
+                </td>
+            </tr>
+
+            <tr>
+                <td><label for="floppy_image">Floppy disk image</label></td>
+                <td><input type="file" id="fda_image"> or <a id="fda_toggle_empty_disk">create empty floppy disk</a><br></td>
+            </tr>
+
+            <tr>
+                <td><label for="floppy_image">Second floppy disk image</label></td>
+                <td><input type="file" id="fdb_image"> or <a id="fdb_toggle_empty_disk">create empty floppy disk</a><br></td>
+            </tr>
+
+            <tr>
+                <td><label for="hda_image">Hard disk image</label></td>
+                <td><input type="file" id="hda_image"> or <a id="hda_toggle_empty_disk">create empty hard disk</a><br></td>
+            </tr>
+
+            <tr>
+                <td><label for="hdb_image">Second hard disk image</label></td>
+                <td><input type="file" id="hdb_image"> or <a id="hdb_toggle_empty_disk">create empty hard disk</a><br></td>
+            </tr>
+
+            <!--
+            <tr>
+                <td><label for="multiboot_image">Multiboot kernel image (experimental)</td>
+                <td><input type="file" id="multiboot_image"><br></td>
+            </tr>
+            -->
+
+            <tr>
+                <td><label for="bzimage">Kernel image (bzimage)</label></td>
+                <td><input type="file" id="bzimage"><br></td>
+            </tr>
+            <tr>
+                <td><label for="initrd">initrd</label></td>
+                <td><input type="file" id="initrd"><br></td>
+            </tr>
+
+            <tr>
+                <td><label for="bios">BIOS</label></td>
+                <td><input type="file" id="bios"><br></td>
+            </tr>
+
+            <tr>
+                <td><label for="vga_bios">VGA BIOS</label></td>
+                <td><input type="file" id="vga_bios"><br></td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><small>Disk images are not uploaded to the server</small><hr></td>
+            </tr>
+
+            <tr>
+                <td><label for="memory_size">Memory size</label></td>
+                <td>
+                    <input id="memory_size" type="number" value="128" min="16" max="2048" step="16"> MB<br>
+                </td>
+            </tr>
+
+            <tr>
+                <td><label for="vga_memory_size">Video Memory size</label></td>
+                <td>
+                    <input id="vga_memory_size" type="number" value="8" min="1" max="128" step="1"> MB<br>
+                </td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><hr></td>
+            </tr>
+
+            <tr>
+                <td><label for="relay_url">Networking proxy</label><br>
+                    Presets: <a id="network_none">none</a>, <a id="network_inbrowser">inbrowser</a>, <a id="network_relay">public relay</a>, <a id="network_wisp">wisp</a>, <a id="network_fetch">fetch</a></td>
+                <td>
+                    <input id="relay_url" type="text" value="wss://relay.widgetry.org/">
+                </td>
+            </tr>
+
+            <tr>
+                <td><label for="net_device_type">Network Device Type</label></td>
+                <td>
+                    <select id="net_device_type">
+                        <option value="ne2k">ne2k</option>
+                        <option value="virtio">virtio</option>
+                        <option value="none">none</option>
+                    </select>
+                 </td>
+            </tr>
+
+            <tr id="mtu_ui" style="display: none">
+                <td><label for="mtu">Network MTU</label></td>
+                <td>
+                    <input id="mtu" type="number" value="1500" min="68" max="65535" step="1"> B<br>
+                 </td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><hr></td>
+            </tr>
+
+            <tr>
+                <td><label for="modem">Modem</label></td>
+                <td>
+                    <select id="modem">
+                        <option value="none">None</option>
+                        <option value="1">UART1</option>
+                        <option value="2">UART2</option>
+                        <option value="3">UART3</option>
+                    </select>
+                 </td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><hr></td>
+            </tr>
+
+            <tr>
+                <td><label for="disable_audio">Disable audio</label></td>
+                <td>
+                    <input id="disable_audio" type="checkbox"><br>
+                </td>
+            </tr>
+
+            <tr>
+                <td><label for="acpi">Enable ACPI (experimental)</label></td>
+                <td>
+                    <input id="acpi" type="checkbox"><br>
+                </td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><hr></td>
+            </tr>
+
+            <tr>
+                <td><label for="boot_order">Boot order</label></td>
+                <td>
+                    <select id="boot_order">
+                        <option value="0">Auto</option>
+                        <option value="213">CD / Floppy / Hard Disk</option>
+                        <option value="123">CD / Hard Disk / Floppy</option>
+                        <option value="231">Floppy / CD / Hard Disk</option>
+                        <option value="321">Floppy / Hard Disk / CD</option>
+                        <option value="312">Hard Disk / Floppy / CD</option>
+                        <option value="132">Hard Disk / CD / Floppy</option>
+                    </select>
+                 </td>
+            </tr>
+        </table>
+
+        <br>
+        <button id="start_emulation">Start Emulation</button>
+    </div>
+
+    <div id="runtime_options" style="display: none">
+        <button id="run">Pause</button>
+        <button id="reset">Reset</button>
+        <button id="exit">Exit</button>
+        <button id="ctrlaltdel">Send Ctrl-Alt-Del</button>
+        <button id="alttab">Send Alt-Tab</button>
+        <button id="get_fda_image">Get floppy image</button>
+        <button id="get_fdb_image">Get second floppy image</button>
+        <button id="get_hda_image">Get hard disk image</button>
+        <button id="get_hdb_image">Get second hard disk image</button>
+        <button id="get_cdrom_image">Get CD-ROM image</button>
+        <button id="change_fda_image">Insert floppy image</button>
+        <button id="change_fdb_image">Insert second floppy image</button>
+        <button id="change_cdrom_image" title="Either a single .iso file or multiple files of any type">Insert CD image</button>
+        <button id="save_state">Save State</button>
+        <button id="load_state">Load State</button>
+        <button id="memory_dump">Memory Dump</button>
+        <button id="capture_network_traffic" title="In wireshark: file -> import from hex -> tick direction indication, timestamp %s.%f">Capture network traffic</button>
+        <button id="toggle_mouse">Disable mouse</button>
+        <button id="lock_mouse">Lock mouse</button>
+        <button id="fullscreen">Go fullscreen</button>
+        <button id="take_screenshot">Take screenshot</button>
+        <button id="mute">Mute</button>
+        <button id="toggle_theatre">Enable theatre mode</button>
+        <button style="display: none" id="toggle_zoom_to_fit">Enable zoom to fit</button>
+
+        <label>
+            Scale:
+            <input type="number" min="0.25" step="0.25" value="1.0" id="scale" style="width: 50px">
         </label>
     </div>
+    <pre style="display: none" id="loading"></pre>
+</div>
 
-    <hr>
-
-    <div id="screen_container" class="flex-1 w-full bg-black flex items-center justify-center overflow-auto" style="min-height: 480px;">
-        <div style="white-space: pre; font: 14px monospace; line-height: 14px; color: #fff;"></div>
-        <canvas width="1024" height="768" style="display: none;"></canvas>
+<div id="screen_container" style="display: none">
+    <div id="screen"></div>
+    <canvas id="vga"></canvas>
+    <div style="position: absolute; top: 0; z-index: 10">
+        <textarea class="phone_keyboard"></textarea>
     </div>
+</div>
+
+
+<div id="runtime_infos" style="display: none">
+    Running: <span id="running_time">0s</span> <br>
+    Speed: <span id="speed">0</span> mIPS<br>
+    Avg speed: <span id="avg_speed">0</span> mIPS<br>
+    <br>
+    <div id="info_storage" style="display: none">
+        <b>IDE device<span id="ide_type"></span></b><br>
+        Sectors read: <span id="info_storage_sectors_read">0</span><br>
+        Bytes read: <span id="info_storage_bytes_read">0</span><br>
+        Sectors written: <span id="info_storage_sectors_written">0</span><br>
+        Bytes written: <span id="info_storage_bytes_written">0</span><br>
+        Status: <span id="info_storage_status"></span><br>
+        <br>
+    </div>
+    <div id="info_filesystem" style="display: none">
+        <b>9p Filesystem</b><br>
+        Bytes read: <span id="info_filesystem_bytes_read">0</span><br>
+        Bytes written: <span id="info_filesystem_bytes_written">0</span><br>
+        <div style="white-space: nowrap; overflow-x: hidden">Last file: <span id="info_filesystem_last_file"></span></div>
+        Status: <span id="info_filesystem_status"></span><br>
+        <br>
+    </div>
+    <div id="info_network" style="display: none">
+        <b>Network</b><br>
+        Bytes received: <span id="info_network_bytes_received">0</span><br>
+        Bytes transmitted: <span id="info_network_bytes_transmitted">0</span><br>
+        <br>
+    </div>
+    <b>VGA</b><br>
+    Mode: <span id="info_vga_mode"></span><br>
+    Resolution: <span id="info_res">-</span><br>
+    <br>
+    Mouse: <span id="info_mouse_enabled">No</span><br>
+
+    <div id="description" style="display: none"><br></div>
+</div>
+
+<div id="filesystem_panel" style="display: none">
+    <label>
+        Send files to emulator<br>
+        <input type="file" id="filesystem_send_file" multiple>
+    </label>
+    <br><br>
+    <label>
+        Get file from emulator<br>
+        <input type="text" id="filesystem_get_file" placeholder="Absolute path">
+    </label>
+</div>
+
+<br style="clear: both"><br>
+
+<div id="terminal"></div>
+
+<button id="toggle_ui" style="display: none">Hide UI</button>
+<div id="theatre_background" style="display: none"></div>
+
+<br style="clear: both">
+<code>Version: <a id="version" href="https://github.com/copy/v86/commits/98e7110c2">98e7110c2</a> (Feb 16, 2021 12:02)</code>
+
 </div>
 
 <script type="module">
@@ -38,11 +291,11 @@ function initV86() {
             basefs: "/vendor/v86_images/guix/guix-fs.json",
             cmdline: "rw root=host9p rootfstype=9p rootflags=trans=virtio,cache=loose modules=virtio_pci tsc=reliable vga=0x344 video=vesafb:ypan,vremap:8 console=ttyS0 console=tty0 init=/init"
         },
-        alpine: {
-            baseurl: "/images/alpine/alpine-rootfs-flat/",
-            basefs: "/images/alpine/alpine-fs.json",
-            cmdline: "rw root=host9p rootfstype=9p rootflags=trans=virtio,cache=loose modules=virtio_pci tsc=reliable vga=0x344"
-        },
+//        alpine: {
+//            baseurl: "/images/alpine/alpine-rootfs-flat/",
+//            basefs: "/images/alpine/alpine-fs.json",
+//            cmdline: "rw root=host9p rootfstype=9p rootflags=trans=virtio,cache=loose modules=virtio_pci tsc=reliable vga=0x344"
+//        },
         arch: {
             baseurl: "/vendor/v86_images/arch/",
             state: "/vendor/v86_images/arch/arch_state-v3.bin.zst"
@@ -81,71 +334,411 @@ function initV86() {
 
     var emulator = window.emulator = new V86(v86Options);
 
+    var screenContainer = document.getElementById("screen_container");
+    if (screenContainer) screenContainer.style.display = "block";
+    var runtimeOptions = document.getElementById("runtime_options");
+    if (runtimeOptions) runtimeOptions.style.display = "block";
+    var runtimeInfos = document.getElementById("runtime_infos");
+    if (runtimeInfos) runtimeInfos.style.display = "block";
+
     emulator.add_listener("emulator-ready", function() {
         if (emulator.screen_adapter) {
             emulator.screen_adapter.set_mode(true);
         }
     });
 
+    function dump_file(data, name) {
+        var a = document.createElement("a");
+        a.download = name;
+        a.href = window.URL.createObjectURL(new Blob([data]));
+        a.dataset.downloadurl = "application/octet-stream:" + a.download + ":" + a.href;
+        a.click();
+    }
+
     var isRunning = true;
-    var startPauseBtn = document.getElementById("v86-start-pause");
-    if (startPauseBtn) {
-        startPauseBtn.onclick = function() {
-            if (isRunning) {
+    var runBtn = document.getElementById("run");
+    if (runBtn) {
+        runBtn.onclick = function() {
+            if (emulator.is_running()) {
                 emulator.stop();
-                startPauseBtn.innerText = "Resume";
+                runBtn.textContent = "Run";
                 isRunning = false;
             } else {
                 emulator.run();
-                startPauseBtn.innerText = "Pause";
+                runBtn.textContent = "Pause";
                 isRunning = true;
             }
+            runBtn.blur();
         };
     }
 
-    var resetBtn = document.getElementById("v86-reset");
+    var resetBtn = document.getElementById("reset");
     if (resetBtn) {
         resetBtn.onclick = function() {
             emulator.restart();
+            resetBtn.blur();
         };
     }
 
-    var fsBtn = document.getElementById("v86-fullscreen");
+    var exitBtn = document.getElementById("exit");
+    if (exitBtn) {
+        exitBtn.onclick = function() {
+            emulator.destroy();
+            window.location.href = "/v86/" + profile;
+        };
+    }
+
+    var ctrlAltDelBtn = document.getElementById("ctrlaltdel");
+    if (ctrlAltDelBtn) {
+        ctrlAltDelBtn.onclick = function() {
+            emulator.keyboard_send_scancodes([
+                0x1D, 0x38, 0x53,
+                0x1D | 0x80, 0x38 | 0x80, 0x53 | 0x80
+            ]);
+            ctrlAltDelBtn.blur();
+        };
+    }
+
+    var altTabBtn = document.getElementById("alttab");
+    if (altTabBtn) {
+        altTabBtn.onclick = function() {
+            emulator.keyboard_send_scancodes([0x38, 0x0F]);
+            setTimeout(function() {
+                emulator.keyboard_send_scancodes([0x38 | 0x80, 0x0F | 0x80]);
+            }, 100);
+            altTabBtn.blur();
+        };
+    }
+
+    var fsBtn = document.getElementById("fullscreen");
     if (fsBtn) {
         fsBtn.onclick = function() {
             emulator.screen_go_fullscreen();
         };
     }
 
-    var saveBtn = document.getElementById("v86-save-state");
-    if (saveBtn) {
-        saveBtn.onclick = async function() {
-            const new_state = await emulator.save_state();
-            var a = document.createElement("a");
-            a.download = "v86state.bin";
-            a.href = window.URL.createObjectURL(new Blob([new_state]));
-            a.dataset.downloadurl = "application/octet-stream:" + a.download + ":" + a.href;
-            a.click();
+    var lockMouseBtn = document.getElementById("lock_mouse");
+    if (lockMouseBtn) {
+        lockMouseBtn.onclick = function() {
+            emulator.lock_mouse();
+            lockMouseBtn.blur();
         };
     }
 
-    var restoreBtn = document.getElementById("v86-restore-state");
-    if (restoreBtn) {
-        restoreBtn.onchange = function() {
-            if (this.files.length) {
-                var filereader = new FileReader();
-                emulator.stop();
-                filereader.onload = async function(e) {
-                    await emulator.restore_state(e.target.result);
-                    emulator.run();
-                    if (startPauseBtn) startPauseBtn.innerText = "Pause";
-                    isRunning = true;
-                };
-                filereader.readAsArrayBuffer(this.files[0]);
-                this.value = "";
+    var mouse_is_enabled = true;
+    var toggleMouseBtn = document.getElementById("toggle_mouse");
+    if (toggleMouseBtn) {
+        toggleMouseBtn.onclick = function() {
+            mouse_is_enabled = !mouse_is_enabled;
+            emulator.mouse_set_enabled(mouse_is_enabled);
+            toggleMouseBtn.textContent = (mouse_is_enabled ? "Dis" : "En") + "able mouse";
+            toggleMouseBtn.blur();
+        };
+    }
+
+    var screenshotBtn = document.getElementById("take_screenshot");
+    if (screenshotBtn) {
+        screenshotBtn.onclick = function() {
+            const image = emulator.screen_make_screenshot();
+            try {
+                const w = window.open("");
+                if (w) w.document.write(image.outerHTML);
+            } catch(e) {}
+            screenshotBtn.blur();
+        };
+    }
+
+    var scaleInput = document.getElementById("scale");
+    if (scaleInput) {
+        scaleInput.onchange = function() {
+            var n = parseFloat(this.value);
+            if (n && n > 0) {
+                emulator.screen_set_scale(n, n);
             }
         };
     }
+
+    var saveBtn = document.getElementById("save_state");
+    if (saveBtn) {
+        saveBtn.onclick = async function() {
+            const new_state = await emulator.save_state();
+            dump_file(new_state, "v86state.bin");
+            saveBtn.blur();
+        };
+    }
+
+    var loadBtn = document.getElementById("load_state");
+    if (loadBtn) {
+        loadBtn.onclick = function() {
+            loadBtn.blur();
+            const input = document.createElement("input");
+            input.type = "file";
+            input.onchange = function() {
+                if (this.files.length) {
+                    const was_running = emulator.is_running();
+                    if (was_running) emulator.stop();
+                    const filereader = new FileReader();
+                    filereader.onload = async function(e) {
+                        try {
+                            await emulator.restore_state(e.target.result);
+                        } catch (err) {
+                            alert("Failed to restore state:\n" + err);
+                            throw err;
+                        }
+                        if (was_running) {
+                            emulator.run();
+                            if (runBtn) runBtn.textContent = "Pause";
+                            isRunning = true;
+                        }
+                    };
+                    filereader.readAsArrayBuffer(this.files[0]);
+                }
+            };
+            input.click();
+        };
+    }
+
+    var memDumpBtn = document.getElementById("memory_dump");
+    if (memDumpBtn) {
+        memDumpBtn.onclick = function() {
+            if (emulator.v86 && emulator.v86.cpu) {
+                dump_file(emulator.v86.cpu.mem8, "v86memory.bin");
+            }
+            memDumpBtn.blur();
+        };
+    }
+
+    async function download_disk(disk, default_name) {
+        if (!disk) return;
+        const buffer = await disk.get_as_buffer();
+        dump_file(buffer, disk.filename || default_name);
+    }
+    const getFda = document.getElementById("get_fda_image");
+    if (getFda) getFda.onclick = () => download_disk(emulator.v86.cpu?.devices?.fda, "fda.img");
+    const getFdb = document.getElementById("get_fdb_image");
+    if (getFdb) getFdb.onclick = () => download_disk(emulator.v86.cpu?.devices?.fdb, "fdb.img");
+    const getHda = document.getElementById("get_hda_image");
+    if (getHda) getHda.onclick = () => download_disk(emulator.v86.cpu?.devices?.hda, "hda.img");
+    const getHdb = document.getElementById("get_hdb_image");
+    if (getHdb) getHdb.onclick = () => download_disk(emulator.v86.cpu?.devices?.hdb, "hdb.img");
+    const getCdrom = document.getElementById("get_cdrom_image");
+    if (getCdrom) getCdrom.onclick = () => download_disk(emulator.v86.cpu?.devices?.cdrom, "cdrom.iso");
+
+    function bind_disk_change(element_id, change_fn) {
+        const btn = document.getElementById(element_id);
+        if (btn) {
+            btn.onclick = function() {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.onchange = function() {
+                    if (this.files.length) {
+                        change_fn(this.files[0]);
+                    }
+                };
+                input.click();
+            };
+        }
+    }
+    bind_disk_change("change_fda_image", file => emulator.set_fda(file));
+    bind_disk_change("change_fdb_image", file => emulator.set_fdb(file));
+    bind_disk_change("change_cdrom_image", file => emulator.set_cdrom(file));
+
+    var netCapBtn = document.getElementById("capture_network_traffic");
+    if (netCapBtn) {
+        let capture = [];
+        function hex_dump(data) {
+            return Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        }
+        function do_capture(direction, data) {
+            capture.push({ direction, time: performance.now() / 1000, hex_dump: hex_dump(data) });
+            netCapBtn.textContent = capture.length + " packets";
+        }
+        if (emulator.emulator_bus) {
+            emulator.emulator_bus.register("net0-receive", do_capture.bind(null, "I"));
+            emulator.add_listener("net0-send", do_capture.bind(null, "O"));
+        }
+        netCapBtn.onclick = function() {
+            const capture_raw = capture.map(({ direction, time, hex_dump }) => {
+                return direction + " " + time.toFixed(6) + " " + hex_dump + "\n";
+            }).join("");
+            dump_file(capture_raw, "traffic.hex");
+            capture = [];
+            netCapBtn.textContent = "Capture network traffic";
+        };
+    }
+
+    var muteBtn = document.getElementById("mute");
+    if (muteBtn) {
+        if (emulator.speaker_adapter) {
+            let is_muted = false;
+            muteBtn.onclick = function() {
+                if (is_muted) {
+                    emulator.speaker_adapter.mixer.set_volume(1, undefined);
+                    is_muted = false;
+                    muteBtn.textContent = "Mute";
+                } else {
+                    emulator.speaker_adapter.mixer.set_volume(0, undefined);
+                    is_muted = true;
+                    muteBtn.textContent = "Unmute";
+                }
+                muteBtn.blur();
+            };
+        } else {
+            muteBtn.style.display = "none";
+        }
+    }
+
+    var theatreBtn = document.getElementById("toggle_theatre");
+    var toggleUiBtn = document.getElementById("toggle_ui");
+    var theatreBackground = document.getElementById("theatre_background");
+    var isTheatre = false;
+    var uiVisible = true;
+
+    if (theatreBtn) {
+        theatreBtn.onclick = function() {
+            isTheatre = !isTheatre;
+            theatreBtn.textContent = (isTheatre ? "Dis" : "En") + "able theatre mode";
+            if (theatreBackground) theatreBackground.style.display = isTheatre ? "block" : "none";
+            if (toggleUiBtn) toggleUiBtn.style.display = isTheatre ? "inline-block" : "none";
+        };
+    }
+
+    if (toggleUiBtn) {
+        toggleUiBtn.onclick = function() {
+            uiVisible = !uiVisible;
+            if (runtimeOptions) runtimeOptions.style.display = uiVisible ? "block" : "none";
+            if (runtimeInfos) runtimeInfos.style.display = uiVisible ? "block" : "none";
+            toggleUiBtn.textContent = (uiVisible ? "Hide" : "Show") + " UI";
+        };
+    }
+
+    var sendFileEl = document.getElementById("filesystem_send_file");
+    if (sendFileEl) {
+        sendFileEl.onchange = function() {
+            for (let file of this.files) {
+                emulator.create_file("/" + file.name, new Uint8Array(file));
+            }
+        };
+    }
+    var getFileEl = document.getElementById("filesystem_get_file");
+    if (getFileEl) {
+        getFileEl.onchange = async function() {
+            const path = this.value;
+            if (path) {
+                try {
+                    const data = await emulator.read_file(path);
+                    const filename = path.split("/").pop() || "file";
+                    dump_file(data, filename);
+                } catch (e) {
+                    alert("Failed to get file: " + e);
+                }
+            }
+        };
+    }
+    emulator.add_listener("9p-attach", function() {
+        const fsPanel = document.getElementById("filesystem_panel");
+        if (fsPanel) fsPanel.style.display = "block";
+    });
+
+    var screenContainerEl = document.getElementById("screen_container");
+    if (screenContainerEl) {
+        screenContainerEl.onclick = function(e) {
+            if (emulator.is_running() && emulator.speaker_adapter?.audio_context?.state === "suspended") {
+                emulator.speaker_adapter.audio_context.resume();
+            }
+            if (window.getSelection().isCollapsed) {
+                const phone_keyboard = document.getElementsByClassName("phone_keyboard")[0];
+                if (phone_keyboard) {
+                    phone_keyboard.style.top = window.scrollY + e.clientY + 20 + "px";
+                    phone_keyboard.style.left = window.scrollX + e.clientX + "px";
+                    phone_keyboard.value = "";
+                    phone_keyboard.focus();
+                }
+            }
+        };
+    }
+
+    var last_tick = Date.now();
+    var last_instr_counter = 0;
+    var total_instructions = 0;
+    var running_time = 0;
+    var statsInterval = null;
+
+    function format_timestamp(s) {
+        var min = Math.floor(s / 60);
+        var sec = s % 60;
+        return min + "m " + (sec < 10 ? "0" : "") + sec + "s";
+    }
+
+    function update_info() {
+        var now = Date.now();
+        var instruction_counter = emulator.get_instruction_counter ? emulator.get_instruction_counter() : 0;
+        if (instruction_counter < last_instr_counter) {
+            last_instr_counter -= 0x100000000;
+        }
+        var last_ips = instruction_counter - last_instr_counter;
+        last_instr_counter = instruction_counter;
+        total_instructions += last_ips;
+        var delta_time = now - last_tick;
+        if (delta_time) {
+            running_time += delta_time;
+            last_tick = now;
+            var speedEl = document.getElementById("speed");
+            var avgSpeedEl = document.getElementById("avg_speed");
+            var runningTimeEl = document.getElementById("running_time");
+            if (speedEl) speedEl.textContent = (last_ips / 1000 / delta_time).toFixed(1);
+            if (avgSpeedEl) avgSpeedEl.textContent = (total_instructions / 1000 / running_time).toFixed(1);
+            if (runningTimeEl) runningTimeEl.textContent = format_timestamp(Math.floor(running_time / 1000));
+        }
+        var resEl = document.getElementById("info_res");
+        if (resEl && emulator.screen_adapter) {
+            resEl.textContent = emulator.screen_adapter.screen_width + "x" + emulator.screen_adapter.screen_height;
+        }
+    }
+
+    emulator.add_listener("emulator-started", function() {
+        last_tick = Date.now();
+        statsInterval = setInterval(update_info, 1000);
+    });
+
+    emulator.add_listener("emulator-stopped", function() {
+        update_info();
+        if (statsInterval !== null) {
+            clearInterval(statsInterval);
+        }
+    });
+
+    var stats_9p = { read: 0, write: 0, files: [] };
+    emulator.add_listener("9p-read-start", function(args) {
+        const file = args[0];
+        stats_9p.files.push(file);
+        const infoFs = document.getElementById("info_filesystem");
+        if (infoFs) infoFs.style.display = "block";
+        const statusEl = document.getElementById("info_filesystem_status");
+        if (statusEl) statusEl.textContent = "Loading ...";
+        const fileEl = document.getElementById("info_filesystem_last_file");
+        if (fileEl) fileEl.textContent = file;
+    });
+    emulator.add_listener("9p-read-end", function(args) {
+        stats_9p.read += args[1];
+        const bytesReadEl = document.getElementById("info_filesystem_bytes_read");
+        if (bytesReadEl) bytesReadEl.textContent = stats_9p.read;
+        const file = args[0];
+        stats_9p.files = stats_9p.files.filter(f => f !== file);
+        const fileEl = document.getElementById("info_filesystem_last_file");
+        const statusEl = document.getElementById("info_filesystem_status");
+        if (stats_9p.files[0]) {
+            if (fileEl) fileEl.textContent = stats_9p.files[0];
+        } else {
+            if (statusEl) statusEl.textContent = "Idle";
+        }
+    });
+    emulator.add_listener("9p-write-end", function(args) {
+        stats_9p.write += args[1];
+        const bytesWrittenEl = document.getElementById("info_filesystem_bytes_written");
+        if (bytesWrittenEl) bytesWrittenEl.textContent = stats_9p.write;
+    });
+
     console.log("Guix v86 X11 system initialized with custom POSIX initrd.");
 }
 
@@ -156,3 +749,59 @@ if (document.readyState === "loading") {
     initV86();
 }
 </script>
+<!--
+
+
+# LICENSE:
+
+
+Copyright (c) 2012, The v86 contributors
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+# LICENSE.MIT:
+
+QEMU Floppy disk emulator (Intel 82078)
+
+Copyright (c) 2003, 2007 Jocelyn Mayer
+Copyright (c) 2008 Hervé Poussineau
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+-->
