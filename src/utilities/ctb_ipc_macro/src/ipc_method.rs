@@ -55,6 +55,11 @@ use crate::types::IpcParamTransport;
 ///
 /// // Exposed as service="formats", method="utf_8e_128.encode"
 /// ```
+#[expect(
+    clippy::too_many_lines,
+    clippy::needless_pass_by_value,
+    reason = "proc macro entrypoint signature requirement and complex generation"
+)]
 pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     if !attr.is_empty() {
         if let Err(e) = syn::parse::<IpcMethodArgs>(attr) {
@@ -109,7 +114,7 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     for arg in &mut item_fn.sig.inputs {
         if let syn::FnArg::Typed(pat_type) = arg {
             let mut attrs = pat_type.attrs.clone();
-            let _ = take_ipc_param_transport(&mut attrs);
+            drop(take_ipc_param_transport(&mut attrs));
             pat_type.attrs = attrs;
         }
     }
@@ -245,16 +250,16 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             let _: () = ::ctb_utilities::postcard::from_bytes(__ctb_ipc_args)?;
         },
         1 => {
-            let ty0 = &decode_param_tys[0];
+            let ty0 = decode_param_tys.first();
             let id0 =
-                if matches!(param_transport[0], IpcParamTransport::DataPlane) {
-                    &dp_tmp_idents[0]
-                } else if is_ref_to_str(&param_tys[0])
-                    || is_ref_to_slice_u8(&param_tys[0])
+                if matches!(param_transport.first(), Some(IpcParamTransport::DataPlane)) {
+                    dp_tmp_idents.first()
+                } else if param_tys.first().is_some_and(is_ref_to_str)
+                    || param_tys.first().is_some_and(is_ref_to_slice_u8)
                 {
-                    &inline_tmp_idents[0]
+                    inline_tmp_idents.first()
                 } else {
-                    &arg_idents[0]
+                    arg_idents.first()
                 };
             quote! {
                 let #id0: #ty0 = ::ctb_utilities::postcard::from_bytes(__ctb_ipc_args)?;
@@ -263,16 +268,16 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => {
             let tuple_ty = quote! { ( #(#decode_param_tys),* ) };
             let tuple_bindings = (0..decode_param_tys.len()).map(|i| {
-                if matches!(param_transport[i], IpcParamTransport::DataPlane) {
-                    let id = &dp_tmp_idents[i];
+                if matches!(param_transport.get(i), Some(IpcParamTransport::DataPlane)) {
+                    let id = dp_tmp_idents.get(i);
                     quote!(#id)
-                } else if is_ref_to_str(&param_tys[i])
-                    || is_ref_to_slice_u8(&param_tys[i])
+                } else if param_tys.get(i).is_some_and(is_ref_to_str)
+                    || param_tys.get(i).is_some_and(is_ref_to_slice_u8)
                 {
-                    let id = &inline_tmp_idents[i];
+                    let id = inline_tmp_idents.get(i);
                     quote!(#id)
                 } else {
-                    let id = &arg_idents[i];
+                    let id = arg_idents.get(i);
                     quote!(#id)
                 }
             });
@@ -295,15 +300,18 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             continue;
         }
 
+        let Some(tmp) = inline_tmp_idents.get(i) else {
+            continue;
+        };
+        let Some(out) = arg_idents.get(i) else {
+            continue;
+        };
+
         if is_ref_to_str(ty) {
-            let tmp = &inline_tmp_idents[i];
-            let out = &arg_idents[i];
             inline_reconstruct.push(quote! {
                 let #out: &str = #tmp.as_str();
             });
         } else if is_ref_to_slice_u8(ty) {
-            let tmp = &inline_tmp_idents[i];
-            let out = &arg_idents[i];
             inline_reconstruct.push(quote! {
                 let #out: &[u8] = #tmp.as_slice();
             });
@@ -330,8 +338,12 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
                 .to_compile_error()
                 .into();
             }
-            let tmp = &dp_tmp_idents[i];
-            let out = &arg_idents[i];
+            let Some(tmp) = dp_tmp_idents.get(i) else {
+                continue;
+            };
+            let Some(out) = arg_idents.get(i) else {
+                continue;
+            };
             dp_reconstruct.push(if let syn::Type::Path(p) = ty {
                 if p.path
                     .segments
@@ -411,7 +423,9 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     for (i, (ty, tr)) in
         param_tys.iter().zip(param_transport.iter()).enumerate()
     {
-        let arg = &arg_idents[i];
+        let Some(arg) = arg_idents.get(i) else {
+            continue;
+        };
         if matches!(tr, IpcParamTransport::DataPlane) {
             if !data_plane_supported_type(ty) {
                 return syn::Error::new_spanned(
@@ -421,7 +435,9 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
                 .to_compile_error()
                 .into();
             }
-            let dp = &dp_tmp_idents[i];
+            let Some(dp) = dp_tmp_idents.get(i) else {
+                continue;
+            };
             let bytes_expr = expr_bytes_for_data_plane(arg, ty);
             dp_client_prelude.push(quote! {
                 let __ctb_ipc_size = u64::try_from(#bytes_expr.len())
@@ -476,7 +492,7 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let client_req_expr = match param_tys.len() {
         0 => quote! { () },
         1 => {
-            let e0 = &client_req_elems[0];
+            let e0 = client_req_elems.first();
             quote! { #e0 }
         }
         _ => quote! { ( #(#client_req_elems),* ) },

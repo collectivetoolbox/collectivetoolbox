@@ -186,7 +186,6 @@ pub struct IpcServiceClientMethod {
 }
 
 impl Parse for IpcServiceClientMethod {
-    #[expect(clippy::too_many_lines, clippy::collapsible_match, reason = "parsing IpcServiceClientMethod involves nested match logic and line length")]
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let sig: syn::Signature = input.parse()?;
         input.parse::<Token![=>]>()?;

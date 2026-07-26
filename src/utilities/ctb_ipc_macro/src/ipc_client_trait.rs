@@ -113,8 +113,6 @@ fn take_ipc_method_override(
 /// - All non-receiver params must be identifier patterns.
 #[expect(
     clippy::too_many_lines,
-    clippy::uninlined_format_args,
-    clippy::needless_pass_by_value,
     reason = "ipc_client_trait_impl is a complex code generation function"
 )]
 pub fn ipc_client_trait_impl(
