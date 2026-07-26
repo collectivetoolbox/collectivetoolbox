@@ -65,4 +65,18 @@ $CARGO_CMD compress zlib "$TEST_FILE" -o "$TMP_DIR/zlib.zz" --force
 $CARGO_CMD decompress zlib "$TMP_DIR/zlib.zz" -o "$TMP_DIR/zlib_out.txt" --force
 diff -u "$TEST_FILE" "$TMP_DIR/zlib_out.txt"
 
+# 7. Test decompressing embedded fixtures directly
+FIXTURE_RAW="src/formats/compression/data/fixtures/example2 with lemurs.pan"
+$CARGO_CMD decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_br.pan"
+
+$CARGO_CMD decompress "$FIXTURE_RAW.gz" -o "$TMP_DIR/fixture_gz.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_gz.pan"
+
+$CARGO_CMD decompress "$FIXTURE_RAW.deflate" -o "$TMP_DIR/fixture_deflate.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_deflate.pan"
+
+$CARGO_CMD decompress "$FIXTURE_RAW.zz" -o "$TMP_DIR/fixture_zz.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_zz.pan"
+
 echo "All compression CLI tests passed successfully!"
