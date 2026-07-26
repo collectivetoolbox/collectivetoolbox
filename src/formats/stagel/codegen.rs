@@ -966,7 +966,6 @@ fn codegen_command_invocation_start(
     Ok(())
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "lotta math")]
 pub fn codegen(
     tokens_input: &[u8],
     target_lang: &str,

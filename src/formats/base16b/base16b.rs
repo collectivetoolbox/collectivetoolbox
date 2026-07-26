@@ -151,7 +151,6 @@ fn fixed_from_char_code(code_pt: u32) -> String {
 }
 
 // Private: get the code point at a string index (surrogate aware)
-#[allow(clippy::arithmetic_side_effects, reason = "more readable")]
 fn fixed_char_code_at(str_: &[u16], idx: usize) -> Result<u32> {
     // https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Global_Objects/String/charCodeAt
     if idx >= str_.len() {
@@ -179,7 +178,6 @@ fn fixed_char_code_at(str_: &[u16], idx: usize) -> Result<u32> {
 
 /// Encode an array of pseudo-booleans (0 or 1) to a string using the
 /// Asyntactic script.
-#[allow(clippy::arithmetic_side_effects, reason = "+/- more readable")]
 pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
     /*
     Encode an array of pseudo-booleans (0 or 1)
@@ -236,7 +234,6 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
 /// tests for an example. I haven't looked into why that is.
 ///
 /// Pass None as the `remainder_length` to use per the original API.
-#[allow(clippy::arithmetic_side_effects, reason = "+/- more readable")]
 pub fn decode(
     input_str: &str,
     remainder_length: Option<u32>,

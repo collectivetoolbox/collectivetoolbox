@@ -17,7 +17,6 @@ pub struct Cp437Mapping {
     encode_table: HashMap<char, u8>,
 }
 
-#[allow(clippy::indexing_slicing, reason = "Cp437 decoding/encoding tables use 256-byte table indices")]
 impl Cp437Mapping {
     pub fn chr(&self, code: u8) -> String {
         self.decode_table[usize::from(code)].to_string()
@@ -59,7 +58,6 @@ impl Cp437Mapping {
     }
 }
 
-#[allow(clippy::indexing_slicing, reason = "Cp437 decoding/encoding tables use 256-byte table indices")]
 fn try_load_mapping(
     values_path: &str,
     variants_path: &str,

@@ -687,7 +687,6 @@ fn calendar_for_ymd(year: i32, month: u32, day: u32) -> Result<Calendar> {
 }
 
 /// Converts a year-month-day date to a Julian day number.
-#[allow(clippy::arithmetic_side_effects, reason = "+/- more readable")]
 fn ymd_to_jdn(
     cal: Calendar,
     year: i32,
@@ -727,7 +726,6 @@ fn jdn_to_ymd(jdn: PanDate) -> Result<(i32, u32, u32)> {
     }
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "+/- more readable")]
 fn jdn_to_ymd_gregorian(jdn: PanDate) -> Result<(i32, u32, u32)> {
     let a = jdn + 32044;
     let b = (4 * a + 3).div_euclid(146097);
@@ -746,7 +744,6 @@ fn jdn_to_ymd_gregorian(jdn: PanDate) -> Result<(i32, u32, u32)> {
     Ok((y, mo, da))
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "+/- more readable")]
 fn jdn_to_ymd_julian(jdn: PanDate) -> Result<(i32, u32, u32)> {
     let c = jdn + 32082;
     let d = (4 * c + 3).div_euclid(1461);

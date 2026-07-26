@@ -116,7 +116,6 @@ impl State {
 // Main
 // -----------------------------------------------------------------------------
 
-#[allow(clippy::indexing_slicing, reason = "command-line argument parsing sequence indexing")]
 fn main() {
     let mut args: Vec<String> = env::args().collect();
     if args.is_empty() {
@@ -929,7 +928,6 @@ fn html_heading(
     writeln!(w, "</h{hlevel}>").ok();
 }
 
-#[allow(clippy::indexing_slicing, reason = "low-level in-place byte manipulation for capitalization")]
 fn capitalize_heading_words(s: &str) -> String {
     let mut title = s.as_bytes().to_vec();
     // Capitalize first letter of each word except "a", "and", "or", "the"
@@ -972,12 +970,6 @@ fn capitalize_heading_words(s: &str) -> String {
 // Macro handling similar to man_xx
 // -----------------------------------------------------------------------------
 
-#[allow(
-    clippy::indexing_slicing,
-    clippy::string_slice,
-    clippy::arithmetic_side_effects,
-    reason = "+/- more readable"
-)]
 fn handle_xx(
     state: &mut State,
     a: Font,
@@ -1072,13 +1064,6 @@ fn flush_fragment(start: usize, end: usize, w: &mut impl Write, bytes: &[u8]) {
     }
 }
 
-#[allow(
-    clippy::too_many_lines,
-    clippy::indexing_slicing,
-    clippy::string_slice,
-    clippy::arithmetic_side_effects,
-    reason = "+/- more readable"
-)]
 fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
     let mut i = 0usize;
     let bytes = s.as_bytes();

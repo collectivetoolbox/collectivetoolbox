@@ -1,4 +1,4 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::anyhow;
@@ -387,7 +387,6 @@ impl WindowHandle {
         Ok(wm_delete_window)
     }
 
-    #[allow(clippy::indexing_slicing, reason = "X11 frame buffer uploads require raw pixel array indexing")]
     pub fn upload_bgra(&self, buffer: &[[u8; 4]]) -> Result<()> {
         let row_stride = usize::from(self.surface.width).saturating_mul(4);
         ensure!(row_stride > 0, "X11 surface row stride must be non-zero");
