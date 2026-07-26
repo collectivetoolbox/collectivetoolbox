@@ -5,41 +5,56 @@
 
 #![no_std]
 #![no_main]
+#![expect(unsafe_code, reason = "Bare-metal no_std init binary using raw Linux int 0x80 syscalls and C memory functions")]
 
-#[allow(unused_imports)]
-use core::arch::asm;
 use core::cell::UnsafeCell;
-use core::convert::TryFrom;
+use core::ffi::CStr;
 use core::panic::PanicInfo;
 
 struct RawBuffer<const N: usize>(UnsafeCell<[u8; N]>);
-#[allow(unsafe_code)]
+// SAFETY: RawBuffer is only used as a static global buffer in single-threaded bare-metal init process where no concurrent access occurs.
 unsafe impl<const N: usize> Sync for RawBuffer<N> {}
 
 static MODULE_BUF: RawBuffer<{ 2048 * 1024 }> = RawBuffer(UnsafeCell::new([0; 2048 * 1024]));
 static COPY_BUF: RawBuffer<{ 64 * 1024 }> = RawBuffer(UnsafeCell::new([0; 64 * 1024]));
 
+/// C ABI memset implementation for bare-metal init.
+///
+/// # Safety
+/// `s` must point to a valid writable buffer of at least `n` bytes.
 #[unsafe(no_mangle)]
-#[allow(unsafe_code, clippy::as_conversions)]
 pub unsafe extern "C" fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8 {
     let mut i: usize = 0;
-    let val = c as u8;
+    let val = c.to_le_bytes()[0];
     while i < n {
+        // SAFETY: Pointer offset is within valid buffer bounds [0, n).
+        let ptr = unsafe { s.add(i) };
+        // SAFETY: Writing byte value to valid pointer offset.
         unsafe {
-            *s.add(i) = val;
+            *ptr = val;
         }
         i = i.saturating_add(1);
     }
     s
 }
 
+/// C ABI memcpy implementation for bare-metal init.
+///
+/// # Safety
+/// `dest` and `src` must point to valid buffers of at least `n` bytes.
 #[unsafe(no_mangle)]
-#[allow(unsafe_code)]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     let mut i: usize = 0;
     while i < n {
+        // SAFETY: Source pointer offset is within valid bounds [0, n).
+        let src_ptr = unsafe { src.add(i) };
+        // SAFETY: Reading byte from valid source pointer offset.
+        let val = unsafe { *src_ptr };
+        // SAFETY: Destination pointer offset is within valid bounds [0, n).
+        let dest_ptr = unsafe { dest.add(i) };
+        // SAFETY: Writing byte to valid destination pointer offset.
         unsafe {
-            *dest.add(i) = *src.add(i);
+            *dest_ptr = val;
         }
         i = i.saturating_add(1);
     }
@@ -47,23 +62,27 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
 }
 
 #[panic_handler]
-#[allow(clippy::empty_loop, unsafe_code)]
 fn panic(_info: &PanicInfo) -> ! {
     loop {
         #[cfg(target_arch = "x86")]
+        // SAFETY: Executing CPU pause instruction in infinite panic loop.
         unsafe {
-            asm!("pause", options(nomem, nostack, preserves_flags));
+            core::arch::asm!("pause", options(nomem, nostack, preserves_flags));
+        }
+        #[cfg(not(target_arch = "x86"))]
+        {
+            core::hint::spin_loop();
         }
     }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::needless_pass_by_value)]
+#[inline]
 unsafe fn syscall1(n: usize, a1: usize) -> isize {
     let ret: isize;
     #[cfg(target_arch = "x86")]
+    // SAFETY: Executing x86 int 0x80 Linux syscall interface.
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int 0x80",
             inout("eax") n => ret,
             in("ebx") a1,
@@ -78,13 +97,13 @@ unsafe fn syscall1(n: usize, a1: usize) -> isize {
     ret
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::needless_pass_by_value)]
+#[inline]
 unsafe fn syscall2(n: usize, a1: usize, a2: usize) -> isize {
     let ret: isize;
     #[cfg(target_arch = "x86")]
+    // SAFETY: Executing x86 int 0x80 Linux syscall interface.
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int 0x80",
             inout("eax") n => ret,
             in("ebx") a1,
@@ -100,13 +119,13 @@ unsafe fn syscall2(n: usize, a1: usize, a2: usize) -> isize {
     ret
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::needless_pass_by_value)]
+#[inline]
 unsafe fn syscall3(n: usize, a1: usize, a2: usize, a3: usize) -> isize {
     let ret: isize;
     #[cfg(target_arch = "x86")]
+    // SAFETY: Executing x86 int 0x80 Linux syscall interface.
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int 0x80",
             inout("eax") n => ret,
             in("ebx") a1,
@@ -123,13 +142,13 @@ unsafe fn syscall3(n: usize, a1: usize, a2: usize, a3: usize) -> isize {
     ret
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::needless_pass_by_value)]
+#[inline]
 unsafe fn syscall5(n: usize, a1: usize, a2: usize, a3: usize, a4: usize, a5: usize) -> isize {
     let ret: isize;
     #[cfg(target_arch = "x86")]
+    // SAFETY: Executing x86 int 0x80 Linux syscall interface with saved/restored ESI register.
     unsafe {
-        asm!(
+        core::arch::asm!(
             "push esi",
             "mov esi, {a4}",
             "int 0x80",
@@ -151,44 +170,43 @@ unsafe fn syscall5(n: usize, a1: usize, a2: usize, a3: usize, a4: usize, a5: usi
     ret
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_open(path: *const u8, flags: usize, mode: usize) -> isize {
-    unsafe { syscall3(5, path as usize, flags, mode) }
+    // SAFETY: Executing open syscall (5).
+    unsafe { syscall3(5, path.addr(), flags, mode) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_read(fd: usize, buf: *mut u8, count: usize) -> isize {
-    unsafe { syscall3(3, fd, buf as usize, count) }
+    // SAFETY: Executing read syscall (3).
+    unsafe { syscall3(3, fd, buf.addr(), count) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_write(fd: usize, buf: *const u8, count: usize) -> isize {
-    unsafe { syscall3(4, fd, buf as usize, count) }
+    // SAFETY: Executing write syscall (4).
+    unsafe { syscall3(4, fd, buf.addr(), count) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_close(fd: usize) -> isize {
+    // SAFETY: Executing close syscall (6).
     unsafe { syscall1(6, fd) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_dup2(oldfd: usize, newfd: usize) -> isize {
+    // SAFETY: Executing dup2 syscall (63).
     unsafe { syscall2(63, oldfd, newfd) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_mkdir(path: *const u8, mode: usize) -> isize {
-    unsafe { syscall2(39, path as usize, mode) }
+    // SAFETY: Executing mkdir syscall (39).
+    unsafe { syscall2(39, path.addr(), mode) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_mount(
     dev: *const u8,
     dir: *const u8,
@@ -196,50 +214,52 @@ unsafe fn sys_mount(
     flags: usize,
     data: *const u8,
 ) -> isize {
-    unsafe { syscall5(21, dev as usize, dir as usize, fstype as usize, flags, data as usize) }
+    // SAFETY: Executing mount syscall (21).
+    unsafe { syscall5(21, dev.addr(), dir.addr(), fstype.addr(), flags, data.addr()) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_mknod(path: *const u8, mode: usize, dev: usize) -> isize {
-    unsafe { syscall3(14, path as usize, mode, dev) }
+    // SAFETY: Executing mknod syscall (14).
+    unsafe { syscall3(14, path.addr(), mode, dev) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_chroot(path: *const u8) -> isize {
-    unsafe { syscall1(61, path as usize) }
+    // SAFETY: Executing chroot syscall (61).
+    unsafe { syscall1(61, path.addr()) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_chdir(path: *const u8) -> isize {
-    unsafe { syscall1(12, path as usize) }
+    // SAFETY: Executing chdir syscall (12).
+    unsafe { syscall1(12, path.addr()) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_execve(
     file: *const u8,
     argv: *const *const u8,
     envp: *const *const u8,
 ) -> isize {
-    unsafe { syscall3(11, file as usize, argv as usize, envp as usize) }
+    // SAFETY: Executing execve syscall (11).
+    unsafe { syscall3(11, file.addr(), argv.addr(), envp.addr()) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_init_module(image: *const u8, len: usize, params: *const u8) -> isize {
-    unsafe { syscall3(128, image as usize, len, params as usize) }
+    // SAFETY: Executing init_module syscall (128).
+    unsafe { syscall3(128, image.addr(), len, params.addr()) }
 }
 
-#[inline(always)]
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[inline]
 unsafe fn sys_ioctl(fd: usize, cmd: usize, arg: *mut u8) -> isize {
-    unsafe { syscall3(54, fd, cmd, arg as usize) }
+    // SAFETY: Executing ioctl syscall (54).
+    unsafe { syscall3(54, fd, cmd, arg.addr()) }
 }
 
 #[repr(C)]
+#[expect(clippy::struct_field_names, reason = "Matching C ABI termios struct layout in Linux kernel")]
 struct Termios {
     c_iflag: u32,
     c_oflag: u32,
@@ -251,7 +271,6 @@ struct Termios {
     c_ospeed: u32,
 }
 
-#[allow(unsafe_code, clippy::undocumented_unsafe_blocks)]
 unsafe fn disable_echo(fd: usize) {
     let mut t = Termios {
         c_iflag: 0,
@@ -263,14 +282,16 @@ unsafe fn disable_echo(fd: usize) {
         c_ispeed: 0,
         c_ospeed: 0,
     };
-    let t_ptr: *mut Termios = &mut t;
+    let t_ptr: *mut Termios = &raw mut t;
+    // SAFETY: Querying terminal attributes via TCGETS ioctl.
     if unsafe { sys_ioctl(fd, 0x5401, t_ptr.cast()) } == 0 {
+        // SAFETY: Setting terminal attributes via TCSETS ioctl.
         let _ = unsafe { sys_ioctl(fd, 0x5402, t_ptr.cast()) };
     }
 }
 
-#[allow(unsafe_code, clippy::undocumented_unsafe_blocks)]
 fn print(s: &[u8]) {
+    // SAFETY: Writing string slice to standard output (file descriptor 1).
     unsafe {
         sys_write(1, s.as_ptr(), s.len());
     }
@@ -303,121 +324,171 @@ fn print_num(mut val: isize) {
     }
 }
 
-#[allow(unsafe_code, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
-fn load_module(path: &[u8]) {
-    let fd = unsafe { sys_open(path.as_ptr(), 0, 0) };
+fn load_module(path: &CStr) {
+    // SAFETY: Opening module file descriptor.
+    let fd = unsafe { sys_open(path.as_ptr().cast(), 0, 0) };
     if fd < 0 {
         print(b"[INIT] Mod open failed: ");
-        print(path);
+        print(path.to_bytes());
         print(b"\n");
         return;
     }
     let fd_u = usize::try_from(fd).unwrap_or(0);
-    let mod_buf_ptr = MODULE_BUF.0.get() as *mut u8;
+    let mod_buf_ptr = MODULE_BUF.0.get().cast::<u8>();
     let mod_cap = 2048_usize.saturating_mul(1024);
     let mut total: usize = 0;
-    unsafe {
-        while total < mod_cap {
-            let remain = mod_cap.saturating_sub(total);
-            let buf_ptr = mod_buf_ptr.add(total);
-            let n = sys_read(fd_u, buf_ptr, remain);
-            if n <= 0 {
-                break;
-            }
-            let n_u = usize::try_from(n).unwrap_or(0);
-            total = total.saturating_add(n_u);
+    while total < mod_cap {
+        let remain = mod_cap.saturating_sub(total);
+        // SAFETY: Offset is within MODULE_BUF allocated capacity.
+        let buf_ptr = unsafe { mod_buf_ptr.add(total) };
+        // SAFETY: Reading up to remain bytes into MODULE_BUF.
+        let n = unsafe { sys_read(fd_u, buf_ptr, remain) };
+        if n <= 0 {
+            break;
         }
+        let n_u = usize::try_from(n).unwrap_or(0);
+        total = total.saturating_add(n_u);
+    }
+    // SAFETY: Closing module file descriptor.
+    unsafe {
         sys_close(fd_u);
-        if total > 0 {
-            let res = sys_init_module(mod_buf_ptr, total, b"\0".as_ptr());
-            if res != 0 {
-                print(b"[INIT] init_module ");
-                print(path);
-                print(b" returned ");
-                print_num(res);
-                print(b"\n");
-            } else {
-                print(b"[INIT] Loaded ");
-                print(path);
-                print(b"\n");
-            }
+    }
+    if total > 0 {
+        // SAFETY: Calling init_module syscall with loaded module image bytes.
+        let res = unsafe { sys_init_module(mod_buf_ptr, total, c"".as_ptr().cast()) };
+        if res != 0 {
+            print(b"[INIT] init_module ");
+            print(path.to_bytes());
+            print(b" returned ");
+            print_num(res);
+            print(b"\n");
+        } else {
+            print(b"[INIT] Loaded ");
+            print(path.to_bytes());
+            print(b"\n");
         }
     }
 }
 
 /// Entry point for 32-bit v86 POSIX Rust init process.
 #[unsafe(no_mangle)]
-#[allow(unsafe_code, clippy::cognitive_complexity, clippy::too_many_lines, clippy::as_conversions, clippy::undocumented_unsafe_blocks)]
+#[expect(clippy::too_many_lines, reason = "Sequential bare-metal init process sequence")]
 pub extern "C" fn _start() -> ! {
+    // SAFETY: Creating /dev directory for tty device setup.
     unsafe {
-        sys_mkdir(b"/dev\0".as_ptr(), 0o755);
-        sys_mknod(b"/dev/ttyS0\0".as_ptr(), 0o020666, (4 << 8) | 64);
+        sys_mkdir(c"/dev".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /dev/ttyS0 device node with major 4 minor 64.
+    unsafe {
+        sys_mknod(c"/dev/ttyS0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 64_usize);
+    }
 
-        let fd = sys_open(b"/dev/ttyS0\0".as_ptr(), 2, 0);
-        if fd >= 0 {
-            let fd_u = usize::try_from(fd).unwrap_or(0);
-            if fd_u != 0 {
+    // SAFETY: Opening serial console ttyS0.
+    let fd = unsafe { sys_open(c"/dev/ttyS0".as_ptr().cast(), 2, 0) };
+    if fd >= 0 {
+        let fd_u = usize::try_from(fd).unwrap_or(0);
+        if fd_u != 0 {
+            // SAFETY: Duplicating console file descriptor to stdin.
+            unsafe {
                 sys_dup2(fd_u, 0);
             }
+        }
+        // SAFETY: Duplicating stdin to stdout.
+        unsafe {
             sys_dup2(0, 1);
+        }
+        // SAFETY: Duplicating stdin to stderr.
+        unsafe {
             sys_dup2(0, 2);
+        }
+        // SAFETY: Disabling terminal echo on console.
+        unsafe {
             disable_echo(0);
         }
     }
 
     print(b"\n[INIT] Starting 32-bit POSIX Rust init for v86 Guix...\n");
 
+    // SAFETY: Creating system mount point directories.
     unsafe {
-        sys_mkdir(b"/proc\0".as_ptr(), 0o755);
-        sys_mkdir(b"/sys\0".as_ptr(), 0o755);
-        sys_mkdir(b"/tmp\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root\0".as_ptr(), 0o755);
+        sys_mkdir(c"/proc".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating sysfs mount point directory.
+    unsafe {
+        sys_mkdir(c"/sys".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating tmpfs mount point directory.
+    unsafe {
+        sys_mkdir(c"/tmp".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating root mount point directory.
+    unsafe {
+        sys_mkdir(c"/root".as_ptr().cast(), 0o755);
+    }
 
-        sys_mount(b"proc\0".as_ptr(), b"/proc\0".as_ptr(), b"proc\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"sysfs\0".as_ptr(), b"/sys\0".as_ptr(), b"sysfs\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"devtmpfs\0".as_ptr(), b"/dev\0".as_ptr(), b"devtmpfs\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"tmpfs\0".as_ptr(), b"/tmp\0".as_ptr(), b"tmpfs\0".as_ptr(), 0, core::ptr::null());
+    // SAFETY: Mounting procfs on /proc.
+    unsafe {
+        sys_mount(c"proc".as_ptr().cast(), c"/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting sysfs on /sys.
+    unsafe {
+        sys_mount(c"sysfs".as_ptr().cast(), c"/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting devtmpfs on /dev.
+    unsafe {
+        sys_mount(c"devtmpfs".as_ptr().cast(), c"/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting tmpfs on /tmp.
+    unsafe {
+        sys_mount(c"tmpfs".as_ptr().cast(), c"/tmp".as_ptr().cast(), c"tmpfs".as_ptr().cast(), 0, core::ptr::null());
+    }
 
-        sys_mkdir(b"/dev/pts\0".as_ptr(), 0o755);
-        sys_mount(b"devpts\0".as_ptr(), b"/dev/pts\0".as_ptr(), b"devpts\0".as_ptr(), 0, core::ptr::null());
+    // SAFETY: Creating devpts mount point directory.
+    unsafe {
+        sys_mkdir(c"/dev/pts".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Mounting devpts on /dev/pts.
+    unsafe {
+        sys_mount(c"devpts".as_ptr().cast(), c"/dev/pts".as_ptr().cast(), c"devpts".as_ptr().cast(), 0, core::ptr::null());
     }
 
     print(b"[INIT] Loading kernel modules...\n");
-    load_module(b"/lib/modules/virtio_ring.ko\0");
-    load_module(b"/lib/modules/virtio.ko\0");
-    load_module(b"/lib/modules/virtio_pci_legacy_dev.ko\0");
-    load_module(b"/lib/modules/virtio_pci_modern_dev.ko\0");
-    load_module(b"/lib/modules/virtio_pci.ko\0");
-    load_module(b"/lib/modules/fscache.ko\0");
-    load_module(b"/lib/modules/netfs.ko\0");
-    load_module(b"/lib/modules/9pnet.ko\0");
-    load_module(b"/lib/modules/9pnet_virtio.ko\0");
-    load_module(b"/lib/modules/9p.ko\0");
-    load_module(b"/lib/modules/fb_sys_fops.ko\0");
-    load_module(b"/lib/modules/sysfillrect.ko\0");
-    load_module(b"/lib/modules/syscopyarea.ko\0");
-    load_module(b"/lib/modules/sysimgblt.ko\0");
-    load_module(b"/lib/modules/cirrusfb.ko\0");
-    load_module(b"/lib/modules/cec.ko\0");
-    load_module(b"/lib/modules/drm.ko\0");
-    load_module(b"/lib/modules/drm_display_helper.ko\0");
-    load_module(b"/lib/modules/drm_kms_helper.ko\0");
-    load_module(b"/lib/modules/drm_client_lib.ko\0");
-    load_module(b"/lib/modules/ttm.ko\0");
-    load_module(b"/lib/modules/drm_ttm_helper.ko\0");
-    load_module(b"/lib/modules/drm_shmem_helper.ko\0");
-    load_module(b"/lib/modules/drm_vram_helper.ko\0");
-    load_module(b"/lib/modules/bochs.ko\0");
-    load_module(b"/lib/modules/uvesafb.ko\0");
+    load_module(c"/lib/modules/virtio_ring.ko");
+    load_module(c"/lib/modules/virtio.ko");
+    load_module(c"/lib/modules/virtio_pci_legacy_dev.ko");
+    load_module(c"/lib/modules/virtio_pci_modern_dev.ko");
+    load_module(c"/lib/modules/virtio_pci.ko");
+    load_module(c"/lib/modules/fscache.ko");
+    load_module(c"/lib/modules/netfs.ko");
+    load_module(c"/lib/modules/9pnet.ko");
+    load_module(c"/lib/modules/9pnet_virtio.ko");
+    load_module(c"/lib/modules/9p.ko");
+    load_module(c"/lib/modules/fb_sys_fops.ko");
+    load_module(c"/lib/modules/sysfillrect.ko");
+    load_module(c"/lib/modules/syscopyarea.ko");
+    load_module(c"/lib/modules/sysimgblt.ko");
+    load_module(c"/lib/modules/cirrusfb.ko");
+    load_module(c"/lib/modules/cec.ko");
+    load_module(c"/lib/modules/drm.ko");
+    load_module(c"/lib/modules/drm_display_helper.ko");
+    load_module(c"/lib/modules/drm_kms_helper.ko");
+    load_module(c"/lib/modules/drm_client_lib.ko");
+    load_module(c"/lib/modules/ttm.ko");
+    load_module(c"/lib/modules/drm_ttm_helper.ko");
+    load_module(c"/lib/modules/drm_shmem_helper.ko");
+    load_module(c"/lib/modules/drm_vram_helper.ko");
+    load_module(c"/lib/modules/bochs.ko");
+    load_module(c"/lib/modules/uvesafb.ko");
 
     print(b"[INIT] Mounting 9p host9p on /root...\n");
+    // SAFETY: Mounting 9p host filesystem on /root.
     let mres = unsafe {
         sys_mount(
-            b"host9p\0".as_ptr(),
-            b"/root\0".as_ptr(),
-            b"9p\0".as_ptr(),
+            c"host9p".as_ptr().cast(),
+            c"/root".as_ptr().cast(),
+            c"9p".as_ptr().cast(),
             0,
-            b"trans=virtio,cache=loose\0".as_ptr(),
+            c"trans=virtio,cache=loose".as_ptr().cast(),
         )
     };
     if mres != 0 {
@@ -426,54 +497,134 @@ pub extern "C" fn _start() -> ! {
         print(b"\n");
     }
 
+    // SAFETY: Creating chroot target directories.
     unsafe {
-        sys_mkdir(b"/root/proc\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/sys\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/dev\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/tmp\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/var\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/var/log\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/var/run\0".as_ptr(), 0o755);
+        sys_mkdir(c"/root/proc".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/sys directory.
+    unsafe {
+        sys_mkdir(c"/root/sys".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/dev directory.
+    unsafe {
+        sys_mkdir(c"/root/dev".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/tmp directory.
+    unsafe {
+        sys_mkdir(c"/root/tmp".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/var directory.
+    unsafe {
+        sys_mkdir(c"/root/var".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/var/log directory.
+    unsafe {
+        sys_mkdir(c"/root/var/log".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/var/run directory.
+    unsafe {
+        sys_mkdir(c"/root/var/run".as_ptr().cast(), 0o755);
+    }
 
-        sys_mount(b"proc\0".as_ptr(), b"/root/proc\0".as_ptr(), b"proc\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"sysfs\0".as_ptr(), b"/root/sys\0".as_ptr(), b"sysfs\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"devtmpfs\0".as_ptr(), b"/root/dev\0".as_ptr(), b"devtmpfs\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"tmpfs\0".as_ptr(), b"/root/tmp\0".as_ptr(), b"tmpfs\0".as_ptr(), 0, core::ptr::null());
+    // SAFETY: Mounting procfs on /root/proc.
+    unsafe {
+        sys_mount(c"proc".as_ptr().cast(), c"/root/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting sysfs on /root/sys.
+    unsafe {
+        sys_mount(c"sysfs".as_ptr().cast(), c"/root/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting devtmpfs on /root/dev.
+    unsafe {
+        sys_mount(c"devtmpfs".as_ptr().cast(), c"/root/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting tmpfs on /root/tmp.
+    unsafe {
+        sys_mount(c"tmpfs".as_ptr().cast(), c"/root/tmp".as_ptr().cast(), c"tmpfs".as_ptr().cast(), 0, core::ptr::null());
+    }
 
-        sys_mkdir(b"/root/dev/pts\0".as_ptr(), 0o755);
-        sys_mount(b"devpts\0".as_ptr(), b"/root/dev/pts\0".as_ptr(), b"devpts\0".as_ptr(), 0, core::ptr::null());
+    // SAFETY: Creating /root/dev/pts directory.
+    unsafe {
+        sys_mkdir(c"/root/dev/pts".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Mounting devpts on /root/dev/pts.
+    unsafe {
+        sys_mount(c"devpts".as_ptr().cast(), c"/root/dev/pts".as_ptr().cast(), c"devpts".as_ptr().cast(), 0, core::ptr::null());
+    }
 
-        sys_mknod(b"/root/dev/fb0\0".as_ptr(), 0o020666, (29 << 8) | 0);
-        sys_mknod(b"/root/dev/tty0\0".as_ptr(), 0o020666, (4 << 8) | 0);
-        sys_mknod(b"/root/dev/tty1\0".as_ptr(), 0o020666, (4 << 8) | 1);
-        sys_mknod(b"/root/dev/ttyS0\0".as_ptr(), 0o020666, (4 << 8) | 64);
-        sys_mknod(b"/root/dev/zero\0".as_ptr(), 0o020666, (1 << 8) | 5);
-        sys_mknod(b"/root/dev/null\0".as_ptr(), 0o020666, (1 << 8) | 3);
-        sys_mknod(b"/root/dev/mem\0".as_ptr(), 0o020666, (1 << 8) | 1);
-        sys_mknod(b"/root/dev/port\0".as_ptr(), 0o020666, (1 << 8) | 4);
-        sys_mknod(b"/root/dev/tty\0".as_ptr(), 0o020666, (5 << 8) | 0);
-        sys_mknod(b"/root/dev/console\0".as_ptr(), 0o020666, (5 << 8) | 1);
-        sys_mknod(b"/root/dev/ptmx\0".as_ptr(), 0o020666, (5 << 8) | 2);
+    // SAFETY: Creating /root/dev/fb0 device node (29, 0).
+    unsafe {
+        sys_mknod(c"/root/dev/fb0".as_ptr().cast(), 0o020_666, 29_usize.checked_shl(8).unwrap_or(0));
+    }
+    // SAFETY: Creating /root/dev/tty0 device node (4, 0).
+    unsafe {
+        sys_mknod(c"/root/dev/tty0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0));
+    }
+    // SAFETY: Creating /root/dev/tty1 device node (4, 1).
+    unsafe {
+        sys_mknod(c"/root/dev/tty1".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+    }
+    // SAFETY: Creating /root/dev/ttyS0 device node (4, 64).
+    unsafe {
+        sys_mknod(c"/root/dev/ttyS0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 64_usize);
+    }
+    // SAFETY: Creating /root/dev/zero device node (1, 5).
+    unsafe {
+        sys_mknod(c"/root/dev/zero".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 5_usize);
+    }
+    // SAFETY: Creating /root/dev/null device node (1, 3).
+    unsafe {
+        sys_mknod(c"/root/dev/null".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 3_usize);
+    }
+    // SAFETY: Creating /root/dev/mem device node (1, 1).
+    unsafe {
+        sys_mknod(c"/root/dev/mem".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+    }
+    // SAFETY: Creating /root/dev/port device node (1, 4).
+    unsafe {
+        sys_mknod(c"/root/dev/port".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 4_usize);
+    }
+    // SAFETY: Creating /root/dev/tty device node (5, 0).
+    unsafe {
+        sys_mknod(c"/root/dev/tty".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0));
+    }
+    // SAFETY: Creating /root/dev/console device node (5, 1).
+    unsafe {
+        sys_mknod(c"/root/dev/console".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+    }
+    // SAFETY: Creating /root/dev/ptmx device node (5, 2).
+    unsafe {
+        sys_mknod(c"/root/dev/ptmx".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0) | 2_usize);
     }
 
     print(b"[INIT] Copying static shell to /root/tmp/sh...\n");
-    let fsin = unsafe { sys_open(b"/bin/sh\0".as_ptr(), 0, 0) };
-    let fsout = unsafe { sys_open(b"/root/tmp/sh\0".as_ptr(), 65 | 512, 0o755) };
+    // SAFETY: Opening source shell binary /bin/sh.
+    let fsin = unsafe { sys_open(c"/bin/sh".as_ptr().cast(), 0, 0) };
+    // SAFETY: Opening destination shell path /root/tmp/sh for writing.
+    let fsout = unsafe { sys_open(c"/root/tmp/sh".as_ptr().cast(), 65 | 512, 0o755) };
     if fsin >= 0 && fsout >= 0 {
         let fsin_u = usize::try_from(fsin).unwrap_or(0);
         let fsout_u = usize::try_from(fsout).unwrap_or(0);
-        let copy_buf_ptr = COPY_BUF.0.get() as *mut u8;
+        let copy_buf_ptr = COPY_BUF.0.get().cast::<u8>();
         let copy_cap = 64_usize.saturating_mul(1024);
-        unsafe {
-            loop {
-                let n = sys_read(fsin_u, copy_buf_ptr, copy_cap);
-                if n <= 0 {
-                    break;
-                }
-                let n_u = usize::try_from(n).unwrap_or(0);
-                sys_write(fsout_u, copy_buf_ptr as *const u8, n_u);
+        loop {
+            // SAFETY: Reading up to copy_cap bytes from fsin.
+            let n = unsafe { sys_read(fsin_u, copy_buf_ptr, copy_cap) };
+            if n <= 0 {
+                break;
             }
+            let n_u = usize::try_from(n).unwrap_or(0);
+            // SAFETY: Writing n_u bytes to fsout.
+            unsafe {
+                sys_write(fsout_u, copy_buf_ptr, n_u);
+            }
+        }
+        // SAFETY: Closing source file descriptor.
+        unsafe {
             sys_close(fsin_u);
+        }
+        // SAFETY: Closing destination file descriptor.
+        unsafe {
             sys_close(fsout_u);
         }
     } else {
@@ -482,10 +633,13 @@ pub extern "C" fn _start() -> ! {
 
     // Read profile path from `/guix_profile` (written into initrd by asset packer)
     let mut profile_buf = [0_u8; 256];
-    let pfd = unsafe { sys_open(b"/guix_profile\0".as_ptr(), 0, 0) };
+    // SAFETY: Opening /guix_profile path file descriptor.
+    let pfd = unsafe { sys_open(c"/guix_profile".as_ptr().cast(), 0, 0) };
     if pfd >= 0 {
         let pfd_u = usize::try_from(pfd).unwrap_or(0);
+        // SAFETY: Reading profile path into profile_buf.
         let pn = unsafe { sys_read(pfd_u, profile_buf.as_mut_ptr(), profile_buf.len()) };
+        // SAFETY: Closing profile path file descriptor.
         unsafe {
             sys_close(pfd_u);
         }
@@ -503,19 +657,39 @@ pub extern "C" fn _start() -> ! {
         }
     }
 
+    // SAFETY: Creating proc mount point in chroot.
     unsafe {
-        sys_mkdir(b"/root/proc\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/sys\0".as_ptr(), 0o755);
-        sys_mkdir(b"/root/dev\0".as_ptr(), 0o755);
-        sys_mount(b"proc\0".as_ptr(), b"/root/proc\0".as_ptr(), b"proc\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"sysfs\0".as_ptr(), b"/root/sys\0".as_ptr(), b"sysfs\0".as_ptr(), 0, core::ptr::null());
-        sys_mount(b"devtmpfs\0".as_ptr(), b"/root/dev\0".as_ptr(), b"devtmpfs\0".as_ptr(), 0, core::ptr::null());
+        sys_mkdir(c"/root/proc".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating sys mount point in chroot.
+    unsafe {
+        sys_mkdir(c"/root/sys".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating dev mount point in chroot.
+    unsafe {
+        sys_mkdir(c"/root/dev".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Mounting procfs in chroot.
+    unsafe {
+        sys_mount(c"proc".as_ptr().cast(), c"/root/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting sysfs in chroot.
+    unsafe {
+        sys_mount(c"sysfs".as_ptr().cast(), c"/root/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+    }
+    // SAFETY: Mounting devtmpfs in chroot.
+    unsafe {
+        sys_mount(c"devtmpfs".as_ptr().cast(), c"/root/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
     }
 
     print(b"[INIT] Chrooting into /root...\n");
+    // SAFETY: Changing root directory to /root.
     unsafe {
-        sys_chroot(b"/root\0".as_ptr());
-        sys_chdir(b"/\0".as_ptr());
+        sys_chroot(c"/root".as_ptr().cast());
+    }
+    // SAFETY: Changing current directory to /.
+    unsafe {
+        sys_chdir(c"/".as_ptr().cast());
     }
 
     let cmd_str = b"\
@@ -574,33 +748,33 @@ ps aux
 exec /tmp/sh -i
 \0";
 
-    let env0 = b"PATH=/bin:/usr/bin\0";
-    let env1 = b"HOME=/root\0";
-    let env2 = b"TERM=vt100\0";
-    let env3 = b"DISPLAY=:0\0";
+    let path_env = c"PATH=/bin:/usr/bin";
+    let home_env = c"HOME=/root";
+    let term_env = c"TERM=vt100";
+    let display_env = c"DISPLAY=:0";
 
     let envp: [*const u8; 5] = [
-        env0.as_ptr(),
-        env1.as_ptr(),
-        env2.as_ptr(),
-        env3.as_ptr(),
+        path_env.as_ptr().cast(),
+        home_env.as_ptr().cast(),
+        term_env.as_ptr().cast(),
+        display_env.as_ptr().cast(),
         core::ptr::null(),
     ];
 
-    let sh_target = b"/tmp/sh\0";
-    let bin_sh_target = b"/bin/sh\0";
-    let bin_bash_target = b"/bin/bash\0";
-    let usr_bin_bash = b"/usr/bin/bash\0";
-    let usr_bin_sh = b"/usr/bin/sh\0";
+    let sh_target = c"/tmp/sh";
+    let bin_sh_target = c"/bin/sh";
+    let bin_bash_target = c"/bin/bash";
+    let usr_bin_bash = c"/usr/bin/bash";
+    let usr_bin_sh = c"/usr/bin/sh";
 
-    let c_flag = b"-c\0";
+    let c_flag = c"-c";
 
     let targets: [*const u8; 6] = [
-        sh_target.as_ptr(),
-        bin_sh_target.as_ptr(),
-        bin_bash_target.as_ptr(),
-        usr_bin_bash.as_ptr(),
-        usr_bin_sh.as_ptr(),
+        sh_target.as_ptr().cast(),
+        bin_sh_target.as_ptr().cast(),
+        bin_bash_target.as_ptr().cast(),
+        usr_bin_bash.as_ptr().cast(),
+        usr_bin_sh.as_ptr().cast(),
         core::ptr::null(),
     ];
 
@@ -610,7 +784,8 @@ exec /tmp/sh -i
         if target.is_null() {
             break;
         }
-        let argv: [*const u8; 4] = [target, c_flag.as_ptr(), cmd_str.as_ptr(), core::ptr::null()];
+        let argv: [*const u8; 4] = [target, c_flag.as_ptr().cast(), cmd_str.as_ptr(), core::ptr::null()];
+        // SAFETY: Executing shell target binary via execve syscall.
         let res = unsafe { sys_execve(target, argv.as_ptr(), envp.as_ptr()) };
         print(b"[INIT] execve returned ");
         print_num(res);
@@ -621,8 +796,13 @@ exec /tmp/sh -i
     print(b"[INIT] Error: All sys_execve target attempts failed!\n");
     loop {
         #[cfg(target_arch = "x86")]
+        // SAFETY: Executing CPU pause instruction in final halt loop.
         unsafe {
-            asm!("pause", options(nomem, nostack, preserves_flags));
+            core::arch::asm!("pause", options(nomem, nostack, preserves_flags));
+        }
+        #[cfg(not(target_arch = "x86"))]
+        {
+            core::hint::spin_loop();
         }
     }
 }
