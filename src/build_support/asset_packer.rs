@@ -625,9 +625,16 @@ fn prepare_runtime_assets(
         let _ = fs::remove_file(&v86_rsrc_vendor);
     }
 
+    let dest_rsrc_mtime = fs::metadata(&dest_rsrc)
+        .and_then(|m| m.modified())
+        .ok();
+
     let rsrc_out_of_date = !dest_rsrc.is_file()
         || is_file_older(&dest_rsrc, &guix_initrd)
-        || is_file_older(&dest_rsrc, &guix_fs_json);
+        || is_file_older(&dest_rsrc, &guix_fs_json)
+        || dest_rsrc_mtime.map_or(true, |t| {
+            is_any_file_newer(&v86_images_vendor, t).unwrap_or(true)
+        });
 
     if (rsrc_out_of_date || rebuild_requested) && v86_images_vendor.is_dir() {
         println!("cargo:warning=Packaging v86 images into built/v86_images.rsrc...");
@@ -869,6 +876,11 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
         project_root.join("build").display()
     );
     println!("cargo:rerun-if-env-changed=PROFILE");
+    println!("cargo:rerun-if-env-changed=REBUILD_V86_IMAGES");
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root.join("vendor").join("v86_images").display()
+    );
 
     println!(
         "cargo:rerun-if-changed={}",

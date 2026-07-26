@@ -97,6 +97,7 @@ function initV86() {
         bios: { url: "/vendor/v86/bios/seabios.bin" },
         vga_bios: { url: "/vendor/v86/bios/vgabios.bin" },
         net_device_type: "virtio",
+        serial_container: document.getElementById("terminal"),
         filesystem: cfg.basefs ? {
             baseurl: cfg.baseurl,
             basefs: cfg.basefs
@@ -536,10 +537,16 @@ function initV86() {
         if (fsPanel) fsPanel.style.display = "block";
     });
 
+    let os_uses_mouse = false;
+    let os_uses_absolute_mouse = false;
+
     if (screenContainer) {
         screenContainer.onclick = function(e) {
             if (emulator.is_running() && emulator.speaker_adapter?.audio_context?.state === "suspended") {
                 emulator.speaker_adapter.audio_context.resume();
+            }
+            if (mouse_is_enabled && os_uses_mouse && !os_uses_absolute_mouse) {
+                emulator.lock_mouse();
             }
             if (window.getSelection().isCollapsed) {
                 const phone_keyboard = document.getElementsByClassName("phone_keyboard")[0];
@@ -594,8 +601,13 @@ function initV86() {
     });
 
     emulator.add_listener("mouse-enable", function(is_enabled) {
+        os_uses_mouse = is_enabled;
         const el = document.getElementById("info_mouse_enabled");
         if (el) el.textContent = is_enabled ? "Yes" : "No";
+    });
+
+    emulator.add_listener("vmware-absolute-mouse", function(is_enabled) {
+        os_uses_absolute_mouse = is_enabled;
     });
 
     emulator.add_listener("screen-set-size", function(args) {
