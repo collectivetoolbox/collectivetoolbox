@@ -42,10 +42,41 @@ apt-get update && apt-get install -y \
     xz-utils
 
 apt-get remove -y nodejs npm 2>/dev/null || true
+apt-get purge -y nodejs npm corepack node-corepack "node-*" 2>/dev/null || true
+apt-get autoremove --purge -y 2>/dev/null || true
 
-if command -v npm || command -v npx || command -v node; then
-    echo "node is not a permitted dependency."
-    dpkg -S /usr/bin/npm || true
+if [[ -d /usr/local/share/nvm ]]; then
+    rm -r /usr/local/share/nvm
+fi
+if [[ -d /root/.nvm ]]; then
+    rm -r /root/.nvm
+fi
+if [[ -d /home ]]; then
+    for nvm_dir in /home/*/.nvm; do
+        if [[ -d "$nvm_dir" ]]; then
+            rm -r "$nvm_dir"
+        fi
+    done
+fi
+
+for bin_name in node npm npx corepack; do
+    for bin_dir in /usr/local/bin /usr/bin /bin /usr/local/sbin /usr/sbin /sbin; do
+        if [[ -e "$bin_dir/$bin_name" || -L "$bin_dir/$bin_name" ]]; then
+            rm "$bin_dir/$bin_name"
+        fi
+    done
+done
+
+export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v "nvm" | paste -sd: -)"
+unset NVM_DIR NVM_BIN NVM_INC NVM_CD_FLAGS
+
+if command -v npm >/dev/null 2>&1 || command -v npx >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || command -v corepack >/dev/null 2>&1; then
+    echo "node is not a permitted dependency." >&2
+    found_bin="$(command -v npm || command -v npx || command -v node || command -v corepack || true)"
+    if [[ -n "$found_bin" && -e "$found_bin" ]]; then
+        echo "Found remaining binary at: $found_bin" >&2
+        dpkg -S "$found_bin" || true
+    fi
     exit 1
 fi
 
