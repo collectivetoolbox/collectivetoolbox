@@ -156,28 +156,24 @@ fn try_load_mapping(
     })
 }
 
+#[expect(clippy::expect_used, reason="Better to fail early here")]
 pub static CP437_DINGBATS: LazyLock<Cp437Mapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_dingbats/values.tsv",
         "cp437/cp437_dingbats/variants.tsv",
         false,
     )
-    .unwrap_or_else(|_| Cp437Mapping {
-        decode_table: ['\0'; 256],
-        encode_table: HashMap::new(),
-    })
+    .expect("Failed to load CP437 dingbats mapping")
 });
 
+#[expect(clippy::expect_used, reason="Better to fail early here")]
 pub static CP437_CONTROL: LazyLock<Cp437Mapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_control/values.tsv",
         "cp437/cp437_control/variants.tsv",
         true,
     )
-    .unwrap_or_else(|_| Cp437Mapping {
-        decode_table: ['\0'; 256],
-        encode_table: HashMap::new(),
-    })
+    .expect("Failed to load CP437 control mapping")
 });
 
 pub fn chr(code: u8) -> String {
