@@ -21,6 +21,7 @@ This directory contains uncompressed and compressed test fixture files generated
 | [`example2 with lemurs.pan.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z) | `ncompress` Standard LZW | `0x1F 0x9D 0x90` | Standard modern 16-bit block LZW stream | 953 B |
 | [`example2 with lemurs.pan.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.z) | System III/V `pack` | `0x1F 0x1E` | Canonical Huffman coding with level leaf table | 1,057 B |
 | [`example2 with lemurs.pan.old.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.old.z) | Early Unix `pack` | `0x1F 0x1F` | Steve Zucker ~1977 PDP-11 binary tree dictionary | 1,404 B |
+| [`example2 with lemurs.pan.sco`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.sco) | SCO `compress -H` | `0x1F 0xA0` | LZSS sliding window dictionary + static Huffman | 954 B |
 
 ---
 
