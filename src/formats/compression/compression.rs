@@ -2,9 +2,9 @@
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
-use ctb_formats_utilities::detection::{FormatCategory, FormatDescriptor, detect_format};
-use ctb_formats_utilities::extension::ExtensionRule;
-use ctb_formats_utilities::magic::MagicPattern;
+use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
+use ctb_formats_utilities::extension_data::lookup_format_by_extension;
+use ctb_formats_utilities::format_id::FormatId;
 
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
@@ -46,136 +46,42 @@ pub enum CompressionFormat {
     Compact,
 }
 
-static BROTLI_MAGIC: [MagicPattern; 0] = [];
-static BROTLI_EXT: [ExtensionRule; 1] = [ExtensionRule::insensitive("br")];
-
-static GZIP_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0x8B])];
-static GZIP_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::insensitive("gz"),
-    ExtensionRule::insensitive("gzip"),
-];
-
-static DEFLATE_MAGIC: [MagicPattern; 0] = [];
-static DEFLATE_EXT: [ExtensionRule; 1] = [ExtensionRule::insensitive("deflate")];
-
-static ZLIB_MAGIC: [MagicPattern; 1] = [
-    MagicPattern::masked(&[0x78, 0x00], &[0xFF, 0x00], 80),
-];
-static ZLIB_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::insensitive("zz"),
-    ExtensionRule::insensitive("zl"),
-];
-
-static SCO_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0xA0])];
-static SCO_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::sensitive("Z"),
-    ExtensionRule::insensitive("sco"), // fixture alias fallback
-];
-
-static LZW_MAGIC: [MagicPattern; 1] = [
-    MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110),
-];
-static LZW_EXT: [ExtensionRule; 1] = [ExtensionRule::sensitive("Z")];
-
-static LZW2_MAGIC: [MagicPattern; 1] = [
-    MagicPattern::masked(&[0x1F, 0x9D, 0x00], &[0xFF, 0xFF, 0x80], 90),
-];
-static LZW2_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::sensitive("Z"),
-    ExtensionRule::sensitive("Z2.0"), // fixture alias fallback
-];
-
-static LZW1_MAGIC: [MagicPattern; 0] = [];
-static LZW1_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::sensitive("Z"),
-    ExtensionRule::sensitive("Z1.0"), // fixture alias fallback
-];
-
-static PACK_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0x1E])];
-static PACK_EXT: [ExtensionRule; 1] = [ExtensionRule::sensitive("z")];
-
-static OLD_PACK_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0x1F])];
-static OLD_PACK_EXT: [ExtensionRule; 2] = [
-    ExtensionRule::sensitive("z"),
-    ExtensionRule::sensitive("old.z"), // fixture alias fallback
-];
-
-static COMPACT_MAGIC: [MagicPattern; 2] = [
-    MagicPattern::exact(&[0xFF, 0x1F]),
-    MagicPattern::exact(&[0x1F, 0xFF]),
-];
-static COMPACT_EXT: [ExtensionRule; 1] = [ExtensionRule::sensitive("C")];
-
-static FORMAT_DESCRIPTORS: [FormatDescriptor<CompressionFormat>; 11] = [
-    FormatDescriptor {
-        format: CompressionFormat::ScoCompress,
-        category: FormatCategory::Compression,
-        magic_patterns: &SCO_MAGIC,
-        extension_rules: &SCO_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Gzip,
-        category: FormatCategory::Compression,
-        magic_patterns: &GZIP_MAGIC,
-        extension_rules: &GZIP_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::CompressLzw,
-        category: FormatCategory::Compression,
-        magic_patterns: &LZW_MAGIC,
-        extension_rules: &LZW_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::CompressLzw2,
-        category: FormatCategory::Compression,
-        magic_patterns: &LZW2_MAGIC,
-        extension_rules: &LZW2_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Pack,
-        category: FormatCategory::Compression,
-        magic_patterns: &PACK_MAGIC,
-        extension_rules: &PACK_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::OldPack,
-        category: FormatCategory::Compression,
-        magic_patterns: &OLD_PACK_MAGIC,
-        extension_rules: &OLD_PACK_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Compact,
-        category: FormatCategory::Compression,
-        magic_patterns: &COMPACT_MAGIC,
-        extension_rules: &COMPACT_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Brotli,
-        category: FormatCategory::Compression,
-        magic_patterns: &BROTLI_MAGIC,
-        extension_rules: &BROTLI_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Deflate,
-        category: FormatCategory::Compression,
-        magic_patterns: &DEFLATE_MAGIC,
-        extension_rules: &DEFLATE_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::Zlib,
-        category: FormatCategory::Compression,
-        magic_patterns: &ZLIB_MAGIC,
-        extension_rules: &ZLIB_EXT,
-    },
-    FormatDescriptor {
-        format: CompressionFormat::CompressLzw1,
-        category: FormatCategory::Compression,
-        magic_patterns: &LZW1_MAGIC,
-        extension_rules: &LZW1_EXT,
-    },
-];
-
 impl CompressionFormat {
+    /// Maps this compression format variant to the global `FormatId`.
+    pub fn to_format_id(&self) -> FormatId {
+        match self {
+            Self::Brotli => FormatId::Brotli,
+            Self::Gzip => FormatId::Gzip,
+            Self::Deflate => FormatId::Deflate,
+            Self::Zlib => FormatId::Zlib,
+            Self::ScoCompress => FormatId::ScoCompress,
+            Self::CompressLzw => FormatId::CompressLzw,
+            Self::CompressLzw2 => FormatId::CompressLzw2,
+            Self::CompressLzw1 => FormatId::CompressLzw1,
+            Self::Pack => FormatId::Pack,
+            Self::OldPack => FormatId::OldPack,
+            Self::Compact => FormatId::Compact,
+        }
+    }
+
+    /// Converts a global `FormatId` to a `CompressionFormat` if it represents a compression format.
+    pub fn from_format_id(id: FormatId) -> Option<Self> {
+        match id {
+            FormatId::Brotli => Some(Self::Brotli),
+            FormatId::Gzip => Some(Self::Gzip),
+            FormatId::Deflate => Some(Self::Deflate),
+            FormatId::Zlib => Some(Self::Zlib),
+            FormatId::ScoCompress => Some(Self::ScoCompress),
+            FormatId::CompressLzw => Some(Self::CompressLzw),
+            FormatId::CompressLzw2 => Some(Self::CompressLzw2),
+            FormatId::CompressLzw1 => Some(Self::CompressLzw1),
+            FormatId::Pack => Some(Self::Pack),
+            FormatId::OldPack => Some(Self::OldPack),
+            FormatId::Compact => Some(Self::Compact),
+            _ => None,
+        }
+    }
+
     /// Returns the standard default file extension associated with the format.
     pub fn extension(&self) -> &'static str {
         match self {
@@ -189,48 +95,13 @@ impl CompressionFormat {
         }
     }
 
-    /// Returns the extension rules for this format.
-    pub fn extension_rules(&self) -> &'static [ExtensionRule] {
-        match self {
-            Self::Brotli => &BROTLI_EXT,
-            Self::Gzip => &GZIP_EXT,
-            Self::Deflate => &DEFLATE_EXT,
-            Self::Zlib => &ZLIB_EXT,
-            Self::ScoCompress => &SCO_EXT,
-            Self::CompressLzw => &LZW_EXT,
-            Self::CompressLzw2 => &LZW2_EXT,
-            Self::CompressLzw1 => &LZW1_EXT,
-            Self::Pack => &PACK_EXT,
-            Self::OldPack => &OLD_PACK_EXT,
-            Self::Compact => &COMPACT_EXT,
-        }
-    }
-
-    /// Returns the magic byte patterns for this format.
-    pub fn magic_patterns(&self) -> &'static [MagicPattern] {
-        match self {
-            Self::Brotli => &BROTLI_MAGIC,
-            Self::Gzip => &GZIP_MAGIC,
-            Self::Deflate => &DEFLATE_MAGIC,
-            Self::Zlib => &ZLIB_MAGIC,
-            Self::ScoCompress => &SCO_MAGIC,
-            Self::CompressLzw => &LZW_MAGIC,
-            Self::CompressLzw2 => &LZW2_MAGIC,
-            Self::CompressLzw1 => &LZW1_MAGIC,
-            Self::Pack => &PACK_MAGIC,
-            Self::OldPack => &OLD_PACK_MAGIC,
-            Self::Compact => &COMPACT_MAGIC,
-        }
-    }
-
     /// Infers compression format from file extension if recognized.
     pub fn from_extension(ext: &str) -> Option<Self> {
         let clean = ext.trim_start_matches('.');
-        for desc in &FORMAT_DESCRIPTORS {
-            for rule in desc.extension_rules {
-                if rule.matches(clean) {
-                    return Some(desc.format);
-                }
+        let matched = lookup_format_by_extension(clean);
+        for id in matched {
+            if let Some(fmt) = Self::from_format_id(id) {
+                return Some(fmt);
             }
         }
         None
@@ -238,22 +109,22 @@ impl CompressionFormat {
 
     /// Infers compression format from magic header bytes if possible.
     pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        detect_format(
+        detect_format_id(
             Some(header),
             None,
             Some(FormatCategory::Compression),
-            &FORMAT_DESCRIPTORS,
         )
+        .and_then(Self::from_format_id)
     }
 
     /// Performs multi-signal detection using both header bytes and file extension.
     pub fn detect(data: Option<&[u8]>, filename_or_ext: Option<&str>) -> Option<Self> {
-        detect_format(
+        detect_format_id(
             data,
             filename_or_ext,
             Some(FormatCategory::Compression),
-            &FORMAT_DESCRIPTORS,
         )
+        .and_then(Self::from_format_id)
     }
 }
 
@@ -400,7 +271,7 @@ pub fn decompress(data: &[u8], format: CompressionFormat) -> Result<Vec<u8>> {
 mod tests {
     use super::*;
 
-    #[ctb_test]
+    #[crate::ctb_test]
     fn test_format_extensions_and_parsing() {
         assert_eq!(
             CompressionFormat::try_from("brotli").unwrap(),
@@ -432,7 +303,7 @@ mod tests {
         assert_eq!(CompressionFormat::Compact.extension(), "C");
     }
 
-    #[ctb_test]
+    #[crate::ctb_test]
     fn test_case_sensitive_extension_matching() {
         assert_eq!(
             CompressionFormat::from_extension("Z"),
@@ -448,7 +319,7 @@ mod tests {
         );
     }
 
-    #[ctb_test]
+    #[crate::ctb_test]
     fn test_magic_detection() {
         assert_eq!(
             CompressionFormat::from_magic_bytes(&[0x1F, 0xA0]),
@@ -476,7 +347,7 @@ mod tests {
         );
     }
 
-    #[ctb_test]
+    #[crate::ctb_test]
     fn test_round_trip_all_implemented_formats() {
         let sample = b"The quick brown fox jumps over the lazy dog. 1234567890!";
         let formats = [
@@ -503,7 +374,7 @@ mod tests {
         }
     }
 
-    #[ctb_test]
+    #[crate::ctb_test]
     fn test_embedded_fixtures() {
         let raw = get_compression_data("fixtures/example2 with lemurs.pan")
             .expect("Raw fixture missing");
