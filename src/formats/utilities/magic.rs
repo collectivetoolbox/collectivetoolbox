@@ -1,7 +1,7 @@
 //! Magic header byte pattern matching utilities for format identification.
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use ctb_utilities::*;
+use crate::utilities::*;
 
 /// A signature rule defining magic bytes to inspect in a file header.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -90,6 +90,7 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
+    use ctb_test_macro::ctb_test;
 
     #[ctb_test]
     fn test_magic_pattern_matching() {
