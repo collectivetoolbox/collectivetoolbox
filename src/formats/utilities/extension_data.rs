@@ -1,0 +1,114 @@
+//! Centralized registry of file extension rules across format types.
+
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use ctb_utilities::*;
+use crate::extension::ExtensionRule;
+use crate::format_id::FormatId;
+
+/// An entry associating a FormatId with an ExtensionRule.
+#[derive(Debug, Clone)]
+pub struct ExtensionEntry {
+    pub format_id: FormatId,
+    pub rule: ExtensionRule,
+}
+
+static EXT_BR: ExtensionRule = ExtensionRule::insensitive("br");
+static EXT_GZ: ExtensionRule = ExtensionRule::insensitive("gz");
+static EXT_GZIP: ExtensionRule = ExtensionRule::insensitive("gzip");
+static EXT_DEFLATE: ExtensionRule = ExtensionRule::insensitive("deflate");
+static EXT_ZZ: ExtensionRule = ExtensionRule::insensitive("zz");
+static EXT_ZL: ExtensionRule = ExtensionRule::insensitive("zl");
+
+static EXT_UPPER_Z: ExtensionRule = ExtensionRule::sensitive("Z");
+static EXT_LOWER_Z: ExtensionRule = ExtensionRule::sensitive("z");
+static EXT_UPPER_C: ExtensionRule = ExtensionRule::sensitive("C");
+
+static EXT_HTML: ExtensionRule = ExtensionRule::insensitive("html");
+static EXT_HTM: ExtensionRule = ExtensionRule::insensitive("htm");
+static EXT_PAN: ExtensionRule = ExtensionRule::insensitive("pan");
+static EXT_JSON: ExtensionRule = ExtensionRule::insensitive("json");
+static EXT_MD: ExtensionRule = ExtensionRule::insensitive("md");
+static EXT_TAR: ExtensionRule = ExtensionRule::insensitive("tar");
+
+/// Global static registry of single file extension mappings.
+pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
+    ExtensionEntry {
+        format_id: FormatId::Gzip,
+        rule: EXT_GZ,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Gzip,
+        rule: EXT_GZIP,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Brotli,
+        rule: EXT_BR,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Deflate,
+        rule: EXT_DEFLATE,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Zlib,
+        rule: EXT_ZZ,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Zlib,
+        rule: EXT_ZL,
+    },
+    ExtensionEntry {
+        format_id: FormatId::ScoCompress,
+        rule: EXT_UPPER_Z,
+    },
+    ExtensionEntry {
+        format_id: FormatId::CompressLzw,
+        rule: EXT_UPPER_Z,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Pack,
+        rule: EXT_LOWER_Z,
+    },
+    ExtensionEntry {
+        format_id: FormatId::OldPack,
+        rule: EXT_LOWER_Z,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Compact,
+        rule: EXT_UPPER_C,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Html,
+        rule: EXT_HTML,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Html,
+        rule: EXT_HTM,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Pan,
+        rule: EXT_PAN,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Json,
+        rule: EXT_JSON,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Markdown,
+        rule: EXT_MD,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Tar,
+        rule: EXT_TAR,
+    },
+];
+
+/// Helper to lookup FormatId from a single extension string.
+pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {
+    let mut matches = Vec::new();
+    for entry in EXTENSION_REGISTRY {
+        if entry.rule.matches(ext) && !matches.contains(&entry.format_id) {
+            matches.push(entry.format_id);
+        }
+    }
+    matches
+}

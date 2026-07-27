@@ -4,7 +4,7 @@
 use crate::utilities::*;
 
 /// A signature rule defining magic bytes to inspect in a file header.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MagicPattern {
     /// Byte offset where signature starts in file header (typically 0).
     pub offset: usize,
@@ -90,7 +90,6 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
-    use ctb_test_macro::ctb_test;
 
     #[ctb_test]
     fn test_magic_pattern_matching() {

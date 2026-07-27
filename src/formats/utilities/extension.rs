@@ -13,7 +13,7 @@ pub enum CaseSensitivity {
 }
 
 /// A rule describing a file extension associated with a file format.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExtensionRule {
     /// The extension string without leading dot (e.g. "Z", "z", "gz", "C").
     pub extension: &'static str,
@@ -80,7 +80,6 @@ impl ExtensionRule {
 )]
 mod tests {
     use super::*;
-    use ctb_test_macro::ctb_test;
 
     #[ctb_test]
     fn test_extension_rule_matching() {

@@ -1,6 +1,9 @@
 pub mod detection;
 pub mod extension;
+pub mod extension_data;
+pub mod format_id;
 pub mod magic;
+pub mod magic_data;
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
