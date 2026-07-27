@@ -56,7 +56,7 @@ if command -v gzip >/dev/null 2>&1; then
     diff -u "$TEST_FILE" "$TMP_DIR/ctb_out.txt"
 fi
 
-# 6. Test round-trip for raw deflate and zlib
+# 6. Test round-trip for raw deflate, zlib, and SCO compress -H
 $CARGO_CMD compress deflate "$TEST_FILE" -o "$TMP_DIR/raw.deflate" --force
 $CARGO_CMD decompress deflate "$TMP_DIR/raw.deflate" -o "$TMP_DIR/raw_out.txt" --force
 diff -u "$TEST_FILE" "$TMP_DIR/raw_out.txt"
@@ -64,6 +64,25 @@ diff -u "$TEST_FILE" "$TMP_DIR/raw_out.txt"
 $CARGO_CMD compress zlib "$TEST_FILE" -o "$TMP_DIR/zlib.zz" --force
 $CARGO_CMD decompress zlib "$TMP_DIR/zlib.zz" -o "$TMP_DIR/zlib_out.txt" --force
 diff -u "$TEST_FILE" "$TMP_DIR/zlib_out.txt"
+
+# Test SCO compress (-H) format
+echo "Testing sco-compress format..."
+$CARGO_CMD compress sco-compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.sco" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.sco" | tr -d ' \n' | cut -c 1-4)
+if [ "$MAGIC" != "1fa0" ]; then
+    echo "Error: Magic header expected 1fa0, got $MAGIC"
+    exit 1
+fi
+echo "Verifying magic header 1fa0... OK"
+
+$CARGO_CMD decompress sco-compress "$TMP_DIR/sample.txt.sco" -o "$TMP_DIR/decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/decompressed.txt" || exit 1
+
+if command -v gzip >/dev/null 2>&1; then
+    gzip -d -c "$TMP_DIR/sample.txt.sco" > "$TMP_DIR/sco_out.txt"
+    cmp "$TEST_FILE" "$TMP_DIR/sco_out.txt" || exit 1
+    echo "Verifying GNU gzip decompression compatibility... OK"
+fi
 
 # 7. Test decompressing embedded fixtures directly
 FIXTURE_RAW="src/formats/compression/data/fixtures/example2 with lemurs.pan"

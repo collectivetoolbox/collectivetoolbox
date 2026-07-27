@@ -6,6 +6,8 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
+pub mod sco_compress;
+
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Returns an embedded fixture asset byte vector if present.
@@ -24,6 +26,8 @@ pub enum CompressionFormat {
     Deflate,
     /// Zlib-wrapped deflate compressed stream RFC 1950 (.zz or .zl)
     Zlib,
+    /// SCO compress -H compressed stream (.sco or .Z)
+    ScoCompress,
 }
 
 impl CompressionFormat {
@@ -34,6 +38,7 @@ impl CompressionFormat {
             Self::Gzip => "gz",
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
+            Self::ScoCompress => "sco",
         }
     }
 
@@ -45,6 +50,9 @@ impl CompressionFormat {
             "gz" | "gzip" => Some(Self::Gzip),
             "deflate" | "raw-deflate" => Some(Self::Deflate),
             "zz" | "zl" | "zlib" => Some(Self::Zlib),
+            "sco" | "compress-sco" | "sco-compress" | "lzh" | "compress-h" => {
+                Some(Self::ScoCompress)
+            }
             _ => None,
         }
     }
@@ -54,6 +62,9 @@ impl CompressionFormat {
         if let (Some(&b0), Some(&b1)) = (header.first(), header.get(1)) {
             if b0 == 0x1f && b1 == 0x8b {
                 return Some(Self::Gzip);
+            }
+            if b0 == 0x1f && b1 == 0xa0 {
+                return Some(Self::ScoCompress);
             }
             if b0 == 0x78 && matches!(b1, 0x01 | 0x9c | 0xda) {
                 return Some(Self::Zlib);
@@ -72,6 +83,9 @@ impl TryFrom<&str> for CompressionFormat {
             "gzip" | "gz" => Ok(Self::Gzip),
             "deflate" | "raw-deflate" => Ok(Self::Deflate),
             "zlib" | "zz" | "zl" | "zlib-deflate" => Ok(Self::Zlib),
+            "sco-compress" | "compress-sco" | "sco" | "lzh" | "compress-h" => {
+                Ok(Self::ScoCompress)
+            }
             _ => bail!("Unknown compression format: '{s}'"),
         }
     }
@@ -127,6 +141,7 @@ pub fn compress_stream(
             encoder.finish().context("Failed to finish Zlib encoder")?;
             Ok(bytes_written)
         }
+        CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
     }
 }
 
@@ -161,6 +176,7 @@ pub fn decompress_stream(
                 .context("Failed to decompress Zlib stream")?;
             Ok(bytes_written)
         }
+        CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
     }
 }
 
@@ -228,11 +244,24 @@ mod tests {
             CompressionFormat::try_from("zl").unwrap(),
             CompressionFormat::Zlib
         );
+        assert_eq!(
+            CompressionFormat::try_from("sco-compress").unwrap(),
+            CompressionFormat::ScoCompress
+        );
+        assert_eq!(
+            CompressionFormat::try_from("sco").unwrap(),
+            CompressionFormat::ScoCompress
+        );
+        assert_eq!(
+            CompressionFormat::try_from("lzh").unwrap(),
+            CompressionFormat::ScoCompress
+        );
 
         assert_eq!(CompressionFormat::Brotli.extension(), "br");
         assert_eq!(CompressionFormat::Gzip.extension(), "gz");
         assert_eq!(CompressionFormat::Deflate.extension(), "deflate");
         assert_eq!(CompressionFormat::Zlib.extension(), "zz");
+        assert_eq!(CompressionFormat::ScoCompress.extension(), "sco");
     }
 
     #[crate::ctb_test]
@@ -243,12 +272,22 @@ mod tests {
             CompressionFormat::Gzip,
             CompressionFormat::Deflate,
             CompressionFormat::Zlib,
+            CompressionFormat::ScoCompress,
         ];
 
         for format in formats {
             let compressed = compress(sample, format).unwrap();
             let decompressed = decompress(&compressed, format).unwrap();
-            assert_eq!(decompressed, sample, "Roundtrip failed for format {:?}", format);
+            assert_eq!(
+                decompressed,
+                sample,
+                "Roundtrip failed for format {:?}\nDecompressed ({}) : {:?}\nExpected     ({}) : {:?}",
+                format,
+                decompressed.len(),
+                String::from_utf8_lossy(&decompressed),
+                sample.len(),
+                String::from_utf8_lossy(sample)
+            );
         }
     }
 
@@ -264,6 +303,8 @@ mod tests {
             .expect("Deflate fixture missing");
         let zz = get_compression_data("fixtures/example2 with lemurs.pan.zz")
             .expect("Zlib fixture missing");
+        let sco = get_compression_data("fixtures/example2 with lemurs.pan.sco")
+            .expect("SCO compress fixture missing");
 
         assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
@@ -287,5 +328,10 @@ mod tests {
             decompress(&zz, CompressionFormat::Zlib).expect("Zlib decompress failed");
         assert_eq!(decomp_zz.len(), raw.len());
         assert_eq!(decomp_zz, raw, "Zlib decompressed content byte-by-byte mismatch");
+
+        let decomp_sco =
+            decompress(&sco, CompressionFormat::ScoCompress).expect("SCO compress decompress failed");
+        assert_eq!(decomp_sco.len(), raw.len());
+        assert_eq!(decomp_sco, raw, "SCO compress decompressed content byte-by-byte mismatch");
     }
 }
