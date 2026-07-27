@@ -45,9 +45,24 @@ pub enum CliCompressionOutput {
 /// Infer output filename when decompressing without an explicit output path.
 pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
     let filename_str = input_path.to_string_lossy();
-    let known_exts = [".br", ".gz", ".deflate", ".zz", ".zl", ".sco", ".z"];
+    let known_exts = [
+        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".gz", ".gzip", ".zz", ".zl",
+        ".Z", ".z", ".C",
+    ];
     for ext in known_exts {
-        if filename_str.to_ascii_lowercase().ends_with(ext) {
+        let matches = if ext.eq_ignore_ascii_case(".gz")
+            || ext.eq_ignore_ascii_case(".gzip")
+            || ext.eq_ignore_ascii_case(".br")
+            || ext.eq_ignore_ascii_case(".deflate")
+            || ext.eq_ignore_ascii_case(".zz")
+            || ext.eq_ignore_ascii_case(".zl")
+        {
+            filename_str.to_ascii_lowercase().ends_with(ext)
+        } else {
+            filename_str.ends_with(ext)
+        };
+
+        if matches {
             let cut_len = filename_str.len().saturating_sub(ext.len());
             if let Some(prefix) = filename_str.get(..cut_len) {
                 return PathBuf::from(prefix);
@@ -135,7 +150,11 @@ where
 
     let compression_format = match raw_format {
         Some(fmt) => fmt,
-        None => crate::CompressionFormat::from_magic_bytes(&data).ok_or_else(|| {
+        None => crate::CompressionFormat::detect(
+            Some(&data),
+            resolved_input_path.to_str(),
+        )
+        .ok_or_else(|| {
             anyhow!(
                 "Could not determine compression format for '{}'",
                 resolved_input_path.display()
@@ -182,7 +201,7 @@ where
 mod tests {
     use super::*;
 
-    #[crate::ctb_test]
+    #[ctb_test]
     fn test_infer_decompressed_filename() {
         assert_eq!(
             infer_decompressed_filename(Path::new("file.txt.gz")),
@@ -193,7 +212,11 @@ mod tests {
             PathBuf::from("archive.tar")
         );
         assert_eq!(
-            infer_decompressed_filename(Path::new("document.sco")),
+            infer_decompressed_filename(Path::new("document.z")),
+            PathBuf::from("document")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("document.C")),
             PathBuf::from("document")
         );
         assert_eq!(

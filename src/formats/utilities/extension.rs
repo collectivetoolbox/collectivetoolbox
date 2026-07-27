@@ -80,6 +80,7 @@ impl ExtensionRule {
 )]
 mod tests {
     use super::*;
+    use ctb_test_macro::ctb_test;
 
     #[ctb_test]
     fn test_extension_rule_matching() {
