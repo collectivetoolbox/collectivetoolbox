@@ -1,3 +1,7 @@
+pub mod detection;
+pub mod extension;
+pub mod magic;
+
 pub(crate) use ctb_utilities::{
     Result, debug, fmt_mismatch_string, fmt_mismatch_vec_u8,
     fmt_mismatch_vec_u32,
