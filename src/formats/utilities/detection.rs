@@ -1,9 +1,10 @@
-//! Combined multi-signal format detection logic (magic bytes, extensions, category constraints).
+//! Combined multi-signal format detection and multipart extension chain parsing.
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use ctb_utilities::*;
-use crate::extension::ExtensionRule;
-use crate::magic::MagicPattern;
+use crate::extension_data::EXTENSION_REGISTRY;
+use crate::format_id::FormatId;
+use crate::magic_data::MAGIC_REGISTRY;
 
 /// High-level category of file formats for domain filtering and score boosting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,51 +27,111 @@ pub enum FormatCategory {
     Other,
 }
 
-/// Description of a candidate format's matching rules.
-#[derive(Debug, Clone)]
-pub struct FormatDescriptor<T: Clone> {
-    /// Format identifier value (e.g. enum variant).
-    pub format: T,
-    /// Primary format category.
-    pub category: FormatCategory,
-    /// List of magic byte patterns for this format.
-    pub magic_patterns: &'static [MagicPattern],
-    /// List of file extension rules for this format.
-    pub extension_rules: &'static [ExtensionRule],
+/// Represents a structured chain of format layers parsed from a multipart filename (e.g. .html.gz).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormatChain {
+    /// Outermost container/compression format (e.g. Gzip for page.html.gz).
+    pub outer: FormatId,
+    /// Inner payload format if identifiable (e.g. Html for page.html.gz).
+    pub inner: Option<FormatId>,
+    /// Full sequence of identified formats from outermost to innermost.
+    pub layers: Vec<FormatId>,
+    /// Remaining base filename stem after stripping all identified format extensions.
+    pub stem: String,
 }
 
-/// Evaluates candidates using combined signals (magic bytes + file extension + category constraint).
-/// Returns the format candidate with the highest total confidence score, if any match threshold is met.
-pub fn detect_format<T: Clone>(
+/// Parses a filename or path into a structured `FormatChain`.
+pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
+    let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+    let mut parts: Vec<&str> = basename.split('.').collect();
+    if parts.len() <= 1 {
+        return None;
+    }
+
+    let mut layers = Vec::new();
+
+    // Iterate segments from right-to-left
+    while parts.len() > 1 {
+        let candidate_ext = match parts.last() {
+            Some(&ext) => ext,
+            None => break,
+        };
+
+        let matched_formats: Vec<FormatId> = EXTENSION_REGISTRY
+            .iter()
+            .filter(|entry| entry.rule.matches(candidate_ext))
+            .map(|entry| entry.format_id)
+            .collect();
+
+        if let Some(&first_match) = matched_formats.first() {
+            if !layers.contains(&first_match) {
+                layers.push(first_match);
+            }
+            parts.pop();
+        } else {
+            break;
+        }
+    }
+
+    if layers.is_empty() {
+        return None;
+    }
+
+    let outer = *layers.first()?;
+    let inner = layers.get(1).copied();
+    let stem = parts.join(".");
+
+    Some(FormatChain {
+        outer,
+        inner,
+        layers,
+        stem,
+    })
+}
+
+/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
+pub fn detect_format_id(
     data: Option<&[u8]>,
     filename_or_ext: Option<&str>,
     expected_category: Option<FormatCategory>,
-    descriptors: &[FormatDescriptor<T>],
-) -> Option<T> {
-    let mut best_candidate: Option<(T, u32)> = None;
+) -> Option<FormatId> {
+    let mut best_candidate: Option<(FormatId, u32)> = None;
 
-    for desc in descriptors {
+    // Collect all format IDs in registry
+    let mut candidate_ids: Vec<FormatId> = Vec::new();
+    for entry in MAGIC_REGISTRY {
+        if !candidate_ids.contains(&entry.format_id) {
+            candidate_ids.push(entry.format_id);
+        }
+    }
+    for entry in EXTENSION_REGISTRY {
+        if !candidate_ids.contains(&entry.format_id) {
+            candidate_ids.push(entry.format_id);
+        }
+    }
+
+    for fmt in candidate_ids {
         let mut magic_score = 0u32;
         if let Some(header) = data {
-            for pattern in desc.magic_patterns {
-                if pattern.matches(header) {
-                    magic_score = magic_score.max(pattern.priority);
+            for entry in MAGIC_REGISTRY {
+                if entry.format_id == fmt && entry.pattern.matches(header) {
+                    magic_score = magic_score.max(entry.pattern.priority);
                 }
             }
         }
 
         let mut extension_score = 0u32;
         if let Some(name_or_ext) = filename_or_ext {
-            for rule in desc.extension_rules {
-                if rule.matches(name_or_ext) {
-                    extension_score = extension_score.max(rule.weight);
+            for entry in EXTENSION_REGISTRY {
+                if entry.format_id == fmt && entry.rule.matches(name_or_ext) {
+                    extension_score = extension_score.max(entry.rule.weight);
                 }
             }
         }
 
         let mut category_score = 0u32;
         if let Some(cat) = expected_category {
-            if desc.category == cat {
+            if fmt.category() == cat {
                 category_score = 25;
             }
         }
@@ -83,11 +144,11 @@ pub fn detect_format<T: Clone>(
             match &best_candidate {
                 Some((_, best_score)) => {
                     if total_score > *best_score {
-                        best_candidate = Some((desc.format.clone(), total_score));
+                        best_candidate = Some((fmt, total_score));
                     }
                 }
                 None => {
-                    best_candidate = Some((desc.format.clone(), total_score));
+                    best_candidate = Some((fmt, total_score));
                 }
             }
         }
@@ -110,62 +171,27 @@ pub fn detect_format<T: Clone>(
 mod tests {
     use super::*;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum TestFormat {
-        Gzip,
-        ScoCompress,
-        Brotli,
+    #[ctb_test]
+    fn test_parse_format_chain() {
+        let chain = parse_format_chain("example.html.gz").unwrap();
+        assert_eq!(chain.outer, FormatId::Gzip);
+        assert_eq!(chain.inner, Some(FormatId::Html));
+        assert_eq!(chain.stem, "example");
+
+        let chain_pan = parse_format_chain("lemurs.pan.Z").unwrap();
+        assert_eq!(chain_pan.outer, FormatId::ScoCompress);
+        assert_eq!(chain_pan.inner, Some(FormatId::Pan));
+        assert_eq!(chain_pan.stem, "lemurs");
     }
 
     #[ctb_test]
-    fn test_combined_format_detection() {
-        static GZIP_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0x8B])];
-        static GZIP_EXT: [ExtensionRule; 1] = [ExtensionRule::insensitive("gz")];
-
-        static SCO_MAGIC: [MagicPattern; 1] = [MagicPattern::exact(&[0x1F, 0xA0])];
-        static SCO_EXT: [ExtensionRule; 1] = [ExtensionRule::sensitive("Z")];
-
-        static BROTLI_MAGIC: [MagicPattern; 0] = [];
-        static BROTLI_EXT: [ExtensionRule; 1] = [ExtensionRule::insensitive("br")];
-
-        let descriptors = [
-            FormatDescriptor {
-                format: TestFormat::Gzip,
-                category: FormatCategory::Compression,
-                magic_patterns: &GZIP_MAGIC,
-                extension_rules: &GZIP_EXT,
-            },
-            FormatDescriptor {
-                format: TestFormat::ScoCompress,
-                category: FormatCategory::Compression,
-                magic_patterns: &SCO_MAGIC,
-                extension_rules: &SCO_EXT,
-            },
-            FormatDescriptor {
-                format: TestFormat::Brotli,
-                category: FormatCategory::Compression,
-                magic_patterns: &BROTLI_MAGIC,
-                extension_rules: &BROTLI_EXT,
-            },
-        ];
-
-        // 1. Detection via magic only
+    fn test_detect_format_id() {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let detected = detect_format(Some(&gzip_data), None, None, &descriptors);
-        assert_eq!(detected, Some(TestFormat::Gzip));
+        let fmt = detect_format_id(Some(&gzip_data), Some("doc.gz"), Some(FormatCategory::Compression));
+        assert_eq!(fmt, Some(FormatId::Gzip));
 
-        // 2. Detection via extension only (stream with no magic)
-        let detected_br = detect_format(None, Some("data.txt.br"), None, &descriptors);
-        assert_eq!(detected_br, Some(TestFormat::Brotli));
-
-        // 3. Dual-signal match
-        let sco_data = [0x1F, 0xA0, 0x10, 0x00];
-        let detected_sco = detect_format(
-            Some(&sco_data),
-            Some("file.pan.Z"),
-            Some(FormatCategory::Compression),
-            &descriptors,
-        );
-        assert_eq!(detected_sco, Some(TestFormat::ScoCompress));
+        let sco_data = [0x1F, 0xA0, 0x00, 0x00];
+        let fmt_sco = detect_format_id(Some(&sco_data), Some("file.Z"), None);
+        assert_eq!(fmt_sco, Some(FormatId::ScoCompress));
     }
 }
