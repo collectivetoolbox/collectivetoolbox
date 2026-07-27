@@ -6,6 +6,7 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
+pub mod cli;
 pub mod sco_compress;
 
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -38,7 +39,7 @@ impl CompressionFormat {
             Self::Gzip => "gz",
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
-            Self::ScoCompress => "sco",
+            Self::ScoCompress => "Z",
         }
     }
 
@@ -50,7 +51,7 @@ impl CompressionFormat {
             "gz" | "gzip" => Some(Self::Gzip),
             "deflate" | "raw-deflate" => Some(Self::Deflate),
             "zz" | "zl" | "zlib" => Some(Self::Zlib),
-            "sco" | "compress-sco" | "sco-compress" | "lzh" | "compress-h" => {
+            "sco" | "compress-sco" | "sco-compress" | "Z" | "compress-h" => {
                 Some(Self::ScoCompress)
             }
             _ => None,

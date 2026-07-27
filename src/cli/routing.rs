@@ -925,39 +925,29 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output,
             force,
         } => {
-            let compression_format =
-                ctb_formats_compression::CompressionFormat::try_from(format.as_str())?;
-            let data = read_file_or_stdin(file.as_path())?;
-            let compressed =
-                ctb_formats_compression::compress(&data, compression_format)?;
-
-            let target_path = match output {
-                Some(out_path) => out_path.clone(),
-                None => {
-                    if file.as_path() == std::path::Path::new("-") {
-                        PathBuf::from("-")
-                    } else {
-                        PathBuf::from(format!(
-                            "{}.{}",
-                            file.display(),
-                            compression_format.extension()
-                        ))
-                    }
+            let cli_output = ctb_formats_compression::cli::execute_cli_compress(
+                ctb_formats_compression::cli::CliCompressArgs {
+                    format: format.clone(),
+                    input_path: file.clone(),
+                    output_path: output.clone(),
+                    force: *force,
+                },
+                |p| read_file_or_stdin(p),
+                |p, f| check_overwrite_prompt(p, f),
+            )?;
+            match cli_output {
+                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
+                    Ok(ToolResult::immediate_ok(bytes))
                 }
-            };
-
-            if target_path.as_path() == std::path::Path::new("-") {
-                Ok(ToolResult::immediate_ok(compressed))
-            } else {
-                if !check_overwrite_prompt(&target_path, *force)? {
-                    return Ok(ToolResult::immediate_err(
+                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
+                    Ok(ToolResult::immediate_ok(Vec::new()))
+                }
+                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
+                    Ok(ToolResult::immediate_err(
                         "Operation cancelled.\n".as_bytes().to_vec(),
                         1,
-                    ));
+                    ))
                 }
-                std::fs::write(&target_path, &compressed)
-                    .with_context(|| format!("Failed to write to {}", target_path.display()))?;
-                Ok(ToolResult::immediate_ok(Vec::new()))
             }
         }
         Command::Decompress {
@@ -966,84 +956,29 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output,
             force,
         } => {
-            let (input_path, raw_format) = match format {
-                Some(fmt_str) => {
-                    if let Ok(parsed_fmt) =
-                        ctb_formats_compression::CompressionFormat::try_from(fmt_str.as_str())
-                    {
-                        (file.clone(), Some(parsed_fmt))
-                    } else {
-                        let in_path = PathBuf::from(fmt_str);
-                        let inferred = in_path
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .and_then(ctb_formats_compression::CompressionFormat::from_extension);
-                        (in_path, inferred)
-                    }
+            let cli_output = ctb_formats_compression::cli::execute_cli_decompress(
+                ctb_formats_compression::cli::CliDecompressArgs {
+                    format: format.clone(),
+                    input_path: file.clone(),
+                    output_path: output.clone(),
+                    force: *force,
+                },
+                |p| read_file_or_stdin(p),
+                |p, f| check_overwrite_prompt(p, f),
+            )?;
+            match cli_output {
+                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
+                    Ok(ToolResult::immediate_ok(bytes))
                 }
-                None => {
-                    let inferred = file
-                        .extension()
-                        .and_then(|ext| ext.to_str())
-                        .and_then(ctb_formats_compression::CompressionFormat::from_extension);
-                    (file.clone(), inferred)
+                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
+                    Ok(ToolResult::immediate_ok(Vec::new()))
                 }
-            };
-
-            let data = read_file_or_stdin(input_path.as_path())?;
-
-            let compression_format = match raw_format {
-                Some(fmt) => fmt,
-                None => ctb_formats_compression::CompressionFormat::from_magic_bytes(&data)
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "Could not determine compression format for '{}'",
-                            input_path.display()
-                        )
-                    })?,
-            };
-
-            let decompressed =
-                ctb_formats_compression::decompress(&data, compression_format)?;
-
-            let target_path = match output {
-                Some(out_path) => out_path.clone(),
-                None => {
-                    if input_path.as_path() == std::path::Path::new("-") {
-                        PathBuf::from("-")
-                    } else {
-                        let filename_str = input_path.to_string_lossy();
-                        let known_exts = [".br", ".gz", ".deflate", ".zz", ".zl"];
-                        let mut stripped = None;
-                        for ext in known_exts {
-                            if filename_str.to_ascii_lowercase().ends_with(ext) {
-                                let cut_len = filename_str.len().saturating_sub(ext.len());
-                                if let Some(prefix) = filename_str.get(..cut_len) {
-                                    stripped = Some(PathBuf::from(prefix));
-                                }
-                                break;
-                            }
-                        }
-                        match stripped {
-                            Some(s_path) => s_path,
-                            None => PathBuf::from(format!("{}.decompressed", input_path.display())),
-                        }
-                    }
-                }
-            };
-
-            if target_path.as_path() == std::path::Path::new("-") {
-                Ok(ToolResult::immediate_ok(decompressed))
-            } else {
-                if !check_overwrite_prompt(&target_path, *force)? {
-                    return Ok(ToolResult::immediate_err(
+                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
+                    Ok(ToolResult::immediate_err(
                         "Operation cancelled.\n".as_bytes().to_vec(),
                         1,
-                    ));
+                    ))
                 }
-                std::fs::write(&target_path, &decompressed)
-                    .with_context(|| format!("Failed to write to {}", target_path.display()))?;
-                Ok(ToolResult::immediate_ok(Vec::new()))
             }
         }
         Command::Wfparser { file } => {
