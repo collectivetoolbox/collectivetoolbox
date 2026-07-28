@@ -116,6 +116,50 @@ echo "Verifying old-pack magic header 1f1f... OK"
 $CARGO_CMD decompress old-pack "$TMP_DIR/sample.txt.old.z" -o "$TMP_DIR/old_pack_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/old_pack_decompressed.txt" || exit 1
 
+# Test CompressLzw (compress 3.0+ / 4.0 / ncompress) format
+echo "Testing compress4 (CompressLzw block mode) format..."
+$CARGO_CMD compress compress4 "$TEST_FILE" -o "$TMP_DIR/sample.txt.Z" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.Z" | tr -d ' \n' | cut -c 1-4)
+if [ "$MAGIC" != "1f9d" ]; then
+    echo "Error: Magic header expected 1f9d, got $MAGIC"
+    exit 1
+fi
+echo "Verifying compress4 magic header 1f9d... OK"
+
+$CARGO_CMD decompress "$TMP_DIR/sample.txt.Z" -o "$TMP_DIR/lzw_decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/lzw_decompressed.txt" || exit 1
+
+if command -v gzip >/dev/null 2>&1; then
+    gzip -d -c "$TMP_DIR/sample.txt.Z" > "$TMP_DIR/lzw_gzip_out.txt"
+    cmp "$TEST_FILE" "$TMP_DIR/lzw_gzip_out.txt" || exit 1
+    echo "Verifying GNU gzip decompression of compress4 format... OK"
+fi
+
+# Test CompressLzw2 (compress 2.0 non-block) format
+echo "Testing compress2 (CompressLzw2 non-block mode) format..."
+$CARGO_CMD compress compress2 "$TEST_FILE" -o "$TMP_DIR/sample2.txt.Z" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample2.txt.Z" | tr -d ' \n' | cut -c 1-4)
+if [ "$MAGIC" != "1f9d" ]; then
+    echo "Error: Magic header expected 1f9d, got $MAGIC"
+    exit 1
+fi
+echo "Verifying compress2 magic header 1f9d... OK"
+
+$CARGO_CMD decompress compress2 "$TMP_DIR/sample2.txt.Z" -o "$TMP_DIR/lzw2_decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/lzw2_decompressed.txt" || exit 1
+
+if command -v gzip >/dev/null 2>&1; then
+    gzip -d -c "$TMP_DIR/sample2.txt.Z" > "$TMP_DIR/lzw2_gzip_out.txt"
+    cmp "$TEST_FILE" "$TMP_DIR/lzw2_gzip_out.txt" || exit 1
+    echo "Verifying GNU gzip decompression of compress2 format... OK"
+fi
+
+# Test CompressLzw1 (compress 1.0 headerless) format
+echo "Testing compress1 (CompressLzw1 headerless mode) format..."
+$CARGO_CMD compress compress1 "$TEST_FILE" -o "$TMP_DIR/sample1.txt.Z1.0" --force
+$CARGO_CMD decompress compress1 "$TMP_DIR/sample1.txt.Z1.0" -o "$TMP_DIR/lzw1_decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/lzw1_decompressed.txt" || exit 1
+
 # 7. Test decompressing embedded fixtures directly
 FIXTURE_RAW="src/formats/compression/data/fixtures/example2 with lemurs.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force

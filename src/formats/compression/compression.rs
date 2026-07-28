@@ -10,6 +10,7 @@ use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
 pub mod cli;
+pub mod compress;
 pub mod pack;
 pub mod sco_compress;
 
@@ -202,6 +203,9 @@ pub fn compress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
+        CompressionFormat::CompressLzw
+        | CompressionFormat::CompressLzw2
+        | CompressionFormat::CompressLzw1 => compress::compress_lzw_stream(reader, writer, format),
         CompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
         CompressionFormat::OldPack => pack::compress_old_pack_stream(reader, writer),
         other => bail!("Compression for format '{other:?}' is not yet implemented"),
@@ -240,6 +244,11 @@ pub fn decompress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
+        CompressionFormat::CompressLzw
+        | CompressionFormat::CompressLzw2
+        | CompressionFormat::CompressLzw1 => {
+            compress::decompress_lzw_stream(reader, writer, format)
+        }
         CompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
         CompressionFormat::OldPack => pack::decompress_old_pack_stream(reader, writer),
         other => bail!("Decompression for format '{other:?}' is not yet implemented"),
@@ -361,6 +370,9 @@ mod tests {
             CompressionFormat::Deflate,
             CompressionFormat::Zlib,
             CompressionFormat::ScoCompress,
+            CompressionFormat::CompressLzw,
+            CompressionFormat::CompressLzw2,
+            CompressionFormat::CompressLzw1,
             CompressionFormat::Pack,
             CompressionFormat::OldPack,
         ];
