@@ -1,4 +1,6 @@
 //! Standardized format identifier enum across all workspace format crates.
+//! Not all of these are binary file formats, exactly.
+//! Something like "HtmlDceutils & Html & Utf8 & Lang_En_Us" would more thoroughly describe a document format.
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use ctb_utilities::*;
@@ -292,7 +294,7 @@ pub enum FormatId {
     RasterDisplay,
     VectorDisplay,
 
-    // Transformation filters
+    // Transformation filters - they're configurations that can be added to a format when exporting it in classic EITE, and I'll probably want to add new ones.
     SemanticToText,
     CodeToText,
 
