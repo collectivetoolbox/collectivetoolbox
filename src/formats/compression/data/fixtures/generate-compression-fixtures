@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Script to build historical compress tools in old/unix-tools/compress and generate LZW fixtures
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
+FIXTURES_DIR="$REPO_ROOT/src/formats/compression/data/fixtures"
+TMP_DIR="$REPO_ROOT/built/tmp_gen_fixtures"
+
+mkdir -p "$TMP_DIR"
+
+cleanup() {
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+echo "=== 1. Compiling compress tools ==="
+
+# 1. compress 2.0 (supports -c and -n for headerless mode)
+gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-2.0" "$REPO_ROOT/old/unix-tools/compress/compress-2.0/compress.c"
+
+# 2. compress 3.0 (block mode intro)
+gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-3.0" "$REPO_ROOT/old/unix-tools/compress/compress-3.0/compress.c"
+
+# 3. compress 4.0 (maxbits control)
+gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-4.0" "$REPO_ROOT/old/unix-tools/compress/compress-4.0/compress.c"
+
+# 4. ncompress
+gcc -w -std=gnu89 -O2 -o "$TMP_DIR/ncompress" "$REPO_ROOT/old/unix-tools/ncompress/compress.c"
+
+echo "=== 2. Generating LZW fixtures ==="
+
+# Compress 1.0 (headerless LZW, generated via compress 2.0 -c -n)
+"$TMP_DIR/compress-2.0" -c -n < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0"
+
+# Compress 2.0 (non-block mode LZW, header: 1f 9d 10)
+"$TMP_DIR/compress-2.0" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z2.0"
+
+# Compress 3.0 (block mode LZW, header: 1f 9d 90)
+"$TMP_DIR/compress-3.0" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z3.0"
+
+# Compress 4.0 (-b 12 maxbits LZW, header: 1f 9d 8c)
+"$TMP_DIR/compress-4.0" -c -b 12 < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z12"
+
+# ncompress (standard 16-bit block LZW, header: 1f 9d 90)
+"$TMP_DIR/ncompress" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z"
+
+echo "=== 3. Verifying decompression ==="
+
+"$TMP_DIR/compress-2.0" -c -d -n < "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0" > "$TMP_DIR/d1.pan"
+cmp "$RAW_FILE" "$TMP_DIR/d1.pan"
+
+"$TMP_DIR/compress-2.0" -c -d < "$FIXTURES_DIR/example2 with lemurs.pan.Z2.0" > "$TMP_DIR/d2.pan"
+cmp "$RAW_FILE" "$TMP_DIR/d2.pan"
+
+"$TMP_DIR/compress-3.0" -c -d < "$FIXTURES_DIR/example2 with lemurs.pan.Z3.0" > "$TMP_DIR/d3.pan"
+cmp "$RAW_FILE" "$TMP_DIR/d3.pan"
+
+"$TMP_DIR/compress-4.0" -c -d < "$FIXTURES_DIR/example2 with lemurs.pan.Z12" > "$TMP_DIR/d4.pan"
+cmp "$RAW_FILE" "$TMP_DIR/d4.pan"
+
+"$TMP_DIR/ncompress" -c -d < "$FIXTURES_DIR/example2 with lemurs.pan.Z" > "$TMP_DIR/d5.pan"
+cmp "$RAW_FILE" "$TMP_DIR/d5.pan"
+
+echo "All LZW fixtures generated and verified successfully!"

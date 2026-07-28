@@ -336,17 +336,14 @@ pub fn decompress_lzw_stream(
     format: crate::CompressionFormat,
 ) -> Result<u64> {
     let mut bit_reader = LzwBitReader::new(reader);
-    let mut block_mode = true;
-    let mut maxbits = MAX_BITS;
-
-    if format != crate::CompressionFormat::CompressLzw1 {
+    let (block_mode, maxbits) = if format != crate::CompressionFormat::CompressLzw1 {
         // Read header magic and mode
         let h0 = bit_reader
             .read_code(8)?
-            .ok_or_else(|| anyhow!("Unexpected EOF reading header magic byte 1"))?;
+            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header magic byte 1"))?;
         let h1 = bit_reader
             .read_code(8)?
-            .ok_or_else(|| anyhow!("Unexpected EOF reading header magic byte 2"))?;
+            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header magic byte 2"))?;
 
         if u8::try_from(h0)? != LZW_MAGIC[0] || u8::try_from(h1)? != LZW_MAGIC[1] {
             bail!(
@@ -360,17 +357,18 @@ pub fn decompress_lzw_stream(
 
         let mode = bit_reader
             .read_code(8)?
-            .ok_or_else(|| anyhow!("Unexpected EOF reading header mode byte"))?;
+            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header mode byte"))?;
         let mode_u8 = u8::try_from(mode)?;
-        block_mode = (mode_u8 & BLOCK_MODE) != 0;
-        maxbits = u32::from(mode_u8 & BIT_MASK);
+        let bm = (mode_u8 & BLOCK_MODE) != 0;
+        let mb = u32::from(mode_u8 & BIT_MASK);
 
-        if maxbits < 9 || maxbits > 16 {
-            bail!("Invalid compress maxbits param: {maxbits}");
+        if mb < 9 || mb > 16 {
+            bail!("Invalid compress maxbits param: {mb}");
         }
+        (bm, mb)
     } else {
-        block_mode = false;
-    }
+        (false, MAX_BITS)
+    };
 
     let mut prefix = vec![0u32; 65536];
     let mut suffix = vec![0u8; 65536];
@@ -434,7 +432,8 @@ pub fn decompress_lzw_stream(
         }
 
         while code >= 256 {
-            let suf = match suffix.get(code as usize) {
+            let code_idx = usize::try_from(code)?;
+            let suf = match suffix.get(code_idx) {
                 Some(&s) => s,
                 None => bail!("Corrupt compress stream: invalid suffix index {code}"),
             };
@@ -442,7 +441,7 @@ pub fn decompress_lzw_stream(
             if let Some(s) = stack.get_mut(stack_idx) {
                 *s = suf;
             }
-            code = match prefix.get(code as usize) {
+            code = match prefix.get(code_idx) {
                 Some(&p) => p,
                 None => bail!("Corrupt compress stream: invalid prefix index {code}"),
             };
@@ -465,10 +464,11 @@ pub fn decompress_lzw_stream(
 
         if free_ent < maxmaxcode {
             let oldcode_u32 = u32::try_from(oldcode)?;
-            if let Some(p) = prefix.get_mut(free_ent as usize) {
+            let free_idx = usize::try_from(free_ent)?;
+            if let Some(p) = prefix.get_mut(free_idx) {
                 *p = oldcode_u32;
             }
-            if let Some(s) = suffix.get_mut(free_ent as usize) {
+            if let Some(s) = suffix.get_mut(free_idx) {
                 *s = finchar;
             }
             free_ent = free_ent.saturating_add(1);
