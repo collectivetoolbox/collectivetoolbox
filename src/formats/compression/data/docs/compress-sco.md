@@ -223,8 +223,8 @@ Reads the 510-entry `c_len` table using the Pre-Tree `pt_table`:
 
 | Component | Source File | Key Functions / Constants |
 | :--- | :--- | :--- |
-| **Format Detection** | [`gzip124/gzip.c`](file:///workspaces/ctoolbox/old/unix-tools/gzip124/gzip.c#L1290) | `memcmp(magic, LZH_MAGIC, 2) == 0` |
-| **Magic Header** | [`gzip124/gzip.h`](file:///workspaces/ctoolbox/old/unix-tools/gzip124/gzip.h#L158) | `#define LZH_MAGIC "\037\240"` (`0x1F 0xA0`) |
-| **Main Decompressor** | [`gzip124/unlzh.c`](file:///workspaces/ctoolbox/old/unix-tools/gzip124/unlzh.c#L385) | `unlzh(int in, int out)` |
-| **Block & Huffman Decoder** | [`gzip124/unlzh.c`](file:///workspaces/ctoolbox/old/unix-tools/gzip124/unlzh.c#L273) | `decode_c()`, `decode_p()`, `read_c_len()`, `read_pt_len()` |
-| **Table Construction** | [`gzip124/unlzh.c`](file:///workspaces/ctoolbox/old/unix-tools/gzip124/unlzh.c#L140) | `make_table()` |
+| **Format Detection** | (gzip124/gzip.c#L1290) | `memcmp(magic, LZH_MAGIC, 2) == 0` |
+| **Magic Header** | (gzip124/gzip.h#L158) | `#define LZH_MAGIC "\037\240"` (`0x1F 0xA0`) |
+| **Main Decompressor** | (gzip124/unlzh.c#L385) | `unlzh(int in, int out)` |
+| **Block & Huffman Decoder** | (gzip124/unlzh.c#L273) | `decode_c()`, `decode_p()`, `read_c_len()`, `read_pt_len()` |
+| **Table Construction** | (gzip124/unlzh.c#L140) | `make_table()` |
