@@ -421,6 +421,8 @@ mod tests {
             .expect("LZW Z2.0 fixture missing");
         let lzw_z10 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.0")
             .expect("LZW Z1.0 fixture missing");
+        let lzw_z16 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.6")
+            .expect("LZW Z1.6 fixture missing");
 
         assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
@@ -471,5 +473,11 @@ mod tests {
         let decomp_lzw_z10 =
             decompress(&lzw_z10, CompressionFormat::CompressLzw1).expect("CompressLzw1 Z1.0 decompress failed");
         assert_eq!(decomp_lzw_z10, raw);
+
+        // Historical compress 1.6 (Aug 1 1984 sorted-chain) is incompatible with standard 1.0 headerless LZW
+        assert!(
+            decompress(&lzw_z16, CompressionFormat::CompressLzw1).is_err(),
+            "CompressLzw1 should return an error for historical compress 1.6 sorted-chain fixture"
+        );
     }
 }

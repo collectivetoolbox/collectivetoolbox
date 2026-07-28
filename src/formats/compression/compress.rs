@@ -121,7 +121,9 @@ impl<W: Write> LzwBitWriter<W> {
         if self.block_posbits > 0 {
             let n_bits_usize = usize::try_from(n_bits)?;
             let block_bits = n_bits_usize.saturating_mul(8);
-            let rem = (self.block_posbits.saturating_sub(1)) % block_bits;
+            let rem = (self.block_posbits.saturating_sub(1))
+                .checked_rem(block_bits)
+                .unwrap_or(0);
             let pad = block_bits.saturating_sub(rem).saturating_sub(1);
             self.posbits = self.posbits.saturating_add(pad);
             self.block_posbits = 0;
@@ -130,7 +132,9 @@ impl<W: Write> LzwBitWriter<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
-        let final_bytes = (self.posbits.saturating_add(7)) / 8;
+        let final_bytes = (self.posbits.saturating_add(7))
+            .checked_div(8)
+            .unwrap_or(0);
         self.buffer.truncate(final_bytes);
         self.writer
             .write_all(&self.buffer)
@@ -160,7 +164,7 @@ impl<'a> LzwBitReader<'a> {
     }
 
     fn read_code(&mut self, n_bits: u32) -> Result<Option<u32>> {
-        let byte_pos = self.posbits / 8;
+        let byte_pos = self.posbits.checked_div(8).unwrap_or(0);
         if byte_pos >= self.data.len() {
             return Ok(None);
         }
@@ -171,7 +175,7 @@ impl<'a> LzwBitReader<'a> {
         let b3 = u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
 
         let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        let shift = u32::try_from(self.posbits % 8)?;
+        let shift = u32::try_from(self.posbits.checked_rem(8).unwrap_or(0))?;
         let mask = (1u64.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
 
         let code = u32::try_from((val >> shift) & mask)?;
@@ -185,7 +189,9 @@ impl<'a> LzwBitReader<'a> {
         if self.block_posbits > 0 {
             let n_bits_usize = usize::try_from(n_bits)?;
             let block_bits = n_bits_usize.saturating_mul(8);
-            let rem = (self.block_posbits.saturating_sub(1)) % block_bits;
+            let rem = (self.block_posbits.saturating_sub(1))
+                .checked_rem(block_bits)
+                .unwrap_or(0);
             let pad = block_bits.saturating_sub(rem).saturating_sub(1);
             self.posbits = self.posbits.saturating_add(pad);
             self.block_posbits = 0;
