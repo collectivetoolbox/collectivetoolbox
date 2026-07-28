@@ -46,13 +46,16 @@ pub enum CliCompressionOutput {
 pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
     let filename_str = input_path.to_string_lossy();
     let known_exts = [
-        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".gz", ".gzip", ".zz", ".zl",
+        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2", ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl",
         ".Z", ".z", ".C",
     ];
     for ext in known_exts {
         let matches = if ext.eq_ignore_ascii_case(".gz")
             || ext.eq_ignore_ascii_case(".gzip")
             || ext.eq_ignore_ascii_case(".br")
+            || ext.eq_ignore_ascii_case(".bz2")
+            || ext.eq_ignore_ascii_case(".bzip2")
+            || ext.eq_ignore_ascii_case(".bz")
             || ext.eq_ignore_ascii_case(".deflate")
             || ext.eq_ignore_ascii_case(".zz")
             || ext.eq_ignore_ascii_case(".zl")

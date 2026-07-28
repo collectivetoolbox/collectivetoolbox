@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     tar \
     xz-utils \
+    xxd \
     && npm install -g typescript playwright \
     && npx playwright install-deps chromium \
     && npx playwright install chromium \

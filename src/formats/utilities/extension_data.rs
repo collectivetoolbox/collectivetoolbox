@@ -18,6 +18,8 @@ static EXT_GZIP: ExtensionRule = ExtensionRule::insensitive("gzip");
 static EXT_DEFLATE: ExtensionRule = ExtensionRule::insensitive("deflate");
 static EXT_ZZ: ExtensionRule = ExtensionRule::insensitive("zz");
 static EXT_ZL: ExtensionRule = ExtensionRule::insensitive("zl");
+static EXT_BZ2: ExtensionRule = ExtensionRule::insensitive("bz2");
+static EXT_BZIP2: ExtensionRule = ExtensionRule::insensitive("bzip2");
 
 static EXT_UPPER_Z: ExtensionRule = ExtensionRule::sensitive("Z");
 static EXT_LOWER_Z: ExtensionRule = ExtensionRule::sensitive("z");
@@ -55,6 +57,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Zlib,
         rule: EXT_ZL,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Bzip2,
+        rule: EXT_BZ2,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Bzip2,
+        rule: EXT_BZIP2,
     },
     ExtensionEntry {
         format_id: FormatId::ScoCompress,

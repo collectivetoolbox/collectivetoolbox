@@ -13,6 +13,7 @@ ctb-formats-utilities = { path = "../utilities" }
 brotli = "8.0.3"
 flate2 = "1.1.9"
 include_dir = { version = "0.7.4", features = ["glob"] }
+bzip2 = "0.6.1"
 
 [lints]
 workspace = true
