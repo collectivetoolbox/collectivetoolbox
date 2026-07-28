@@ -3,7 +3,12 @@ set -euo pipefail
 
 # Script to build historical compress tools in old/unix-tools/compress and generate LZW fixtures
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do
+    REPO_ROOT="$(dirname "$REPO_ROOT")"
+done
+
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
 FIXTURES_DIR="$REPO_ROOT/src/formats/compression/data/fixtures"
 TMP_DIR="$REPO_ROOT/built/tmp_gen_fixtures"
@@ -15,38 +20,99 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== 1. Compiling compress tools ==="
+echo "=== 1. Preparing and Compiling Historical Compress Tools ==="
 
-# 1. compress 2.0 (supports -c and -n for headerless mode)
+# 1. Prepare compress 1.0 (July 1984, Spencer W. Thomas)
+TMP_C1="$TMP_DIR/compress-1.0.c"
+python3 - "$REPO_ROOT" "$TMP_C1" << 'EOF'
+import sys, os
+
+repo_root, out_file = sys.argv[1], sys.argv[2]
+src_file = os.path.join(repo_root, "old/unix-tools/compress/compress-1.0/compress.c")
+
+with open(src_file, "r") as f:
+    code = f.read()
+
+masks = """
+static char buf[BITS];
+static unsigned char lmask[9] = {0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x00};
+static unsigned char rmask[9] = {0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
+"""
+
+vax_insv = """#ifndef vax\nYou lose\n#endif\nasm( "insv 4(ap),r11,r10,(r9)" );"""
+c_insv = """bp += (r_off >> 3); r_off &= 7; *bp = (*bp & rmask[r_off]) | ((code << r_off) & lmask[r_off]); bp++; bits -= (8 - r_off); code >>= 8 - r_off; if ( bits >= 8 ) { *bp = code; bp++; bits -= 8; code >>= 8; } if ( bits > 0 ) *bp = code;"""
+vax_extv = """#ifndef vax\nYou lose\n#endif\nasm( "extzv r10,r9,(r8),r11" );"""
+c_extv = """bp += (r_off >> 3); r_off &= 7; code = ((*bp++ & 0xff) >> r_off); bits -= (8 - r_off); if ( bits >= 8 ) { code |= (*bp++ & 0xff) << (8 - r_off); bits -= 8; } if ( bits > 0 ) code |= ((*bp & rmask[bits]) & 0xff) << (8 - r_off);"""
+
+getopt_code = """
+int ch_opt;
+while ((ch_opt = getopt(argc, argv, "d")) != -1) {
+    if (ch_opt == 'd') decompress_flg = 1;
+}
+"""
+
+code = code.replace("static char buf[BITS];", masks)
+code = code.replace(vax_insv, c_insv)
+code = code.replace(vax_extv, c_extv)
+code = code.replace("compress( infile );\nelse if", "{ compress( infile ); exit(0); }\nelse if")
+code = code.replace("#endif\n\nif ( maxbits > BITS )", getopt_code + "\n#endif\n\nif ( maxbits > BITS )")
+
+with open(out_file, "w") as f:
+    f.write(code)
+EOF
+
+# 2. Prepare compress 1.6 (August 1984, Joe Orost)
+TMP_C16="$TMP_DIR/compress-1.6.c"
+python3 - "$REPO_ROOT" "$TMP_C16" << 'EOF'
+import sys, os
+repo_root, out_file = sys.argv[1], sys.argv[2]
+src_file = os.path.join(repo_root, "old/unix-tools/compress/compress-1.6/compress.c")
+with open(src_file, "r") as f:
+    code = f.read()
+code = code.replace("compress( infile );\nelse", "{ compress( infile ); exit(0); }\nelse")
+with open(out_file, "w") as f:
+    f.write(code)
+EOF
+
+# Compile compress 1.0 (Spencer W. Thomas, July 1984)
+gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.0" "$TMP_C1"
+
+# Compile compress 1.6 (Joe Orost, August 1984)
+gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.6" "$TMP_C16"
+
+# Compile compress 2.0 (Ken Turkowski & Joe Orost, August 1984)
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-2.0" "$REPO_ROOT/old/unix-tools/compress/compress-2.0/compress.c"
 
-# 2. compress 3.0 (block mode intro)
+# Compile compress 3.0 (James A. Woods & Joe Orost, January 1985)
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-3.0" "$REPO_ROOT/old/unix-tools/compress/compress-3.0/compress.c"
 
-# 3. compress 4.0 (maxbits control)
+# Compile compress 4.0 (Thomas et al., 1986)
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-4.0" "$REPO_ROOT/old/unix-tools/compress/compress-4.0/compress.c"
 
-# 4. ncompress
+# Compile ncompress (Peter Jannesen & Mike Frysinger)
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/ncompress" "$REPO_ROOT/old/unix-tools/ncompress/compress.c"
 
-echo "=== 2. Generating LZW fixtures ==="
+echo "=== 2. Generating LZW Fixtures ==="
 
-# Compress 1.0 (headerless LZW, generated via compress 2.0 -c -n)
-"$TMP_DIR/compress-2.0" -c -n < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0"
+# Compress 1.0 (July 1984 original headerless LZW)
+"$TMP_DIR/compress-1.0" < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0"
 
-# Compress 2.0 (non-block mode LZW, header: 1f 9d 10)
+# Compress 1.6 (August 1984 sorted chain headerless LZW)
+"$TMP_DIR/compress-1.6" < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z1.6"
+
+# Compress 2.0 (August 1984 non-block mode LZW, header: 1f 9d 10)
 "$TMP_DIR/compress-2.0" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z2.0"
 
-# Compress 3.0 (block mode LZW, header: 1f 9d 90)
+# Compress 3.0 (January 1985 block mode LZW, header: 1f 9d 90)
 "$TMP_DIR/compress-3.0" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z3.0"
 
-# Compress 4.0 (-b 12 maxbits LZW, header: 1f 9d 8c)
+# Compress 4.0 (1986 maxbits 12 LZW, header: 1f 9d 8c)
 "$TMP_DIR/compress-4.0" -c -b 12 < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z12"
 
-# ncompress (standard 16-bit block LZW, header: 1f 9d 90)
+# ncompress (Modern standard 16-bit block LZW, header: 1f 9d 90)
 "$TMP_DIR/ncompress" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.Z"
 
-echo "=== 3. Verifying decompression ==="
+echo "=== 3. Verifying Fixture Decompression Roundtrips ==="
 
 "$TMP_DIR/compress-2.0" -c -d -n < "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0" > "$TMP_DIR/d1.pan"
 cmp "$RAW_FILE" "$TMP_DIR/d1.pan"
@@ -63,4 +129,4 @@ cmp "$RAW_FILE" "$TMP_DIR/d4.pan"
 "$TMP_DIR/ncompress" -c -d < "$FIXTURES_DIR/example2 with lemurs.pan.Z" > "$TMP_DIR/d5.pan"
 cmp "$RAW_FILE" "$TMP_DIR/d5.pan"
 
-echo "All LZW fixtures generated and verified successfully!"
+echo "All historical LZW fixtures generated and verified successfully!"
