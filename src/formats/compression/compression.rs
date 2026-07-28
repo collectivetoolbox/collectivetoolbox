@@ -32,6 +32,8 @@ pub enum CompressionFormat {
     Deflate,
     /// Zlib-wrapped DEFLATE stream RFC 1950 (.zz, .zl)
     Zlib,
+    /// Bzip2 compressed stream (.bz2)
+    Bzip2,
     /// SCO compress -H compressed stream (.Z)
     ScoCompress,
     /// Modern standard LZW / compress 4.0 / ncompress (.Z)
@@ -58,6 +60,7 @@ impl CompressionFormat {
             Self::Gzip => FormatId::Gzip,
             Self::Deflate => FormatId::Deflate,
             Self::Zlib => FormatId::Zlib,
+            Self::Bzip2 => FormatId::Bzip2,
             Self::ScoCompress => FormatId::ScoCompress,
             Self::CompressLzw => FormatId::CompressLzw,
             Self::CompressLzw2 => FormatId::CompressLzw2,
@@ -76,6 +79,7 @@ impl CompressionFormat {
             FormatId::Gzip => Some(Self::Gzip),
             FormatId::Deflate => Some(Self::Deflate),
             FormatId::Zlib => Some(Self::Zlib),
+            FormatId::Bzip2 => Some(Self::Bzip2),
             FormatId::ScoCompress => Some(Self::ScoCompress),
             FormatId::CompressLzw => Some(Self::CompressLzw),
             FormatId::CompressLzw2 => Some(Self::CompressLzw2),
@@ -95,6 +99,7 @@ impl CompressionFormat {
             Self::Gzip => "gz",
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
+            Self::Bzip2 => "bz2",
             Self::ScoCompress | Self::CompressLzw | Self::CompressLzw2 | Self::CompressLzw1 | Self::CompressLzw16 => "Z",
             Self::Pack | Self::OldPack => "z",
             Self::Compact => "C",
@@ -144,6 +149,7 @@ impl TryFrom<&str> for CompressionFormat {
             "gzip" | "gz" => Ok(Self::Gzip),
             "deflate" | "raw-deflate" => Ok(Self::Deflate),
             "zlib" | "zz" | "zl" | "zlib-deflate" => Ok(Self::Zlib),
+            "bzip2" | "bz2" | "bz" => Ok(Self::Bzip2),
             "sco-compress" | "compress-sco" | "compress-h" => Ok(Self::ScoCompress),
             "compress" | "sco" | "ncompress" | "lzw" => Ok(Self::ScoCompress),
             "compress4" | "compress-4.0" | "compress-3.0" | "lzw-block" => Ok(Self::CompressLzw),
@@ -208,6 +214,14 @@ pub fn compress_stream(
             encoder.finish().context("Failed to finish Zlib encoder")?;
             Ok(bytes_written)
         }
+        CompressionFormat::Bzip2 => {
+            let mut encoder =
+                bzip2::write::BzEncoder::new(writer, bzip2::Compression::default());
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to Bzip2 encoder")?;
+            encoder.finish().context("Failed to finish Bzip2 encoder")?;
+            Ok(bytes_written)
+        }
         CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
         CompressionFormat::CompressLzw
         | CompressionFormat::CompressLzw2
@@ -233,7 +247,7 @@ pub fn decompress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::Gzip => {
-            let mut decoder = flate2::read::GzDecoder::new(reader);
+            let mut decoder = flate2::read::MultiGzDecoder::new(reader);
             let bytes_written = std::io::copy(&mut decoder, writer)
                 .context("Failed to decompress Gzip stream")?;
             Ok(bytes_written)
@@ -248,6 +262,12 @@ pub fn decompress_stream(
             let mut decoder = flate2::read::ZlibDecoder::new(reader);
             let bytes_written = std::io::copy(&mut decoder, writer)
                 .context("Failed to decompress Zlib stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Bzip2 => {
+            let mut decoder = bzip2::read::BzDecoder::new(reader);
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress Bzip2 stream")?;
             Ok(bytes_written)
         }
         CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
@@ -300,6 +320,10 @@ mod tests {
             CompressionFormat::Brotli
         );
         assert_eq!(
+            CompressionFormat::try_from("bzip2").unwrap(),
+            CompressionFormat::Bzip2
+        );
+        assert_eq!(
             CompressionFormat::try_from("compress2").unwrap(),
             CompressionFormat::CompressLzw2
         );
@@ -320,6 +344,7 @@ mod tests {
         assert_eq!(CompressionFormat::Gzip.extension(), "gz");
         assert_eq!(CompressionFormat::Deflate.extension(), "deflate");
         assert_eq!(CompressionFormat::Zlib.extension(), "zz");
+        assert_eq!(CompressionFormat::Bzip2.extension(), "bz2");
         assert_eq!(CompressionFormat::ScoCompress.extension(), "Z");
         assert_eq!(CompressionFormat::Pack.extension(), "z");
         assert_eq!(CompressionFormat::Compact.extension(), "C");
@@ -352,6 +377,10 @@ mod tests {
             Some(CompressionFormat::Gzip)
         );
         assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0x42, 0x5A, 0x68]),
+            Some(CompressionFormat::Bzip2)
+        );
+        assert_eq!(
             CompressionFormat::from_magic_bytes(&[0x1F, 0x1E]),
             Some(CompressionFormat::Pack)
         );
@@ -377,6 +406,7 @@ mod tests {
             CompressionFormat::Gzip,
             CompressionFormat::Deflate,
             CompressionFormat::Zlib,
+            CompressionFormat::Bzip2,
             CompressionFormat::ScoCompress,
             CompressionFormat::CompressLzw,
             CompressionFormat::CompressLzw2,
@@ -414,6 +444,8 @@ mod tests {
             .expect("Deflate fixture missing");
         let zz = get_compression_data("fixtures/example2 with lemurs.pan.zz")
             .expect("Zlib fixture missing");
+        let bz2 = get_compression_data("fixtures/example2 with lemurs.pan.bz2")
+            .expect("Bzip2 fixture missing");
         let sco = get_compression_data("fixtures/example2 with lemurs.pan.sco")
             .expect("SCO compress fixture missing");
         let pack_z = get_compression_data("fixtures/example2 with lemurs.pan.z")
@@ -450,6 +482,10 @@ mod tests {
         let decomp_zz =
             decompress(&zz, CompressionFormat::Zlib).expect("Zlib decompress failed");
         assert_eq!(decomp_zz, raw);
+
+        let decomp_bz2 =
+            decompress(&bz2, CompressionFormat::Bzip2).expect("Bzip2 decompress failed");
+        assert_eq!(decomp_bz2, raw);
 
         let decomp_sco =
             decompress(&sco, CompressionFormat::ScoCompress).expect("SCO compress decompress failed");
