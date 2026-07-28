@@ -1,6 +1,7 @@
 # Compression Data Fixtures
 
 This directory contains uncompressed and compressed test fixture files generated from [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) using the historical Unix compression utilities in [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools) as well as modern encoders.
+NOTE: old/unix-tools is not included in this repository except temporarily to generate fixtures, so you'll have to locate them on Usenet archive, etc. to re-generate (I'd encourage that! If you don't get the same results, please let me know and I can investigate.)
 
 ---
 

@@ -411,6 +411,16 @@ mod tests {
             .expect("Pack fixture missing");
         let old_pack_z = get_compression_data("fixtures/example2 with lemurs.pan.old.z")
             .expect("OldPack fixture missing");
+        let lzw_z = get_compression_data("fixtures/example2 with lemurs.pan.Z")
+            .expect("LZW Z fixture missing");
+        let lzw_z30 = get_compression_data("fixtures/example2 with lemurs.pan.Z3.0")
+            .expect("LZW Z3.0 fixture missing");
+        let lzw_z12 = get_compression_data("fixtures/example2 with lemurs.pan.Z12")
+            .expect("LZW Z12 fixture missing");
+        let lzw_z20 = get_compression_data("fixtures/example2 with lemurs.pan.Z2.0")
+            .expect("LZW Z2.0 fixture missing");
+        let lzw_z10 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.0")
+            .expect("LZW Z1.0 fixture missing");
 
         assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
@@ -441,5 +451,25 @@ mod tests {
         let decomp_old_pack =
             decompress(&old_pack_z, CompressionFormat::OldPack).expect("OldPack decompress failed");
         assert_eq!(decomp_old_pack, raw);
+
+        let decomp_lzw_z =
+            decompress(&lzw_z, CompressionFormat::CompressLzw).expect("CompressLzw decompress failed");
+        assert_eq!(decomp_lzw_z, raw);
+
+        let decomp_lzw_z30 =
+            decompress(&lzw_z30, CompressionFormat::CompressLzw).expect("CompressLzw Z3.0 decompress failed");
+        assert_eq!(decomp_lzw_z30, raw);
+
+        let decomp_lzw_z12 =
+            decompress(&lzw_z12, CompressionFormat::CompressLzw).expect("CompressLzw Z12 decompress failed");
+        assert_eq!(decomp_lzw_z12, raw);
+
+        let decomp_lzw_z20 =
+            decompress(&lzw_z20, CompressionFormat::CompressLzw2).expect("CompressLzw2 Z2.0 decompress failed");
+        assert_eq!(decomp_lzw_z20, raw);
+
+        let decomp_lzw_z10 =
+            decompress(&lzw_z10, CompressionFormat::CompressLzw1).expect("CompressLzw1 Z1.0 decompress failed");
+        assert_eq!(decomp_lzw_z10, raw);
     }
 }

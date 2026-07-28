@@ -71,168 +71,126 @@ pub const FIRST_FREE_BLOCK: u32 = 257;
 pub const FIRST_FREE_NONBLOCK: u32 = 256;
 
 // -----------------------------------------------------------------------------
-// LSB-first Bit Writer for LZW streams with Unix compress block alignment
+// LSB-first Bit Writer matching Spencer Thomas / gzip unlzw.c posbits layout
 // -----------------------------------------------------------------------------
 
 struct LzwBitWriter<W: Write> {
     writer: W,
-    bitbuf: u64,
-    valid: u32,
-    codes_in_block: u32,
+    buffer: Vec<u8>,
+    posbits: usize,
+    block_posbits: usize,
 }
 
 impl<W: Write> LzwBitWriter<W> {
     fn new(writer: W) -> Self {
         Self {
             writer,
-            bitbuf: 0,
-            valid: 0,
-            codes_in_block: 0,
+            buffer: Vec::with_capacity(4096),
+            posbits: 0,
+            block_posbits: 0,
         }
     }
 
     fn write_code(&mut self, code: u32, n_bits: u32) -> Result<()> {
+        let byte_pos = self.posbits / 8;
+        let shift = self.posbits % 8;
+        let needed_len = byte_pos.saturating_add(4);
+
+        if self.buffer.len() < needed_len {
+            self.buffer.resize(needed_len, 0);
+        }
+
         let code_u64 = u64::from(code);
-        self.bitbuf |= code_u64.checked_shl(self.valid).unwrap_or(0);
-        self.valid = self.valid.saturating_add(n_bits);
-        self.codes_in_block = self.codes_in_block.saturating_add(1);
+        let val = code_u64.checked_shl(u32::try_from(shift)?).unwrap_or(0);
 
-        while self.valid >= 8 {
-            let byte = u8::try_from(self.bitbuf & 0xFF)?;
-            self.writer
-                .write_all(&[byte])
-                .context("Failed to write bitstream byte")?;
-            self.bitbuf >>= 8;
-            self.valid = self.valid.saturating_sub(8);
+        for i in 0..4 {
+            let idx = byte_pos.saturating_add(i);
+            let byte_val = u8::try_from((val >> (i.saturating_mul(8))) & 0xFF)?;
+            if let Some(b) = self.buffer.get_mut(idx) {
+                *b |= byte_val;
+            }
         }
 
-        if self.codes_in_block == 8 {
-            self.codes_in_block = 0;
-        }
+        let n_bits_usize = usize::try_from(n_bits)?;
+        self.posbits = self.posbits.saturating_add(n_bits_usize);
+        self.block_posbits = self.block_posbits.saturating_add(n_bits_usize);
         Ok(())
     }
 
-    /// Aligns bitstream to block boundary when code width increases or CLEAR is emitted.
     fn align_block(&mut self, n_bits: u32) -> Result<()> {
-        if self.codes_in_block > 0 {
-            let rem_codes = 8u32.saturating_sub(self.codes_in_block);
-            let pad_bits = rem_codes.saturating_mul(n_bits);
-            self.valid = self.valid.saturating_add(pad_bits);
-            self.codes_in_block = 0;
-
-            while self.valid >= 8 {
-                let byte = u8::try_from(self.bitbuf & 0xFF)?;
-                self.writer
-                    .write_all(&[byte])
-                    .context("Failed to write bitstream byte during block alignment")?;
-                self.bitbuf >>= 8;
-                self.valid = self.valid.saturating_sub(8);
-            }
-        }
-        if self.valid > 0 {
-            let byte = u8::try_from(self.bitbuf & 0xFF)?;
-            self.writer
-                .write_all(&[byte])
-                .context("Failed to flush trailing bitstream byte")?;
-            self.bitbuf = 0;
-            self.valid = 0;
+        if self.block_posbits > 0 {
+            let n_bits_usize = usize::try_from(n_bits)?;
+            let block_bits = n_bits_usize.saturating_mul(8);
+            let rem = (self.block_posbits.saturating_sub(1)) % block_bits;
+            let pad = block_bits.saturating_sub(rem).saturating_sub(1);
+            self.posbits = self.posbits.saturating_add(pad);
+            self.block_posbits = 0;
         }
         Ok(())
     }
 
     fn finish(&mut self) -> Result<()> {
-        if self.valid > 0 {
-            let byte = u8::try_from(self.bitbuf & 0xFF)?;
-            self.writer
-                .write_all(&[byte])
-                .context("Failed to flush final bitstream byte")?;
-            self.bitbuf = 0;
-            self.valid = 0;
-        }
+        let final_bytes = (self.posbits.saturating_add(7)) / 8;
+        self.buffer.truncate(final_bytes);
+        self.writer
+            .write_all(&self.buffer)
+            .context("Failed to write compress payload")?;
         self.writer.flush().context("Failed to flush inner writer")?;
         Ok(())
     }
 }
 
 // -----------------------------------------------------------------------------
-// LSB-first Bit Reader for LZW streams with Unix compress block alignment
+// LSB-first Bit Reader matching Spencer Thomas / gzip unlzw.c posbits layout
 // -----------------------------------------------------------------------------
 
-struct LzwBitReader<R: Read> {
-    reader: R,
-    bitbuf: u64,
-    valid: u32,
-    codes_in_block: u32,
-    eof: bool,
+struct LzwBitReader<'a> {
+    data: &'a [u8],
+    posbits: usize,
+    block_posbits: usize,
 }
 
-impl<R: Read> LzwBitReader<R> {
-    fn new(reader: R) -> Self {
+impl<'a> LzwBitReader<'a> {
+    fn new(data: &'a [u8]) -> Self {
         Self {
-            reader,
-            bitbuf: 0,
-            valid: 0,
-            codes_in_block: 0,
-            eof: false,
+            data,
+            posbits: 0,
+            block_posbits: 0,
         }
     }
 
     fn read_code(&mut self, n_bits: u32) -> Result<Option<u32>> {
-        while self.valid < n_bits && !self.eof {
-            let mut buf = [0u8; 1];
-            let n = self
-                .reader
-                .read(&mut buf)
-                .context("Failed to read bitstream byte")?;
-            if n == 0 {
-                self.eof = true;
-                break;
-            }
-            if let Some(&b) = buf.first() {
-                let byte_u64 = u64::from(b);
-                self.bitbuf |= byte_u64.checked_shl(self.valid).unwrap_or(0);
-                self.valid = self.valid.saturating_add(8);
-            }
-        }
-
-        if self.valid < n_bits {
+        let byte_pos = self.posbits / 8;
+        if byte_pos >= self.data.len() {
             return Ok(None);
         }
 
+        let b0 = u64::from(*self.data.get(byte_pos).unwrap_or(&0));
+        let b1 = u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
+        let b2 = u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
+        let b3 = u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
+
+        let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+        let shift = u32::try_from(self.posbits % 8)?;
         let mask = (1u64.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
-        let code = u32::try_from(self.bitbuf & mask)?;
-        self.bitbuf >>= n_bits;
-        self.valid = self.valid.saturating_sub(n_bits);
-        self.codes_in_block = self.codes_in_block.saturating_add(1);
 
-        if self.codes_in_block == 8 {
-            self.codes_in_block = 0;
-        }
-
+        let code = u32::try_from((val >> shift) & mask)?;
+        let n_bits_usize = usize::try_from(n_bits)?;
+        self.posbits = self.posbits.saturating_add(n_bits_usize);
+        self.block_posbits = self.block_posbits.saturating_add(n_bits_usize);
         Ok(Some(code))
     }
 
-    /// Aligns bitstream reader to block boundary when code width increases or CLEAR is read.
-    fn align_block(&mut self, n_bits: u32) {
-        if self.codes_in_block > 0 {
-            let rem_codes = 8u32.saturating_sub(self.codes_in_block);
-            let pad_bits = rem_codes.saturating_mul(n_bits);
-            if self.valid >= pad_bits {
-                self.valid = self.valid.saturating_sub(pad_bits);
-                self.bitbuf >>= pad_bits;
-            } else {
-                self.valid = 0;
-                self.bitbuf = 0;
-            }
-            self.codes_in_block = 0;
-        } else if self.valid > 0 {
-            // Realign to byte boundary if fractional bits remain
-            let rem_bits = self.valid % 8;
-            if rem_bits > 0 {
-                self.valid = self.valid.saturating_sub(rem_bits);
-                self.bitbuf >>= rem_bits;
-            }
+    fn align_block(&mut self, n_bits: u32) -> Result<()> {
+        if self.block_posbits > 0 {
+            let n_bits_usize = usize::try_from(n_bits)?;
+            let block_bits = n_bits_usize.saturating_mul(8);
+            let rem = (self.block_posbits.saturating_sub(1)) % block_bits;
+            let pad = block_bits.saturating_sub(rem).saturating_sub(1);
+            self.posbits = self.posbits.saturating_add(pad);
+            self.block_posbits = 0;
         }
+        Ok(())
     }
 }
 
@@ -335,17 +293,33 @@ pub fn decompress_lzw_stream(
     writer: &mut impl Write,
     format: crate::CompressionFormat,
 ) -> Result<u64> {
-    let mut bit_reader = LzwBitReader::new(reader);
-    let (block_mode, maxbits) = if format != crate::CompressionFormat::CompressLzw1 {
-        // Read header magic and mode
-        let h0 = bit_reader
-            .read_code(8)?
-            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header magic byte 1"))?;
-        let h1 = bit_reader
-            .read_code(8)?
-            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header magic byte 2"))?;
+    let mut input_data = Vec::new();
+    reader
+        .read_to_end(&mut input_data)
+        .context("Failed to read input compress stream")?;
 
-        if u8::try_from(h0)? != LZW_MAGIC[0] || u8::try_from(h1)? != LZW_MAGIC[1] {
+    if input_data.is_empty() {
+        return Ok(0);
+    }
+
+    let mut data_slice: &[u8] = &input_data;
+    let block_mode;
+    let maxbits;
+
+    if format != crate::CompressionFormat::CompressLzw1 {
+        if data_slice.len() < 3 {
+            bail!("Compress stream too short for 3-byte header");
+        }
+        let h0 = match data_slice.first() {
+            Some(&b) => b,
+            None => bail!("Missing magic byte 1"),
+        };
+        let h1 = match data_slice.get(1) {
+            Some(&b) => b,
+            None => bail!("Missing magic byte 2"),
+        };
+
+        if h0 != LZW_MAGIC[0] || h1 != LZW_MAGIC[1] {
             bail!(
                 "Invalid compress magic header: expected 0x{:02X}{:02X}, got 0x{:02X}{:02X}",
                 LZW_MAGIC[0],
@@ -355,20 +329,28 @@ pub fn decompress_lzw_stream(
             );
         }
 
-        let mode = bit_reader
-            .read_code(8)?
-            .ok_or_else(|| anyhow::anyhow!("Unexpected EOF reading header mode byte"))?;
-        let mode_u8 = u8::try_from(mode)?;
-        let bm = (mode_u8 & BLOCK_MODE) != 0;
-        let mb = u32::from(mode_u8 & BIT_MASK);
+        let mode_u8 = match data_slice.get(2) {
+            Some(&b) => b,
+            None => bail!("Missing mode byte"),
+        };
 
-        if mb < 9 || mb > 16 {
-            bail!("Invalid compress maxbits param: {mb}");
+        block_mode = (mode_u8 & BLOCK_MODE) != 0;
+        maxbits = u32::from(mode_u8 & BIT_MASK);
+
+        if maxbits < 9 || maxbits > 16 {
+            bail!("Invalid compress maxbits param: {maxbits}");
         }
-        (bm, mb)
+
+        data_slice = match data_slice.get(3..) {
+            Some(sl) => sl,
+            None => bail!("Failed to slice compress payload"),
+        };
     } else {
-        (false, MAX_BITS)
-    };
+        block_mode = false;
+        maxbits = MAX_BITS;
+    }
+
+    let mut bit_reader = LzwBitReader::new(data_slice);
 
     let mut prefix = vec![0u32; 65536];
     let mut suffix = vec![0u8; 65536];
@@ -393,7 +375,35 @@ pub fn decompress_lzw_stream(
     let mut stack = vec![0u8; 65536];
     let mut total_written: u64 = 0;
 
-    while let Some(mut code) = bit_reader.read_code(n_bits)? {
+    let total_data_bits = data_slice.len().saturating_mul(8);
+
+    while bit_reader
+        .posbits
+        .saturating_add(usize::try_from(n_bits)?)
+        <= total_data_bits
+    {
+        if free_ent > maxcode {
+            bit_reader.align_block(n_bits)?;
+            n_bits = n_bits.saturating_add(1);
+            if n_bits == maxbits {
+                maxcode = maxmaxcode;
+            } else {
+                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+            }
+            if bit_reader
+                .posbits
+                .saturating_add(usize::try_from(n_bits)?)
+                > total_data_bits
+            {
+                break;
+            }
+        }
+
+        let mut code = match bit_reader.read_code(n_bits)? {
+            Some(c) => c,
+            None => break,
+        };
+
         if oldcode == -1 {
             if code >= 256 {
                 bail!("Corrupt compress stream: first code {code} >= 256");
@@ -409,8 +419,8 @@ pub fn decompress_lzw_stream(
 
         if code == CLEAR_CODE && block_mode {
             prefix.fill(0);
-            free_ent = FIRST_FREE_BLOCK;
-            bit_reader.align_block(n_bits);
+            free_ent = FIRST_FREE_NONBLOCK;
+            bit_reader.align_block(n_bits)?;
             n_bits = INIT_BITS;
             maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
             oldcode = -1;
@@ -472,12 +482,6 @@ pub fn decompress_lzw_stream(
                 *s = finchar;
             }
             free_ent = free_ent.saturating_add(1);
-
-            if free_ent > maxcode && n_bits < maxbits {
-                bit_reader.align_block(n_bits);
-                n_bits = n_bits.saturating_add(1);
-                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
-            }
         }
 
         oldcode = i32::try_from(incode)?;
