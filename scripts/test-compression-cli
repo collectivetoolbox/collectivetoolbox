@@ -84,6 +84,38 @@ if command -v gzip >/dev/null 2>&1; then
     echo "Verifying GNU gzip decompression compatibility... OK"
 fi
 
+# Test pack (0x1F 0x1E) format
+echo "Testing pack format..."
+$CARGO_CMD compress pack "$TEST_FILE" -o "$TMP_DIR/sample.txt.z" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.z" | tr -d ' \n' | cut -c 1-4)
+if [ "$MAGIC" != "1f1e" ]; then
+    echo "Error: Magic header expected 1f1e, got $MAGIC"
+    exit 1
+fi
+echo "Verifying pack magic header 1f1e... OK"
+
+$CARGO_CMD decompress pack "$TMP_DIR/sample.txt.z" -o "$TMP_DIR/pack_decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/pack_decompressed.txt" || exit 1
+
+if command -v gzip >/dev/null 2>&1; then
+    gzip -d -c "$TMP_DIR/sample.txt.z" > "$TMP_DIR/pack_gzip_out.txt"
+    cmp "$TEST_FILE" "$TMP_DIR/pack_gzip_out.txt" || exit 1
+    echo "Verifying GNU gzip decompression of pack format... OK"
+fi
+
+# Test old-pack (0x1F 0x1F) format
+echo "Testing old-pack format..."
+$CARGO_CMD compress old-pack "$TEST_FILE" -o "$TMP_DIR/sample.txt.old.z" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.old.z" | tr -d ' \n' | cut -c 1-4)
+if [ "$MAGIC" != "1f1f" ]; then
+    echo "Error: Magic header expected 1f1f, got $MAGIC"
+    exit 1
+fi
+echo "Verifying old-pack magic header 1f1f... OK"
+
+$CARGO_CMD decompress old-pack "$TMP_DIR/sample.txt.old.z" -o "$TMP_DIR/old_pack_decompressed.txt" --force
+cmp "$TEST_FILE" "$TMP_DIR/old_pack_decompressed.txt" || exit 1
+
 # 7. Test decompressing embedded fixtures directly
 FIXTURE_RAW="src/formats/compression/data/fixtures/example2 with lemurs.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force
@@ -98,4 +130,11 @@ diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_deflate.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.zz" -o "$TMP_DIR/fixture_zz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_zz.pan"
 
+$CARGO_CMD decompress "$FIXTURE_RAW.z" -o "$TMP_DIR/fixture_z.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_z.pan"
+
+$CARGO_CMD decompress "$FIXTURE_RAW.old.z" -o "$TMP_DIR/fixture_old_z.pan" --force
+diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_old_z.pan"
+
 echo "All compression CLI tests passed successfully!"
+

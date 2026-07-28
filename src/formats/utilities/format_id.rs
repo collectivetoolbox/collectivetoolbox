@@ -114,7 +114,6 @@ pub enum FormatId {
     AppleScript,
     JavaScript,
     TypeScript,
-    Perl,
     Bash,
     C,
     Cpp,
@@ -320,11 +319,9 @@ impl FormatId {
 
             Self::Tar | Self::Zip => FormatCategory::Archive,
 
-            Self::Html | Self::Json | Self::Markdown | Self::Pdf | Self::Pem => FormatCategory::Document,
+            Self::Html | Self::Json | Self::Markdown | Self::Pdf | Self::Pem | Self::Perl => FormatCategory::Document,
 
-            Self::Pan => FormatCategory::Database,
-
-            Self::Unknown => FormatCategory::Other,
+            _ => FormatCategory::Other,
         }
     }
 }
