@@ -123,32 +123,21 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-    let (resolved_input_path, raw_format) = match args.format {
-        Some(fmt_str) => {
+    let (resolved_input_path, explicit_format) = match args.format {
+        Some(ref fmt_str) => {
             if let Ok(parsed_fmt) = crate::CompressionFormat::try_from(fmt_str.as_str()) {
                 (args.input_path.clone(), Some(parsed_fmt))
             } else {
                 let in_path = PathBuf::from(fmt_str);
-                let inferred = in_path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .and_then(crate::CompressionFormat::from_extension);
-                (in_path, inferred)
+                (in_path, None)
             }
         }
-        None => {
-            let inferred = args
-                .input_path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .and_then(crate::CompressionFormat::from_extension);
-            (args.input_path.clone(), inferred)
-        }
+        None => (args.input_path.clone(), None),
     };
 
     let data = read_data(resolved_input_path.as_path())?;
 
-    let compression_format = match raw_format {
+    let compression_format = match explicit_format {
         Some(fmt) => fmt,
         None => crate::CompressionFormat::detect(
             Some(&data),

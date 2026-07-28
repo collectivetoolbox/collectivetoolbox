@@ -23,6 +23,8 @@ pub enum FormatCategory {
     Document,
     /// Executable / Binary formats.
     Executable,
+    /// Database formats.
+    Database,
     /// Other or uncategorized formats.
     Other,
 }

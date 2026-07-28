@@ -10,6 +10,7 @@ use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
 pub mod cli;
+pub mod pack;
 pub mod sco_compress;
 
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -201,6 +202,8 @@ pub fn compress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
+        CompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
+        CompressionFormat::OldPack => pack::compress_old_pack_stream(reader, writer),
         other => bail!("Compression for format '{other:?}' is not yet implemented"),
     }
 }
@@ -237,6 +240,8 @@ pub fn decompress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
+        CompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
+        CompressionFormat::OldPack => pack::decompress_old_pack_stream(reader, writer),
         other => bail!("Decompression for format '{other:?}' is not yet implemented"),
     }
 }
@@ -356,6 +361,8 @@ mod tests {
             CompressionFormat::Deflate,
             CompressionFormat::Zlib,
             CompressionFormat::ScoCompress,
+            CompressionFormat::Pack,
+            CompressionFormat::OldPack,
         ];
 
         for format in formats {
@@ -388,6 +395,10 @@ mod tests {
             .expect("Zlib fixture missing");
         let sco = get_compression_data("fixtures/example2 with lemurs.pan.sco")
             .expect("SCO compress fixture missing");
+        let pack_z = get_compression_data("fixtures/example2 with lemurs.pan.z")
+            .expect("Pack fixture missing");
+        let old_pack_z = get_compression_data("fixtures/example2 with lemurs.pan.old.z")
+            .expect("OldPack fixture missing");
 
         assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
@@ -410,5 +421,13 @@ mod tests {
         let decomp_sco =
             decompress(&sco, CompressionFormat::ScoCompress).expect("SCO compress decompress failed");
         assert_eq!(decomp_sco, raw);
+
+        let decomp_pack =
+            decompress(&pack_z, CompressionFormat::Pack).expect("Pack decompress failed");
+        assert_eq!(decomp_pack, raw);
+
+        let decomp_old_pack =
+            decompress(&old_pack_z, CompressionFormat::OldPack).expect("OldPack decompress failed");
+        assert_eq!(decomp_old_pack, raw);
     }
 }
