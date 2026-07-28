@@ -250,6 +250,12 @@ skip-tree = [
     #{ crate = "ansi_term@0.11.0", depth = 20 },
 ]
 
+[[bans.features]]
+crate = "bzip2"
+# Features to not allow
+deny = ["bzip2-sys"]
+
+
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
