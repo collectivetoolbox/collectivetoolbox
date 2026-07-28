@@ -1,4 +1,4 @@
-//! "UTF-8e-128" encoding and decoding (UTF-8 extended to 128-bit integers)
+//! "UTF-8e-128"/DcUtf encoding and decoding (UTF-8 extended to 128-bit integers)
 
 #[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
