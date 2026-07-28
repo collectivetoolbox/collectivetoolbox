@@ -40,6 +40,8 @@ pub enum CompressionFormat {
     CompressLzw2,
     /// Compress 1.0 headerless LZW (.Z)
     CompressLzw1,
+    /// Compress 1.6 sorted chain LZW (.Z)
+    CompressLzw16,
     /// System III/V Canonical Huffman pack (.z)
     Pack,
     /// Early PDP-11 Unix binary tree pack (.z)
@@ -60,6 +62,7 @@ impl CompressionFormat {
             Self::CompressLzw => FormatId::CompressLzw,
             Self::CompressLzw2 => FormatId::CompressLzw2,
             Self::CompressLzw1 => FormatId::CompressLzw1,
+            Self::CompressLzw16 => FormatId::CompressLzw16,
             Self::Pack => FormatId::Pack,
             Self::OldPack => FormatId::OldPack,
             Self::Compact => FormatId::Compact,
@@ -77,6 +80,7 @@ impl CompressionFormat {
             FormatId::CompressLzw => Some(Self::CompressLzw),
             FormatId::CompressLzw2 => Some(Self::CompressLzw2),
             FormatId::CompressLzw1 => Some(Self::CompressLzw1),
+            FormatId::CompressLzw16 => Some(Self::CompressLzw16),
             FormatId::Pack => Some(Self::Pack),
             FormatId::OldPack => Some(Self::OldPack),
             FormatId::Compact => Some(Self::Compact),
@@ -91,7 +95,7 @@ impl CompressionFormat {
             Self::Gzip => "gz",
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
-            Self::ScoCompress | Self::CompressLzw | Self::CompressLzw2 | Self::CompressLzw1 => "Z",
+            Self::ScoCompress | Self::CompressLzw | Self::CompressLzw2 | Self::CompressLzw1 | Self::CompressLzw16 => "Z",
             Self::Pack | Self::OldPack => "z",
             Self::Compact => "C",
         }
@@ -134,7 +138,8 @@ impl TryFrom<&str> for CompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s.trim().to_ascii_lowercase().as_str() {
+        let clean = s.trim_start_matches('.');
+        match clean.to_lowercase().as_str() {
             "brotli" | "br" => Ok(Self::Brotli),
             "gzip" | "gz" => Ok(Self::Gzip),
             "deflate" | "raw-deflate" => Ok(Self::Deflate),
@@ -144,6 +149,7 @@ impl TryFrom<&str> for CompressionFormat {
             "compress4" | "compress-4.0" | "compress-3.0" | "lzw-block" => Ok(Self::CompressLzw),
             "compress2" | "compress-2.0" | "lzw-nonblock" => Ok(Self::CompressLzw2),
             "compress1" | "compress-1.0" | "lzw-headerless" => Ok(Self::CompressLzw1),
+            "compress16" | "compress-1.6" | "lzw-sorted-chain" => Ok(Self::CompressLzw16),
             "pack" | "sys3-pack" | "sys5-pack" => Ok(Self::Pack),
             "old-pack" | "opack" | "pts-opack" | "early-pack" => Ok(Self::OldPack),
             "compact" | "uncompact" => Ok(Self::Compact),
@@ -205,7 +211,8 @@ pub fn compress_stream(
         CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
         CompressionFormat::CompressLzw
         | CompressionFormat::CompressLzw2
-        | CompressionFormat::CompressLzw1 => compress::compress_lzw_stream(reader, writer, format),
+        | CompressionFormat::CompressLzw1
+        | CompressionFormat::CompressLzw16 => compress::compress_lzw_stream(reader, writer, format),
         CompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
         CompressionFormat::OldPack => pack::compress_old_pack_stream(reader, writer),
         other => bail!("Compression for format '{other:?}' is not yet implemented"),
@@ -246,7 +253,8 @@ pub fn decompress_stream(
         CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
         CompressionFormat::CompressLzw
         | CompressionFormat::CompressLzw2
-        | CompressionFormat::CompressLzw1 => {
+        | CompressionFormat::CompressLzw1
+        | CompressionFormat::CompressLzw16 => {
             compress::decompress_lzw_stream(reader, writer, format)
         }
         CompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
@@ -373,6 +381,7 @@ mod tests {
             CompressionFormat::CompressLzw,
             CompressionFormat::CompressLzw2,
             CompressionFormat::CompressLzw1,
+            CompressionFormat::CompressLzw16,
             CompressionFormat::Pack,
             CompressionFormat::OldPack,
         ];
@@ -474,10 +483,8 @@ mod tests {
             decompress(&lzw_z10, CompressionFormat::CompressLzw1).expect("CompressLzw1 Z1.0 decompress failed");
         assert_eq!(decomp_lzw_z10, raw);
 
-        // Historical compress 1.6 (Aug 1 1984 sorted-chain) is incompatible with standard 1.0 headerless LZW
-        assert!(
-            decompress(&lzw_z16, CompressionFormat::CompressLzw1).is_err(),
-            "CompressLzw1 should return an error for historical compress 1.6 sorted-chain fixture"
-        );
+        let decomp_lzw_z16 =
+            decompress(&lzw_z16, CompressionFormat::CompressLzw16).expect("CompressLzw16 Z1.6 decompress failed");
+        assert_eq!(decomp_lzw_z16, raw);
     }
 }

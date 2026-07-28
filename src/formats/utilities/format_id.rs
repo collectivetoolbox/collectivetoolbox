@@ -18,6 +18,7 @@ pub enum FormatId {
     CompressLzw,
     CompressLzw2,
     CompressLzw1,
+    CompressLzw16,
     Pack,
     OldPack,
     Compact,
