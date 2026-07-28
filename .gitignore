@@ -27,3 +27,6 @@
 /.advisory-db
 
 /old
+
+# LibreOffice lock files
+.~lock*
