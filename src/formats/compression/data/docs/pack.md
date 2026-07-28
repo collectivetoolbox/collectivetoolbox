@@ -370,6 +370,6 @@ GNU `gzip` includes legacy support for decompressing `.z` files (`unpack` / `pca
 
 ### 4.4 References
 
-* Reference Haskell implementation of 1980s `pack`: [`old/unix-tools/pack/pack.hs`](file:///workspaces/ctoolbox/old/unix-tools/pack/pack.hs) by Vidar Holen.
+* Reference Haskell implementation of 1980s `pack`: pack.hs by Vidar Holen.
 * Technical analysis & historical overview: Vidar Holen, *[An ode to pack: gzip's forgotten decompressor](http://www.vidarholen.net/contents/blog/?p=691)* (2017).
 
