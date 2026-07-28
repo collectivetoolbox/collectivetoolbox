@@ -340,3 +340,36 @@ The decoded array `Tree[]` encodes a binary tree where each node is stored as a 
 | **In-Place Preservation** | Preserves permissions (`st_mode`), uid/gid, timestamps | Preserves permissions (`st_mode`), uid/gid, timestamps |
 | **Non-Saving Behavior** | Cancels compression if output blocks $\ge$ input blocks | Cancels compression if output blocks $\ge$ input blocks |
 | **Trivial File Handling** | Aborts if $<2$ distinct bytes in input | Aborts if $<2$ distinct bytes in input |
+
+---
+
+## 4. Implementation Details & Interoperability
+
+### 4.1 Length-Constrained Tree Construction (Package-Merge Algorithm)
+
+Standard greedy Huffman coding can yield tree depths up to $N-1$ (e.g. 256 levels for a 257-symbol alphabet with Fibonacci-like frequency distribution). However, System III/V `pack` headers restrict the maximum tree depth to $\text{maxlev} \le 24$.
+
+To construct optimal Huffman codes subject to a maximum code length constraint $L \le 24$:
+* **Package-Merge Algorithm**: The Package-Merge algorithm (Larmore & Hirschberg, 1990) computes minimum-redundancy length-bounded codes in $O(N L)$ time.
+* **Pass Structure**: Standard encoders use a 2-pass approach over the input data:
+  1. **Pass 1**: Count symbol frequencies across the input byte stream.
+  2. **Tree Building**: Run Package-Merge (or bounded Huffman construction) with $L \le 24$ over the non-zero frequency symbols plus the implicit `END` symbol (256).
+  3. **Pass 2**: Emit the packed header, canonical leaf counts, symbol array, and the encoded MSB-to-LSB bitstream.
+
+### 4.2 Bitstream Packing & Padding
+
+* **Bit Ordering**: Bits are packed into bytes starting at the Most Significant Bit (MSB, bit 7, `0x80`) down to the Least Significant Bit (LSB, bit 0, `0x01`).
+* **Stream End & Padding**: Immediately following the transmission of the `END` symbol code (256), bit writing stops. Any remaining unpopulated lower bits in the active byte accumulator must be zero-padded to fill the final byte.
+
+### 4.3 GNU Gzip Interoperability & Decoder Bugs (gzip Issue #28861)
+
+GNU `gzip` includes legacy support for decompressing `.z` files (`unpack` / `pcat` emulation).
+* **gzip 1.6–1.8 Bug**: `gzip` versions 1.6 through 1.8 (commits `16977ae7` through `79f88bd1`) contain a bug (gzip issue #28861) in their `.z` unpacking routine.
+* **Trigger Condition**: The bug occurs if the `END` symbol (256) is assigned a code pattern that is not the maximum (lexicographically / code-value highest) bit code among all symbols at the maximum tree depth.
+* **Encoder Workaround**: To ensure generated `.z` archives remain compatible with buggy `gzip` versions, encoders should assign symbol 256 (`END`) as the last leaf in canonical leaf order, guaranteeing it receives the highest prefix code bit sequence.
+
+### 4.4 References
+
+* Reference Haskell implementation of 1980s `pack`: [`old/unix-tools/pack/pack.hs`](file:///workspaces/ctoolbox/old/unix-tools/pack/pack.hs) by Vidar Holen.
+* Technical analysis & historical overview: Vidar Holen, *[An ode to pack: gzip's forgotten decompressor](http://www.vidarholen.net/contents/blog/?p=691)* (2017).
+
