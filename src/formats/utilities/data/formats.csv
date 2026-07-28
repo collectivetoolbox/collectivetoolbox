@@ -302,3 +302,6 @@ Import/export/tests support columns meaning:
 285,BinHex2,BinHex 2,armor,,,.hcx,,,,,,,
 286,BinHex5,BinHex 5,armor,,,,,,,,,,
 287,MacBinary,MacBinary,armor,,"application/macbinary, application/x-macbinary",".bin, .macbin",,,,,,,
+288,Shar,Shell archive,container,,,,,,,,,,
+289,Cpio,CPIO archive,container,,,,,,,,,,
+290,Pax,PAX archive,container,,,,,,,,,,
