@@ -270,7 +270,110 @@ zcat [-V] [--] [path ...]
 
 ---
 
-### 2.2 `.gz` Gzip DEFLATE Format Specification (POSIX 2024 Extension)
+### 2.2 Detailed Comparison of Historical LZW Format Variations (1.0 vs 1.6 vs 2.0 vs 3.0+)
+
+The `compress` bitstream format underwent critical structural evolution between its initial release in July 1984 and the standardization of block-mode LZW in 1985. The table below highlights the technical differences across historical versions:
+
+| Format Aspect | `compress 1.0` (Jul 1984) | `compress 1.6` (Jul–Aug 1984) | `compress 2.0` (Aug 1984) | `compress 3.0+` / `ncompress` (1985–Present) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Header Layout** | **Headerless** (0 bytes) | **Headerless** (0 bytes) | **3-Byte Unblocked Header** (`0x1F 0x9D`, `maxbits`) | **3-Byte Block Mode Header** (`0x1F 0x9D`, `MODE`) |
+| **Header Magic Bytes** | None | None | `0x1F 0x9D` | `0x1F 0x9D` |
+| **`BLOCK_MODE` Flag** | N/A (Unblocked) | N/A (Unblocked) | `0` (Unblocked; bit 7 of Byte 2 = `0`) | `1` by default (bit 7 of Byte 2 = `0x80`); `0` if `-C` |
+| **Code 256 Usage** | First dynamic dictionary code (`free_ent = 256`) | First dynamic dictionary code (`free_ent = 256`) | First dynamic dictionary code (`free_ent = 256`) | Reserved **`CLEAR` code** (flushes dictionary in block mode) |
+| **First Dynamic Code** | `256` | `256` | `256` | **`257`** (`free_ent = 257`) |
+| **`maxcode` Expression** | `1 << n_bits - 1` *(buggy)* | `1 << n_bits - 1` *(buggy)* | `((1 << n_bits) - 1)` *(corrected)* | `((1 << n_bits) - 1)` |
+| **9-Bit Code Capacity** | 1 dynamic code (entry 256 only) | 1 dynamic code (entry 256 only) | 256 dynamic codes (entries 256–511) | 255 dynamic codes (entries 257–511) |
+| **9-to-10 Bit Transition** | Triggered at `free_ent > 256` | Triggered at `free_ent > 256` | Triggered at `free_ent > 511` | Triggered at `free_ent > 511` |
+| **Bit Transition Flush** | Flushes full `n_bits`-byte buffer | Flushes full `n_bits`-byte buffer | Bitstream realigned to byte boundary | Bitstream realigned to byte boundary |
+| **Bit Packing Engine** | VAX assembly (`insv` / `extzv`) | Portable C (`insert_bit` / `fetch`) | Portable C bit manipulation | Portable C bit manipulation |
+| **String Table Lookup** | Array of structs + linked list | 4 separate arrays + sorted chain | 4 separate arrays + sorted chain | Open-addressing double hashing (`htab` / `codetab`) |
+| **CLI & File Handling** | Filter only (`stdin` $\to$ `stdout`) | Shell scripts (`Pack`/`Unpack`/`Pcat`) | In-binary replacement, `.Z` suffix | In-binary replacement, `-q`, `zmore` filter |
+
+---
+
+#### 2.2.1 Header Structure & Evolution
+
+1. **Headerless / Raw Stream (`compress 1.0` & `1.6`)**:
+   * Contains **no header bytes** (0-byte preamble).
+   * Bitstream begins directly at byte 0 with the first 9-bit LZW code.
+   * Lacks magic byte signatures (`0x1F 0x9D`), making format identification reliant on context or external file extensions.
+   * `compress 2.0` retained reading and writing capability for headerless streams via the undocumented `-n` command-line flag or compile-time option `#define COMPATIBLE`.
+
+2. **2-Byte Magic Header with Unblocked Mode (`compress 2.0`)**:
+   * Introduced a 3-byte header:
+     * Byte 0: `0x1F` (`MAGIC_1`, octal `\037`).
+     * Byte 1: `0x9D` (`MAGIC_2`, octal `\235`).
+     * Byte 2: `maxbits` parameter ($9 \le \text{maxbits} \le 16$, e.g. `0x10` for 16 bits).
+   * In 2.0, bit 7 of Byte 2 was always `0` (unblocked LZW coding without table resets).
+
+3. **3-Byte Header with Adaptive Block Mode (`compress 3.0+` / `ncompress`)**:
+   * Retained 3-byte layout but redefined Byte 2 (`MODE`) as a bitmask:
+     * **Bit 7 (`0x80`)**: `BLOCK_MODE` flag ($1 = \text{Adaptive Block Compression active}$, $0 = \text{unblocked mode}$).
+     * **Bits 5–6**: Reserved ($0$).
+     * **Bits 0–4 (`0x1F`)**: Maximum code bit-width (`maxbits`, $9 \le \text{maxbits} \le 16$).
+   * When `BLOCK_MODE` is enabled (default in 3.0+), the encoder monitors compression ratio at 10,000-byte intervals once the dictionary fills. If ratio decreases, a `CLEAR` code (`256`) is emitted and the table is reset.
+   * Legacy 2.0 unblocked mode can still be generated in 3.0+ using the `-C` flag (which clears bit 7 of Byte 2).
+
+---
+
+#### 2.2.2 Dictionary Indexing & Code 256 Usage
+
+* **`compress 1.0`, `1.6`, and `2.0` (Unblocked Mode)**:
+  * Symbol range $0\text{--}255$: Reserved for literal single-byte characters (`0x00` through `0xFF`).
+  * Symbol `256`: Assigned as the **first dynamic dictionary entry** (`free_ent = 256`) representing the first 2-character input sequence encountered.
+  * No `CLEAR` code exists. Once the dictionary reaches $2^{\text{maxbits}}$ entries, learning halts and subsequent input is encoded using fixed `maxbits` codes without table resets.
+
+* **`compress 3.0+` (Block Mode Default)**:
+  * Symbol range $0\text{--}255$: Reserved for literal byte characters.
+  * Symbol **`256`**: Reserved as the special **`CLEAR` code**.
+  * Symbol **`257`**: Assigned as the **first dynamic dictionary entry** (`free_ent = 257`).
+  * When a `CLEAR` code (`256`) is encountered in the stream, decoders flush the string table, reset `n_bits` to 9, and resume building entries starting at code `257`.
+
+---
+
+#### 2.2.3 Bit Width Increment Threshold (`maxcode`) & 1.x vs 2.0 Incompatibility
+
+A major binary format incompatibility exists between `compress 1.x` and `compress 2.0+` due to an operator precedence bug in the original C source code:
+
+* **The `compress 1.0` / `1.6` Bug**:
+  In `compress 1.0` and `1.6`, `maxcode` (the entry count threshold that triggers bumping code width $N \to N+1$) was written as:
+  ```c
+  long int maxcode = 1 << n_bits - 1;
+  ```
+  Because the C operator precedence of subtraction (`-`) is higher than bitwise left-shift (`<<`), the compiler evaluated this expression as:
+  $$\text{maxcode} = 1 \ll (n\_bits - 1)$$
+  * At initial width $n\_bits = 9$: $\text{maxcode} = 1 \ll 8 = 256$.
+  * When the first dynamic entry (`free_ent = 256`) was added to the table, `free_ent` became 257. The check `free_ent > maxcode` ($257 > 256$) evaluated to **true immediately** after generating just **one** dynamic entry at 9 bits.
+  * Consequently, `compress 1.0` and `1.6` switched from 9-bit codes to 10-bit codes at code 257, from 10-bit to 11-bit at code 513 ($\text{maxcode} = 1 \ll 9 = 512$), from 11-bit to 12-bit at code 1025, and so on.
+
+* **The `compress 2.0+` Correction**:
+  In `compress 2.0`, Joe Orost corrected the macro definition to:
+  ```c
+  #define MAXCODE(n_bits) ((1 << (n_bits)) - 1)
+  ```
+  This evaluated $\text{maxcode}$ correctly as $2^{n\_bits} - 1$:
+  * At initial width $n\_bits = 9$: $\text{maxcode} = 2^9 - 1 = 511$.
+  * Codes 256 through 511 (256 dynamic entries) are all emitted as 9-bit codes.
+  * The transition to 10 bits occurs when `free_ent` exceeds 511 (at code 512).
+  * Transition to 11 bits occurs at code 1024 ($\text{maxcode} = 1023$), 12 bits at code 2048 ($\text{maxcode} = 2047$), etc.
+
+* **Binary Incompatibility**:
+  Because code bit-widths transition at completely different stream indices (code 257 in 1.x vs code 512 in 2.0+), a stream generated by `compress 1.0` or `1.6` cannot be decompressed by standard `compress 2.0+` decoders (and vice versa). Compiling `compress 2.0` with `-DCOMPATIBLE` restored the buggy 1.x `maxcode` logic to read and write legacy 1.x files.
+
+---
+
+#### 2.2.4 Bit Packing & Stream Alignment
+
+* **`compress 1.0` & `1.6` Buffer Flushing**:
+  * In `compress 1.0`, code packing relied on VAX assembly inline instructions (`insv` to insert bitfields into a `buf[BITS]` array). `compress 1.6` added C helper functions (`insert_bit` and `fetch`).
+  * When `free_ent > maxcode` triggered a bit-width increase ($n\_bits \to n\_bits + 1$), if there were remaining bits in the output buffer (`offset > 0`), `compress 1.0` and `1.6` forcibly wrote out the **entire buffer** of $n\_bits$ (old width) bytes (`fwrite(buf, 1, n_bits, stdout)`), reset `offset = 0`, and then incremented $n\_bits$.
+
+* **`compress 3.0+` Byte Realignment**:
+  * In `compress 3.0+`, whenever code bit-width increases or a `CLEAR` code (`256`) is emitted, the bitstream is realigned to the next full byte boundary (zero-padding any unwritten fractional bits in the current byte accumulator).
+
+---
+
+### 2.3 `.gz` Gzip DEFLATE Format Specification (POSIX 2024 Extension)
 
 #### Header & Structure Layout
 When built with zlib (`USE_ZLIB=1`), `compress` generates standard gzip containers compliant with RFC 1952 / POSIX 2024:
@@ -301,10 +404,10 @@ When built with zlib (`USE_ZLIB=1`), `compress` generates standard gzip containe
 
 | Version / Revision | Primary Features & Format Changes |
 | :--- | :--- |
-| **`compress 1.0`** (Jul 1984) | Initial release by Spencer W. Thomas (University of Utah) based on Welch's June 1984 IEEE Computer LZW algorithm. Filter-only operation reading `stdin` or a single input file and writing directly to `stdout`. Headerless stream with no magic bytes or block clear codes; dictionary entries started at code 256. |
-| **`compress 1.6`** (Jul–Aug 1984) | Multi-platform overhaul by Joseph M. Orost and Steve Davies. Provided shell script wrappers `Pack`, `Unpack`, and `Pcat` to emulate System V `pack`/`unpack`/`pcat` commands using `.Z` extensions, enforcing 12-character filename limits (for 14-char filesystems), link checks, metadata copying, and file unlinking. |
-| **`compress 2.0`** (Aug 1984) | Major functional integration by Joe Orost, Jim McKie, Steve Davies, and Ken Turkowski. Integrated in-place file replacement directly into `compress` (eliminating `Pack`/`Unpack` scripts). Introduced executable hard links (`uncompress`, `zcat`), 2-byte magic header (`0x1F 0x9D`), 3rd `maxbits` header byte, flags `-f` and `-c`, optional 1.0 headerless output (`-C` / `COMPATIBLE`), and exit codes (`0`, `1`, `2`). |
-| **`compress 3.0`** (Jan 1985) | Architectural upgrade by Joe Orost and James A. Woods. Introduced **Adaptive Block Compression** (`BLOCK_MODE` bit `0x80` in 3rd header byte) and `CLEAR` code ($256$) to flush dictionary on ratio drops. Replaced character chaining with open-addressing double hashing. Added `-q` (quiet mode) and `zmore` interactive CRT paging filter. Stream format was incompatible with 2.0 output (unless `-C` specified), though 3.0+ decoders retained full 2.0 reading support. |
+| **`compress 1.0`** (Jul 1984) | Initial release by Spencer W. Thomas (University of Utah) based on Welch's June 1984 IEEE Computer LZW algorithm. VAX assembly (`insv`/`extzv`). Filter-only operation (`stdin` $\to$ `stdout`). Headerless stream with no magic bytes or block clear codes; dictionary entries started at code 256. Contained `1 << n_bits - 1` precedence bug causing bit size bump at code 257. |
+| **`compress 1.6`** (Jul–Aug 1984) | Multi-platform overhaul by Joseph M. Orost and Steve Davies. Added portable C bit packing (`insert_bit`/`fetch`) and split array memory optimizations (`tab_next`, `tab_chain`, `tab_prefix`, `tab_suffix`). Provided shell script wrappers `Pack`, `Unpack`, and `Pcat` with helper `copystat.c` to emulate System V `pack`/`unpack`/`pcat` commands using `.Z` extensions, enforcing 12-character filename limits (for 14-char filesystems), link checks, metadata copying, and file unlinking. Retained 1.0 bitstream format compatibility. |
+| **`compress 2.0`** (Aug 1984) | Major functional integration by Joe Orost, Jim McKie, Steve Davies, and Ken Turkowski. Integrated in-place file replacement directly into `compress` (eliminating `Pack`/`Unpack` scripts). Introduced executable hard links (`uncompress`, `zcat`), 2-byte magic header (`0x1F 0x9D`), 3rd `maxbits` header byte, flags `-f` and `-c`, optional 1.0 headerless output (`-n` / `-C` / `COMPATIBLE`), exit codes (`0`, `1`, `2`), and corrected `maxcode` operator precedence (`((1 << n_bits) - 1)`). |
+| **`compress 3.0`** (Jan 1985) | Architectural upgrade by Joe Orost and James A. Woods. Introduced **Adaptive Block Compression** (`BLOCK_MODE` bit `0x80` in 3rd header byte) and `CLEAR` code ($256$) to flush dictionary on ratio drops. Replaced character chaining with open-addressing double hashing (`htab`/`codetab`). Added `-q` (quiet mode) and `zmore` interactive CRT paging filter. Stream format was incompatible with 2.0 output (unless `-C` specified), though 3.0+ decoders retained full 2.0 reading support. |
 | **`compress 4.0`** (1985–1986) | Standard System V Release 3, 4.3BSD, and 2.11BSD world release by Thomas, McKie, Davies, Turkowski, Woods, and Orost. Added build autotuning for RAM constraints (`USERMEM`/`SACREDMEM`, restricting 16-bit systems like PDP-11 to 12 maxbits). Ported to non-Unix environments such as Apollo Aegis/Domain OS (handling object types like `uasc` and `obj`). |
 | **`compress 4.1`** (1990–1991) | Added recursive directory traversal (`-r` / `-R` flags) authored by Dave Mack. |
 | **`(N)compress 4.2+`** | Performance enhancement release by Peter Jannesen featuring 2-level fast prime hash table lookup algorithm for high-memory systems (`USERMEM >= 800KB`). |
