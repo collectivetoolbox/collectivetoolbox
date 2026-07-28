@@ -110,7 +110,8 @@ allow = [
     'NCSA',
     'Artistic-2.0',
     'X11',
-    'GPL-2.0-or-later'
+    'GPL-2.0-or-later',
+    'bzip2-1.0.6',
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
