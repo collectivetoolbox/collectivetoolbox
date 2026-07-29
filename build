@@ -341,9 +341,6 @@ for p in "${platforms[@]}"; do
     fi
 
     if [[ "$run_tests" == "true" ]]; then
-        echo "=== Running CLI compression tests ==="
-        bash scripts/test-compression-cli || exit 1
-
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
@@ -354,6 +351,9 @@ for p in "${platforms[@]}"; do
             CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- || exit 1
         fi
     fi
+
+    echo "=== Running CLI compression tests ==="
+    bash scripts/test-compression-cli || exit 1
 
     if [[ "$build_binaries" == "true" ]]; then
         if [[ "$release" == "release" ]]; then
