@@ -10,6 +10,7 @@ use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
 pub mod cli;
+pub mod compact;
 pub mod compress;
 pub mod pack;
 pub mod sco_compress;
@@ -229,7 +230,7 @@ pub fn compress_stream(
         | CompressionFormat::CompressLzw16 => compress::compress_lzw_stream(reader, writer, format),
         CompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
         CompressionFormat::OldPack => pack::compress_old_pack_stream(reader, writer),
-        other => bail!("Compression for format '{other:?}' is not yet implemented"),
+        CompressionFormat::Compact => compact::compress_compact_stream(reader, writer),
     }
 }
 
@@ -279,7 +280,7 @@ pub fn decompress_stream(
         }
         CompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
         CompressionFormat::OldPack => pack::decompress_old_pack_stream(reader, writer),
-        other => bail!("Decompression for format '{other:?}' is not yet implemented"),
+        CompressionFormat::Compact => compact::decompress_compact_stream(reader, writer),
     }
 }
 
@@ -414,6 +415,7 @@ mod tests {
             CompressionFormat::CompressLzw16,
             CompressionFormat::Pack,
             CompressionFormat::OldPack,
+            CompressionFormat::Compact,
         ];
 
         for format in formats {
@@ -464,6 +466,8 @@ mod tests {
             .expect("LZW Z1.0 fixture missing");
         let lzw_z16 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.6")
             .expect("LZW Z1.6 fixture missing");
+        let compact = get_compression_data("fixtures/example2 with lemurs.pan.C")
+            .expect("Compact fixture missing");
 
         assert!(!raw.is_empty(), "Raw fixture must not be empty");
 
@@ -522,5 +526,9 @@ mod tests {
         let decomp_lzw_z16 =
             decompress(&lzw_z16, CompressionFormat::CompressLzw16).expect("CompressLzw16 Z1.6 decompress failed");
         assert_eq!(decomp_lzw_z16, raw);
+
+        let decomp_compact = decompress(&compact, CompressionFormat::Compact)
+            .expect("Compact decompress failed");
+        assert_eq!(decomp_compact, raw);
     }
 }
