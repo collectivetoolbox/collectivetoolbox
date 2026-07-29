@@ -13,14 +13,14 @@ pub const COMPACT_MAGIC: [u8; 2] = [0xFF, 0x1F];
 const SYMBOL_EF: u16 = 256;
 const SYMBOL_NC: u16 = 257;
 
-/// Helper struct for MSB-to-LSB Bit Reader (8-bit bytes).
-struct BitReader<R: Read> {
+/// 16-bit word bit reader matching 4.1cBSD `union cio` I/O.
+struct WordReader<R: Read> {
     reader: R,
     bitbuf: u32,
     valid: u32,
 }
 
-impl<R: Read> BitReader<R> {
+impl<R: Read> WordReader<R> {
     fn new(reader: R) -> Self {
         Self {
             reader,
@@ -47,9 +47,13 @@ impl<R: Read> BitReader<R> {
 
     fn read_bit(&mut self) -> Result<u32> {
         if self.valid == 0 {
-            let byte = self.read_byte()?;
-            self.bitbuf = u32::from(byte);
-            self.valid = 8;
+            let hib = self.read_byte()?;
+            let lob = match self.read_byte() {
+                Ok(b) => b,
+                Err(_) => 0, // Trailing byte padding
+            };
+            self.bitbuf = (u32::from(hib) << 8) | u32::from(lob);
+            self.valid = 16;
         }
         let shift = self.valid.saturating_sub(1);
         let bit = (self.bitbuf >> shift) & 1;
@@ -68,15 +72,15 @@ impl<R: Read> BitReader<R> {
     }
 }
 
-/// Helper struct for MSB-to-LSB Bit Writer (8-bit bytes).
-struct BitWriter<W: Write> {
+/// 16-bit word bit writer matching 4.1cBSD `union cio` I/O.
+struct WordWriter<W: Write> {
     writer: W,
     bitbuf: u32,
     valid: u32,
     bytes_written: u64,
 }
 
-impl<W: Write> BitWriter<W> {
+impl<W: Write> WordWriter<W> {
     fn new(writer: W) -> Self {
         Self {
             writer,
@@ -89,12 +93,15 @@ impl<W: Write> BitWriter<W> {
     fn write_bit(&mut self, bit: u32) -> Result<()> {
         self.bitbuf = (self.bitbuf << 1) | (bit & 1);
         self.valid = self.valid.saturating_add(1);
-        if self.valid == 8 {
-            let byte = u8::try_from(self.bitbuf & 0xFF).context("Bit buffer conversion failed")?;
+        if self.valid == 16 {
+            let hib = u8::try_from((self.bitbuf >> 8) & 0xFF)
+                .context("Bit buffer conversion failed")?;
+            let lob = u8::try_from(self.bitbuf & 0xFF)
+                .context("Bit buffer conversion failed")?;
             self.writer
-                .write_all(&[byte])
-                .context("Failed to write bitstream byte")?;
-            self.bytes_written = self.bytes_written.saturating_add(1);
+                .write_all(&[hib, lob])
+                .context("Failed to write bitstream word")?;
+            self.bytes_written = self.bytes_written.saturating_add(2);
             self.bitbuf = 0;
             self.valid = 0;
         }
@@ -113,13 +120,23 @@ impl<W: Write> BitWriter<W> {
 
     fn flush_padding(&mut self) -> Result<()> {
         if self.valid > 0 {
-            let shift = 8u32.saturating_sub(self.valid);
-            let byte = u8::try_from((self.bitbuf << shift) & 0xFF)
+            let shift = 16u32.saturating_sub(self.valid);
+            let padded = self.bitbuf << shift;
+            let hib = u8::try_from((padded >> 8) & 0xFF)
                 .context("Bit buffer padding conversion failed")?;
             self.writer
-                .write_all(&[byte])
+                .write_all(&[hib])
                 .context("Failed to write final bitstream padding byte")?;
             self.bytes_written = self.bytes_written.saturating_add(1);
+
+            if self.valid > 8 {
+                let lob = u8::try_from(padded & 0xFF)
+                    .context("Bit buffer padding conversion failed")?;
+                self.writer
+                    .write_all(&[lob])
+                    .context("Failed to write final bitstream padding byte")?;
+                self.bytes_written = self.bytes_written.saturating_add(1);
+            }
             self.bitbuf = 0;
             self.valid = 0;
         }
@@ -130,253 +147,233 @@ impl<W: Write> BitWriter<W> {
     }
 }
 
-/// A node in the McMaster adaptive Huffman tree.
+/// A node in McMaster's adaptive Huffman tree dict array.
 #[derive(Debug, Clone, Copy)]
-struct TreeNode {
-    rank: i32,
-    weight: u32,
-    symbol: Option<u16>,
-    parent: Option<usize>,
-    left: Option<usize>,
-    right: Option<usize>,
+struct DictNode {
+    fp: Option<usize>,
+    sp: [Option<usize>; 2],
+    count: [u32; 2],
 }
 
-/// McMaster's Online Adaptive Huffman Coding Tree.
+/// McMaster's 1979 4.1cBSD Online Adaptive Huffman Coding Tree.
 struct CompactTree {
-    nodes: Vec<TreeNode>,
-    symbol_leaf: [Option<usize>; 258],
-    root_idx: usize,
-    min_rank: i32,
+    dict: Vec<DictNode>,
+    leaf_parent: [Option<usize>; 258],
+    leaf_dir: [usize; 258],
+    bottom_idx: usize,
 }
 
 impl CompactTree {
     fn new(first_byte: u8) -> Self {
         let first_byte_u16 = u16::from(first_byte);
-        let first_byte_idx = usize::from(first_byte);
+        let first_byte_idx = usize::from(first_byte_u16);
 
-        let mut symbol_leaf = [None; 258];
+        let mut dict = vec![
+            DictNode {
+                fp: None,
+                sp: [None, None],
+                count: [0, 0],
+            };
+            515
+        ];
 
-        let root = TreeNode {
-            rank: 4,
-            weight: 2,
-            symbol: None,
-            parent: None,
-            left: Some(1),
-            right: Some(2),
-        };
-        let dict1 = TreeNode {
-            rank: 3,
-            weight: 2,
-            symbol: None,
-            parent: Some(0),
-            left: Some(4),
-            right: Some(3),
-        };
-        let leaf_c0 = TreeNode {
-            rank: 2,
-            weight: 1,
-            symbol: Some(first_byte_u16),
-            parent: Some(0),
-            left: None,
-            right: None,
-        };
-        let leaf_ef = TreeNode {
-            rank: 1,
-            weight: 1,
-            symbol: Some(SYMBOL_EF),
-            parent: Some(1),
-            left: None,
-            right: None,
-        };
-        let leaf_nc = TreeNode {
-            rank: 0,
-            weight: 1,
-            symbol: Some(SYMBOL_NC),
-            parent: Some(1),
-            left: None,
-            right: None,
-        };
+        let mut leaf_parent = [None; 258];
+        let mut leaf_dir = [0; 258];
 
-        if let Some(slot) = symbol_leaf.get_mut(first_byte_idx) {
-            *slot = Some(2);
+        // Root dict[0]: left = C0 leaf (sp[0]=None), right = dict[1] (sp[1]=Some(1))
+        if let Some(d0) = dict.get_mut(0) {
+            d0.count = [1, 2];
+            d0.sp[1] = Some(1);
         }
-        if let Some(slot) = symbol_leaf.get_mut(usize::from(SYMBOL_EF)) {
-            *slot = Some(3);
-        }
-        if let Some(slot) = symbol_leaf.get_mut(usize::from(SYMBOL_NC)) {
-            *slot = Some(4);
+        if let Some(d1) = dict.get_mut(1) {
+            d1.fp = Some(0);
+            d1.count = [1, 1];
+            // d1.sp[0] = NC (257), d1.sp[1] = EF (256)
         }
 
-        let nodes = vec![root, dict1, leaf_c0, leaf_ef, leaf_nc];
+        if let Some(slot) = leaf_parent.get_mut(first_byte_idx) {
+            *slot = Some(0);
+        }
+        if let Some(slot) = leaf_dir.get_mut(first_byte_idx) {
+            *slot = 0;
+        }
+
+        if let Some(slot) = leaf_parent.get_mut(usize::from(SYMBOL_NC)) {
+            *slot = Some(1);
+        }
+        if let Some(slot) = leaf_dir.get_mut(usize::from(SYMBOL_NC)) {
+            *slot = 0;
+        }
+
+        if let Some(slot) = leaf_parent.get_mut(usize::from(SYMBOL_EF)) {
+            *slot = Some(1);
+        }
+        if let Some(slot) = leaf_dir.get_mut(usize::from(SYMBOL_EF)) {
+            *slot = 1;
+        }
 
         Self {
-            nodes,
-            symbol_leaf,
-            root_idx: 0,
-            min_rank: 0,
+            dict,
+            leaf_parent,
+            leaf_dir,
+            bottom_idx: 1,
         }
     }
 
-    fn swap_nodes(&mut self, n1_idx: usize, n2_idx: usize) {
-        if n1_idx == n2_idx {
+    fn exch(&mut self, p1: usize, b1: usize, p2: usize, b2: usize) {
+        if p1 == p2 && b1 == b2 {
             return;
         }
 
-        let p1_opt = self.nodes.get(n1_idx).and_then(|n| n.parent);
-        let p2_opt = self.nodes.get(n2_idx).and_then(|n| n.parent);
-
-        if p1_opt == Some(n2_idx) || p2_opt == Some(n1_idx) {
-            return;
-        }
-
-        let (Some(p1), Some(p2)) = (p1_opt, p2_opt) else {
-            return;
+        let (s1, c1) = match self.dict.get(p1) {
+            Some(n) => (n.sp.get(b1).copied().flatten(), n.count.get(b1).copied().unwrap_or(0)),
+            None => return,
+        };
+        let (s2, c2) = match self.dict.get(p2) {
+            Some(n) => (n.sp.get(b2).copied().flatten(), n.count.get(b2).copied().unwrap_or(0)),
+            None => return,
         };
 
-        // Update left/right pointers in parent p1
-        if let Some(p1_node) = self.nodes.get_mut(p1) {
-            if p1_node.left == Some(n1_idx) {
-                p1_node.left = Some(n2_idx);
-            } else if p1_node.right == Some(n1_idx) {
-                p1_node.right = Some(n2_idx);
+        if let Some(n1) = self.dict.get_mut(p1) {
+            if let Some(slot) = n1.sp.get_mut(b1) {
+                *slot = s2;
+            }
+            if let Some(slot) = n1.count.get_mut(b1) {
+                *slot = c2;
+            }
+        }
+        if let Some(child_idx) = s2 {
+            if let Some(n) = self.dict.get_mut(child_idx) {
+                n.fp = Some(p1);
             }
         }
 
-        // Update left/right pointers in parent p2
-        if let Some(p2_node) = self.nodes.get_mut(p2) {
-            if p2_node.left == Some(n2_idx) {
-                p2_node.left = Some(n1_idx);
-            } else if p2_node.right == Some(n2_idx) {
-                p2_node.right = Some(n1_idx);
+        if let Some(n2) = self.dict.get_mut(p2) {
+            if let Some(slot) = n2.sp.get_mut(b2) {
+                *slot = s1;
+            }
+            if let Some(slot) = n2.count.get_mut(b2) {
+                *slot = c1;
             }
         }
-
-        // Swap parent pointers
-        if let Some(n1_node) = self.nodes.get_mut(n1_idx) {
-            n1_node.parent = Some(p2);
-        }
-        if let Some(n2_node) = self.nodes.get_mut(n2_idx) {
-            n2_node.parent = Some(p1);
-        }
-
-        // Swap ranks
-        let r1 = self.nodes.get(n1_idx).map(|n| n.rank).unwrap_or(0);
-        let r2 = self.nodes.get(n2_idx).map(|n| n.rank).unwrap_or(0);
-
-        if let Some(n1_node) = self.nodes.get_mut(n1_idx) {
-            n1_node.rank = r2;
-        }
-        if let Some(n2_node) = self.nodes.get_mut(n2_idx) {
-            n2_node.rank = r1;
+        if let Some(child_idx) = s1 {
+            if let Some(n) = self.dict.get_mut(child_idx) {
+                n.fp = Some(p2);
+            }
         }
     }
 
-    fn uptree(&mut self, start_idx: usize) {
-        let mut curr_idx = start_idx;
-        while curr_idx != self.root_idx {
-            let curr_weight = match self.nodes.get(curr_idx) {
-                Some(n) => n.weight,
-                None => break,
-            };
-            let curr_rank = match self.nodes.get(curr_idx) {
-                Some(n) => n.rank,
-                None => break,
-            };
-            let curr_parent = match self.nodes.get(curr_idx) {
-                Some(n) => n.parent,
+    fn uptree(&mut self, symbol: u16) {
+        let sym_idx = usize::from(symbol);
+        let mut curr_p = match self.leaf_parent.get(sym_idx) {
+            Some(&Some(idx)) => Some(idx),
+            _ => None,
+        };
+        let mut curr_b = match self.leaf_dir.get(sym_idx) {
+            Some(&b) => b,
+            _ => 0,
+        };
+
+        while let Some(p_idx) = curr_p {
+            let w = match self.dict.get(p_idx).and_then(|n| n.count.get(curr_b)) {
+                Some(&cnt) => cnt,
                 None => break,
             };
 
-            // Find highest rank node with matching weight
-            let mut max_rank = -1;
-            let mut max_idx = None;
+            let mut target_p = None;
+            let mut target_b = None;
 
-            for (idx, node) in self.nodes.iter().enumerate() {
-                if node.weight == curr_weight && node.rank > max_rank {
-                    max_rank = node.rank;
-                    max_idx = Some(idx);
+            for i in 0..=self.bottom_idx {
+                if let Some(cand) = self.dict.get(i) {
+                    for (cb, &cnt) in cand.count.iter().enumerate() {
+                        if (i != p_idx || cb != curr_b) && cnt == w {
+                            target_p = Some(i);
+                            target_b = Some(cb);
+                            break;
+                        }
+                    }
+                }
+                if target_p.is_some() {
+                    break;
                 }
             }
 
-            if let Some(highest_idx) = max_idx {
-                if max_rank > curr_rank && Some(highest_idx) != curr_parent {
-                    self.swap_nodes(curr_idx, highest_idx);
+            if let (Some(tp), Some(tb)) = (target_p, target_b) {
+                if tp != p_idx || tb != curr_b {
+                    self.exch(p_idx, curr_b, tp, tb);
                 }
             }
 
-            if let Some(node) = self.nodes.get_mut(curr_idx) {
-                node.weight = node.weight.saturating_add(1);
+            if let Some(n) = self.dict.get_mut(p_idx) {
+                if let Some(slot) = n.count.get_mut(curr_b) {
+                    *slot = slot.saturating_add(1);
+                }
             }
 
-            let next_parent = match self.nodes.get(curr_idx) {
-                Some(n) => n.parent,
+            let old_p_idx = p_idx;
+            curr_p = match self.dict.get(p_idx) {
+                Some(n) => n.fp,
                 None => None,
             };
-            match next_parent {
-                Some(p) => curr_idx = p,
-                None => break,
+            if let Some(parent_idx) = curr_p {
+                let parent_right = match self.dict.get(parent_idx) {
+                    Some(n) => n.sp[1],
+                    None => None,
+                };
+                curr_b = if parent_right == Some(old_p_idx) { 1 } else { 0 };
             }
-        }
-
-        if let Some(root_node) = self.nodes.get_mut(self.root_idx) {
-            root_node.weight = root_node.weight.saturating_add(1);
         }
     }
 
     fn insert(&mut self, symbol: u8) -> Result<()> {
-        let nc_sym_idx = usize::from(SYMBOL_NC);
-        let nc_node_idx = match self.symbol_leaf.get(nc_sym_idx) {
+        let nc_parent_idx = match self.leaf_parent.get(usize::from(SYMBOL_NC)) {
             Some(&Some(idx)) => idx,
-            _ => bail!("NC leaf symbol not present in tree"),
+            _ => bail!("NC escape leaf missing from tree"),
         };
 
-        let nc_weight = match self.nodes.get(nc_node_idx) {
-            Some(n) => n.weight,
-            None => bail!("Invalid NC node index"),
+        let old_right = match self.dict.get(nc_parent_idx) {
+            Some(n) => n.sp[1],
+            None => bail!("Invalid NC parent node"),
+        };
+        let old_count = match self.dict.get(nc_parent_idx) {
+            Some(n) => n.count[1],
+            None => bail!("Invalid NC parent count"),
         };
 
-        if let Some(nc_node) = self.nodes.get_mut(nc_node_idx) {
-            nc_node.symbol = None;
+        self.bottom_idx = self.bottom_idx.saturating_add(1);
+        let new_bottom_idx = self.bottom_idx;
+
+        if let Some(pp) = self.dict.get_mut(nc_parent_idx) {
+            pp.sp[1] = Some(new_bottom_idx);
         }
 
-        let new_nc_rank = self.min_rank.saturating_sub(1);
-        let new_sym_rank = self.min_rank.saturating_sub(2);
-        self.min_rank = self.min_rank.saturating_sub(2);
+        if let Some(nb) = self.dict.get_mut(new_bottom_idx) {
+            nb.fp = Some(nc_parent_idx);
+            nb.sp[0] = old_right;
+            nb.sp[1] = None; // leaf symbol ch
+            nb.count[0] = old_count;
+            nb.count[1] = 0;
+        }
 
-        let new_nc_idx = self.nodes.len();
-        let new_nc_node = TreeNode {
-            rank: new_nc_rank,
-            weight: nc_weight,
-            symbol: Some(SYMBOL_NC),
-            parent: Some(nc_node_idx),
-            left: None,
-            right: None,
-        };
-        self.nodes.push(new_nc_node);
+        if let Some(child_idx) = old_right {
+            if let Some(n) = self.dict.get_mut(child_idx) {
+                n.fp = Some(new_bottom_idx);
+            }
+        }
 
-        let sym_u16 = u16::from(symbol);
+        if let Some(slot) = self.leaf_parent.get_mut(usize::from(SYMBOL_EF)) {
+            *slot = Some(new_bottom_idx);
+        }
+        if let Some(slot) = self.leaf_dir.get_mut(usize::from(SYMBOL_EF)) {
+            *slot = 0;
+        }
+
         let sym_usize = usize::from(symbol);
-        let new_sym_idx = self.nodes.len();
-        let new_sym_node = TreeNode {
-            rank: new_sym_rank,
-            weight: 0,
-            symbol: Some(sym_u16),
-            parent: Some(nc_node_idx),
-            left: None,
-            right: None,
-        };
-        self.nodes.push(new_sym_node);
-
-        if let Some(nc_node) = self.nodes.get_mut(nc_node_idx) {
-            nc_node.left = Some(new_nc_idx);
-            nc_node.right = Some(new_sym_idx);
+        if let Some(slot) = self.leaf_parent.get_mut(sym_usize) {
+            *slot = Some(new_bottom_idx);
         }
-
-        if let Some(slot) = self.symbol_leaf.get_mut(nc_sym_idx) {
-            *slot = Some(new_nc_idx);
-        }
-        if let Some(slot) = self.symbol_leaf.get_mut(sym_usize) {
-            *slot = Some(new_sym_idx);
+        if let Some(slot) = self.leaf_dir.get_mut(sym_usize) {
+            *slot = 1;
         }
 
         Ok(())
@@ -384,31 +381,39 @@ impl CompactTree {
 
     fn get_code_path(&self, symbol: u16) -> Result<Vec<u32>> {
         let sym_usize = usize::from(symbol);
-        let leaf_idx = match self.symbol_leaf.get(sym_usize) {
+        let parent_idx = match self.leaf_parent.get(sym_usize) {
             Some(&Some(idx)) => idx,
             _ => bail!("Symbol {symbol} not present in Huffman tree"),
         };
 
         let mut path = Vec::new();
-        let mut curr = leaf_idx;
-        while curr != self.root_idx {
-            let parent_idx = match self.nodes.get(curr).and_then(|n| n.parent) {
-                Some(p) => p,
-                None => bail!("Node {curr} has missing parent before root"),
-            };
-            let parent_node = match self.nodes.get(parent_idx) {
-                Some(p) => p,
-                None => bail!("Parent node {parent_idx} not found"),
+        let mut curr_dir = match self.leaf_dir.get(sym_usize) {
+            Some(&d) => d,
+            _ => 0,
+        };
+        let mut curr_p = parent_idx;
+
+        loop {
+            let bit = u32::try_from(curr_dir).context("Invalid branch direction")?;
+            path.push(bit);
+
+            let node = match self.dict.get(curr_p) {
+                Some(n) => n,
+                None => bail!("Corrupted node index {curr_p}"),
             };
 
-            if parent_node.left == Some(curr) {
-                path.push(0);
-            } else if parent_node.right == Some(curr) {
-                path.push(1);
-            } else {
-                bail!("Inconsistent tree parent-child relationship");
-            }
-            curr = parent_idx;
+            let fp = match node.fp {
+                Some(p) => p,
+                None => break,
+            };
+
+            let fp_node = match self.dict.get(fp) {
+                Some(n) => n,
+                None => bail!("Corrupted parent node index {fp}"),
+            };
+
+            curr_dir = if fp_node.sp[1] == Some(curr_p) { 1 } else { 0 };
+            curr_p = fp;
         }
 
         path.reverse();
@@ -417,7 +422,7 @@ impl CompactTree {
 
     fn encode_symbol<W: Write>(
         &mut self,
-        writer: &mut BitWriter<W>,
+        writer: &mut WordWriter<W>,
         symbol: u16,
     ) -> Result<()> {
         let path = self.get_code_path(symbol)?;
@@ -442,20 +447,20 @@ pub fn compress_compact_stream<R: Read, W: Write>(
     }
 
     let first_byte = initial_byte_buf[0];
-    let mut bit_writer = BitWriter::new(writer);
+    let mut word_writer = WordWriter::new(writer);
 
     // Write Magic Header 0xFF 0x1F and First Literal Byte C0
-    bit_writer
+    word_writer
         .writer
         .write_all(&COMPACT_MAGIC)
         .context("Failed to write compact magic header")?;
-    bit_writer.bytes_written = bit_writer.bytes_written.saturating_add(2);
+    word_writer.bytes_written = word_writer.bytes_written.saturating_add(2);
 
-    bit_writer
+    word_writer
         .writer
         .write_all(&[first_byte])
         .context("Failed to write first raw seed byte")?;
-    bit_writer.bytes_written = bit_writer.bytes_written.saturating_add(1);
+    word_writer.bytes_written = word_writer.bytes_written.saturating_add(1);
 
     let mut tree = CompactTree::new(first_byte);
 
@@ -473,36 +478,27 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             let byte_u16 = u16::from(byte);
             let byte_usize = usize::from(byte);
 
-            if let Some(&Some(leaf_idx)) = tree.symbol_leaf.get(byte_usize) {
+            if tree.leaf_parent.get(byte_usize).copied().flatten().is_some() {
                 // Symbol already seen
-                tree.encode_symbol(&mut bit_writer, byte_u16)?;
-                tree.uptree(leaf_idx);
+                tree.encode_symbol(&mut word_writer, byte_u16)?;
+                tree.uptree(byte_u16);
             } else {
                 // Unseen symbol -> send NC escape, raw byte, insert into tree
-                let nc_leaf_idx = match tree.symbol_leaf.get(usize::from(SYMBOL_NC)) {
-                    Some(&Some(idx)) => idx,
-                    _ => bail!("NC escape symbol missing from tree"),
-                };
-                tree.encode_symbol(&mut bit_writer, SYMBOL_NC)?;
-                tree.uptree(nc_leaf_idx);
+                tree.encode_symbol(&mut word_writer, SYMBOL_NC)?;
+                tree.uptree(SYMBOL_NC);
 
-                bit_writer.write_bits(u32::from(byte), 8)?;
+                word_writer.write_bits(u32::from(byte), 8)?;
                 tree.insert(byte)?;
-
-                let new_leaf_idx = match tree.symbol_leaf.get(byte_usize) {
-                    Some(&Some(idx)) => idx,
-                    _ => bail!("Inserted symbol leaf missing from tree"),
-                };
-                tree.uptree(new_leaf_idx);
+                tree.uptree(byte_u16);
             }
         }
     }
 
     // Write End-of-File marker
-    tree.encode_symbol(&mut bit_writer, SYMBOL_EF)?;
-    bit_writer.flush_padding()?;
+    tree.encode_symbol(&mut word_writer, SYMBOL_EF)?;
+    word_writer.flush_padding()?;
 
-    Ok(bit_writer.bytes_written)
+    Ok(word_writer.bytes_written)
 }
 
 /// Decompresses `compact` compressed binary data from `reader` into `writer`.
@@ -510,13 +506,13 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<u64> {
-    let mut bit_reader = BitReader::new(reader);
+    let mut word_reader = WordReader::new(reader);
 
     // Read and verify magic header (0xFF 0x1F)
-    let magic_b0 = bit_reader
+    let magic_b0 = word_reader
         .read_byte()
         .context("Failed to read magic byte 0")?;
-    let magic_b1 = bit_reader
+    let magic_b1 = word_reader
         .read_byte()
         .context("Failed to read magic byte 1")?;
 
@@ -526,7 +522,7 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
         );
     }
 
-    let first_byte = bit_reader
+    let first_byte = word_reader
         .read_byte()
         .context("Failed to read first raw seed byte")?;
 
@@ -538,49 +534,64 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
     let mut tree = CompactTree::new(first_byte);
 
     loop {
-        let mut curr = tree.root_idx;
-        while tree.nodes.get(curr).and_then(|n| n.symbol).is_none() {
-            let bit = bit_reader.read_bit()?;
-            let node = match tree.nodes.get(curr) {
-                Some(n) => n,
-                None => bail!("Corrupted node index {curr}"),
-            };
-            let next_node = if bit == 0 { node.left } else { node.right };
-            match next_node {
-                Some(idx) => curr = idx,
-                None => bail!("Corrupted compact bitstream: reached internal node with missing child"),
-            }
-        }
+        let mut curr_node_idx = 0usize;
+        let symbol: u16 = loop {
+            let bit = word_reader.read_bit()?;
+            let bit_usize = usize::try_from(bit).context("Invalid bit index")?;
 
-        let symbol = match tree.nodes.get(curr).and_then(|n| n.symbol) {
-            Some(sym) => sym,
-            None => bail!("Internal error: leaf node missing symbol"),
+            let node = match tree.dict.get(curr_node_idx) {
+                Some(n) => n,
+                None => bail!("Corrupted node index {curr_node_idx}"),
+            };
+
+            let next_sp = match node.sp.get(bit_usize) {
+                Some(&child) => child,
+                None => bail!("Invalid branch index {bit_usize}"),
+            };
+
+            match next_sp {
+                Some(child_idx) => curr_node_idx = child_idx,
+                None => {
+                    // Reached leaf -> lookup which symbol is at (curr_node_idx, bit_usize)
+                    let mut found_sym = None;
+                    for sym_val in 0..258u16 {
+                        let sym_u = usize::from(sym_val);
+                        if tree.leaf_parent[sym_u] == Some(curr_node_idx)
+                            && tree.leaf_dir[sym_u] == bit_usize
+                        {
+                            found_sym = Some(sym_val);
+                            break;
+                        }
+                    }
+                    match found_sym {
+                        Some(sym) => break sym,
+                        None => bail!("Corrupted compact tree: leaf symbol lookup failed"),
+                    }
+                }
+            }
         };
 
         if symbol == SYMBOL_EF {
             break;
         } else if symbol == SYMBOL_NC {
-            tree.uptree(curr);
-            let raw_byte = bit_reader.read_bits(8)?;
+            tree.uptree(SYMBOL_NC);
+            let raw_byte = word_reader.read_bits(8)?;
             tree.insert(raw_byte)?;
             writer
                 .write_all(&[raw_byte])
                 .context("Failed to write decompressed byte")?;
             bytes_written = bytes_written.saturating_add(1);
 
-            let new_sym_idx = usize::from(raw_byte);
-            let leaf_idx = match tree.symbol_leaf.get(new_sym_idx) {
-                Some(&Some(idx)) => idx,
-                _ => bail!("Newly inserted symbol leaf missing"),
-            };
-            tree.uptree(leaf_idx);
+            let raw_byte_u16 = u16::from(raw_byte);
+            tree.uptree(raw_byte_u16);
         } else {
             let byte = u8::try_from(symbol).context("Invalid data symbol value")?;
             writer
                 .write_all(&[byte])
                 .context("Failed to write decompressed byte")?;
             bytes_written = bytes_written.saturating_add(1);
-            tree.uptree(curr);
+            let sym_u16 = u16::from(byte);
+            tree.uptree(sym_u16);
         }
     }
 
