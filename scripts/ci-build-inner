@@ -164,6 +164,12 @@ find vendor -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | whi
     mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"
 done
 
+if [[ ! -f "vendor/TypeScript-built.tar" && -f "/var/cache/ctoolbox/TypeScript-built.tar" ]]; then
+    echo "Restoring prebuilt TypeScript-built.tar from container cache..."
+    mkdir -p vendor
+    cp /var/cache/ctoolbox/TypeScript-built.tar vendor/TypeScript-built.tar
+fi
+
 echo "Configuring Cargo offline..."
 mkdir -p .cargo
 if [[ -f .cargo/config.toml ]]; then
