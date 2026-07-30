@@ -67,7 +67,7 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 
 Remember to update the date to match.
 
-`./scripts/docker-push 2026-jul-25`
+`./scripts/docker-push 2026-jul-30`
 
 * Press Enter. It will ask for a Password.
 * Paste the classic token you copied in Step 1 and press Enter.
