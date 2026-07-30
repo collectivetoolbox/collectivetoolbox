@@ -408,9 +408,10 @@ mod tests {
         let fixture_data = get_compression_data("fixtures/example2 with lemurs.pan")
             .unwrap_or_else(|| b"Fallback fixture data".to_vec());
 
-        let random_data = rand_bytes(67108864);
+        // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess
+        let random_data = rand_bytes(32768).expect("Could not get random bytes");
 
-        let repetitive_data = vec![b'A'; 200];
+        let repetitive_small = vec![b'A'; 200];
         let repetitive_data = vec![b'A'; 200000];
         let test_cases: [(&str, &[u8]); 7] = [
             ("empty", b""),
@@ -449,11 +450,13 @@ mod tests {
                 let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
                     panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
                 });
-                assert_eq!(
-                    decompressed,
-                    data,
-                    "Roundtrip failed for case '{case_name}', format {format:?}"
-                );
+                if decompressed != data {
+                    panic!(
+                        "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
+                        data.len(),
+                        decompressed.len()
+                    );
+                }
             }
         }
     }

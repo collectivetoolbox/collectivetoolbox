@@ -120,11 +120,11 @@ impl<W: Write> LzwBitWriter<W> {
     fn align_block(&mut self, n_bits: u32) -> Result<()> {
         if self.block_posbits > 0 {
             let n_bits_usize = usize::try_from(n_bits)?;
-            let block_bits = n_bits_usize.saturating_mul(8);
-            let rem = (self.block_posbits.saturating_sub(1))
-                .checked_rem(block_bits)
-                .unwrap_or(0);
-            let pad = block_bits.saturating_sub(rem).saturating_sub(1);
+            let step = n_bits_usize.saturating_mul(8);
+            let p1 = self.block_posbits.saturating_sub(1);
+            let rem = p1.checked_rem(step).unwrap_or(0);
+            let target = p1.saturating_add(step.saturating_sub(rem));
+            let pad = target.saturating_sub(self.block_posbits);
             self.posbits = self.posbits.saturating_add(pad);
             self.block_posbits = 0;
         }
@@ -188,11 +188,11 @@ impl<'a> LzwBitReader<'a> {
     fn align_block(&mut self, n_bits: u32) -> Result<()> {
         if self.block_posbits > 0 {
             let n_bits_usize = usize::try_from(n_bits)?;
-            let block_bits = n_bits_usize.saturating_mul(8);
-            let rem = (self.block_posbits.saturating_sub(1))
-                .checked_rem(block_bits)
-                .unwrap_or(0);
-            let pad = block_bits.saturating_sub(rem).saturating_sub(1);
+            let step = n_bits_usize.saturating_mul(8);
+            let p1 = self.block_posbits.saturating_sub(1);
+            let rem = p1.checked_rem(step).unwrap_or(0);
+            let target = p1.saturating_add(step.saturating_sub(rem));
+            let pad = target.saturating_sub(self.block_posbits);
             self.posbits = self.posbits.saturating_add(pad);
             self.block_posbits = 0;
         }
@@ -276,7 +276,7 @@ pub fn compress_lzw_stream(
                 dict.insert(key, free_ent);
                 free_ent = free_ent.saturating_add(1);
 
-                if free_ent > maxcode && n_bits < maxbits {
+                if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
                     bit_writer.align_block(n_bits)?;
                     n_bits = n_bits.saturating_add(1);
                     maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
@@ -413,23 +413,6 @@ pub fn decompress_lzw_stream(
         .saturating_add(usize::try_from(n_bits)?)
         <= total_data_bits
     {
-        if free_ent > maxcode {
-            bit_reader.align_block(n_bits)?;
-            n_bits = n_bits.saturating_add(1);
-            if n_bits == maxbits {
-                maxcode = maxmaxcode;
-            } else {
-                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
-            }
-            if bit_reader
-                .posbits
-                .saturating_add(usize::try_from(n_bits)?)
-                > total_data_bits
-            {
-                break;
-            }
-        }
-
         let mut code = match bit_reader.read_code(n_bits)? {
             Some(c) => c,
             None => break,
@@ -450,7 +433,7 @@ pub fn decompress_lzw_stream(
 
         if code == CLEAR_CODE && block_mode {
             prefix.fill(0);
-            free_ent = FIRST_FREE_NONBLOCK;
+            free_ent = FIRST_FREE_BLOCK;
             bit_reader.align_block(n_bits)?;
             n_bits = INIT_BITS;
             maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
@@ -498,6 +481,7 @@ pub fn decompress_lzw_stream(
             Some(sl) => sl,
             None => bail!("Stack index out of bounds"),
         };
+
         writer
             .write_all(out_slice)
             .context("Failed to write decompressed block")?;
@@ -513,6 +497,12 @@ pub fn decompress_lzw_stream(
                 *s = finchar;
             }
             free_ent = free_ent.saturating_add(1);
+
+            if free_ent > maxcode && n_bits < maxbits {
+                bit_reader.align_block(n_bits)?;
+                n_bits = n_bits.saturating_add(1);
+                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+            }
         }
 
         oldcode = i32::try_from(incode)?;
@@ -538,25 +528,31 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_compress_lzw_roundtrip() {
-        let sample = b"The quick brown fox jumps over the lazy dog! 1234567890 repeating text repeating text repeating text";
+        let sample1 = b"The quick brown fox jumps over the lazy dog! 1234567890 repeating text repeating text repeating text";
+        let sample2 = vec![b'A'; 200000];
 
-        for format in [
-            crate::CompressionFormat::CompressLzw,
-            crate::CompressionFormat::CompressLzw2,
-            crate::CompressionFormat::CompressLzw1,
-            crate::CompressionFormat::CompressLzw16,
-        ] {
-            let mut compressed = Vec::new();
-            compress_lzw_stream(&mut &sample[..], &mut compressed, format).unwrap();
+        for sample in [sample1.as_slice(), sample2.as_slice()] {
+            for format in [
+                crate::CompressionFormat::CompressLzw,
+                crate::CompressionFormat::CompressLzw2,
+                crate::CompressionFormat::CompressLzw1,
+                crate::CompressionFormat::CompressLzw16,
+            ] {
+                let mut compressed = Vec::new();
+                compress_lzw_stream(&mut &sample[..], &mut compressed, format).unwrap();
 
-            let mut decompressed = Vec::new();
-            decompress_lzw_stream(&mut &compressed[..], &mut decompressed, format).unwrap();
+                let mut decompressed = Vec::new();
+                decompress_lzw_stream(&mut &compressed[..], &mut decompressed, format).unwrap();
 
-            assert_eq!(
-                decompressed, sample,
-                "Roundtrip failed for LZW format {:?}",
-                format
-            );
+                if decompressed != sample {
+                    panic!(
+                        "Roundtrip failed for LZW format {:?}, sample len {}, decompressed len {}",
+                        format,
+                        sample.len(),
+                        decompressed.len()
+                    );
+                }
+            }
         }
     }
 }
