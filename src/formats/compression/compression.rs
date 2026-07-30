@@ -409,7 +409,7 @@ mod tests {
             .unwrap_or_else(|| b"Fallback fixture data".to_vec());
 
         // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess
-        let random_data = rand_bytes(32768).expect("Could not get random bytes");
+        let random_data = rand_bytes(67108864).expect("Could not get random bytes");
 
         let repetitive_small = vec![b'A'; 200];
         let repetitive_data = vec![b'A'; 200000];
@@ -441,15 +441,33 @@ mod tests {
 
         for (case_name, data) in test_cases {
             for format in formats {
+                let start_comp = std::time::Instant::now();
                 let Ok(compressed) = compress(data, format) else {
                     if data.is_empty() {
                         continue;
                     }
                     panic!("Compression failed for case '{case_name}', format {format:?}");
                 };
+                let comp_dur = start_comp.elapsed();
+
+                let start_decomp = std::time::Instant::now();
                 let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
                     panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
                 });
+                let decomp_dur = start_decomp.elapsed();
+
+                if comp_dur.as_millis() > 50 || decomp_dur.as_millis() > 50 || data.len() >= 67108864 {
+                    eprintln!(
+                        "[TIMING] case='{:16}' format='{:?}' len={} -> comp_len={} | comp={:?} decomp={:?}",
+                        case_name,
+                        format,
+                        data.len(),
+                        compressed.len(),
+                        comp_dur,
+                        decomp_dur
+                    );
+                }
+
                 if decompressed != data {
                     panic!(
                         "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
