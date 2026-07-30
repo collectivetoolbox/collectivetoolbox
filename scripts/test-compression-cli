@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# Dependencies (installable via apt):
+#   - gzip (provides gzip / gunzip CLI for decompressing .gz, .Z, .sco, .z [pack])
+#   - bzip2 (provides bzip2 CLI for decompressing .bz2)
+#   - brotli (provides brotli CLI for decompressing .br)
+
 # Change directory to repo root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
@@ -44,7 +49,7 @@ if [[ ! -f "$NO_EXT_FILE.decompressed" ]]; then
 fi
 diff -u "$TEST_FILE" "$NO_EXT_FILE.decompressed"
 
-# 5. Test compatibility with system gzip if available
+# 5. Test compatibility with system CLI tools (gzip, bzip2, brotli) if available
 if command -v gzip >/dev/null 2>&1; then
     echo "Testing compatibility with system gzip..."
     $CARGO_CMD compress gzip "$TEST_FILE" -o "$TMP_DIR/system_test.gz" --force
@@ -54,6 +59,28 @@ if command -v gzip >/dev/null 2>&1; then
     gzip -c "$TEST_FILE" > "$TMP_DIR/system_in.gz"
     $CARGO_CMD decompress "$TMP_DIR/system_in.gz" -o "$TMP_DIR/ctb_out.txt" --force
     diff -u "$TEST_FILE" "$TMP_DIR/ctb_out.txt"
+fi
+
+if command -v bzip2 >/dev/null 2>&1; then
+    echo "Testing compatibility with system bzip2..."
+    $CARGO_CMD compress bzip2 "$TEST_FILE" -o "$TMP_DIR/system_test.bz2" --force
+    bzip2 -d -c "$TMP_DIR/system_test.bz2" > "$TMP_DIR/bz2_out.txt"
+    diff -u "$TEST_FILE" "$TMP_DIR/bz2_out.txt"
+
+    bzip2 -c "$TEST_FILE" > "$TMP_DIR/system_in.bz2"
+    $CARGO_CMD decompress "$TMP_DIR/system_in.bz2" -o "$TMP_DIR/ctb_bz2_out.txt" --force
+    diff -u "$TEST_FILE" "$TMP_DIR/ctb_bz2_out.txt"
+fi
+
+if command -v brotli >/dev/null 2>&1; then
+    echo "Testing compatibility with system brotli..."
+    $CARGO_CMD compress brotli "$TEST_FILE" -o "$TMP_DIR/system_test.br" --force
+    brotli -d -c "$TMP_DIR/system_test.br" > "$TMP_DIR/br_out.txt"
+    diff -u "$TEST_FILE" "$TMP_DIR/br_out.txt"
+
+    brotli -c "$TEST_FILE" > "$TMP_DIR/system_in.br"
+    $CARGO_CMD decompress "$TMP_DIR/system_in.br" -o "$TMP_DIR/ctb_br_out.txt" --force
+    diff -u "$TEST_FILE" "$TMP_DIR/ctb_br_out.txt"
 fi
 
 # 6. Test round-trip for raw deflate, zlib, and SCO compress -H
