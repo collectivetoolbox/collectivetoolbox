@@ -124,19 +124,12 @@ impl<W: Write> WordWriter<W> {
             let padded = self.bitbuf << shift;
             let hib = u8::try_from((padded >> 8) & 0xFF)
                 .context("Bit buffer padding conversion failed")?;
+            let lob = u8::try_from(padded & 0xFF)
+                .context("Bit buffer padding conversion failed")?;
             self.writer
-                .write_all(&[hib])
-                .context("Failed to write final bitstream padding byte")?;
-            self.bytes_written = self.bytes_written.saturating_add(1);
-
-            if self.valid > 8 {
-                let lob = u8::try_from(padded & 0xFF)
-                    .context("Bit buffer padding conversion failed")?;
-                self.writer
-                    .write_all(&[lob])
-                    .context("Failed to write final bitstream padding byte")?;
-                self.bytes_written = self.bytes_written.saturating_add(1);
-            }
+                .write_all(&[hib, lob])
+                .context("Failed to write final bitstream padding word")?;
+            self.bytes_written = self.bytes_written.saturating_add(2);
             self.bitbuf = 0;
             self.valid = 0;
         }
@@ -147,23 +140,41 @@ impl<W: Write> WordWriter<W> {
     }
 }
 
+/// A child branch in McMaster's adaptive Huffman tree (Internal node vs Leaf symbol).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Child {
+    Internal(usize),
+    Leaf(u16),
+}
+
+/// Instantaneous LLEAF/RLEAF leaf parent lookup.
+#[derive(Debug, Clone, Copy)]
+struct LeafInfo {
+    fp: Option<usize>,
+    dir: usize,
+}
+
 /// A node in McMaster's adaptive Huffman tree dict array.
 #[derive(Debug, Clone, Copy)]
 struct DictNode {
     fp: Option<usize>,
-    sp: [Option<usize>; 2],
+    sp: [Child; 2],
     count: [u32; 2],
 }
 
 /// McMaster's 1979 4.1cBSD Online Adaptive Huffman Coding Tree.
 struct CompactTree {
     dict: Vec<DictNode>,
-    leaf_parent: [Option<usize>; 258],
-    leaf_dir: [usize; 258],
+    leaf_info: [LeafInfo; 258],
     bottom_idx: usize,
 }
 
 impl CompactTree {
+    #[expect(
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "Bounded compact tree node indexing"
+    )]
     fn new(first_byte: u8) -> Self {
         let first_byte_u16 = u16::from(first_byte);
         let first_byte_idx = usize::from(first_byte_u16);
@@ -171,129 +182,149 @@ impl CompactTree {
         let mut dict = vec![
             DictNode {
                 fp: None,
-                sp: [None, None],
+                sp: [Child::Leaf(0), Child::Leaf(0)],
                 count: [0, 0],
             };
             515
         ];
 
-        let mut leaf_parent = [None; 258];
-        let mut leaf_dir = [0; 258];
+        let mut leaf_info = [LeafInfo { fp: None, dir: 0 }; 258];
 
-        // Root dict[0]: left = C0 leaf (sp[0]=None), right = dict[1] (sp[1]=Some(1))
-        if let Some(d0) = dict.get_mut(0) {
-            d0.count = [1, 2];
-            d0.sp[1] = Some(1);
-        }
-        if let Some(d1) = dict.get_mut(1) {
-            d1.fp = Some(0);
-            d1.count = [1, 1];
-            // d1.sp[0] = NC (257), d1.sp[1] = EF (256)
-        }
+        // Root dict[0]: left = dict[1] (sp[0]=Child::Internal(1)), right = C0 leaf (sp[1]=Child::Leaf(C0))
+        dict[0].count = [2, 1];
+        dict[0].sp[0] = Child::Internal(1);
+        dict[0].sp[1] = Child::Leaf(first_byte_u16);
 
-        if let Some(slot) = leaf_parent.get_mut(first_byte_idx) {
-            *slot = Some(0);
-        }
-        if let Some(slot) = leaf_dir.get_mut(first_byte_idx) {
-            *slot = 0;
-        }
+        // Dict[1] (bottom): left = NC (257), right = EF (256)
+        dict[1].fp = Some(0);
+        dict[1].count = [1, 1];
+        dict[1].sp[0] = Child::Leaf(SYMBOL_NC);
+        dict[1].sp[1] = Child::Leaf(SYMBOL_EF);
 
-        if let Some(slot) = leaf_parent.get_mut(usize::from(SYMBOL_NC)) {
-            *slot = Some(1);
-        }
-        if let Some(slot) = leaf_dir.get_mut(usize::from(SYMBOL_NC)) {
-            *slot = 0;
-        }
-
-        if let Some(slot) = leaf_parent.get_mut(usize::from(SYMBOL_EF)) {
-            *slot = Some(1);
-        }
-        if let Some(slot) = leaf_dir.get_mut(usize::from(SYMBOL_EF)) {
-            *slot = 1;
-        }
+        leaf_info[first_byte_idx] = LeafInfo { fp: Some(0), dir: 1 };
+        leaf_info[usize::from(SYMBOL_NC)] = LeafInfo { fp: Some(1), dir: 0 };
+        leaf_info[usize::from(SYMBOL_EF)] = LeafInfo { fp: Some(1), dir: 1 };
 
         Self {
             dict,
-            leaf_parent,
-            leaf_dir,
+            leaf_info,
             bottom_idx: 1,
         }
     }
 
+    #[expect(
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "Bounded compact tree node indexing and swap"
+    )]
     fn exch(&mut self, p1: usize, b1: usize, p2: usize, b2: usize) {
         if p1 == p2 && b1 == b2 {
             return;
         }
 
-        let (s1, c1) = match self.dict.get(p1) {
-            Some(n) => (n.sp.get(b1).copied().flatten(), n.count.get(b1).copied().unwrap_or(0)),
-            None => return,
-        };
-        let (s2, c2) = match self.dict.get(p2) {
-            Some(n) => (n.sp.get(b2).copied().flatten(), n.count.get(b2).copied().unwrap_or(0)),
-            None => return,
-        };
+        let child1 = self.dict[p1].sp[b1];
+        let count1 = self.dict[p1].count[b1];
+        let child2 = self.dict[p2].sp[b2];
+        let count2 = self.dict[p2].count[b2];
 
-        if let Some(n1) = self.dict.get_mut(p1) {
-            if let Some(slot) = n1.sp.get_mut(b1) {
-                *slot = s2;
+        self.dict[p1].sp[b1] = child2;
+        self.dict[p1].count[b1] = count2;
+        self.dict[p2].sp[b2] = child1;
+        self.dict[p2].count[b2] = count1;
+
+        match child2 {
+            Child::Internal(c2) => {
+                if let Some(n) = self.dict.get_mut(c2) {
+                    n.fp = Some(p1);
+                }
             }
-            if let Some(slot) = n1.count.get_mut(b1) {
-                *slot = c2;
-            }
-        }
-        if let Some(child_idx) = s2 {
-            if let Some(n) = self.dict.get_mut(child_idx) {
-                n.fp = Some(p1);
+            Child::Leaf(sym2) => {
+                let idx = usize::from(sym2);
+                if let Some(info) = self.leaf_info.get_mut(idx) {
+                    info.fp = Some(p1);
+                    info.dir = b1;
+                }
             }
         }
 
-        if let Some(n2) = self.dict.get_mut(p2) {
-            if let Some(slot) = n2.sp.get_mut(b2) {
-                *slot = s1;
+        match child1 {
+            Child::Internal(c1) => {
+                if let Some(n) = self.dict.get_mut(c1) {
+                    n.fp = Some(p2);
+                }
             }
-            if let Some(slot) = n2.count.get_mut(b2) {
-                *slot = c1;
-            }
-        }
-        if let Some(child_idx) = s1 {
-            if let Some(n) = self.dict.get_mut(child_idx) {
-                n.fp = Some(p2);
+            Child::Leaf(sym1) => {
+                let idx = usize::from(sym1);
+                if let Some(info) = self.leaf_info.get_mut(idx) {
+                    info.fp = Some(p2);
+                    info.dir = b2;
+                }
             }
         }
     }
 
+    #[expect(
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "Bounded compact tree node indexing"
+    )]
+    fn is_in_subtree(&self, parent: usize, branch_dir: usize, mut sub: usize) -> bool {
+        if parent == sub {
+            return false;
+        }
+        let mut steps = 0usize;
+        while let Some(fp) = self.dict.get(sub).and_then(|n| n.fp) {
+            if fp == parent {
+                let is_branch = match self.dict.get(fp).and_then(|n| n.sp.get(branch_dir)) {
+                    Some(&Child::Internal(child_idx)) => child_idx == sub,
+                    _ => false,
+                };
+                return is_branch;
+            }
+            sub = fp;
+            steps = steps.saturating_add(1);
+            if steps > 515 {
+                break;
+            }
+        }
+        false
+    }
+
+    #[expect(
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "Bounded compact tree node indexing and weight update"
+    )]
     fn uptree(&mut self, symbol: u16) {
-        let sym_idx = usize::from(symbol);
-        let mut curr_p = match self.leaf_parent.get(sym_idx) {
-            Some(&Some(idx)) => Some(idx),
-            _ => None,
+        let sym_usize = usize::from(symbol);
+        let info = match self.leaf_info.get(sym_usize) {
+            Some(i) => *i,
+            None => return,
         };
-        let mut curr_b = match self.leaf_dir.get(sym_idx) {
-            Some(&b) => b,
-            _ => 0,
-        };
+        let mut curr_p = info.fp;
+        let mut curr_b = info.dir;
 
         while let Some(p_idx) = curr_p {
-            let w = match self.dict.get(p_idx).and_then(|n| n.count.get(curr_b)) {
-                Some(&cnt) => cnt,
+            let w = match self.dict.get(p_idx) {
+                Some(n) => n.count[curr_b],
                 None => break,
             };
 
             let mut target_p = None;
             let mut target_b = None;
 
-            for i in 0..=self.bottom_idx {
-                if let Some(cand) = self.dict.get(i) {
-                    for (cb, &cnt) in cand.count.iter().enumerate() {
-                        if (i != p_idx || cb != curr_b) && cnt == w {
-                            target_p = Some(i);
-                            target_b = Some(cb);
-                            break;
-                        }
-                    }
-                }
-                if target_p.is_some() {
+            let curr_linear = 2 * p_idx + curr_b;
+
+            for cand_linear in 0..curr_linear {
+                let cand_p = cand_linear / 2;
+                let cand_b = cand_linear % 2;
+
+                if self.dict[cand_p].count[cand_b] == w
+                    && !self.is_in_subtree(p_idx, curr_b, cand_p)
+                    && !self.is_in_subtree(cand_p, cand_b, p_idx)
+                {
+                    target_p = Some(cand_p);
+                    target_b = Some(cand_b);
                     break;
                 }
             }
@@ -301,79 +332,82 @@ impl CompactTree {
             if let (Some(tp), Some(tb)) = (target_p, target_b) {
                 if tp != p_idx || tb != curr_b {
                     self.exch(p_idx, curr_b, tp, tb);
+                    curr_p = Some(tp);
+                    curr_b = tb;
                 }
             }
 
-            if let Some(n) = self.dict.get_mut(p_idx) {
+            let active_p = curr_p.unwrap_or(p_idx);
+            if let Some(n) = self.dict.get_mut(active_p) {
                 if let Some(slot) = n.count.get_mut(curr_b) {
                     *slot = slot.saturating_add(1);
                 }
             }
 
-            let old_p_idx = p_idx;
-            curr_p = match self.dict.get(p_idx) {
+            let old_p_idx = active_p;
+            curr_p = match self.dict.get(active_p) {
                 Some(n) => n.fp,
                 None => None,
             };
             if let Some(parent_idx) = curr_p {
                 let parent_right = match self.dict.get(parent_idx) {
                     Some(n) => n.sp[1],
-                    None => None,
+                    None => Child::Leaf(0),
                 };
-                curr_b = if parent_right == Some(old_p_idx) { 1 } else { 0 };
+                curr_b = if parent_right == Child::Internal(old_p_idx) { 1 } else { 0 };
             }
         }
     }
 
+    #[expect(
+        clippy::indexing_slicing,
+        clippy::arithmetic_side_effects,
+        reason = "Bounded compact tree node indexing and insertion"
+    )]
     fn insert(&mut self, symbol: u8) -> Result<()> {
-        let nc_parent_idx = match self.leaf_parent.get(usize::from(SYMBOL_NC)) {
-            Some(&Some(idx)) => idx,
-            _ => bail!("NC escape leaf missing from tree"),
-        };
+        let pp = self.bottom_idx;
+        if pp >= self.dict.len() {
+            bail!("Bottom index out of bounds");
+        }
 
-        let old_right = match self.dict.get(nc_parent_idx) {
-            Some(n) => n.sp[1],
-            None => bail!("Invalid NC parent node"),
-        };
-        let old_count = match self.dict.get(nc_parent_idx) {
-            Some(n) => n.count[1],
-            None => bail!("Invalid NC parent count"),
-        };
+        let old_right = self.dict[pp].sp[1];
+        let old_count = self.dict[pp].count[1];
 
         self.bottom_idx = self.bottom_idx.saturating_add(1);
         let new_bottom_idx = self.bottom_idx;
 
-        if let Some(pp) = self.dict.get_mut(nc_parent_idx) {
-            pp.sp[1] = Some(new_bottom_idx);
+        if let Some(n) = self.dict.get_mut(pp) {
+            n.sp[1] = Child::Internal(new_bottom_idx);
         }
 
+        let sym_u16 = u16::from(symbol);
         if let Some(nb) = self.dict.get_mut(new_bottom_idx) {
-            nb.fp = Some(nc_parent_idx);
+            nb.fp = Some(pp);
             nb.sp[0] = old_right;
-            nb.sp[1] = None; // leaf symbol ch
+            nb.sp[1] = Child::Leaf(sym_u16);
             nb.count[0] = old_count;
             nb.count[1] = 0;
         }
 
-        if let Some(child_idx) = old_right {
-            if let Some(n) = self.dict.get_mut(child_idx) {
-                n.fp = Some(new_bottom_idx);
+        match old_right {
+            Child::Internal(c) => {
+                if let Some(n) = self.dict.get_mut(c) {
+                    n.fp = Some(new_bottom_idx);
+                }
+            }
+            Child::Leaf(sym) => {
+                let idx = usize::from(sym);
+                if let Some(info) = self.leaf_info.get_mut(idx) {
+                    info.fp = Some(new_bottom_idx);
+                    info.dir = 0;
+                }
             }
         }
 
-        if let Some(slot) = self.leaf_parent.get_mut(usize::from(SYMBOL_EF)) {
-            *slot = Some(new_bottom_idx);
-        }
-        if let Some(slot) = self.leaf_dir.get_mut(usize::from(SYMBOL_EF)) {
-            *slot = 0;
-        }
-
         let sym_usize = usize::from(symbol);
-        if let Some(slot) = self.leaf_parent.get_mut(sym_usize) {
-            *slot = Some(new_bottom_idx);
-        }
-        if let Some(slot) = self.leaf_dir.get_mut(sym_usize) {
-            *slot = 1;
+        if let Some(info) = self.leaf_info.get_mut(sym_usize) {
+            info.fp = Some(new_bottom_idx);
+            info.dir = 1;
         }
 
         Ok(())
@@ -381,19 +415,18 @@ impl CompactTree {
 
     fn get_code_path(&self, symbol: u16) -> Result<Vec<u32>> {
         let sym_usize = usize::from(symbol);
-        let parent_idx = match self.leaf_parent.get(sym_usize) {
-            Some(&Some(idx)) => idx,
-            _ => bail!("Symbol {symbol} not present in Huffman tree"),
-        };
+        let info = self
+            .leaf_info
+            .get(sym_usize)
+            .copied()
+            .context("Invalid symbol index")?;
+        let parent_idx = info.fp.context("Symbol not present in tree")?;
 
         let mut path = Vec::new();
-        let mut curr_dir = match self.leaf_dir.get(sym_usize) {
-            Some(&d) => d,
-            _ => 0,
-        };
+        let mut curr_dir = info.dir;
         let mut curr_p = parent_idx;
 
-        loop {
+        while path.len() <= 515 {
             let bit = u32::try_from(curr_dir).context("Invalid branch direction")?;
             path.push(bit);
 
@@ -412,8 +445,12 @@ impl CompactTree {
                 None => bail!("Corrupted parent node index {fp}"),
             };
 
-            curr_dir = if fp_node.sp[1] == Some(curr_p) { 1 } else { 0 };
+            curr_dir = if fp_node.sp[1] == Child::Internal(curr_p) { 1 } else { 0 };
             curr_p = fp;
+        }
+
+        if path.len() > 515 {
+            bail!("Cycle detected in Huffman tree code path");
         }
 
         path.reverse();
@@ -478,17 +515,16 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             let byte_u16 = u16::from(byte);
             let byte_usize = usize::from(byte);
 
-            if tree.leaf_parent.get(byte_usize).copied().flatten().is_some() {
+            if tree.leaf_info.get(byte_usize).and_then(|info| info.fp).is_some() {
                 // Symbol already seen
                 tree.encode_symbol(&mut word_writer, byte_u16)?;
                 tree.uptree(byte_u16);
             } else {
-                // Unseen symbol -> send NC escape, raw byte, insert into tree
+                // Unseen symbol -> send NC escape, uptree(NC), insert(c), write_bits(c, 8), uptree(ch)
                 tree.encode_symbol(&mut word_writer, SYMBOL_NC)?;
                 tree.uptree(SYMBOL_NC);
-
-                word_writer.write_bits(u32::from(byte), 8)?;
                 tree.insert(byte)?;
+                word_writer.write_bits(u32::from(byte), 8)?;
                 tree.uptree(byte_u16);
             }
         }
@@ -511,15 +547,12 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
     // Read and verify magic header (0xFF 0x1F)
     let magic_b0 = word_reader
         .read_byte()
-        .context("Failed to read magic byte 0")?;
+        .context("Failed to read compact magic byte 0")?;
     let magic_b1 = word_reader
         .read_byte()
-        .context("Failed to read magic byte 1")?;
-
+        .context("Failed to read compact magic byte 1")?;
     if [magic_b0, magic_b1] != COMPACT_MAGIC {
-        bail!(
-            "Invalid compact magic header: expected [0xFF, 0x1F], got [0x{magic_b0:02X}, 0x{magic_b1:02X}]"
-        );
+        bail!("Invalid magic header for compact stream");
     }
 
     let first_byte = word_reader
@@ -535,7 +568,12 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
 
     loop {
         let mut curr_node_idx = 0usize;
+        let mut steps = 0usize;
         let symbol: u16 = loop {
+            steps = steps.saturating_add(1);
+            if steps > 515 {
+                bail!("Cycle detected during compact decompression tree traversal");
+            }
             let bit = word_reader.read_bit()?;
             let bit_usize = usize::try_from(bit).context("Invalid bit index")?;
 
@@ -550,24 +588,8 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
             };
 
             match next_sp {
-                Some(child_idx) => curr_node_idx = child_idx,
-                None => {
-                    // Reached leaf -> lookup which symbol is at (curr_node_idx, bit_usize)
-                    let mut found_sym = None;
-                    for sym_val in 0..258u16 {
-                        let sym_u = usize::from(sym_val);
-                        if tree.leaf_parent[sym_u] == Some(curr_node_idx)
-                            && tree.leaf_dir[sym_u] == bit_usize
-                        {
-                            found_sym = Some(sym_val);
-                            break;
-                        }
-                    }
-                    match found_sym {
-                        Some(sym) => break sym,
-                        None => bail!("Corrupted compact tree: leaf symbol lookup failed"),
-                    }
-                }
+                Child::Internal(child_idx) => curr_node_idx = child_idx,
+                Child::Leaf(sym) => break sym,
             }
         };
 
@@ -577,13 +599,11 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
             tree.uptree(SYMBOL_NC);
             let raw_byte = word_reader.read_bits(8)?;
             tree.insert(raw_byte)?;
+            tree.uptree(u16::from(raw_byte));
             writer
                 .write_all(&[raw_byte])
                 .context("Failed to write decompressed byte")?;
             bytes_written = bytes_written.saturating_add(1);
-
-            let raw_byte_u16 = u16::from(raw_byte);
-            tree.uptree(raw_byte_u16);
         } else {
             let byte = u8::try_from(symbol).context("Invalid data symbol value")?;
             writer
@@ -651,5 +671,17 @@ mod tests {
         let mut reader = empty;
         let res = compress_compact_stream(&mut reader, &mut out);
         assert!(res.is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_compact_roundtrip_lemurs_fixture() {
+        let raw = include_bytes!("data/fixtures/example2 with lemurs.pan");
+        let mut compressed = Vec::new();
+        compress_compact_stream(&mut &raw[..], &mut compressed).unwrap();
+
+        let mut decompressed = Vec::new();
+        decompress_compact_stream(&mut &compressed[..], &mut decompressed).unwrap();
+
+        assert_eq!(decompressed, raw);
     }
 }
