@@ -85,6 +85,8 @@ COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor
 
+RUN [[ -d vendor/v86_images ]] && rm -r vendor/v86_images; [[ -f vendor/TypeScript-built.tar ]] && rm vendor/TypeScript-built.tar; [[ -f vendor/vendor.tar ]] && rm vendor/vendor.tar; [[ -f vendor/icecat-bin.tar.gz ]] && rm vendor/icecat-bin.tar.gz
+
 # Patch to avoid network access so `cargo run --offline` can work
 RUN set -eux; \
     mkdir -p /tmp/ctb-ts-build/.cargo; \
