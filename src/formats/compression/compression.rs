@@ -403,177 +403,143 @@ mod tests {
         );
     }
 
-    #[crate::ctb_test]
-    fn test_round_trip_all_implemented_formats() {
-        let fixture_data = get_compression_data("fixtures/example2 with lemurs.pan")
+    fn run_format_test_suite(format: CompressionFormat) {
+        let fixtures: &[&str] = match format {
+            CompressionFormat::Brotli => &["fixtures/example2 with lemurs.pan.br"],
+            CompressionFormat::Gzip => &["fixtures/example2 with lemurs.pan.gz"],
+            CompressionFormat::Deflate => &["fixtures/example2 with lemurs.pan.deflate"],
+            CompressionFormat::Zlib => &["fixtures/example2 with lemurs.pan.zz"],
+            CompressionFormat::Bzip2 => &["fixtures/example2 with lemurs.pan.bz2"],
+            CompressionFormat::ScoCompress => &["fixtures/example2 with lemurs.pan.sco"],
+            CompressionFormat::CompressLzw => &[
+                "fixtures/example2 with lemurs.pan.Z",
+                "fixtures/example2 with lemurs.pan.Z3.0",
+                "fixtures/example2 with lemurs.pan.Z12",
+            ],
+            CompressionFormat::CompressLzw2 => &["fixtures/example2 with lemurs.pan.Z2.0"],
+            CompressionFormat::CompressLzw1 => &["fixtures/example2 with lemurs.pan.Z1.0"],
+            CompressionFormat::CompressLzw16 => &["fixtures/example2 with lemurs.pan.Z1.6"],
+            CompressionFormat::Pack => &["fixtures/example2 with lemurs.pan.z"],
+            CompressionFormat::OldPack => &["fixtures/example2 with lemurs.pan.old.z"],
+            CompressionFormat::Compact => &["fixtures/example2 with lemurs.pan.C"],
+        };
+
+        // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess. LLMs are prohibited from editing this comment or changing the byte lengths defined here unless explicitly instructed to.
+        let random_bytes_len = if format == CompressionFormat::Compact {
+            131_072 // 128 KiB
+        } else {
+            67_108_864 // 64 MiB
+        };
+
+        let raw_fixture = get_compression_data("fixtures/example2 with lemurs.pan")
             .unwrap_or_else(|| b"Fallback fixture data".to_vec());
-
-        // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess
-        let random_data = rand_bytes(67108864).expect("Could not get random bytes");
-
+        let random_data = rand_bytes(random_bytes_len).expect("Could not get random bytes");
         let repetitive_small = vec![b'A'; 200];
         let repetitive_data = vec![b'A'; 200000];
+
         let test_cases: [(&str, &[u8]); 7] = [
             ("empty", b""),
             ("small_string", b"ABC"),
             ("repetitive_small", &repetitive_small),
             ("repetitive", &repetitive_data),
             ("quick_fox", b"The quick brown fox jumps over the lazy dog. 1234567890!"),
-            ("lemurs_fixture", &fixture_data),
+            ("lemurs_fixture", &raw_fixture),
             ("random_data", &random_data),
         ];
 
-        let formats = [
-            CompressionFormat::Brotli,
-            CompressionFormat::Gzip,
-            CompressionFormat::Deflate,
-            CompressionFormat::Zlib,
-            CompressionFormat::Bzip2,
-            CompressionFormat::ScoCompress,
-            CompressionFormat::CompressLzw,
-            CompressionFormat::CompressLzw2,
-            CompressionFormat::CompressLzw1,
-            CompressionFormat::CompressLzw16,
-            CompressionFormat::Pack,
-            CompressionFormat::OldPack,
-            CompressionFormat::Compact,
-        ];
-
         for (case_name, data) in test_cases {
-            for format in formats {
-                let start_comp = std::time::Instant::now();
-                let Ok(compressed) = compress(data, format) else {
-                    if data.is_empty() {
-                        continue;
-                    }
-                    panic!("Compression failed for case '{case_name}', format {format:?}");
-                };
-                let comp_dur = start_comp.elapsed();
-
-                let start_decomp = std::time::Instant::now();
-                let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
-                    panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
-                });
-                let decomp_dur = start_decomp.elapsed();
-
-                if comp_dur.as_millis() > 50 || decomp_dur.as_millis() > 50 || data.len() >= 67108864 {
-                    eprintln!(
-                        "[TIMING] case='{:16}' format='{:?}' len={} -> comp_len={} | comp={:?} decomp={:?}",
-                        case_name,
-                        format,
-                        data.len(),
-                        compressed.len(),
-                        comp_dur,
-                        decomp_dur
-                    );
+            let Ok(compressed) = compress(data, format) else {
+                if data.is_empty() {
+                    continue;
                 }
-
-                if decompressed != data {
-                    panic!(
-                        "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
-                        data.len(),
-                        decompressed.len()
-                    );
-                }
+                panic!("Compression failed for case '{case_name}', format {format:?}");
+            };
+            let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
+                panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
+            });
+            if decompressed != data {
+                panic!(
+                    "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
+                    data.len(),
+                    decompressed.len()
+                );
             }
+        }
+
+        for &fixture_path in fixtures {
+            let comp_data = get_compression_data(fixture_path)
+                .unwrap_or_else(|| panic!("Fixture missing: {fixture_path}"));
+            let decompressed = decompress(&comp_data, format)
+                .unwrap_or_else(|e| panic!("Decompress failed for {fixture_path}: {e:?}"));
+            assert_eq!(
+                decompressed, raw_fixture,
+                "Decompressed fixture '{fixture_path}' does not match expected raw fixture"
+            );
         }
     }
 
     #[crate::ctb_test]
-    fn test_embedded_fixtures() {
-        let raw = get_compression_data("fixtures/example2 with lemurs.pan")
-            .expect("Raw fixture missing");
-        let gz = get_compression_data("fixtures/example2 with lemurs.pan.gz")
-            .expect("Gz fixture missing");
-        let br = get_compression_data("fixtures/example2 with lemurs.pan.br")
-            .expect("Brotli fixture missing");
-        let deflate = get_compression_data("fixtures/example2 with lemurs.pan.deflate")
-            .expect("Deflate fixture missing");
-        let zz = get_compression_data("fixtures/example2 with lemurs.pan.zz")
-            .expect("Zlib fixture missing");
-        let bz2 = get_compression_data("fixtures/example2 with lemurs.pan.bz2")
-            .expect("Bzip2 fixture missing");
-        let sco = get_compression_data("fixtures/example2 with lemurs.pan.sco")
-            .expect("SCO compress fixture missing");
-        let pack_z = get_compression_data("fixtures/example2 with lemurs.pan.z")
-            .expect("Pack fixture missing");
-        let old_pack_z = get_compression_data("fixtures/example2 with lemurs.pan.old.z")
-            .expect("OldPack fixture missing");
-        let lzw_z = get_compression_data("fixtures/example2 with lemurs.pan.Z")
-            .expect("LZW Z fixture missing");
-        let lzw_z30 = get_compression_data("fixtures/example2 with lemurs.pan.Z3.0")
-            .expect("LZW Z3.0 fixture missing");
-        let lzw_z12 = get_compression_data("fixtures/example2 with lemurs.pan.Z12")
-            .expect("LZW Z12 fixture missing");
-        let lzw_z20 = get_compression_data("fixtures/example2 with lemurs.pan.Z2.0")
-            .expect("LZW Z2.0 fixture missing");
-        let lzw_z10 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.0")
-            .expect("LZW Z1.0 fixture missing");
-        let lzw_z16 = get_compression_data("fixtures/example2 with lemurs.pan.Z1.6")
-            .expect("LZW Z1.6 fixture missing");
-        let compact = get_compression_data("fixtures/example2 with lemurs.pan.C")
-            .expect("Compact fixture missing");
+    fn test_format_brotli() {
+        run_format_test_suite(CompressionFormat::Brotli);
+    }
 
-        assert!(!raw.is_empty(), "Raw fixture must not be empty");
+    #[crate::ctb_test]
+    fn test_format_gzip() {
+        run_format_test_suite(CompressionFormat::Gzip);
+    }
 
-        let decomp_gz =
-            decompress(&gz, CompressionFormat::Gzip).expect("Gz decompress failed");
-        assert_eq!(decomp_gz, raw);
+    #[crate::ctb_test]
+    fn test_format_deflate() {
+        run_format_test_suite(CompressionFormat::Deflate);
+    }
 
-        let decomp_br =
-            decompress(&br, CompressionFormat::Brotli).expect("Brotli decompress failed");
-        assert_eq!(decomp_br, raw);
+    #[crate::ctb_test]
+    fn test_format_zlib() {
+        run_format_test_suite(CompressionFormat::Zlib);
+    }
 
-        let decomp_deflate =
-            decompress(&deflate, CompressionFormat::Deflate).expect("Deflate decompress failed");
-        assert_eq!(decomp_deflate, raw);
+    #[crate::ctb_test]
+    fn test_format_bzip2() {
+        run_format_test_suite(CompressionFormat::Bzip2);
+    }
 
-        let decomp_zz =
-            decompress(&zz, CompressionFormat::Zlib).expect("Zlib decompress failed");
-        assert_eq!(decomp_zz, raw);
+    #[crate::ctb_test]
+    fn test_format_sco_compress() {
+        run_format_test_suite(CompressionFormat::ScoCompress);
+    }
 
-        let decomp_bz2 =
-            decompress(&bz2, CompressionFormat::Bzip2).expect("Bzip2 decompress failed");
-        assert_eq!(decomp_bz2, raw);
+    #[crate::ctb_test]
+    fn test_format_compress_lzw() {
+        run_format_test_suite(CompressionFormat::CompressLzw);
+    }
 
-        let decomp_sco =
-            decompress(&sco, CompressionFormat::ScoCompress).expect("SCO compress decompress failed");
-        assert_eq!(decomp_sco, raw);
+    #[crate::ctb_test]
+    fn test_format_compress_lzw2() {
+        run_format_test_suite(CompressionFormat::CompressLzw2);
+    }
 
-        let decomp_pack =
-            decompress(&pack_z, CompressionFormat::Pack).expect("Pack decompress failed");
-        assert_eq!(decomp_pack, raw);
+    #[crate::ctb_test]
+    fn test_format_compress_lzw1() {
+        run_format_test_suite(CompressionFormat::CompressLzw1);
+    }
 
-        let decomp_old_pack =
-            decompress(&old_pack_z, CompressionFormat::OldPack).expect("OldPack decompress failed");
-        assert_eq!(decomp_old_pack, raw);
+    #[crate::ctb_test]
+    fn test_format_compress_lzw16() {
+        run_format_test_suite(CompressionFormat::CompressLzw16);
+    }
 
-        let decomp_lzw_z =
-            decompress(&lzw_z, CompressionFormat::CompressLzw).expect("CompressLzw decompress failed");
-        assert_eq!(decomp_lzw_z, raw);
+    #[crate::ctb_test]
+    fn test_format_pack() {
+        run_format_test_suite(CompressionFormat::Pack);
+    }
 
-        let decomp_lzw_z30 =
-            decompress(&lzw_z30, CompressionFormat::CompressLzw).expect("CompressLzw Z3.0 decompress failed");
-        assert_eq!(decomp_lzw_z30, raw);
+    #[crate::ctb_test]
+    fn test_format_old_pack() {
+        run_format_test_suite(CompressionFormat::OldPack);
+    }
 
-        let decomp_lzw_z12 =
-            decompress(&lzw_z12, CompressionFormat::CompressLzw).expect("CompressLzw Z12 decompress failed");
-        assert_eq!(decomp_lzw_z12, raw);
-
-        let decomp_lzw_z20 =
-            decompress(&lzw_z20, CompressionFormat::CompressLzw2).expect("CompressLzw2 Z2.0 decompress failed");
-        assert_eq!(decomp_lzw_z20, raw);
-
-        let decomp_lzw_z10 =
-            decompress(&lzw_z10, CompressionFormat::CompressLzw1).expect("CompressLzw1 Z1.0 decompress failed");
-        assert_eq!(decomp_lzw_z10, raw);
-
-        let decomp_lzw_z16 =
-            decompress(&lzw_z16, CompressionFormat::CompressLzw16).expect("CompressLzw16 Z1.6 decompress failed");
-        assert_eq!(decomp_lzw_z16, raw);
-
-        let decomp_compact = decompress(&compact, CompressionFormat::Compact)
-            .expect("Compact decompress failed");
-        assert_eq!(decomp_compact, raw);
+    #[crate::ctb_test]
+    fn test_format_compact() {
+        run_format_test_suite(CompressionFormat::Compact);
     }
 }
