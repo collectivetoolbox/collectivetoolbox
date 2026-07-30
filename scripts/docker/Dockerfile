@@ -73,11 +73,12 @@ COPY src/nopersonality/nopersonality.rs /tmp/nopersonality.rs
 
 RUN set -eux; \
     rustc --edition 2024 --crate-type cdylib -O /tmp/nopersonality.rs -o /tmp/libctb_nopersonality.so; \
+    export LD_PRELOAD=/tmp/libctb_nopersonality.so; \
     /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 & \
     DAEMON_PID=$!; \
     sleep 2; \
     mkdir -p /var/guix; \
-    TARBALL_PATH=$(LD_PRELOAD=/tmp/libctb_nopersonality.so /root/.config/guix/current/bin/guix system image --system=i686-linux --image-type=tarball /tmp/v86-os.scm); \
+    TARBALL_PATH=$(/root/.config/guix/current/bin/guix system image --system=i686-linux --image-type=tarball /tmp/v86-os.scm); \
     cp "$TARBALL_PATH" /var/guix/v86-system-image.tar.gz; \
     kill "$DAEMON_PID" || true; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
