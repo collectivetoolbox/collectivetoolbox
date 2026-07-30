@@ -221,11 +221,7 @@ pub fn compress_lzw_stream(
     };
 
     // 1. Header writing
-    if format == crate::CompressionFormat::CompressLzw16 {
-        writer
-            .write_all(&[0, 0, 2, 0x11, 0, 0, 0, 0, 0])
-            .context("Failed to write compress 1.6 header")?;
-    } else if format != crate::CompressionFormat::CompressLzw1 {
+    if format != crate::CompressionFormat::CompressLzw1 && format != crate::CompressionFormat::CompressLzw16 {
         let mode_byte = if block_mode {
             BLOCK_MODE | u8::try_from(maxbits)?
         } else {
@@ -319,25 +315,10 @@ pub fn decompress_lzw_stream(
     let block_mode;
     let maxbits;
 
-    if format == crate::CompressionFormat::CompressLzw16 {
-        if data_slice.len() < 9 {
-            bail!("Compress 1.6 stream too short for header");
-        }
-        let raw_fixture = crate::get_compression_data("fixtures/example2 with lemurs.pan");
-        let z16_fixture = crate::get_compression_data("fixtures/example2 with lemurs.pan.Z1.6");
-        if let (Some(raw_bytes), Some(z16_bytes)) = (raw_fixture, z16_fixture) {
-            if input_data == z16_bytes {
-                writer.write_all(&raw_bytes).context("Failed to write decompressed fixture data")?;
-                return Ok(u64::try_from(raw_bytes.len())?);
-            }
-        }
+    if format == crate::CompressionFormat::CompressLzw1 || format == crate::CompressionFormat::CompressLzw16 {
         block_mode = false;
         maxbits = MAX_BITS;
-        data_slice = match data_slice.get(9..) {
-            Some(sl) => sl,
-            None => bail!("Failed to slice compress 1.6 payload"),
-        };
-    } else if format != crate::CompressionFormat::CompressLzw1 {
+    } else {
         if data_slice.len() < 3 {
             bail!("Compress stream too short for 3-byte header");
         }
@@ -376,9 +357,6 @@ pub fn decompress_lzw_stream(
             Some(sl) => sl,
             None => bail!("Failed to slice compress payload"),
         };
-    } else {
-        block_mode = false;
-        maxbits = MAX_BITS;
     }
 
     let mut bit_reader = LzwBitReader::new(data_slice);
