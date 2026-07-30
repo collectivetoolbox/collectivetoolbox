@@ -84,7 +84,41 @@ RUN echo "Pre-building Guix i686 system image tarball..." && \
     kill "$DAEMON_PID" || true; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
+# Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
+COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
+COPY src /tmp/ctb-ts-build/src
+COPY vendor /tmp/ctb-ts-build/vendor
+
+# `cat <<'EOF' is to avoid network access so `cargo run --offline` can work
+RUN echo "Pre-building TypeScript compiler tarball..." && \
+    set -eux; \
+    mkdir -p /tmp/ctb-ts-build/.cargo; \
+    cat <<'EOF' > /tmp/ctb-ts-build/.cargo/config.toml
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor/ctb-vendored/vendor"
+
+[source."https://github.com/boa-dev/boa.git"]
+git = "https://github.com/boa-dev/boa.git"
+rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
+replace-with = "vendored-sources"
+
+[source."https://github.com/rust-dark-light/dark-light.git"]
+git = "https://github.com/rust-dark-light/dark-light.git"
+rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
+replace-with = "vendored-sources"
+EOF
+    cd /tmp/ctb-ts-build; \
+    cargo run --offline -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript; \
+    mkdir -p /var/cache/ctoolbox; \
+    cp vendor/TypeScript-built.tar /var/cache/ctoolbox/TypeScript-built.tar; \
+    cd /; \
+    rm -r /tmp/ctb-ts-build
+
 WORKDIR /workspaces/ctoolbox
 
 LABEL org.opencontainers.image.source=https://github.com/collectivetoolbox/collectivetoolbox
 LABEL org.opencontainers.image.description="Collective Toolbox CI and development image"
+
