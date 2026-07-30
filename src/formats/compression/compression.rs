@@ -397,11 +397,31 @@ mod tests {
             CompressionFormat::from_magic_bytes(&[0x1F, 0x9D, 0x10]),
             Some(CompressionFormat::CompressLzw2)
         );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0xFF, 0x1F]),
+            Some(CompressionFormat::Compact)
+        );
     }
 
     #[crate::ctb_test]
     fn test_round_trip_all_implemented_formats() {
-        let sample = b"The quick brown fox jumps over the lazy dog. 1234567890!";
+        let fixture_data = get_compression_data("fixtures/example2 with lemurs.pan")
+            .unwrap_or_else(|| b"Fallback fixture data".to_vec());
+
+        let random_data = rand_bytes(67108864);
+
+        let repetitive_data = vec![b'A'; 200];
+        let repetitive_data = vec![b'A'; 200000];
+        let test_cases: [(&str, &[u8]); 7] = [
+            ("empty", b""),
+            ("small_string", b"ABC"),
+            ("repetitive_small", &repetitive_small),
+            ("repetitive", &repetitive_data),
+            ("quick_fox", b"The quick brown fox jumps over the lazy dog. 1234567890!"),
+            ("lemurs_fixture", &fixture_data),
+            ("random_data", &random_data),
+        ];
+
         let formats = [
             CompressionFormat::Brotli,
             CompressionFormat::Gzip,
@@ -418,19 +438,23 @@ mod tests {
             CompressionFormat::Compact,
         ];
 
-        for format in formats {
-            let compressed = compress(sample, format).unwrap();
-            let decompressed = decompress(&compressed, format).unwrap();
-            assert_eq!(
-                decompressed,
-                sample,
-                "Roundtrip failed for format {:?}\nDecompressed ({}) : {:?}\nExpected     ({}) : {:?}",
-                format,
-                decompressed.len(),
-                String::from_utf8_lossy(&decompressed),
-                sample.len(),
-                String::from_utf8_lossy(sample)
-            );
+        for (case_name, data) in test_cases {
+            for format in formats {
+                let Ok(compressed) = compress(data, format) else {
+                    if data.is_empty() {
+                        continue;
+                    }
+                    panic!("Compression failed for case '{case_name}', format {format:?}");
+                };
+                let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
+                    panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
+                });
+                assert_eq!(
+                    decompressed,
+                    data,
+                    "Roundtrip failed for case '{case_name}', format {format:?}"
+                );
+            }
         }
     }
 
