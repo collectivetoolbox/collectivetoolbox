@@ -52,9 +52,11 @@ RUN set -eux; \
     rustup target add wasm32-unknown-unknown; \
     cargo install --locked cargo-deny
 
+# `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
 RUN set -eux; \
     curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh -o /tmp/guix-install.sh; \
     chmod +x /tmp/guix-install.sh; \
+    sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh; \
     yes | /tmp/guix-install.sh; \
     rm -f /tmp/guix-install.sh; \
     mkdir -p /etc/guix; \

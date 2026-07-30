@@ -84,6 +84,8 @@ if ! command -v guix >/dev/null 2>&1; then
     echo "Installing GNU Guix..."
     curl -sSL -o /tmp/guix-install.sh https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
     chmod +x /tmp/guix-install.sh
+    # `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
+    sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh
     yes | /tmp/guix-install.sh || true
     if [[ -f /tmp/guix-install.sh ]]; then
         rm /tmp/guix-install.sh
