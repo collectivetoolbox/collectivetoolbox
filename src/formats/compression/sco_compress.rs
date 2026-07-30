@@ -1041,7 +1041,7 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
     let mut pos = 0usize;
 
     let mut head = vec![None::<usize>; 65536];
-    let mut prev = vec![None::<usize>; len];
+    let mut prev = vec![None::<usize>; DICSIZ];
 
     while pos < len {
         let mut best_len = 0usize;
@@ -1081,10 +1081,10 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
                     }
                 }
 
-                m_pos = prev.get(match_idx).copied().flatten();
+                m_pos = prev.get(match_idx & (DICSIZ.saturating_sub(1))).copied().flatten();
             }
 
-            if let Some(p_slot) = prev.get_mut(pos) {
+            if let Some(p_slot) = prev.get_mut(pos & (DICSIZ.saturating_sub(1))) {
                 *p_slot = head.get(h).copied().flatten();
             }
             if let Some(h_slot) = head.get_mut(h) {
@@ -1106,7 +1106,7 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
                     let b2 = usize::from(input_data.get(p.saturating_add(2)).copied().unwrap_or(0));
                     let h = (b0 << 8) ^ (b1 << 4) ^ b2;
 
-                    if let Some(p_slot) = prev.get_mut(p) {
+                    if let Some(p_slot) = prev.get_mut(p & (DICSIZ.saturating_sub(1))) {
                         *p_slot = head.get(h).copied().flatten();
                     }
                     if let Some(h_slot) = head.get_mut(h) {
