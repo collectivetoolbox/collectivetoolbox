@@ -84,15 +84,10 @@ RUN set -eux; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
-ENV NOCACHEJULYTHIRTY=1
+ENV NOCACHEJULYTHIRTY=2
 COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor
-
-RUN [ ! -d vendor/v86_images ] || rm -rf vendor/v86_images; \
-    [ ! -f vendor/TypeScript-built.tar ] || rm -f vendor/TypeScript-built.tar; \
-    [ ! -f vendor/vendor.tar ] || rm -f vendor/vendor.tar; \
-    [ ! -f vendor/icecat-bin.tar.gz ] || rm -f vendor/icecat-bin.tar.gz
 
 # Patch to avoid network access so `cargo run --offline` can work
 RUN set -eux; \
