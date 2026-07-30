@@ -84,6 +84,7 @@ RUN set -eux; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
+ENV NOCACHEJULYTHIRTY=1
 COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor
@@ -113,6 +114,9 @@ RUN set -eux; \
         'rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"' \
         'replace-with = "vendored-sources"' \
         > /tmp/ctb-ts-build/.cargo/config.toml; \
+    find /tmp/ctb-ts-build/vendor -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | while read -r file; do \
+        mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"; \
+    done; \
     cd /tmp/ctb-ts-build; \
     cargo run --offline -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript; \
     mkdir -p /var/cache/ctoolbox; \
