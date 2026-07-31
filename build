@@ -29,10 +29,6 @@
 # For v86:
 # rustup target add wasm32-unknown-unknown
 
-# Remember when manually cross compiling: use required RUSTFLAGS:
-# RUSTFLAGS="-C target-feature=+sse,+sse2" cargo build --target i586-unknown-linux-musl
-# This script does that automatically for you.
-
 # Requires GNU Guix for source-bootstrapped v86 OS images and IceCat.
 # See https://guix.gnu.org/manual/en/html_node/Installation.html
 # guix system image --system=i686-linux --image-type=tarball scripts/guix/v86-os.scm
@@ -291,16 +287,10 @@ for p in "${platforms[@]}"; do
         exit 1
     fi
 
-    #Ring requires SSE2 https://github.com/briansmith/ring/issues/1999#issuecomment-2151011318
-    # See also https://salsa.debian.org/rust-team/debcargo-conf/-/blob/d586098f2597e5b5a1dcbf87af5268b3b84206e1/src/ring/debian/patches/use-generic-implementation-on-non-sse2-x86.patch
-    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1095863
     RUSTFLAGS=
     if [[ "$target" == *-unknown-linux-* ]] || [[ "$target" == *-unknown-linux-* ]]; then
         # I think there may be AGPL compatibility issues that would prevent static linking on Mac or Windows, so this is Linux-only for now.
         RUSTFLAGS=" -C target-feature=+crt-static"
-    fi
-    if [[ "$target" == "i586-unknown-linux-gnu" ]] || [[ "$target" == "i586-unknown-linux-musl" ]]; then
-        RUSTFLAGS="$RUSTFLAGS -C target-feature=+sse,+sse2"
     fi
 
     # Try to set build concurrency to something reasonable

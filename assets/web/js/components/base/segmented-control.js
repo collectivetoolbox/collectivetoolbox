@@ -7,7 +7,7 @@ export class CtbSegmentedControl extends HTMLElement {
      */
     #changeHandler = (event) => {
         if (event.target instanceof HTMLInputElement && event.target.type === "radio") {
-            this.#syncSelectedState();
+            this.syncSelectedState();
         }
     };
 
@@ -27,7 +27,7 @@ export class CtbSegmentedControl extends HTMLElement {
      */
     connectedCallback() {
         // Setup initial selected attributes
-        this.#syncSelectedState();
+        this.syncSelectedState();
 
         // Listen for change events from radio inputs bubbling up
         this.addEventListener("change", this.#changeHandler);
@@ -48,7 +48,7 @@ export class CtbSegmentedControl extends HTMLElement {
      *
      * @returns {void}
      */
-    #syncSelectedState() {
+    syncSelectedState() {
         const buttons = this.querySelectorAll("ctb-button");
         for (const button of buttons) {
             const input = button.querySelector("input[type='radio']");
