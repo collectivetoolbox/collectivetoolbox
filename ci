@@ -77,7 +77,7 @@ else
 fi
 
 if ! $in_container; then
-    ci_image="${CTB_CI_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest}"
+    ci_image="${CTB_CI_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest}"
     echo "Updating Docker image (${ci_image})..."
     docker pull "$ci_image"
 fi
