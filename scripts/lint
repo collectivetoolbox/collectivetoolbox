@@ -60,9 +60,9 @@ fi
 echo "=== Running cargo deny ==="
 deny_flags=""
 if [[ -n "$offline" ]]; then
-    deny_flags="--disable-fetch"
+    deny_flags="--offline"
 fi
-if ! cargo deny --workspace check $deny_flags; then
+if ! cargo deny $deny_flags --workspace check; then
     echo "cargo-deny reported errors."
     exit 1
 fi
