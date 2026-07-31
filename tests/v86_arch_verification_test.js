@@ -178,6 +178,9 @@ async function waitForServer(url, timeoutMs = 60000) {
     console.log("[GATE 1 PASSED] Serial I/O channel active and responsive!");
   }
 
+  console.log("[VERIFY-ARCH] Starting X11 server via ./startx.sh...");
+  await runSerialCommand("./startx.sh & sleep 5", 15000);
+
   // GATE 2: X11 Server Protocol Query (X11 probe)
   console.log("[GATE 2] Probing X11 Display Server on :0...");
   let g2 = await runSerialCommand("xprop -display :0 -root 2>/dev/null || xwininfo -display :0 -root 2>/dev/null || xset -display :0 q 2>/dev/null || [ -S /tmp/.X11-unix/X0 ]", 15000);
