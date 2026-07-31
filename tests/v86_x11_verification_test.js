@@ -299,7 +299,7 @@ async function waitForServer(url, timeoutMs = 60000) {
       };
     });
 
-    if (canvasState && (canvasState.targetMatches > 50 || canvasState.nonZeroCount > 500)) {
+    if (canvasState && canvasState.targetMatches > 50) {
       gate4Passed = true;
       break;
     } else {
@@ -320,7 +320,8 @@ async function waitForServer(url, timeoutMs = 60000) {
   // GATE 5: GUI Shell Command Execution & Dynamic Nonce Verification
   console.log("[GATE 5] Testing GUI application execution (xterm / shell command)...");
   const nonce = "NONCE_X11_" + Math.random().toString(36).substring(2, 10);
-  let g5 = await runSerialCommand(`xterm -display :0 -geometry 80x24+0+0 -e sh -c "echo ${nonce} > /dev/ttyS0" & sleep 2`, 15000);
+  const revNonce = nonce.split('').reverse().join('');
+  let g5 = await runSerialCommand(`xterm -display :0 -geometry 80x24+0+0 -e sh -c "echo ${revNonce} | rev > /dev/ttyS0" & sleep 2`, 15000);
   const raw5 = g5.output + "\n" + norm(g5.output);
   const nonceReceived = raw5.includes(nonce) || (await page.evaluate(() => window.v86SerialBuffer || "")).includes(nonce);
 
