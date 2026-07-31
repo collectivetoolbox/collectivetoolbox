@@ -39,7 +39,7 @@
 
 use anyhow::{Result, bail};
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -88,6 +88,48 @@ fn main() -> Result<()> {
             Path::new(out32seg),
             Path::new(out32flat),
         )?;
+    } else if cmd == "generate-v86" {
+        let v86_dir = if let Some(target_dir) = rest.first() {
+            Path::new(target_dir)
+        } else {
+            Path::new("built/v86_build_tmp/v86")
+        };
+        let x86_table_js = if v86_dir.join("gen/x86_table.js").is_file() {
+            v86_dir.join("gen/x86_table.js")
+        } else {
+            PathBuf::from("vendor/v86/gen/x86_table.js")
+        };
+        let gen_dir = v86_dir.join("src/rust/gen");
+        ctb_build_support::v86_generator::generate_all_tables(&x86_table_js, &gen_dir)?;
+        ctb_build_support::v86_packer::mangle_v86_build_scripts(v86_dir)?;
+    } else if cmd.ends_with(".js") {
+        let mut out_dir = None;
+        let mut iter = rest.iter();
+        while let Some(arg) = iter.next() {
+            if arg == "--output-dir" {
+                if let Some(val) = iter.next() {
+                    out_dir = Some(Path::new(val));
+                }
+            }
+        }
+        let gen_dir = out_dir
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("src/rust/gen"));
+        let v86_dir = gen_dir
+            .parent()
+            .and_then(Path::parent)
+            .unwrap_or_else(|| Path::new("."));
+        let x86_table_js = if v86_dir.join("gen/x86_table.js").is_file() {
+            v86_dir.join("gen/x86_table.js")
+        } else if Path::new("vendor/v86/gen/x86_table.js").is_file() {
+            PathBuf::from("vendor/v86/gen/x86_table.js")
+        } else {
+            v86_dir.join("gen/x86_table.js")
+        };
+        ctb_build_support::v86_generator::generate_all_tables(&x86_table_js, &gen_dir)?;
+        if v86_dir.join("Makefile").is_file() {
+            let _ = ctb_build_support::v86_packer::mangle_v86_build_scripts(v86_dir);
+        }
     } else {
         eprintln!("Unknown seabios-tool command: {cmd}");
         std::process::exit(1);

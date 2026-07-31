@@ -126,6 +126,7 @@ fn copy_dir_recursive(
     Ok(())
 }
 
+#[allow(dead_code, reason = "Helper utility function for asset content comparison")]
 fn files_match(src: &Path, dst: &Path) -> Result<bool> {
     if !dst.is_file() {
         return Ok(false);
