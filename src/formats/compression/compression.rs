@@ -53,7 +53,117 @@ pub enum CompressionFormat {
     Compact,
 }
 
+/// Declarative metadata for a compression format variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompressionFormatInfo {
+    /// The compression format enum variant.
+    pub format: CompressionFormat,
+    /// Human-readable display name or description of the format.
+    pub display_name: &'static str,
+    /// List of format string aliases (shorthand and long names).
+    pub aliases: &'static [&'static str],
+}
+
+impl CompressionFormatInfo {
+    /// Returns the aliases sorted shortest string first, then alphabetically for equal length strings.
+    pub fn sorted_aliases(&self) -> Vec<&'static str> {
+        sorted_aliases(self.aliases)
+    }
+}
+
+/// Sorts a slice of string aliases by shortest length first, then alphabetically for equal length strings.
+pub fn sorted_aliases(aliases: &[&'static str]) -> Vec<&'static str> {
+    let mut sorted = aliases.to_vec();
+    sorted.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
+    sorted
+}
+
+/// Generates a detailed help table of supported compression formats and their shorthand aliases.
+pub fn format_help_table() -> String {
+    let mut lines = Vec::new();
+    lines.push("Supported compression formats:".to_string());
+    for info in CompressionFormat::ALL_FORMATS {
+        let sorted = info.sorted_aliases();
+        let alias_str = sorted.join(", ");
+        lines.push(format!("  {}: {}", alias_str, info.display_name));
+    }
+    lines.join("\n")
+}
+
+/// Global static lazy string containing the formatted compression help table.
+pub static COMPRESSION_AFTER_HELP: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(format_help_table);
+
 impl CompressionFormat {
+    /// Declarative registry of all supported compression formats and their aliases.
+    pub const ALL_FORMATS: &'static [CompressionFormatInfo] = &[
+        CompressionFormatInfo {
+            format: Self::Brotli,
+            display_name: "Brotli compressed stream",
+            aliases: &["brotli", "br"],
+        },
+        CompressionFormatInfo {
+            format: Self::Gzip,
+            display_name: "GNU gzip format",
+            aliases: &["gzip", "gz"],
+        },
+        CompressionFormatInfo {
+            format: Self::Deflate,
+            display_name: "Raw DEFLATE compressed stream",
+            aliases: &["deflate", "raw-deflate"],
+        },
+        CompressionFormatInfo {
+            format: Self::Zlib,
+            display_name: "Zlib-wrapped DEFLATE stream (RFC 1950)",
+            aliases: &["zlib", "zz", "zl", "zlib-deflate"],
+        },
+        CompressionFormatInfo {
+            format: Self::Bzip2,
+            display_name: "Bzip2 compressed stream",
+            aliases: &["bzip2", "bz2", "bz"],
+        },
+        CompressionFormatInfo {
+            format: Self::ScoCompress,
+            display_name: "Compress: SCO `compress -H` variant",
+            aliases: &["sco-compress", "compress-sco", "compress-h", "sco"],
+        },
+        CompressionFormatInfo {
+            format: Self::CompressLzw,
+            display_name: "Compress 4.0 / modern LZW block format",
+            aliases: &["compress", "compress4", "compress3", "compress-4.0", "compress-3.0", "lzw-block"],
+        },
+        CompressionFormatInfo {
+            format: Self::CompressLzw2,
+            display_name: "Compress 2.0 / LZW non-block format",
+            aliases: &["compress2", "compress-2.0", "lzw-nonblock"],
+        },
+        CompressionFormatInfo {
+            format: Self::CompressLzw1,
+            display_name: "Compress 1.0 / LZW headerless format",
+            aliases: &["compress1", "compress-1.0", "lzw-headerless"],
+        },
+        CompressionFormatInfo {
+            format: Self::CompressLzw16,
+            display_name: "Compress 1.6 / LZW sorted chain format",
+            aliases: &["compress16", "compress-1.6", "lzw-sorted-chain"],
+        },
+        CompressionFormatInfo {
+            format: Self::Pack,
+            display_name: "System III/V Canonical Huffman pack",
+            aliases: &["pack", "sys3-pack", "sys5-pack"],
+        },
+        CompressionFormatInfo {
+            format: Self::OldPack,
+            display_name: "Early PDP-11 Unix binary tree pack",
+            aliases: &["old-pack", "oldpack", "opack", "pts-opack", "early-pack"],
+        },
+        CompressionFormatInfo {
+            format: Self::Compact,
+            display_name: "McMaster Adaptive Huffman compact",
+            aliases: &["compact", "uncompact"],
+        },
+    ];
+
     /// Maps this compression format variant to the global `FormatId`.
     pub fn to_format_id(&self) -> FormatId {
         match self {
@@ -144,23 +254,15 @@ impl TryFrom<&str> for CompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let clean = s.trim_start_matches('.');
-        match clean.to_lowercase().as_str() {
-            "brotli" | "br" => Ok(Self::Brotli),
-            "gzip" | "gz" => Ok(Self::Gzip),
-            "deflate" | "raw-deflate" => Ok(Self::Deflate),
-            "zlib" | "zz" | "zl" | "zlib-deflate" => Ok(Self::Zlib),
-            "bzip2" | "bz2" | "bz" => Ok(Self::Bzip2),
-            "sco-compress" | "compress-sco" | "compress-h" | "sco" => Ok(Self::ScoCompress),
-            "compress" | "compress4" | "compress3" | "compress-4.0" | "compress-3.0" | "lzw" | "lzw-block" => Ok(Self::CompressLzw),
-            "compress2" | "compress-2.0" | "lzw-nonblock" => Ok(Self::CompressLzw2),
-            "compress1" | "compress-1.0" | "lzw-headerless" => Ok(Self::CompressLzw1),
-            "compress16" | "compress-1.6" | "lzw-sorted-chain" => Ok(Self::CompressLzw16),
-            "pack" | "sys3-pack" | "sys5-pack" => Ok(Self::Pack),
-            "old-pack" | "oldpack" | "opack" | "pts-opack" | "early-pack" => Ok(Self::OldPack),
-            "compact" | "uncompact" => Ok(Self::Compact),
-            _ => bail!("Unknown compression format: '{s}'"),
+        let clean = s.trim_start_matches('.').to_lowercase();
+        for info in CompressionFormat::ALL_FORMATS {
+            for &alias in info.aliases {
+                if alias.eq_ignore_ascii_case(&clean) {
+                    return Ok(info.format);
+                }
+            }
         }
+        bail!("Unknown compression format: '{s}'")
     }
 }
 
@@ -312,6 +414,37 @@ pub fn decompress(data: &[u8], format: CompressionFormat) -> Result<Vec<u8>> {
 )]
 mod tests {
     use super::*;
+
+    #[crate::ctb_test]
+    fn test_alias_sorting() {
+        let input = vec!["sco-compress", "compress-sco", "compress-h", "sco"];
+        let sorted = sorted_aliases(&input);
+        assert_eq!(sorted, vec!["sco", "compress-h", "compress-sco", "sco-compress"]);
+
+        let input_zlib = vec!["zlib", "zz", "zl", "zlib-deflate"];
+        let sorted_zlib = sorted_aliases(&input_zlib);
+        assert_eq!(sorted_zlib, vec!["zl", "zz", "zlib", "zlib-deflate"]);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_help_table() {
+        let table = format_help_table();
+        assert!(table.contains("Supported compression formats:"));
+        assert!(table.contains("  br, brotli: Brotli compressed stream"));
+        assert!(table.contains("  gz, gzip: GNU gzip format"));
+        assert!(table.contains("  sco, compress-h, compress-sco, sco-compress: Compress: SCO `compress -H` variant"));
+    }
+
+    #[crate::ctb_test]
+    fn test_all_format_aliases_parsing() {
+        for info in CompressionFormat::ALL_FORMATS {
+            for &alias in info.aliases {
+                let parsed = CompressionFormat::try_from(alias)
+                    .unwrap_or_else(|_| panic!("Failed to parse alias '{alias}' for format {:?}", info.format));
+                assert_eq!(parsed, info.format);
+            }
+        }
+    }
 
     #[crate::ctb_test]
     fn test_format_extensions_and_parsing() {

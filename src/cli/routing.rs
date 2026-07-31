@@ -353,9 +353,9 @@ pub enum Command {
         prefix_0x: bool,
     },
     /// Compress a file or stdin using single-stream compression format
-    #[command(name = "compress")]
+    #[command(name = "compress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
     Compress {
-        /// Compression format (`brotli` / `.br`, `gzip` / `.gz`, `deflate` / `.deflate`, `zlib` / `.zz` / `.zl`)
+        /// Compression format (e.g. `br`, `gz`, `deflate`, `zlib`). See table below for allowed values.
         format: String,
         /// Input file path (or - for stdin)
         #[arg(default_value = "-")]
@@ -368,9 +368,9 @@ pub enum Command {
         force: bool,
     },
     /// Decompress a compressed file or stdin
-    #[command(name = "decompress")]
+    #[command(name = "decompress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
     Decompress {
-        /// Optional compression format (`brotli`, `gzip`, `deflate`, `zlib`). If omitted, detected from file extension or magic bytes.
+        /// Optional compression format (e.g. `br`, `gz`, `deflate`, `zlib`). If omitted, detected from file extension or magic bytes.
         format: Option<String>,
         /// Input file path (or - for stdin)
         #[arg(default_value = "-")]
@@ -1178,5 +1178,39 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let escaped = ctb_utilities::json::json_escape(&input_str)?;
             Ok(ToolResult::immediate_ok(escaped.into_bytes()))
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[crate::ctb_test]
+    fn test_compress_command_help() {
+        let mut cmd = crate::Cli::command();
+        let compress_sub = cmd
+            .find_subcommand_mut("compress")
+            .expect("compress subcommand should exist");
+        let mut help_buf = Vec::new();
+        compress_sub
+            .write_help(&mut help_buf)
+            .expect("Should format help");
+        let help_str = String::from_utf8(help_buf).expect("UTF-8 help");
+
+        assert!(help_str.contains("Supported compression formats:"));
+        assert!(help_str.contains("br, brotli: Brotli compressed stream"));
+        assert!(help_str.contains("gz, gzip: GNU gzip format"));
+        assert!(help_str.contains("sco, compress-h, compress-sco, sco-compress: Compress: SCO `compress -H` variant"));
     }
 }

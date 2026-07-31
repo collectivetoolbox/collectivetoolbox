@@ -183,23 +183,39 @@ async function waitForServer(url, timeoutMs = 60000) {
 
   // GATE 2: X11 Server Protocol Query (X11 probe)
   console.log("[GATE 2] Probing X11 Display Server on :0...");
-  let g2 = await runSerialCommand("xprop -display :0 -root 2>/dev/null || xwininfo -display :0 -root 2>/dev/null || xset -display :0 q 2>/dev/null || [ -S /tmp/.X11-unix/X0 ]", 15000);
-  const raw2 = g2.output + "\n" + norm(g2.output);
-  const x11Active = g2.success && (raw2.includes("_NET_") || raw2.includes("WINDOW") || raw2.includes("ATOM") || raw2.includes("0x") || raw2.includes("Keyboard") || raw2.includes("X0"));
+  let x11Active = false;
+  let g2 = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    g2 = await runSerialCommand("DISPLAY=:0 xset q 2>/dev/null || DISPLAY=:0 xprop -root 2>/dev/null || [ -S /tmp/.X11-unix/X0 ]", 10000);
+    const raw2 = g2.output + "\n" + norm(g2.output);
+    if (g2.success || raw2.includes("_NET_") || raw2.includes("WINDOW") || raw2.includes("ATOM") || raw2.includes("0x") || raw2.includes("Keyboard") || raw2.includes("X0")) {
+      x11Active = true;
+      break;
+    }
+    await page.waitForTimeout(1000);
+  }
   if (!x11Active) {
-    console.error("[GATE 2 FAILED] X11 server is NOT active on display :0. Output:\n", g2.output);
+    console.error("[GATE 2 FAILED] X11 server is NOT active on display :0. Output:\n", g2?.output);
   } else {
     console.log("[GATE 2 PASSED] X11 display server is active on :0!");
   }
 
   // GATE 3: Active Window Manager Query (Openbox probe)
   console.log("[GATE 3] Probing EWMH Window Manager registration (Openbox)...");
-  let g3 = await runSerialCommand("xprop -display :0 -root _NET_SUPPORTING_WM_CHECK 2>/dev/null || xprop -display :0 -root 2>/dev/null | grep -i openbox || pgrep -x openbox", 15000);
-  const raw3 = (g3.output + "\n" + norm(g3.output)).toLowerCase();
-  let hasOpenboxWm = g3.success && (raw3.includes("openbox") || raw3.includes("_net_supporting_wm_check") || raw3.includes("0x"));
+  let hasOpenboxWm = false;
+  let g3 = null;
+  for (let attempt = 0; attempt < 15; attempt++) {
+    g3 = await runSerialCommand("DISPLAY=:0 xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null || DISPLAY=:0 xprop -root 2>/dev/null | grep -i openbox || pgrep -x openbox || pgrep -x openbox-session", 10000);
+    const raw3 = ((g3?.output || "") + "\n" + norm(g3?.output || "")).toLowerCase();
+    if (g3?.success || raw3.includes("openbox") || raw3.includes("_net_supporting_wm_check") || raw3.includes("0x")) {
+      hasOpenboxWm = true;
+      break;
+    }
+    await page.waitForTimeout(1000);
+  }
 
   if (!hasOpenboxWm) {
-    console.error("[GATE 3 FAILED] Openbox is NOT registered as active Window Manager! Output:\n", g3.output);
+    console.error("[GATE 3 FAILED] Openbox is NOT registered as active Window Manager! Output:\n", g3?.output);
   } else {
     console.log("[GATE 3 PASSED] Openbox is active and registered as the EWMH Window Manager!");
   }
