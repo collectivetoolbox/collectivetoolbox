@@ -683,7 +683,7 @@ fn find_linux_modules_dir(json: &str) -> PathBuf {
 
 /// Ensure v86 WASM and SeaBIOS binaries are compiled into `built/v86_out`
 /// without ever modifying or cluttering source directories.
-fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
+pub fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
     let makefile_path = v86_tmp.join("Makefile");
     if makefile_path.is_file() {
         let content = fs::read_to_string(&makefile_path)?;

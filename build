@@ -307,6 +307,7 @@ for p in "${platforms[@]}"; do
         cp -r vendor/v86 "$v86_tmp_dir/v86"
         cp -r vendor/seabios "$v86_tmp_dir/seabios"
 
+        "$seabios_tool_bin" generate-v86 "$v86_tmp_dir/v86"
         make -C "$v86_tmp_dir/v86" build/v86.wasm
         make -C "$v86_tmp_dir/seabios" PYTHON="$seabios_tool_bin"
 
