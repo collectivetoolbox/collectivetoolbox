@@ -27,13 +27,13 @@ RUN set -eux; \
         perl \
         pkg-config \
         tar \
+        tmux \
         xz-utils \
         xxd; \
     npm install -g typescript playwright; \
     npx playwright install-deps chromium; \
     npx playwright install chromium; \
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean
 
 # Ensure system-wide umask is 0000 so files created inside container are readable/writable by host users
 RUN set -eux; \
@@ -84,7 +84,7 @@ RUN set -eux; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
-ENV NOCACHEJULYTHIRTY=2
+#ENV NOCACHEJULYTHIRTY=2
 COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor

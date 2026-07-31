@@ -340,10 +340,10 @@ for p in "${platforms[@]}"; do
             CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --no-fail-fast --target "$target" -- || exit 1
             CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- || exit 1
         fi
-    fi
 
-    echo "=== Running CLI compression tests ==="
-    bash scripts/test-compression-cli || exit 1
+        echo "=== Running CLI compression tests ==="
+        bash scripts/test-compression-cli || exit 1
+    fi
 
     if [[ "$build_binaries" == "true" ]]; then
         if [[ "$release" == "release" ]]; then

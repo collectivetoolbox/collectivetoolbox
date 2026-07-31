@@ -130,7 +130,7 @@ async function waitForServer(url, timeoutMs = 60000) {
     await page.evaluate(() => { window.v86SerialBuffer = ""; });
 
     // Send command followed by echo sentinel with exit code
-    const fullCmd = `for p in /gnu/store/*-profile; do export PATH=$p/bin:$p/sbin:$PATH; done; ${cmd}; echo "${sentinel}:$?"`;
+    const fullCmd = `${cmd}; echo "${sentinel}:$?"`;
     const sendFn = async () => {
       await page.evaluate((c) => {
         if (window.emulator && window.emulator.serial0_send) {
@@ -178,22 +178,22 @@ async function waitForServer(url, timeoutMs = 60000) {
     console.log("[GATE 1 PASSED] Serial I/O channel active and responsive!");
   }
 
-  // GATE 2: X11 Server Protocol Query (obxprop / X11 probe)
-  console.log("[GATE 2] Probing X11 Display Server on :0 (obxprop)...");
-  let g2 = await runSerialCommand("obxprop --display :0 --root", 15000);
+  // GATE 2: X11 Server Protocol Query (X11 probe)
+  console.log("[GATE 2] Probing X11 Display Server on :0...");
+  let g2 = await runSerialCommand("xprop -display :0 -root 2>/dev/null || xwininfo -display :0 -root 2>/dev/null || xset -display :0 q 2>/dev/null || [ -S /tmp/.X11-unix/X0 ]", 15000);
   const raw2 = g2.output + "\n" + norm(g2.output);
-  const x11Active = raw2.includes("_NET_") || raw2.includes("window") || raw2.includes("ATOM") || raw2.includes("0x") || raw2.includes("_OB_") || raw2.includes("XKB");
+  const x11Active = g2.success && (raw2.includes("_NET_") || raw2.includes("WINDOW") || raw2.includes("ATOM") || raw2.includes("0x") || raw2.includes("Keyboard") || raw2.includes("X0"));
   if (!x11Active) {
     console.error("[GATE 2 FAILED] X11 server is NOT active on display :0. Output:\n", g2.output);
   } else {
     console.log("[GATE 2 PASSED] X11 display server is active on :0!");
   }
 
-  // GATE 3: Active Window Manager Query (Openbox / obxprop)
+  // GATE 3: Active Window Manager Query (Openbox probe)
   console.log("[GATE 3] Probing EWMH Window Manager registration (Openbox)...");
-  let g3 = await runSerialCommand("obxprop --display :0 --root || ps aux", 15000);
+  let g3 = await runSerialCommand("xprop -display :0 -root _NET_SUPPORTING_WM_CHECK 2>/dev/null || xprop -display :0 -root 2>/dev/null | grep -i openbox || pgrep -x openbox", 15000);
   const raw3 = (g3.output + "\n" + norm(g3.output)).toLowerCase();
-  let hasOpenboxWm = raw3.includes("openbox") || raw3.includes("_net_") || raw3.includes("_ob_") || raw3.includes("0x") || raw3.includes("xkb");
+  let hasOpenboxWm = g3.success && (raw3.includes("openbox") || raw3.includes("_net_supporting_wm_check") || raw3.includes("0x"));
 
   if (!hasOpenboxWm) {
     console.error("[GATE 3 FAILED] Openbox is NOT registered as active Window Manager! Output:\n", g3.output);
@@ -297,7 +297,7 @@ async function waitForServer(url, timeoutMs = 60000) {
       };
     });
 
-    if (canvasState && (canvasState.targetMatches > 50 || canvasState.nonZeroCount > 500)) {
+    if (canvasState && canvasState.targetMatches > 50) {
       gate4Passed = true;
       break;
     } else {
@@ -318,7 +318,8 @@ async function waitForServer(url, timeoutMs = 60000) {
   // GATE 5: GUI Shell Command Execution & Dynamic Nonce Verification
   console.log("[GATE 5] Testing GUI application execution (xterm / shell command)...");
   const nonce = "NONCE_X11_" + Math.random().toString(36).substring(2, 10);
-  let g5 = await runSerialCommand(`xterm -display :0 -geometry 80x24+0+0 -e sh -c "echo ${nonce} > /dev/ttyS0" & sleep 2`, 15000);
+  const revNonce = nonce.split('').reverse().join('');
+  let g5 = await runSerialCommand(`xterm -display :0 -geometry 80x24+0+0 -e sh -c "echo ${revNonce} | rev > /dev/ttyS0" & sleep 2`, 15000);
   const raw5 = g5.output + "\n" + norm(g5.output);
   const nonceReceived = raw5.includes(nonce) || (await page.evaluate(() => window.v86SerialBuffer || "")).includes(nonce);
 
