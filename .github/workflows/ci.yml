@@ -12,7 +12,7 @@ jobs:
     name: Build & Core CI
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest
+      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest
 
     steps:
       - name: Checkout repository
@@ -35,7 +35,7 @@ jobs:
     needs: build-ci
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-25:latest
+      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest
 
     steps:
       - name: Checkout repository
