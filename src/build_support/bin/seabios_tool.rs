@@ -102,6 +102,18 @@ fn main() -> Result<()> {
         let gen_dir = v86_dir.join("src/rust/gen");
         ctb_build_support::v86_generator::generate_all_tables(&x86_table_js, &gen_dir)?;
         ctb_build_support::v86_packer::mangle_v86_build_scripts(v86_dir)?;
+        // Update mtime of generated Rust files to be strictly newer than gen/x86_table.js.
+        // POSIX `make` considers target files out of date if mtime(target) <= mtime(dependency).
+        // Without this explicit timestamp refresh, files generated in the same sub-second window
+        // as `cp -r vendor/v86` may be evaluated by `make` as out of date relative to `x86_table.js`.
+        let now = std::time::SystemTime::now();
+        if let Ok(entries) = std::fs::read_dir(&gen_dir) {
+            for entry in entries.flatten() {
+                if let Ok(file) = std::fs::OpenOptions::new().write(true).open(entry.path()) {
+                    let _ = file.set_modified(now);
+                }
+            }
+        }
     } else if cmd.ends_with(".js") {
         let mut out_dir = None;
         let mut iter = rest.iter();
