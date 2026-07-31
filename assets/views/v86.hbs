@@ -3,7 +3,7 @@
 
 <link rel="stylesheet" href="/vendor/v86/v86.css">
 
-<div id="v86_container" data-profile="{{profile}}" class="flex flex-col h-full w-full p-4 gap-4">
+<div id="v86_container" data-profile="{{profile}}" class="flex flex-col h-full w-full p-4 gap-4 overflow-hidden">
     <div class="flex flex-wrap items-center gap-3">
         <h2>{{title}}</h2>
 
@@ -33,7 +33,7 @@
     </div>
 </div>
 
-<div id="runtime_infos" style="display: none" class="overflow-scroll mw-[11rem]">
+<div id="runtime_infos" style="display: none" class="overflow-scroll max-w-[10rem] m-0 p-0">
     Running: <span id="running_time">0s</span> <br>
     Speed: <span id="speed">0</span> mIPS<br>
     Avg speed: <span id="avg_speed">0</span> mIPS<br>
