@@ -99,17 +99,17 @@ impl CompressionFormat {
     pub const ALL_FORMATS: &'static [CompressionFormatInfo] = &[
         CompressionFormatInfo {
             format: Self::Brotli,
-            display_name: "Brotli compressed stream",
+            display_name: "Brotli compressed stream (RFC 9841)",
             aliases: &["brotli", "br"],
         },
         CompressionFormatInfo {
             format: Self::Gzip,
-            display_name: "GNU gzip format",
+            display_name: "GNU gzip format (RFC 1952)",
             aliases: &["gzip", "gz"],
         },
         CompressionFormatInfo {
             format: Self::Deflate,
-            display_name: "Raw DEFLATE compressed stream",
+            display_name: "Raw DEFLATE compressed stream (RFC 1951)",
             aliases: &["deflate", "raw-deflate"],
         },
         CompressionFormatInfo {
@@ -123,43 +123,43 @@ impl CompressionFormat {
             aliases: &["bzip2", "bz2", "bz"],
         },
         CompressionFormatInfo {
+            format: Self::CompressLzw,
+            display_name: "`compress` format, modern LZW block format",
+            aliases: &["compress", "compress4", "compress3", "compress-4.0", "compress-3.0"],
+        },
+        CompressionFormatInfo {
             format: Self::ScoCompress,
-            display_name: "Compress: SCO `compress -H` variant",
+            display_name: "`compress`: SCO `compress -H` format",
             aliases: &["sco-compress", "compress-sco", "compress-h", "sco"],
         },
         CompressionFormatInfo {
-            format: Self::CompressLzw,
-            display_name: "Compress 4.0 / modern LZW block format",
-            aliases: &["compress", "compress4", "compress3", "compress-4.0", "compress-3.0", "lzw-block"],
-        },
-        CompressionFormatInfo {
             format: Self::CompressLzw2,
-            display_name: "Compress 2.0 / LZW non-block format",
-            aliases: &["compress2", "compress-2.0", "lzw-nonblock"],
-        },
-        CompressionFormatInfo {
-            format: Self::CompressLzw1,
-            display_name: "Compress 1.0 / LZW headerless format",
-            aliases: &["compress1", "compress-1.0", "lzw-headerless"],
+            display_name: "`compress` 2.0 (LZW non-block format)",
+            aliases: &["compress2", "compress-2.0"],
         },
         CompressionFormatInfo {
             format: Self::CompressLzw16,
-            display_name: "Compress 1.6 / LZW sorted chain format",
-            aliases: &["compress16", "compress-1.6", "lzw-sorted-chain"],
+            display_name: "`compress` 1.6 (LZW sorted chain format)",
+            aliases: &["compress16", "compress1.6", "compress-1.6", "lzw-sorted-chain"],
+        },
+        CompressionFormatInfo {
+            format: Self::CompressLzw1,
+            display_name: "`compress` 1.0 (LZW headerless format)",
+            aliases: &["compress1", "compress-1.0"],
         },
         CompressionFormatInfo {
             format: Self::Pack,
-            display_name: "System III/V Canonical Huffman pack",
-            aliases: &["pack", "sys3-pack", "sys5-pack"],
+            display_name: "`pack` format, common version (Huffman)",
+            aliases: &["pack"],
         },
         CompressionFormatInfo {
             format: Self::OldPack,
-            display_name: "Early PDP-11 Unix binary tree pack",
+            display_name: "`pack` format, early PDP-11 Unix binary tree",
             aliases: &["old-pack", "oldpack", "opack", "pts-opack", "early-pack"],
         },
         CompressionFormatInfo {
             format: Self::Compact,
-            display_name: "McMaster Adaptive Huffman compact",
+            display_name: "`compact` (McMaster Adaptive Huffman)",
             aliases: &["compact", "uncompact"],
         },
     ];

@@ -556,6 +556,18 @@ pub extern "C" fn _start() -> ! {
     unsafe {
         sys_mknod(c"/root/dev/fb0".as_ptr().cast(), 0o020_666, 29_usize.checked_shl(8).unwrap_or(0));
     }
+    // SAFETY: Creating /root/dev/dri directory.
+    unsafe {
+        sys_mkdir(c"/root/dev/dri".as_ptr().cast(), 0o755);
+    }
+    // SAFETY: Creating /root/dev/dri/card0 device node (226, 0).
+    unsafe {
+        sys_mknod(c"/root/dev/dri/card0".as_ptr().cast(), 0o020_666, 226_usize.checked_shl(8).unwrap_or(0));
+    }
+    // SAFETY: Creating /root/dev/dri/renderD128 device node (226, 128).
+    unsafe {
+        sys_mknod(c"/root/dev/dri/renderD128".as_ptr().cast(), 0o020_666, 226_usize.checked_shl(8).unwrap_or(0) | 128_usize);
+    }
     // SAFETY: Creating /root/dev/tty0 device node (4, 0).
     unsafe {
         sys_mknod(c"/root/dev/tty0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0));
@@ -717,9 +729,8 @@ MP=$(
 cat > /tmp/xorg.conf <<'EOF'
 Section \"Device\"
     Identifier \"Card0\"
-    Driver \"fbdev\"
-    Option \"fbdev\" \"/dev/fb0\"
-    Option \"ShadowFB\" \"true\"
+    Driver \"modesetting\"
+    Option \"kmsdev\" \"/dev/dri/card0\"
 EndSection
 
 Section \"Screen\"

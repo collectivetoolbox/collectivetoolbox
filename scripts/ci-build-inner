@@ -241,13 +241,14 @@ elif [[ -d .advisory-db ]]; then
     advisory_dir=".advisory-db"
 fi
 
+cargo_home="${CARGO_HOME:-$HOME/.cargo}"
 if [[ -n "$advisory_dir" ]]; then
     echo "Setting up pre-cloned RustSec advisory database from ${advisory_dir}..."
-    mkdir -p /root/.cargo/advisory-dbs
-    if [[ -d /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691 ]]; then
-        rm -r /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
+    mkdir -p "${cargo_home}/advisory-dbs"
+    if [[ -d "${cargo_home}/advisory-dbs/advisory-db-3157b0e258782691" ]]; then
+        rm -r "${cargo_home}/advisory-dbs/advisory-db-3157b0e258782691"
     fi
-    cp -r "$advisory_dir" /root/.cargo/advisory-dbs/advisory-db-3157b0e258782691
+    cp -r "$advisory_dir" "${cargo_home}/advisory-dbs/advisory-db-3157b0e258782691"
 fi
 
 echo "Running offline build..."
