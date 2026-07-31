@@ -7,6 +7,7 @@
              (gnu packages xorg)
              (gnu packages wm)
              (gnu packages bash)
+             (gnu packages virtualization)
              (gnu services desktop)
              (gnu services xorg)
              (gnu services networking))
@@ -37,6 +38,7 @@
                    openbox
                    xterm
                    bash
+                   qemu
                    %base-packages))
 
   (services (cons* (service static-networking-service-type '())
