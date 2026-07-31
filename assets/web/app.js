@@ -181,6 +181,7 @@ const rememberThemeRadioState = () => {
         );
         if ($radioToCheck.length) {
             $radioToCheck.prop('checked', true);
+            $radioToCheck[0]?.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
@@ -190,6 +191,7 @@ const rememberThemeRadioState = () => {
     );
     if ($btnRadioToCheck.length) {
         $btnRadioToCheck.prop('checked', true);
+        $btnRadioToCheck[0]?.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     applySavedThemes();
