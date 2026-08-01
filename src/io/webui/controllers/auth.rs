@@ -94,7 +94,6 @@ pub async fn post_login(
         return recoverable_error(
             &state,
             req,
-            "login",
             "Logging in with remote-only account is not yet implemented.",
         );
     }

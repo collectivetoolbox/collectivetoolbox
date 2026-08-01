@@ -67,11 +67,10 @@ pub struct AppState {
     pub eite_states: Arc<Mutex<HashMap<u64, ctb_formats_eite::eite_state::EiteState>>>,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
-        let hbs = register_views()
-            .expect_with_err("Could not register Handlebars views");
-        Self {
+impl AppState {
+    pub fn try_new() -> Result<Self> {
+        let hbs = register_views().context("Could not register Handlebars views")?;
+        Ok(Self {
             hbs: Arc::new(hbs),
             users: Arc::new(Mutex::new(HashMap::new())),
             download_sizes: Arc::new(Mutex::new(None)),
@@ -79,7 +78,7 @@ impl Default for AppState {
             generating_downloads: Arc::new(Mutex::new(std::collections::HashSet::new())),
             global_session_token: Arc::new(Mutex::new(None)),
             eite_states: Arc::new(Mutex::new(HashMap::new())),
-        }
+        })
     }
 }
 

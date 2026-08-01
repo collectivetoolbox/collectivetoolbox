@@ -80,7 +80,7 @@ pub fn assert_body_not_contains(cond: &str, body: &str) {
 /// Returns a test app router with shared state.
 /// Note: `AppState` must be Clone such that clones share underlying state (e.g., via Arc in fields).
 pub fn test_app() -> (AppState, Router) {
-    let state = AppState::default();
+    let state = AppState::try_new().unwrap();
     let app = build_app_router(state.clone());
     (state, app)
 }
@@ -93,7 +93,7 @@ pub struct TestApp {
     pub _temp_dir: Option<tempfile::TempDir>,
 }
 
-#[allow(unsafe_code, reason = "modifying environment variables in tests")]
+#[allow(unsafe_code, unwrap_used, reason = "allowances for test code")]
 impl Default for TestApp {
     fn default() -> Self {
         let temp_dir = tempfile::TempDir::new()
@@ -102,7 +102,7 @@ impl Default for TestApp {
         unsafe {
             std::env::set_var("CTB_TEST_STORAGE_DIR", temp_dir.path());
         }
-        let mut state = AppState::default();
+        let mut state = AppState::try_new().unwrap();
         state.storage_dir_override = Some(temp_dir.path().to_path_buf());
         let app = build_app_router(state.clone());
         Self {

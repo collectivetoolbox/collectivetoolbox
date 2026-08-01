@@ -1,6 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
+#[allow(clippy::expect_used, clippy::panic, clippy::panic_used, reason = "It is a build script, so panicking seems like an OK way to handle errors.")]
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let workspace = manifest
