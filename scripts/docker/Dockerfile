@@ -27,13 +27,14 @@ RUN set -eux; \
         perl \
         pkg-config \
         tar \
-        tmux \
         xz-utils \
         xxd; \
     npm install -g typescript playwright; \
     npx playwright install-deps chromium; \
     npx playwright install chromium; \
-    apt-get clean
+    apt-get clean; \
+    # FIXME: Remove this rm -rf next time I do a full Docker rebuild; it makes installing packages later slow
+    rm -rf /var/lib/apt/lists/*
 
 # Ensure system-wide umask is 0000 so files created inside container are readable/writable by host users
 RUN set -eux; \
@@ -84,7 +85,7 @@ RUN set -eux; \
     rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
-#ENV NOCACHEJULYTHIRTY=2
+ENV NOCACHEJULYTHIRTY=2
 COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor
@@ -118,6 +119,28 @@ RUN set -eux; \
     cp vendor/TypeScript-built.tar /var/cache/ctoolbox/TypeScript-built.tar; \
     cd /; \
     rm -r /tmp/ctb-ts-build
+
+RUN set -eux; \
+    dpkg --add-architecture i386; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        tmux \
+        # autoconf \
+        # automake \
+        # bison \
+        build-essential \
+        gcc-multilib \
+        # libexpat1-dev \
+        # libexpat1-dev:i386 \
+        # libffi-dev \
+        # libffi-dev:i386 \
+        # libssl-dev \
+        # libssl-dev:i386 \
+        # libwayland-dev \
+        # libwayland-dev:i386 \
+        mingw-w64 \
+        musl-dev:i386; \
+    apt-get clean
 
 WORKDIR /workspaces/ctoolbox
 

@@ -6,7 +6,15 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 if [[ "${1-}" == "--release" ]]; then
-    ./build --quick --no-test linux-x64 || exit 1
+    if [[ "${2-}" == "linux-x86" ]]; then
+        ./build --quick --no-test linux-x86 || exit 1
+    else
+        ./build --quick --no-test linux-x64 || exit 1
+    fi
 else
-    ./build --quick --no-test --debug linux-x64 || exit 1
+    if [[ "${1-}" == "linux-x86" ]]; then
+        ./build --quick --no-test --debug linux-x86 || exit 1
+    else
+        ./build --quick --no-test --debug linux-x64 || exit 1
+    fi
 fi
