@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow};
@@ -361,7 +365,12 @@ pub enum Command {
         #[arg(default_value = "-")]
         file: PathBuf,
         /// Output file path or - for stdout
-        #[arg(short = 'o', long = "output", alias = "file", value_name = "OUTPUT")]
+        #[arg(
+            short = 'o',
+            long = "output",
+            alias = "file",
+            value_name = "OUTPUT"
+        )]
         output: Option<PathBuf>,
         /// Force overwrite without prompting
         #[arg(long = "force")]
@@ -376,7 +385,12 @@ pub enum Command {
         #[arg(default_value = "-")]
         file: PathBuf,
         /// Output file path or - for stdout
-        #[arg(short = 'o', long = "output", alias = "file", value_name = "OUTPUT")]
+        #[arg(
+            short = 'o',
+            long = "output",
+            alias = "file",
+            value_name = "OUTPUT"
+        )]
         output: Option<PathBuf>,
         /// Force overwrite without prompting
         #[arg(long = "force")]
@@ -415,12 +429,18 @@ pub enum Command {
     DevSign {
         /// Directory containing release artifacts to sign.
         /// Defaults to ~/ctb_release/input if not specified.
-        #[allow(clippy::doc_markdown, reason = "doc comment references local path conventions")]
+        #[expect(
+            clippy::doc_markdown,
+            reason = "doc comment references local path conventions"
+        )]
         #[arg(long)]
         input_dir: Option<PathBuf>,
         /// Directory to write signed chunks and manifest.
         /// Defaults to ~/ctb_release/releases if not specified.
-        #[allow(clippy::doc_markdown, reason = "doc comment references local path conventions")]
+        #[expect(
+            clippy::doc_markdown,
+            reason = "doc comment references local path conventions"
+        )]
         #[arg(long)]
         output_dir: Option<PathBuf>,
         /// Target for this release (e.g. linux-x64, linux-x86, windows-x64,
@@ -575,7 +595,9 @@ fn read_file_or_stdin(path: &std::path::Path) -> Result<Vec<u8>> {
     use std::io::Read;
     if path.to_str() == Some("-") {
         let mut buf = Vec::new();
-        std::io::stdin().lock().read_to_end(&mut buf)
+        std::io::stdin()
+            .lock()
+            .read_to_end(&mut buf)
             .context("Failed to read from stdin")?;
         Ok(buf)
     } else {
@@ -612,7 +634,10 @@ fn check_overwrite_prompt(path: &std::path::Path, force: bool) -> Result<bool> {
 // Command Execution
 // ---------------------------
 
-#[allow(clippy::too_many_lines, reason = "uniform tool command router is naturally long")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "uniform tool command router is naturally long"
+)]
 pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
     match cmd {
         Command::WaitShutdown { pid } => {
@@ -659,7 +684,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                             .ok_or_else(|| anyhow!("Missing to_base"))?
                             .parse::<u8>()?,
                     );
-                    let input = args.get(2).ok_or_else(|| anyhow!("Missing input"))?;
+                    let input =
+                        args.get(2).ok_or_else(|| anyhow!("Missing input"))?;
                     (input, from_base, to_base)
                 }
                 _ => {
@@ -813,18 +839,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         },
         Command::Pan2Csv { pan_file } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
-            let output = ctb_formats_pan::output::pan_to_csv(&data, false)?.into_bytes();
+            let output =
+                ctb_formats_pan::output::pan_to_csv(&data, false)?.into_bytes();
             Ok(ToolResult::immediate_ok(output))
         }
-        Command::StagelBootstrapParse {
-            input_file,
-        } => {
-            let data = std::fs::read(&input_file)
-                .with_context(|| format!("Failed to read input file: {:?}", input_file))?;
-            let filename = input_file
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy();
+        Command::StagelBootstrapParse { input_file } => {
+            let data = std::fs::read(input_file).with_context(|| {
+                format!("Failed to read input file: {input_file:?}")
+            })?;
+            let filename =
+                input_file.file_stem().unwrap_or_default().to_string_lossy();
             let output = ctb_formats_stagel::parse::parse(&data, &filename)?;
             Ok(ToolResult::immediate_ok(output))
         }
@@ -839,14 +863,15 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 !no_debug,
                 !no_runtime_type_checks,
                 cache_dir.as_deref(),
-                &input_file,
-                &target_lang,
+                input_file,
+                target_lang,
             )?;
             Ok(ToolResult::immediate_ok(output))
         }
         Command::Pan2ParseJson { pan_file } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
-            let output = ctb_formats_pan::output::pan_to_parse_json(&data)?.into_bytes();
+            let output =
+                ctb_formats_pan::output::pan_to_parse_json(&data)?.into_bytes();
             Ok(ToolResult::immediate_ok(output))
         }
         Command::Pdf2Txt { pdf_file } => {
@@ -906,13 +931,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::JsTest { args } => Ok(ToolResult::Immediate {
             stdout: Vec::new(),
             stderr: Vec::new(),
-            exit_code: ctb_formats_javascript::js_test::run_test_args(
-                args,
-            )?,
+            exit_code: ctb_formats_javascript::js_test::run_test_args(args)?,
         }),
-        Command::Csum { algo, file, prefix_0x } => {
+        Command::Csum {
+            algo,
+            file,
+            prefix_0x,
+        } => {
             let data = read_file_or_stdin(file.as_path())?;
-            let hash_algo = ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
+            let hash_algo =
+                ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
             let output = format!(
                 "{}\n",
                 ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
@@ -925,16 +953,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output,
             force,
         } => {
-            let cli_output = ctb_formats_compression::cli::execute_cli_compress(
-                ctb_formats_compression::cli::CliCompressArgs {
-                    format: format.clone(),
-                    input_path: file.clone(),
-                    output_path: output.clone(),
-                    force: *force,
-                },
-                |p| read_file_or_stdin(p),
-                |p, f| check_overwrite_prompt(p, f),
-            )?;
+            let cli_output =
+                ctb_formats_compression::cli::execute_cli_compress(
+                    ctb_formats_compression::cli::CliCompressArgs {
+                        format: format.clone(),
+                        input_path: file.clone(),
+                        output_path: output.clone(),
+                        force: *force,
+                    },
+                    read_file_or_stdin,
+                    check_overwrite_prompt,
+                )?;
             match cli_output {
                 ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
                     Ok(ToolResult::immediate_ok(bytes))
@@ -956,16 +985,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output,
             force,
         } => {
-            let cli_output = ctb_formats_compression::cli::execute_cli_decompress(
-                ctb_formats_compression::cli::CliDecompressArgs {
-                    format: format.clone(),
-                    input_path: file.clone(),
-                    output_path: output.clone(),
-                    force: *force,
-                },
-                |p| read_file_or_stdin(p),
-                |p, f| check_overwrite_prompt(p, f),
-            )?;
+            let cli_output =
+                ctb_formats_compression::cli::execute_cli_decompress(
+                    ctb_formats_compression::cli::CliDecompressArgs {
+                        format: format.clone(),
+                        input_path: file.clone(),
+                        output_path: output.clone(),
+                        force: *force,
+                    },
+                    read_file_or_stdin,
+                    check_overwrite_prompt,
+                )?;
             match cli_output {
                 ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
                     Ok(ToolResult::immediate_ok(bytes))
@@ -1163,7 +1193,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 compact_output: true,
                 ..Default::default()
             };
-            let output = ctb_utilities::json::jq_implementation(query, &input_str, cli)?;
+            let output =
+                ctb_utilities::json::jq_implementation(query, &input_str, cli)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::JsonEscape { value } => {
@@ -1182,7 +1213,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

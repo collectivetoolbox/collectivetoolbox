@@ -44,8 +44,11 @@ pub fn logs_assert<F>(scope: &str, f: F) -> std::result::Result<(), String>
 where
     F: Fn(&[&str]) -> std::result::Result<(), String>,
 {
-    let buf = global_buf().lock().map_err(|e| format!("Mutex poisoned: {e}"))?;
-    let logs_str = std::str::from_utf8(&buf).map_err(|e| format!("Logs contain invalid UTF8: {e}"))?;
+    let buf = global_buf()
+        .lock()
+        .map_err(|e| format!("Mutex poisoned: {e}"))?;
+    let logs_str = std::str::from_utf8(&buf)
+        .map_err(|e| format!("Logs contain invalid UTF8: {e}"))?;
     let logs: Vec<&str> = logs_str
         .lines()
         .filter(|line| line.contains(&format!(" {scope}:")))

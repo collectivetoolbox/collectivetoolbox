@@ -290,9 +290,7 @@ where
 
         let body = match (should_compress, self.encoding) {
             (false, _)
-            | (_, None)
-            | (_, Some(Encoding::Identity))
-            | (_, Some(Encoding::Zstd)) => {
+            | (_, None | Some(Encoding::Identity | Encoding::Zstd)) => {
                 CompressionBody::new(BodyInner::identity(body))
             }
 
@@ -328,7 +326,11 @@ where
 
 fn contains_ignore_ascii_case(mut haystack: &[u8], needle: &[u8]) -> bool {
     while needle.len() <= haystack.len() {
-        if haystack.get(..needle.len()).unwrap_or(&[]).eq_ignore_ascii_case(needle) {
+        if haystack
+            .get(..needle.len())
+            .unwrap_or(&[])
+            .eq_ignore_ascii_case(needle)
+        {
             return true;
         }
         haystack = haystack.get(1..).unwrap_or(&[]);
@@ -513,7 +515,16 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use axum::body::Body as AxumBody;

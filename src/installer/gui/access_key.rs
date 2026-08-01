@@ -4,7 +4,11 @@
 //! and other interactive elements, with automatic underline rendering of the
 //! access key character.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use egui::{Align, Color32, FontId, Key, RichText, Ui, WidgetText};

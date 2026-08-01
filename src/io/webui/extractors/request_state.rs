@@ -314,7 +314,8 @@ pub fn generate_breadcrumbs(route: &str) -> Option<Vec<BreadcrumbItem>> {
                     url: Some("/docs".to_string()),
                 },
             ];
-            let parts: Vec<&str> = doc_path.split('/').filter(|s| !s.is_empty()).collect();
+            let parts: Vec<&str> =
+                doc_path.split('/').filter(|s| !s.is_empty()).collect();
             let mut current_subpath = "/docs".to_string();
             for part in &parts {
                 let part_clean = if part.to_ascii_lowercase().ends_with(".md") {
@@ -392,13 +393,19 @@ where
             generate_breadcrumbs(&route)
         };
 
-        let session_key_bytes = crate::session_auth::session_key_from_headers(&parts.headers);
+        let session_key_bytes =
+            crate::session_auth::session_key_from_headers(&parts.headers);
         let mut logged_in_user = None;
         if let Some(session_key_bytes) = session_key_bytes {
             use base64::Engine;
-            let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&session_key_bytes);
-            if let Ok(Some(user_id)) = ctb_storage::user::validate_session(&token) {
-                if let Some(public_info) = ctb_storage::user::UserPublicInfo::get_by_id(user_id) {
+            let token = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(&session_key_bytes);
+            if let Ok(Some(user_id)) =
+                ctb_storage::user::validate_session(&token)
+            {
+                if let Some(public_info) =
+                    ctb_storage::user::UserPublicInfo::get_by_id(user_id)
+                {
                     logged_in_user = Some(public_info.name().to_string());
                 }
             }
@@ -433,7 +440,16 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -485,7 +501,8 @@ mod tests {
         assert_eq!(index_md[1].url, None);
 
         // 5. Nested paths with and without .md
-        let nested_file = generate_breadcrumbs("/docs/some-dir/some-file.md").unwrap();
+        let nested_file =
+            generate_breadcrumbs("/docs/some-dir/some-file.md").unwrap();
         assert_eq!(nested_file.len(), 4);
         assert_eq!(nested_file[0].label, "Home");
         assert_eq!(nested_file[1].label, "Documentation");
@@ -494,7 +511,8 @@ mod tests {
         assert_eq!(nested_file[3].label, "Some File");
         assert_eq!(nested_file[3].url, None);
 
-        let nested_index = generate_breadcrumbs("/docs/some-dir/index.md").unwrap();
+        let nested_index =
+            generate_breadcrumbs("/docs/some-dir/index.md").unwrap();
         assert_eq!(nested_index.len(), 3);
         assert_eq!(nested_index[0].label, "Home");
         assert_eq!(nested_index[1].label, "Documentation");
@@ -504,8 +522,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_relative_back_url() {
-        assert_eq!(parse_relative_back_url("/search?q=test"), Some("/search?q=test".to_string()));
-        assert_eq!(parse_relative_back_url("/search?q=a:b"), Some("/search?q=a:b".to_string()));
+        assert_eq!(
+            parse_relative_back_url("/search?q=test"),
+            Some("/search?q=test".to_string())
+        );
+        assert_eq!(
+            parse_relative_back_url("/search?q=a:b"),
+            Some("/search?q=a:b".to_string())
+        );
         assert_eq!(parse_relative_back_url("/a:b"), Some("/a:b".to_string()));
         assert_eq!(parse_relative_back_url("a:b"), None);
         assert_eq!(parse_relative_back_url("//foo.com/"), None);
@@ -513,4 +537,3 @@ mod tests {
         assert_eq!(parse_relative_back_url("http://localhost/nodes"), None);
     }
 }
-

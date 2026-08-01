@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
@@ -80,12 +84,14 @@ pub(crate) fn read_fixed_bytes(
 
 pub(crate) fn read_u32_le(bytes: &[u8], offset: usize) -> Result<u32> {
     let slice = read_fixed_bytes(bytes, offset, 4)?;
-    let arr: [u8; 4] = slice.try_into().map_err(|_| anyhow!("invalid u32 size"))?;
+    let arr: [u8; 4] =
+        slice.try_into().map_err(|_| anyhow!("invalid u32 size"))?;
     Ok(u32::from_le_bytes(arr))
 }
 
 pub(crate) fn read_i32_le(bytes: &[u8], offset: usize) -> Result<i32> {
     let slice = read_fixed_bytes(bytes, offset, 4)?;
-    let arr: [u8; 4] = slice.try_into().map_err(|_| anyhow!("invalid i32 size"))?;
+    let arr: [u8; 4] =
+        slice.try_into().map_err(|_| anyhow!("invalid i32 size"))?;
     Ok(i32::from_le_bytes(arr))
 }

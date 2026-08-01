@@ -7,7 +7,11 @@
 // Author: "Arne Johannessen <ajnn@cpan.org>"
 // From https://www.cpan.org/authors/id/A/AJ/AJNN/Mac-Alias-1.01.tar.gz
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::anyhow;
@@ -240,7 +244,8 @@ fn parse_alias_toc_entries(
         let mut entry_offset = 12usize;
         for _ in 0..count_usize {
             let item_type = read_u32_le(&toc_chunk.data, entry_offset)?;
-            let item_offset = read_u32_le(&toc_chunk.data, entry_offset.saturating_add(4))?;
+            let item_offset =
+                read_u32_le(&toc_chunk.data, entry_offset.saturating_add(4))?;
             entries.insert(item_type, item_offset);
             entry_offset = entry_offset
                 .checked_add(12)
@@ -323,7 +328,8 @@ fn read_alias_path_components(
             .data
             .get(offset_index..end)
             .context("Alias path component offset out of range")?;
-        let arr: [u8; 4] = slice.try_into().context("invalid offset slice size")?;
+        let arr: [u8; 4] =
+            slice.try_into().context("invalid offset slice size")?;
         let offset_value = u32::from_le_bytes(arr);
         let component_chunk = read_alias_chunk(bytes, header, offset_value)?;
         if component_chunk.chunk_type != ALIAS_DATA_TYPE_STRING {
@@ -453,7 +459,8 @@ fn build_alias_file(
     let toc_data = build_alias_toc_data(&toc_entries)?;
     let toc_offset =
         append_alias_chunk(&mut data_section, ALIAS_TOC_CHUNK_TYPE, &toc_data)?;
-    data_section.get_mut(0..4)
+    data_section
+        .get_mut(0..4)
         .context("invalid alias data section size")?
         .copy_from_slice(&toc_offset.to_le_bytes());
 
@@ -600,7 +607,8 @@ impl MacTimestamp {
     }
 
     fn to_fixed_point(self) -> u64 {
-        (self.seconds.saturating_mul(65536)).saturating_add(u64::from(self.fraction))
+        (self.seconds.saturating_mul(65536))
+            .saturating_add(u64::from(self.fraction))
     }
 }
 
@@ -658,13 +666,17 @@ impl AliasRecord {
         })
     }
 
-    #[allow(clippy::too_many_lines, reason = "from_bytes is a complex parsing routine for Mac OS alias records")]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "from_bytes is a complex parsing routine for Mac OS alias records"
+    )]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 8 {
             bail!("Alias record too short");
         }
 
-        let app_info: [u8; 4] = bytes.get(0..4)
+        let app_info: [u8; 4] = bytes
+            .get(0..4)
             .context("Alias record too short for app info")?
             .try_into()
             .context("Invalid app info size")?;
@@ -715,10 +727,18 @@ impl AliasRecord {
             offset = offset.checked_add(2).context("Alias header overflow")?;
             offset = offset.checked_add(10).context("Alias header overflow")?;
 
-            let &[fst0, fst1] = fs_type.as_slice() else { bail!("invalid fs_type size"); };
-            let &[fid0, fid1] = fs_id.as_slice() else { bail!("invalid fs_id size"); };
-            let &[cc0, cc1, cc2, cc3] = creator_code.as_slice() else { bail!("invalid creator_code size"); };
-            let &[tc0, tc1, tc2, tc3] = type_code.as_slice() else { bail!("invalid type_code size"); };
+            let &[fst0, fst1] = fs_type.as_slice() else {
+                bail!("invalid fs_type size");
+            };
+            let &[fid0, fid1] = fs_id.as_slice() else {
+                bail!("invalid fs_id size");
+            };
+            let &[cc0, cc1, cc2, cc3] = creator_code.as_slice() else {
+                bail!("invalid creator_code size");
+            };
+            let &[tc0, tc1, tc2, tc3] = type_code.as_slice() else {
+                bail!("invalid type_code size");
+            };
 
             (
                 VolumeInfo {
@@ -775,7 +795,9 @@ impl AliasRecord {
             offset = offset.checked_add(4).context("Alias header overflow")?;
             offset = offset.checked_add(14).context("Alias header overflow")?;
 
-            let &[fst0, fst1, fst2, fst3] = fs_type.as_slice() else { bail!("invalid fs_type size"); };
+            let &[fst0, fst1, fst2, fst3] = fs_type.as_slice() else {
+                bail!("invalid fs_type size");
+            };
 
             (
                 VolumeInfo {
@@ -862,7 +884,9 @@ impl AliasRecord {
                         let slice = value
                             .get(value_offset..end)
                             .context("Alias CNID path out of bounds")?;
-                        let arr: [u8; 4] = slice.try_into().context("Alias CNID path chunk invalid size")?;
+                        let arr: [u8; 4] = slice
+                            .try_into()
+                            .context("Alias CNID path chunk invalid size")?;
                         let cnid = u32::from_be_bytes(arr);
                         cnids.push(cnid);
                         value_offset = end;
@@ -961,7 +985,10 @@ impl AliasRecord {
         Ok(record)
     }
 
-    #[allow(clippy::too_many_lines, reason = "to_bytes is a complex serialization routine for Mac OS alias records")]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "to_bytes is a complex serialization routine for Mac OS alias records"
+    )]
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&self.app_info);
@@ -1132,7 +1159,8 @@ impl AliasRecord {
 
         let record_size =
             u16::try_from(bytes.len()).context("Alias record too large")?;
-        bytes.get_mut(4..6)
+        bytes
+            .get_mut(4..6)
             .context("invalid alias header size")?
             .copy_from_slice(&record_size.to_be_bytes());
         Ok(bytes)
@@ -1148,7 +1176,8 @@ fn decode_utf16_be(bytes: &[u8]) -> Result<String> {
     while offset.saturating_add(1) < bytes.len() {
         let end = offset.checked_add(2).context("UTF-16 data overflow")?;
         let slice = bytes.get(offset..end).context("UTF-16 out of bounds")?;
-        let arr: [u8; 2] = slice.try_into().context("UTF-16 invalid chunk size")?;
+        let arr: [u8; 2] =
+            slice.try_into().context("UTF-16 invalid chunk size")?;
         let value = u16::from_be_bytes(arr);
         data.push(value);
         offset = end;
@@ -1208,7 +1237,10 @@ fn write_pascal_string(
     Ok(())
 }
 
-#[allow(clippy::range_plus_one, reason = "Pascal string length calculations naturally fit range_plus_one")]
+#[allow(
+    clippy::range_plus_one,
+    reason = "Pascal string length calculations naturally fit range_plus_one"
+)]
 fn read_pascal_string(
     bytes: &[u8],
     offset: usize,
@@ -1222,36 +1254,55 @@ fn read_pascal_string(
     if len > slice.len().saturating_sub(1) {
         bail!("Pascal string length invalid");
     }
-    let value = slice.get(1..1_usize.saturating_add(len)).context("Pascal string out of bounds")?;
+    let value = slice
+        .get(1..1_usize.saturating_add(len))
+        .context("Pascal string out of bounds")?;
     Ok(String::from_utf8_lossy(value).to_string())
 }
 
 fn read_u16_be(bytes: &[u8], offset: usize) -> Result<u16> {
     let slice = read_fixed_bytes(bytes, offset, 2)?;
-    let arr: [u8; 2] = slice.try_into().map_err(|_| anyhow!("invalid u16 slice size"))?;
+    let arr: [u8; 2] = slice
+        .try_into()
+        .map_err(|_| anyhow!("invalid u16 slice size"))?;
     Ok(u16::from_be_bytes(arr))
 }
 
 fn read_i16_be(bytes: &[u8], offset: usize) -> Result<i16> {
     let slice = read_fixed_bytes(bytes, offset, 2)?;
-    let arr: [u8; 2] = slice.try_into().map_err(|_| anyhow!("invalid i16 slice size"))?;
+    let arr: [u8; 2] = slice
+        .try_into()
+        .map_err(|_| anyhow!("invalid i16 slice size"))?;
     Ok(i16::from_be_bytes(arr))
 }
 
 fn read_u32_be(bytes: &[u8], offset: usize) -> Result<u32> {
     let slice = read_fixed_bytes(bytes, offset, 4)?;
-    let arr: [u8; 4] = slice.try_into().map_err(|_| anyhow!("invalid u32 slice size"))?;
+    let arr: [u8; 4] = slice
+        .try_into()
+        .map_err(|_| anyhow!("invalid u32 slice size"))?;
     Ok(u32::from_be_bytes(arr))
 }
 
 fn read_u64_be(bytes: &[u8], offset: usize) -> Result<u64> {
     let slice = read_fixed_bytes(bytes, offset, 8)?;
-    let arr: [u8; 8] = slice.try_into().map_err(|_| anyhow!("invalid u64 slice size"))?;
+    let arr: [u8; 8] = slice
+        .try_into()
+        .map_err(|_| anyhow!("invalid u64 slice size"))?;
     Ok(u64::from_be_bytes(arr))
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use std::fs;
     use std::path::PathBuf;

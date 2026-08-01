@@ -1,9 +1,16 @@
 /* SPDX-License-Identifier: MIT */
 //! Pan time parsing and formatting helpers.
 
-#![allow(clippy::module_name_repetitions, reason = "idiomatic module structure names")]
+#![allow(
+    clippy::module_name_repetitions,
+    reason = "idiomatic module structure names"
+)]
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use chrono::{Local, Timelike};
@@ -100,17 +107,23 @@ pub fn timepattern(number: PanTime, pattern: &str) -> Result<String> {
             continue;
         }
 
-        if slice.len() >= 2 && slice.get(..2).map_or(false, |s| s.eq_ignore_ascii_case("hh")) {
+        if slice.len() >= 2
+            && slice.get(..2).is_some_and(|s| s.eq_ignore_ascii_case("hh"))
+        {
             out.push_str(&format!("{h}"));
             i = i.checked_add(2).context("pattern index overflow")?;
             continue;
         }
-        if slice.len() >= 2 && slice.get(..2).map_or(false, |s| s.eq_ignore_ascii_case("mm")) {
+        if slice.len() >= 2
+            && slice.get(..2).is_some_and(|s| s.eq_ignore_ascii_case("mm"))
+        {
             out.push_str(&format!("{m:02}"));
             i = i.checked_add(2).context("pattern index overflow")?;
             continue;
         }
-        if slice.len() >= 2 && slice.get(..2).map_or(false, |s| s.eq_ignore_ascii_case("ss")) {
+        if slice.len() >= 2
+            && slice.get(..2).is_some_and(|s| s.eq_ignore_ascii_case("ss"))
+        {
             out.push_str(&format!("{s:02}"));
             i = i.checked_add(2).context("pattern index overflow")?;
             continue;
@@ -363,10 +376,25 @@ fn parse_colon_time(t: &str) -> Result<(i64, i64, i64)> {
         bail!("invalid colon time: {t}");
     }
 
-    let h = parts.get(0).context("Missing hour part")?.trim().parse::<i64>().context("hour")?;
-    let m = parts.get(1).context("Missing minute part")?.trim().parse::<i64>().context("minute")?;
+    let h = parts
+        .first()
+        .context("Missing hour part")?
+        .trim()
+        .parse::<i64>()
+        .context("hour")?;
+    let m = parts
+        .get(1)
+        .context("Missing minute part")?
+        .trim()
+        .parse::<i64>()
+        .context("minute")?;
     let s = if parts.len() == 3 {
-        parts.get(2).context("Missing second part")?.trim().parse::<i64>().context("second")?
+        parts
+            .get(2)
+            .context("Missing second part")?
+            .trim()
+            .parse::<i64>()
+            .context("second")?
     } else {
         0
     };
@@ -563,7 +591,16 @@ pub use timecode::{
 };
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 

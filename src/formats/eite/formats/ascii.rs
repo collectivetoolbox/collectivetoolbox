@@ -1,7 +1,11 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, anyhow, bail};
 use const_default::ConstDefault;
 
 use crate::dc::dc_is_newline;
@@ -20,7 +24,10 @@ pub fn dca_from_ascii(content: &[u8]) -> Result<(Vec<u32>, FormatLog)> {
     let mut out = Vec::with_capacity(content.len());
     let mut c = 0;
     while c < content.len() {
-        let b = content.get(c).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let b = content
+            .get(c)
+            .copied()
+            .ok_or_else(|| anyhow!("Index out of bounds"))?;
         let result = dc_from_format("ascii", &[b])
             .context("all ASCII bytes should be able to map to Dc")?;
         let (mut dc, dc_log) = result;
@@ -39,20 +46,21 @@ pub fn dca_to_ascii(dc_array: &[u32]) -> Result<(Vec<u8>, FormatLog)> {
     let mut out = Vec::new();
     let mut log = FormatLog::default();
     for (idx, &dc) in dc_array.iter().enumerate() {
-        let (utf8, dc_log) = match dc_to_format("utf8", dc) {
-            Ok(res) => res,
-            Err(_) => {
-                let idx_u64 = u64::try_from(idx).context("Index out of u64 bounds")?;
-                log.export_warning_unmappable(idx_u64, dc, "ascii");
-                continue;
-            }
+        let (utf8, dc_log) = if let Ok(res) = dc_to_format("utf8", dc) {
+            res
+        } else {
+            let idx_u64 =
+                u64::try_from(idx).context("Index out of u64 bounds")?;
+            log.export_warning_unmappable(idx_u64, dc, "ascii");
+            continue;
         };
         log.merge(&dc_log);
         let first_byte = utf8.first().copied().unwrap_or(0);
         if utf8.len() == 1 && first_byte <= 0x7F {
             out.push(first_byte);
         } else {
-            let idx_u64 = u64::try_from(idx).context("Index out of u64 bounds")?;
+            let idx_u64 =
+                u64::try_from(idx).context("Index out of u64 bounds")?;
             log.export_warning_unmappable(idx_u64, dc, "ascii");
             continue;
         }
@@ -78,7 +86,10 @@ pub fn dca_from_ascii_safe_subset(
     let mut i = 0usize;
 
     while i < content.len() {
-        let b = content.get(i).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let b = content
+            .get(i)
+            .copied()
+            .ok_or_else(|| anyhow!("Index out of bounds"))?;
         if !is_ascii_safe_subset_char(b) {
             bail!("Invalid ASCII Safe Subset byte: {b}");
         }
@@ -134,12 +145,17 @@ pub fn dca_to_ascii_safe_subset(
     }
 
     while input_index < len {
-        let dc = *dc_array.get(input_index).ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let dc = *dc_array
+            .get(input_index)
+            .ok_or_else(|| anyhow!("Index out of bounds"))?;
 
         // Found ambiguous cr, lf in a row, so only output one crlf
         if dc == 121 {
             let next_dc = if input_index.saturating_add(1) < len {
-                dc_array.get(input_index.saturating_add(1)).copied().unwrap_or(0)
+                dc_array
+                    .get(input_index.saturating_add(1))
+                    .copied()
+                    .unwrap_or(0)
             } else {
                 0
             };
@@ -157,13 +173,12 @@ pub fn dca_to_ascii_safe_subset(
             out.extend(crlf());
         } else {
             // Map Dc to UTF-8 (one or more bytes)
-            let (enc, dc_log) = match dc_to_format("utf8", dc) {
-                Ok(res) => res,
-                Err(_) => {
-                    warn_unmappable(&mut log, input_index, dc);
-                    input_index = input_index.saturating_add(1);
-                    continue;
-                }
+            let (enc, dc_log) = if let Ok(res) = dc_to_format("utf8", dc) {
+                res
+            } else {
+                warn_unmappable(&mut log, input_index, dc);
+                input_index = input_index.saturating_add(1);
+                continue;
             };
             log.merge(&dc_log);
             if enc.is_empty() {
@@ -191,7 +206,16 @@ pub fn dca_to_ascii_safe_subset(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::utilities::assert_vec_u32_eq;
     use ctb_formats_utilities::{

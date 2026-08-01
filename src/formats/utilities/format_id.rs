@@ -1,10 +1,14 @@
 //! Standardized format identifier enum across all workspace format crates.
 //! Not all of these are binary file formats, exactly.
-//! Something like "HtmlDceutils & Html & Utf8 & Lang_En_Us" would more thoroughly describe a document format.
+//! Something like "`HtmlDceutils` & Html & Utf8 & `Lang_En_Us`" would more thoroughly describe a document format.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use ctb_utilities::*;
 use crate::detection::FormatCategory;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use ctb_utilities::*;
 
 /// Unified format identifier for compression, archives, documents, images, and encodings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -273,7 +277,7 @@ pub enum FormatId {
     BsdChecksum,
     SysvChecksum,
     Hmac,
-    Blake, // families of checksums
+    Blake,  // families of checksums
     Blake2, // families of checksums
     Blake3, // families of checksums
 
@@ -284,9 +288,9 @@ pub enum FormatId {
 
     // Terminals, teletypes, etc. and their formats and features
     Terminal,
-    Teletype, // can't erase/blank
+    Teletype,      // can't erase/blank
     Videoterminal, // can erase, blank, etc.
-    Vt100, // tons of different variations between terminals
+    Vt100,         // tons of different variations between terminals
     TerminalMouse,
     TerminalGraphics,
     TerminalSixelGraphics,
@@ -322,7 +326,12 @@ impl FormatId {
 
             Self::Tar | Self::Zip => FormatCategory::Archive,
 
-            Self::Html | Self::Json | Self::Markdown | Self::Pdf | Self::Pem | Self::Perl => FormatCategory::Document,
+            Self::Html
+            | Self::Json
+            | Self::Markdown
+            | Self::Pdf
+            | Self::Pem
+            | Self::Perl => FormatCategory::Document,
 
             _ => FormatCategory::Other,
         }

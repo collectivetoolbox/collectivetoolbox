@@ -3,7 +3,11 @@
 // For parts derived from dlint:
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, anyhow, bail};
@@ -221,7 +225,8 @@ fn run_linter(
             })?;
 
         let parsing_diagnostics = parsed_source.diagnostics().clone();
-        let number_of_errors = diagnostics.len().saturating_add(parsing_diagnostics.len());
+        let number_of_errors =
+            diagnostics.len().saturating_add(parsing_diagnostics.len());
         for parsing_diagnostic in &parsing_diagnostics {
             eprintln!("{}", parsing_diagnostic.display());
         }

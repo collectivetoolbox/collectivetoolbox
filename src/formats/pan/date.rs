@@ -4,7 +4,11 @@
 //! Day format is days between 1/1/4713 BC and the given date, with
 //! adjustment for Gregorian calendar.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use chrono::{Datelike, Local, Timelike};
@@ -219,7 +223,9 @@ pub fn datepattern(date: PanDate, pattern: &str) -> Result<String> {
 
         // Quoted literal: "..."
         if slice.starts_with('"') {
-            let rest = pattern.get((i.saturating_add(1))..).context("Invalid pattern offset")?;
+            let rest = pattern
+                .get((i.saturating_add(1))..)
+                .context("Invalid pattern offset")?;
             let Some(end_rel) = rest.find('"') else {
                 bail!("unterminated quote in date pattern");
             };
@@ -410,19 +416,33 @@ fn apply_token(
 ) -> Result<()> {
     use std::fmt::Write;
     match tok {
-        Token::Yy => { let _ = write!(out, "{yy:02}"); }
-        Token::Yyyy => { let _ = write!(out, "{y:04}"); }
+        Token::Yy => {
+            let _ = write!(out, "{yy:02}");
+        }
+        Token::Yyyy => {
+            let _ = write!(out, "{y:04}");
+        }
 
-        Token::Mm => { let _ = write!(out, "{m}"); }
-        Token::MM => { let _ = write!(out, "{m:02}"); }
+        Token::Mm => {
+            let _ = write!(out, "{m}");
+        }
+        Token::MM => {
+            let _ = write!(out, "{m:02}");
+        }
         Token::Mmnth => {
             let mi = i64::from(m);
             let _ = write!(out, "{m}{}", ordinal_suffix_i64(mi));
         }
 
-        Token::Dd => { let _ = write!(out, "{d}"); }
-        Token::DD => { let _ = write!(out, "{d:02}"); }
-        Token::Ddnth => { let _ = write!(out, "{}{}", d, ordinal_suffix(d)); }
+        Token::Dd => {
+            let _ = write!(out, "{d}");
+        }
+        Token::DD => {
+            let _ = write!(out, "{d:02}");
+        }
+        Token::Ddnth => {
+            let _ = write!(out, "{}{}", d, ordinal_suffix(d));
+        }
 
         Token::Mon => {
             let mon = month_abbr(m)?;
@@ -441,14 +461,20 @@ fn apply_token(
             let full = daystr_from_dow(dow)?;
             out.push_str(&apply_case(full, style));
         }
-        Token::Dow => { let _ = write!(out, "{dow}"); }
+        Token::Dow => {
+            let _ = write!(out, "{dow}");
+        }
 
-        Token::Ww => { let _ = write!(out, "{ww}"); }
+        Token::Ww => {
+            let _ = write!(out, "{ww}");
+        }
         Token::Wwnth => {
             let _ = write!(out, "{ww}{}", ordinal_suffix_i64(ww));
         }
 
-        Token::Qq => { let _ = write!(out, "{qq}"); }
+        Token::Qq => {
+            let _ = write!(out, "{qq}");
+        }
         Token::Qqq => {
             let qch = match style {
                 CaseStyle::Upper => 'Q',
@@ -524,9 +550,24 @@ fn date_with_today(text: &str, today: PanDate) -> Result<PanDate> {
             bail!("invalid mm/dd/yy format: {raw}");
         }
 
-        let month = parts.first().context("Missing month part")?.trim().parse::<u32>().context("month")?;
-        let day = parts.get(1).context("Missing day part")?.trim().parse::<u32>().context("day")?;
-        let mut year = parts.get(2).context("Missing year part")?.trim().parse::<i32>().context("year")?;
+        let month = parts
+            .first()
+            .context("Missing month part")?
+            .trim()
+            .parse::<u32>()
+            .context("month")?;
+        let day = parts
+            .get(1)
+            .context("Missing day part")?
+            .trim()
+            .parse::<u32>()
+            .context("day")?;
+        let mut year = parts
+            .get(2)
+            .context("Missing year part")?
+            .trim()
+            .parse::<i32>()
+            .context("year")?;
         if (0..100).contains(&year) {
             year = expand_two_digit_year(year)?;
         }
@@ -538,9 +579,20 @@ fn date_with_today(text: &str, today: PanDate) -> Result<PanDate> {
     if raw.contains('-') {
         let parts: Vec<&str> = raw.split('-').collect();
         if parts.len() == 3 {
-            let day = parts.first().context("Missing day part")?.trim().parse::<u32>().context("day")?;
-            let month = parse_month_name(parts.get(1).context("Missing month part")?)?;
-            let year = parts.get(2).context("Missing year part")?.trim().parse::<i32>().context("year")?;
+            let day = parts
+                .first()
+                .context("Missing day part")?
+                .trim()
+                .parse::<u32>()
+                .context("day")?;
+            let month =
+                parse_month_name(parts.get(1).context("Missing month part")?)?;
+            let year = parts
+                .get(2)
+                .context("Missing year part")?
+                .trim()
+                .parse::<i32>()
+                .context("year")?;
             return datevalue(year, month, day);
         }
     }
@@ -573,10 +625,17 @@ fn date_with_today(text: &str, today: PanDate) -> Result<PanDate> {
     // Accept optional comma after the day.
     let parts = raw.split_whitespace().collect::<Vec<_>>();
     if parts.len() >= 3 {
-        let month = parse_month_name(parts.first().context("Missing month part")?)?;
-        let day_str = parts.get(1).context("Missing day part")?.trim_end_matches(',');
+        let month =
+            parse_month_name(parts.first().context("Missing month part")?)?;
+        let day_str = parts
+            .get(1)
+            .context("Missing day part")?
+            .trim_end_matches(',');
         let day = day_str.parse::<u32>().context("day")?;
-        let year_str = parts.get(2).context("Missing year part")?.trim_start_matches(',');
+        let year_str = parts
+            .get(2)
+            .context("Missing year part")?
+            .trim_start_matches(',');
         let year = year_str.parse::<i32>().context("year")?;
         return datevalue(year, month, day);
     }
@@ -703,20 +762,22 @@ fn ymd_to_jdn(
     let m2 = m.saturating_add(12_i64.saturating_mul(a)).saturating_sub(3);
 
     let jdn = match cal {
-        Calendar::Gregorian => {
-            d.saturating_add((153_i64.saturating_mul(m2).saturating_add(2)).div_euclid(5))
-                .saturating_add(365_i64.saturating_mul(y2))
-                .saturating_add(y2.div_euclid(4))
-                .saturating_sub(y2.div_euclid(100))
-                .saturating_add(y2.div_euclid(400))
-                .saturating_sub(32045)
-        }
-        Calendar::Julian => {
-            d.saturating_add((153_i64.saturating_mul(m2).saturating_add(2)).div_euclid(5))
-                .saturating_add(365_i64.saturating_mul(y2))
-                .saturating_add(y2.div_euclid(4))
-                .saturating_sub(32083)
-        }
+        Calendar::Gregorian => d
+            .saturating_add(
+                (153_i64.saturating_mul(m2).saturating_add(2)).div_euclid(5),
+            )
+            .saturating_add(365_i64.saturating_mul(y2))
+            .saturating_add(y2.div_euclid(4))
+            .saturating_sub(y2.div_euclid(100))
+            .saturating_add(y2.div_euclid(400))
+            .saturating_sub(32045),
+        Calendar::Julian => d
+            .saturating_add(
+                (153_i64.saturating_mul(m2).saturating_add(2)).div_euclid(5),
+            )
+            .saturating_add(365_i64.saturating_mul(y2))
+            .saturating_add(y2.div_euclid(4))
+            .saturating_sub(32083),
     };
 
     Ok(jdn)
@@ -739,9 +800,19 @@ fn jdn_to_ymd_gregorian(jdn: PanDate) -> Result<(i32, u32, u32)> {
     let e = c.saturating_sub((1461_i64.saturating_mul(d)).div_euclid(4));
     let m = (5_i64.saturating_mul(e).saturating_add(2)).div_euclid(153);
 
-    let day = e.saturating_sub((153_i64.saturating_mul(m).saturating_add(2)).div_euclid(5)).saturating_add(1);
-    let month = m.saturating_add(3).saturating_sub(12_i64.saturating_mul(m.div_euclid(10)));
-    let year = 100_i64.saturating_mul(b).saturating_add(d).saturating_sub(4800).saturating_add(m.div_euclid(10));
+    let day = e
+        .saturating_sub(
+            (153_i64.saturating_mul(m).saturating_add(2)).div_euclid(5),
+        )
+        .saturating_add(1);
+    let month = m
+        .saturating_add(3)
+        .saturating_sub(12_i64.saturating_mul(m.div_euclid(10)));
+    let year = 100_i64
+        .saturating_mul(b)
+        .saturating_add(d)
+        .saturating_sub(4800)
+        .saturating_add(m.div_euclid(10));
 
     let y = i32::try_from(year).context("year did not fit into i32")?;
     let mo = u32::try_from(month).context("month did not fit into u32")?;
@@ -755,8 +826,14 @@ fn jdn_to_ymd_julian(jdn: PanDate) -> Result<(i32, u32, u32)> {
     let e = c.saturating_sub((1461_i64.saturating_mul(d)).div_euclid(4));
     let m = (5_i64.saturating_mul(e).saturating_add(2)).div_euclid(153);
 
-    let day = e.saturating_sub((153_i64.saturating_mul(m).saturating_add(2)).div_euclid(5)).saturating_add(1);
-    let month = m.saturating_add(3).saturating_sub(12_i64.saturating_mul(m.div_euclid(10)));
+    let day = e
+        .saturating_sub(
+            (153_i64.saturating_mul(m).saturating_add(2)).div_euclid(5),
+        )
+        .saturating_add(1);
+    let month = m
+        .saturating_add(3)
+        .saturating_sub(12_i64.saturating_mul(m.div_euclid(10)));
     let year = d.saturating_sub(4800).saturating_add(m.div_euclid(10));
 
     let y = i32::try_from(year).context("year did not fit into i32")?;
@@ -944,7 +1021,16 @@ fn format_time_ampm(seconds: i64, include_seconds: bool) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

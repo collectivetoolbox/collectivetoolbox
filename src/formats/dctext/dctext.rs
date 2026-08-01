@@ -5,7 +5,11 @@
 //! Output format is sort of UTF-8 text. For normal Unicode input characters, the output character is the same. For DcIds less than or equal to 1114111 (the largest Unicode character, I believe), the output character is the corresponding "generalized UTF-8", the numeric value encoded in the same underlying algorithm as UTF-8. For DcIds greater than 1114111 and not prefixed with an L, the output character is the decimal DcId represented by extending the usual algorithm of UTF-8 encoding, but for those larger numbers. For DcIds prefixed with an L, the output is equivalent to @1114408@ followed by the Dc that followed the L (the L is just a shorthand for that 1114408 Dc). That is to say, it's not a true Unicode encoding, it's simply using an extension of the algorithm underlying UTF-8 as a convenient encoding of ints.
 //! Currently, DcList is used as the internal format for pivoting between other formats, but DcUtf might make more sense eventually for space efficiency.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
@@ -13,7 +17,9 @@ pub use ctb_formats_utilities::ConversionOutput;
 use ctb_formats_utilities::FormatLog;
 
 pub mod utf8;
-pub use utf8::{DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist};
+pub use utf8::{
+    DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
+};
 
 /// Base offset for classic Document Characters in the global graph layout.
 /// Former classic Dc 0 starts at 1114112 (0x110000).
@@ -73,7 +79,9 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                         list.push(dcid);
                     }
                 } else {
-                    log.warn(&format!("Invalid DcID token @{token}@ in DcText"));
+                    log.warn(&format!(
+                        "Invalid DcID token @{token}@ in DcText"
+                    ));
                 }
                 rest = rest.get(end.saturating_add(1)..).unwrap_or("");
             } else {
@@ -182,12 +190,13 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut list = Vec::with_capacity(dc_array.len());
 
     for (idx, &dc) in dc_array.iter().enumerate() {
-        let dc_usize = match usize::try_from(dc) {
-            Ok(val) => val,
-            Err(_) => {
-                log.warn(&format!("Classic Dc ID {dc} at index {idx} overflows usize"));
-                usize::MAX
-            }
+        let dc_usize = if let Ok(val) = usize::try_from(dc) {
+            val
+        } else {
+            log.warn(&format!(
+                "Classic Dc ID {dc} at index {idx} overflows usize"
+            ));
+            usize::MAX
         };
 
         if dc_usize > max_known {
@@ -204,7 +213,9 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
 }
 
 /// Converts an old-style EITE DcArray (`&[u32]`) to the newer DcText format (`Vec<u8>`).
-pub fn dcarray_to_dctext(dc_array: &[u32]) -> Result<ConversionOutput<Vec<u8>>> {
+pub fn dcarray_to_dctext(
+    dc_array: &[u32],
+) -> Result<ConversionOutput<Vec<u8>>> {
     let conv = dcarray_to_dclist(dc_array)?;
     let text_bytes = dclist_to_dctext(&conv.result);
     Ok(ConversionOutput::new(text_bytes, conv.log))
@@ -216,21 +227,32 @@ pub fn dcarray_to_dctext(dc_array: &[u32]) -> Result<ConversionOutput<Vec<u8>>> 
 /// Runs of unmappable UTF-8 characters are embedded into encapsulated UTF-8 ranges
 /// (classic Dcs 191..192), while out-of-range Dc IDs are substituted with
 /// replacement Dc ID (`207`).
-pub fn dclist_to_dcarray(dclist: &[u128]) -> Result<ConversionOutput<Vec<u32>>> {
+pub fn dclist_to_dcarray(
+    dclist: &[u128],
+) -> Result<ConversionOutput<Vec<u32>>> {
     let mut log = FormatLog::default();
-    let max_known_u128 = u128::try_from(ctb_formats_eite::dc::maximum_known_dc())
-        .map_err(|e| anyhow::anyhow!("Failed to convert maximum_known_dc to u128: {e}"))?;
+    let max_known_u128 = u128::try_from(
+        ctb_formats_eite::dc::maximum_known_dc(),
+    )
+    .map_err(|e| {
+        anyhow::anyhow!("Failed to convert maximum_known_dc to u128: {e}")
+    })?;
 
     let mut result = Vec::new();
     let mut utf8_chunk = String::new();
-    let utf8_settings = ctb_formats_eite::formats::utf8::UTF8FormatSettings::default();
+    let utf8_settings =
+        ctb_formats_eite::formats::utf8::UTF8FormatSettings::default();
 
-    let flush_utf8_chunk = |chunk: &mut String, res: &mut Vec<u32>, l: &mut FormatLog| -> Result<()> {
+    let flush_utf8_chunk = |chunk: &mut String,
+                            res: &mut Vec<u32>,
+                            l: &mut FormatLog|
+     -> Result<()> {
         if !chunk.is_empty() {
-            let (dcs, chunk_log) = ctb_formats_eite::formats::utf8::dca_from_utf8(
-                chunk.as_bytes(),
-                &utf8_settings,
-            )?;
+            let (dcs, chunk_log) =
+                ctb_formats_eite::formats::utf8::dca_from_utf8(
+                    chunk.as_bytes(),
+                    &utf8_settings,
+                )?;
             res.extend(dcs);
             l.merge(&chunk_log);
             chunk.clear();
@@ -259,12 +281,17 @@ pub fn dclist_to_dcarray(dclist: &[u128]) -> Result<ConversionOutput<Vec<u32>>> 
                     utf8_chunk.push(ch);
                 } else {
                     flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                    log.warn(&format!("Invalid Unicode codepoint {dcid}, replaced with 207"));
-                    result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
+                    log.warn(&format!(
+                        "Invalid Unicode codepoint {dcid}, replaced with 207"
+                    ));
+                    result
+                        .push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
                 }
             } else {
                 flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                log.warn(&format!("DcID {dcid} overflows u32, replaced with 207"));
+                log.warn(&format!(
+                    "DcID {dcid} overflows u32, replaced with 207"
+                ));
                 result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
             }
         } else {
@@ -281,7 +308,9 @@ pub fn dclist_to_dcarray(dclist: &[u128]) -> Result<ConversionOutput<Vec<u32>>> 
 }
 
 /// Converts a DcText document (`&[u8]`) to an old-style EITE DcArray (`Vec<u32>`).
-pub fn dctext_to_dcarray(document: &[u8]) -> Result<ConversionOutput<Vec<u32>>> {
+pub fn dctext_to_dcarray(
+    document: &[u8],
+) -> Result<ConversionOutput<Vec<u32>>> {
     let conv = dctext_to_dclist(document)?;
     let array_conv = dclist_to_dcarray(&conv.result)?;
     let mut total_log = conv.log;
@@ -300,12 +329,14 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
         data.to_vec()
     };
     if let Ok(s) = String::from_utf8(raw_bytes) {
-        let displayable = s.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace());
+        let displayable = s
+            .chars()
+            .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace());
         if displayable {
             if s.len() > 60 {
                 let truncated: String = s.chars().take(60).collect();
                 if s.chars().count() > 60 {
-                    format!("{}...", truncated)
+                    format!("{truncated}...")
                 } else {
                     truncated
                 }
@@ -321,16 +352,31 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
     #[crate::ctb_test]
     fn test_format_blob_preview() {
         assert_eq!(format_blob_preview(b"hello world", false), "hello world");
-        assert_eq!(format_blob_preview(&[0u8, 1u8, 2u8], false), "<binary data: 3 bytes>");
+        assert_eq!(
+            format_blob_preview(&[0u8, 1u8, 2u8], false),
+            "<binary data: 3 bytes>"
+        );
         let long_str = "a".repeat(70);
-        assert_eq!(format_blob_preview(long_str.as_bytes(), false), format!("{}...", "a".repeat(60)));
+        assert_eq!(
+            format_blob_preview(long_str.as_bytes(), false),
+            format!("{}...", "a".repeat(60))
+        );
     }
 
     #[crate::ctb_test]
@@ -353,14 +399,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_dcarray_to_dctext_and_back() {
         let original_dcarray = vec![0, 1, 18, 50, 200, 297];
-        let converted = dcarray_to_dctext(&original_dcarray).expect("conversion should succeed");
+        let converted = dcarray_to_dctext(&original_dcarray)
+            .expect("conversion should succeed");
         assert!(!converted.log.has_warnings());
         assert_eq!(
             String::from_utf8(converted.result.clone()).expect("valid utf-8"),
             "@1114112@@1114113@@1114130@@1114162@@1114312@@1114409@"
         );
 
-        let back = dctext_to_dcarray(&converted.result).expect("reverse conversion should succeed");
+        let back = dctext_to_dcarray(&converted.result)
+            .expect("reverse conversion should succeed");
         assert!(!back.log.has_warnings());
         assert_eq!(back.result, original_dcarray);
     }
@@ -369,7 +417,8 @@ mod tests {
     fn test_dctext_to_dcarray_lossy_warnings() {
         // Out-of-range DcText Dc ID (e.g. 1114500)
         let lossy_input = b"@1114500@";
-        let out = dctext_to_dcarray(lossy_input).expect("conversion should succeed");
+        let out =
+            dctext_to_dcarray(lossy_input).expect("conversion should succeed");
         assert!(out.log.has_warnings());
         assert_eq!(out.result, vec![207]);
     }
@@ -378,7 +427,8 @@ mod tests {
     fn test_dctext_to_dcarray_encapsulated_utf8() {
         // Unmappable UTF-8 character 🥴 (U+1F974)
         let unmappable_input = "hi 🥴 bye".as_bytes();
-        let out = dctext_to_dcarray(unmappable_input).expect("conversion should succeed");
+        let out = dctext_to_dcarray(unmappable_input)
+            .expect("conversion should succeed");
         assert!(out.log.has_warnings());
         // Should contain classic Dcs for "hi ", then 191 (start encapsulation), Base64 Dcs, 192 (end encapsulation), then " bye"
         assert!(out.result.contains(&191));
@@ -392,6 +442,9 @@ mod tests {
         assert!(!dclist_out.log.has_warnings());
 
         let restored_text = dclist_to_dctext(&dclist_out.result);
-        assert_eq!(std::str::from_utf8(&restored_text).unwrap(), "hi @1114112@ @L42@ @2147483648@");
+        assert_eq!(
+            std::str::from_utf8(&restored_text).unwrap(),
+            "hi @1114112@ @L42@ @2147483648@"
+        );
     }
 }

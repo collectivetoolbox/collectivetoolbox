@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::sync::Arc;
@@ -14,8 +18,7 @@ use zeroize::ZeroizeOnDrop;
 
 use crate::AppState;
 use crate::RequestState;
-use crate::utilities::backtrace_string;
-use crate::{debug, debug_fmt};
+use crate::debug;
 use axum::response::Response;
 use ctb_storage::graph::Graph;
 use ctb_storage::user::User;
@@ -132,7 +135,11 @@ pub struct Session {
 }
 
 impl Session {
-    pub async fn new(state: &mut AppState, mut user: User, token: &str) -> Self {
+    pub async fn new(
+        state: &mut AppState,
+        mut user: User,
+        token: &str,
+    ) -> Self {
         let key = URL_SAFE_NO_PAD
             .decode(token)
             .unwrap_or_else(|_| vec![0u8; 32]);
@@ -155,8 +162,11 @@ impl Session {
         let token = URL_SAFE_NO_PAD.encode(key);
         match ctb_storage::user::validate_session(&token) {
             Ok(Some(user_id)) => {
-                if let Err(e) = ctb_storage::user::refresh_session(&token, 3600) {
-                    error!(format!("Failed to refresh session in storage: {e}"));
+                if let Err(e) = ctb_storage::user::refresh_session(&token, 3600)
+                {
+                    error!(format!(
+                        "Failed to refresh session in storage: {e}"
+                    ));
                 }
                 Some(Session {
                     key: key.to_vec(),
@@ -179,7 +189,9 @@ impl Session {
         if let Some(user) = users.get(&user_id).cloned() {
             user.lock().await.set_session_token(Some(token));
             Some(user)
-        } else if let Some(public_info) = ctb_storage::user::UserPublicInfo::get_by_id(user_id) {
+        } else if let Some(public_info) =
+            ctb_storage::user::UserPublicInfo::get_by_id(user_id)
+        {
             let user = User::from_public_info(public_info, Some(token));
             let shared = Arc::new(Mutex::new(user));
             users.insert(user_id, shared.clone());
@@ -212,28 +224,45 @@ impl Session {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::AppState;
-    use ctb_storage::user::get_test_user;
 
     #[ctb_test("tokio")]
     async fn test_session_new() {
         let mut state = AppState::try_new().unwrap();
         let username = function_name!();
-        let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
+        let _lock = ctb_storage::user::lock_by_name(username)
+            .expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
 
         let password_bytes = b"test_pass";
-        let token = ctb_storage::user::create_user_and_session(username, password_bytes.to_vec(), 3600)
-            .expect("Failed to create user and session");
+        let token = ctb_storage::user::create_user_and_session(
+            username,
+            password_bytes.to_vec(),
+            3600,
+        )
+        .expect("Failed to create user and session");
 
-        let user_info = ctb_storage::user::UserPublicInfo::get_by_name(username)
-            .expect("Failed to get user public info")
-            .expect("User not found");
+        let user_info =
+            ctb_storage::user::UserPublicInfo::get_by_name(username)
+                .expect("Failed to get user public info")
+                .expect("User not found");
         let user_local_id = user_info.local_id();
-        let user = ctb_storage::user::User::from_public_info(user_info, Some(token.clone()));
+        let user = ctb_storage::user::User::from_public_info(
+            user_info,
+            Some(token.clone()),
+        );
 
         let session = Session::new(&mut state, user, &token).await;
         assert_eq!(session.user_id, user_local_id);
@@ -248,17 +277,23 @@ mod tests {
     async fn test_session_get_by_key() {
         let mut state = AppState::try_new().unwrap();
         let username = function_name!();
-        let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
+        let _lock = ctb_storage::user::lock_by_name(username)
+            .expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
 
         let password_bytes = b"test_pass";
-        let token = ipcb!(storage).create_user_and_session_b(username, password_bytes.to_vec(), 3600)
+        let token = ipcb!(storage)
+            .create_user_and_session_b(username, password_bytes.to_vec(), 3600)
             .expect("Failed to create user and session");
 
-        let user_info = ctb_storage::user::UserPublicInfo::get_by_name(username)
-            .expect("Failed to get user info")
-            .expect("User not found");
-        let user = ctb_storage::user::User::from_public_info(user_info, Some(token.clone()));
+        let user_info =
+            ctb_storage::user::UserPublicInfo::get_by_name(username)
+                .expect("Failed to get user info")
+                .expect("User not found");
+        let user = ctb_storage::user::User::from_public_info(
+            user_info,
+            Some(token.clone()),
+        );
 
         let session = Session::new(&mut state, user, &token).await;
         let retrieved = Session::get_by_key(&mut state, &session.key).await;
@@ -270,18 +305,24 @@ mod tests {
     async fn test_session_get_user_by_key() {
         let mut state = AppState::try_new().unwrap();
         let username = function_name!();
-        let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
+        let _lock = ctb_storage::user::lock_by_name(username)
+            .expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
 
         let password_bytes = b"test_pass";
-        let token = ipcb!(storage).create_user_and_session_b(username, password_bytes.to_vec(), 3600)
+        let token = ipcb!(storage)
+            .create_user_and_session_b(username, password_bytes.to_vec(), 3600)
             .expect("Failed to create user and session");
 
-        let user_info = ctb_storage::user::UserPublicInfo::get_by_name(username)
-            .expect("Failed to get user info")
-            .expect("User not found");
+        let user_info =
+            ctb_storage::user::UserPublicInfo::get_by_name(username)
+                .expect("Failed to get user info")
+                .expect("User not found");
         let user_local_id = user_info.local_id();
-        let user = ctb_storage::user::User::from_public_info(user_info, Some(token.clone()));
+        let user = ctb_storage::user::User::from_public_info(
+            user_info,
+            Some(token.clone()),
+        );
 
         let session = Session::new(&mut state, user, &token).await;
         let retrieved_user =
@@ -297,17 +338,23 @@ mod tests {
     async fn test_session_invalidate() {
         let mut state = AppState::try_new().unwrap();
         let username = function_name!();
-        let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
+        let _lock = ctb_storage::user::lock_by_name(username)
+            .expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
 
         let password_bytes = b"test_pass";
-        let token = ipcb!(storage).create_user_and_session_b(username, password_bytes.to_vec(), 3600)
+        let token = ipcb!(storage)
+            .create_user_and_session_b(username, password_bytes.to_vec(), 3600)
             .expect("Failed to create user and session");
 
-        let user_info = ctb_storage::user::UserPublicInfo::get_by_name(username)
-            .expect("Failed to get user info")
-            .expect("User not found");
-        let user = ctb_storage::user::User::from_public_info(user_info, Some(token.clone()));
+        let user_info =
+            ctb_storage::user::UserPublicInfo::get_by_name(username)
+                .expect("Failed to get user info")
+                .expect("User not found");
+        let user = ctb_storage::user::User::from_public_info(
+            user_info,
+            Some(token.clone()),
+        );
 
         let session = Session::new(&mut state, user, &token).await;
         Session::invalidate(&mut state, &session.key).await;
@@ -331,16 +378,28 @@ mod tests {
     #[ctb_test("tokio")]
     async fn test_empty_session_key_from_headers() {
         let mut headers = HeaderMap::new();
-        headers.insert(::http::header::COOKIE, ::http::HeaderValue::from_static("session="));
+        headers.insert(
+            ::http::header::COOKIE,
+            ::http::HeaderValue::from_static("session="),
+        );
         assert!(session_key_string_from_headers(&headers).is_none());
 
         let mut headers2 = HeaderMap::new();
-        headers2.insert(::http::header::COOKIE, ::http::HeaderValue::from_static("session=   "));
+        headers2.insert(
+            ::http::header::COOKIE,
+            ::http::HeaderValue::from_static("session=   "),
+        );
         assert!(session_key_string_from_headers(&headers2).is_none());
 
         let mut headers3 = HeaderMap::new();
-        headers3.insert(::http::header::COOKIE, ::http::HeaderValue::from_static("session=abc"));
-        assert_eq!(session_key_string_from_headers(&headers3), Some("abc".to_string()));
+        headers3.insert(
+            ::http::header::COOKIE,
+            ::http::HeaderValue::from_static("session=abc"),
+        );
+        assert_eq!(
+            session_key_string_from_headers(&headers3),
+            Some("abc".to_string())
+        );
     }
 
     // Note: Testing AuthenticatedUser extractor requires full axum setup, which is complex for unit tests.

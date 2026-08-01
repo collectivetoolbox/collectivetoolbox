@@ -34,7 +34,11 @@
 //! - `capabilities.rs`: Capability set definitions for each subprocess type.
 //!   all processes exited, and if any linger more than 30 seconds, kill them.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
@@ -57,7 +61,16 @@ pub async fn main() -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -17,28 +17,32 @@
 // Header comment from original unpack.c:
 /* unpack.c -- decompress files in pack format.
 
-   Copyright (C) 1997, 1999, 2006, 2009-2025 Free Software Foundation, Inc.
-   Copyright (C) 1992-1993 Jean-loup Gailly
+  Copyright (C) 1997, 1999, 2006, 2009-2025 Free Software Foundation, Inc.
+  Copyright (C) 1992-1993 Jean-loup Gailly
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 3, or (at your option)
+  any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // AUTHORS file for gzip overall:
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -132,14 +136,15 @@ impl<W: Write> LzwBitWriter<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
-        let final_bytes = (self.posbits.saturating_add(7))
-            .checked_div(8)
-            .unwrap_or(0);
+        let final_bytes =
+            (self.posbits.saturating_add(7)).checked_div(8).unwrap_or(0);
         self.buffer.truncate(final_bytes);
         self.writer
             .write_all(&self.buffer)
             .context("Failed to write compress payload")?;
-        self.writer.flush().context("Failed to flush inner writer")?;
+        self.writer
+            .flush()
+            .context("Failed to flush inner writer")?;
         Ok(())
     }
 }
@@ -170,9 +175,12 @@ impl<'a> LzwBitReader<'a> {
         }
 
         let b0 = u64::from(*self.data.get(byte_pos).unwrap_or(&0));
-        let b1 = u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
-        let b2 = u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
-        let b3 = u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
+        let b1 =
+            u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
+        let b2 =
+            u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
+        let b3 =
+            u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
 
         let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
         let shift = u32::try_from(self.posbits.checked_rem(8).unwrap_or(0))?;
@@ -217,11 +225,13 @@ pub fn compress_lzw_stream(
         crate::CompressionFormat::CompressLzw2
         | crate::CompressionFormat::CompressLzw1
         | crate::CompressionFormat::CompressLzw16 => false,
-        _ => bail!("Unsupported format for LZW compress: {:?}", format),
+        _ => bail!("Unsupported format for LZW compress: {format:?}"),
     };
 
     // 1. Header writing
-    if format != crate::CompressionFormat::CompressLzw1 && format != crate::CompressionFormat::CompressLzw16 {
+    if format != crate::CompressionFormat::CompressLzw1
+        && format != crate::CompressionFormat::CompressLzw16
+    {
         let mode_byte = if block_mode {
             BLOCK_MODE | u8::try_from(maxbits)?
         } else {
@@ -275,7 +285,8 @@ pub fn compress_lzw_stream(
                 if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
                     bit_writer.align_block(n_bits)?;
                     n_bits = n_bits.saturating_add(1);
-                    maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+                    maxcode = (1u32.checked_shl(n_bits).unwrap_or(0))
+                        .saturating_sub(1);
                 }
             } else if block_mode {
                 bit_writer.write_code(CLEAR_CODE, n_bits)?;
@@ -283,7 +294,8 @@ pub fn compress_lzw_stream(
                 dict.clear();
                 free_ent = FIRST_FREE_BLOCK;
                 n_bits = INIT_BITS;
-                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+                maxcode =
+                    (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
             }
 
             ent = u32::from(byte);
@@ -315,7 +327,9 @@ pub fn decompress_lzw_stream(
     let block_mode;
     let maxbits;
 
-    if format == crate::CompressionFormat::CompressLzw1 || format == crate::CompressionFormat::CompressLzw16 {
+    if format == crate::CompressionFormat::CompressLzw1
+        || format == crate::CompressionFormat::CompressLzw16
+    {
         block_mode = false;
         maxbits = MAX_BITS;
     } else {
@@ -349,7 +363,7 @@ pub fn decompress_lzw_stream(
         block_mode = (mode_u8 & BLOCK_MODE) != 0;
         maxbits = u32::from(mode_u8 & BIT_MASK);
 
-        if maxbits < 9 || maxbits > 16 {
+        if !(9..=16).contains(&maxbits) {
             bail!("Invalid compress maxbits param: {maxbits}");
         }
 
@@ -386,9 +400,7 @@ pub fn decompress_lzw_stream(
 
     let total_data_bits = data_slice.len().saturating_mul(8);
 
-    while bit_reader
-        .posbits
-        .saturating_add(usize::try_from(n_bits)?)
+    while bit_reader.posbits.saturating_add(usize::try_from(n_bits)?)
         <= total_data_bits
     {
         let mut code = match bit_reader.read_code(n_bits)? {
@@ -424,7 +436,9 @@ pub fn decompress_lzw_stream(
 
         if code >= free_ent {
             if code > free_ent {
-                bail!("Corrupt compress stream: code {code} exceeds free entry {free_ent}");
+                bail!(
+                    "Corrupt compress stream: code {code} exceeds free entry {free_ent}"
+                );
             }
             stack_idx = stack_idx.saturating_sub(1);
             if let Some(s) = stack.get_mut(stack_idx) {
@@ -437,7 +451,9 @@ pub fn decompress_lzw_stream(
             let code_idx = usize::try_from(code)?;
             let suf = match suffix.get(code_idx) {
                 Some(&s) => s,
-                None => bail!("Corrupt compress stream: invalid suffix index {code}"),
+                None => bail!(
+                    "Corrupt compress stream: invalid suffix index {code}"
+                ),
             };
             stack_idx = stack_idx.saturating_sub(1);
             if let Some(s) = stack.get_mut(stack_idx) {
@@ -445,7 +461,9 @@ pub fn decompress_lzw_stream(
             }
             code = match prefix.get(code_idx) {
                 Some(&p) => p,
-                None => bail!("Corrupt compress stream: invalid prefix index {code}"),
+                None => bail!(
+                    "Corrupt compress stream: invalid prefix index {code}"
+                ),
             };
         }
 
@@ -463,7 +481,8 @@ pub fn decompress_lzw_stream(
         writer
             .write_all(out_slice)
             .context("Failed to write decompressed block")?;
-        total_written = total_written.saturating_add(u64::try_from(out_slice.len())?);
+        total_written =
+            total_written.saturating_add(u64::try_from(out_slice.len())?);
 
         if free_ent < maxmaxcode {
             let oldcode_u32 = u32::try_from(oldcode)?;
@@ -479,7 +498,8 @@ pub fn decompress_lzw_stream(
             if free_ent > maxcode && n_bits < maxbits {
                 bit_reader.align_block(n_bits)?;
                 n_bits = n_bits.saturating_add(1);
-                maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+                maxcode =
+                    (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
             }
         }
 
@@ -491,7 +511,7 @@ pub fn decompress_lzw_stream(
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -517,19 +537,24 @@ mod tests {
                 crate::CompressionFormat::CompressLzw16,
             ] {
                 let mut compressed = Vec::new();
-                compress_lzw_stream(&mut &sample[..], &mut compressed, format).unwrap();
+                compress_lzw_stream(&mut &sample[..], &mut compressed, format)
+                    .unwrap();
 
                 let mut decompressed = Vec::new();
-                decompress_lzw_stream(&mut &compressed[..], &mut decompressed, format).unwrap();
+                decompress_lzw_stream(
+                    &mut &compressed[..],
+                    &mut decompressed,
+                    format,
+                )
+                .unwrap();
 
-                if decompressed != sample {
-                    panic!(
-                        "Roundtrip failed for LZW format {:?}, sample len {}, decompressed len {}",
-                        format,
-                        sample.len(),
-                        decompressed.len()
-                    );
-                }
+                assert!(
+                    decompressed == sample,
+                    "Roundtrip failed for LZW format {:?}, sample len {}, decompressed len {}",
+                    format,
+                    sample.len(),
+                    decompressed.len()
+                )
             }
         }
     }

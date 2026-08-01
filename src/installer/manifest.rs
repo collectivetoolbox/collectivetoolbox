@@ -4,7 +4,11 @@
 //! release artifacts, their checksums, chunk information, and signatures.
 //! Manifests are JSON-serializable and support Ed25519 signature verification.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use chrono::{DateTime, Utc};
@@ -152,7 +156,9 @@ impl ReleaseManifest {
             for chunk in &file.chunks {
                 if seen_chunks.insert(&chunk.hash) {
                     if let Some(comp_sz) = chunk.compressed_size {
-                        total_compressed_chunk_bytes = total_compressed_chunk_bytes.saturating_add(comp_sz);
+                        total_compressed_chunk_bytes =
+                            total_compressed_chunk_bytes
+                                .saturating_add(comp_sz);
                     } else {
                         // Fallback to 45% of uncompressed size
                         total_compressed_chunk_bytes = total_compressed_chunk_bytes.saturating_add(
@@ -167,7 +173,9 @@ impl ReleaseManifest {
         // Let's assume a generic overhead of 200 KB
         let overhead = 200_000;
 
-        installer_size.saturating_add(total_compressed_chunk_bytes).saturating_add(overhead)
+        installer_size
+            .saturating_add(total_compressed_chunk_bytes)
+            .saturating_add(overhead)
     }
 
     /// Estimates the gzipped size of a file in the manifest.
@@ -375,7 +383,16 @@ impl ChunkInfo {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::signing::{generate_keypair, sign_manifest};

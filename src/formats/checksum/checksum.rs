@@ -1,6 +1,10 @@
 //! Provides xxHash, a fast, non-cryptographic hash.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 pub mod xxhash;
@@ -27,9 +31,13 @@ impl TryFrom<&str> for HashAlgorithm {
         match s.to_ascii_lowercase().as_str() {
             "xxh32" | "xxhash32" => Ok(HashAlgorithm::XxHash32),
             "xxh64" | "xxhash64" => Ok(HashAlgorithm::XxHash64),
-            "xxh3" | "xxhash3_64" | "xxhash3-64" => Ok(HashAlgorithm::XxHash3_64),
-            "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => Ok(HashAlgorithm::XxHash3_128),
-            _ => anyhow::bail!("Unknown hash algorithm: {}", s),
+            "xxh3" | "xxhash3_64" | "xxhash3-64" => {
+                Ok(HashAlgorithm::XxHash3_64)
+            }
+            "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => {
+                Ok(HashAlgorithm::XxHash3_128)
+            }
+            _ => anyhow::bail!("Unknown hash algorithm: {s}"),
         }
     }
 }
@@ -72,21 +80,24 @@ pub fn hash_hex(data: &[u8], algo: HashAlgorithm, prefix_0x: bool) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
     #[crate::ctb_test]
     fn test_hash_hex() {
         let data = b"hello world";
-        assert_eq!(
-            hash_hex(data, HashAlgorithm::XxHash32, false),
-            "cebb6622"
-        );
-        assert_eq!(
-            hash_hex(data, HashAlgorithm::XxHash32, true),
-            "0xcebb6622"
-        );
+        assert_eq!(hash_hex(data, HashAlgorithm::XxHash32, false), "cebb6622");
+        assert_eq!(hash_hex(data, HashAlgorithm::XxHash32, true), "0xcebb6622");
 
         assert_eq!(
             hash_hex(data, HashAlgorithm::XxHash64, false),

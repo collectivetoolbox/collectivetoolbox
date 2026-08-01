@@ -7,7 +7,11 @@
 //! Chunks are stored in compressed (brotli) form on disk to save space, but
 //! are served and processed in uncompressed form for deduplication.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use fastcdc::v2020::FastCDC;
@@ -127,7 +131,10 @@ pub fn chunk_data(data: &[u8]) -> Result<Vec<Chunk>> {
         let offset = u64::try_from(chunk_result.offset)
             .context("Chunk offset exceeds u64 range")?;
         let chunk_data = data
-            .get(chunk_result.offset..chunk_result.offset.saturating_add(chunk_result.length))
+            .get(
+                chunk_result.offset
+                    ..chunk_result.offset.saturating_add(chunk_result.length),
+            )
             .unwrap_or(&[])
             .to_vec();
         chunks.push(Chunk::new(chunk_data, offset));
@@ -564,7 +571,16 @@ pub fn stream_chunk_file_to_directory(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::io::Write;

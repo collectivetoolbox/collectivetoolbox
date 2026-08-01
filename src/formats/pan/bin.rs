@@ -5,7 +5,11 @@
 //! It will output to stdout CSV file containing the header (from design sheet) and content (from data sheet) of the pan file.
 
 use clap::{Parser, Subcommand};
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 use std::io::{self, Write};
 use std::path::PathBuf;

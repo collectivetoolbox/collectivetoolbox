@@ -32,7 +32,10 @@
 //! <https://github.com/plan9foundation/plan9/blob/main/sys/src/cmd/troff2html/troff2html.c>
 //! <https://github.com/plan9foundation/plan9/tree/main/sys/src/cmd/troff>
 
-#[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use std::env;
@@ -133,7 +136,9 @@ fn main() {
     }
 
     while i < args.len() {
-        let Some(arg) = args.get(i) else { break; };
+        let Some(arg) = args.get(i) else {
+            break;
+        };
         if !end_of_options && arg == "--author" {
             i = i.saturating_add(1);
             if i >= args.len() {
@@ -247,7 +252,11 @@ pub fn convert_man_troff_to_html(
     Ok((buffer, log))
 }
 
-#[expect(clippy::too_many_lines, clippy::arithmetic_side_effects, reason = "Legacy macro conversion dispatcher")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::arithmetic_side_effects,
+    reason = "Legacy macro conversion dispatcher"
+)]
 fn convert_man_from_data<W: Write>(
     state: &mut State,
     data: Vec<u8>,
@@ -807,7 +816,12 @@ fn html_header(state: &mut State, topic: &str, w: &mut impl Write) {
 
     if let Some(chapter) = &state.chapter {
         let anchor = html_anchor(chapter);
-        let _ = writeln!(w, "    <h1 id=\"{}\">{}</h1>", anchor, html_escape(chapter));
+        let _ = writeln!(
+            w,
+            "    <h1 id=\"{}\">{}</h1>",
+            anchor,
+            html_escape(chapter)
+        );
     }
 }
 
@@ -826,13 +840,23 @@ fn push_font(state: &mut State, font: Font, w: &mut impl Write) {
     // Close previous
     if state.font != Font::Regular {
         match state.font {
-            Font::Bold => { let _ = write!(w, "</strong>"); }
-            Font::Italic => { let _ = write!(w, "</em>"); }
-            Font::Small => { let _ = write!(w, "</small>"); }
-            Font::SmallBold => { let _ = write!(w, "</small>"); }
-            Font::Monospace => { let _ = write!(w, "</pre>"); }
-            Font::Regular => ()
-        };
+            Font::Bold => {
+                let _ = write!(w, "</strong>");
+            }
+            Font::Italic => {
+                let _ = write!(w, "</em>");
+            }
+            Font::Small => {
+                let _ = write!(w, "</small>");
+            }
+            Font::SmallBold => {
+                let _ = write!(w, "</small>");
+            }
+            Font::Monospace => {
+                let _ = write!(w, "</pre>");
+            }
+            Font::Regular => (),
+        }
     }
     if state.in_block.is_none() {
         let _ = write!(w, "<p>");
@@ -840,14 +864,22 @@ fn push_font(state: &mut State, font: Font, w: &mut impl Write) {
     }
     match font {
         Font::Regular => (),
-        Font::Bold => { let _ = write!(w, "<strong>"); }
-        Font::Italic => { let _ = write!(w, "<em>"); }
-        Font::Small => { let _ = write!(w, "<small>"); }
+        Font::Bold => {
+            let _ = write!(w, "<strong>");
+        }
+        Font::Italic => {
+            let _ = write!(w, "<em>");
+        }
+        Font::Small => {
+            let _ = write!(w, "<small>");
+        }
         Font::SmallBold => {
             let _ = write!(w, "<small style=\"font-weight: bold;\">");
         }
-        Font::Monospace => { let _ = write!(w, "<pre>"); }
-    };
+        Font::Monospace => {
+            let _ = write!(w, "<pre>");
+        }
+    }
     state.font = font;
 }
 
@@ -924,7 +956,9 @@ fn capitalize_heading_words(s: &str) -> String {
     // Capitalize first letter of each word except "a", "and", "or", "the"
     let mut i = 0usize;
     while i < title.len() {
-        let Some(&ch) = title.get(i) else { break; };
+        let Some(&ch) = title.get(i) else {
+            break;
+        };
         if (char::from(ch)).is_ascii_alphabetic() {
             // Check if this is the start of a word (first letter or preceded by non-alpha)
             let is_start = i == 0;
@@ -944,7 +978,11 @@ fn capitalize_heading_words(s: &str) -> String {
             // Lowercase the rest of the word
             let mut j = i.saturating_add(1);
             while j < title.len()
-                && title.get(j).copied().map(char::from).is_some_and(|c| c.is_ascii_alphabetic())
+                && title
+                    .get(j)
+                    .copied()
+                    .map(char::from)
+                    .is_some_and(|c| c.is_ascii_alphabetic())
             {
                 if let Some(elem) = title.get_mut(j) {
                     *elem = elem.to_ascii_lowercase();
@@ -994,24 +1032,35 @@ fn handle_xx(
     let mut use_a = true;
     let mut idx = 0usize;
     while idx < words.len() {
-        let Some(word) = words.get(idx) else { break; };
+        let Some(word) = words.get(idx) else {
+            break;
+        };
         // Attempt link detection for ".BR name (section)"
         let mut have_link = false;
         if a == Font::Bold
             && b == Font::Regular
             && use_a
             && idx.saturating_add(1) < words.len()
-            && words.get(idx.saturating_add(1)).is_some_and(|w| w.starts_with('(') && w.contains(')'))
+            && words
+                .get(idx.saturating_add(1))
+                .is_some_and(|w| w.starts_with('(') && w.contains(')'))
         {
             if let Some(sec) = words.get(idx.saturating_add(1)) {
                 if let Some(endp) = sec.find(')') {
                     let section = sec.get(1..endp).unwrap_or("");
-                    if section.chars().next().is_some_and(|c| c.is_ascii_digit())
+                    if section
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_digit())
                         && have_basepath
                     {
                         let manfile = format!("{basepath}/{word}.{section}");
                         if Path::new(&manfile).exists() {
-                            let _ = write!(w, "<a href=\"{}.html\">", html_escape(word));
+                            let _ = write!(
+                                w,
+                                "<a href=\"{}.html\">",
+                                html_escape(word)
+                            );
                             have_link = true;
                         }
                     }
@@ -1081,7 +1130,9 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                                 'b' | 'B' => push_font(state, Font::Bold, w),
                                 'i' | 'I' => push_font(state, Font::Italic, w),
                                 _ => {
-                                    eprintln!("mantohtml: Unknown font '\\f{fch}' ignored.");
+                                    eprintln!(
+                                        "mantohtml: Unknown font '\\f{fch}' ignored."
+                                    );
                                 }
                             }
                             i = i.saturating_add(1);
@@ -1095,29 +1146,48 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                             let ch = char::from(bch);
                             if ch == '(' {
                                 i = i.saturating_add(1);
-                                if let (Some(&bm1), Some(&bm2)) = (bytes.get(i), bytes.get(i.saturating_add(1))) {
+                                if let (Some(&bm1), Some(&bm2)) = (
+                                    bytes.get(i),
+                                    bytes.get(i.saturating_add(1)),
+                                ) {
                                     let m1 = char::from(bm1);
                                     let m2 = char::from(bm2);
                                     let macro_id = format!("{m1}{m2}");
                                     match macro_id.as_str() {
-                                        "aq" => { let _ = write!(w, "'"); }
-                                        "dq" => { let _ = write!(w, "&quot;"); }
-                                        "lq" => { let _ = write!(w, "&ldquo;"); }
-                                        "rq" => { let _ = write!(w, "&rdquo;"); }
-                                        "Tm" => { let _ = write!(w, "<sup>TM</sup>"); }
-                                        _ => {
-                                            eprintln!("mantohtml: Unknown macro '\\*({m1}{m2})' ignored.");
+                                        "aq" => {
+                                            let _ = write!(w, "'");
                                         }
-                                    };
+                                        "dq" => {
+                                            let _ = write!(w, "&quot;");
+                                        }
+                                        "lq" => {
+                                            let _ = write!(w, "&ldquo;");
+                                        }
+                                        "rq" => {
+                                            let _ = write!(w, "&rdquo;");
+                                        }
+                                        "Tm" => {
+                                            let _ = write!(w, "<sup>TM</sup>");
+                                        }
+                                        _ => {
+                                            eprintln!(
+                                                "mantohtml: Unknown macro '\\*({m1}{m2})' ignored."
+                                            );
+                                        }
+                                    }
                                     i = i.saturating_add(2);
                                 }
                             } else {
                                 match ch {
-                                    'R' => { let _ = write!(w, "&reg;"); }
-                                    _ => {
-                                        eprintln!("mantohtml: Unknown macro '\\*{ch}' ignored.");
+                                    'R' => {
+                                        let _ = write!(w, "&reg;");
                                     }
-                                };
+                                    _ => {
+                                        eprintln!(
+                                            "mantohtml: Unknown macro '\\*{ch}' ignored."
+                                        );
+                                    }
+                                }
                                 i = i.saturating_add(1);
                             }
                         }
@@ -1127,14 +1197,29 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         if let Some(seq) = bytes.get(i..i.saturating_add(3)) {
                             let token = String::from_utf8_lossy(seq);
                             match token.as_ref() {
-                                "(bu" => { let _ = write!(w, "&middot;"); }
-                                "(em" => { let _ = write!(w, "&mdash;"); }
-                                "(en" => { let _ = write!(w, "&ndash;"); }
-                                "(ga" => { let _ = write!(w, "`"); }
-                                "(ha" => { let _ = write!(w, "^"); }
-                                "(ti" => { let _ = write!(w, "~"); }
-                                _ => { let _ = write!(w, "{}", html_escape(&token)); }
-                            };
+                                "(bu" => {
+                                    let _ = write!(w, "&middot;");
+                                }
+                                "(em" => {
+                                    let _ = write!(w, "&mdash;");
+                                }
+                                "(en" => {
+                                    let _ = write!(w, "&ndash;");
+                                }
+                                "(ga" => {
+                                    let _ = write!(w, "`");
+                                }
+                                "(ha" => {
+                                    let _ = write!(w, "^");
+                                }
+                                "(ti" => {
+                                    let _ = write!(w, "~");
+                                }
+                                _ => {
+                                    let _ =
+                                        write!(w, "{}", html_escape(&token));
+                                }
+                            }
                             i = i.saturating_add(3);
                         } else {
                             // Just treat literally
@@ -1143,7 +1228,7 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         }
                     }
                     '[' => {
-                    // \[xx] style
+                        // \[xx] style
                         let mut j = i;
                         while let Some(&bj) = bytes.get(j) {
                             if bj == b']' {
@@ -1153,29 +1238,58 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         }
 
                         if matches!(bytes.get(j), Some(b']')) {
-                        // token inside \[ ... ]
-                            let token_bytes = bytes.get(i.saturating_add(1)..j).unwrap_or(&[]);
+                            // token inside \[ ... ]
+                            let token_bytes = bytes
+                                .get(i.saturating_add(1)..j)
+                                .unwrap_or(&[]);
                             match token_bytes {
-                                b"aq" => { let _ = write!(w, "'"); }
-                                b"co" => { let _ = write!(w, "&copy;"); }
-                                b"cq" => { let _ = write!(w, "&rsquo;"); }
-                                b"de" => { let _ = write!(w, "&deg;"); }
-                                b"dq" => { let _ = write!(w, "&quot;"); }
-                                b"lq" => { let _ = write!(w, "&ldquo;"); }
-                                b"mc" => { let _ = write!(w, "&mu;"); }
-                                b"oq" => { let _ = write!(w, "&lsquo;"); }
-                                b"rg" => { let _ = write!(w, "&reg;"); }
-                                b"rq" => { let _ = write!(w, "&rdquo;"); }
-                                b"tm" => { let _ = write!(w, "<sup>TM</sup>"); }
-                            // Unknown, output literally
-                                _ => {
-                                    let token = String::from_utf8_lossy(token_bytes);
-                                    let _ = write!(w, "\\[{}]", html_escape(&token));
+                                b"aq" => {
+                                    let _ = write!(w, "'");
                                 }
-                            };
+                                b"co" => {
+                                    let _ = write!(w, "&copy;");
+                                }
+                                b"cq" => {
+                                    let _ = write!(w, "&rsquo;");
+                                }
+                                b"de" => {
+                                    let _ = write!(w, "&deg;");
+                                }
+                                b"dq" => {
+                                    let _ = write!(w, "&quot;");
+                                }
+                                b"lq" => {
+                                    let _ = write!(w, "&ldquo;");
+                                }
+                                b"mc" => {
+                                    let _ = write!(w, "&mu;");
+                                }
+                                b"oq" => {
+                                    let _ = write!(w, "&lsquo;");
+                                }
+                                b"rg" => {
+                                    let _ = write!(w, "&reg;");
+                                }
+                                b"rq" => {
+                                    let _ = write!(w, "&rdquo;");
+                                }
+                                b"tm" => {
+                                    let _ = write!(w, "<sup>TM</sup>");
+                                }
+                                // Unknown, output literally
+                                _ => {
+                                    let token =
+                                        String::from_utf8_lossy(token_bytes);
+                                    let _ = write!(
+                                        w,
+                                        "\\[{}]",
+                                        html_escape(&token)
+                                    );
+                                }
+                            }
                             i = j.saturating_add(1);
                         } else {
-                        // Unterminated, output literally
+                            // Unterminated, output literally
                             let _ = write!(w, "\\[");
                             i = i.saturating_add(1);
                         }
@@ -1256,7 +1370,6 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
     flush_fragment(fragment_start, i, w, bytes);
 }
 
-
 fn starts_with_url(slice: &[u8]) -> bool {
     let s = std::str::from_utf8(slice).unwrap_or("");
     s.starts_with("http://") || s.starts_with("https://")
@@ -1275,7 +1388,10 @@ fn extract_url(slice: &[u8]) -> (String, usize) {
         }
         if ",.)".contains(c)
             && (end.saturating_add(1) == chars.len()
-                || chars.get(end.saturating_add(1)).copied().is_none_or(|c| c.is_whitespace() || c == '\0'))
+                || chars
+                    .get(end.saturating_add(1))
+                    .copied()
+                    .is_none_or(|c| c.is_whitespace() || c == '\0'))
         {
             break;
         }
@@ -1409,7 +1525,16 @@ fn usage(bad: Option<&str>) {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_formats_utilities::assert_vec_u8_ok_eq_no_warnings;
 

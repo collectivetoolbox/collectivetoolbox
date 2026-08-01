@@ -1,10 +1,10 @@
 // Parts derived from axum-extra (https://github.com/tokio-rs/axum/blob/b1cd1c17cb82fa26b526e0b9d99a0ac4794e139e/axum-extra/src/extract/host.rs).
 // SPDX-License-Identifier for parts derived from from axum-extra: MIT
 
-use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use crate::middleware::compression_with_range::CompressionLayer as CompressionWithRangeLayer;
 use ::http::header;
 use anyhow::{Context, Result};
 use axum::Router;
@@ -17,9 +17,7 @@ use rustls::server::WebPkiClientVerifier;
 use rustls_pki_types::CertificateDer;
 use rustls_pki_types::pem::PemObject;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use tower_http::compression::CompressionLayer;
-use crate::middleware::compression_with_range::CompressionLayer as CompressionWithRangeLayer;
 use tower_http::cors::CorsLayer;
 
 use crate::AppState;
@@ -28,7 +26,6 @@ use crate::middleware::access_log_layer::AccessLogLayer;
 use crate::routes::build_routes;
 use crate::tls_rustls_vendored::typed_der_from_pem;
 use crate::utilities::*;
-use ctb_storage::register_views;
 
 const SLOW_TTFB_THRESHOLD: Duration = Duration::from_millis(150);
 
@@ -74,7 +71,8 @@ async fn clear_invalid_session_middleware(
     req: axum::http::Request<axum::body::Body>,
     next: middleware::Next,
 ) -> Response {
-    let session_key_str = crate::session_auth::session_key_string_from_headers(req.headers());
+    let session_key_str =
+        crate::session_auth::session_key_string_from_headers(req.headers());
     let mut resp = next.run(req).await;
 
     if let Some(session_key_str) = session_key_str {
@@ -90,15 +88,17 @@ async fn clear_invalid_session_middleware(
                 .decode(&session_key_str)
                 .ok()
                 .and_then(|key_bytes| {
-                    let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&key_bytes);
+                    let token =
+                        base64::engine::general_purpose::URL_SAFE_NO_PAD
+                            .encode(&key_bytes);
                     ctb_storage::user::validate_session(&token).ok().flatten()
                 })
                 .is_some();
 
             if !is_valid {
-                if let Ok(cookie_val) =
-                    header::HeaderValue::from_str("session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
-                {
+                if let Ok(cookie_val) = header::HeaderValue::from_str(
+                    "session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+                ) {
                     resp.headers_mut().append(header::SET_COOKIE, cookie_val);
                 }
             }
@@ -113,10 +113,13 @@ struct OnlyForContentTypes;
 
 impl tower_http::compression::Predicate for OnlyForContentTypes {
     fn should_compress<B>(&self, response: &::http::Response<B>) -> bool {
-        if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {
+        if let Some(content_type) = response.headers().get(header::CONTENT_TYPE)
+        {
             if let Ok(content_type_str) = content_type.to_str() {
-                return content_type_str.starts_with("application/x-executable")
-                    || content_type_str.starts_with("application/octet-stream")
+                return content_type_str
+                    .starts_with("application/x-executable")
+                    || content_type_str
+                        .starts_with("application/octet-stream")
                     || content_type_str.starts_with("application/x-tar");
             }
         }
@@ -155,7 +158,10 @@ pub fn build_app_router(state: AppState) -> Router {
         .layer(middleware::from_fn(clear_invalid_session_middleware))
 }
 
-#[allow(clippy::too_many_lines, reason = "webui startup setup function is naturally long")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "webui startup setup function is naturally long"
+)]
 pub fn start_webui_server() -> u16 {
     log!("Starting local web UI server");
     let current_settings = pc_settings::PcSettings::load().unwrap_or_default();
@@ -349,7 +355,9 @@ pub fn start_webui_server() -> u16 {
 /// This is based on the Host extractor that was deprecated and removed from axum-extra.
 fn resolve_host(headers: &header::HeaderMap, uri: &axum::http::Uri) -> String {
     // 1. Forwarded
-    if let Some(forwarded) = headers.get(header::FORWARDED).and_then(|h| h.to_str().ok()) {
+    if let Some(forwarded) =
+        headers.get(header::FORWARDED).and_then(|h| h.to_str().ok())
+    {
         if let Some(first_value) = forwarded.split(',').next() {
             for pair in first_value.split(';') {
                 if let Some((key, value)) = pair.split_once('=') {
@@ -362,18 +370,27 @@ fn resolve_host(headers: &header::HeaderMap, uri: &axum::http::Uri) -> String {
     }
 
     // 2. X-Forwarded-Host
-    if let Some(host) = headers.get("X-Forwarded-Host").and_then(|h| h.to_str().ok()) {
+    if let Some(host) = headers
+        .get("X-Forwarded-Host")
+        .and_then(|h| h.to_str().ok())
+    {
         return host.to_string();
     }
 
     // 3. Host
-    if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
+    if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok())
+    {
         return host.to_string();
     }
 
     // 4. Request URI authority
     if let Some(authority) = uri.authority() {
-        return authority.as_str().rsplit('@').next().unwrap_or("").to_string();
+        return authority
+            .as_str()
+            .rsplit('@')
+            .next()
+            .unwrap_or("")
+            .to_string();
     }
 
     String::new()
@@ -408,9 +425,15 @@ async fn http_to_https(
         .serve(
             Router::new()
                 .fallback(axum::routing::any(
-                    move |headers: header::HeaderMap, uri: axum::http::Uri, request_uri: RequestUri| async move {
+                    move |headers: header::HeaderMap,
+                          uri: axum::http::Uri,
+                          request_uri: RequestUri| async move {
                         let host = resolve_host(&headers, &uri);
-                        http_to_https_controller(redirect_to_port, host, request_uri)
+                        http_to_https_controller(
+                            redirect_to_port,
+                            host,
+                            request_uri,
+                        )
                     },
                 ))
                 .into_make_service(),
@@ -438,7 +461,10 @@ fn start_webui_server_inner(
         let cache_dir = storage_dir.join("releases").join("downloads_cache");
         if cache_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&cache_dir) {
-                warn_fmt!("Failed to clear downloads cache directory {}: {e}", cache_dir.display());
+                warn_fmt!(
+                    "Failed to clear downloads cache directory {}: {e}",
+                    cache_dir.display()
+                );
             }
         }
     }
@@ -556,7 +582,7 @@ fn root_cert_store_from_pem(pem: &str) -> Result<rustls::RootCertStore> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::unwrap_in_result,
     clippy::panic_in_result_fn,
     clippy::expect_used,
@@ -641,8 +667,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_resolve_host() {
-        use axum::http::header::{HeaderMap, FORWARDED, HOST};
         use axum::http::Uri;
+        use axum::http::header::{FORWARDED, HOST, HeaderMap};
 
         // 1. Host header
         let mut headers = HeaderMap::new();
@@ -658,7 +684,8 @@ mod tests {
 
         // 3. Forwarded header
         let mut headers = HeaderMap::new();
-        headers.insert(FORWARDED, "host=forward.com;proto=http".parse().unwrap());
+        headers
+            .insert(FORWARDED, "host=forward.com;proto=http".parse().unwrap());
         headers.insert("X-Forwarded-Host", "proxy.com".parse().unwrap());
         assert_eq!(resolve_host(&headers, &uri), "forward.com");
 
@@ -680,18 +707,25 @@ mod tests {
         // 7. Forwarded parsing edge cases
         // - Case insensitivity of the "host" key in Forwarded header
         let mut headers = HeaderMap::new();
-        headers.insert(FORWARDED, "HOST=192.0.2.60;proto=http".parse().unwrap());
+        headers
+            .insert(FORWARDED, "HOST=192.0.2.60;proto=http".parse().unwrap());
         let uri: Uri = "/".parse().unwrap();
         assert_eq!(resolve_host(&headers, &uri), "192.0.2.60");
 
         // - IPv6 host quoted
         let mut headers = HeaderMap::new();
-        headers.insert(FORWARDED, "host=\"[2001:db8:cafe::17]:4711\"".parse().unwrap());
+        headers.insert(
+            FORWARDED,
+            "host=\"[2001:db8:cafe::17]:4711\"".parse().unwrap(),
+        );
         assert_eq!(resolve_host(&headers, &uri), "[2001:db8:cafe::17]:4711");
 
         // - Multiple values in one header
         let mut headers = HeaderMap::new();
-        headers.insert(FORWARDED, "host=192.0.2.60, host=127.0.0.1".parse().unwrap());
+        headers.insert(
+            FORWARDED,
+            "host=192.0.2.60, host=127.0.0.1".parse().unwrap(),
+        );
         assert_eq!(resolve_host(&headers, &uri), "192.0.2.60");
 
         // - Multiple header values (separate lines)
@@ -703,19 +737,29 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_build_rustls_server_config() {
-        let cert_pem = crate::tls_rustls_vendored::get_tls_rustls_vendored_data("fixtures/cert.pem")
+        let cert_pem =
+            crate::tls_rustls_vendored::get_tls_rustls_vendored_data(
+                "fixtures/cert.pem",
+            )
             .expect("failed to get embedded cert.pem");
-        let key_pem = crate::tls_rustls_vendored::get_tls_rustls_vendored_data("fixtures/key.pem")
-            .expect("failed to get embedded key.pem");
+        let key_pem = crate::tls_rustls_vendored::get_tls_rustls_vendored_data(
+            "fixtures/key.pem",
+        )
+        .expect("failed to get embedded key.pem");
 
         // 1. Without client auth
-        let _config_no_auth = build_rustls_server_config(cert_pem.clone(), key_pem.clone(), None)
-            .expect("failed to build ServerConfig without client auth");
+        let _config_no_auth =
+            build_rustls_server_config(cert_pem.clone(), key_pem.clone(), None)
+                .expect("failed to build ServerConfig without client auth");
 
         // 2. With client auth (using the same cert as CA for testing)
         let cert_str = std::str::from_utf8(&cert_pem).unwrap();
-        let _config_with_auth = build_rustls_server_config(cert_pem.clone(), key_pem, Some(cert_str))
-            .expect("failed to build ServerConfig with client auth");
+        let _config_with_auth = build_rustls_server_config(
+            cert_pem.clone(),
+            key_pem,
+            Some(cert_str),
+        )
+        .expect("failed to build ServerConfig with client auth");
     }
 }
 

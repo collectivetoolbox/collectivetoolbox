@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod binary_path;
 pub mod logging_test_internal;
@@ -21,18 +21,17 @@ pub fn try_get_test_storage_dir() -> Option<PathBuf> {
     TEST_STORAGE_DIR
         .try_with(Clone::clone)
         .ok()
-        .or_else(|| {
-            TEST_STORAGE_DIR_SYNC.with(|c| c.borrow().clone())
-        })
+        .or_else(|| TEST_STORAGE_DIR_SYNC.with(|c| c.borrow().clone()))
 }
 
 pub fn set_current_test_name(p: String) {
     IN_TEST_PROCESS.store(true, Ordering::Relaxed);
-    
+
     let unique_id = rand::random::<u64>();
-    let temp_dir = std::env::temp_dir().join(format!("collectivetoolbox_ctb_test_{}_{}", p, unique_id));
+    let temp_dir = std::env::temp_dir()
+        .join(format!("collectivetoolbox_ctb_test_{p}_{unique_id}"));
     let _ = std::fs::create_dir_all(&temp_dir);
-    
+
     TEST_STORAGE_DIR_SYNC.with(|c| *c.borrow_mut() = Some(temp_dir));
     CURRENT_TEST_NAME.with(|c| *c.borrow_mut() = Some(p));
 }
@@ -62,7 +61,8 @@ where
     IN_TEST_PROCESS.store(true, Ordering::Relaxed);
 
     let unique_id = rand::random::<u64>();
-    let temp_dir = std::env::temp_dir().join(format!("collectivetoolbox_ctb_test_{}_{}", name, unique_id));
+    let temp_dir = std::env::temp_dir()
+        .join(format!("collectivetoolbox_ctb_test_{name}_{unique_id}"));
     let _ = std::fs::create_dir_all(&temp_dir);
 
     struct TempDirGuard(std::path::PathBuf);
@@ -76,10 +76,12 @@ where
     let temp_dir_clone = temp_dir.clone();
     CURRENT_ASYNC_TEST_NAME
         .scope(name.clone(), async move {
-            TEST_STORAGE_DIR.scope(temp_dir_clone, async move {
-                let _guard = push_current_test_name(Some(name));
-                future.await
-            }).await
+            TEST_STORAGE_DIR
+                .scope(temp_dir_clone, async move {
+                    let _guard = push_current_test_name(Some(name));
+                    future.await
+                })
+                .await
         })
         .await
 }
@@ -95,28 +97,32 @@ where
     let test_storage_dir = try_get_test_storage_dir();
     tokio::task::spawn_blocking(move || {
         let _guard = push_current_test_name(test_name);
-        
+
         let previous_dir = if let Some(ref dir) = test_storage_dir {
             TEST_STORAGE_DIR_SYNC.with(|c| c.replace(Some(dir.clone())))
         } else {
             None
         };
-        
+
         struct BlockingGuard {
             previous_dir: Option<PathBuf>,
         }
         impl Drop for BlockingGuard {
             fn drop(&mut self) {
-                let _ = TEST_STORAGE_DIR_SYNC.with(|c| c.replace(self.previous_dir.take()));
+                let _ = TEST_STORAGE_DIR_SYNC
+                    .with(|c| c.replace(self.previous_dir.take()));
             }
         }
         let _blocking_guard = BlockingGuard { previous_dir };
-        
+
         f()
     })
 }
 
-#[allow(clippy::panic, reason = "Test-only utility helper panics when called outside test harness")]
+#[expect(
+    clippy::panic,
+    reason = "Test-only utility helper panics when called outside test harness"
+)]
 pub fn get_current_test_name() -> String {
     if let Some(p) = try_get_current_test_name() {
         p
@@ -137,4 +143,3 @@ pub fn is_in_test() -> bool {
     IN_TEST_PROCESS.load(Ordering::Relaxed)
         || try_get_current_test_name().is_some()
 }
-

@@ -9,28 +9,32 @@
 // Header comment from original unpack.c:
 /* unpack.c -- decompress files in pack format.
 
-   Copyright (C) 1997, 1999, 2006, 2009-2025 Free Software Foundation, Inc.
-   Copyright (C) 1992-1993 Jean-loup Gailly
+  Copyright (C) 1997, 1999, 2006, 2009-2025 Free Software Foundation, Inc.
+  Copyright (C) 1992-1993 Jean-loup Gailly
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 3, or (at your option)
+  any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // AUTHORS file for gzip overall:
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -167,7 +171,9 @@ pub fn decompress_pack_stream(
     let magic0 = br.read_byte()?;
     let magic1 = br.read_byte()?;
     if magic0 != PACK_MAGIC[0] || magic1 != PACK_MAGIC[1] {
-        bail!("Invalid Pack magic header: expected 0x1F 0x1E, got 0x{magic0:02X} 0x{magic1:02X}");
+        bail!(
+            "Invalid Pack magic header: expected 0x1F 0x1E, got 0x{magic0:02X} 0x{magic1:02X}"
+        );
     }
 
     // Read 32-bit Big-Endian original uncompressed size
@@ -181,7 +187,9 @@ pub fn decompress_pack_stream(
     let max_len_byte = br.read_byte()?;
     let max_len = usize::from(max_len_byte);
     if max_len == 0 || max_len > MAX_BITLEN {
-        bail!("Invalid Pack tree depth: maxlev {max_len} is out of range 1..={MAX_BITLEN}");
+        bail!(
+            "Invalid Pack tree depth: maxlev {max_len} is out of range 1..={MAX_BITLEN}"
+        );
     }
 
     // Read leaf counts for each level 1..=max_len
@@ -196,7 +204,8 @@ pub fn decompress_pack_stream(
     }
 
     // Adjust stored levcount[max_len]: stored as actual - 2 + 1 (implicit EOB offset)
-    let max_len_count = leaves.get_mut(max_len).context("Invalid max_len index")?;
+    let max_len_count =
+        leaves.get_mut(max_len).context("Invalid max_len index")?;
     *max_len_count = max_len_count.saturating_add(1);
 
     let explicit_leaf_count = total_leaves.saturating_add(1);
@@ -207,11 +216,13 @@ pub fn decompress_pack_stream(
     for len in 1..=max_len {
         let l_base = lit_base.get_mut(len).context("Invalid lit_base index")?;
         *l_base = i32::try_from(base)?;
-        let count = usize::try_from(*leaves.get(len).context("Invalid leaves index")?)?;
+        let count =
+            usize::try_from(*leaves.get(len).context("Invalid leaves index")?)?;
         for _ in 0..count {
             let sym = br.read_byte()?;
             if base < literal.len() {
-                let slot = literal.get_mut(base).context("Invalid literal slot")?;
+                let slot =
+                    literal.get_mut(base).context("Invalid literal slot")?;
                 *slot = sym;
                 base = base.saturating_add(1);
             }
@@ -219,7 +230,8 @@ pub fn decompress_pack_stream(
     }
 
     // Include implicit EOB leaf at maximum level
-    let max_len_count_final = leaves.get_mut(max_len).context("Invalid max_len index")?;
+    let max_len_count_final =
+        leaves.get_mut(max_len).context("Invalid max_len index")?;
     *max_len_count_final = max_len_count_final.saturating_add(1);
 
     // Build internal nodes count table and adjust lit_base
@@ -235,7 +247,8 @@ pub fn decompress_pack_stream(
         nodes = nodes.saturating_add(l_count);
     }
 
-    let eob_code = (*leaves.get(max_len).context("Invalid max_len leaves")?).saturating_sub(1);
+    let eob_code = (*leaves.get(max_len).context("Invalid max_len leaves")?)
+        .saturating_sub(1);
 
     let mut bytes_emitted = 0u64;
     let orig_size_u64 = u64::from(orig_size);
@@ -258,7 +271,8 @@ pub fn decompress_pack_stream(
             }
             let l_base = *lit_base.get(len).context("Invalid lit_base len")?;
             let idx = usize::try_from(code.saturating_add(l_base))?;
-            let sym = *literal.get(idx).context("Literal index out of bounds")?;
+            let sym =
+                *literal.get(idx).context("Literal index out of bounds")?;
 
             writer
                 .write_all(&[sym])
@@ -280,7 +294,9 @@ pub fn decompress_pack_stream(
     }
 
     if bytes_emitted != orig_size_u64 {
-        bail!("Decompressed byte count mismatch: expected {orig_size}, got {bytes_emitted}");
+        bail!(
+            "Decompressed byte count mismatch: expected {orig_size}, got {bytes_emitted}"
+        );
     }
 
     Ok(bytes_emitted)
@@ -337,8 +353,9 @@ pub fn compress_pack_stream(
         .context("Failed to read input data for Pack compression")?;
 
     let orig_size = input_bytes.len();
-    let orig_size_u32 = u32::try_from(orig_size)
-        .context("Input data size exceeds 32-bit uint capacity for Pack header")?;
+    let orig_size_u32 = u32::try_from(orig_size).context(
+        "Input data size exceeds 32-bit uint capacity for Pack header",
+    )?;
 
     // Frequency counting
     let mut freqs = [0u64; 257];
@@ -399,24 +416,31 @@ pub fn compress_pack_stream(
 
     let max_len = depths.iter().copied().max().unwrap_or(1).max(1);
     if max_len > MAX_BITLEN {
-        bail!("Generated Huffman code length {max_len} exceeds maximum allowed depth {MAX_BITLEN}");
+        bail!(
+            "Generated Huffman code length {max_len} exceeds maximum allowed depth {MAX_BITLEN}"
+        );
     }
 
     // Count leaves per level
     let mut leaf_counts = vec![0usize; max_len.saturating_add(1)];
     for &d in &depths {
         if d > 0 {
-            let slot = leaf_counts.get_mut(d).context("Invalid leaf_counts index")?;
+            let slot = leaf_counts
+                .get_mut(d)
+                .context("Invalid leaf_counts index")?;
             *slot = slot.saturating_add(1);
         }
     }
 
     // Group symbols by depth
     // Workaround for gzip bug #28861: symbol 256 (END) must be ordered last within its depth level
-    let mut level_symbols = vec![Vec::<usize>::new(); max_len.saturating_add(1)];
+    let mut level_symbols =
+        vec![Vec::<usize>::new(); max_len.saturating_add(1)];
     for (sym, &d) in depths.iter().enumerate() {
         if d > 0 {
-            let vec = level_symbols.get_mut(d).context("Invalid level_symbols level")?;
+            let vec = level_symbols
+                .get_mut(d)
+                .context("Invalid level_symbols level")?;
             vec.push(sym);
         }
     }
@@ -437,11 +461,19 @@ pub fn compress_pack_stream(
 
     // Calculate canonical parents count per level
     let mut parents = vec![0i32; max_len.saturating_add(1)];
-    let p_max = parents.get_mut(max_len).context("Invalid parents max_len")?;
+    let p_max = parents
+        .get_mut(max_len)
+        .context("Invalid parents max_len")?;
     *p_max = 0;
     for len in (1..max_len).rev() {
-        let p_next = *parents.get(len.saturating_add(1)).context("Invalid parent next")?;
-        let l_next = i32::try_from(*leaf_counts.get(len.saturating_add(1)).context("Invalid leaf next")?)?;
+        let p_next = *parents
+            .get(len.saturating_add(1))
+            .context("Invalid parent next")?;
+        let l_next = i32::try_from(
+            *leaf_counts
+                .get(len.saturating_add(1))
+                .context("Invalid leaf next")?,
+        )?;
         let p_curr = parents.get_mut(len).context("Invalid parent curr")?;
         *p_curr = p_next.saturating_add(l_next) / 2;
     }
@@ -449,23 +481,33 @@ pub fn compress_pack_stream(
     // Assign codes to symbols
     let mut code_map = [(0u32, 0u32); 257];
     for len in 1..=max_len {
-        let base_code = u32::try_from(*parents.get(len).context("Invalid parents len")?)?;
-        let syms = level_symbols.get(len).context("Invalid level_symbols len")?;
+        let base_code =
+            u32::try_from(*parents.get(len).context("Invalid parents len")?)?;
+        let syms = level_symbols
+            .get(len)
+            .context("Invalid level_symbols len")?;
         for (idx, &sym) in syms.iter().enumerate() {
             let sym_code = base_code.saturating_add(u32::try_from(idx)?);
             let len_u32 = u32::try_from(len)?;
-            let map_slot = code_map.get_mut(sym).context("Invalid code_map slot")?;
+            let map_slot =
+                code_map.get_mut(sym).context("Invalid code_map slot")?;
             *map_slot = (sym_code, len_u32);
         }
     }
 
     // Write header
-    writer.write_all(&PACK_MAGIC).context("Failed to write Pack magic")?;
+    writer
+        .write_all(&PACK_MAGIC)
+        .context("Failed to write Pack magic")?;
     let orig_be = orig_size_u32.to_be_bytes();
-    writer.write_all(&orig_be).context("Failed to write orig_size")?;
+    writer
+        .write_all(&orig_be)
+        .context("Failed to write orig_size")?;
 
     let max_len_u8 = u8::try_from(max_len)?;
-    writer.write_all(&[max_len_u8]).context("Failed to write maxlev")?;
+    writer
+        .write_all(&[max_len_u8])
+        .context("Failed to write maxlev")?;
 
     // Write leaf counts array
     for len in 1..=max_len {
@@ -476,16 +518,22 @@ pub fn compress_pack_stream(
             count
         };
         let val_u8 = u8::try_from(store_val)?;
-        writer.write_all(&[val_u8]).context("Failed to write level count")?;
+        writer
+            .write_all(&[val_u8])
+            .context("Failed to write level count")?;
     }
 
     // Write literal symbol bytes (excluding EOB 256)
     for len in 1..=max_len {
-        let syms = level_symbols.get(len).context("Invalid level_symbols len")?;
+        let syms = level_symbols
+            .get(len)
+            .context("Invalid level_symbols len")?;
         for &sym in syms {
             if sym != END_SYMBOL {
                 let byte = u8::try_from(sym)?;
-                writer.write_all(&[byte]).context("Failed to write symbol byte")?;
+                writer
+                    .write_all(&[byte])
+                    .context("Failed to write symbol byte")?;
             }
         }
     }
@@ -494,11 +542,14 @@ pub fn compress_pack_stream(
     let mut bw = BitWriter::new(writer);
     for &b in &input_bytes {
         let sym = usize::from(b);
-        let &(code, bits) = code_map.get(sym).context("Symbol missing from code map")?;
+        let &(code, bits) =
+            code_map.get(sym).context("Symbol missing from code map")?;
         bw.write_bits(code, bits)?;
     }
     // Write EOB symbol
-    let &(eob_code, eob_bits) = code_map.get(END_SYMBOL).context("EOB missing from code map")?;
+    let &(eob_code, eob_bits) = code_map
+        .get(END_SYMBOL)
+        .context("EOB missing from code map")?;
     bw.write_bits(eob_code, eob_bits)?;
     bw.flush_bits()?;
 
@@ -519,7 +570,11 @@ pub fn decompress_old_pack_stream(
         .read_exact(&mut magic)
         .context("Failed to read OldPack magic header")?;
     if magic[0] != OLD_PACK_MAGIC[0] || magic[1] != OLD_PACK_MAGIC[1] {
-        bail!("Invalid OldPack magic header: expected 0x1F 0x1F, got 0x{:02X} 0x{:02X}", magic[0], magic[1]);
+        bail!(
+            "Invalid OldPack magic header: expected 0x1F 0x1F, got 0x{:02X} 0x{:02X}",
+            magic[0],
+            magic[1]
+        );
     }
 
     // Read 32-bit PDP-11 Middle-Endian uncompressed size
@@ -567,10 +622,12 @@ pub fn decompress_old_pack_stream(
                 .read_exact(&mut w_buf)
                 .context("Failed to read OldPack dictionary word")?;
             let word = u16::from_le_bytes(w_buf);
-            let slot = tree_words.get_mut(t).context("Invalid tree_words index")?;
+            let slot =
+                tree_words.get_mut(t).context("Invalid tree_words index")?;
             *slot = word;
         } else {
-            let slot = tree_words.get_mut(t).context("Invalid tree_words index")?;
+            let slot =
+                tree_words.get_mut(t).context("Invalid tree_words index")?;
             *slot = u16::from(b);
         }
         t = t.saturating_add(1);
@@ -584,8 +641,11 @@ pub fn decompress_old_pack_stream(
     let mut bits_left = 0u32;
 
     loop {
-        let left_off = *tree_words.get(tp).context("Tree index tp out of bounds")?;
-        let right_val = *tree_words.get(tp.saturating_add(1)).context("Tree index tp+1 out of bounds")?;
+        let left_off =
+            *tree_words.get(tp).context("Tree index tp out of bounds")?;
+        let right_val = *tree_words
+            .get(tp.saturating_add(1))
+            .context("Tree index tp+1 out of bounds")?;
 
         if left_off == 0 {
             // Leaf node! right_val is literal character
@@ -623,7 +683,9 @@ pub fn decompress_old_pack_stream(
     }
 
     if bytes_emitted != orig_size_u64 {
-        bail!("OldPack decompressed size mismatch: expected {orig_size}, got {bytes_emitted}");
+        bail!(
+            "OldPack decompressed size mismatch: expected {orig_size}, got {bytes_emitted}"
+        );
     }
 
     Ok(bytes_emitted)
@@ -644,8 +706,9 @@ pub fn compress_old_pack_stream(
         .context("Failed to read input data for OldPack compression")?;
 
     let orig_size = input_bytes.len();
-    let orig_size_u32 = u32::try_from(orig_size)
-        .context("Input data size exceeds 32-bit uint capacity for OldPack header")?;
+    let orig_size_u32 = u32::try_from(orig_size).context(
+        "Input data size exceeds 32-bit uint capacity for OldPack header",
+    )?;
 
     // Frequency counting
     let mut freqs = [0u64; 256];
@@ -707,21 +770,28 @@ pub fn compress_old_pack_stream(
         tree_words.push(0);
 
         if let Some(sym) = node.symbol {
-            let slot_right = tree_words.get_mut(tp.saturating_add(1)).expect("tp+1 valid");
+            let slot_right = tree_words
+                .get_mut(tp.saturating_add(1))
+                .expect("tp+1 valid");
             *slot_right = u16::try_from(sym).unwrap_or(0);
         } else {
             let left_node = node.left.as_ref().expect("Internal node has left");
-            let right_node = node.right.as_ref().expect("Internal node has right");
+            let right_node =
+                node.right.as_ref().expect("Internal node has right");
 
             let left_tp = serialize_node(left_node, tree_words);
             let right_tp = serialize_node(right_node, tree_words);
 
-            let left_offset = u16::try_from(left_tp.saturating_sub(tp)).unwrap_or(0);
-            let right_offset = u16::try_from(right_tp.saturating_sub(tp)).unwrap_or(0);
+            let left_offset =
+                u16::try_from(left_tp.saturating_sub(tp)).unwrap_or(0);
+            let right_offset =
+                u16::try_from(right_tp.saturating_sub(tp)).unwrap_or(0);
 
             let slot_left = tree_words.get_mut(tp).expect("tp valid");
             *slot_left = left_offset;
-            let slot_right = tree_words.get_mut(tp.saturating_add(1)).expect("tp+1 valid");
+            let slot_right = tree_words
+                .get_mut(tp.saturating_add(1))
+                .expect("tp+1 valid");
             *slot_right = right_offset;
         }
         tp
@@ -733,7 +803,12 @@ pub fn compress_old_pack_stream(
         .context("OldPack tree size exceeds 16-bit capacity")?;
 
     let mut symbol_bits = vec![(0u32, 0u32); 256];
-    fn build_paths(node: &HuffmanNode, code: u32, len: u32, symbol_bits: &mut [(u32, u32)]) {
+    fn build_paths(
+        node: &HuffmanNode,
+        code: u32,
+        len: u32,
+        symbol_bits: &mut [(u32, u32)],
+    ) {
         if let Some(sym) = node.symbol {
             if sym < 256 {
                 let slot = symbol_bits.get_mut(sym).expect("sym < 256");
@@ -741,10 +816,15 @@ pub fn compress_old_pack_stream(
             }
         } else {
             if let Some(ref l) = node.left {
-                build_paths(l, (code << 1) | 0, len.saturating_add(1), symbol_bits);
+                build_paths(l, code << 1, len.saturating_add(1), symbol_bits);
             }
             if let Some(ref r) = node.right {
-                build_paths(r, (code << 1) | 1, len.saturating_add(1), symbol_bits);
+                build_paths(
+                    r,
+                    (code << 1) | 1,
+                    len.saturating_add(1),
+                    symbol_bits,
+                );
             }
         }
     }
@@ -757,19 +837,31 @@ pub fn compress_old_pack_stream(
 
     let hi = u16::try_from((orig_size_u32 >> 16) & 0xFFFF)?;
     let lo = u16::try_from(orig_size_u32 & 0xFFFF)?;
-    writer.write_all(&hi.to_le_bytes()).context("Failed to write origsize hi")?;
-    writer.write_all(&lo.to_le_bytes()).context("Failed to write origsize lo")?;
+    writer
+        .write_all(&hi.to_le_bytes())
+        .context("Failed to write origsize hi")?;
+    writer
+        .write_all(&lo.to_le_bytes())
+        .context("Failed to write origsize lo")?;
 
-    writer.write_all(&keysize.to_le_bytes()).context("Failed to write keysize")?;
+    writer
+        .write_all(&keysize.to_le_bytes())
+        .context("Failed to write keysize")?;
 
     // Write compressed tree dictionary array
     for &w in &tree_words {
         if w < 0xFF {
             let byte = u8::try_from(w)?;
-            writer.write_all(&[byte]).context("Failed to write dictionary byte")?;
+            writer
+                .write_all(&[byte])
+                .context("Failed to write dictionary byte")?;
         } else {
-            writer.write_all(&[0xFF]).context("Failed to write 0xFF escape")?;
-            writer.write_all(&w.to_le_bytes()).context("Failed to write dictionary word")?;
+            writer
+                .write_all(&[0xFF])
+                .context("Failed to write 0xFF escape")?;
+            writer
+                .write_all(&w.to_le_bytes())
+                .context("Failed to write dictionary word")?;
         }
     }
 
@@ -779,7 +871,9 @@ pub fn compress_old_pack_stream(
 
     for &b in &input_bytes {
         let sym = usize::from(b);
-        let &(code, bits) = symbol_bits.get(sym).context("Symbol missing in path table")?;
+        let &(code, bits) = symbol_bits
+            .get(sym)
+            .context("Symbol missing in path table")?;
 
         let mut rem_bits = bits;
         while rem_bits > 0 {
@@ -813,7 +907,6 @@ pub fn compress_old_pack_stream(
 
     Ok(u64::try_from(orig_size)?)
 }
-
 
 /*
 

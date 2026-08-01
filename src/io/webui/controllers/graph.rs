@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use ctb_storage::global_graph_layout::get_block_name_for_id;
 use ctb_storage::node::{Node, NodeType};
@@ -16,11 +20,11 @@ use crate::flexible_form::FlexibleForm;
 
 use crate::controllers::base::redirect_temporary;
 use crate::extractors::pagination::PageQuery;
+use crate::get_user_and_graph;
 use crate::{
     AppState, AuthenticatedUser, RequestState, error_400, error_403,
     respond_page,
 };
-use crate::get_user_and_graph;
 
 pub async fn get_nodes_index(
     State(state): State<AppState>,
@@ -37,27 +41,42 @@ pub async fn get_nodes_index(
     };
     let nodes: Vec<Node> = match Node::list_nodes(&token) {
         Ok(nodes) => nodes,
-        Err(e) => return error_400(&state, &req, format!("Failed to list nodes: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                format!("Failed to list nodes: {e}"),
+            );
+        }
     };
 
-    let nodes_list: Vec<_> = nodes.into_iter().map(|node| {
-        let preview = ctb_formats_dctext::format_blob_preview(
-            &node.data,
-            node.node_type == NodeType::Statements || node.node_type == NodeType::System,
-        );
+    let nodes_list: Vec<_> = nodes
+        .into_iter()
+        .map(|node| {
+            let preview = ctb_formats_dctext::format_blob_preview(
+                &node.data,
+                node.node_type == NodeType::Statements
+                    || node.node_type == NodeType::System,
+            );
 
-        json_value!({
-            "id" => node.id,
-            "graph_id" => node.graph_id,
-            "node_type" => node.node_type.as_str(),
-            "data_len" => node.data.len(),
-            "preview" => preview,
+            json_value!({
+                "id" => node.id,
+                "graph_id" => node.graph_id,
+                "node_type" => node.node_type.as_str(),
+                "data_len" => node.data.len(),
+                "preview" => preview,
+            })
         })
-    }).collect();
+        .collect();
 
-    respond_page(&state, req, "nodes.index", &json_value!({
-        "nodes" => nodes_list,
-    }))
+    respond_page(
+        &state,
+        req,
+        "nodes.index",
+        &json_value!({
+            "nodes" => nodes_list,
+        }),
+    )
 }
 
 #[derive(serde::Deserialize)]
@@ -79,7 +98,9 @@ pub async fn get_nodes_view(
     };
     let node_id = match string::to_u128(id_str) {
         Ok(val) => val,
-        Err(e) => return error_400(&state, &req, format!("Invalid node ID: {e}")),
+        Err(e) => {
+            return error_400(&state, &req, format!("Invalid node ID: {e}"));
+        }
     };
 
     let token = {
@@ -93,13 +114,16 @@ pub async fn get_nodes_view(
     let graph_id = if let Some(ref g_str) = q.graph {
         match string::to_u128(g_str) {
             Ok(val) => val,
-            Err(e) => return error_400(&state, &req, format!("Invalid graph ID: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Invalid graph ID: {e}"),
+                );
+            }
         }
     } else {
-        let list = match Node::list_nodes(&token) {
-            Ok(nodes) => nodes,
-            Err(_) => Vec::new(),
-        };
+        let list = Node::list_nodes(&token).unwrap_or_default();
         if let Some(n) = list.into_iter().find(|n| n.id == node_id) {
             n.graph_id
         } else {
@@ -110,16 +134,24 @@ pub async fn get_nodes_view(
     let node = match Node::get(&token, graph_id, node_id) {
         Ok(Some(n)) => n,
         Ok(None) => return error_400(&state, &req, "Node not found"),
-        Err(e) => return error_400(&state, &req, format!("Failed to fetch node: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                format!("Failed to fetch node: {e}"),
+            );
+        }
     };
 
     let is_admin = sess.user.lock().await.is_admin();
 
     let is_data = node.node_type == NodeType::Data;
-    let is_statements = node.node_type == NodeType::Statements || node.node_type == NodeType::System;
+    let is_statements = node.node_type == NodeType::Statements
+        || node.node_type == NodeType::System;
 
     let display_content = if is_statements {
-        let dctext_bytes = ctb_formats_dctext::dcutf_to_dctext(node.data.clone());
+        let dctext_bytes =
+            ctb_formats_dctext::dcutf_to_dctext(node.data.clone());
         String::from_utf8_lossy(&dctext_bytes).into_owned()
     } else {
         String::from_utf8_lossy(&node.data).into_owned()
@@ -131,19 +163,24 @@ pub async fn get_nodes_view(
         String::new()
     };
 
-    respond_page(&state, req, "nodes.view", &json_value!({
-        "node" => json_value!({
-            "id" => node.id,
-            "graph_id" => node.graph_id,
-            "node_type" => node.node_type.as_str(),
-            "data_len" => node.data.len(),
-            "is_data" => is_data,
-            "display_content" => display_content,
-            "hex_dump" => hex_dump,
-            "checksum" => node.checksum.as_ref().map(bin2hex),
+    respond_page(
+        &state,
+        req,
+        "nodes.view",
+        &json_value!({
+            "node" => json_value!({
+                "id" => node.id,
+                "graph_id" => node.graph_id,
+                "node_type" => node.node_type.as_str(),
+                "data_len" => node.data.len(),
+                "is_data" => is_data,
+                "display_content" => display_content,
+                "hex_dump" => hex_dump,
+                "checksum" => node.checksum.as_ref().map(bin2hex),
+            }),
+            "is_admin" => is_admin,
         }),
-        "is_admin" => is_admin,
-    }))
+    )
 }
 
 pub async fn get_nodes_create(
@@ -172,7 +209,13 @@ pub async fn post_nodes_create(
     let graph_id = if let Some(ref g_str) = input.graph {
         match string::to_u128(g_str) {
             Ok(val) => val,
-            Err(e) => return error_400(&state, &req, format!("Invalid graph ID: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Invalid graph ID: {e}"),
+                );
+            }
         }
     } else {
         1
@@ -181,7 +224,9 @@ pub async fn post_nodes_create(
 
     let node_type = match NodeType::from_str(&input.node_type) {
         Ok(t) => t,
-        Err(e) => return error_400(&state, &req, format!("Invalid node type: {e}")),
+        Err(e) => {
+            return error_400(&state, &req, format!("Invalid node type: {e}"));
+        }
     };
 
     if let Err(e) = graph.create_node(
@@ -222,7 +267,9 @@ struct ReadableBytes {
 impl Read for ReadableBytes {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let len = std::cmp::min(buf.len(), self.inner.len());
-        if let (Some(dest), Some(src)) = (buf.get_mut(..len), self.inner.get(..len)) {
+        if let (Some(dest), Some(src)) =
+            (buf.get_mut(..len), self.inner.get(..len))
+        {
             dest.copy_from_slice(src);
         }
         self.inner = self.inner.slice(len..);
@@ -245,7 +292,13 @@ pub async fn post_nodes_upload(
     let graph_id = if let Some(ref g_str) = form.graph {
         match string::to_u128(g_str) {
             Ok(val) => val,
-            Err(e) => return error_400(&state, &req, format!("Invalid graph ID: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Invalid graph ID: {e}"),
+                );
+            }
         }
     } else {
         1
@@ -255,12 +308,12 @@ pub async fn post_nodes_upload(
 
     let node_type = match NodeType::from_str(&form.node_type) {
         Ok(t) => t,
-        Err(e) => return error_400(&state, &req, format!("Invalid node type: {e}")),
+        Err(e) => {
+            return error_400(&state, &req, format!("Invalid node type: {e}"));
+        }
     };
 
-    if let Err(e) =
-        graph.create_node(&user, node_type, readable_bytes)
-    {
+    if let Err(e) = graph.create_node(&user, node_type, readable_bytes) {
         return error_400(&state, &req, e);
     }
 
@@ -297,7 +350,11 @@ pub async fn get_nodes_publish(
 ) -> Response {
     let is_admin = sess.user.lock().await.is_admin();
     if !is_admin {
-        return error_403(&state, &req, "Admin privileges are required to publish nodes.");
+        return error_403(
+            &state,
+            &req,
+            "Admin privileges are required to publish nodes.",
+        );
     }
 
     let _token = {
@@ -314,14 +371,11 @@ pub async fn get_nodes_publish(
         let trimmed = t.trim();
         if trimmed.is_empty() {
             None
+        } else if let Ok(val) = trimmed.parse::<u128>() {
+            Some(val)
         } else {
-            match trimmed.parse::<u128>() {
-                Ok(val) => Some(val),
-                Err(_) => {
-                    err_msg = Some("Invalid target ID".to_string());
-                    None
-                }
-            }
+            err_msg = Some("Invalid target ID".to_string());
+            None
         }
     } else {
         None
@@ -330,10 +384,14 @@ pub async fn get_nodes_publish(
     let mut block_name = String::new();
     if let Some(tid) = target_id {
         // Validation using GraphBlock contains_id
-        let unicode_block = ctb_storage::global_graph_layout::get_block("Unicode");
+        let unicode_block =
+            ctb_storage::global_graph_layout::get_block("Unicode");
         if let Some(ref block) = unicode_block {
             if block.contains_id(tid) {
-                err_msg = Some("Publishing nodes to the Unicode range is disallowed.".to_string());
+                err_msg = Some(
+                    "Publishing nodes to the Unicode range is disallowed."
+                        .to_string(),
+                );
             }
         }
 
@@ -353,13 +411,18 @@ pub async fn get_nodes_publish(
         }
     }
 
-    respond_page(&state, req, "nodes.publish", &json_value!({
-        "node_id" => node_id.to_string(),
-        "graph_id" => graph_id.to_string(),
-        "target_id" => target_id.map(|t| t.to_string()),
-        "block_name" => block_name,
-        "error" => err_msg,
-    }))
+    respond_page(
+        &state,
+        req,
+        "nodes.publish",
+        &json_value!({
+            "node_id" => node_id.to_string(),
+            "graph_id" => graph_id.to_string(),
+            "target_id" => target_id.map(|t| t.to_string()),
+            "block_name" => block_name,
+            "error" => err_msg,
+        }),
+    )
 }
 
 pub async fn get_nodes_publish_as(
@@ -370,13 +433,22 @@ pub async fn get_nodes_publish_as(
 ) -> Response {
     let is_admin = sess.user.lock().await.is_admin();
     if !is_admin {
-        return error_403(&state, &req, "Admin privileges are required to publish nodes.");
+        return error_403(
+            &state,
+            &req,
+            "Admin privileges are required to publish nodes.",
+        );
     }
 
-    respond_page(&state, req, "nodes.publish_as", &json_value!({
-        "node_id" => node_id.to_string(),
-        "graph_id" => graph_id.to_string(),
-    }))
+    respond_page(
+        &state,
+        req,
+        "nodes.publish_as",
+        &json_value!({
+            "node_id" => node_id.to_string(),
+            "graph_id" => graph_id.to_string(),
+        }),
+    )
 }
 
 pub async fn post_nodes_publish(
@@ -388,7 +460,11 @@ pub async fn post_nodes_publish(
 ) -> Response {
     let is_admin = sess.user.lock().await.is_admin();
     if !is_admin {
-        return error_403(&state, &req, "Admin privileges are required to publish nodes.");
+        return error_403(
+            &state,
+            &req,
+            "Admin privileges are required to publish nodes.",
+        );
     }
 
     let token = {
@@ -414,15 +490,24 @@ pub async fn post_nodes_publish(
     };
 
     if let Some(tid) = target_id {
-        let unicode_block = ctb_storage::global_graph_layout::get_block("Unicode");
+        let unicode_block =
+            ctb_storage::global_graph_layout::get_block("Unicode");
         if let Some(ref block) = unicode_block {
             if block.contains_id(tid) {
-                return error_400(&state, &req, "Publishing nodes to the Unicode range is disallowed.");
+                return error_400(
+                    &state,
+                    &req,
+                    "Publishing nodes to the Unicode range is disallowed.",
+                );
             }
         }
         if let Ok(name) = get_block_name_for_id(tid) {
             if name == "Unicode" {
-                return error_400(&state, &req, "Publishing nodes to the Unicode range is disallowed.");
+                return error_400(
+                    &state,
+                    &req,
+                    "Publishing nodes to the Unicode range is disallowed.",
+                );
             }
         }
     }
@@ -431,7 +516,13 @@ pub async fn post_nodes_publish(
     let local_node = match Node::get(&token, graph_id, node_id) {
         Ok(Some(n)) => n,
         Ok(None) => return error_400(&state, &req, "Local node not found"),
-        Err(e) => return error_400(&state, &req, format!("Failed to fetch local node: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                format!("Failed to fetch local node: {e}"),
+            );
+        }
     };
     let local_checksum = bin2hex(local_node.checksum.as_deref().unwrap_or(&[]));
 
@@ -441,52 +532,90 @@ pub async fn post_nodes_publish(
         .unwrap_or_default()
         .as_secs();
 
-    let package_bytes = match ctb_storage::packaged_node::serialize_packaged_node(
-        local_node.node_type,
-        timestamp,
-        local_node.checksum.as_deref().unwrap_or(&[]),
-        local_node.id,
-        local_node.graph_id,
-        &local_node.data,
-    ) {
-        Ok(bytes) => bytes,
-        Err(e) => return error_400(&state, &req, format!("Failed to serialize packaged node: {e}")),
-    };
+    let package_bytes =
+        match ctb_storage::packaged_node::serialize_packaged_node(
+            local_node.node_type,
+            timestamp,
+            local_node.checksum.as_deref().unwrap_or(&[]),
+            local_node.id,
+            local_node.graph_id,
+            &local_node.data,
+        ) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to serialize packaged node: {e}"),
+                );
+            }
+        };
 
     let allocated_id = if cfg!(test) {
         // In the test runner, mock the network hop by calling the storage IPC method directly in-process
-        match ctb_storage::get_global_graph().import_node(&token, &package_bytes, target_id) {
+        match ctb_storage::get_global_graph().import_node(
+            &token,
+            &package_bytes,
+            target_id,
+        ) {
             Ok(allocated_id) => allocated_id,
-            Err(e) => return error_400(&state, &req, format!("Failed to publish packaged node: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to publish packaged node: {e}"),
+                );
+            }
         }
     } else {
         // 3. Make HTTP request to remote server
-        let server_url = ctb_utilities::pc_settings::get_str_setting(ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl)
-            .unwrap_or_else(|| ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string());
+        let server_url = ctb_utilities::pc_settings::get_str_setting(
+            ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
+        )
+        .unwrap_or_else(|| {
+            ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
+        });
 
         let global_token = {
             let guard = state.global_session_token.lock().await;
             guard.clone()
         };
         let Some(global_token) = global_token else {
-            return error_400(&state, &req, "Global graph user session is not initialized. Please ensure the deploy setup ran.");
+            return error_400(
+                &state,
+                &req,
+                "Global graph user session is not initialized. Please ensure the deploy setup ran.",
+            );
         };
 
         // Construct remote URL: POST https://<server_url>/api/nodes/0/0/publish?target_id=...
-        let mut remote_url = format!("{}/api/nodes/0/0/publish", server_url.trim_end_matches('/'));
+        let mut remote_url = format!(
+            "{}/api/nodes/0/0/publish",
+            server_url.trim_end_matches('/')
+        );
         if let Some(tid) = target_id {
             remote_url.push_str(&format!("?target_id={tid}"));
         }
 
-        let client = match ctb_utilities::https::async_client(Default::default()) {
+        let client = match ctb_utilities::https::async_client(Default::default())
+        {
             Ok(c) => c,
-            Err(e) => return error_400(&state, &req, format!("Failed to create HTTP client: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to create HTTP client: {e}"),
+                );
+            }
         };
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::COOKIE,
-            reqwest::header::HeaderValue::from_str(&format!("session={global_token}")).unwrap(),
+            reqwest::header::HeaderValue::from_str(&format!(
+                "session={global_token}"
+            ))
+            .unwrap(),
         );
 
         match client.post(&remote_url, package_bytes, Some(headers)).await {
@@ -494,23 +623,54 @@ pub async fn post_nodes_publish(
                 if resp.is_success() {
                     match resp.text().await {
                         Ok(t) => {
-                            let val: serde_json::Value = serde_json::from_str(&t).unwrap_or(serde_json::Value::Null);
-                            let Some(alloc_id_str) = val.get("allocated_id").and_then(|v| v.as_str()) else {
-                                return error_400(&state, &req, "Invalid server response structure");
+                            let val: serde_json::Value =
+                                serde_json::from_str(&t)
+                                    .unwrap_or(serde_json::Value::Null);
+                            let Some(alloc_id_str) = val
+                                .get("allocated_id")
+                                .and_then(|v| v.as_str())
+                            else {
+                                return error_400(
+                                    &state,
+                                    &req,
+                                    "Invalid server response structure",
+                                );
                             };
                             match alloc_id_str.parse::<u128>() {
                                 Ok(id) => id,
-                                Err(_) => return error_400(&state, &req, "Failed to parse allocated ID"),
+                                Err(_) => {
+                                    return error_400(
+                                        &state,
+                                        &req,
+                                        "Failed to parse allocated ID",
+                                    );
+                                }
                             }
                         }
-                        Err(e) => return error_400(&state, &req, format!("Failed to read server response: {e}")),
+                        Err(e) => {
+                            return error_400(
+                                &state,
+                                &req,
+                                format!("Failed to read server response: {e}"),
+                            );
+                        }
                     }
                 } else {
                     let err_text = resp.text().await.unwrap_or_default();
-                    return error_400(&state, &req, format!("Server error: {err_text}"));
+                    return error_400(
+                        &state,
+                        &req,
+                        format!("Server error: {err_text}"),
+                    );
                 }
             }
-            Err(e) => return error_400(&state, &req, format!("Failed to connect to remote server: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to connect to remote server: {e}"),
+                );
+            }
         }
     };
 
@@ -519,20 +679,44 @@ pub async fn post_nodes_publish(
         // In test, query local global graph directly to avoid HTTP check
         let node_opt = match Node::get(&token, 0, allocated_id) {
             Ok(n) => n,
-            Err(e) => return error_400(&state, &req, format!("Failed to fetch global node checksum: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to fetch global node checksum: {e}"),
+                );
+            }
         };
         let Some(node) = node_opt else {
-            return error_400(&state, &req, "Global node not found after publish");
+            return error_400(
+                &state,
+                &req,
+                "Global node not found after publish",
+            );
         };
         bin2hex(node.checksum.as_deref().unwrap_or(&[]))
     } else {
-        let server_url = ctb_utilities::pc_settings::get_str_setting(ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl)
-            .unwrap_or_else(|| ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string());
+        let server_url = ctb_utilities::pc_settings::get_str_setting(
+            ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
+        )
+        .unwrap_or_else(|| {
+            ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
+        });
 
-        let remote_url = format!("{}/api/nodes/0/{allocated_id}/checksum", server_url.trim_end_matches('/'));
-        let client = match ctb_utilities::https::async_client(Default::default()) {
+        let remote_url = format!(
+            "{}/api/nodes/0/{allocated_id}/checksum",
+            server_url.trim_end_matches('/')
+        );
+        let client = match ctb_utilities::https::async_client(Default::default())
+        {
             Ok(c) => c,
-            Err(e) => return error_400(&state, &req, format!("Failed to create HTTP client: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to create HTTP client: {e}"),
+                );
+            }
         };
 
         match client.get(&remote_url).await {
@@ -540,38 +724,82 @@ pub async fn post_nodes_publish(
                 if resp.is_success() {
                     match resp.text().await {
                         Ok(t) => {
-                            let val: serde_json::Value = serde_json::from_str(&t).unwrap_or(serde_json::Value::Null);
-                            val.get("checksum").and_then(|v| v.as_str()).map(String::from).unwrap_or_default()
+                            let val: serde_json::Value =
+                                serde_json::from_str(&t)
+                                    .unwrap_or(serde_json::Value::Null);
+                            val.get("checksum")
+                                .and_then(|v| v.as_str())
+                                .map(String::from)
+                                .unwrap_or_default()
                         }
-                        Err(e) => return error_400(&state, &req, format!("Failed to read server checksum response: {e}")),
+                        Err(e) => {
+                            return error_400(
+                                &state,
+                                &req,
+                                format!(
+                                    "Failed to read server checksum response: {e}"
+                                ),
+                            );
+                        }
                     }
                 } else {
                     let err_text = resp.text().await.unwrap_or_default();
-                    return error_400(&state, &req, format!("Server checksum error: {err_text}"));
+                    return error_400(
+                        &state,
+                        &req,
+                        format!("Server checksum error: {err_text}"),
+                    );
                 }
             }
-            Err(e) => return error_400(&state, &req, format!("Failed to fetch remote checksum: {e}")),
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to fetch remote checksum: {e}"),
+                );
+            }
         }
     };
 
     if global_checksum != local_checksum {
-        return error_400(&state, &req, format!("Checksum mismatch! Local checksum is {local_checksum}, but global checksum is {global_checksum}."));
+        return error_400(
+            &state,
+            &req,
+            format!(
+                "Checksum mismatch! Local checksum is {local_checksum}, but global checksum is {global_checksum}."
+            ),
+        );
     }
 
     // 5. Convert local node to redirect
-    let redirect_text = format!("@1114409@@{}@", allocated_id);
-    let converted_data = ctb_formats_dctext::dctext_to_dcutf(redirect_text.into_bytes());
+    let redirect_text = format!("@1114409@@{allocated_id}@");
+    let converted_data =
+        ctb_formats_dctext::dctext_to_dcutf(redirect_text.into_bytes());
 
     let mut local_node = match Node::get(&token, graph_id, node_id) {
         Ok(Some(n)) => n,
         Ok(None) => return error_400(&state, &req, "Local node not found"),
-        Err(e) => return error_400(&state, &req, format!("Failed to fetch local node: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                format!("Failed to fetch local node: {e}"),
+            );
+        }
     };
     if let Err(e) = local_node.set_node_type(&token, NodeType::System) {
-        return error_400(&state, &req, format!("Failed to update local node type: {e}"));
+        return error_400(
+            &state,
+            &req,
+            format!("Failed to update local node type: {e}"),
+        );
     }
     if let Err(e) = local_node.set_data(&token, &converted_data) {
-        return error_400(&state, &req, format!("Failed to update local node data: {e}"));
+        return error_400(
+            &state,
+            &req,
+            format!("Failed to update local node data: {e}"),
+        );
     }
 
     // Redirect to nodes view page
@@ -583,7 +811,10 @@ pub async fn post_publish_node(
     State(state): State<AppState>,
     req: RequestState,
     sess: AuthenticatedUser,
-    axum::extract::Path((_graph_id, _node_id)): axum::extract::Path<(u128, u128)>,
+    axum::extract::Path((_graph_id, _node_id)): axum::extract::Path<(
+        u128,
+        u128,
+    )>,
     axum::extract::Query(query): axum::extract::Query<PublishQuery>,
     body_bytes: Bytes,
 ) -> Response {
@@ -600,21 +831,37 @@ pub async fn post_publish_node(
         let target_id = if let Some(ref tid_str) = query.target_id {
             match string::to_u128(tid_str) {
                 Ok(val) => Some(val),
-                Err(e) => return error_400(&state, &req, format!("Invalid target ID: {e}")),
+                Err(e) => {
+                    return error_400(
+                        &state,
+                        &req,
+                        format!("Invalid target ID: {e}"),
+                    );
+                }
             }
         } else {
             None
         };
 
-        match ctb_storage::get_global_graph().import_node(&token, &body_bytes, target_id) {
+        match ctb_storage::get_global_graph().import_node(
+            &token,
+            &body_bytes,
+            target_id,
+        ) {
             Ok(allocated_id) => {
                 let response_body = json_value!({
                     "success" => true,
                     "allocated_id" => allocated_id.to_string(),
                 });
-                axum::response::IntoResponse::into_response(axum::Json(response_body))
+                axum::response::IntoResponse::into_response(axum::Json(
+                    response_body,
+                ))
             }
-            Err(e) => error_400(&state, &req, format!("Failed to publish packaged node: {e}")),
+            Err(e) => error_400(
+                &state,
+                &req,
+                format!("Failed to publish packaged node: {e}"),
+            ),
         }
     } else {
         error_400(&state, &req, "Client publish API is disabled.")
@@ -656,19 +903,27 @@ pub async fn get_node_checksum(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
+    use crate::test_helpers::{TestApp, assert_eq_or_print_body, test_request};
     use crate::utilities::*;
-    use crate::test_helpers::{
-        assert_eq_or_print_body, test_request, TestApp,
-    };
     use axum::http::Method;
     use ctb_storage::node::{Node, NodeType};
 
     #[crate::ctb_test("tokio")]
     async fn test_graph_endpoints() {
         let test_app = TestApp::new();
-        let (cookie_val, _lock) = test_app.register_and_login("graph_user").await.unwrap();
+        let (cookie_val, _lock) =
+            test_app.register_and_login("graph_user").await.unwrap();
 
         // 1. Test GET /nodes (should show "No nodes found" initially)
         let (status, body) = test_request::<()>(
@@ -680,7 +935,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
         assert!(body.contains("No nodes found"));
 
@@ -694,7 +950,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 400, &body);
 
         // 3. Test GET /nodes/create
@@ -707,7 +964,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
 
         // 4. Test POST /nodes/create (with form URL-encoded data)
@@ -731,7 +989,8 @@ mod tests {
             None,
             Some(&form),
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 303, &body); // Redirect to /nodes
 
         // 5. Test GET /nodes/upload
@@ -744,7 +1003,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
 
         // 6. Test POST /nodes/upload (with multipart data)
@@ -768,7 +1028,8 @@ mod tests {
             None,
             None,
             Some(&upload_form),
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 303, &body); // Redirect to /nodes
 
         // Verify the nodes actually exist in the database
@@ -780,16 +1041,16 @@ mod tests {
             .unwrap()
             .to_string();
 
-        let node1_opt: Option<Vec<u8>> = Node::get(&token, 1, 1)
-            .unwrap()
-            .map(|n| n.data);
-        let node1 = node1_opt.expect("Node 1 was not persisted to the database");
+        let node1_opt: Option<Vec<u8>> =
+            Node::get(&token, 1, 1).unwrap().map(|n| n.data);
+        let node1 =
+            node1_opt.expect("Node 1 was not persisted to the database");
         assert_eq!(node1, b"hello world".to_vec());
 
-        let node2_opt: Option<Vec<u8>> = Node::get(&token, 1, 2)
-            .unwrap()
-            .map(|n| n.data);
-        let node2 = node2_opt.expect("Node 2 was not persisted to the database");
+        let node2_opt: Option<Vec<u8>> =
+            Node::get(&token, 1, 2).unwrap().map(|n| n.data);
+        let node2 =
+            node2_opt.expect("Node 2 was not persisted to the database");
         assert_eq!(node2, b"uploaded content data".to_vec());
 
         // 7. Test GET /nodes (should now list the created nodes)
@@ -802,7 +1063,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
         assert!(body.contains("hello world"));
         assert!(body.contains("uploaded content data"));
@@ -817,7 +1079,8 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
         assert!(body.contains("Node ID:"));
         assert!(body.contains("68 65 6c 6c 6f 20 77 6f 72 6c 64")); // Hex representation of "hello world"
@@ -832,36 +1095,57 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 400, &body);
     }
 
     #[crate::ctb_test("tokio")]
     async fn test_publish_and_redirect_flow() {
         let test_app = TestApp::new();
-        let (cookie_val, _lock) = test_app.register_and_login("admin_user").await.unwrap();
-        let user_id = ipcb!(storage).get_user_by_name_b("admin_user").unwrap().expect("User not found").id;
+        let (cookie_val, _lock) =
+            test_app.register_and_login("admin_user").await.unwrap();
+        let user_id = ipcb!(storage)
+            .get_user_by_name_b("admin_user")
+            .unwrap()
+            .expect("User not found")
+            .id;
 
         // Configure admin users to include our user
         {
-            let mut settings = pc_settings::PcSettings::load().unwrap_or_default();
-            settings.admin_users = ctb_utilities::json::maybe_value::MaybeOption::Value(vec![user_id]);
+            let mut settings =
+                pc_settings::PcSettings::load().unwrap_or_default();
+            settings.admin_users =
+                ctb_utilities::json::maybe_value::MaybeOption::Value(vec![
+                    user_id,
+                ]);
             settings.save().unwrap();
         }
 
-        let token_str = cookie_val.split('=').nth(1).unwrap().split(';').nth(0).unwrap().to_string();
+        let token_str = cookie_val
+            .split('=')
+            .nth(1)
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .to_string();
 
         let local_node_id = Node::new(
             &token_str,
             1,
             NodeType::Data,
             b"hello world publish test",
-        ).unwrap();
+        )
+        .unwrap();
 
         // Ensure global user exists in the test DB
-        let _ = ctb_storage::user::User::create("global", &ctb_utilities::password::Password {
-            password: b"secure_global_pass".to_vec(),
-        });
+        let _ = ctb_storage::user::User::create(
+            "global",
+            &ctb_utilities::password::Password {
+                password: b"secure_global_pass".to_vec(),
+            },
+        );
         let target_id = 8589934595u128;
 
         // Test GET /nodes/1/{local_node_id}/publish?target_id=8589934595
@@ -874,10 +1158,17 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
-        assert!(body.contains("Confirm Publishing"), "Expected 'Confirm Publishing' in body, got: {}", body);
-        assert!(body.contains("System"), "Expected block name 'System' in body, got: {}", body);
+        assert!(
+            body.contains("Confirm Publishing"),
+            "Expected 'Confirm Publishing' in body, got: {body}"
+        );
+        assert!(
+            body.contains("System"),
+            "Expected block name 'System' in body, got: {body}"
+        );
 
         // Test GET /nodes/1/{local_node_id}/publish?target_id=1000 (Unicode - disallowed)
         let (status, body) = test_request::<()>(
@@ -889,19 +1180,27 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(status, 200, &body);
-        assert!(body.contains("Publishing nodes to the Unicode range is disallowed."));
+        assert!(
+            body.contains(
+                "Publishing nodes to the Unicode range is disallowed."
+            )
+        );
 
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
             axum::http::header::CONTENT_TYPE,
-            axum::http::HeaderValue::from_static("application/x-www-form-urlencoded"),
+            axum::http::HeaderValue::from_static(
+                "application/x-www-form-urlencoded",
+            ),
         );
 
         // Get initial checksum to compare
-        let local_node = Node::get(&token_str, 1, local_node_id).unwrap().unwrap();
-        let local_checksum = bin2hex(&local_node.checksum.unwrap());
+        let local_node =
+            Node::get(&token_str, 1, local_node_id).unwrap().unwrap();
+        let local_checksum = bin2hex(local_node.checksum.unwrap());
 
         // Test POST /nodes/1/{local_node_id}/publish with target_id
         let (status, body) = test_request(
@@ -913,18 +1212,24 @@ mod tests {
             Some(format!("target_id={target_id}").into_bytes()),
             None::<&()>,
             None::<&()>,
-        ).await;
-        assert!(status == 303 || status == 302 || status == 307, "Expected redirect status, got {} and body: {}", status, body);
+        )
+        .await;
+        assert!(
+            status == 303 || status == 302 || status == 307,
+            "Expected redirect status, got {status} and body: {body}"
+        );
 
         // Verify local node was updated to system type with redirect body
-        let updated_node = Node::get(&token_str, 1, local_node_id).unwrap().unwrap();
+        let updated_node =
+            Node::get(&token_str, 1, local_node_id).unwrap().unwrap();
         assert_eq!(updated_node.node_type, NodeType::System);
 
-        let dctext_bytes = ctb_formats_dctext::dcutf_to_dctext(updated_node.data);
+        let dctext_bytes =
+            ctb_formats_dctext::dcutf_to_dctext(updated_node.data);
         let redirect_dctext = String::from_utf8(dctext_bytes).unwrap();
-        assert_eq!(redirect_dctext, format!("@1114409@@{}@", target_id));
+        assert_eq!(redirect_dctext, format!("@1114409@@{target_id}@"));
 
-        assert_eq!(bin2hex(&updated_node.checksum.unwrap()), local_checksum);
+        assert_eq!(bin2hex(updated_node.checksum.unwrap()), local_checksum);
 
         // Test GET /nodes/view using graph_id and node_id query parameters to verify aliases
         let (view_status, view_body) = test_request::<()>(
@@ -936,9 +1241,9 @@ mod tests {
             None,
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq_or_print_body(view_status, 200, &view_body);
         assert!(view_body.contains(&target_id.to_string()));
     }
 }
-

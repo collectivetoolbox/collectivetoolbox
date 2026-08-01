@@ -37,7 +37,7 @@ pub fn kv_get_value(data: &[String], key: &str) -> String {
     assert!(is_kv_array(data), "kv_get_value: invalid kv array length");
     let mut i: usize = 0;
     while i.saturating_add(1) < data.len() {
-        if data.get(i).map_or(false, |k| k == key) {
+        if data.get(i).is_some_and(|k| k == key) {
             return data.get(i.saturating_add(1)).cloned().unwrap_or_default();
         }
         i = i.saturating_add(2);
@@ -63,7 +63,7 @@ pub fn kv_set_value(
     assert!(is_kv_array(&data), "kv_set_value: invalid kv array length");
     let mut i: usize = 0;
     while i.saturating_add(1) < data.len() {
-        if data.get(i).map_or(false, |k| k == key) {
+        if data.get(i).is_some_and(|k| k == key) {
             if let Some(item) = data.get_mut(i.saturating_add(1)) {
                 *item = val.to_string();
             }

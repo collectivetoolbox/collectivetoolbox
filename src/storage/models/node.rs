@@ -1,10 +1,23 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::Result;
 
 #[ipc_dto]
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 #[serde(rename_all = "lowercase")]
 #[repr(u32)]
 pub enum NodeType {
@@ -68,7 +81,9 @@ impl NodeType {
         }
     }
 
-    pub fn from_dto(dto: ctb_utilities::ipc::service_traits::storage::NodeType) -> Self {
+    pub fn from_dto(
+        dto: ctb_utilities::ipc::service_traits::storage::NodeType,
+    ) -> Self {
         match dto {
             ctb_utilities::ipc::service_traits::storage::NodeType::Data => NodeType::Data,
             ctb_utilities::ipc::service_traits::storage::NodeType::Statements => NodeType::Statements,
@@ -76,7 +91,9 @@ impl NodeType {
         }
     }
 
-    pub fn to_dto(&self) -> ctb_utilities::ipc::service_traits::storage::NodeType {
+    pub fn to_dto(
+        &self,
+    ) -> ctb_utilities::ipc::service_traits::storage::NodeType {
         match self {
             NodeType::Data => ctb_utilities::ipc::service_traits::storage::NodeType::Data,
             NodeType::Statements => ctb_utilities::ipc::service_traits::storage::NodeType::Statements,
@@ -102,7 +119,12 @@ impl Node {
         node_type: NodeType,
         data: &[u8],
     ) -> Result<u128> {
-        ipcb!(storage).insert_node_b(session_token, graph_id, node_type.to_dto(), data)
+        ipcb!(storage).insert_node_b(
+            session_token,
+            graph_id,
+            node_type.to_dto(),
+            data,
+        )
     }
 
     pub fn list_nodes(session_token: &str) -> Result<Vec<Node>> {
@@ -110,7 +132,11 @@ impl Node {
         Ok(dtos.into_iter().map(Node::from).collect())
     }
 
-    pub fn get(session_token: &str, graph_id: u128, id: u128) -> Result<Option<Self>> {
+    pub fn get(
+        session_token: &str,
+        graph_id: u128,
+        id: u128,
+    ) -> Result<Option<Self>> {
         let dto = ipcb!(storage).get_node_dto_b(session_token, graph_id, id)?;
         Ok(dto.map(Node::from))
     }
@@ -125,14 +151,28 @@ impl Node {
         }
     }
 
-    pub fn set_node_type(&mut self, session_token: &str, node_type: NodeType) -> Result<()> {
-        ipcb!(storage).update_node_type_b(session_token, self.graph_id, self.id, node_type.to_dto())?;
+    pub fn set_node_type(
+        &mut self,
+        session_token: &str,
+        node_type: NodeType,
+    ) -> Result<()> {
+        ipcb!(storage).update_node_type_b(
+            session_token,
+            self.graph_id,
+            self.id,
+            node_type.to_dto(),
+        )?;
         self.node_type = node_type;
         Ok(())
     }
 
     pub fn set_data(&mut self, session_token: &str, data: &[u8]) -> Result<()> {
-        ipcb!(storage).update_node_data_b(session_token, self.graph_id, self.id, data.to_vec())?;
+        ipcb!(storage).update_node_data_b(
+            session_token,
+            self.graph_id,
+            self.id,
+            data.to_vec(),
+        )?;
         self.data = data.to_vec();
         Ok(())
     }
@@ -151,6 +191,14 @@ impl From<ctb_utilities::ipc::service_traits::storage::Node> for Node {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {}
-

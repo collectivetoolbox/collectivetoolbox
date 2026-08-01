@@ -5,9 +5,17 @@
 
 //! Workspace-owned `CRLite` cache access.
 
-#![allow(clippy::filter_next, clippy::unused_async, reason = "uniform signature mapping and iteration patterns")]
+#![allow(
+    clippy::filter_next,
+    clippy::unused_async,
+    reason = "uniform signature mapping and iteration patterns"
+)]
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use ctb_utilities::https::crlite::{
@@ -176,7 +184,16 @@ pub async fn get_crlite_artifact(relative_path: &str) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use std::fs;
 
@@ -255,7 +272,8 @@ mod tests {
                 "CRLite test URL is missing a scheme: {url}"
             ));
         };
-        let after_scheme = url.get(scheme_end.saturating_add(3)..).unwrap_or("");
+        let after_scheme =
+            url.get(scheme_end.saturating_add(3)..).unwrap_or("");
         let Some(path_start) = after_scheme.find('/') else {
             return Ok("/".to_string());
         };
@@ -265,13 +283,13 @@ mod tests {
     #[crate::ctb_test]
     fn rejects_parent_directory_components() {
         let result = validate_relative_artifact_path("../outside.filter");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]
     fn accepts_nested_relative_paths() {
         let result = validate_relative_artifact_path("default/20260603.filter");
-        assert!(result.is_ok());
+        result.unwrap();
     }
 
     #[crate::ctb_test("tokio")]

@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, anyhow, bail};
@@ -83,7 +87,10 @@ fn _first_char_of_utf8_string(
         let first_char_len =
             valid.chars().next().unwrap().encode_utf8(out).len();
 
-        let char_bytes = out.get(..first_char_len).context("Invalid character length")?.to_vec();
+        let char_bytes = out
+            .get(..first_char_len)
+            .context("Invalid character length")?
+            .to_vec();
         return Ok((char_bytes, (first_char_len, true)));
     }
 
@@ -102,7 +109,16 @@ pub fn utf8_from_scalar(cp: u32) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -176,7 +192,7 @@ mod tests {
     fn test_first_char_of_utf8_string_empty() {
         let input = b"";
         let result = first_char_of_utf8_string(input);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]

@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 //! Pan numeric pattern formatting.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use number_to_words::number_to_words;
@@ -89,14 +93,19 @@ fn extract_negative_style(
 
     // Parentheses indicate negative-only wrapping: (#.##)
     if let Some((open, close)) = find_wrapping_parens(&p) {
-        let inner = p.get(open.saturating_add(1)..close).context("Invalid parentheses range")?;
+        let inner = p
+            .get(open.saturating_add(1)..close)
+            .context("Invalid parentheses range")?;
         let contains_placeholder =
             inner.chars().any(|c| matches!(c, '#' | '§' | '¢'));
         if contains_placeholder {
             let mut stripped = String::new();
             stripped.push_str(p.get(..open).context("Invalid prefix range")?);
             stripped.push_str(inner);
-            stripped.push_str(p.get(close.saturating_add(1)..).context("Invalid suffix range")?);
+            stripped.push_str(
+                p.get(close.saturating_add(1)..)
+                    .context("Invalid suffix range")?,
+            );
             return Ok((abs_value, stripped, NegStyle::Parens));
         }
     }
@@ -138,14 +147,25 @@ fn split_prefix_numeric_suffix(pat: &str) -> Result<(String, String, String)> {
         .context("pattern(): invalid placeholder index")?;
     let mut end = last_hash;
 
-    if let Some(next) = pat.get(after_last..).context("Invalid index")?.chars().next() {
+    if let Some(next) = pat
+        .get(after_last..)
+        .context("Invalid index")?
+        .chars()
+        .next()
+    {
         if matches!(next, 'e' | 'E') {
             end = after_last;
         }
     }
 
-    let prefix = pat.get(..first).context("Invalid prefix index")?.to_string();
-    let numeric = pat.get(first..=end).context("Invalid numeric index")?.to_string();
+    let prefix = pat
+        .get(..first)
+        .context("Invalid prefix index")?
+        .to_string();
+    let numeric = pat
+        .get(first..=end)
+        .context("Invalid numeric index")?
+        .to_string();
     let suffix = pat.get(end.saturating_add(1)..).unwrap_or("").to_string();
 
     Ok((prefix, numeric, suffix))
@@ -234,8 +254,10 @@ fn format_normal_numeric(value: f64, numeric_pat: &str) -> Result<String> {
 
     if int_part.len() < min_int_digits {
         let mut padded = String::new();
-        padded
-            .extend(std::iter::repeat_n('0', min_int_digits.saturating_sub(int_part.len())));
+        padded.extend(std::iter::repeat_n(
+            '0',
+            min_int_digits.saturating_sub(int_part.len()),
+        ));
         padded.push_str(&int_part);
         int_part = padded;
     }
@@ -305,7 +327,10 @@ fn format_component(value: f64, numeric_pat: &str) -> Result<String> {
     let mut padded = digits.clone();
     if padded.len() < n_hashes {
         let mut s = String::new();
-        s.extend(std::iter::repeat_n('0', n_hashes.saturating_sub(padded.len())));
+        s.extend(std::iter::repeat_n(
+            '0',
+            n_hashes.saturating_sub(padded.len()),
+        ));
         s.push_str(&padded);
         padded = s;
     }
@@ -444,7 +469,16 @@ fn normalize_words_output(s: &str) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

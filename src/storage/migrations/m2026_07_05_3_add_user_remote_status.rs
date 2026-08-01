@@ -1,6 +1,6 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::Connection;
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Users;
 pub const NAME: &str = "2026_07_05_3_add_user_remote_status";
@@ -24,7 +24,11 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     };
 
     if !has_column {
-        conn.execute("ALTER TABLE users ADD COLUMN remote_status TEXT DEFAULT 'Pending'", ()).await?;
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN remote_status TEXT DEFAULT 'Pending'",
+            (),
+        )
+        .await?;
     }
     Ok(())
 }

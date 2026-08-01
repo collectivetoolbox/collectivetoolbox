@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 //! Pan-style array manipulation helpers.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::cmp::Ordering;
@@ -214,7 +218,12 @@ pub fn arrayrange(
     let last_idx = last.saturating_sub(1);
     let end_exclusive = last_idx.saturating_add(1).min(parts.len());
 
-    Ok(join_parts(parts.get(start..end_exclusive).context("Invalid slice range")?, sep))
+    Ok(join_parts(
+        parts
+            .get(start..end_exclusive)
+            .context("Invalid slice range")?,
+        sep,
+    ))
 }
 
 /// Returns the first element in the array.
@@ -818,7 +827,16 @@ fn arraytable_bound(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -827,7 +845,7 @@ mod tests {
         let list = ",ABCD,,EFGH,IJKL,,MNOP,,QRST,,UVWX,,YZZZ";
         assert_eq!(array(list, 7, ',')?, "MNOP");
         assert_eq!(array(list, 999, ',')?, "");
-        assert!(array(list, 0, ',').is_err());
+        array(list, 0, ',').unwrap_err();
         Ok(())
     }
 
@@ -848,7 +866,7 @@ mod tests {
         let unchanged = arraychange(colors, "X", 99, ';')?;
         assert_eq!(unchanged, colors);
 
-        assert!(arraychange(colors, "X", 0, ';').is_err());
+        arraychange(colors, "X", 0, ';').unwrap_err();
         Ok(())
     }
 
@@ -862,7 +880,7 @@ mod tests {
         // No-op cases.
         assert_eq!(arraydelete("a;b", 9, 1, ';')?, "a;b");
         assert_eq!(arraydelete("a;b", 1, 0, ';')?, "a;b");
-        assert!(arraydelete("a;b", 0, 1, ';').is_err());
+        arraydelete("a;b", 0, 1, ';').unwrap_err();
         Ok(())
     }
 
@@ -890,7 +908,7 @@ mod tests {
         assert_eq!(arrayelement(s, 5, ';')?, 2);
         // Out of range positions clamp to the last element.
         assert_eq!(arrayelement(s, 999, ';')?, 3);
-        assert!(arrayelement(s, 0, ';').is_err());
+        arrayelement(s, 0, ';').unwrap_err();
         Ok(())
     }
 
@@ -898,7 +916,7 @@ mod tests {
     fn test_arraycolumn_extracts_missing_as_empty() -> Result<()> {
         let t = "a,b,c|d,e|x";
         assert_eq!(arraycolumn(t, 2, '|', ',')?, "b|e|");
-        assert!(arraycolumn(t, 0, '|', ',').is_err());
+        arraycolumn(t, 0, '|', ',').unwrap_err();
         Ok(())
     }
 
@@ -918,7 +936,7 @@ mod tests {
         assert_eq!(arrayrange("a;b;c;d", 1, 999, ';')?, "a;b;c;d");
         assert_eq!(arrayrange("a;b;c;d", 5, 6, ';')?, "");
         assert_eq!(arrayrange("a;b;c;d", 3, 2, ';')?, "");
-        assert!(arrayrange("a;b", 0, 1, ';').is_err());
+        arrayrange("a;b", 0, 1, ';').unwrap_err();
         Ok(())
     }
 
@@ -935,7 +953,7 @@ mod tests {
         assert_eq!(arrayinsert("a;b;c", 3, 2, ';')?, "a;b;;;c");
         assert_eq!(arrayinsert("a;b", 1, 1, ';')?, ";a;b");
         assert_eq!(arrayinsert("a;b", 99, 2, ';')?, "a;b;;");
-        assert!(arrayinsert("a;b", 0, 1, ';').is_err());
+        arrayinsert("a;b", 0, 1, ';').unwrap_err();
         Ok(())
     }
 
@@ -963,7 +981,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_arraymerge() -> Result<()> {
         assert_eq!(arraymerge("a;b;c", "1;2", ';', ":")?, "a:1;b:2;c:");
-        assert!(arraymerge("a", "b", ';', "").is_err());
+        arraymerge("a", "b", ';', "").unwrap_err();
         Ok(())
     }
 
@@ -1026,7 +1044,7 @@ mod tests {
         assert_eq!(arraysearch(s, "*Tyl*", 1, ';')?, 3);
         assert_eq!(arraysearch(s, "L?isa Lee", 1, ';')?, 1);
         assert_eq!(arraysearch(s, "Nope*", 1, ';')?, 0);
-        assert!(arraysearch(s, "*", 0, ';').is_err());
+        arraysearch(s, "*", 0, ';').unwrap_err();
         Ok(())
     }
 

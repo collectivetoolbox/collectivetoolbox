@@ -1,6 +1,10 @@
 //! Array utilities
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub fn arr_empty<T>(a: &[T]) -> bool {
@@ -37,7 +41,11 @@ pub fn js_compat_array_slice<T: Clone>(
     let len = i64::try_from(a.len()).expect("usize not fit in i64");
 
     // Convert negative indices relative to length
-    let mut s = if start < 0 { len.saturating_add(start) } else { start };
+    let mut s = if start < 0 {
+        len.saturating_add(start)
+    } else {
+        start
+    };
     let mut e = if end_exclusive < 0 {
         len.saturating_add(end_exclusive)
     } else {
@@ -180,7 +188,11 @@ pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) {
 
 fn normalize_bounds(len: usize, start: isize, end: isize) -> (usize, usize) {
     let l = isize::try_from(len).expect("usize not fit in isize");
-    let s = if start < 0 { l.saturating_add(start) } else { start };
+    let s = if start < 0 {
+        l.saturating_add(start)
+    } else {
+        start
+    };
     let e = if end < 0 { l.saturating_add(end) } else { end };
     let s = s.clamp(0, l.max(0));
     let e = e.clamp(0, l.max(0));
@@ -198,7 +210,9 @@ pub fn slice_inclusive_bool(a: &[bool], start: isize, end: isize) -> Vec<bool> {
     if e < s {
         return Vec::new();
     }
-    a.get(s..=e.min(a.len().saturating_sub(1))).unwrap_or(&[]).to_vec()
+    a.get(s..=e.min(a.len().saturating_sub(1)))
+        .unwrap_or(&[])
+        .to_vec()
 }
 
 pub fn slice_inclusive_i32(a: &[i32], start: isize, end: isize) -> Vec<i32> {
@@ -209,7 +223,9 @@ pub fn slice_inclusive_i32(a: &[i32], start: isize, end: isize) -> Vec<i32> {
     if e < s {
         return Vec::new();
     }
-    a.get(s..=e.min(a.len().saturating_sub(1))).unwrap_or(&[]).to_vec()
+    a.get(s..=e.min(a.len().saturating_sub(1)))
+        .unwrap_or(&[])
+        .to_vec()
 }
 
 pub fn slice_inclusive_string(
@@ -224,7 +240,9 @@ pub fn slice_inclusive_string(
     if e < s {
         return Vec::new();
     }
-    a.get(s..=e.min(a.len().saturating_sub(1))).unwrap_or(&[]).to_vec()
+    a.get(s..=e.min(a.len().saturating_sub(1)))
+        .unwrap_or(&[])
+        .to_vec()
 }
 
 /// Convert a single primitive into a one-element array (abFromB / anFromN / asFromS).
@@ -289,7 +307,16 @@ pub fn sum_array(a: &[i32]) -> i32 {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

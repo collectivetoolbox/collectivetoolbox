@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::controllers::base::redirect_temporary;
 use crate::flexible_form::FlexibleForm;
+use crate::session_auth::AuthenticatedUser;
 use crate::session_auth::Session;
 use crate::utilities::feature;
 use crate::utilities::password::Password;
@@ -17,10 +18,9 @@ use crate::{
     AppState, RequestState, error_404, recoverable_error, respond_dialog,
 };
 use crate::{debug, error, info, json_value};
-use ctb_storage::user::{User, UserPublicInfo};
-use pc_settings::{get_bool_setting, get_str_setting, PcSettingStrKey};
-use crate::session_auth::AuthenticatedUser;
 use axum::http::StatusCode;
+use ctb_storage::user::{User, UserPublicInfo};
+use pc_settings::{PcSettingStrKey, get_bool_setting, get_str_setting};
 
 fn login_disabled(
     State(state): State<AppState>,
@@ -144,7 +144,11 @@ pub async fn post_login_password(
     };
 
     // FIXME: Avoid cloning password string if possible.
-    let session_token = match ctb_storage::user::login_user(&username, password.password.clone(), 3600) {
+    let session_token = match ctb_storage::user::login_user(
+        &username,
+        password.password.clone(),
+        3600,
+    ) {
         Ok(token) => token,
         Err(e) => {
             error!(format!("Failed to login user: {e}"));
@@ -162,17 +166,21 @@ pub async fn post_login_password(
     let user_id = user_public_info.local_id();
     let remote_status = user_public_info.remote_status().to_string();
 
-    let logged_in = User::from_public_info(user_public_info, Some(session_token.clone()));
+    let logged_in =
+        User::from_public_info(user_public_info, Some(session_token.clone()));
 
     // Log in was ok; return redirect home with session cookie set
-    let session = Session::new(&mut state.clone(), logged_in, &session_token).await;
+    let session =
+        Session::new(&mut state.clone(), logged_in, &session_token).await;
 
     if remote_status == "Pending" {
         let server_url = get_str_setting(PcSettingStrKey::ServerUrl);
         if let Some(server_url) = server_url.as_deref() {
             let server_url = server_url.to_string();
-            let test_name = crate::utilities::testing::try_get_current_test_name();
-            let test_storage_dir = crate::utilities::testing::try_get_test_storage_dir();
+            let test_name =
+                crate::utilities::testing::try_get_current_test_name();
+            let test_storage_dir =
+                crate::utilities::testing::try_get_test_storage_dir();
 
             tokio::spawn(async move {
                 let fut = async move {
@@ -180,7 +188,7 @@ pub async fn post_login_password(
                         Ok(ctb_storage::models::sync::RemoteRegisterResult::Success) => {
                             let mut user_dto = ctb_storage::models::user_impl::UserDto {
                                 id: user_id,
-                                username: "".to_string(),
+                                username: String::new(),
                                 uuid: vec![],
                                 auth: None,
                                 display_name: None,
@@ -209,7 +217,7 @@ pub async fn post_login_password(
                         Ok(ctb_storage::models::sync::RemoteRegisterResult::Conflict) => {
                             let mut user_dto = ctb_storage::models::user_impl::UserDto {
                                 id: user_id,
-                                username: "".to_string(),
+                                username: String::new(),
                                 uuid: vec![],
                                 auth: None,
                                 display_name: None,
@@ -241,14 +249,19 @@ pub async fn post_login_password(
 
                 let scope_fut = async move {
                     if let Some(dir) = test_storage_dir {
-                        crate::utilities::testing::TEST_STORAGE_DIR.scope(dir, fut).await;
+                        crate::utilities::testing::TEST_STORAGE_DIR
+                            .scope(dir, fut)
+                            .await;
                     } else {
                         fut.await;
                     }
                 };
 
                 if let Some(name) = test_name {
-                    let _guard = crate::utilities::testing::push_current_test_name(Some(name));
+                    let _guard =
+                        crate::utilities::testing::push_current_test_name(
+                            Some(name),
+                        );
                     scope_fut.await;
                 } else {
                     scope_fut.await;
@@ -309,7 +322,11 @@ pub async fn post_registration(
 
     error!("post_registration: creating user '{}'", &username);
     // FIXME: Avoid cloning password string if possible.
-    let session_token = match ctb_storage::user::create_user_and_session(&username, password.password.clone(), 3600) {
+    let session_token = match ctb_storage::user::create_user_and_session(
+        &username,
+        password.password.clone(),
+        3600,
+    ) {
         Ok(token) => token,
         Err(e) => {
             error!(
@@ -333,7 +350,8 @@ pub async fn post_registration(
             &state,
             req,
             format!("Failed to get user info for '{username}'"),
-        ).into_response();
+        )
+        .into_response();
     };
     if user_info.name() != username {
         error!(
@@ -349,14 +367,20 @@ pub async fn post_registration(
                 user_info.name(),
                 &username
             ),
-        ).into_response();
+        )
+        .into_response();
     }
     info!("post_registration: created user '{}'", &username);
 
     let mut final_status = "Pending".to_string();
     let server_url = get_str_setting(PcSettingStrKey::ServerUrl);
     if let Some(server_url) = server_url.as_deref() {
-        match ctb_storage::models::sync::register_on_server(user_info.local_id(), server_url).await {
+        match ctb_storage::models::sync::register_on_server(
+            user_info.local_id(),
+            server_url,
+        )
+        .await
+        {
             Ok(ctb_storage::models::sync::RemoteRegisterResult::Success) => {
                 final_status = "Registered".to_string();
             }
@@ -384,8 +408,8 @@ pub async fn post_registration(
             username: user_info.name().to_string(),
             uuid: user_info.uuid().clone(),
             auth: None,
-            display_name: user_info.display_name().map(|b| b.to_vec()),
-            picture: user_info.user_picture().map(|b| b.to_vec()),
+            display_name: user_info.display_name().map(<[u8]>::to_vec),
+            picture: user_info.user_picture().map(<[u8]>::to_vec),
             key_encryption_key_params: None,
             wrapped_dek: None,
             pubkey: None,
@@ -393,9 +417,12 @@ pub async fn post_registration(
             token_quota: None,
             remote_status: Some("Registered".to_string()),
         };
-        if let Ok(Some(existing_dto)) = ipcb!(storage).get_user_by_id_b(user_info.local_id()) {
+        if let Ok(Some(existing_dto)) =
+            ipcb!(storage).get_user_by_id_b(user_info.local_id())
+        {
             user_dto.auth = existing_dto.auth;
-            user_dto.key_encryption_key_params = existing_dto.key_encryption_key_params;
+            user_dto.key_encryption_key_params =
+                existing_dto.key_encryption_key_params;
             user_dto.wrapped_dek = existing_dto.wrapped_dek;
             user_dto.pubkey = existing_dto.pubkey;
             user_dto.subscription_expiry = existing_dto.subscription_expiry;
@@ -404,21 +431,26 @@ pub async fn post_registration(
         let _ = ipcb!(storage).update_user_b(user_dto.into());
     }
 
-    let Ok(Some(updated_user_info)) = UserPublicInfo::get_by_name(&username) else {
+    let Ok(Some(updated_user_info)) = UserPublicInfo::get_by_name(&username)
+    else {
         return recoverable_error(
             &state,
             req,
             format!("Failed to retrieve updated user info for '{username}'"),
-        ).into_response();
+        )
+        .into_response();
     };
 
-    let logged_in = User::from_public_info(updated_user_info, Some(session_token.clone()));
-    let session = Session::new(&mut state.clone(), logged_in, &session_token).await;
+    let logged_in =
+        User::from_public_info(updated_user_info, Some(session_token.clone()));
+    let session =
+        Session::new(&mut state.clone(), logged_in, &session_token).await;
     let mut cookie = Cookie::new("session", session.id());
     cookie.set_path("/");
     let updated_jar = jar.add(cookie);
 
-    (updated_jar, redirect_temporary(req.is_js_request, "/home")).into_response()
+    (updated_jar, redirect_temporary(req.is_js_request, "/home"))
+        .into_response()
 }
 
 pub async fn get_logout(
@@ -430,7 +462,9 @@ pub async fn get_logout(
     if let Some(cookie) = jar.get("session") {
         let session_val = cookie.value();
         use base64::Engine;
-        if let Ok(key) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(session_val) {
+        if let Ok(key) =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(session_val)
+        {
             Session::invalidate(&mut state, &key).await;
         }
         let mut remove_cookie = Cookie::new("session", "");
@@ -443,27 +477,44 @@ pub async fn get_logout(
 #[debug_handler]
 pub async fn post_api_user_register(
     State(_state): State<AppState>,
-    axum::Json(payload): axum::Json<ctb_storage::models::sync::ApiRegisterRequest>,
+    axum::Json(payload): axum::Json<
+        ctb_storage::models::sync::ApiRegisterRequest,
+    >,
 ) -> impl IntoResponse {
     use crate::utilities::environment::is_public_website;
 
     if !is_public_website() {
-        return (StatusCode::FORBIDDEN, "Registration API only available on public server website").into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            "Registration API only available on public server website",
+        )
+            .into_response();
     }
 
     let username = payload.username.clone();
     let exists = ctb_storage::user::user_exists(&username);
     if exists {
-        return (StatusCode::CONFLICT, axum::Json(serde_json::json!({ "error": "username_taken" }))).into_response();
+        return (
+            StatusCode::CONFLICT,
+            axum::Json(serde_json::json!({ "error": "username_taken" })),
+        )
+            .into_response();
     }
 
-    let server_user_id = match ctb_storage::user::User::increment_and_get_user_id() {
-        Ok(id) => id,
-        Err(e) => {
-            error!(format!("Failed to increment and get user ID on server: {e}"));
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Server database error").into_response();
-        }
-    };
+    let server_user_id =
+        match ctb_storage::user::User::increment_and_get_user_id() {
+            Ok(id) => id,
+            Err(e) => {
+                error!(format!(
+                    "Failed to increment and get user ID on server: {e}"
+                ));
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Server database error",
+                )
+                    .into_response();
+            }
+        };
 
     let user_dto = ctb_storage::models::user_impl::UserDto {
         id: server_user_id,
@@ -482,10 +533,15 @@ pub async fn post_api_user_register(
 
     if let Err(e) = ipcb!(storage).create_user_b(user_dto.into()) {
         error!(format!("Failed to create user on server: {e}"));
-        return (StatusCode::INTERNAL_SERVER_ERROR, "Server database error").into_response();
+        return (StatusCode::INTERNAL_SERVER_ERROR, "Server database error")
+            .into_response();
     }
 
-    (StatusCode::CREATED, axum::Json(serde_json::json!({ "success": true }))).into_response()
+    (
+        StatusCode::CREATED,
+        axum::Json(serde_json::json!({ "success": true })),
+    )
+        .into_response()
 }
 
 pub async fn get_rename(
@@ -516,7 +572,7 @@ pub async fn post_rename(
     user: AuthenticatedUser,
     FlexibleForm(input): FlexibleForm<RenameForm>,
 ) -> Response {
-    let mut u: tokio::sync::MutexGuard<'_, User> = user.user.lock().await;
+    let u: tokio::sync::MutexGuard<'_, User> = user.user.lock().await;
     let user_id = u.local_id();
     let old_username = u.name();
     let new_username = input.new_username.clone();
@@ -525,12 +581,13 @@ pub async fn post_rename(
         return recoverable_error(
             &state,
             req,
-            "The new username must be different from your current username.".to_string(),
+            "The new username must be different from your current username."
+                .to_string(),
         );
     }
 
     match ipcb!(storage).rename_user_b(user_id, &new_username) {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(e) => {
             error!(format!("Failed to rename user locally: {e}"));
             return recoverable_error(
@@ -549,7 +606,8 @@ pub async fn post_rename(
     let server_url_opt = get_str_setting(PcSettingStrKey::ServerUrl);
     let mut final_status = "Pending".to_string();
     if let Some(url) = server_url_opt.as_deref() {
-        match ctb_storage::models::sync::register_on_server(user_id, url).await {
+        match ctb_storage::models::sync::register_on_server(user_id, url).await
+        {
             Ok(ctb_storage::models::sync::RemoteRegisterResult::Success) => {
                 final_status = "Registered".to_string();
             }
@@ -564,7 +622,7 @@ pub async fn post_rename(
 
     let mut user_dto = ctb_storage::models::user_impl::UserDto {
         id: user_id,
-        username: "".to_string(),
+        username: String::new(),
         uuid: vec![],
         auth: None,
         display_name: None,
@@ -582,7 +640,8 @@ pub async fn post_rename(
         user_dto.auth = existing_dto.auth;
         user_dto.display_name = existing_dto.display_name;
         user_dto.picture = existing_dto.picture;
-        user_dto.key_encryption_key_params = existing_dto.key_encryption_key_params;
+        user_dto.key_encryption_key_params =
+            existing_dto.key_encryption_key_params;
         user_dto.wrapped_dek = existing_dto.wrapped_dek;
         user_dto.pubkey = existing_dto.pubkey;
         user_dto.subscription_expiry = existing_dto.subscription_expiry;
@@ -594,7 +653,9 @@ pub async fn post_rename(
         return recoverable_error(
             &state,
             req,
-            format!("The username '{new_username}' is already taken on the remote server. Please choose a different username."),
+            format!(
+                "The username '{new_username}' is already taken on the remote server. Please choose a different username."
+            ),
         );
     }
 
@@ -622,7 +683,16 @@ fn remote_account_exists(_username: &String) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod auth_controller_tests {
     use super::*;
     use crate::test_helpers::{
@@ -751,9 +821,15 @@ mod auth_controller_tests {
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
 
         let logout_cookie = resp.headers().get("Set-Cookie");
-        assert!(logout_cookie.is_some(), "No Set-Cookie header found on logout");
+        assert!(
+            logout_cookie.is_some(),
+            "No Set-Cookie header found on logout"
+        );
         let logout_cookie_str = logout_cookie.unwrap().to_str().unwrap();
-        assert!(logout_cookie_str.contains("Max-Age=0") || logout_cookie_str.contains("expires="));
+        assert!(
+            logout_cookie_str.contains("Max-Age=0")
+                || logout_cookie_str.contains("expires=")
+        );
 
         // After logging out, requesting search with the old cookie should fail
         let (status, _body) = test_request::<()>(
@@ -807,9 +883,11 @@ mod auth_controller_tests {
 
     #[ctb_test("tokio")]
     async fn test_remote_registration_and_rename_collision() -> Result<()> {
-        use ctb_storage::models::sync::{set_mock_register_result, RemoteRegisterResult};
-        use crate::pc_settings::PcSettings;
         use crate::json::maybe_value::MaybeValue;
+        use crate::pc_settings::PcSettings;
+        use ctb_storage::models::sync::{
+            RemoteRegisterResult, set_mock_register_result,
+        };
 
         let name = function_name!();
         let _ = lock_by_name(name)?;
@@ -819,7 +897,8 @@ mod auth_controller_tests {
         set_mock_register_result(Some(RemoteRegisterResult::Success));
 
         let mut settings = PcSettings::load().unwrap_or_default();
-        settings.server_url = MaybeValue::Value("http://mock-server.test".to_string());
+        settings.server_url =
+            MaybeValue::Value("http://mock-server.test".to_string());
         settings.save().unwrap();
 
         let (_state, app) = test_app();
@@ -851,7 +930,8 @@ mod auth_controller_tests {
         let cookie = resp.headers().get("Set-Cookie").cloned();
         assert!(cookie.is_some(), "No Set-Cookie header found");
 
-        let user_info = UserPublicInfo::get_by_name(name)?.expect("Failed to get user info");
+        let user_info = UserPublicInfo::get_by_name(name)?
+            .expect("Failed to get user info");
         assert_eq!(user_info.remote_status(), "Registered");
 
         User::delete_by_name(name).ok();
@@ -871,9 +951,16 @@ mod auth_controller_tests {
         )
         .await;
         let resp = assert_successful_and_return_resp(resp, true).await;
-        let _cookie_str = resp.headers().get("Set-Cookie").unwrap().to_str().unwrap().to_string();
+        let _cookie_str = resp
+            .headers()
+            .get("Set-Cookie")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
-        let user_info = UserPublicInfo::get_by_name(name)?.expect("Failed to get user info");
+        let user_info = UserPublicInfo::get_by_name(name)?
+            .expect("Failed to get user info");
         assert_eq!(user_info.remote_status(), "Pending");
 
         // 3. Set mock to Conflict for background sync during login
@@ -901,12 +988,19 @@ mod auth_controller_tests {
         )
         .await;
         let resp = assert_successful_and_return_resp(resp, true).await;
-        let login_cookie = resp.headers().get("Set-Cookie").unwrap().to_str().unwrap().to_string();
+        let login_cookie = resp
+            .headers()
+            .get("Set-Cookie")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         // Wait a short time for background task to execute
         tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
-        let user_info = UserPublicInfo::get_by_name(name)?.expect("Failed to get user info");
+        let user_info = UserPublicInfo::get_by_name(name)?
+            .expect("Failed to get user info");
         assert_eq!(user_info.remote_status(), "Conflict");
 
         let resp = test_request_get_response::<()>(
@@ -922,7 +1016,10 @@ mod auth_controller_tests {
         .await;
         let resp = assert_successful_and_return_resp(resp, true).await;
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-        assert_eq!(resp.headers().get("Location").unwrap().to_str().unwrap(), "/rename");
+        assert_eq!(
+            resp.headers().get("Location").unwrap().to_str().unwrap(),
+            "/rename"
+        );
 
         let (status, body) = test_request::<()>(
             &app,
@@ -961,9 +1058,14 @@ mod auth_controller_tests {
         .await;
         let resp = assert_successful_and_return_resp(resp, true).await;
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-        assert_eq!(resp.headers().get("Location").unwrap().to_str().unwrap(), "/home");
+        assert_eq!(
+            resp.headers().get("Location").unwrap().to_str().unwrap(),
+            "/home"
+        );
 
-        let new_user_info = UserPublicInfo::get_by_name(&format!("{name}_new"))?.expect("Failed to get new user info");
+        let new_user_info =
+            UserPublicInfo::get_by_name(&format!("{name}_new"))?
+                .expect("Failed to get new user info");
         assert_eq!(new_user_info.remote_status(), "Registered");
 
         User::delete_by_name(&format!("{name}_new")).ok();

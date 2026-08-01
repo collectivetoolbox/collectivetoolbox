@@ -1,9 +1,16 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use crate::db::get_connection;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use anyhow::Result;
-use crate::db::get_connection;
+use sea_query::{
+    ConditionalStatement, Expr, ExprTrait, Iden, Query, QueryStatementWriter,
+    SchemaStatementBuilder, SqliteQueryBuilder, Write,
+};
 use turso::Value;
-use sea_query::*;
 
 #[ipc_dto]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -90,7 +97,8 @@ pub async fn increment_and_get_user_id() -> Result<u64> {
             }
         } else {
             0
-        }.saturating_add(1);
+        }
+        .saturating_add(1);
 
         let (sql_insert, insert_values) = Query::insert()
             .into_table(UsersMetadata::Table)
@@ -102,11 +110,15 @@ pub async fn increment_and_get_user_id() -> Result<u64> {
             .on_conflict(
                 sea_query::OnConflict::column(UsersMetadata::Key)
                     .update_column(UsersMetadata::Value)
-                    .to_owned()
+                    .to_owned(),
             )
             .build(SqliteQueryBuilder);
 
-        conn.execute(&sql_insert, crate::db::sea_values_to_turso(insert_values)).await?;
+        conn.execute(
+            &sql_insert,
+            crate::db::sea_values_to_turso(insert_values),
+        )
+        .await?;
 
         Ok(next_id)
     }
@@ -209,14 +221,24 @@ impl From<UserDto> for ::ctb_utilities::ipc::service_traits::storage::UserDto {
 }
 
 #[ipc_method]
-pub async fn get_user_by_name(name: String) -> Result<Option<::ctb_utilities::ipc::service_traits::storage::UserDto>> {
+pub async fn get_user_by_name(
+    name: String,
+) -> Result<Option<::ctb_utilities::ipc::service_traits::storage::UserDto>> {
     let conn = get_connection("users").await?;
     let (sql, values) = Query::select()
         .columns([
-            Users::Id, Users::Username, Users::Uuid, Users::Auth,
-            Users::DisplayName, Users::Picture, Users::KeyEncryptionKeyParams,
-            Users::WrappedDek, Users::Pubkey, Users::SubscriptionExpiry, Users::TokenQuota,
-            Users::RemoteStatus
+            Users::Id,
+            Users::Username,
+            Users::Uuid,
+            Users::Auth,
+            Users::DisplayName,
+            Users::Picture,
+            Users::KeyEncryptionKeyParams,
+            Users::WrappedDek,
+            Users::Pubkey,
+            Users::SubscriptionExpiry,
+            Users::TokenQuota,
+            Users::RemoteStatus,
         ])
         .from(Users::Table)
         .and_where(Expr::col(Users::Username).eq(name))
@@ -231,14 +253,24 @@ pub async fn get_user_by_name(name: String) -> Result<Option<::ctb_utilities::ip
 }
 
 #[ipc_method]
-pub async fn get_user_by_id(id: u64) -> Result<Option<::ctb_utilities::ipc::service_traits::storage::UserDto>> {
+pub async fn get_user_by_id(
+    id: u64,
+) -> Result<Option<::ctb_utilities::ipc::service_traits::storage::UserDto>> {
     let conn = get_connection("users").await?;
     let (sql, values) = Query::select()
         .columns([
-            Users::Id, Users::Username, Users::Uuid, Users::Auth,
-            Users::DisplayName, Users::Picture, Users::KeyEncryptionKeyParams,
-            Users::WrappedDek, Users::Pubkey, Users::SubscriptionExpiry, Users::TokenQuota,
-            Users::RemoteStatus
+            Users::Id,
+            Users::Username,
+            Users::Uuid,
+            Users::Auth,
+            Users::DisplayName,
+            Users::Picture,
+            Users::KeyEncryptionKeyParams,
+            Users::WrappedDek,
+            Users::Pubkey,
+            Users::SubscriptionExpiry,
+            Users::TokenQuota,
+            Users::RemoteStatus,
         ])
         .from(Users::Table)
         .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
@@ -277,10 +309,18 @@ pub async fn create_user(user: UserDto) -> Result<()> {
     let (sql, values) = Query::insert()
         .into_table(Users::Table)
         .columns([
-            Users::Id, Users::Username, Users::Uuid, Users::Auth,
-            Users::DisplayName, Users::Picture, Users::KeyEncryptionKeyParams,
-            Users::WrappedDek, Users::Pubkey, Users::SubscriptionExpiry, Users::TokenQuota,
-            Users::RemoteStatus
+            Users::Id,
+            Users::Username,
+            Users::Uuid,
+            Users::Auth,
+            Users::DisplayName,
+            Users::Picture,
+            Users::KeyEncryptionKeyParams,
+            Users::WrappedDek,
+            Users::Pubkey,
+            Users::SubscriptionExpiry,
+            Users::TokenQuota,
+            Users::RemoteStatus,
         ])
         .values_panic([
             <i64 as TryFrom<_>>::try_from(user.id)?.into(),
@@ -292,8 +332,12 @@ pub async fn create_user(user: UserDto) -> Result<()> {
             user.key_encryption_key_params.clone().into(),
             user.wrapped_dek.clone().into(),
             user.pubkey.clone().into(),
-            user.subscription_expiry.map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0)).into(),
-            user.token_quota.map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0)).into(),
+            user.subscription_expiry
+                .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                .into(),
+            user.token_quota
+                .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                .into(),
             user.remote_status.clone().into(),
         ])
         .build(SqliteQueryBuilder);
@@ -313,14 +357,29 @@ pub async fn update_user(user: UserDto) -> Result<()> {
             (Users::Auth, user.auth.clone().into()),
             (Users::DisplayName, user.display_name.clone().into()),
             (Users::Picture, user.picture.clone().into()),
-            (Users::KeyEncryptionKeyParams, user.key_encryption_key_params.clone().into()),
+            (
+                Users::KeyEncryptionKeyParams,
+                user.key_encryption_key_params.clone().into(),
+            ),
             (Users::WrappedDek, user.wrapped_dek.clone().into()),
             (Users::Pubkey, user.pubkey.clone().into()),
-            (Users::SubscriptionExpiry, user.subscription_expiry.map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0)).into()),
-            (Users::TokenQuota, user.token_quota.map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0)).into()),
+            (
+                Users::SubscriptionExpiry,
+                user.subscription_expiry
+                    .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                    .into(),
+            ),
+            (
+                Users::TokenQuota,
+                user.token_quota
+                    .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                    .into(),
+            ),
             (Users::RemoteStatus, user.remote_status.clone().into()),
         ])
-        .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(user.id)?))
+        .and_where(
+            Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(user.id)?),
+        )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);
     conn.execute(&sql, params).await?;
@@ -352,7 +411,7 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
     let mut stmt = conn.prepare(&sql_check).await?;
     let mut rows = stmt.query(check_params).await?;
     if rows.next().await?.is_some() {
-        bail!("Username '{}' is already taken locally", new_username);
+        bail!("Username '{new_username}' is already taken locally");
     }
 
     let (sql_user, user_values) = Query::select()
@@ -364,7 +423,7 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
     let mut stmt_user = conn.prepare(&sql_user).await?;
     let mut rows_user = stmt_user.query(user_params).await?;
     let Some(row) = rows_user.next().await? else {
-        bail!("User not found: {}", id);
+        bail!("User not found: {id}");
     };
     let current_username: String = match row.get_value(0)? {
         Value::Text(s) => s,
@@ -384,7 +443,9 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
     conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
 
     let res = async {
-        let (sql_update, update_values) = if let Some(disp) = display_name_to_set {
+        let (sql_update, update_values) = if let Some(disp) =
+            display_name_to_set
+        {
             Query::update()
                 .table(Users::Table)
                 .values([
@@ -392,7 +453,9 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
                     (Users::DisplayName, disp.into()),
                     (Users::RemoteStatus, "Pending".to_string().into()),
                 ])
-                .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
+                .and_where(
+                    Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?),
+                )
                 .build(SqliteQueryBuilder)
         } else {
             Query::update()
@@ -401,7 +464,9 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
                     (Users::Username, new_username.into()),
                     (Users::RemoteStatus, "Pending".to_string().into()),
                 ])
-                .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
+                .and_where(
+                    Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?),
+                )
                 .build(SqliteQueryBuilder)
         };
 
@@ -454,14 +519,11 @@ pub async fn save_voprf_key(key: Vec<u8>) -> Result<()> {
     let (sql, values) = Query::insert()
         .into_table(UsersMetadata::Table)
         .columns([UsersMetadata::Key, UsersMetadata::Value])
-        .values_panic([
-            "voprf_server_key".into(),
-            key.into(),
-        ])
+        .values_panic(["voprf_server_key".into(), key.into()])
         .on_conflict(
             sea_query::OnConflict::column(UsersMetadata::Key)
                 .update_column(UsersMetadata::Value)
-                .to_owned()
+                .to_owned(),
         )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);

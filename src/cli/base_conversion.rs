@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::Result;
@@ -10,7 +14,10 @@ use ctb_formats_eite::encoding::base::{
 };
 
 #[derive(clap::Args, Debug)]
-#[allow(clippy::struct_excessive_bools, reason = "clap CLI options mapping structure")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "clap CLI options mapping structure"
+)]
 pub struct BaseArgs {
     /// Shortcut for -n -q --limit 255 --pad
     #[arg(short, long, default_value_t = false)]
@@ -111,7 +118,10 @@ pub struct BaseToBaseArgs {
 // Conversion Logic
 // ---------------------------
 
-#[allow(clippy::unnecessary_wraps, reason = "uniform tool command execution interface")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "uniform tool command execution interface"
+)]
 pub fn run_base_convert(
     from_base: &Option<u8>,
     to_base: &Option<u8>,

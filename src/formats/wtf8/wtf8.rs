@@ -37,7 +37,11 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
@@ -105,14 +109,19 @@ pub fn encode_wtf8_from_scalars(codepoints: &[u32]) -> Result<Vec<u8>> {
     while i < codepoints.len() {
         let cp = *codepoints.get(i).context("Invalid codepoint index")?;
         // Check for surrogate pair
-        if (0xD800..=0xDBFF).contains(&cp) && i.saturating_add(1) < codepoints.len() {
-            let next = *codepoints.get(i.saturating_add(1)).context("Invalid surrogate pair index")?;
+        if (0xD800..=0xDBFF).contains(&cp)
+            && i.saturating_add(1) < codepoints.len()
+        {
+            let next = *codepoints
+                .get(i.saturating_add(1))
+                .context("Invalid surrogate pair index")?;
             if (0xDC00..=0xDFFF).contains(&next) {
                 // Combine surrogate pair
                 let high = cp;
                 let low = next;
                 let full = 0x10000u32.saturating_add(
-                    ((high.saturating_sub(0xD800)) << 10) | (low.saturating_sub(0xDC00))
+                    ((high.saturating_sub(0xD800)) << 10)
+                        | (low.saturating_sub(0xDC00)),
                 );
                 out.extend(encode_wtf8_single(full)?);
                 i = i.saturating_add(2);
@@ -138,7 +147,9 @@ fn read_continuation_byte(input: &[u8], byte_index: &mut usize) -> Result<u8> {
     if *byte_index >= input.len() {
         return Err(anyhow::anyhow!("WTF-8: Invalid byte index"));
     }
-    let continuation_byte = *input.get(*byte_index).context("WTF-8: Invalid byte index")?;
+    let continuation_byte = *input
+        .get(*byte_index)
+        .context("WTF-8: Invalid byte index")?;
     *byte_index = byte_index.saturating_add(1);
     if (continuation_byte & 0xC0) == 0x80 {
         Ok(continuation_byte & 0x3F)
@@ -165,7 +176,9 @@ pub fn decode_wtf8_single(
         ));
     }
 
-    let byte1 = *byte_array_input.get(byte_index).context("Invalid WTF-8 sequence")?;
+    let byte1 = *byte_array_input
+        .get(byte_index)
+        .context("Invalid WTF-8 sequence")?;
     byte_index = byte_index.saturating_add(1);
 
     // 1-byte sequence (no continuation bytes)
@@ -218,11 +231,12 @@ pub fn decode_wtf8_to_ucs2(byte_array_input: &[u8]) -> Result<Vec<u16>> {
     let mut codepoints_with_unpaired_surrogates: Vec<u16> = Vec::new();
     let mut byte_index = 0;
     while byte_index < byte_array_input.len() {
-        let sub_slice = byte_array_input.get(byte_index..).context("WTF-8: Invalid byte index")?;
-        let (cp, len) = decode_wtf8_single(sub_slice)
-            .context(format!(
-                "WTF-8: Invalid byte sequence at index {byte_index}"
-            ))?;
+        let sub_slice = byte_array_input
+            .get(byte_index..)
+            .context("WTF-8: Invalid byte index")?;
+        let (cp, len) = decode_wtf8_single(sub_slice).context(format!(
+            "WTF-8: Invalid byte sequence at index {byte_index}"
+        ))?;
         if cp > 0xFFFF {
             let surrogates = ucs2encode(&[cp]).context(format!(
                 "WTF-8: Failed to convert codepoint to unpaired surrogates: {cp:?}"
@@ -256,7 +270,16 @@ pub fn is_unpackable_wtf8(byte_array_input: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_formats_unicode::{UNICODE_HISTORIC_MAX, UNICODE_MAX};
 
@@ -440,18 +463,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_wtf8_decode_errors() {
         // Invalid WTF-8 detected
-        assert!(decode_wtf8_single(&[0xFF]).is_err());
+        decode_wtf8_single(&[0xFF]).unwrap_err();
         // Invalid continuation byte (4-byte sequence expected)
-        assert!(decode_wtf8_single(&[0xE9, 0x00, 0x00]).is_err());
+        decode_wtf8_single(&[0xE9, 0x00, 0x00]).unwrap_err();
         // Invalid continuation byte
-        assert!(decode_wtf8_single(&[0xC2, 0xFF, 0xFF]).is_err());
-        assert!(decode_wtf8_single(&[0xC2, 0xEF, 0xBF, 0xBF]).is_err());
+        decode_wtf8_single(&[0xC2, 0xFF, 0xFF]).unwrap_err();
+        decode_wtf8_single(&[0xC2, 0xEF, 0xBF, 0xBF]).unwrap_err();
         // Invalid byte index
-        assert!(decode_wtf8_single(&[0xF0, 0x9D]).is_err());
-        assert!(
-            decode_wtf8_to_scalars(&[0xFD, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
-                .is_err()
-        ); // UNICODE_HISTORIC_MAX
+        decode_wtf8_single(&[0xF0, 0x9D]).unwrap_err();
+        decode_wtf8_to_scalars(&[0xFD, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
+            .unwrap_err(); // UNICODE_HISTORIC_MAX
     }
 
     #[crate::ctb_test]
@@ -474,7 +495,7 @@ mod tests {
             encode_wtf8_single(UNICODE_MAX).unwrap(),
             vec![0xF4, 0x8F, 0xBF, 0xBF]
         );
-        assert!(encode_wtf8_single(UNICODE_HISTORIC_MAX).is_err());
+        encode_wtf8_single(UNICODE_HISTORIC_MAX).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -517,10 +538,8 @@ mod tests {
             decode_wtf8_to_scalars(&[0xF4, 0x8F, 0xBF, 0xBF]).unwrap(),
             vec![UNICODE_MAX]
         );
-        assert!(
-            decode_wtf8_to_scalars(&[0xFD, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
-                .is_err()
-        );
+        decode_wtf8_to_scalars(&[0xFD, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
+            .unwrap_err();
     }
 
     #[crate::ctb_test]

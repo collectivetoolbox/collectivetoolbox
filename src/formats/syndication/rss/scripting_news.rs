@@ -16,7 +16,11 @@
 //! Specification for 2.0b1: <https://web.archive.org/web/19990902194349/http://my.userland.com/stories/storyReader$11>
 //! DTD: <https://web.archive.org/web/19980131193200if_/http://www.scripting.com:80/dtd/scriptingNews.dtd>
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use super::Feed;
@@ -262,7 +266,16 @@ pub fn render_scripting_news_20(feed: &Feed) -> Result<String> {
 // ============================================================================
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::Entry;

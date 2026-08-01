@@ -1,6 +1,10 @@
 use crate::services::renderer::RendererClient;
 use crate::services::runtime::RuntimeClient;
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use crate::workspace_runner::WorkspaceRunnerConfig;
 use crate::workspace_runner::process::{ChildCommand, ChildProcess};
@@ -63,8 +67,11 @@ impl WorkspaceRuntime {
         &self.socket_path
     }
 
-    /// Check if a singleton service is running and return its ProcessId.
-    pub async fn get_singleton_pid(&self, kind: ChildKind) -> Option<ProcessId> {
+    /// Check if a singleton service is running and return its `ProcessId`.
+    pub async fn get_singleton_pid(
+        &self,
+        kind: ChildKind,
+    ) -> Option<ProcessId> {
         let guard = self.singleton_pids.lock().await;
         guard.get(&kind).copied()
     }

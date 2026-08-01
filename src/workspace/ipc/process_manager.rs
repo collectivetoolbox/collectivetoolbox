@@ -6,7 +6,11 @@
 //! On Windows, children are placed into a Job Object configured to kill all
 //! processes on close; tree termination uses `TerminateJobObject`.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::auth::capability::CapabilityBundle;
@@ -188,9 +192,11 @@ where
 /// notifying the target peer (e.g., renderer) and best-effort notifications to
 /// other peers in the map.
 async fn send_shutdown_request(
-    #[allow(clippy::implicit_hasher, reason = "uniform peer dictionary mapping type interface")] peers: Arc<
-        tokio::sync::Mutex<HashMap<ProcessId, Arc<IpcPeer>>>,
-    >,
+    #[expect(
+        clippy::implicit_hasher,
+        reason = "uniform peer dictionary mapping type interface"
+    )]
+    peers: Arc<tokio::sync::Mutex<HashMap<ProcessId, Arc<IpcPeer>>>>,
     pid: ProcessId,
     reason: Option<String>,
 ) -> Result<ShutdownTreeResponse, Error> {
@@ -265,9 +271,11 @@ async fn send_shutdown_request(
 /// This function wraps `graceful_shutdown_tree` with IPC-based shutdown logic,
 /// allowing shutdown requests to be sent via connected peers.
 pub async fn shutdown_for_process_tree(
-    #[allow(clippy::implicit_hasher, reason = "uniform peer dictionary mapping type interface")] peers: Arc<
-        tokio::sync::Mutex<HashMap<ProcessId, Arc<IpcPeer>>>,
-    >,
+    #[expect(
+        clippy::implicit_hasher,
+        reason = "uniform peer dictionary mapping type interface"
+    )]
+    peers: Arc<tokio::sync::Mutex<HashMap<ProcessId, Arc<IpcPeer>>>>,
     process_manager: &dyn ProcessManager,
     pid: ProcessId,
     ack_timeout: Duration,
@@ -375,7 +383,16 @@ pub use unix::TokioProcessManager;
 pub use windows::TokioProcessManager;
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

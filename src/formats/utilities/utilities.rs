@@ -5,7 +5,11 @@ pub mod format_id;
 pub mod magic;
 pub mod magic_data;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 // Trait to extend char with a as_utf8_bytes() convenience method
@@ -59,7 +63,8 @@ impl FormatLog {
         #[cfg(debug_assertions)]
         crate::debug!("FormatLog error: {}", message);
         self.errors.push(message.to_string());
-        self.log_order.push((LogType::Error, self.errors.len().saturating_sub(1)));
+        self.log_order
+            .push((LogType::Error, self.errors.len().saturating_sub(1)));
     }
 
     pub fn warn(&mut self, message: &str) {
@@ -78,8 +83,10 @@ impl FormatLog {
         #[cfg(debug_assertions)]
         crate::debug!("FormatLog debug: {}", message);
         self.debug_messages.push(message.to_string());
-        self.log_order
-            .push((LogType::Debug, self.debug_messages.len().saturating_sub(1)));
+        self.log_order.push((
+            LogType::Debug,
+            self.debug_messages.len().saturating_sub(1),
+        ));
     }
 
     pub fn get_errors(&self) -> Vec<String> {

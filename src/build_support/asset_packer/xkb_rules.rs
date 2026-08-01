@@ -193,9 +193,10 @@ impl LayoutSpec {
         }
 
         if let Some((parsed_layout, rest)) = layout.split_once('(') {
-            let (parsed_variant, _) = rest.split_once(')').with_context(|| {
-                format!("Missing ')' in layout mapping token {layout}")
-            })?;
+            let (parsed_variant, _) =
+                rest.split_once(')').with_context(|| {
+                    format!("Missing ')' in layout mapping token {layout}")
+                })?;
             return Ok(Self {
                 layout: parsed_layout.to_string(),
                 variant: Some(parsed_variant.to_string()),

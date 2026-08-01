@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 import_all_ipc_client_ext_traits!();
@@ -239,7 +243,10 @@ impl Workspace for CtbWorkspace {
         Ok(())
     }
 
-    #[allow(clippy::items_after_statements, reason = "uniform macro injection patterns")]
+    #[expect(
+        clippy::items_after_statements,
+        reason = "uniform macro injection patterns"
+    )]
     async fn run(&self, rt: &WorkspaceRuntime) -> Result<()> {
         // Allow the ipc! macro to be used in this function, so that instead of
         // writing `self.io()?` one can write `ipc!(io)`.

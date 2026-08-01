@@ -8,10 +8,10 @@
 
 pub mod graph;
 pub mod node;
-pub mod user;
 pub mod sync;
+pub mod user;
 
 pub mod graph_impl;
 pub mod node_impl;
-pub mod user_impl;
 pub mod sync_impl;
+pub mod user_impl;

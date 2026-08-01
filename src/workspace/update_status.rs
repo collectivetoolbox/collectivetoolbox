@@ -6,7 +6,11 @@
 //!   immediately if past) and checks for updates
 //! - Stores update status in memory accessible by other parts of the process
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::path::PathBuf;
@@ -601,7 +605,7 @@ async fn quick_update_check() -> StartupUpdateResult {
     let server_url = ctb_utilities::pc_settings::get_str_setting(
         ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
     )
-    .unwrap_or_else(|| default_url());
+    .unwrap_or_else(default_url);
 
     let Ok(api_status) =
         query_server_update_status(&server_url, &current_build).await
@@ -648,7 +652,16 @@ async fn quick_update_check() -> StartupUpdateResult {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -678,13 +691,15 @@ mod tests {
 
         // If we schedule for the past, it should be 0
         if current_seconds > 100 {
-            let wait = seconds_until_check_time(current_seconds.saturating_sub(100));
+            let wait =
+                seconds_until_check_time(current_seconds.saturating_sub(100));
             assert_eq!(wait, 0);
         }
 
         // If we schedule for the future, it should be positive
         if current_seconds < SECONDS_IN_DAY - 100 {
-            let wait = seconds_until_check_time(current_seconds.saturating_add(100));
+            let wait =
+                seconds_until_check_time(current_seconds.saturating_add(100));
             assert!(wait > 0);
             assert!(wait <= 100);
         }

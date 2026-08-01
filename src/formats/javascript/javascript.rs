@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
@@ -6,6 +10,7 @@ use include_dir::{Dir, include_dir};
 pub mod deno_config;
 pub mod diagnostics;
 pub mod js_lint;
+pub mod js_test;
 pub mod jsdoc;
 pub mod lint;
 pub mod project_files_resolver;
@@ -13,7 +18,6 @@ pub mod string;
 pub mod ts_check;
 pub mod tsconfig;
 pub mod typescript;
-pub mod js_test;
 
 static JS_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
@@ -22,7 +26,16 @@ pub fn get_js_data(key: &str) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     #[crate::ctb_test]
     fn test_get_bootstrapped_compiler() {

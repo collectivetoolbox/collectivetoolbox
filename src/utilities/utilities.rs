@@ -13,8 +13,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs};
 use sysinfo::{Pid, Process, System};
-use tokio::runtime::{Handle, Runtime, RuntimeFlavor};
-use tokio::task::block_in_place;
 use unicode_segmentation::UnicodeSegmentation;
 // FIXME: TryRngCore is the fallible variant of RngCore, which says it's not meant to be used by end-users directly. The alternative suggested in the docs, rand::Rng, doesn't seem to provide fill_bytes/try_fill_bytes. How on earth am I supposed to get random bytes then?!
 use rand::TryRngCore;
@@ -38,15 +36,14 @@ pub mod resource_lock;
 pub mod serde_value;
 pub mod storage;
 // pub use ctb_utilities_testing as testing;
+pub mod blind_signatures;
 pub mod circular_dep_base64;
 pub mod circular_dep_unicode;
 pub mod csv_tools;
 pub mod shared_memory;
-pub mod workspace_path_resolution;
 pub mod string;
 pub mod testing;
-pub mod blind_signatures;
-
+pub mod workspace_path_resolution;
 
 pub use crate::utilities_json_json as json;
 pub use anyhow;
@@ -58,12 +55,12 @@ pub use ctb_ipc_macro::ipc_method;
 pub use ctb_ipc_macro::ipc_service;
 pub use ctb_ipc_macro::ipc_service_client;
 pub use ctb_test_macro::ctb_test;
+pub use hex;
+use include_dir::{Dir, include_dir};
 pub use inventory;
 pub use postcard;
 pub use tracing;
-pub use hex;
 pub use uuid::Uuid;
-use include_dir::{Dir, include_dir};
 
 pub use crate::ipc::workspace_client::WorkspaceIpcExt;
 
@@ -121,7 +118,10 @@ macro_rules! ipc {
 /// This is designed to be overridden in a narrower scope (e.g., inside a
 /// workspace method) when `self` is the appropriate IPC service provider.
 #[macro_export]
-#[expect(clippy::crate_in_macro_def, reason = "crate refers to the defining crate in macro definitions")]
+#[expect(
+    clippy::crate_in_macro_def,
+    reason = "crate refers to the defining crate in macro definitions"
+)]
 macro_rules! __ctb_ipc_ctx {
     () => {
         crate::ipc::service_prelude::ipc()
@@ -153,7 +153,10 @@ macro_rules! ipcb {
 ///
 /// This is designed to be overridden in a narrower scope.
 #[macro_export]
-#[expect(clippy::crate_in_macro_def, reason = "crate refers to the defining crate in macro definitions")]
+#[expect(
+    clippy::crate_in_macro_def,
+    reason = "crate refers to the defining crate in macro definitions"
+)]
 macro_rules! __ctb_ipcb_get {
     ($ctx:expr, $service:ident) => {
         crate::unasync($ctx.$service())
@@ -179,18 +182,42 @@ macro_rules! __ctb_ipcb_get {
 #[macro_export]
 macro_rules! import_all_ipc_client_ext_traits {
     () => {
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_formats::*;
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_io::*;
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_network::*;
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_renderer::*;
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_runtime::*;
 
-        #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude client traits")]
+        #[expect(
+            unused_imports,
+            clippy::wildcard_imports,
+            reason = "Standard workspace prelude client traits"
+        )]
         use ctb_storage::db::*;
     };
 }
@@ -250,11 +277,7 @@ pub fn substr_mb(s: &str, start: i128, end: i128) -> Result<String> {
     let end = end.max(0).min(len);
 
     if start > end {
-        bail!(
-            "slice index starts at {} but ends at {}",
-            start,
-            end
-        );
+        bail!("slice index starts at {start} but ends at {end}");
     }
 
     let start = usize::try_from(start)?;
@@ -579,8 +602,9 @@ pub fn generate_authentication_key() -> Result<String> {
         strict: true,
     };
 
-    pg.generate_one()
-        .map_err(|e| anyhow::anyhow!("Failed to generate authentication key: {e}"))
+    pg.generate_one().map_err(|e| {
+        anyhow::anyhow!("Failed to generate authentication key: {e}")
+    })
 }
 
 pub fn u8_vec_to_formatted_hex(values: &[u8]) -> String {
@@ -720,7 +744,8 @@ where
             let thread_handle = s.spawn(move || {
                 let _guard = crate::testing::push_current_test_name(test_name);
                 if let Some(dir) = test_storage_dir {
-                    crate::testing::TEST_STORAGE_DIR_SYNC.with(|c| *c.borrow_mut() = Some(dir));
+                    crate::testing::TEST_STORAGE_DIR_SYNC
+                        .with(|c| *c.borrow_mut() = Some(dir));
                 }
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
@@ -758,7 +783,7 @@ pub fn default_url() -> String {
 }
 
 pub fn get_all_bytes() -> Vec<u8> {
-    return get_utilities_data("all_bytes.bin").expect("Failed to get all_bytes");
+    get_utilities_data("all_bytes.bin").expect("Failed to get all_bytes")
 }
 
 #[derive(Serialize)]
@@ -778,7 +803,10 @@ pub fn build_info() -> BuildInfo {
     }
 }
 
-#[allow(clippy::panic, reason = "Test assertion helper intentionally panics on error")]
+#[expect(
+    clippy::panic,
+    reason = "Test assertion helper intentionally panics on error"
+)]
 pub fn assert_vec_u32_ok_eq(
     expected: &[u32],
     actual: anyhow::Result<Vec<u32>>,
@@ -789,7 +817,10 @@ pub fn assert_vec_u32_ok_eq(
     }
 }
 
-#[allow(clippy::panic, reason = "Test assertion helper intentionally panics on error")]
+#[expect(
+    clippy::panic,
+    reason = "Test assertion helper intentionally panics on error"
+)]
 pub fn assert_vec_u8_ok_eq(
     expected: &[u8],
     actual: anyhow::Result<Vec<u8>>,
@@ -815,7 +846,16 @@ pub fn assert_string_not_contains(expected: &str, actual: &str) {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use core::panic;
@@ -828,7 +868,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_bin2hex_bytes() {
-        assert_eq!(bin2hex(&[0x00, 0x01, 0xff]), "0001ff");
+        assert_eq!(bin2hex([0x00, 0x01, 0xff]), "0001ff");
     }
 
     #[crate::ctb_test]

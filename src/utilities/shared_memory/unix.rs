@@ -1,4 +1,7 @@
-#[allow(unused_imports, reason = "wildcard utilities import may include unused items")]
+#[expect(
+    unused_imports,
+    reason = "wildcard utilities import may include unused items"
+)]
 use crate::utilities::*;
 
 #[cfg(unix)]
@@ -64,7 +67,11 @@ pub fn close_fd(fd: RawFd) -> Result<()> {
 }
 
 //
-#[expect(unsafe_code, dead_code, reason = "uses raw socket sendmsg with SCM_RIGHTS, currently unused")]
+#[expect(
+    unsafe_code,
+    dead_code,
+    reason = "uses raw socket sendmsg with SCM_RIGHTS, currently unused"
+)]
 #[cfg(unix)]
 pub fn send_fd(
     stream: &std::os::unix::net::UnixStream,
@@ -128,7 +135,11 @@ pub fn send_fd(
     Ok(())
 }
 
-#[expect(unsafe_code, dead_code, reason = "uses raw socket recvmsg with SCM_RIGHTS, currently unused")]
+#[expect(
+    unsafe_code,
+    dead_code,
+    reason = "uses raw socket recvmsg with SCM_RIGHTS, currently unused"
+)]
 #[cfg(unix)]
 pub fn recv_fd(stream: &std::os::unix::net::UnixStream) -> Result<RawFd> {
     use std::mem;

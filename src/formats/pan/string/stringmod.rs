@@ -3,7 +3,11 @@
 
 use ctb_formats_applescript::escape_string;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// Escapes a string to use as an AppleScript string literal.
@@ -22,7 +26,10 @@ pub fn connect(prefix: &str, connector: &str, suffix: &str) -> String {
         (false, true) => prefix.to_owned(),
         (false, false) => {
             let mut out = String::with_capacity(
-                prefix.len().saturating_add(connector.len()).saturating_add(suffix.len()),
+                prefix
+                    .len()
+                    .saturating_add(connector.len())
+                    .saturating_add(suffix.len()),
             );
             out.push_str(prefix);
             out.push_str(connector);
@@ -376,8 +383,12 @@ pub fn sandwich(prefix: &str, root: &str, suffix: &str) -> String {
     if root.is_empty() {
         return String::new();
     }
-    let mut out =
-        String::with_capacity(prefix.len().saturating_add(root.len()).saturating_add(suffix.len()));
+    let mut out = String::with_capacity(
+        prefix
+            .len()
+            .saturating_add(root.len())
+            .saturating_add(suffix.len()),
+    );
     out.push_str(prefix);
     out.push_str(root);
     out.push_str(suffix);
@@ -462,7 +473,11 @@ pub fn randomletter(option: &str) -> Result<char> {
     };
 
     let base = if choice < 26 { b'A' } else { b'a' };
-    let offset = if choice < 26 { choice } else { choice.saturating_sub(26) };
+    let offset = if choice < 26 {
+        choice
+    } else {
+        choice.saturating_sub(26)
+    };
 
     let offset_u8 =
         u8::try_from(offset).context("randomletter(): offset overflow")?;
@@ -515,7 +530,10 @@ pub fn randomline(text: &str) -> Result<String> {
 
     let mut rng = rand::rng();
     let idx = rng.random_range(0..lines.len());
-    Ok(lines.get(idx).context("Random index out of bounds")?.to_string())
+    Ok(lines
+        .get(idx)
+        .context("Random index out of bounds")?
+        .to_string())
 }
 
 /// Returns a random whitespace-delimited word from `wordlist`.
@@ -529,11 +547,23 @@ pub fn randomword(wordlist: &str) -> Result<String> {
 
     let mut rng = rand::rng();
     let idx = rng.random_range(0..words.len());
-    Ok(words.get(idx).context("Random index out of bounds")?.to_string())
+    Ok(words
+        .get(idx)
+        .context("Random index out of bounds")?
+        .to_string())
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

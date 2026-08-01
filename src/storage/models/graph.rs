@@ -4,7 +4,7 @@
 //! Most of the graph data is not part of this struct, instead kept on disk and
 //! read as needed.
 
-#[allow(unused_imports, reason = "imported module dependencies")]
+#[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 
 use std::io::Read;
@@ -85,7 +85,7 @@ impl Graph {
         };
 
         Ok(Node {
-            id: u128::from(node_id),
+            id: node_id,
             graph_id: self.graph_id,
             node_type,
             data: converted_data,
@@ -93,7 +93,12 @@ impl Graph {
         })
     }
 
-    pub fn read_node(&self, owner: &User, id: u128, _remote: bool) -> Result<Node> {
+    pub fn read_node(
+        &self,
+        owner: &User,
+        id: u128,
+        _remote: bool,
+    ) -> Result<Node> {
         let token = owner
             .session_token()
             .ok_or_else(|| anyhow::anyhow!("No active session token for user"))?
@@ -107,7 +112,8 @@ impl Graph {
         // TODO
         // Local user graphs are writable by the user
         if self.graph_id > 0
-            && usize::try_from(self.graph_id).expect("u128 did not fit in usize")
+            && usize::try_from(self.graph_id)
+                .expect("u128 did not fit in usize")
                 <= user.get_graph_count()
         {
             return true;
@@ -119,11 +125,24 @@ impl Graph {
         ipcb!(storage).allocate_next_system_id_b(session_token)
     }
 
-    pub fn import_node(&self, session_token: &str, package: &[u8], target_id: Option<u128>) -> Result<u128> {
-        ipcb!(storage).publish_packaged_node_to_global_b(session_token, package.to_vec(), target_id)
+    pub fn import_node(
+        &self,
+        session_token: &str,
+        package: &[u8],
+        target_id: Option<u128>,
+    ) -> Result<u128> {
+        ipcb!(storage).publish_packaged_node_to_global_b(
+            session_token,
+            package.to_vec(),
+            target_id,
+        )
     }
 
-    pub fn import_node_for_global_graph(&self, session_token: &str, package: &[u8]) -> Result<u128> {
+    pub fn import_node_for_global_graph(
+        &self,
+        session_token: &str,
+        package: &[u8],
+    ) -> Result<u128> {
         self.import_node(session_token, package, None)
     }
 }
@@ -136,7 +155,16 @@ pub fn get_test_graph(username: &str) -> Graph {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use anyhow::Context;
 

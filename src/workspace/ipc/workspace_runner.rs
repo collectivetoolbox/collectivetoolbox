@@ -10,7 +10,11 @@
 //!
 //! It runs the workspace's [`Workspace::run`] concurrently with this IPC loop.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use crate::workspace_runner::workspace_runtime::{
     ShutdownState, WorkspaceRuntime,
@@ -356,7 +360,7 @@ impl<W: Workspace> WorkspaceRunner<W> {
         &self.socket_path
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     fn runtime(&self) -> WorkspaceRuntime {
         WorkspaceRuntime {
             socket_path: self.socket_path.clone(),
@@ -382,7 +386,10 @@ impl<W: Workspace> WorkspaceRunner<W> {
     /// - your workspace `run()` function
     ///
     /// The IPC loop starts first, then `run()` is awaited concurrently.
-    #[allow(clippy::too_many_lines, reason = "uniform runner run loop is naturally long")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "uniform runner run loop is naturally long"
+    )]
     pub async fn run(self) -> Result<WorkspaceStats> {
         // Simply explained: this function is the "real" top-level loop.
         //
@@ -735,7 +742,9 @@ impl<W: Workspace> WorkspaceRunner<W> {
 
         let is_singleton_target = {
             let singleton_pids = rt.singleton_pids.lock().await;
-            singleton_pids.values().any(|&pid| pid == request.target_pid)
+            singleton_pids
+                .values()
+                .any(|&pid| pid == request.target_pid)
         };
 
         let allowed = if is_singleton_target {
@@ -955,7 +964,16 @@ impl<W: Workspace> WorkspaceRunner<W> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

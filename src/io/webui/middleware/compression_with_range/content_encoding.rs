@@ -13,7 +13,7 @@ pub(crate) trait SupportedEncodings: Copy {
 // This enum's variants are ordered from least to most preferred.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq)]
 pub(crate) enum Encoding {
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     Identity,
     Deflate,
     Gzip,
@@ -22,7 +22,7 @@ pub(crate) enum Encoding {
 }
 
 impl Encoding {
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     fn to_str(self) -> &'static str {
         match self {
             Encoding::Gzip => "gzip",
@@ -43,7 +43,7 @@ impl Encoding {
         }
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn into_header_value(self) -> http::HeaderValue {
         http::HeaderValue::from_static(self.to_str())
     }
@@ -116,11 +116,11 @@ impl QValue {
         match c.next() {
             Some('q' | 'Q') => (),
             _ => return None,
-        };
+        }
         match c.next() {
             Some('=') => (),
             _ => return None,
-        };
+        }
 
         // Parse leading digit. Since valid q-values are between 0.000 and 1.000, only "0" and "1"
         // are allowed.
@@ -135,7 +135,7 @@ impl QValue {
             Some('.') => (),
             None => return Some(Self(value)),
             _ => return None,
-        };
+        }
 
         // Parse optional fractional digits. The value of each digit is multiplied by `factor`.
         // Since the q-value is represented as an integer between 0 and 1000, `factor` is `100` for
@@ -149,7 +149,10 @@ impl QValue {
                     if factor < 1 {
                         return None;
                     }
-                    let digit = u16::try_from(n).expect("In range?").saturating_sub(u16::try_from('0').expect("Should be in range"));
+                    let digit =
+                        u16::try_from(n).expect("In range?").saturating_sub(
+                            u16::try_from('0').expect("Should be in range"),
+                        );
                     let product = factor.saturating_mul(digit);
                     value = value.saturating_add(product);
                 }
@@ -163,7 +166,7 @@ impl QValue {
                     };
                 }
                 _ => return None,
-            };
+            }
             factor = factor.checked_div(10).unwrap_or(0);
         }
     }
@@ -238,23 +241,22 @@ fn preferred_encoding_with_wildcard(
     // If there is no wildcard, use only the explicitly listed encodings.
     // Per RFC 9110 §12.5.3, if identity is excluded (q=0) and no other encoding is
     // acceptable, the server SHOULD respond with 406.
-    let wildcard_q = match wildcard_q {
-        Some(q) => q,
-        None => {
-            let identity_rejected = explicit
-                .iter()
-                .any(|(enc, q)| *enc == Encoding::Identity && q.0 == 0);
-            return match Encoding::preferred_encoding(explicit.into_iter()) {
-                Some(enc) => Some(enc),
-                None => {
-                    if identity_rejected {
-                        None
-                    } else {
-                        Some(Encoding::Identity)
-                    }
+    let wildcard_q = if let Some(q) = wildcard_q {
+        q
+    } else {
+        let identity_rejected = explicit
+            .iter()
+            .any(|(enc, q)| *enc == Encoding::Identity && q.0 == 0);
+        return match Encoding::preferred_encoding(explicit.into_iter()) {
+            Some(enc) => Some(enc),
+            None => {
+                if identity_rejected {
+                    None
+                } else {
+                    Some(Encoding::Identity)
                 }
-            };
-        }
+            }
+        };
     };
 
     // Build the effective set of (encoding, qvalue) for all supported encodings.
@@ -266,8 +268,7 @@ fn preferred_encoding_with_wildcard(
         let q = explicit
             .iter()
             .find(|(e, _)| *e == enc)
-            .map(|(_, q)| *q)
-            .unwrap_or(wildcard_q);
+            .map_or(wildcard_q, |(_, q)| *q);
         (enc, q)
     });
 
@@ -313,7 +314,16 @@ fn all_supported_encodings(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

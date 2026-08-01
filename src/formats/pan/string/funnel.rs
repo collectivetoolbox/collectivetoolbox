@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 //! Funnel-style substring extraction.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 #[derive(Debug, Clone)]
@@ -161,7 +165,7 @@ fn find_pattern(chars: &[char], pat: &Pattern) -> Option<usize> {
 
     if pat.reverse {
         for i in (0..chars.len()).rev() {
-            if chars.get(i).map_or(false, |&ch| matches(ch)) {
+            if chars.get(i).is_some_and(|&ch| matches(ch)) {
                 return Some(i);
             }
         }
@@ -254,7 +258,11 @@ fn adjust_start_for_negated_alnum_run(chars: &[char], start: usize) -> usize {
         before_prev.is_ascii_whitespace() || before_prev == ','
     };
 
-    if preceded_by_delim { start.saturating_sub(1) } else { start }
+    if preceded_by_delim {
+        start.saturating_sub(1)
+    } else {
+        start
+    }
 }
 
 /// Extracts a substring using a funnel specification.
@@ -353,7 +361,16 @@ pub fn funnel(text: &str, funnel: &str) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

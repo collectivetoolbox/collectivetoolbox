@@ -1,6 +1,10 @@
 //! Session-layer helpers for framed IPC transports.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::auth::capability::TokenValidator;

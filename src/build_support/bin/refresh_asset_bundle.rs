@@ -44,12 +44,17 @@ fn main() -> Result<()> {
                     output_fs_json,
                     true,
                 )?;
-                let initrd_path = output_dir.parent().unwrap().join("guix_posix_initrd.cpio.gz");
-                return v86_packer::build_custom_initrd(output_fs_json, &initrd_path);
+                let initrd_path = output_dir
+                    .parent()
+                    .unwrap()
+                    .join("guix_posix_initrd.cpio.gz");
+                return v86_packer::build_custom_initrd(
+                    output_fs_json,
+                    &initrd_path,
+                );
             }
         }
     }
-
 
     let workspace_root = workspace_root_from_args()?;
     let options = PrepareOptions {
@@ -78,7 +83,9 @@ fn workspace_root_from_args() -> Result<PathBuf> {
     let mut args = env::args_os();
     let _program = args.next();
     let Some(root) = args.next() else {
-        bail!("usage: refresh-asset-bundle <workspace-root> OR --pack-v86-dir/tar <input> <out-flat-dir> <out-fs-json>");
+        bail!(
+            "usage: refresh-asset-bundle <workspace-root> OR --pack-v86-dir/tar <input> <out-flat-dir> <out-fs-json>"
+        );
     };
     if args.next().is_some() {
         bail!("usage: refresh-asset-bundle <workspace-root>");

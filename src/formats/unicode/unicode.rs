@@ -5,7 +5,11 @@
 //! - Conversion of scalars to surrogates and vice versa
 //! - UCS-2 encoding and decoding from scalars
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
@@ -158,7 +162,16 @@ pub fn u16_vec_to_le_bytes(v: &[u16]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -198,7 +211,7 @@ mod tests {
         // Invalid codepoint above U+10FFFF
         let scalars = vec![0x110000];
         let result = ucs2encode(&scalars);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -206,7 +219,7 @@ mod tests {
         // Invalid codepoint above U+10FFFF
         let scalars = vec![0x110000];
         let result = scalars_to_unpaired_surrogates(&scalars);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]

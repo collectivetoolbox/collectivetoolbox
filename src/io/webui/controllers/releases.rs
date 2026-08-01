@@ -583,9 +583,9 @@ pub async fn get_offline_tarball(
     headers: HeaderMap,
     Path((platform, version)): Path<(String, String)>,
 ) -> Response {
-    use tokio::io::{AsyncReadExt, AsyncSeekExt};
     use crate::controllers::base::SizedStreamBody;
     use std::io::Write;
+    use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
     // Validate and load tarball
     let tarball = match load_tarball_for_version(
@@ -611,10 +611,11 @@ pub async fn get_offline_tarball(
         }
     };
 
-    let releases_dir = match get_releases_dir(state.storage_dir_override.as_ref()) {
-        Ok(d) => d,
-        Err(e) => return error_400(&state, &req, e),
-    };
+    let releases_dir =
+        match get_releases_dir(state.storage_dir_override.as_ref()) {
+            Ok(d) => d,
+            Err(e) => return error_400(&state, &req, e),
+        };
     let cache_dir = if state.storage_dir_override.is_some() {
         releases_dir.join("downloads_cache")
     } else {
@@ -625,7 +626,8 @@ pub async fn get_offline_tarball(
     };
 
     let resolved_version = tarball.version();
-    let download_file_name = format!("ctoolbox-{platform}-{resolved_version}.tar");
+    let download_file_name =
+        format!("ctoolbox-{platform}-{resolved_version}.tar");
     let cached_file_path = cache_dir.join(&download_file_name);
 
     // Coordinate concurrent generation
@@ -657,21 +659,23 @@ pub async fn get_offline_tarball(
         let cached_file_path_clone = cached_file_path.clone();
         let tarball_clone = tarball.clone();
 
-        let generate_res = tokio::task::spawn_blocking(move || -> Result<()> {
-            let temp_file_path = cached_file_path_clone.with_extension("tmp");
-            if let Some(parent) = temp_file_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let mut file = std::fs::File::create(&temp_file_path)?;
-            let mut stream = TarballStream::new(tarball_clone);
-            while let Some(chunk) = stream.next_chunk()? {
-                file.write_all(&chunk)?;
-            }
-            file.flush()?;
-            std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
-            Ok(())
-        })
-        .await;
+        let generate_res =
+            tokio::task::spawn_blocking(move || -> Result<()> {
+                let temp_file_path =
+                    cached_file_path_clone.with_extension("tmp");
+                if let Some(parent) = temp_file_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut file = std::fs::File::create(&temp_file_path)?;
+                let mut stream = TarballStream::new(tarball_clone);
+                while let Some(chunk) = stream.next_chunk()? {
+                    file.write_all(&chunk)?;
+                }
+                file.flush()?;
+                std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
+                Ok(())
+            })
+            .await;
 
         // Clean up from the generating set
         let mut generating = state.generating_downloads.lock().await;
@@ -681,8 +685,10 @@ pub async fn get_offline_tarball(
         match generate_res {
             Ok(Ok(())) => {}
             Ok(Err(error)) => {
-                let fallback_url =
-                    format!("{}/releases/{platform}/{version}.tar", default_url());
+                let fallback_url = format!(
+                    "{}/releases/{platform}/{version}.tar",
+                    default_url()
+                );
                 return if environment::is_official_public_website() {
                     error_404(&state, &req, error.to_string())
                 } else {
@@ -699,11 +705,23 @@ pub async fn get_offline_tarball(
     // Serve the cached file
     let file = match tokio::fs::File::open(&cached_file_path).await {
         Ok(f) => f,
-        Err(e) => return error_400(&state, &req, anyhow!("Failed to open cached tarball file: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                anyhow!("Failed to open cached tarball file: {e}"),
+            );
+        }
     };
     let metadata = match file.metadata().await {
         Ok(m) => m,
-        Err(e) => return error_400(&state, &req, anyhow!("Failed to read cached tarball metadata: {e}")),
+        Err(e) => {
+            return error_400(
+                &state,
+                &req,
+                anyhow!("Failed to read cached tarball metadata: {e}"),
+            );
+        }
     };
     let total_size = metadata.len();
 
@@ -712,7 +730,11 @@ pub async fn get_offline_tarball(
     if let Some((start, end)) = range {
         let mut file = file;
         if let Err(e) = file.seek(std::io::SeekFrom::Start(start)).await {
-            return error_400(&state, &req, anyhow!("Failed to seek cached file: {e}"));
+            return error_400(
+                &state,
+                &req,
+                anyhow!("Failed to seek cached file: {e}"),
+            );
         }
         let content_length = end.saturating_sub(start);
         let stream = ReaderStream::new(file.take(content_length));
@@ -732,11 +754,13 @@ pub async fn get_offline_tarball(
         headers_mut
             .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
 
-        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string()) {
+        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string())
+        {
             headers_mut.insert(header::CONTENT_LENGTH, len_val);
         }
 
-        let range_str = format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
+        let range_str =
+            format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
         if let Ok(range_val) = HeaderValue::from_str(&range_str) {
             headers_mut.insert(header::CONTENT_RANGE, range_val);
         }
@@ -869,8 +893,6 @@ fn load_tarball_for_version(
     })
 }
 
-
-
 /// Parses the Range header and returns the start and end byte positions.
 ///
 /// Returns `Some((start, end))` if a valid range was specified, where `end`
@@ -906,8 +928,6 @@ pub(crate) fn parse_range_header(
 
     Some((start, end))
 }
-
-
 
 /// Validates that a string is a valid SHA-256 chunk hash (64 hex characters).
 fn is_valid_chunk_hash(hash: &str) -> bool {
@@ -1229,7 +1249,16 @@ pub async fn calculate_download_sizes(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -1400,10 +1429,15 @@ mod tests {
         assert!(full_body.len() > 1024); // Must have at least the directory header, manifest, and 1024 trailing null bytes
 
         // Check that the cached file was created on disk
-        let cache_file_path = releases_dir.join("downloads_cache").join("ctoolbox-linux-x64-0.1.0.tar");
+        let cache_file_path = releases_dir
+            .join("downloads_cache")
+            .join("ctoolbox-linux-x64-0.1.0.tar");
         assert!(cache_file_path.exists());
         let cached_metadata = fs::metadata(&cache_file_path).unwrap();
-        assert_eq!(cached_metadata.len(), u64::try_from(full_body.len()).unwrap());
+        assert_eq!(
+            cached_metadata.len(),
+            u64::try_from(full_body.len()).unwrap()
+        );
 
         // 2. Request range from cached file
         let mut headers = HeaderMap::new();

@@ -3,7 +3,11 @@
 //! Note that wfscan isn't itself a format; these are utilities for working
 //! with other formats.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
@@ -77,7 +81,16 @@ pub fn wfscan_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -85,10 +98,14 @@ mod tests {
     fn test_wfparser_wfscan_fixtures() {
         let input_data = get_wfscan_data("fixtures/Sample with patterns.pan")
             .expect("input fixture not found");
-        let parser_expected = get_wfscan_data("fixtures/Sample_with_patterns.pan.parser.expected")
-            .expect("parser expected fixture not found");
-        let scanner_expected = get_wfscan_data("fixtures/Sample_with_patterns.pan.scanner.expected")
-            .expect("scanner expected fixture not found");
+        let parser_expected = get_wfscan_data(
+            "fixtures/Sample_with_patterns.pan.parser.expected",
+        )
+        .expect("parser expected fixture not found");
+        let scanner_expected = get_wfscan_data(
+            "fixtures/Sample_with_patterns.pan.scanner.expected",
+        )
+        .expect("scanner expected fixture not found");
 
         let parser_actual = wfparse(&input_data).expect("wfparse failed");
         let scanner_actual = wfscan(&input_data).expect("wfscan failed");

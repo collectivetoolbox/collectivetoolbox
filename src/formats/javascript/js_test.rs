@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, bail};
@@ -104,38 +108,44 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
     let file_path = std::fs::canonicalize(file_path)?;
     let cwd = std::fs::canonicalize(std::env::current_dir()?)?;
 
-    let (mut context, loader) = ctb_formats_javascript_boa_host::create_context_with_bindings(
-        &file_path,
-        &cwd,
-        &[],
-        false,
-    )?;
+    let (mut context, loader) =
+        ctb_formats_javascript_boa_host::create_context_with_bindings(
+            &file_path,
+            &cwd,
+            &[],
+            false,
+        )?;
 
     // Register assertions
     context
         .eval(boa_engine::Source::from_bytes(ASSERT_JS.as_bytes()))
-        .map_err(|e| anyhow::anyhow!("Failed to evaluate assert helpers: {}", e))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to evaluate assert helpers: {e}")
+        })?;
 
     // Load and evaluate the test file module
-    let entry_source = boa_engine::Source::from_filepath(&file_path).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to open entry file '{}': {}",
-            file_path.display(),
-            e
-        )
-    })?;
+    let entry_source =
+        boa_engine::Source::from_filepath(&file_path).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to open entry file '{}': {}",
+                file_path.display(),
+                e
+            )
+        })?;
     let module = boa_engine::Module::parse(entry_source, None, &mut context)
-        .map_err(|e| anyhow::anyhow!("Failed to parse module: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse module: {e}"))?;
 
     loader.insert(file_path.clone(), module.clone());
 
     let promise = module.load_link_evaluate(&mut context);
     context
         .run_jobs()
-        .map_err(|e| anyhow::anyhow!("Failed to run jobs: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to run jobs: {e}"))?;
 
     // Verify promise state
-    if let boa_engine::builtins::promise::PromiseState::Rejected(err) = promise.state() {
+    if let boa_engine::builtins::promise::PromiseState::Rejected(err) =
+        promise.state()
+    {
         let js_err = boa_engine::JsError::from_opaque(err);
         let erased = js_err.into_erased(&mut context);
         let mut stack_trace = String::new();
@@ -145,16 +155,12 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
             let path = format!("{}", loc.path);
             let pos = loc
                 .position
-                .map(|p| {
-                    format!(":{}:{}", p.line_number(), p.column_number())
-                })
+                .map(|p| format!(":{}:{}", p.line_number(), p.column_number()))
                 .unwrap_or_default();
-            stack_trace.push_str(&format!("    at {} ({}{})\n", name, path, pos));
+            stack_trace.push_str(&format!("    at {name} ({path}{pos})\n"));
         }
         bail!(
-            "Module evaluation rejected: {:?}\nJS Stack Trace:\n{}",
-            erased,
-            stack_trace
+            "Module evaluation rejected: {erased:?}\nJS Stack Trace:\n{stack_trace}"
         );
     }
 
@@ -164,15 +170,19 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
     // 1. From module namespace exports
     let namespace = module.namespace(&mut context);
     let keys = namespace.own_property_keys(&mut context).map_err(|e| {
-        anyhow::anyhow!("Failed to get namespace property keys: {}", e)
+        anyhow::anyhow!("Failed to get namespace property keys: {e}")
     })?;
     for key in keys {
         if let boa_engine::property::PropertyKey::String(js_str) = key {
             let name = js_str.to_std_string_escaped();
             if name.starts_with("test_") {
-                let val = namespace.get(js_str.clone(), &mut context).map_err(|e| {
-                    anyhow::anyhow!("Failed to get namespace property '{}': {}", name, e)
-                })?;
+                let val = namespace.get(js_str.clone(), &mut context).map_err(
+                    |e| {
+                        anyhow::anyhow!(
+                            "Failed to get namespace property '{name}': {e}"
+                        )
+                    },
+                )?;
                 if val.is_callable() {
                     test_funcs.push((name, val));
                 }
@@ -182,16 +192,21 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
 
     // 2. From globalThis
     let global_obj = context.global_object();
-    let global_keys = global_obj.own_property_keys(&mut context).map_err(|e| {
-        anyhow::anyhow!("Failed to get global property keys: {}", e)
-    })?;
+    let global_keys =
+        global_obj.own_property_keys(&mut context).map_err(|e| {
+            anyhow::anyhow!("Failed to get global property keys: {e}")
+        })?;
     for key in global_keys {
         if let boa_engine::property::PropertyKey::String(js_str) = key {
             let name = js_str.to_std_string_escaped();
             if name.starts_with("test_") {
-                let val = global_obj.get(js_str.clone(), &mut context).map_err(|e| {
-                    anyhow::anyhow!("Failed to get global property '{}': {}", name, e)
-                })?;
+                let val = global_obj
+                    .get(js_str.clone(), &mut context)
+                    .map_err(|e| {
+                        anyhow::anyhow!(
+                            "Failed to get global property '{name}': {e}"
+                        )
+                    })?;
                 if val.is_callable() {
                     if !test_funcs.iter().any(|(n, _)| n == &name) {
                         test_funcs.push((name, val));
@@ -209,18 +224,19 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
 
     for (name, val) in test_funcs {
         total = total.saturating_add(1);
-        print!("  - {} ... ", name);
+        print!("  - {name} ... ");
         std::io::Write::flush(&mut std::io::stdout())?;
 
         let start = std::time::Instant::now();
         let obj = val.as_object().unwrap();
-        let result = obj.call(&boa_engine::JsValue::undefined(), &[], &mut context);
+        let result =
+            obj.call(&boa_engine::JsValue::undefined(), &[], &mut context);
 
         let test_result = match result {
             Ok(res_val) => {
                 let run_jobs_res = context.run_jobs();
                 match run_jobs_res {
-                    Ok(_) => {
+                    Ok(()) => {
                         // Check if returned value is a promise
                         if let Some(promise) = res_val.as_promise() {
                             match promise.state() {
@@ -251,7 +267,7 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
         let duration = start.elapsed();
 
         match test_result {
-            Ok(_) => {
+            Ok(()) => {
                 println!("OK ({}ms)", duration.as_millis());
             }
             Err(js_err) => {
@@ -265,15 +281,20 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
                     let pos = loc
                         .position
                         .map(|p| {
-                            format!(":{}:{}", p.line_number(), p.column_number())
+                            format!(
+                                ":{}:{}",
+                                p.line_number(),
+                                p.column_number()
+                            )
                         })
                         .unwrap_or_default();
-                    stack_trace.push_str(&format!("    at {} ({}{})\n", name, path, pos));
+                    stack_trace
+                        .push_str(&format!("    at {name} ({path}{pos})\n"));
                 }
                 println!("FAIL");
-                println!("    Error: {:?}", erased);
+                println!("    Error: {erased:?}");
                 if !stack_trace.is_empty() {
-                    println!("    JS Stack Trace:\n{}", stack_trace);
+                    println!("    JS Stack Trace:\n{stack_trace}");
                 }
             }
         }
@@ -295,7 +316,9 @@ pub fn run_test_args(args: &JsTestArgs) -> Result<i32> {
     for entry in walkdir::WalkDir::new(folder_path) {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("js") {
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("js")
+        {
             js_files.push(path.to_path_buf());
         }
     }
@@ -327,7 +350,7 @@ pub fn run_test_args(args: &JsTestArgs) -> Result<i32> {
             }
             Err(e) => {
                 failed_files = failed_files.saturating_add(1);
-                println!("  Failed to load/run test file: {}", e);
+                println!("  Failed to load/run test file: {e}");
             }
         }
         println!();
@@ -351,7 +374,16 @@ pub fn run_test_args(args: &JsTestArgs) -> Result<i32> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
@@ -365,14 +397,14 @@ mod tests {
         let pass_file = path.join("test_pass.js");
         std::fs::write(
             &pass_file,
-            r#"
+            r"
             export function test_assert_true() {
                 assert(true);
             }
             export function test_assertSame() {
                 assertSame(5, 5);
             }
-            "#,
+            ",
         )
         .unwrap();
 

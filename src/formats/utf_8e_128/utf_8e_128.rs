@@ -1,6 +1,9 @@
 //! "UTF-8e-128"/DcUtf encoding and decoding (UTF-8 extended to 128-bit integers)
 
-#[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 // FIXME: Can this be simplified by leaning on Rust's native UTF-8 en/decoding?
@@ -84,7 +87,10 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     }
     assert!(l <= 22, "Value requires more than 132 bits?");
 
-    assert!(buf.len() >= 2usize.saturating_add(l), "Buffer too small for extended encoding");
+    assert!(
+        buf.len() >= 2usize.saturating_add(l),
+        "Buffer too small for extended encoding"
+    );
 
     // Extract groups big-endian: groups[0] is first (most significant) group
     let mut groups = [0u8; 22];
@@ -101,7 +107,7 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     }
 
     // Canonical rule: first payload group must be non-zero (value > 0)
-    debug_assert!(groups.get(0).copied().unwrap_or(0) != 0);
+    debug_assert!(groups.first().copied().unwrap_or(0) != 0);
 
     if let Some(b) = buf.get_mut(0) {
         *b = 0xFF;
@@ -121,7 +127,7 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     // top 4 bits of first payload group must be zero (they are the unused padding bits).
     if l == 22 {
         debug_assert!(
-            (groups.get(0).copied().unwrap_or(0) & 0x3C) == 0,
+            (groups.first().copied().unwrap_or(0) & 0x3C) == 0,
             "Non-zero padding bits in 22-byte encoding"
         );
     }
@@ -161,12 +167,12 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
         }
 
         // Canonical: first group not zero
-        if groups.get(0).copied().unwrap_or(0) == 0 {
+        if groups.first().copied().unwrap_or(0) == 0 {
             return None;
         }
 
         // If l == 22, top 4 bits of first group (padding) must be zero.
-        if l == 22 && (groups.get(0).copied().unwrap_or(0) & 0x3C) != 0 {
+        if l == 22 && (groups.first().copied().unwrap_or(0) & 0x3C) != 0 {
             return None;
         }
 
@@ -177,7 +183,7 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
             return None; // should not happen with l<=22 and u128 output
         }
 
-        let g0 = groups.get(0).copied().unwrap_or(0);
+        let g0 = groups.first().copied().unwrap_or(0);
         // Ensure the extra (padding) high bits are zero
         if extra > 0 && (g0 >> (6usize.saturating_sub(extra))) != 0 {
             return None;
@@ -186,7 +192,8 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
         let mut value: u128 = 0;
         if extra < 6 {
             // Take lower (6 - extra) bits of first group
-            let first_payload_bits = g0 & ((1u8 << (6usize.saturating_sub(extra))).saturating_sub(1));
+            let first_payload_bits = g0
+                & ((1u8 << (6usize.saturating_sub(extra))).saturating_sub(1));
             value = u128::from(first_payload_bits);
         }
         for i in 1..l {
@@ -270,7 +277,9 @@ pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
 
     let mut buf = [0u8; 24];
     let used_len = bytes.len().min(24);
-    if let (Some(dst), Some(src)) = (buf.get_mut(..used_len), bytes.get(..used_len)) {
+    if let (Some(dst), Some(src)) =
+        (buf.get_mut(..used_len), bytes.get(..used_len))
+    {
         dst.copy_from_slice(src);
     }
 
@@ -278,9 +287,15 @@ pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
         Some(x)
     } else {
         // Overwrite buffer with replacement character [0xEF, 0xBF, 0xBD]
-        if let Some(b) = buf.get_mut(0) { *b = 0xEF; }
-        if let Some(b) = buf.get_mut(1) { *b = 0xBF; }
-        if let Some(b) = buf.get_mut(2) { *b = 0xBD; }
+        if let Some(b) = buf.get_mut(0) {
+            *b = 0xEF;
+        }
+        if let Some(b) = buf.get_mut(1) {
+            *b = 0xBF;
+        }
+        if let Some(b) = buf.get_mut(2) {
+            *b = 0xBD;
+        }
         if let Some(slice) = buf.get_mut(3..) {
             for b in slice {
                 *b = 0;
@@ -302,13 +317,25 @@ pub fn encode(codepoint: u128) -> Vec<u8> {
 ///
 /// Returns `(value, used_len)` on success, or `None` if the bytes are not a
 /// valid prefix for the encoding.
-#[expect(clippy::needless_pass_by_value, reason = "IPC method signature requires Vec<u8>")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "IPC method signature requires Vec<u8>"
+)]
 pub fn decode(bytes: Vec<u8>) -> Option<(u128, usize)> {
     decode_utf_8e_128(&bytes)
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -381,7 +408,8 @@ mod tests {
         // Determine minimal groups for 0x10FFFF
         let val = 0x10FFFFu128;
         let bits = 128usize.saturating_sub(
-            usize::try_from(val.leading_zeros()).expect("Failed to create usize"),
+            usize::try_from(val.leading_zeros())
+                .expect("Failed to create usize"),
         );
         let l = bits.div_ceil(6);
         bytes.push(0x80 | u8::try_from(l).expect("Failed to create byte"));

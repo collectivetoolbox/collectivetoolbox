@@ -170,7 +170,10 @@ fn is_test_attribute(attr: &Attribute) -> bool {
     ];
     let is_single_test_segment = path.leading_colon.is_none()
         && path.segments.len() == 1
-        && path.segments.first().is_some_and(|seg| seg.arguments.is_none() && seg.ident == "test");
+        && path
+            .segments
+            .first()
+            .is_some_and(|seg| seg.arguments.is_none() && seg.ident == "test");
     if is_single_test_segment {
         return true;
     } else if path.segments.len() != candidates.first().map_or(0, |c| c.len()) {
@@ -210,7 +213,10 @@ fn get_free_scope(mut test_fn_name: String) -> String {
     test_fn_name
 }
 
-#[expect(clippy::too_many_lines, reason = "try_test implements complex macro expansion logic")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "try_test implements complex macro expansion logic"
+)]
 fn try_test(
     attr: TokenStream,
     item: TokenStream,

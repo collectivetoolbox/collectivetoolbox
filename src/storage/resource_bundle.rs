@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use ctb_formats_ctb_asset_bundle as asset_bundle_format;
@@ -16,10 +20,13 @@ use uuid::Uuid;
 use std::os::unix::fs::OpenOptionsExt;
 
 const EXPECTED_RESOURCE_BUNDLE_UUID: &str = env!("CTB_ASSET_PACK_UUID");
-const EXPECTED_RESOURCE_BUNDLE_SHA256: Option<&str> = option_env!("CTB_ASSET_PACK_SHA256");
+const EXPECTED_RESOURCE_BUNDLE_SHA256: Option<&str> =
+    option_env!("CTB_ASSET_PACK_SHA256");
 
-const EXPECTED_V86_RESOURCE_BUNDLE_UUID: Option<&str> = option_env!("CTB_V86_ASSET_PACK_UUID");
-const EXPECTED_V86_RESOURCE_BUNDLE_SHA256: Option<&str> = option_env!("CTB_V86_ASSET_PACK_SHA256");
+const EXPECTED_V86_RESOURCE_BUNDLE_UUID: Option<&str> =
+    option_env!("CTB_V86_ASSET_PACK_UUID");
+const EXPECTED_V86_RESOURCE_BUNDLE_SHA256: Option<&str> =
+    option_env!("CTB_V86_ASSET_PACK_SHA256");
 
 static PROJECT_ASSETS: OnceLock<Result<ResourceBundle, String>> =
     OnceLock::new();
@@ -94,7 +101,8 @@ fn verify_bundle_integrity(
     }
 
     if let Some(exp_sha) = expected_sha256 {
-        let found_sha = asset_bundle_format::format_sha256_hex(&header.content_sha256);
+        let found_sha =
+            asset_bundle_format::format_sha256_hex(&header.content_sha256);
         if found_sha != exp_sha {
             let msg = format!(
                 "Resource bundle SHA256 mismatch in {bundle_name}: expected {exp_sha}, found {found_sha}"
@@ -114,7 +122,7 @@ impl ResourceBundle {
     fn load() -> Result<Self> {
         let bundle_path = find_resource_bundle_path()?;
         let file = open_resource_bundle_file(&bundle_path)?;
-        #[allow(unsafe_code, reason = "Mmap requires unsafe")]
+        #[expect(unsafe_code, reason = "Mmap requires unsafe")]
         // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
         let main_mmap = unsafe { Mmap::map(&file) }.with_context(|| {
             format!("Failed to map {}", bundle_path.display())
@@ -138,12 +146,18 @@ impl ResourceBundle {
 
         for parsed_entry in parsed.entries {
             if parsed_entry.path.ends_with(".rsrc") {
-                if let Some(inner_bytes) = main_mmap_ref.get(parsed_entry.data_range.clone()) {
-                    if let Ok(inner_bundle) = asset_bundle_format::parse_asset_bundle(inner_bytes) {
+                if let Some(inner_bytes) =
+                    main_mmap_ref.get(parsed_entry.data_range.clone())
+                {
+                    if let Ok(inner_bundle) =
+                        asset_bundle_format::parse_asset_bundle(inner_bytes)
+                    {
                         let offset = parsed_entry.data_range.start;
                         for inner_entry in inner_bundle.entries {
-                            let abs_start = offset.saturating_add(inner_entry.data_range.start);
-                            let abs_end = offset.saturating_add(inner_entry.data_range.end);
+                            let abs_start = offset
+                                .saturating_add(inner_entry.data_range.start);
+                            let abs_end = offset
+                                .saturating_add(inner_entry.data_range.end);
                             let entry_index = entries.len();
                             entries.push(ResourceBundleEntry {
                                 path: inner_entry.path.clone(),
@@ -172,10 +186,12 @@ impl ResourceBundle {
         let v86_path = bundle_path.with_file_name("v86_images.rsrc");
         if v86_path.is_file() {
             if let Ok(v86_file) = open_resource_bundle_file(&v86_path) {
-                #[allow(unsafe_code, reason = "Mmap requires unsafe")]
+                #[expect(unsafe_code, reason = "Mmap requires unsafe")]
                 // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
                 if let Ok(v86_mmap) = unsafe { Mmap::map(&v86_file) } {
-                    if let Ok(parsed_v86) = asset_bundle_format::parse_asset_bundle(&v86_mmap) {
+                    if let Ok(parsed_v86) =
+                        asset_bundle_format::parse_asset_bundle(&v86_mmap)
+                    {
                         let verify_res = verify_bundle_integrity(
                             &v86_path.display().to_string(),
                             &parsed_v86.header,
@@ -192,7 +208,8 @@ impl ResourceBundle {
                                     mmap_index: mmap_idx,
                                     data_range: parsed_entry.data_range,
                                 });
-                                entry_by_path.insert(parsed_entry.path, entry_index);
+                                entry_by_path
+                                    .insert(parsed_entry.path, entry_index);
                             }
                         }
                     }

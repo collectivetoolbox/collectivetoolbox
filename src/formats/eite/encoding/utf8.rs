@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow, bail};
@@ -11,7 +15,8 @@ pub fn utf8_char_array_from_byte_array(bytes: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u8> = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
-        let (mut temp, consumed) = first_char_of_utf8_string(bytes.get(i..).unwrap_or(&[]))?;
+        let (mut temp, consumed) =
+            first_char_of_utf8_string(bytes.get(i..).unwrap_or(&[]))?;
         out.append(&mut temp);
         i = i.saturating_add(consumed);
     }
@@ -80,11 +85,23 @@ pub fn last_utf8_codepoint(bytes: &[u8]) -> (u32, usize) {
         }
     }
     // Fallback: last byte.
-    (u32::from(bytes.get(len.saturating_sub(1)).copied().unwrap_or(0)), 1)
+    (
+        u32::from(bytes.get(len.saturating_sub(1)).copied().unwrap_or(0)),
+        1,
+    )
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use const_default::ConstDefault;
 

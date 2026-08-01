@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
@@ -268,7 +272,16 @@ pub fn get_width() -> u16 {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -282,14 +295,17 @@ mod tests {
     async fn test_csum_command() {
         let temp_dir = tempfile::tempdir().expect("Create temp dir");
         let temp_file_path = temp_dir.path().join("csum_test_temp.txt");
-        std::fs::write(&temp_file_path, b"hello world").expect("Write temp file");
+        std::fs::write(&temp_file_path, b"hello world")
+            .expect("Write temp file");
 
         let cmd = Command::Csum {
             algo: "xxhash32".to_string(),
             file: temp_file_path.clone(),
             prefix_0x: false,
         };
-        let result = run_lightweight_command(&cmd).await.expect("Run lightweight command");
+        let result = run_lightweight_command(&cmd)
+            .await
+            .expect("Run lightweight command");
         match result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "cebb6622\n");
@@ -302,7 +318,9 @@ mod tests {
             file: temp_file_path.clone(),
             prefix_0x: true,
         };
-        let result_0x = run_lightweight_command(&cmd_0x).await.expect("Run lightweight command");
+        let result_0x = run_lightweight_command(&cmd_0x)
+            .await
+            .expect("Run lightweight command");
         match result_0x {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "0xcebb6622\n");
@@ -315,15 +333,21 @@ mod tests {
     async fn test_wfparser_wfscan_commands() {
         let temp_dir = tempfile::tempdir().expect("Create temp dir");
         let temp_file_path = temp_dir.path().join("wf_test.pan");
-        std::fs::write(&temp_file_path, b"(Hello <tag> World)").expect("Write temp file");
+        std::fs::write(&temp_file_path, b"(Hello <tag> World)")
+            .expect("Write temp file");
 
         let parser_cmd = Command::Wfparser {
             file: temp_file_path.clone(),
         };
-        let parser_result = run_lightweight_command(&parser_cmd).await.expect("Run parser command");
+        let parser_result = run_lightweight_command(&parser_cmd)
+            .await
+            .expect("Run parser command");
         match parser_result {
             ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(String::from_utf8_lossy(&stdout), "(Hello   World)\n");
+                assert_eq!(
+                    String::from_utf8_lossy(&stdout),
+                    "(Hello   World)\n"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -331,7 +355,9 @@ mod tests {
         let scan_cmd = Command::Wfscan {
             file: temp_file_path.clone(),
         };
-        let scan_result = run_lightweight_command(&scan_cmd).await.expect("Run scan command");
+        let scan_result = run_lightweight_command(&scan_cmd)
+            .await
+            .expect("Run scan command");
         match scan_result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), " hello world \n");
@@ -347,15 +373,15 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let php_filename = format!("test_cmd_{}.php", random_num);
+        let php_filename = format!("test_cmd_{random_num}.php");
         let php_path = temp_dir.path().join(&php_filename);
 
-        let php_content = r#"<?php
+        let php_content = r"<?php
 $my_test_array = array('a' => '1', 'b' => '2');
-?>"#;
+?>";
         std::fs::write(&php_path, php_content).expect("Write temp PHP file");
 
-        let expected_csv_name = format!("{}-my_test_array.csv", php_filename);
+        let expected_csv_name = format!("{php_filename}-my_test_array.csv");
         let expected_csv_path = std::path::Path::new(&expected_csv_name);
 
         if expected_csv_path.exists() {
@@ -365,11 +391,14 @@ $my_test_array = array('a' => '1', 'b' => '2');
         let cmd = Command::DceutilsPhpToCsv {
             php_file: php_path.clone(),
         };
-        let result = run_lightweight_command(&cmd).await.expect("Run lightweight command");
+        let result = run_lightweight_command(&cmd)
+            .await
+            .expect("Run lightweight command");
         match result {
             ToolResult::Immediate { .. } => {
                 assert!(expected_csv_path.exists());
-                let csv_content = std::fs::read_to_string(expected_csv_path).expect("Read CSV content");
+                let csv_content = std::fs::read_to_string(expected_csv_path)
+                    .expect("Read CSV content");
                 assert_eq!(csv_content, "a,1\nb,2\n");
             }
             _ => panic!("Expected Immediate ToolResult"),
@@ -394,7 +423,8 @@ $my_test_array = array('a' => '1', 'b' => '2');
         let cmd2 = Command::Bin2Hex {
             value: Some("Hello".to_string()),
         };
-        let result2 = run_lightweight_command(&cmd2).await.expect("Run bin2hex");
+        let result2 =
+            run_lightweight_command(&cmd2).await.expect("Run bin2hex");
         match result2 {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(stdout, b"48656c6c6f");

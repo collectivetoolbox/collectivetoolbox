@@ -1,6 +1,6 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::Connection;
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Users;
 pub const NAME: &str = "2026_06_30_1_create_users";

@@ -1,15 +1,19 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use include_dir::{Dir, DirEntry, include_dir};
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
+use fs2::FileExt;
+#[cfg(target_os = "linux")]
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "linux")]
 use tempfile::TempDir;
-#[cfg(target_os = "linux")]
-use fs2::FileExt;
 
 #[cfg(target_os = "linux")]
 static XKB_DATA_DIR: Dir =
@@ -51,7 +55,9 @@ fn clean_orphaned_temp_dirs() -> Result<()> {
             continue;
         };
 
-        if file_name.starts_with("ctoolbox-xkb-") || file_name.starts_with("ctoolbox-x11-nls-") {
+        if file_name.starts_with("ctoolbox-xkb-")
+            || file_name.starts_with("ctoolbox-x11-nls-")
+        {
             let lock_file_path = path.join(".lock");
             if lock_file_path.is_file() {
                 if let Ok(file) = fs::OpenOptions::new()
@@ -70,18 +76,16 @@ fn clean_orphaned_temp_dirs() -> Result<()> {
                         }
                     }
                 }
-            } else {
-                if let Ok(metadata) = fs::metadata(&path) {
-                    if let Ok(modified) = metadata.modified() {
-                        if let Ok(elapsed) = modified.elapsed() {
-                            if elapsed > std::time::Duration::from_secs(300) {
-                                if let Err(e) = fs::remove_dir_all(&path) {
-                                    warn_fmt!(
-                                        "Failed to clean up old temp dir {}: {:?}",
-                                        path.display(),
-                                        e
-                                    );
-                                }
+            } else if let Ok(metadata) = fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(elapsed) = modified.elapsed() {
+                        if elapsed > std::time::Duration::from_secs(300) {
+                            if let Err(e) = fs::remove_dir_all(&path) {
+                                warn_fmt!(
+                                    "Failed to clean up old temp dir {}: {:?}",
+                                    path.display(),
+                                    e
+                                );
                             }
                         }
                     }
@@ -146,7 +150,10 @@ pub fn ensure_xkb_config_root() -> Result<()> {
     })?;
 
     extract_embedded_xkb(temp.0.path())?;
-    #[allow(unsafe_code, reason = "XKB_CONFIG_ROOT environment variable must be set globally")]
+    #[expect(
+        unsafe_code,
+        reason = "XKB_CONFIG_ROOT environment variable must be set globally"
+    )]
     // SAFETY: setting environment variable globally is required for xkb config initialization
     unsafe {
         // Safety: unknown, but seems fairly unlikely to cause issues in practice.
@@ -192,7 +199,10 @@ pub fn ensure_x11_locale_root() -> Result<()> {
     })?;
 
     extract_embedded_x11_nls(temp.0.path())?;
-    #[allow(unsafe_code, reason = "XLOCALEDIR environment variable must be set globally")]
+    #[expect(
+        unsafe_code,
+        reason = "XLOCALEDIR environment variable must be set globally"
+    )]
     // SAFETY: setting environment variable globally is required for locale directory configuration
     unsafe {
         std::env::set_var("XLOCALEDIR", temp.0.path());
@@ -309,7 +319,16 @@ pub fn ensure_x11_locale_root() -> Result<()> {
 }
 
 #[cfg(all(test, target_os = "linux"))]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::fs;
@@ -352,10 +371,16 @@ mod tests {
         clean_orphaned_temp_dirs().unwrap();
 
         // The active directory should still exist
-        assert!(active_dir.path().exists(), "Active locked directory should not be deleted");
+        assert!(
+            active_dir.path().exists(),
+            "Active locked directory should not be deleted"
+        );
 
         // The orphaned directory should be deleted
-        assert!(!orphaned_dir_path.exists(), "Orphaned unlocked directory should be deleted");
+        assert!(
+            !orphaned_dir_path.exists(),
+            "Orphaned unlocked directory should be deleted"
+        );
 
         // Clean up the active lock file so it doesn't leak
         drop(active_lock_file);

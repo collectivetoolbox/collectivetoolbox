@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use ctb_utilities::csv_tools::CsvTable;
@@ -53,7 +57,10 @@ fn entities_netscape_1999() -> Result<Arc<CsvTable>> {
         || {
             csv_tools::parse_csv_reader(
                 &bail_if_none!(get_html_data("entities-netscape-1999.csv")),
-                csv_tools::CsvParseOptions { has_header: false, ..Default::default() },
+                csv_tools::CsvParseOptions {
+                    has_header: false,
+                    ..Default::default()
+                },
             )
         },
     )
@@ -65,7 +72,10 @@ fn entities_html32() -> Result<Arc<CsvTable>> {
         || {
             csv_tools::parse_csv_reader(
                 &bail_if_none!(get_html_data("entities-html32.csv")),
-                csv_tools::CsvParseOptions { has_header: false, ..Default::default() },
+                csv_tools::CsvParseOptions {
+                    has_header: false,
+                    ..Default::default()
+                },
             )
         },
     )
@@ -212,7 +222,16 @@ pub fn from_entities_html32(input: String) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

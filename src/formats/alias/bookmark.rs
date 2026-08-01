@@ -7,7 +7,11 @@
 // Author: "Arne Johannessen <ajnn@cpan.org>"
 // From https://www.cpan.org/authors/id/A/AJ/AJNN/Mac-Alias-1.01.tar.gz
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::BTreeMap;
@@ -310,19 +314,27 @@ fn build_bookmark_file(
     let mut toc_entries = BTreeMap::new();
     toc_entries.insert(
         BOOKMARK_KEY_TARGET_PATH_COMPONENTS,
-        *offsets.get(path_array_index).context("Missing path array index")?,
+        *offsets
+            .get(path_array_index)
+            .context("Missing path array index")?,
     );
     toc_entries.insert(
         BOOKMARK_KEY_TARGET_FILENAME,
-        *offsets.get(file_name_index).context("Missing file name index")?,
+        *offsets
+            .get(file_name_index)
+            .context("Missing file name index")?,
     );
     toc_entries.insert(
         BOOKMARK_KEY_DISPLAY_NAME,
-        *offsets.get(display_name_index).context("Missing display name index")?,
+        *offsets
+            .get(display_name_index)
+            .context("Missing display name index")?,
     );
     toc_entries.insert(
         BOOKMARK_KEY_ALIAS_DATA,
-        *offsets.get(alias_data_index).context("Missing alias data index")?,
+        *offsets
+            .get(alias_data_index)
+            .context("Missing alias data index")?,
     );
 
     let mut bytes = Vec::new();
@@ -345,7 +357,10 @@ fn build_bookmark_file(
 
     let total_size =
         u32::try_from(bytes.len()).context("Bookmark size overflow")?;
-    bytes.get_mut(4..8).context("Bytes too short to write total size")?.copy_from_slice(&total_size.to_le_bytes());
+    bytes
+        .get_mut(4..8)
+        .context("Bytes too short to write total size")?
+        .copy_from_slice(&total_size.to_le_bytes());
     Ok(bytes)
 }
 
@@ -474,7 +489,16 @@ impl BookmarkRecordBuilder {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use std::fs;
     use std::path::PathBuf;

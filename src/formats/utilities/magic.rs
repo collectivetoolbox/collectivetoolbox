@@ -1,6 +1,10 @@
 //! Magic header byte pattern matching utilities for format identification.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// A signature rule defining magic bytes to inspect in a file header.
@@ -28,7 +32,11 @@ impl MagicPattern {
     }
 
     /// Constructs an exact byte sequence magic pattern at a specific offset and priority.
-    pub const fn exact_at(offset: usize, bytes: &'static [u8], priority: u32) -> Self {
+    pub const fn exact_at(
+        offset: usize,
+        bytes: &'static [u8],
+        priority: u32,
+    ) -> Self {
         Self {
             offset,
             bytes,
@@ -38,7 +46,11 @@ impl MagicPattern {
     }
 
     /// Constructs a masked byte magic pattern at offset 0.
-    pub const fn masked(bytes: &'static [u8], mask: &'static [u8], priority: u32) -> Self {
+    pub const fn masked(
+        bytes: &'static [u8],
+        mask: &'static [u8],
+        priority: u32,
+    ) -> Self {
         Self {
             offset: 0,
             bytes,
@@ -78,7 +90,7 @@ impl MagicPattern {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -97,7 +109,8 @@ mod tests {
         assert!(gzip_magic.matches(&[0x1F, 0x8B, 0x08, 0x00]));
         assert!(!gzip_magic.matches(&[0x1F, 0xA0, 0x08, 0x00]));
 
-        let lzw_block_magic = MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
+        let lzw_block_magic =
+            MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
         assert!(lzw_block_magic.matches(&[0x1F, 0x9D, 0x90]));
         assert!(!lzw_block_magic.matches(&[0x1F, 0x9D, 0x10]));
     }

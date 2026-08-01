@@ -10,7 +10,11 @@
 //! 3. Scans the `bh/` directory and deletes chunks not in the keep set
 //! 4. Deletes old manifest files
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use chrono::{Duration, Utc};
@@ -390,7 +394,16 @@ pub fn run_release_expire(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::manifest::{ChunkInfo, FileEntry, Platform, ReleaseManifest};
@@ -469,8 +482,12 @@ mod tests {
             .unwrap();
 
         // Create manifests
-        let recent_date = Utc::now().checked_sub_signed(Duration::days(5)).unwrap_or_else(Utc::now);
-        let old_date = Utc::now().checked_sub_signed(Duration::days(60)).unwrap_or_else(Utc::now);
+        let recent_date = Utc::now()
+            .checked_sub_signed(Duration::days(5))
+            .unwrap_or_else(Utc::now);
+        let old_date = Utc::now()
+            .checked_sub_signed(Duration::days(60))
+            .unwrap_or_else(Utc::now);
 
         create_test_manifest(
             releases_dir,
@@ -551,8 +568,12 @@ mod tests {
         create_test_chunk(&chunks_dir, old_only_hash, b"old only chunk")
             .unwrap();
 
-        let recent_date = Utc::now().checked_sub_signed(Duration::days(5)).unwrap_or_else(Utc::now);
-        let old_date = Utc::now().checked_sub_signed(Duration::days(60)).unwrap_or_else(Utc::now);
+        let recent_date = Utc::now()
+            .checked_sub_signed(Duration::days(5))
+            .unwrap_or_else(Utc::now);
+        let old_date = Utc::now()
+            .checked_sub_signed(Duration::days(60))
+            .unwrap_or_else(Utc::now);
 
         // Recent manifest references shared chunk
         create_test_manifest(
@@ -606,7 +627,9 @@ mod tests {
         create_test_chunk(&chunks_dir, hash, b"chunk data").unwrap();
 
         // Create a manifest
-        let date = Utc::now().checked_sub_signed(Duration::days(5)).unwrap_or_else(Utc::now);
+        let date = Utc::now()
+            .checked_sub_signed(Duration::days(5))
+            .unwrap_or_else(Utc::now);
         create_test_manifest(
             releases_dir,
             "ctb-linux-2025-01-10.json",

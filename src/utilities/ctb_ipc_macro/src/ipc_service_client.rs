@@ -47,7 +47,10 @@ use crate::types::IpcServiceClientInput;
 /// - `NetworkClient`, `PeerNetworkClient`, `peer_network_client` and
 ///   `ctb_utilities::ipc::service_traits::NetworkClientTrait` are derived from
 ///   the service name.
-#[expect(clippy::too_many_lines, reason = "ipc_service_client_impl is a complex code generation function")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "ipc_service_client_impl is a complex code generation function"
+)]
 pub fn ipc_service_client_impl(input: TokenStream) -> TokenStream {
     let parsed: IpcServiceClientInput = match syn::parse(input) {
         Ok(it) => it,

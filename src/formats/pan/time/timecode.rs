@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: MIT */
 //! Timecode conversion helpers (non-drop-frame).
 
-#![allow(clippy::module_name_repetitions, reason = "idiomatic module structure names")]
+#![allow(
+    clippy::module_name_repetitions,
+    reason = "idiomatic module structure names"
+)]
 
-#[allow(unused_imports, reason = "imported module dependencies")]
+#[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 
 /// Converts `HH:MM:SS:FF` timecode to total frames.
@@ -127,10 +130,30 @@ fn parse_timecode(s: &str, fps: i64) -> Result<(i64, i64, i64, i64)> {
         bail!("expected HH:MM:SS:FF, got {raw}");
     }
 
-    let h = parts.get(0).context("Missing hours part")?.trim().parse::<i64>().context("hours")?;
-    let m = parts.get(1).context("Missing minutes part")?.trim().parse::<i64>().context("minutes")?;
-    let s = parts.get(2).context("Missing seconds part")?.trim().parse::<i64>().context("seconds")?;
-    let f = parts.get(3).context("Missing frames part")?.trim().parse::<i64>().context("frames")?;
+    let h = parts
+        .first()
+        .context("Missing hours part")?
+        .trim()
+        .parse::<i64>()
+        .context("hours")?;
+    let m = parts
+        .get(1)
+        .context("Missing minutes part")?
+        .trim()
+        .parse::<i64>()
+        .context("minutes")?;
+    let s = parts
+        .get(2)
+        .context("Missing seconds part")?
+        .trim()
+        .parse::<i64>()
+        .context("seconds")?;
+    let f = parts
+        .get(3)
+        .context("Missing frames part")?
+        .trim()
+        .parse::<i64>()
+        .context("frames")?;
 
     if h < 0 {
         bail!("hours must be non-negative, got {h}");
@@ -159,13 +182,26 @@ fn scale_frames(frames: i64, from_fps: i64, to_fps: i64) -> Result<i64> {
 
     let num = n.checked_mul(to).context("scale overflow")?;
     let half = from / 2;
-    let scaled = num.checked_add(half).context("scale overflow")?.checked_div(from).unwrap_or(0);
+    let scaled = num
+        .checked_add(half)
+        .context("scale overflow")?
+        .checked_div(from)
+        .unwrap_or(0);
 
     i64::try_from(scaled).context("scaled frame count did not fit into i64")
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 

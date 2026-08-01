@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, bail};
@@ -44,7 +48,8 @@ pub fn onestep_3_0a_old_to_none(data: &[u8]) -> Result<Vec<u8>> {
 pub fn dce2txt(data: &[u8]) -> String {
     let hex = bin2hex(data).to_lowercase();
     if !hex.starts_with("444345650201") {
-        return "This document is not stored using a supported format.".to_string();
+        return "This document is not stored using a supported format."
+            .to_string();
     }
     let ver = get_dce_version_1_43(data);
     if ver == "3_0a" {
@@ -74,7 +79,8 @@ pub fn dce2txt(data: &[u8]) -> String {
         }
         txt
     } else {
-        "This document is not stored using a supported version of DCE.".to_string()
+        "This document is not stored using a supported version of DCE."
+            .to_string()
     }
 }
 
@@ -99,10 +105,10 @@ pub fn dce2hex(hex_bytes: &[u8]) -> Vec<u8> {
     let mut bin = Vec::with_capacity(capacity);
     let mut i = 0_usize;
     while i < hex_bytes.len() {
-        let low = hex_bytes.get(i).copied().map(char_to_hex_val).unwrap_or(0);
+        let low = hex_bytes.get(i).copied().map_or(0, char_to_hex_val);
         let next_idx = i.saturating_add(1);
         let high = if next_idx < hex_bytes.len() {
-            hex_bytes.get(next_idx).copied().map(char_to_hex_val).unwrap_or(0)
+            hex_bytes.get(next_idx).copied().map_or(0, char_to_hex_val)
         } else {
             0
         };
@@ -119,10 +125,10 @@ pub fn hex2dce(hex_bytes: &[u8]) -> Vec<u8> {
     let mut bin = Vec::with_capacity(capacity);
     let mut i = 0_usize;
     while i < hex_bytes.len() {
-        let high = hex_bytes.get(i).copied().map(char_to_hex_val).unwrap_or(0);
+        let high = hex_bytes.get(i).copied().map_or(0, char_to_hex_val);
         let next_idx = i.saturating_add(1);
         let low = if next_idx < hex_bytes.len() {
-            hex_bytes.get(next_idx).copied().map(char_to_hex_val).unwrap_or(0)
+            hex_bytes.get(next_idx).copied().map_or(0, char_to_hex_val)
         } else {
             0
         };
@@ -165,7 +171,10 @@ pub fn legacy_cdce_to_html_snippet(content: &str) -> String {
                 break;
             }
             let next_i = i.saturating_add(1);
-            if j > next_i && j < bytes.len() && bytes.get(j).copied() == Some(b'@') {
+            if j > next_i
+                && j < bytes.len()
+                && bytes.get(j).copied() == Some(b'@')
+            {
                 if let Some(num_str) = content.get(next_i..j) {
                     matches.push(num_str.to_string());
                 }
@@ -203,7 +212,11 @@ pub fn onestep_legacy_cdce_to_html_l(data: &[u8]) -> Result<Vec<u8>> {
     Ok(full_html.into_bytes())
 }
 
-pub fn dce_convert_1_43(data: &[u8], input_format: &str, output_format: &str) -> Result<Vec<u8>> {
+pub fn dce_convert_1_43(
+    data: &[u8],
+    input_format: &str,
+    output_format: &str,
+) -> Result<Vec<u8>> {
     // NOTE: Replicates PHP `dce_convert_1_43` function by forwarding to modern `crate::dce_convert`.
     // In PHP, `dce_convert_1_43` compiles to the same core conversions (first to Dc list, then to output)
     // as modern `dce_convert`, but is updated to hook into the new log management.
@@ -215,18 +228,24 @@ pub fn get_dce_version_1_43(data: &[u8]) -> String {
     // and version byte 2 as '3_01a', otherwise returning a version error string.
     let hex = bin2hex(data).to_lowercase();
     if !hex.starts_with("444345650201") {
-        return "This document is not stored using a supported format.".to_string();
+        return "This document is not stored using a supported format."
+            .to_string();
     }
     if hex.len() < 14 {
-        return "This document is not stored using a supported version of DCE.".to_string();
+        return "This document is not stored using a supported version of DCE."
+            .to_string();
     }
     if let Some(ver_bytes) = hex.get(12..14) {
         match ver_bytes {
             "01" => "3_0a".to_string(),
             "02" => "3_01a".to_string(),
-            _ => "This document is not stored using a supported version of DCE.".to_string(),
+            _ => {
+                "This document is not stored using a supported version of DCE."
+                    .to_string()
+            }
         }
     } else {
-        "This document is not stored using a supported version of DCE.".to_string()
+        "This document is not stored using a supported version of DCE."
+            .to_string()
     }
 }

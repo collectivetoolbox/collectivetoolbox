@@ -1,10 +1,14 @@
 //! Combined multi-signal format detection and multipart extension chain parsing.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use ctb_utilities::*;
 use crate::extension_data::EXTENSION_REGISTRY;
 use crate::format_id::FormatId;
 use crate::magic_data::MAGIC_REGISTRY;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use ctb_utilities::*;
 
 /// High-level category of file formats for domain filtering and score boosting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -160,7 +164,7 @@ pub fn detect_format_id(
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -189,7 +193,11 @@ mod tests {
     #[ctb_test]
     fn test_detect_format_id() {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = detect_format_id(Some(&gzip_data), Some("doc.gz"), Some(FormatCategory::Compression));
+        let fmt = detect_format_id(
+            Some(&gzip_data),
+            Some("doc.gz"),
+            Some(FormatCategory::Compression),
+        );
         assert_eq!(fmt, Some(FormatId::Gzip));
 
         let sco_data = [0x1F, 0xA0, 0x00, 0x00];

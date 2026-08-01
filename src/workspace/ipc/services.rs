@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::sync::Arc;
@@ -128,7 +132,10 @@ pub async fn run_service(
             let ipc_ctx: Arc<
                 dyn ctb_utilities::ipc::service_traits::ChildIpcContext,
             > = ipc.clone();
-            ctb_renderer::init_ipc_context(&ipc_ctx, Some(ChildKind::Renderer))?;
+            ctb_renderer::init_ipc_context(
+                &ipc_ctx,
+                Some(ChildKind::Renderer),
+            )?;
             Ok(router)
         }
         ChildKind::Runtime => {

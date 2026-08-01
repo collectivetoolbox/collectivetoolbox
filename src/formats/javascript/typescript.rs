@@ -7,7 +7,11 @@
 //! promise that in this case. I'll probably find some way to keep it working,
 //! though.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, bail};
@@ -71,7 +75,9 @@ pub fn get_bootstrapped_compiler() -> Result<Vec<u8>> {
         }
     }
 
-    bail!("Failed to get bootstrapped compiler (TypeScript-built.tar not found in asset bundle)")
+    bail!(
+        "Failed to get bootstrapped compiler (TypeScript-built.tar not found in asset bundle)"
+    )
 }
 
 pub fn get_compiler_dir() -> Result<&'static Path> {
@@ -185,7 +191,24 @@ pub fn ts_check_files(
 
     let temp_dir = get_compiler_dir()?;
 
-    if !add_types.is_empty() {
+    if add_types.is_empty() {
+        if let Some(ref config_path) = tsconfig_json {
+            tsc_args.push("-p".to_string());
+            tsc_args.push(config_path.to_string_lossy().into_owned());
+            tsc_args.push("--noEmit".to_string());
+        } else {
+            tsc_args.push("--noEmit".to_string());
+            tsc_args.push("--allowJs".to_string());
+            tsc_args.push("--checkJs".to_string());
+            tsc_args.push("--lib".to_string());
+            tsc_args.push("esnext,dom,dom.iterable".to_string());
+            // tsc_args.push("--ignoreConfig".to_string());
+
+            for p in paths {
+                tsc_args.push(p.to_string_lossy().into_owned());
+            }
+        }
+    } else {
         let mut paths_map = serde_json::Map::new();
         for t in add_types {
             let type_path = temp_dir
@@ -234,23 +257,6 @@ pub fn ts_check_files(
             tsc_args.push("-p".to_string());
             tsc_args.push(temp_config.to_string_lossy().into_owned());
         }
-    } else {
-        if let Some(ref config_path) = tsconfig_json {
-            tsc_args.push("-p".to_string());
-            tsc_args.push(config_path.to_string_lossy().into_owned());
-            tsc_args.push("--noEmit".to_string());
-        } else {
-            tsc_args.push("--noEmit".to_string());
-            tsc_args.push("--allowJs".to_string());
-            tsc_args.push("--checkJs".to_string());
-            tsc_args.push("--lib".to_string());
-            tsc_args.push("esnext,dom,dom.iterable".to_string());
-            // tsc_args.push("--ignoreConfig".to_string());
-
-            for p in paths {
-                tsc_args.push(p.to_string_lossy().into_owned());
-            }
-        }
     }
 
     let tsc_result = run_tsc(&tsc_args);
@@ -280,7 +286,8 @@ pub fn ts_check_files(
             let mut suffix_components = Vec::new();
             for comp in file_path.components() {
                 match comp {
-                    std::path::Component::ParentDir | std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir
+                    | std::path::Component::CurDir => {}
                     std::path::Component::Normal(name) => {
                         suffix_components.push(name);
                     }
@@ -288,9 +295,9 @@ pub fn ts_check_files(
                 }
             }
             let suffix_path = suffix_components.iter().collect::<PathBuf>();
-            let matched_target_path = target_canonical_paths.iter().find(|target_path| {
-                target_path.ends_with(&suffix_path)
-            });
+            let matched_target_path = target_canonical_paths
+                .iter()
+                .find(|target_path| target_path.ends_with(&suffix_path));
 
             if let Some(file_path_canonical) = matched_target_path {
                 if let Ok(source_code) =
@@ -389,7 +396,16 @@ pub fn ts_check_directory(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -4,7 +4,11 @@
 //! The actual update checking is performed by the workspace process; this
 //! controller fetches the current status via IPC.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use axum::{Json, extract::Query};

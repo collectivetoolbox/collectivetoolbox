@@ -40,7 +40,11 @@
 //! the specification (requiring the remainder length to be stored to decode the
 //! remainder correctly when it starts with a 0 bit and is not 16 bits long).
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, bail};
@@ -160,8 +164,11 @@ fn fixed_char_code_at(str_: &[u16], idx: usize) -> Result<u32> {
         let next_idx = idx.saturating_add(1);
         if next_idx < str_.len() {
             let hi = code;
-            let low = u32::from(*str_.get(next_idx).context("index out of bounds")?);
-            let val = hi.saturating_sub(0xD800).saturating_mul(0x400)
+            let low =
+                u32::from(*str_.get(next_idx).context("index out of bounds")?);
+            let val = hi
+                .saturating_sub(0xD800)
+                .saturating_mul(0x400)
                 .saturating_add(low.saturating_sub(0xDC00))
                 .saturating_add(0x10000);
             return Ok(val);
@@ -171,9 +178,12 @@ fn fixed_char_code_at(str_: &[u16], idx: usize) -> Result<u32> {
         // Low surrogate
         if idx >= 1 {
             let prev_idx = idx.saturating_sub(1);
-            let hi = u32::from(*str_.get(prev_idx).context("index out of bounds")?);
+            let hi =
+                u32::from(*str_.get(prev_idx).context("index out of bounds")?);
             let low = code;
-            let val = hi.saturating_sub(0xD800).saturating_mul(0x400)
+            let val = hi
+                .saturating_sub(0xD800)
+                .saturating_mul(0x400)
                 .saturating_add(low.saturating_sub(0xDC00))
                 .saturating_add(0x10000);
             return Ok(val);
@@ -198,14 +208,20 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
     let base_usize = usize::try_from(base)?;
     let mut result_arr: Vec<String> = Vec::new();
     let full_segments = input_arr.len().checked_div(base_usize).unwrap_or(0);
-    let remain_bits = input_arr.len().saturating_sub(full_segments.saturating_mul(base_usize));
+    let remain_bits = input_arr
+        .len()
+        .saturating_sub(full_segments.saturating_mul(base_usize));
     for segment in 0..full_segments {
         let segmstart = base_usize.saturating_mul(segment);
         let segmend = segmstart.saturating_add(base_usize);
-        let currsegm = input_arr.get(segmstart..segmend).context("Invalid segment range")?;
+        let currsegm = input_arr
+            .get(segmstart..segmend)
+            .context("Invalid segment range")?;
         let mut segm_val = 0u32;
         for (bit_idx, &b) in currsegm.iter().enumerate() {
-            let shift = u32::try_from(base_usize.saturating_sub(1).saturating_sub(bit_idx))?;
+            let shift = u32::try_from(
+                base_usize.saturating_sub(1).saturating_sub(bit_idx),
+            )?;
             let bit_val = u32::from(b).checked_shl(shift).unwrap_or(0);
             segm_val = segm_val.saturating_add(bit_val);
         }
@@ -214,13 +230,17 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
     }
     // encode termination character
     let segmstart = base_usize.saturating_mul(full_segments);
-    let currsegm = input_arr.get(segmstart..).context("Invalid remainder range")?;
+    let currsegm = input_arr
+        .get(segmstart..)
+        .context("Invalid remainder range")?;
     // most significant bit at the start (left) / least significant bit at
     // the end (right).
     let mut segm_val = 0u32;
     if remain_bits > 0 {
         for (bit_idx, &b) in currsegm.iter().enumerate() {
-            let shift = u32::try_from(remain_bits.saturating_sub(1).saturating_sub(bit_idx))?;
+            let shift = u32::try_from(
+                remain_bits.saturating_sub(1).saturating_sub(bit_idx),
+            )?;
             let bit_val = u32::from(b).checked_shl(shift).unwrap_or(0);
             segm_val = segm_val.saturating_add(bit_val);
         }
@@ -250,10 +270,14 @@ pub fn decode(
     let input_str = ucs2encode(&string_to_scalars(input_str))?;
     let original_api = remainder_length.is_none();
     let mut result_arr: Vec<u8> = Vec::new();
-    let term_char_bytes_slice = input_str.get(input_str.len().saturating_sub(1)..).context("Empty input string")?;
+    let term_char_bytes_slice = input_str
+        .get(input_str.len().saturating_sub(1)..)
+        .context("Empty input string")?;
     let term_char_bytes = char_bytes_fixed(term_char_bytes_slice);
     let term_char_bytes_usize: usize = term_char_bytes.into();
-    let term_char_cp_slice = input_str.get(input_str.len().saturating_sub(term_char_bytes_usize)..).context("Invalid termination character range")?;
+    let term_char_cp_slice = input_str
+        .get(input_str.len().saturating_sub(term_char_bytes_usize)..)
+        .context("Invalid termination character range")?;
     let term_char_val = from_code_point(term_char_cp_slice, term_char_bytes)?;
     let mut bit: u32 = 17;
     // decode the base from the termination character
@@ -274,7 +298,9 @@ pub fn decode(
     let full_bytes = input_str.len().saturating_sub(term_char_bytes_usize);
     while bytes_used < full_bytes {
         // decode the code point segments in sequence
-        let slice_for_bytes = input_str.get(bytes_used..=bytes_used).context("Invalid bytes used range")?;
+        let slice_for_bytes = input_str
+            .get(bytes_used..=bytes_used)
+            .context("Invalid bytes used range")?;
         let curr_char_bytes = char_bytes_fixed(slice_for_bytes); // taste before taking a byte
         let curr_char_bytes_usize: usize = curr_char_bytes.into();
         let segment_bit_length: u32 = if original_api {
@@ -283,7 +309,9 @@ pub fn decode(
             base
         };
         let seg_end = bytes_used.saturating_add(curr_char_bytes_usize);
-        let segment = input_str.get(bytes_used..seg_end).context("Invalid segment index")?;
+        let segment = input_str
+            .get(bytes_used..seg_end)
+            .context("Invalid segment index")?;
         let segm_val = from_code_point(segment, curr_char_bytes)?;
         // most significant bit at the start (left) / least significant bit at the end (right).
         let sbl_usize = usize::try_from(segment_bit_length)?;
@@ -302,7 +330,8 @@ pub fn decode(
     }
     // remainder
     let remain_val = invert_val(term_char_val, base); // decode the remainder from the termination character
-    let mut bit: i16 = i16::from(term_char_bytes.saturating_mul(8)).saturating_sub(1);
+    let mut bit: i16 =
+        i16::from(term_char_bytes.saturating_mul(8)).saturating_sub(1);
     if (bit > 0) && !original_api {
         let rem_len = bail_if_none!(remainder_length);
         bit = i16::try_from(rem_len)?.saturating_sub(1);
@@ -347,7 +376,16 @@ pub fn true_length(input_str: &str) -> Result<usize> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -404,8 +442,8 @@ mod tests {
         let expected16 = "\u{fe82e}\u{fef60}\u{f19bc}\u{f4a00}\u{fa44a}\u{f763a}\u{f3445}\u{fc16f}\u{f80b}";
         let expected17 = "\u{10d05d}\u{10bd80}\u{fcde2}\u{fa00a}\u{f894e}\u{108e8d}\u{f22e0}\u{10fe90}";
 
-        assert!(encode(&input, 6).is_err());
-        assert!(encode(&input, 18).is_err());
+        encode(&input, 6).unwrap_err();
+        encode(&input, 18).unwrap_err();
         let result7 = assert_string_ok_eq(expected7, encode(&input, 7));
         let result8 = assert_string_ok_eq(expected8, encode(&input, 8));
         let result9 = assert_string_ok_eq(expected9, encode(&input, 9));
@@ -418,7 +456,7 @@ mod tests {
         let result16 = assert_string_ok_eq(expected16, encode(&input, 16));
         let result17 = assert_string_ok_eq(expected17, encode(&input, 17));
 
-        assert!(decode("abcd", None).is_err());
+        decode("abcd", None).unwrap_err();
 
         let input_len = u32::try_from(input.len()).unwrap();
         assert_vec_u8_ok_eq(&input, decode(&result7, Some(input_len % 7)));

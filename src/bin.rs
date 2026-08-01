@@ -41,7 +41,8 @@ pub async fn main() -> Result<()> {
         setrlimit(RLIMIT_CORE, &raw const limit);
     }
 
-    let result = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    let result =
+        rustls::crypto::aws_lc_rs::default_provider().install_default();
     anyhow::ensure!(
         result.is_ok(),
         "Failed to initialize rustls aws-lc-rs provider: {:?}",

@@ -3,7 +3,7 @@
 use axum::{extract::State, response::Response};
 use ctb_utilities::branding::newsletter_url;
 use ctb_utilities::ipc::service_traits::storage::UserDto;
-use ctb_utilities::{ipcb, __ctb_ipcb_get, __ctb_ipc_ctx};
+use ctb_utilities::{__ctb_ipc_ctx, __ctb_ipcb_get, ipcb};
 
 // for `oneshot`
 
@@ -166,10 +166,13 @@ pub async fn subscribe_account(
         .unwrap_or_default()
         .as_secs();
 
-    let dto = ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().unwrap_or_else(|| {
-        UserDto {
+    let dto = ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| UserDto {
             id: user_id,
-            username: username.to_string(),
+            username: username.clone(),
             uuid: Vec::new(),
             auth: None,
             display_name: None,
@@ -180,8 +183,7 @@ pub async fn subscribe_account(
             subscription_expiry: None,
             token_quota: None,
             remote_status: None,
-        }
-    });
+        });
     let expiry = dto.subscription_expiry.unwrap_or(0);
     let quota = dto.token_quota.unwrap_or(0);
     let is_subscribed = expiry > now;
@@ -245,11 +247,20 @@ pub async fn post_subscribe_account(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::branding::newsletter_url;
 
-use crate::test_helpers::{
+    use crate::test_helpers::{
         assert_eq_or_print_body, assert_or_print_body, test_get_no_login,
     };
 
@@ -438,7 +449,7 @@ use crate::test_helpers::{
         use axum::http::StatusCode;
 
         let (status, location) = test_get_redirect_no_login("/subscribe").await;
-        assert!(status.is_redirection(), "Status was not redirect: {}", status);
+        assert!(status.is_redirection(), "Status was not redirect: {status}");
         assert_eq!(status, StatusCode::SEE_OTHER);
         assert_eq!(location, newsletter_url());
     }

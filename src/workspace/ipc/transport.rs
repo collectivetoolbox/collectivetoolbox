@@ -10,7 +10,11 @@
 //! sending and receiving framed messages, as well as managing connections and
 //! listeners.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::error::Error;
@@ -254,7 +258,10 @@ impl FramedConnection for LocalSocketFramedConnection {
     }
 
     #[cfg(unix)]
-    #[allow(clippy::large_futures, reason = "required by async send signature")]
+    #[expect(
+        clippy::large_futures,
+        reason = "required by async send signature"
+    )]
     async fn send_frame_with_fds(
         &self,
         data: Bytes,
@@ -279,7 +286,10 @@ impl FramedConnection for LocalSocketFramedConnection {
     }
 
     #[cfg(unix)]
-    #[allow(clippy::large_futures, reason = "required by async recv signature")]
+    #[expect(
+        clippy::large_futures,
+        reason = "required by async recv signature"
+    )]
     async fn recv_frame_with_fds(
         &self,
     ) -> Result<Option<(Bytes, Vec<std::os::unix::io::RawFd>)>, Error> {
@@ -300,7 +310,10 @@ impl FramedConnection for LocalSocketFramedConnection {
 /// Unix-specific methods for FD passing via `SCM_RIGHTS`.
 #[cfg(unix)]
 impl LocalSocketFramedConnection {
-    #[allow(unsafe_code, reason = "Cmsg space management requires raw pointers")]
+    #[expect(
+        unsafe_code,
+        reason = "Cmsg space management requires raw pointers"
+    )]
     fn sendmsg_with_optional_fds(
         raw_fd: RawFd,
         buf: &[u8],
@@ -384,7 +397,7 @@ impl LocalSocketFramedConnection {
         usize::try_from(rc).map_err(std::io::Error::other)
     }
 
-    #[allow(unsafe_code, reason = "Cmsg parsing requires raw pointers")]
+    #[expect(unsafe_code, reason = "Cmsg parsing requires raw pointers")]
     fn recvmsg_with_fds(
         raw_fd: RawFd,
         scratch: &mut [u8],
@@ -629,7 +642,7 @@ impl TransportFactory for LocalSocketTransportFactory {
         {
             let raw_fd = extract_raw_fd(&stream);
             let dup = shared_memory::unix::dup_fd(raw_fd)?;
-            #[allow(unsafe_code, reason = "creating UnixStream from RawFd")]
+            #[expect(unsafe_code, reason = "creating UnixStream from RawFd")]
             let unix_stream =
                 // SAFETY: dup is a newly duplicated and valid file descriptor.
                 unsafe { std::os::unix::net::UnixStream::from_raw_fd(dup) };
@@ -714,7 +727,7 @@ impl TransportListener for LocalSocketTransportListener {
         {
             let raw_fd = extract_raw_fd(&stream);
             let dup = shared_memory::unix::dup_fd(raw_fd)?;
-            #[allow(unsafe_code, reason = "creating UnixStream from RawFd")]
+            #[expect(unsafe_code, reason = "creating UnixStream from RawFd")]
             let unix_stream =
                 // SAFETY: dup is a newly duplicated and valid file descriptor.
                 unsafe { std::os::unix::net::UnixStream::from_raw_fd(dup) };
@@ -753,7 +766,16 @@ impl TransportListener for LocalSocketTransportListener {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::debug_fmt;
 

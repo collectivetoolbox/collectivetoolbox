@@ -28,7 +28,10 @@ use crate::types::IpcServiceArgs;
 /// ```
 ///
 /// It generates a `dispatch_fn` function in the same module as the trait.
-#[expect(clippy::needless_pass_by_value, reason = "required by proc_macro function signature")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "required by proc_macro function signature"
+)]
 pub fn ipc_service_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let item_ts: proc_macro2::TokenStream = item.clone().into();
     let parsed: Item = match syn::parse(item_ts.clone().into()) {
@@ -54,7 +57,10 @@ pub fn ipc_service_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// extended to generate per-impl registries or clients. Keeping it as a marker
 /// lets you start annotating services today without committing to a specific
 /// IPC codegen strategy.
-#[expect(clippy::needless_pass_by_value, reason = "required by proc_macro helper signature")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "required by proc_macro helper signature"
+)]
 fn ipc_service_impl_marker(
     _attr: TokenStream,
     item_impl: ItemImpl,
@@ -68,7 +74,11 @@ fn ipc_service_impl_marker(
 /// - A client extension trait with methods for each service method
 /// - A blanket impl of that trait for any `IpcCaller`
 /// - A dispatch function that routes incoming requests to the service
-#[expect(clippy::too_many_lines, clippy::needless_pass_by_value, reason = "complex code generation function")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::needless_pass_by_value,
+    reason = "complex code generation function"
+)]
 fn ipc_service_trait(attr: TokenStream, item_trait: ItemTrait) -> TokenStream {
     let args: IpcServiceArgs = match syn::parse(attr) {
         Ok(it) => it,

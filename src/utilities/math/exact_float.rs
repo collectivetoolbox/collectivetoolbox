@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 
-#[allow(clippy::arithmetic_side_effects, reason = "clearer this way")]
+#[expect(clippy::arithmetic_side_effects, reason = "clearer this way")]
 pub fn f64_to_f32(value: f64) -> Result<f32> {
     let bits = value.to_bits();
     let sign = u32::from(((bits >> 63) & 1) != 0);
@@ -179,7 +179,7 @@ pub fn f64_to_f32(value: f64) -> Result<f32> {
     Ok(f32::from_bits(sign_bit | frac_u32))
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "clearer this way")]
+#[expect(clippy::arithmetic_side_effects, reason = "clearer this way")]
 fn f64_abs_to_u128_exact(value: f64) -> Result<u128> {
     if !value.is_finite() {
         bail!("value must be finite, got {value}");
@@ -665,7 +665,16 @@ pub fn isize_to_f64_exact(value: isize) -> Result<f64> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -943,9 +952,9 @@ mod tests {
         let one = u128::from(1u8);
 
         // Last consecutive integer representable in f32 is 2^24.
-        assert!(u128_to_f32_exact(one << 24).is_ok());
-        assert!(u128_to_f32_exact((one << 24) + 1).is_err());
-        assert!(u128_to_f32_exact((one << 24) + 2).is_ok());
+        u128_to_f32_exact(one << 24).unwrap();
+        u128_to_f32_exact((one << 24) + 1).unwrap_err();
+        u128_to_f32_exact((one << 24) + 2).unwrap();
 
         // Sign handling and i128::MIN special-case.
         let min_f = i128_to_f32_exact(i128::MIN)?;
@@ -960,9 +969,9 @@ mod tests {
         let one = u128::from(1u8);
 
         // Last consecutive integer representable in f64 is 2^53.
-        assert!(u128_to_f64_exact(one << 53).is_ok());
-        assert!(u128_to_f64_exact((one << 53) + 1).is_err());
-        assert!(u128_to_f64_exact((one << 53) + 2).is_ok());
+        u128_to_f64_exact(one << 53).unwrap();
+        u128_to_f64_exact((one << 53) + 1).unwrap_err();
+        u128_to_f64_exact((one << 53) + 2).unwrap();
 
         let min_f = i128_to_f64_exact(i128::MIN)?;
         assert!(min_f.is_sign_negative());

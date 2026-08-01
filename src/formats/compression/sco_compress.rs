@@ -15,7 +15,11 @@
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use std::io::{Read, Write};
 
@@ -37,7 +41,7 @@ const PBIT: usize = 4;
 const TBIT: usize = 5;
 
 fn safe_shl(val: u32, shift: i32) -> u32 {
-    if shift >= 0 && shift < 32 {
+    if (0..32).contains(&shift) {
         val << shift
     } else {
         0
@@ -45,7 +49,7 @@ fn safe_shl(val: u32, shift: i32) -> u32 {
 }
 
 fn safe_shr(val: u32, shift: i32) -> u32 {
-    if shift >= 0 && shift < 32 {
+    if (0..32).contains(&shift) {
         val >> shift
     } else {
         0
@@ -83,18 +87,25 @@ impl<'a, R: Read> BitReader<'a, R> {
         while n > self.bitcount {
             n = n.saturating_sub(self.bitcount);
             if n < 32 {
-                let addition = u16::try_from(safe_shl(self.subbitbuf, n) & 0xFFFF)?;
+                let addition =
+                    u16::try_from(safe_shl(self.subbitbuf, n) & 0xFFFF)?;
                 self.bitbuf |= addition;
             }
 
             let mut byte_buf = [0u8; 1];
             let read_bytes = self.reader.read(&mut byte_buf)?;
-            self.subbitbuf = if read_bytes == 0 { 0 } else { u32::from(byte_buf[0]) };
+            self.subbitbuf = if read_bytes == 0 {
+                0
+            } else {
+                u32::from(byte_buf[0])
+            };
             self.bitcount = 8;
         }
 
         self.bitcount = self.bitcount.saturating_sub(n);
-        let addition = u16::try_from(safe_shr(self.subbitbuf, self.bitcount.max(0)) & 0xFFFF)?;
+        let addition = u16::try_from(
+            safe_shr(self.subbitbuf, self.bitcount.max(0)) & 0xFFFF,
+        )?;
         self.bitbuf |= addition;
         Ok(())
     }
@@ -123,7 +134,8 @@ impl<'a, R: Read> BitReader<'a, R> {
     }
 
     fn peekbits12(&self) -> usize {
-        usize::try_from(safe_shr(u32::from(self.bitbuf), 4) & 0xFFF).unwrap_or(0)
+        usize::try_from(safe_shr(u32::from(self.bitbuf), 4) & 0xFFF)
+            .unwrap_or(0)
     }
 
     fn dropbits(&mut self, n: u32) -> Result<()> {
@@ -200,7 +212,8 @@ fn make_table(
     }
 
     let next_tablebits = tablebits.saturating_add(1);
-    let start_tbl = usize::from(start.get(next_tablebits).copied().unwrap_or(0) >> jutbits);
+    let start_tbl =
+        usize::from(start.get(next_tablebits).copied().unwrap_or(0) >> jutbits);
     if start_tbl != 0 {
         let k = 1usize << tablebits;
         let mut idx = start_tbl;
@@ -243,9 +256,13 @@ fn make_table(
 
             while tree_depth != 0 {
                 let curr_val = match loc {
-                    TableLoc::Table(idx) => table.get(idx).copied().unwrap_or(0),
+                    TableLoc::Table(idx) => {
+                        table.get(idx).copied().unwrap_or(0)
+                    }
                     TableLoc::Left(idx) => left.get(idx).copied().unwrap_or(0),
-                    TableLoc::Right(idx) => right.get(idx).copied().unwrap_or(0),
+                    TableLoc::Right(idx) => {
+                        right.get(idx).copied().unwrap_or(0)
+                    }
                 };
 
                 let node_val = if curr_val == 0 {
@@ -349,7 +366,11 @@ fn read_pt_len<R: Read>(
                     bail!("Bad table: PT bit length exceeds 16");
                 }
             }
-            let consumed_bits = if c < 7 { 3 } else { u32::from(c).saturating_sub(3) };
+            let consumed_bits = if c < 7 {
+                3
+            } else {
+                u32::from(c).saturating_sub(3)
+            };
             br.dropbits(consumed_bits)?;
 
             if let Some(l) = pt_len.get_mut(i) {
@@ -402,7 +423,8 @@ fn read_c_len<R: Read>(
         let mut i = 0usize;
         while i < n {
             let peek_idx = br.peekbits8();
-            let mut c = usize::from(pt_table.get(peek_idx).copied().unwrap_or(0));
+            let mut c =
+                usize::from(pt_table.get(peek_idx).copied().unwrap_or(0));
             if c >= NT {
                 let mut mask = 0x80u16;
                 while c >= NT {
@@ -465,9 +487,27 @@ fn decode_c<R: Read>(
         if *blocksize == 0 {
             return Ok(NC); // EOF
         }
-        read_pt_len(br, NT, u32::try_from(TBIT)?, 3, pt_len, pt_table, left, right)?;
+        read_pt_len(
+            br,
+            NT,
+            u32::try_from(TBIT)?,
+            3,
+            pt_len,
+            pt_table,
+            left,
+            right,
+        )?;
         read_c_len(br, c_len, c_table, pt_len, pt_table, left, right)?;
-        read_pt_len(br, NP, u32::try_from(PBIT)?, -1, pt_len, pt_table, left, right)?;
+        read_pt_len(
+            br,
+            NP,
+            u32::try_from(PBIT)?,
+            -1,
+            pt_len,
+            pt_table,
+            left,
+            right,
+        )?;
     }
     *blocksize = blocksize.saturating_sub(1);
 
@@ -522,9 +562,14 @@ fn decode_p<R: Read>(
 }
 
 /// Decompresses an SCO `compress -H` LZH stream from `reader` into `writer`.
-pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Result<u64> {
+pub fn decompress_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
     let mut magic = [0u8; 2];
-    reader.read_exact(&mut magic).context("Failed to read SCO compress -H magic header")?;
+    reader
+        .read_exact(&mut magic)
+        .context("Failed to read SCO compress -H magic header")?;
     if magic != MAGIC_BYTES {
         bail!(
             "Invalid magic header for SCO compress -H stream: {:02X} {:02X}",
@@ -573,7 +618,8 @@ pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Res
         } else {
             let match_len = c.saturating_sub(253);
             let dist = decode_p(&mut br, &pt_len, &pt_table, &left, &right)?;
-            let mut src_idx = (r.wrapping_sub(dist).wrapping_sub(1)) & (DICSIZ.saturating_sub(1));
+            let mut src_idx = (r.wrapping_sub(dist).wrapping_sub(1))
+                & (DICSIZ.saturating_sub(1));
 
             for _ in 0..match_len {
                 let byte = window.get(src_idx).copied().unwrap_or(0);
@@ -582,7 +628,8 @@ pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Res
                     *w_byte = byte;
                 }
                 r = (r.saturating_add(1)) & (DICSIZ.saturating_sub(1));
-                src_idx = (src_idx.saturating_add(1)) & (DICSIZ.saturating_sub(1));
+                src_idx =
+                    (src_idx.saturating_add(1)) & (DICSIZ.saturating_sub(1));
                 total_bytes_written = total_bytes_written.saturating_add(1);
             }
         }
@@ -694,7 +741,13 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
         heap.push((w1.saturating_add(w2), parent_idx));
     }
 
-    fn walk(nodes: &[Node], idx: usize, depth: u8, bitlen: &mut [u8], max_bits: u8) {
+    fn walk(
+        nodes: &[Node],
+        idx: usize,
+        depth: u8,
+        bitlen: &mut [u8],
+        max_bits: u8,
+    ) {
         let d = depth.min(max_bits);
         match nodes.get(idx) {
             Some(Node::Leaf(sym)) => {
@@ -787,7 +840,8 @@ fn write_pt_len<W: Write>(
     }
 
     if count_non_zero == 1 {
-        let single_sym = pt_len.iter().take(nn).position(|&l| l > 0).unwrap_or(0);
+        let single_sym =
+            pt_len.iter().take(nn).position(|&l| l > 0).unwrap_or(0);
         bw.putbits(nbit, 0)?;
         bw.putbits(nbit, u32::try_from(single_sym)?)?;
         if let Some(l) = pt_len.get_mut(single_sym) {
@@ -815,7 +869,10 @@ fn write_pt_len<W: Write>(
 
         if i_special >= 0 && i == usize::try_from(i_special)? {
             let mut zero_count = 0u32;
-            while zero_count < 3 && i < max_non_zero && pt_len.get(i).copied() == Some(0) {
+            while zero_count < 3
+                && i < max_non_zero
+                && pt_len.get(i).copied() == Some(0)
+            {
                 zero_count = zero_count.saturating_add(1);
                 i = i.saturating_add(1);
             }
@@ -830,7 +887,8 @@ fn compress_block<W: Write>(
     bw: &mut BitWriter<W>,
     symbols: &[LzhSymbol],
 ) -> Result<()> {
-    let blocksize = u16::try_from(symbols.len()).context("Block symbol count exceeds 65535")?;
+    let blocksize = u16::try_from(symbols.len())
+        .context("Block symbol count exceeds 65535")?;
     if blocksize == 0 {
         return Ok(());
     }
@@ -847,7 +905,8 @@ fn compress_block<W: Write>(
                 }
             }
             LzhSymbol::Match { length, distance } => {
-                let c_sym = length.saturating_sub(THRESHOLD).saturating_add(256);
+                let c_sym =
+                    length.saturating_sub(THRESHOLD).saturating_add(256);
                 if let Some(f) = c_freqs.get_mut(c_sym) {
                     *f = f.saturating_add(1);
                 }
@@ -963,8 +1022,10 @@ fn compress_block<W: Write>(
             match entry {
                 PtEntry::Len(s) => {
                     let sym_idx = usize::from(s);
-                    let len = u32::from(pt_len.get(sym_idx).copied().unwrap_or(0));
-                    let code = u32::from(pt_codes.get(sym_idx).copied().unwrap_or(0));
+                    let len =
+                        u32::from(pt_len.get(sym_idx).copied().unwrap_or(0));
+                    let code =
+                        u32::from(pt_codes.get(sym_idx).copied().unwrap_or(0));
                     bw.putbits(len, code)?;
                 }
                 PtEntry::ZeroRun4(val) => {
@@ -996,9 +1057,12 @@ fn compress_block<W: Write>(
                 bw.putbits(len, code)?;
             }
             LzhSymbol::Match { length, distance } => {
-                let c_sym = length.saturating_sub(THRESHOLD).saturating_add(256);
-                let c_len_bits = u32::from(c_len.get(c_sym).copied().unwrap_or(0));
-                let c_code = u32::from(c_codes.get(c_sym).copied().unwrap_or(0));
+                let c_sym =
+                    length.saturating_sub(THRESHOLD).saturating_add(256);
+                let c_len_bits =
+                    u32::from(c_len.get(c_sym).copied().unwrap_or(0));
+                let c_code =
+                    u32::from(c_codes.get(c_sym).copied().unwrap_or(0));
                 bw.putbits(c_len_bits, c_code)?;
 
                 let (p_sym, extra_bits, extra_val) = if distance == 0 {
@@ -1012,8 +1076,10 @@ fn compress_block<W: Write>(
                     (p, eb, ev)
                 };
 
-                let p_len_bits = u32::from(p_len.get(p_sym).copied().unwrap_or(0));
-                let p_code = u32::from(p_codes.get(p_sym).copied().unwrap_or(0));
+                let p_len_bits =
+                    u32::from(p_len.get(p_sym).copied().unwrap_or(0));
+                let p_code =
+                    u32::from(p_codes.get(p_sym).copied().unwrap_or(0));
                 bw.putbits(p_len_bits, p_code)?;
 
                 if extra_bits > 0 {
@@ -1027,8 +1093,13 @@ fn compress_block<W: Write>(
 }
 
 /// Compresses an input stream to an SCO `compress -H` LZH stream into `writer`.
-pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Result<u64> {
-    writer.write_all(&MAGIC_BYTES).context("Failed to write SCO compress magic header")?;
+pub fn compress_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
+    writer
+        .write_all(&MAGIC_BYTES)
+        .context("Failed to write SCO compress magic header")?;
 
     let mut input_data = Vec::new();
     reader.read_to_end(&mut input_data)?;
@@ -1049,8 +1120,12 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
 
         if pos.saturating_add(THRESHOLD) <= len {
             let b0 = usize::from(input_data.get(pos).copied().unwrap_or(0));
-            let b1 = usize::from(input_data.get(pos.saturating_add(1)).copied().unwrap_or(0));
-            let b2 = usize::from(input_data.get(pos.saturating_add(2)).copied().unwrap_or(0));
+            let b1 = usize::from(
+                input_data.get(pos.saturating_add(1)).copied().unwrap_or(0),
+            );
+            let b2 = usize::from(
+                input_data.get(pos.saturating_add(2)).copied().unwrap_or(0),
+            );
             let h = (b0 << 8) ^ (b1 << 4) ^ b2;
 
             let mut m_pos = head.get(h).copied().flatten();
@@ -1081,10 +1156,14 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
                     }
                 }
 
-                m_pos = prev.get(match_idx & (DICSIZ.saturating_sub(1))).copied().flatten();
+                m_pos = prev
+                    .get(match_idx & (DICSIZ.saturating_sub(1)))
+                    .copied()
+                    .flatten();
             }
 
-            if let Some(p_slot) = prev.get_mut(pos & (DICSIZ.saturating_sub(1))) {
+            if let Some(p_slot) = prev.get_mut(pos & (DICSIZ.saturating_sub(1)))
+            {
                 *p_slot = head.get(h).copied().flatten();
             }
             if let Some(h_slot) = head.get_mut(h) {
@@ -1101,12 +1180,25 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
             for offset in 1..best_len {
                 let p = pos.saturating_add(offset);
                 if p.saturating_add(THRESHOLD) <= len {
-                    let b0 = usize::from(input_data.get(p).copied().unwrap_or(0));
-                    let b1 = usize::from(input_data.get(p.saturating_add(1)).copied().unwrap_or(0));
-                    let b2 = usize::from(input_data.get(p.saturating_add(2)).copied().unwrap_or(0));
+                    let b0 =
+                        usize::from(input_data.get(p).copied().unwrap_or(0));
+                    let b1 = usize::from(
+                        input_data
+                            .get(p.saturating_add(1))
+                            .copied()
+                            .unwrap_or(0),
+                    );
+                    let b2 = usize::from(
+                        input_data
+                            .get(p.saturating_add(2))
+                            .copied()
+                            .unwrap_or(0),
+                    );
                     let h = (b0 << 8) ^ (b1 << 4) ^ b2;
 
-                    if let Some(p_slot) = prev.get_mut(p & (DICSIZ.saturating_sub(1))) {
+                    if let Some(p_slot) =
+                        prev.get_mut(p & (DICSIZ.saturating_sub(1)))
+                    {
                         *p_slot = head.get(h).copied().flatten();
                     }
                     if let Some(h_slot) = head.get_mut(h) {
@@ -1139,7 +1231,7 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -1182,7 +1274,10 @@ mod tests {
         let mut compressed = Vec::new();
         compress_stream(&mut &raw[..], &mut compressed).unwrap();
 
-        assert!(compressed.len() < raw.len(), "Repetitive data should compress well");
+        assert!(
+            compressed.len() < raw.len(),
+            "Repetitive data should compress well"
+        );
 
         let mut decompressed = Vec::new();
         decompress_stream(&mut &compressed[..], &mut decompressed).unwrap();

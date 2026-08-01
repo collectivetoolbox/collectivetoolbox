@@ -163,7 +163,16 @@ pub fn get_as_json_string_from_json_string(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     //! Tests for `serde_values` helpers.
 
@@ -263,7 +272,7 @@ mod tests {
         assert_eq!(to_plain_string(&Value::Number(42.into())).unwrap(), "42");
         assert_eq!(to_plain_string(&Value::Bool(true)).unwrap(), "true");
         assert_eq!(to_plain_string(&Value::Null).unwrap(), "");
-        assert!(to_plain_string(&Value::Array(vec![])).is_err());
+        to_plain_string(&Value::Array(vec![])).unwrap_err();
     }
 
     /// Test `to_html_form_string`.
@@ -286,7 +295,7 @@ mod tests {
             to_html_form_string(&Value::Null).unwrap(),
             Some(String::new())
         );
-        assert!(to_html_form_string(&Value::Array(vec![])).is_err());
+        to_html_form_string(&Value::Array(vec![])).unwrap_err();
     }
 
     /// Test `get_as_u64`.

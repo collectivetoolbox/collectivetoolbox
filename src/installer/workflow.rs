@@ -1,6 +1,10 @@
 //! Shared installer workflow for manifest loading and real installation.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::HashSet;
@@ -40,18 +44,22 @@ pub fn load_manifest_and_features(
                     offline_path.display()
                 )
             })?;
-            serde_json::from_slice::<ReleaseManifest>(&data).with_context(|| {
-                format!(
-                    "Failed to parse offline manifest at {}",
-                    offline_path.display()
-                )
-            })?
+            serde_json::from_slice::<ReleaseManifest>(&data).with_context(
+                || {
+                    format!(
+                        "Failed to parse offline manifest at {}",
+                        offline_path.display()
+                    )
+                },
+            )?
         } else {
             downloader
                 .download_manifest(&current_platform(), None)
                 .await
                 .with_context(|| {
-                    format!("Failed to download release manifest from {server_url}")
+                    format!(
+                        "Failed to download release manifest from {server_url}"
+                    )
                 })?
         };
 
@@ -303,7 +311,16 @@ fn temp_work_dir(kind: &str) -> Result<PathBuf> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::manifest::{ChunkInfo, FileEntry, Platform};

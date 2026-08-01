@@ -105,7 +105,10 @@ fn scale_and_round(bytes: u128, unit_pow: u128) -> (u128, Option<u8>) {
 
     if integer >= 10 {
         let half = unit_pow.checked_div(u128::from(2u8)).unwrap_or(0);
-        let rounded = bytes.checked_add(half).and_then(|sum| sum.checked_div(unit_pow)).unwrap_or(0);
+        let rounded = bytes
+            .checked_add(half)
+            .and_then(|sum| sum.checked_div(unit_pow))
+            .unwrap_or(0);
         return (rounded, None);
     }
 
@@ -113,7 +116,10 @@ fn scale_and_round(bytes: u128, unit_pow: u128) -> (u128, Option<u8>) {
     let half = unit_pow.checked_div(u128::from(2u8)).unwrap_or(0);
 
     let scaled_remainder = remainder.saturating_mul(ten);
-    let digit_u128 = scaled_remainder.checked_add(half).and_then(|sum| sum.checked_div(unit_pow)).unwrap_or(0);
+    let digit_u128 = scaled_remainder
+        .checked_add(half)
+        .and_then(|sum| sum.checked_div(unit_pow))
+        .unwrap_or(0);
     let mut digit = u8::try_from(digit_u128).unwrap_or(u8::MAX);
 
     let mut integer = integer;
@@ -136,7 +142,16 @@ fn format_scaled_int(integer: u128, decimal_digit: Option<u8>) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -13,7 +13,11 @@ use ctb_storage_minimal::{
 use ctb_utilities::string::bytes::format_bytes_both;
 
 use crate::i18n::msg::WELCOME;
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::io::{self, BufRead, Write};
@@ -207,7 +211,10 @@ impl TuiInstaller {
         self.print(question)?;
         for (i, option) in options.iter().enumerate() {
             let marker = if i == default { "*" } else { " " };
-            self.print(&format!("  {marker} {}: {option}", i.saturating_add(1)))?;
+            self.print(&format!(
+                "  {marker} {}: {option}",
+                i.saturating_add(1)
+            ))?;
         }
 
         let prompt_enter_choice = &t_args(
@@ -280,7 +287,10 @@ impl TuiInstaller {
     /// Prompts the user to enter a string.
     ///
     /// In unattended mode, returns `default`.
-    #[allow(dead_code, reason = "helper function currently unused in code paths")]
+    #[allow(
+        dead_code,
+        reason = "helper function currently unused in code paths"
+    )]
     fn prompt_string(
         &mut self,
         question: &str,
@@ -302,7 +312,10 @@ impl TuiInstaller {
     }
 
     /// Waits for the user to press Enter.
-    #[allow(dead_code, reason = "helper function currently unused in code paths")]
+    #[allow(
+        dead_code,
+        reason = "helper function currently unused in code paths"
+    )]
     fn wait_for_enter(&mut self) -> Result<()> {
         if self.unattended {
             return Ok(());
@@ -654,7 +667,10 @@ impl TuiInstaller {
     }
 
     /// Progress screen showing download and installation.
-    #[allow(clippy::too_many_lines, reason = "large installation screen rendering")]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "large installation screen rendering"
+    )]
     fn screen_progress(&mut self) -> Result<()> {
         self.print_header(&t(msg::PROGRESS_TITLE))?;
 
@@ -1028,7 +1044,16 @@ pub fn run_uninstall() -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::io::Cursor;

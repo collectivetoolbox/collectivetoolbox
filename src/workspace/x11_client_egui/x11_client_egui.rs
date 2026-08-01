@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use ctb_workspace_x11_client::{
@@ -15,7 +19,7 @@ use egui_software_backend::{
 };
 use std::time::{Duration, Instant};
 
-#[allow(clippy::too_many_lines, reason = "large initialization function")]
+#[expect(clippy::too_many_lines, reason = "large initialization function")]
 pub fn run_app_with_x11_client_backend<T: App>(
     settings: &SoftwareBackendAppConfiguration,
     egui_app_factory: impl FnOnce(egui::Context) -> T,
@@ -54,7 +58,8 @@ pub fn run_app_with_x11_client_backend<T: App>(
     let wm_delete_window = window.enable_wm_delete(&display)?;
     window.map()?;
 
-    let mut pixels = vec![[0u8; 4]; usize::from(width).saturating_mul(usize::from(height))];
+    let mut pixels =
+        vec![[0u8; 4]; usize::from(width).saturating_mul(usize::from(height))];
     let mut last_pointer_pos = Pos2::ZERO;
     let start_time = Instant::now();
     let frame_interval = Duration::from_millis(16);
@@ -141,8 +146,8 @@ pub fn run_app_with_x11_client_backend<T: App>(
             .tessellate(full_output.shapes, full_output.pixels_per_point);
 
         let surface = window.surface_info();
-        let expected_pixels =
-            usize::from(surface.width).saturating_mul(usize::from(surface.height));
+        let expected_pixels = usize::from(surface.width)
+            .saturating_mul(usize::from(surface.height));
         if pixels.len() != expected_pixels {
             pixels.resize(expected_pixels, [0, 0, 0, 0]);
         }
@@ -213,7 +218,11 @@ fn build_raw_input(
     }
 }
 
-#[allow(clippy::too_many_arguments, clippy::too_many_lines, reason = "complex event handler function")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "complex event handler function"
+)]
 fn handle_event(
     display: &DisplayHandle,
     clipboard: &mut ClipboardHandle,
@@ -446,7 +455,12 @@ fn primary_selection_text(info: &egui::WidgetInfo) -> Option<String> {
         return None;
     }
 
-    Some(text.chars().skip(start).take(end.saturating_sub(start)).collect())
+    Some(
+        text.chars()
+            .skip(start)
+            .take(end.saturating_sub(start))
+            .collect(),
+    )
 }
 
 fn modifiers_from_state(state: u16) -> egui::Modifiers {
@@ -597,7 +611,16 @@ fn is_paste_command(modifiers: egui::Modifiers, key: egui::Key) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_workspace_x11_client::{X11Capability, unsupported};
 

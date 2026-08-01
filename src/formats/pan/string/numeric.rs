@@ -3,7 +3,11 @@
 
 use ctb_utilities::math::exact_float::u64_to_f64_exact;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// Converts a `MacRoman` code point into a string.
@@ -367,7 +371,11 @@ fn fmt_trim_trailing_zeros(mut s: String) -> String {
 }
 
 fn commify_digits(digits: &str) -> String {
-    let mut out = String::with_capacity(digits.len().saturating_add(digits.len().checked_div(3).unwrap_or(0)));
+    let mut out = String::with_capacity(
+        digits
+            .len()
+            .saturating_add(digits.len().checked_div(3).unwrap_or(0)),
+    );
     let mut count = 0usize;
 
     for ch in digits.chars().rev() {
@@ -531,7 +539,11 @@ fn parse_binary_bits_to_bytes(text: &str) -> Result<Vec<u8>> {
 
     // Left-pad to a whole number of bytes.
     let rem = t.len().checked_rem(8).unwrap_or(0);
-    let pad = if rem == 0 { 0 } else { 8_usize.saturating_sub(rem) };
+    let pad = if rem == 0 {
+        0
+    } else {
+        8_usize.saturating_sub(rem)
+    };
     let padded = format!("{}{}", "0".repeat(pad), t);
 
     let mut out = Vec::with_capacity(padded.len() / 8);
@@ -659,14 +671,24 @@ fn digit_char(d: u8) -> char {
         }
         10..=35 => {
             let idx = u32::from(d.saturating_sub(10));
-            std::char::from_u32(u32::from('A').saturating_add(idx)).unwrap_or('A')
+            std::char::from_u32(u32::from('A').saturating_add(idx))
+                .unwrap_or('A')
         }
         _ => '0',
     }
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

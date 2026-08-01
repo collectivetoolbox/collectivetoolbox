@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use std::collections::HashMap;
@@ -35,24 +39,23 @@ pub mod test_helpers;
 pub mod tls_rustls_vendored;
 pub mod webview;
 pub mod controllers {
-    pub mod debug;
+    pub mod admin;
     pub mod app;
     pub mod auth;
     pub mod base;
     pub mod crlite;
+    pub mod debug;
+    pub mod eite;
     pub mod graph;
     pub mod newsletter;
     pub mod pc_settings;
     pub mod releases;
     pub mod search;
-    pub mod updates;
-    pub mod web;
     pub mod sync;
-    pub mod admin;
-    pub mod eite;
+    pub mod updates;
     pub mod v86;
+    pub mod web;
 }
-
 
 // Shared application state
 #[derive(Clone)]
@@ -64,18 +67,22 @@ pub struct AppState {
     pub storage_dir_override: Option<std::path::PathBuf>,
     pub generating_downloads: Arc<Mutex<std::collections::HashSet<String>>>,
     pub global_session_token: Arc<Mutex<Option<String>>>,
-    pub eite_states: Arc<Mutex<HashMap<u64, ctb_formats_eite::eite_state::EiteState>>>,
+    pub eite_states:
+        Arc<Mutex<HashMap<u64, ctb_formats_eite::eite_state::EiteState>>>,
 }
 
 impl AppState {
     pub fn try_new() -> Result<Self> {
-        let hbs = register_views().context("Could not register Handlebars views")?;
+        let hbs =
+            register_views().context("Could not register Handlebars views")?;
         Ok(Self {
             hbs: Arc::new(hbs),
             users: Arc::new(Mutex::new(HashMap::new())),
             download_sizes: Arc::new(Mutex::new(None)),
             storage_dir_override: None,
-            generating_downloads: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            generating_downloads: Arc::new(Mutex::new(
+                std::collections::HashSet::new(),
+            )),
             global_session_token: Arc::new(Mutex::new(None)),
             eite_states: Arc::new(Mutex::new(HashMap::new())),
         })
@@ -322,12 +329,14 @@ fn recoverable_error<E: std::fmt::Display>(
 ) -> Response {
     let accept = req.accept.clone();
     let is_json_requested = req.is_js_request
-        || accept.as_ref().map_or(false, |a| a.contains("application/json"));
+        || accept
+            .as_ref()
+            .is_some_and(|a| a.contains("application/json"));
 
     if is_json_requested {
         return error_response_json_with_details(
             e.to_string(),
-            "".to_string(),
+            String::new(),
             StatusCode::BAD_REQUEST,
         );
     }
@@ -352,7 +361,9 @@ fn error_response<E: std::fmt::Debug + std::fmt::Display>(
 ) -> Response {
     let accept = req.accept.clone();
     let is_json_requested = req.is_js_request
-        || accept.as_ref().map_or(false, |a| a.contains("application/json"));
+        || accept
+            .as_ref()
+            .is_some_and(|a| a.contains("application/json"));
 
     let (message, details) = {
         let message = e.to_string();
@@ -537,7 +548,16 @@ macro_rules! get_user_and_graph {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

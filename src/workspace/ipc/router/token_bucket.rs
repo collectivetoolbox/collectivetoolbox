@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::types::ConnectionId;
@@ -52,7 +56,8 @@ impl TokenBucket {
             .saturating_mul(u128::from(self.rate_bytes_per_sec))
             .checked_div(1_000_000_000)
             .unwrap_or(0);
-        self.tokens = self.tokens.saturating_add(added_tokens).min(self.capacity);
+        self.tokens =
+            self.tokens.saturating_add(added_tokens).min(self.capacity);
         self.last_refill = now;
 
         let amount_u128 = u128::from(amount);

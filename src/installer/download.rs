@@ -9,7 +9,11 @@
 //! - Resuming interrupted downloads via local chunk cache
 //! - Progress events for UI feedback
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use serde::Deserialize;
@@ -863,7 +867,16 @@ pub fn chunk_server_path(hash: &str) -> PathBuf {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::chunking::chunk_data;
@@ -898,7 +911,10 @@ mod tests {
             else {
                 return "/";
             };
-            let path_start = url.len().saturating_sub(path_without_slash.len()).saturating_sub(1);
+            let path_start = url
+                .len()
+                .saturating_sub(path_without_slash.len())
+                .saturating_sub(1);
             url.get(path_start..).unwrap_or("")
         }
     }

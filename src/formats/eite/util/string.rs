@@ -93,7 +93,7 @@ pub fn substring_bug_compatible(
                 .expect("Failed to convert length to isize")
                 .saturating_add(1)
                 .saturating_add(length))
-                .max(0),
+            .max(0),
         )
         .expect("Failed to convert adjusted length to usize");
         s.chars().skip(start).take(adj).collect()
@@ -116,11 +116,17 @@ pub fn str_replace_once(haystack: &str, find: &str, replace: &str) -> String {
         // JS would replace empty string at position 0; we mimic inserting replace at start.
         format!("{replace}{haystack}")
     } else if let Some(pos) = haystack.find(find) {
-        let mut out =
-            String::with_capacity(haystack.len().saturating_sub(find.len()).saturating_add(replace.len()));
+        let mut out = String::with_capacity(
+            haystack
+                .len()
+                .saturating_sub(find.len())
+                .saturating_add(replace.len()),
+        );
         out.push_str(haystack.get(..pos).unwrap_or(""));
         out.push_str(replace);
-        out.push_str(haystack.get(pos.saturating_add(find.len())..).unwrap_or(""));
+        out.push_str(
+            haystack.get(pos.saturating_add(find.len())..).unwrap_or(""),
+        );
         out
     } else {
         haystack.to_string()
@@ -314,7 +320,16 @@ pub fn str_from_byte_array(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -1,12 +1,16 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::anyhow;
 use ctb_formats_hexdump::hex2bin;
 
+use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
-use crate::dce_convert;
 
 pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
     let hex = bin2hex(data);
@@ -14,7 +18,9 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
         bail!("This document is not stored using the specified format.");
     }
     if hex.len() < 14 || hex.get(12..14) != Some("02") {
-        bail!("This document is not stored using the specified version of DCE.");
+        bail!(
+            "This document is not stored using the specified version of DCE."
+        );
     }
 
     let tables = get_tables();
@@ -30,7 +36,9 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
                 let byte_hex = slice.to_uppercase();
                 match state.as_str() {
                     "Core" => {
-                        if let Some(val) = tables.dc_map_dce3_01a_core.get(&byte_hex) {
+                        if let Some(val) =
+                            tables.dc_map_dce3_01a_core.get(&byte_hex)
+                        {
                             if let Some(stripped) = val.strip_prefix('>') {
                                 state = stripped.to_string();
                                 append.clear();
@@ -45,7 +53,10 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
                         if byte_hex == "FD" || byte_hex == "FE" {
                             state = "Core".to_string();
                             append.clear();
-                        } else if let Some(val) = tables.dc_map_dce3_01a_variant_selectors.get(&byte_hex) {
+                        } else if let Some(val) = tables
+                            .dc_map_dce3_01a_variant_selectors
+                            .get(&byte_hex)
+                        {
                             append = format!("{val},");
                         } else {
                             append.clear();
@@ -55,7 +66,10 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
                         if byte_hex == "FD" || byte_hex == "FE" {
                             state = "Core".to_string();
                             append.clear();
-                        } else if let Some(val) = tables.dc_map_dce3_01a_semantic_records.get(&byte_hex) {
+                        } else if let Some(val) = tables
+                            .dc_map_dce3_01a_semantic_records
+                            .get(&byte_hex)
+                        {
                             append = format!("{val},");
                         } else {
                             append.clear();
@@ -65,13 +79,16 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
                         if byte_hex == "FD" || byte_hex == "FE" {
                             state = "Core".to_string();
                             append.clear();
-                        } else if let Some(val) = tables.dc_map_dce3_01a_mathematics.get(&byte_hex) {
+                        } else if let Some(val) =
+                            tables.dc_map_dce3_01a_mathematics.get(&byte_hex)
+                        {
                             append = format!("{val},");
                         } else {
                             append.clear();
                         }
                     }
-                    "Punctuation_and_Whitespace" | "Whitespace_and_Punctuation" => {
+                    "Punctuation_and_Whitespace"
+                    | "Whitespace_and_Punctuation" => {
                         // Corrected PHP bug: The PHP state name for whitespace & punctuation is defined as
                         // 'Punctuation_and_Whitespace' (C8 -> >Punctuation_and_Whitespace). But the case statement
                         // in PHP's switch was incorrectly written as 'Whitespace_and_Punctuation'.
@@ -80,7 +97,10 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
                         if byte_hex == "FD" || byte_hex == "FE" {
                             state = "Core".to_string();
                             append.clear();
-                        } else if let Some(val) = tables.dc_map_dce3_01a_punctuation_and_whitespace.get(&byte_hex) {
+                        } else if let Some(val) = tables
+                            .dc_map_dce3_01a_punctuation_and_whitespace
+                            .get(&byte_hex)
+                        {
                             append = format!("{val},");
                         } else {
                             append.clear();
@@ -124,7 +144,8 @@ pub fn convert_3_01a_raw_to_dc(data: &[u8]) -> Result<String> {
     }
 
     let mut wrapped = Vec::with_capacity(data.len().saturating_add(10));
-    wrapped.extend_from_slice(&[0x44, 0x43, 0x45, 0x65, 0x02, 0x01, 0x02, 0xFD]);
+    wrapped
+        .extend_from_slice(&[0x44, 0x43, 0x45, 0x65, 0x02, 0x01, 0x02, 0xFD]);
     wrapped.extend_from_slice(data);
     wrapped.extend_from_slice(&[0xFD, 0x03]);
 

@@ -1,4 +1,8 @@
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 use crate::ipc::registry::{IpcCallFuture, IpcCaller};

@@ -1,6 +1,6 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::Connection;
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Sync;
 pub const NAME: &str = "2026_07_05_2_create_server_sync_tables";

@@ -235,7 +235,8 @@ impl LoadedCRLiteFilter {
             if CRLiteQuery::new(crlite_key, Some(timestamp))
                 .in_universe(self.clubcard.universe())
             {
-                covered_timestamp_count = covered_timestamp_count.saturating_add(1);
+                covered_timestamp_count =
+                    covered_timestamp_count.saturating_add(1);
             }
         }
         if covered_timestamp_count < required_covered_timestamps {
@@ -283,7 +284,9 @@ impl CachedCRLiteState {
         let delta_paths = manifest.delta_paths()?;
         for (i, path) in delta_paths.into_iter().enumerate() {
             let delta_meta = manifest.deltas.get(i).ok_or_else(|| {
-                anyhow::anyhow!("delta_paths index {} out of bounds for manifest.deltas", i)
+                anyhow::anyhow!(
+                    "delta_paths index {i} out of bounds for manifest.deltas"
+                )
             })?;
             let bytes = std::fs::read(&path).with_context(|| {
                 format!("Failed to read CRLite delta filter {}", path.display())
@@ -860,7 +863,9 @@ pub fn get_or_load_crlite_state() -> Result<Arc<CachedCRLiteState>> {
 
     // 1. Read lock check
     {
-        let guard = cache.read().map_err(|e| anyhow::anyhow!("CRLite state cache read lock poisoned: {e}"))?;
+        let guard = cache.read().map_err(|e| {
+            anyhow::anyhow!("CRLite state cache read lock poisoned: {e}")
+        })?;
         if let Some(state) = &*guard {
             if let Ok(Some(manifest)) = load_crlite_manifest() {
                 if manifest.last_updated_unix_seconds
@@ -873,7 +878,9 @@ pub fn get_or_load_crlite_state() -> Result<Arc<CachedCRLiteState>> {
     }
 
     // 2. Write lock check and load
-    let mut guard = cache.write().map_err(|e| anyhow::anyhow!("CRLite state cache write lock poisoned: {e}"))?;
+    let mut guard = cache.write().map_err(|e| {
+        anyhow::anyhow!("CRLite state cache write lock poisoned: {e}")
+    })?;
     if let Some(state) = &*guard {
         if let Ok(Some(manifest)) = load_crlite_manifest() {
             if manifest.last_updated_unix_seconds
@@ -1109,7 +1116,16 @@ pub fn load_embedded_test_filter(name: &str) -> Result<LoadedCRLiteFilter> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::bin2hex;
     use std::fs;
@@ -1255,9 +1271,9 @@ mod tests {
             last_updated_unix_seconds: now,
             current_filter: Some(CRLiteArtifact {
                 relative_path: format!("default/{full_name}"),
-                sha256_hex: bin2hex(
-                    <sha2::Sha256 as sha2::Digest>::digest(&full_bytes),
-                ),
+                sha256_hex: bin2hex(<sha2::Sha256 as sha2::Digest>::digest(
+                    &full_bytes,
+                )),
                 size_bytes: u64::try_from(full_bytes.len()).unwrap(),
                 effective_timestamp: Some(1_577_836_800_000),
                 is_incremental: false,
@@ -1324,7 +1340,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(valid.is_ok());
+        valid.unwrap();
 
         let revoked = verifier.verify_server_cert(
             &load_pem_certificate("revoked.example.com.pem"),
@@ -1333,7 +1349,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(revoked.is_err());
+        revoked.unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1355,7 +1371,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(result.is_ok());
+        result.unwrap();
     }
 
     #[crate::ctb_test]
@@ -1378,7 +1394,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(result.is_ok());
+        result.unwrap();
 
         // 2. Revoked in delta but without delta filter is accepted
         seed_cached_filter_state_with_deltas(false);
@@ -1392,7 +1408,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(result.is_ok());
+        result.unwrap();
     }
 
     #[crate::ctb_test]
@@ -1413,7 +1429,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(without_delta.is_ok());
+        without_delta.unwrap();
 
         seed_cached_filter_state_with_deltas(true);
         let with_delta = verifier.verify_server_cert(
@@ -1423,7 +1439,7 @@ mod tests {
             &[],
             fixture_verification_time(),
         );
-        assert!(with_delta.is_err());
+        with_delta.unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1459,8 +1475,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn validates_relative_artifact_paths() {
-        assert!(validate_relative_artifact_path("default/file.filter").is_ok());
-        assert!(validate_relative_artifact_path("../file.filter").is_err());
+        validate_relative_artifact_path("default/file.filter").unwrap();
+        validate_relative_artifact_path("../file.filter").unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1486,7 +1502,7 @@ mod tests {
         };
 
         let result = select_current_records(&response, "default");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1512,7 +1528,7 @@ mod tests {
         };
 
         let result = select_current_records(&response, "default");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]

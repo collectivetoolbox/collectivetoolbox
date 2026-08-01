@@ -1,12 +1,13 @@
 use ctb_utilities::string::to_char;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, anyhow};
-use std::collections::HashMap;
-
-use crate::bail_if_none;
 
 pub fn to_hex_dump(data: &[u8]) -> String {
     let mut out = String::new();
@@ -53,80 +54,80 @@ pub fn to_fancy_hex_dump(data: &[u8]) -> String {
 }
 
 pub fn byte_to_graphical(b: u8) -> char {
-    if (b == 0) {
-        return '␀';
-    } else if (b == 1) {
-        return '␁';
-    } else if (b == 2) {
-        return '␂';
-    } else if (b == 3) {
-        return '␃';
-    } else if (b == 4) {
-        return '␄';
-    } else if (b == 5) {
-        return '␅';
-    } else if (b == 6) {
-        return '␆';
-    } else if (b == 7) {
-        return '␇';
-    } else if (b == 8) {
-        return '␈';
-    } else if (b == 9) {
-        return '␉';
-    } else if (b == 10) {
-        return '␊';
-    } else if (b == 11) {
-        return '␋';
-    } else if (b == 12) {
-        return '␌';
-    } else if (b == 13) {
-        return '␍';
-    } else if (b == 14) {
-        return '␎';
-    } else if (b == 15) {
-        return '␏';
-    } else if (b == 16) {
-        return '␐';
-    } else if (b == 17) {
-        return '␑';
-    } else if (b == 18) {
-        return '␒';
-    } else if (b == 19) {
-        return '␓';
-    } else if (b == 20) {
-        return '␔';
-    } else if (b == 21) {
-        return '␕';
-    } else if (b == 22) {
-        return '␖';
-    } else if (b == 23) {
-        return '␗';
-    } else if (b == 24) {
-        return '␘';
-    } else if (b == 25) {
-        return '␙';
-    } else if (b == 26) {
-        return '␚';
-    } else if (b == 27) {
-        return '␛';
-    } else if (b == 28) {
-        return '␜';
-    } else if (b == 29) {
-        return '␝';
-    } else if (b == 30) {
-        return '␞';
-    } else if (b == 31) {
-        return '␟';
-    } else if (b == 32) {
-        return '␠';
-    } else if (b >= 33 && b <=126) {
-        return char::from(b);
-    } else if (b == 127) {
-        return '␡';
-    } else if (b < 255) {
-        return to_char(ctb_formats_encoding::cp437::chr(b)).expect("Should be infallible - codepage 437 decoding returned multiple characters for a single byte?");
+    if b == 0 {
+        '␀'
+    } else if b == 1 {
+        '␁'
+    } else if b == 2 {
+        '␂'
+    } else if b == 3 {
+        '␃'
+    } else if b == 4 {
+        '␄'
+    } else if b == 5 {
+        '␅'
+    } else if b == 6 {
+        '␆'
+    } else if b == 7 {
+        '␇'
+    } else if b == 8 {
+        '␈'
+    } else if b == 9 {
+        '␉'
+    } else if b == 10 {
+        '␊'
+    } else if b == 11 {
+        '␋'
+    } else if b == 12 {
+        '␌'
+    } else if b == 13 {
+        '␍'
+    } else if b == 14 {
+        '␎'
+    } else if b == 15 {
+        '␏'
+    } else if b == 16 {
+        '␐'
+    } else if b == 17 {
+        '␑'
+    } else if b == 18 {
+        '␒'
+    } else if b == 19 {
+        '␓'
+    } else if b == 20 {
+        '␔'
+    } else if b == 21 {
+        '␕'
+    } else if b == 22 {
+        '␖'
+    } else if b == 23 {
+        '␗'
+    } else if b == 24 {
+        '␘'
+    } else if b == 25 {
+        '␙'
+    } else if b == 26 {
+        '␚'
+    } else if b == 27 {
+        '␛'
+    } else if b == 28 {
+        '␜'
+    } else if b == 29 {
+        '␝'
+    } else if b == 30 {
+        '␞'
+    } else if b == 31 {
+        '␟'
+    } else if b == 32 {
+        '␠'
+    } else if (33..=126).contains(&b) {
+        char::from(b)
+    } else if b == 127 {
+        '␡'
+    } else if b < 255 {
+        to_char(ctb_formats_encoding::cp437::chr(b)).expect("Should be infallible - codepage 437 decoding returned multiple characters for a single byte?")
     } else {
-        return '⍽';
+        '⍽'
     }
 }
 
@@ -153,7 +154,16 @@ pub fn bin2hex(data: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -200,6 +210,6 @@ mod tests {
         assert_eq!(decoded_complex, original);
 
         // Test invalid hex input
-        assert!(hex2bin("not a hex string").is_err());
+        hex2bin("not a hex string").unwrap_err();
     }
 }

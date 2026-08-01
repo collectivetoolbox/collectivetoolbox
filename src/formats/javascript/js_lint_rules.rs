@@ -77,7 +77,8 @@ impl RuleFormatter for PrettyFormatter {
             // Print the list of all rules.
             rules => {
                 rules.sort_by_key(|r| r.code);
-                let mut list = Vec::with_capacity(rules.len().saturating_add(1));
+                let mut list =
+                    Vec::with_capacity(rules.len().saturating_add(1));
                 list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
                 list.extend(rules.iter().map(|r| {
                     let mut s = format!(" - {}", r.code);

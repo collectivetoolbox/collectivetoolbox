@@ -1,9 +1,13 @@
 //! SEMS format parser and exporter for EITE compatibility.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, anyhow, bail};
 use const_default::ConstDefault;
 
 use crate::formats::FormatLog;
@@ -77,7 +81,10 @@ pub fn dca_from_sems(
                 let mut i = 0usize;
                 while idx.saturating_add(i) < content.len() {
                     let offset = idx.saturating_add(i);
-                    let b = content.get(offset).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+                    let b = content
+                        .get(offset)
+                        .copied()
+                        .ok_or_else(|| anyhow!("Index out of bounds"))?;
                     if ascii_is_newline(b) {
                         parser_state = "dc";
                         // don't consume and advance past the newline here; give
@@ -189,7 +196,16 @@ pub fn dca_to_sems(dc_array: &[u32]) -> Result<(Vec<u8>, FormatLog)> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::utilities::assert_vec_u32_eq;
     use crate::{

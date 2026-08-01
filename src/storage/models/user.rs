@@ -2,10 +2,9 @@
 //! This *tries* to lock the user during write operations so it won't end up in
 //! inconsistent states, etc. but that doesn't currently seem to work reliably.
 
-#[allow(unused_imports, reason = "imported module dependencies")]
+#[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 
-use ctb_utilities::ipc::service_traits::storage::UserDto;
 use crate::graph::Graph;
 use crate::secret::Secret;
 use crate::user::auth::KekParams;
@@ -14,8 +13,9 @@ use crate::utilities::password::{
 };
 use crate::utilities::pc_settings::ensure_pc_settings;
 use crate::utilities::resource_lock::{Lock, ResourceLock};
-use crate::{bail_if_none, error, json, log};
+use crate::{error, json, log};
 use anyhow::{Context, Result, anyhow, bail};
+use ctb_utilities::ipc::service_traits::storage::UserDto;
 use ctb_utilities::storage::get_storage_dir;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
@@ -52,7 +52,7 @@ pub struct UserPublicInfo {
     picture: Option<Vec<u8>>,
     remote_status: Option<String>,
     #[serde(skip)]
-    #[allow(dead_code, reason = "field is used as lock handle")]
+    #[expect(dead_code, reason = "field is used as lock handle")]
     lock: Option<ResourceLock>,
 }
 
@@ -186,7 +186,8 @@ impl User {
     }
 
     pub fn is_admin(&self) -> bool {
-        let settings = crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        let settings = crate::utilities::pc_settings::PcSettings::load()
+            .unwrap_or_default();
         match &settings.admin_users {
             ctb_utilities::json::maybe_value::MaybeOption::Value(v) => {
                 if v.is_empty() {
@@ -252,7 +253,9 @@ impl User {
             auth: Some(phc),
             display_name: None,
             picture: None,
-            key_encryption_key_params: Some(json!(kek_params).as_bytes().to_vec()),
+            key_encryption_key_params: Some(
+                json!(kek_params).as_bytes().to_vec(),
+            ),
             wrapped_dek: Some(wrapped_dek),
             pubkey: None,
             subscription_expiry: None,
@@ -277,7 +280,10 @@ impl User {
         user.public_info.uuid = uuid.to_vec();
         user.public_info.remote_status = Some("Pending".to_string());
         user.local_config = user.local_config();
-        crate::user::session::register_user_dek(user_id, Secret::new(dek.clone()))?;
+        crate::user::session::register_user_dek(
+            user_id,
+            Secret::new(dek.clone()),
+        )?;
         user.dek = Some(Secret::new(dek));
         user.lock = Some(user_lock);
         // Initialize user graphs with a default graph (id = 1)
@@ -373,14 +379,16 @@ impl User {
         let _user_lock = lock_by_id(user_id)?;
 
         let (phc, kek_params, wrapped_dek, uuid) = {
-            let dto = ipcb!(storage).get_user_by_id_b(user_id)?
-                .ok_or_else(|| anyhow!("User not found: {}", user_id))?;
+            let dto = ipcb!(storage)
+                .get_user_by_id_b(user_id)?
+                .ok_or_else(|| anyhow!("User not found: {user_id}"))?;
 
             let phc = dto.auth.ok_or_else(|| {
                 anyhow!("Auth entry for user_id {user_id} not found")
             })?;
 
-            let kek_params = dto.key_encryption_key_params
+            let kek_params = dto
+                .key_encryption_key_params
                 .and_then(|bytes| {
                     serde_json::from_slice::<KekParams>(&bytes).ok()
                 })
@@ -408,7 +416,10 @@ impl User {
         use zeroize::Zeroize;
         kek.zeroize();
 
-        crate::user::session::register_user_dek(user_id, Secret::new(dek.clone()))?;
+        crate::user::session::register_user_dek(
+            user_id,
+            Secret::new(dek.clone()),
+        )?;
 
         let mut user = User::default();
         user.public_info = public_info;
@@ -420,8 +431,11 @@ impl User {
         Ok(user)
     }
 
-    /// Reconstruct a User struct from UserPublicInfo for an already-logged-in session.
-    pub fn from_public_info(public_info: UserPublicInfo, session_token: Option<String>) -> Self {
+    /// Reconstruct a User struct from `UserPublicInfo` for an already-logged-in session.
+    pub fn from_public_info(
+        public_info: UserPublicInfo,
+        session_token: Option<String>,
+    ) -> Self {
         let mut user = User::default();
         user.public_info = public_info;
         user.session_token = session_token;
@@ -510,7 +524,11 @@ pub fn lock_by_id(user_id: u64) -> Result<ResourceLock> {
 }
 
 fn get_user_id_by_name(name: &str) -> Option<u64> {
-    ipcb!(storage).get_user_by_name_b(name).ok().flatten().map(|u| u.id)
+    ipcb!(storage)
+        .get_user_by_name_b(name)
+        .ok()
+        .flatten()
+        .map(|u| u.id)
 }
 
 pub fn user_exists(name: &str) -> bool {
@@ -522,7 +540,11 @@ pub fn create_user_and_session(
     password_bytes: Vec<u8>,
     duration_secs: u64,
 ) -> Result<String> {
-    ipcb!(storage).create_user_and_session_b(username, password_bytes, duration_secs)
+    ipcb!(storage).create_user_and_session_b(
+        username,
+        password_bytes,
+        duration_secs,
+    )
 }
 
 pub async fn create_user_and_session_async(
@@ -530,7 +552,9 @@ pub async fn create_user_and_session_async(
     password_bytes: Vec<u8>,
     duration_secs: u64,
 ) -> Result<String> {
-    ipc!(storage).create_user_and_session(username, password_bytes, duration_secs).await
+    ipc!(storage)
+        .create_user_and_session(username, password_bytes, duration_secs)
+        .await
 }
 
 pub fn login_user(
@@ -546,7 +570,9 @@ pub async fn login_user_async(
     password_bytes: Vec<u8>,
     duration_secs: u64,
 ) -> Result<String> {
-    ipc!(storage).login_user(username, password_bytes, duration_secs).await
+    ipc!(storage)
+        .login_user(username, password_bytes, duration_secs)
+        .await
 }
 
 pub fn validate_session(token: &str) -> Result<Option<u64>> {
@@ -562,23 +588,43 @@ pub fn invalidate_session(token: &str) -> Result<()> {
 }
 
 fn get_user_password_by_id(user_id: u64) -> Option<String> {
-    ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().and_then(|u| u.auth)
+    ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .and_then(|u| u.auth)
 }
 
 fn get_user_picture_by_id(user_id: u64) -> Option<Vec<u8>> {
-    ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().and_then(|u| u.picture)
+    ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .and_then(|u| u.picture)
 }
 
 fn get_user_kek_params_by_id(user_id: u64) -> Option<Vec<u8>> {
-    ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().and_then(|u| u.key_encryption_key_params)
+    ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .and_then(|u| u.key_encryption_key_params)
 }
 
 fn get_user_wrapped_dek_by_id(user_id: u64) -> Option<Vec<u8>> {
-    ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().and_then(|u| u.wrapped_dek)
+    ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .and_then(|u| u.wrapped_dek)
 }
 #[cfg(test)]
 fn get_user_pubkey_by_id(user_id: u64) -> Option<Vec<u8>> {
-    ipcb!(storage).get_user_by_id_b(user_id).ok().flatten().and_then(|u| u.pubkey)
+    ipcb!(storage)
+        .get_user_by_id_b(user_id)
+        .ok()
+        .flatten()
+        .and_then(|u| u.pubkey)
 }
 
 pub fn get_all_user_ids() -> Result<Vec<u64>> {
@@ -603,7 +649,11 @@ fn next_user_id() -> Result<u64> {
     User::increment_and_get_user_id()
 }
 
-#[allow(clippy::panic, clippy::expect_used, reason = "Test user creation helper function panics on creation error")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    reason = "Test user creation helper function panics on creation error"
+)]
 pub fn get_test_user(name: &str) -> User {
     use crate::debug;
 
@@ -642,7 +692,11 @@ pub fn get_test_user(name: &str) -> User {
     );
 
     let token = format!("test_session_token_{name}");
-    crate::user::session::register_test_session(token.clone(), user.local_id(), 3600);
+    crate::user::session::register_test_session(
+        token.clone(),
+        user.local_id(),
+        3600,
+    );
     user.set_session_token(Some(token));
 
     user
@@ -655,7 +709,16 @@ fn get_test_password() -> Password {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::{bail_if_none, debug};
@@ -784,7 +847,7 @@ mod tests {
         let user = get_test_user(name);
         drop(user);
         let res = User::create(name, &get_test_password());
-        assert!(res.is_err());
+        res.unwrap_err();
         get_test_user(name).delete()?;
         Ok(())
     }
@@ -823,7 +886,7 @@ mod tests {
             new_public_info,
             &Password::from_string("wrong_password"),
         );
-        assert!(res.is_err());
+        res.unwrap_err();
 
         Ok(())
     }

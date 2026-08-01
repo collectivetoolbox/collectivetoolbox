@@ -1,12 +1,19 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use uuid::Uuid;
 
 use crate::node::NodeType;
 
-pub const NODE_DATA_UUID: Uuid = Uuid::from_u128(0x0c639d0043ac41b28a319fb9ce7910e0);
-pub const NODE_STATEMENTS_UUID: Uuid = Uuid::from_u128(0x8cef315b818c46c0a509e9d538b557f9);
-pub const NODE_SYSTEM_UUID: Uuid = Uuid::from_u128(0x7a832d2e65424159bbda0d01b9dbb0e9);
+pub const NODE_DATA_UUID: Uuid =
+    Uuid::from_u128(0x0c639d0043ac41b28a319fb9ce7910e0);
+pub const NODE_STATEMENTS_UUID: Uuid =
+    Uuid::from_u128(0x8cef315b818c46c0a509e9d538b557f9);
+pub const NODE_SYSTEM_UUID: Uuid =
+    Uuid::from_u128(0x7a832d2e65424159bbda0d01b9dbb0e9);
 
 pub struct PackagedNode {
     pub node_type: NodeType,
@@ -48,7 +55,9 @@ pub fn serialize_packaged_node(
     let mut ck = [0_u8; 32];
     if !checksum.is_empty() {
         let len = checksum.len().min(32);
-        if let (Some(dest), Some(src)) = (ck.get_mut(..len), checksum.get(..len)) {
+        if let (Some(dest), Some(src)) =
+            (ck.get_mut(..len), checksum.get(..len))
+        {
             dest.copy_from_slice(src);
         }
     }
@@ -136,7 +145,16 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -170,4 +188,3 @@ mod tests {
         Ok(())
     }
 }
-

@@ -1,7 +1,11 @@
 //! PDF conversion helpers.
 //! FIXME: TODO!
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
@@ -18,8 +22,8 @@ pub(crate) fn get_pdf_data(key: &str) -> Option<Vec<u8>> {
 }
 
 /// Extract raw text from a PDF byte array.
-pub fn pdf2txt(input: &[u8]) -> Result<String> {
-    Ok("".to_string())
+pub fn pdf2txt(_input: &[u8]) -> Result<String> {
+    Ok(String::new())
     // let doc = unpdf::parse_bytes(input)?;
     // let options = RenderOptions::default();
     // let txt = to_text(&doc, &options)?;
@@ -27,16 +31,16 @@ pub fn pdf2txt(input: &[u8]) -> Result<String> {
 }
 
 /// Convert PDF byte array structure into JSON format.
-pub fn pdf2json(input: &[u8]) -> Result<String> {
-    Ok("".to_string())
+pub fn pdf2json(_input: &[u8]) -> Result<String> {
+    Ok(String::new())
     // let doc = unpdf::parse_bytes(input)?;
     // let json = to_json(&doc, JsonFormat::Pretty)?;
     // Ok(json)
 }
 
 /// Convert PDF byte array content to Markdown format.
-pub fn pdf2md(input: &[u8]) -> Result<String> {
-    Ok("".to_string())
+pub fn pdf2md(_input: &[u8]) -> Result<String> {
+    Ok(String::new())
     // let doc = unpdf::parse_bytes(input)?;
     // let options = RenderOptions::default();
     // let md = to_markdown(&doc, &options)?;
@@ -44,9 +48,17 @@ pub fn pdf2md(input: &[u8]) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
-    use super::*;
 
     // #[crate::ctb_test]
     // fn test_pdf2txt_invalid() {

@@ -1,7 +1,11 @@
 //! RPC client helpers for the multiplexed IPC layer.
 
 use crate::multiplex::session::Session;
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::error::Error;
@@ -21,7 +25,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument as _;
 
-#[allow(dead_code, reason = "potentially unused API helper")]
+#[expect(dead_code, reason = "potentially unused API helper")]
 pub(crate) const DEFAULT_EVENTS_CAPACITY: usize = 64;
 
 /// RPC client interface layered on a Session, with request/response correlation and cancellation.

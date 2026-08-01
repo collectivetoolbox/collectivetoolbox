@@ -1,6 +1,10 @@
 //! Run-scoped settings derived from the current process invocation.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::sync::{OnceLock, RwLock};

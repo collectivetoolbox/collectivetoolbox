@@ -3,7 +3,11 @@
 //! `connection.rs` is intended to be transport/handshake focused. Service-
 //! specific client implementations should live under `services/`.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::sync::Arc;

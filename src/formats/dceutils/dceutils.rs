@@ -51,35 +51,45 @@
 //! [^6]: This is an early version of the DCE 3.0a translator, not a separate format. Leave the output format blank when using this translator, since the same code handles both input and output. This is not tested or maintained, and may or may not work properly.
 //! [^7]: These are miscellaneous outdated translators, not separate formats. Leave the output format blank when using them, since the same code handles both input and output. These are not tested or maintained, and may or may not work properly.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
-pub mod tables;
-pub mod tools;
 pub mod cdce;
-pub mod dce3_0a;
 pub mod dce3_01a;
-pub mod unicode;
+pub mod dce3_0a;
 pub mod legacy;
+pub mod tables;
 pub mod to_csv;
+pub mod tools;
+pub mod unicode;
 
 #[cfg(test)]
 mod tests;
 
-use anyhow::{Result, anyhow, bail, Context};
+use anyhow::{Context, Result, anyhow, bail};
 
 pub fn get_dce_version(data: &[u8]) -> String {
     if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01") {
-        return "This document does not appear to be stored using DCE.".to_string();
+        return "This document does not appear to be stored using DCE."
+            .to_string();
     }
     match data.get(6) {
         Some(&1) => "3_0a".to_string(),
         Some(&2) => "3_01a".to_string(),
-        _ => "This document is not stored using a supported version of DCE.".to_string(),
+        _ => "This document is not stored using a supported version of DCE."
+            .to_string(),
     }
 }
 
-pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Result<Vec<u8>> {
+pub fn dce_convert(
+    data: &[u8],
+    input_format: &str,
+    output_format: &str,
+) -> Result<Vec<u8>> {
     if input_format == output_format && input_format != "dc" {
         return Ok(data.to_vec());
     }
@@ -102,31 +112,42 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
             "dce2hex" => legacy::onestep_dce2hex_to_none(data),
             "hex2dce" => legacy::onestep_hex2dce_to_none(data),
             "legacy_cdce" => legacy::onestep_legacy_cdce_to_html_l(data),
-            _ => bail!("Unknown one-step conversion: {} to {}", input_format, output_format),
+            _ => bail!(
+                "Unknown one-step conversion: {input_format} to {output_format}"
+            ),
         };
     }
 
     // Step 4: Convert input data to a Dc list (String representation)
     let dc = match input_format {
-        "dc" => {
-            std::str::from_utf8(data).context("invalid UTF-8 in Dc list")?.to_string()
-        }
+        "dc" => std::str::from_utf8(data)
+            .context("invalid UTF-8 in Dc list")?
+            .to_string(),
         "dce" => {
             let ver = get_dce_version(data);
             if ver == "3_0a" || ver == "3_01a" {
                 let res = dce_convert(data, &ver, "dc")?;
                 String::from_utf8(res)?
-            } else if ver == "This document does not appear to be stored using DCE." {
-                bail!("This document is not stored using the specified format.");
+            } else if ver
+                == "This document does not appear to be stored using DCE."
+            {
+                bail!(
+                    "This document is not stored using the specified format."
+                );
             } else {
-                bail!("{}", ver);
+                bail!("{ver}");
             }
         }
         "hex_dce" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
-                Ok(ctb_formats_hexdump::hex2bin(hex_str)?)
-            })().map_err(|_| anyhow!("This document is not stored using the specified format."))?;
+                ctb_formats_hexdump::hex2bin(hex_str)
+            })()
+            .map_err(|_| {
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             let res_bytes = dce_convert(&bin, "dce", "dc")?;
             String::from_utf8(res_bytes)?
         }
@@ -135,16 +156,26 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
         "hex_3_0a" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
-                Ok(ctb_formats_hexdump::hex2bin(hex_str)?)
-            })().map_err(|_| anyhow!("This document is not stored using the specified format."))?;
+                ctb_formats_hexdump::hex2bin(hex_str)
+            })()
+            .map_err(|_| {
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             let res_bytes = dce_convert(&bin, "3_0a", "dc")?;
             String::from_utf8(res_bytes)?
         }
         "hex_3_0a_raw" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
-                Ok(ctb_formats_hexdump::hex2bin(hex_str)?)
-            })().map_err(|_| anyhow!("This document is not stored using the specified format."))?;
+                ctb_formats_hexdump::hex2bin(hex_str)
+            })()
+            .map_err(|_| {
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             let res_bytes = dce_convert(&bin, "3_0a_raw", "dc")?;
             String::from_utf8(res_bytes)?
         }
@@ -153,16 +184,26 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
         "hex_3_01a" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
-                Ok(ctb_formats_hexdump::hex2bin(hex_str)?)
-            })().map_err(|_| anyhow!("This document is not stored using the specified format."))?;
+                ctb_formats_hexdump::hex2bin(hex_str)
+            })()
+            .map_err(|_| {
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             let res_bytes = dce_convert(&bin, "3_01a", "dc")?;
             String::from_utf8(res_bytes)?
         }
         "hex_3_01a_raw" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
-                Ok(ctb_formats_hexdump::hex2bin(hex_str)?)
-            })().map_err(|_| anyhow!("This document is not stored using the specified format."))?;
+                ctb_formats_hexdump::hex2bin(hex_str)
+            })()
+            .map_err(|_| {
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             let res_bytes = dce_convert(&bin, "3_01a_raw", "dc")?;
             String::from_utf8(res_bytes)?
         }
@@ -176,7 +217,9 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
         "utf8_dc64_bin" => unicode::convert_utf8_dc64_bin_to_dc(data)?,
         "utf8_dc64_bin_hex" => unicode::convert_utf8_dc64_bin_hex_to_dc(data)?,
         "utf8_dc64_bin_enc" => unicode::convert_utf8_dc64_bin_enc_to_dc(data)?,
-        "utf8_dc64_bin_enc_hex" => unicode::convert_utf8_dc64_bin_enc_hex_to_dc(data)?,
+        "utf8_dc64_bin_enc_hex" => {
+            unicode::convert_utf8_dc64_bin_enc_hex_to_dc(data)?
+        }
         _ => bail!("Unknown input format."),
     };
 
@@ -197,7 +240,8 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
         "3_0a" => dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned),
         "3_0a_raw" => dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned),
         "hex_3_0a_raw" => {
-            let raw_bytes = dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned)?;
+            let raw_bytes =
+                dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned)?;
             Ok(bin2hex(raw_bytes).to_uppercase().into_bytes())
         }
         "3_01a" => dce3_01a::convert_dc_to_3_01a_output(&dc_cleaned),
@@ -217,11 +261,21 @@ pub fn dce_convert(data: &[u8], input_format: &str, output_format: &str) -> Resu
         "utf32" => unicode::convert_dc_to_utf32_output(&dc_cleaned),
         "utf8_base64" => unicode::convert_dc_to_utf8_base64_output(&dc_cleaned),
         "utf8_dc64" => unicode::convert_dc_to_utf8_dc64_output(&dc_cleaned),
-        "utf8_dc64_enc" => unicode::convert_dc_to_utf8_dc64_enc_output(&dc_cleaned),
-        "utf8_dc64_bin" => unicode::convert_dc_to_utf8_dc64_bin_output(&dc_cleaned),
-        "utf8_dc64_bin_hex" => unicode::convert_dc_to_utf8_dc64_bin_hex_output(&dc_cleaned),
-        "utf8_dc64_bin_enc" => unicode::convert_dc_to_utf8_dc64_bin_enc_output(&dc_cleaned),
-        "utf8_dc64_bin_enc_hex" => unicode::convert_dc_to_utf8_dc64_bin_enc_hex_output(&dc_cleaned),
+        "utf8_dc64_enc" => {
+            unicode::convert_dc_to_utf8_dc64_enc_output(&dc_cleaned)
+        }
+        "utf8_dc64_bin" => {
+            unicode::convert_dc_to_utf8_dc64_bin_output(&dc_cleaned)
+        }
+        "utf8_dc64_bin_hex" => {
+            unicode::convert_dc_to_utf8_dc64_bin_hex_output(&dc_cleaned)
+        }
+        "utf8_dc64_bin_enc" => {
+            unicode::convert_dc_to_utf8_dc64_bin_enc_output(&dc_cleaned)
+        }
+        "utf8_dc64_bin_enc_hex" => {
+            unicode::convert_dc_to_utf8_dc64_bin_enc_hex_output(&dc_cleaned)
+        }
         _ => bail!("Unknown output format."),
     }
 }

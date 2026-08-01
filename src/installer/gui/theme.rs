@@ -1,7 +1,11 @@
 use crate::gui::get_installer_data;
 use crate::gui::utils::GuiState;
 use crate::install::ThemePreference;
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::HashMap;
@@ -88,7 +92,11 @@ pub(crate) fn disabled_button_text_color(ui: &egui::Ui) -> Color32 {
     }
 }
 
-#[allow(clippy::expect_used, clippy::too_many_lines, reason = "large font registration function; expect is OK here since the fonts should be bundled correctly and if not something is majorly broken")]
+#[allow(
+    clippy::expect_used,
+    clippy::too_many_lines,
+    reason = "large font registration function; expect is OK here since the fonts should be bundled correctly and if not something is majorly broken"
+)]
 pub(crate) fn get_fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let mut fonts_list = HashMap::new();

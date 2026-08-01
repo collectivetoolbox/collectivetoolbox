@@ -1,6 +1,6 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::{Connection, Value};
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Nodes;
 pub const NAME: &str = "2026_06_30_3_checksum";
@@ -9,7 +9,9 @@ pub const UP_SQL: &str = "ALTER TABLE nodes ADD COLUMN checksum BLOB";
 
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     // 1. Fetch all nodes that don't have a checksum yet
-    let mut stmt = conn.prepare("SELECT id, data FROM nodes WHERE checksum IS NULL").await?;
+    let mut stmt = conn
+        .prepare("SELECT id, data FROM nodes WHERE checksum IS NULL")
+        .await?;
     let mut rows = stmt.query(()).await?;
     let mut updates = Vec::new();
     while let Some(row) = rows.next().await? {

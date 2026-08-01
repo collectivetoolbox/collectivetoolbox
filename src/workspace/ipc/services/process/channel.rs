@@ -1,6 +1,10 @@
 //! Channel-based implementations for the process service.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use tokio::sync::{mpsc, oneshot};

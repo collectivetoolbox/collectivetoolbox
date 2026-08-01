@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use ctb_utilities::anyhow::anyhow;
@@ -35,15 +39,21 @@ pub fn markdown2html_unsafe(markdown: Vec<u8>) -> Result<Vec<u8>> {
 
 pub fn markdown2html_str_unsafe(markdown: &str) -> Result<String> {
     let replaced = branding::replace_magic_strings(markdown);
-    markdown::to_html_with_options(
-        &replaced,
-        &get_markdown_options(true),
-    )
-    .map_err(|e| anyhow!("Failed to convert markdown to HTML: {e}"))
+    markdown::to_html_with_options(&replaced, &get_markdown_options(true))
+        .map_err(|e| anyhow!("Failed to convert markdown to HTML: {e}"))
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

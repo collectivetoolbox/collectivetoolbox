@@ -1,6 +1,10 @@
 //! Base conversion
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow, bail, ensure};
@@ -35,7 +39,7 @@ impl BaseConversionPaddingMode {
 }
 
 #[derive(Clone)]
-#[allow(clippy::struct_excessive_bools, reason = "conversion format flags")]
+#[expect(clippy::struct_excessive_bools, reason = "conversion format flags")]
 pub struct BaseStringFormatSettings {
     /// The prefix to use for each number (the quintessential example being 0x for hexadecimal)
     pub prefix: String,
@@ -153,7 +157,7 @@ pub fn int_from_base_str_u32(s: &str, base: u8) -> Result<u32> {
             bail!("Overflow converting {s} base {base}");
         }
     }
-    Ok(u32::try_from(acc).context("Did not fit in u32")?)
+    u32::try_from(acc).context("Did not fit in u32")
 }
 
 /// Returns the integer represented by n in the requested base.
@@ -178,7 +182,10 @@ pub fn int_from_base_str_u128(s: &str, base: u8) -> Result<u128> {
 }
 
 /// Returns the integer represented by n in the requested base.
-#[expect(clippy::arithmetic_side_effects, reason = "Natural is arbitrary-precision and cannot overflow")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "Natural is arbitrary-precision and cannot overflow"
+)]
 pub fn int_from_base_str_big(s: &str, base: u8) -> Result<Natural> {
     if !is_supported_base(base) {
         bail!("Unsupported base {base}");
@@ -236,7 +243,10 @@ pub fn dec_to_hex_string(s: &str) -> Result<(String, FormatLog)> {
     base_to_base_string(s, 10, 16, &BaseStringFormatSettings::default())
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "Natural is arbitrary-precision and cannot overflow")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "Natural is arbitrary-precision and cannot overflow"
+)]
 pub fn get_digits_needed(n: Natural, base: u8) -> Result<Natural> {
     ensure!(is_supported_base(base), "Unsupported base {base}");
     let mut digits = Natural::ZERO;
@@ -357,7 +367,7 @@ fn _parse_base_string(
 
     let multiple_of_base = limit
         .checked_add(1)
-        .map_or(false, |val| val.is_multiple_of(u64::from(from_base)));
+        .is_some_and(|val| val.is_multiple_of(u64::from(from_base)));
     if (limit > 1) && !multiple_of_base {
         log.warn(format!("The limit was derived from the number of digits required to represent {limit}, but {limit} + 1 is not a multiple of the input base {from_base}. That's not necessarily wrong, but note that the limit is not directly the maximum number of digits, but the maximum value representable in the number of digits to limit to.").as_str());
     }
@@ -396,18 +406,25 @@ fn _parse_base_string(
         }
     };
     while i < chars.len() {
-        let c: char = chars.get(i).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let c: char = chars
+            .get(i)
+            .copied()
+            .ok_or_else(|| anyhow!("Index out of bounds"))?;
 
         let this_is_base_digit =
             is_base_digit(c.to_string().as_str(), from_base)?;
 
         if let Some(base_prefix_char) = base_prefix_char {
-            let potential_prefix =
-                if let Some(potential_prefix) = i.checked_add(2).and_then(|end| chars.get(i..end)) {
-                    potential_prefix.first().copied().zip(potential_prefix.get(1).copied())
-                } else {
-                    None
-                };
+            let potential_prefix = if let Some(potential_prefix) =
+                i.checked_add(2).and_then(|end| chars.get(i..end))
+            {
+                potential_prefix
+                    .first()
+                    .copied()
+                    .zip(potential_prefix.get(1).copied())
+            } else {
+                None
+            };
 
             let next = i.checked_add(2).and_then(|idx| chars.get(idx));
             let next_is_base_digit = if let Some(next) = next {
@@ -590,7 +607,8 @@ pub fn char_from_hex_byte(hex: &str) -> Result<char> {
     if v > 0xFF {
         return Err(anyhow!("Hex byte out of range"));
     }
-    char::from_u32(v).ok_or_else(|| anyhow!("Invalid Unicode scalar value: {v}"))
+    char::from_u32(v)
+        .ok_or_else(|| anyhow!("Invalid Unicode scalar value: {v}"))
 }
 
 /*
@@ -614,7 +632,16 @@ fn u32_slice_as_bytes_be(values: &[u32]) -> Vec<u8> {
  */
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_formats_utilities::{
         assert_string_ok_eq_no_errors, assert_string_ok_eq_no_warnings,

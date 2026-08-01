@@ -62,7 +62,10 @@ pub fn is_v86() -> bool {
 pub fn is_pwa() -> bool {
     // window.matchMedia('(display-mode: standalone)').matches
     // TODO
-    #[expect(clippy::overly_complex_bool_expr, reason = "intentional stub logic")]
+    #[expect(
+        clippy::overly_complex_bool_expr,
+        reason = "intentional stub logic"
+    )]
     {
         false && is_browser_vm()
     }
@@ -76,7 +79,10 @@ pub fn is_pwa_mobile() -> bool {
 /// Return the width of usize
 pub fn usize() -> u8 {
     // Intentionally not using anyhow here
-    #[expect(clippy::expect_used, reason = "size_of is constant so it cannot panic")]
+    #[expect(
+        clippy::expect_used,
+        reason = "size_of is constant so it cannot panic"
+    )]
     u8::try_from(std::mem::size_of::<usize>().saturating_mul(8))
         .expect("usize width exceeds u8")
 }
@@ -219,7 +225,7 @@ pub fn is_official_signed_build() -> bool {
 }
 
 fn verify_official_signature_impl() -> bool {
-    let handle = std::thread::spawn(|| verify_official_signature_in_thread());
+    let handle = std::thread::spawn(verify_official_signature_in_thread);
     handle.join().unwrap_or(false)
 }
 
@@ -284,7 +290,10 @@ fn verify_official_signature_in_thread() -> bool {
     };
 
     #[derive(serde::Deserialize)]
-    #[expect(dead_code, reason = "fields parsed from JSON but not directly read in Rust")]
+    #[expect(
+        dead_code,
+        reason = "fields parsed from JSON but not directly read in Rust"
+    )]
     struct PublicKeyResponse {
         public_key: String,
         key_id: String,
@@ -412,7 +421,16 @@ fn verify_official_signature_in_thread() -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

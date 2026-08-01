@@ -1,14 +1,20 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, anyhow};
-use turso::{Database, Connection, Value, Builder, EncryptionOpts};
+use sea_query::{
+    Iden, IdenList, QueryStatementWriter, SchemaStatementBuilder, Write,
+};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{OnceLock, RwLock},
 };
-use sea_query::*;
+use turso::{Builder, Connection, Database, EncryptionOpts};
 
 #[ipc_dto]
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -55,8 +61,12 @@ fn extract_user_id(name: &str) -> Option<u64> {
     let comps: Vec<_> = path.components().collect();
     for (idx, comp) in comps.iter().enumerate() {
         if let std::path::Component::Normal(val) = comp {
-            if val.to_str() == Some("graphs") && idx.saturating_add(1) < comps.len() {
-                if let Some(std::path::Component::Normal(id_str)) = comps.get(idx.saturating_add(1)) {
+            if val.to_str() == Some("graphs")
+                && idx.saturating_add(1) < comps.len()
+            {
+                if let Some(std::path::Component::Normal(id_str)) =
+                    comps.get(idx.saturating_add(1))
+                {
                     if let Some(id_s) = id_str.to_str() {
                         if let Ok(id) = id_s.parse::<u64>() {
                             return Some(id);
@@ -69,22 +79,34 @@ fn extract_user_id(name: &str) -> Option<u64> {
     None
 }
 
-pub async fn validate_and_get_user(session_token: &str) -> Result<crate::user::User> {
-    let user_id = crate::user::session::validate_session(session_token.to_string())
-        .await?
-        .ok_or_else(|| anyhow!("Unauthorized: invalid or expired session"))?;
+pub async fn validate_and_get_user(
+    session_token: &str,
+) -> Result<crate::user::User> {
+    let user_id =
+        crate::user::session::validate_session(session_token.to_string())
+            .await?
+            .ok_or_else(|| {
+                anyhow!("Unauthorized: invalid or expired session")
+            })?;
     let pub_info = crate::user::UserPublicInfo::get_by_id(user_id)
         .ok_or_else(|| anyhow!("User not found"))?;
-    Ok(crate::user::User::from_public_info(pub_info, Some(session_token.to_string())))
+    Ok(crate::user::User::from_public_info(
+        pub_info,
+        Some(session_token.to_string()),
+    ))
 }
 
 pub fn authorize_db_access(session_user_id: u64, db_name: &str) -> Result<()> {
     if let Some(path_user_id) = extract_user_id(db_name) {
         if path_user_id != session_user_id {
-            anyhow::bail!("Unauthorized database access: user {session_user_id} does not own {db_name}");
+            anyhow::bail!(
+                "Unauthorized database access: user {session_user_id} does not own {db_name}"
+            );
         }
     } else if db_name.starts_with("graphs/") {
-        anyhow::bail!("Unauthorized database access: invalid graph path {db_name}");
+        anyhow::bail!(
+            "Unauthorized database access: invalid graph path {db_name}"
+        );
     }
     Ok(())
 }
@@ -107,7 +129,9 @@ pub async fn get_connection(name: &str) -> Result<Connection> {
 
     // 1. Read lock check
     let db = {
-        let pool = db_pool().read().map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
+        let pool = db_pool()
+            .read()
+            .map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
         pool.get(&path).cloned()
     };
 
@@ -138,7 +162,9 @@ pub async fn get_connection(name: &str) -> Result<Connection> {
         }
 
         // 3. Write lock check/insert (double-checked)
-        let mut pool = db_pool().write().map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
+        let mut pool = db_pool()
+            .write()
+            .map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
         if let Some(existing) = pool.get(&path) {
             existing.clone()
         } else {
@@ -155,17 +181,18 @@ pub async fn get_connection(name: &str) -> Result<Connection> {
 /// Helper to resolve the database path. Consolidates `users/` prefix into a single `users.db`.
 pub fn get_db_path(name: &str) -> Result<PathBuf> {
     let storage_dir = ctb_utilities::storage::get_storage_dir()?;
-    let path = if name.starts_with('/') || std::path::Path::new(name).is_absolute() {
-        if name.ends_with(".db") {
-            PathBuf::from(name)
+    let path =
+        if name.starts_with('/') || std::path::Path::new(name).is_absolute() {
+            if name.ends_with(".db") {
+                PathBuf::from(name)
+            } else {
+                PathBuf::from(format!("{name}.db"))
+            }
+        } else if name.starts_with("users/") {
+            storage_dir.join("users.db")
         } else {
-            PathBuf::from(format!("{name}.db"))
-        }
-    } else if name.starts_with("users/") {
-        storage_dir.join("users.db")
-    } else {
-        storage_dir.join(format!("{name}.db"))
-    };
+            storage_dir.join(format!("{name}.db"))
+        };
 
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -175,35 +202,64 @@ pub fn get_db_path(name: &str) -> Result<PathBuf> {
 
 /// Helper to get a safe, valid SQL table name.
 pub fn get_table_name(name: &str) -> String {
-    name.replace('/', "_").replace('-', "_")
+    name.replace(['/', '-'], "_")
 }
 
 /// Close and clear database connections for a deregistered user.
 pub fn close_connections(user_id: u64) -> Result<()> {
     let db_name = format!("graphs/{user_id}/user_data");
     let path = get_db_path(&db_name)?;
-    let mut pool = db_pool().write().map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
+    let mut pool = db_pool()
+        .write()
+        .map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
     pool.remove(&path);
     Ok(())
 }
 
-/// Convert SeaQuery Values to Turso Values.
+/// Convert `SeaQuery` Values to Turso Values.
 pub fn sea_values_to_turso(values: sea_query::Values) -> Vec<turso::Value> {
-    values.into_iter().map(|val| match val {
-        sea_query::Value::Bool(Some(b)) => turso::Value::Integer(if b { 1 } else { 0 }),
-        sea_query::Value::TinyInt(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::SmallInt(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::Int(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::BigInt(Some(v)) => turso::Value::Integer(v),
-        sea_query::Value::TinyUnsigned(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::SmallUnsigned(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::Unsigned(Some(v)) => turso::Value::Integer(i64::from(v)),
-        sea_query::Value::BigUnsigned(Some(v)) => turso::Value::Integer(<i64 as TryFrom<_>>::try_from(v).unwrap_or(0)),
-        sea_query::Value::Float(Some(v)) => turso::Value::Real(f64::from(v)),
-        sea_query::Value::Double(Some(v)) => turso::Value::Real(v),
-        sea_query::Value::String(Some(s)) => turso::Value::Text((*s).to_string()),
-        sea_query::Value::Char(Some(c)) => turso::Value::Text(c.to_string()),
-        sea_query::Value::Bytes(Some(b)) => turso::Value::Blob((*b).to_vec()),
-        _ => turso::Value::Null,
-    }).collect()
+    values
+        .into_iter()
+        .map(|val| match val {
+            sea_query::Value::Bool(Some(b)) => {
+                turso::Value::Integer(i64::from(b))
+            }
+            sea_query::Value::TinyInt(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::SmallInt(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::Int(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::BigInt(Some(v)) => turso::Value::Integer(v),
+            sea_query::Value::TinyUnsigned(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::SmallUnsigned(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::Unsigned(Some(v)) => {
+                turso::Value::Integer(i64::from(v))
+            }
+            sea_query::Value::BigUnsigned(Some(v)) => turso::Value::Integer(
+                <i64 as TryFrom<_>>::try_from(v).unwrap_or(0),
+            ),
+            sea_query::Value::Float(Some(v)) => {
+                turso::Value::Real(f64::from(v))
+            }
+            sea_query::Value::Double(Some(v)) => turso::Value::Real(v),
+            sea_query::Value::String(Some(s)) => {
+                turso::Value::Text((*s).to_string())
+            }
+            sea_query::Value::Char(Some(c)) => {
+                turso::Value::Text(c.to_string())
+            }
+            sea_query::Value::Bytes(Some(b)) => {
+                turso::Value::Blob((*b).to_vec())
+            }
+            _ => turso::Value::Null,
+        })
+        .collect()
 }

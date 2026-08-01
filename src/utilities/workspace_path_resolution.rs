@@ -4,17 +4,11 @@
 //! TODO: A number of these are unimplemented.
 //! TODO: How will this interact with subprocesses? If things are checking the CLI directly, it won't work (a subprocess should still be considered to be running as GUI or CLI for instance even if it's not actually running those itself).
 
-use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::pc_settings;
-use crate::pc_settings::PcSettingBoolKey;
-use crate::pc_settings::PcSettingU16Key;
-use crate::pc_settings::get_bool_setting;
-use crate::pc_settings::get_u16_setting;
 use crate::warn;
 
 pub fn is_cargo_target_binary() -> bool {
@@ -81,8 +75,14 @@ fn is_profile_dir(name: &OsStr) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
-mod tests {
-    use super::*;
-
-}
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {}
