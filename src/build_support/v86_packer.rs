@@ -708,6 +708,54 @@ pub fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
             }
         }
     }
+
+    let lld_wrapper_path = v86_tmp.join("tools/rust-lld-wrapper");
+    if lld_wrapper_path.is_file() || lld_wrapper_path.parent().map_or(false, |p| p.is_dir()) {
+        let sh_wrapper = r#"#!/bin/sh
+set -e
+
+LLD="rust-lld"
+if command -v rustup >/dev/null 2>&1; then
+    RUSTC_BIN="$(rustup which rustc 2>/dev/null || true)"
+    if [ -n "$RUSTC_BIN" ]; then
+        BIN_DIR="$(dirname "$RUSTC_BIN")"
+        TRIPLET="$(rustc -vV 2>/dev/null | grep '^host:' | cut -d' ' -f2 || true)"
+        if [ -n "$TRIPLET" ] && [ -f "$BIN_DIR/../lib/rustlib/$TRIPLET/bin/rust-lld" ]; then
+            LLD="$BIN_DIR/../lib/rustlib/$TRIPLET/bin/rust-lld"
+        fi
+    fi
+fi
+
+STRIP_DEBUG=0
+NEW_ARGS=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --export-table|--stack-first|--strip-debug)
+            ;;
+        --v86-strip-debug)
+            STRIP_DEBUG=1
+            ;;
+        *)
+            NEW_ARGS="$NEW_ARGS '$arg'"
+            ;;
+    esac
+done
+
+if [ "$STRIP_DEBUG" -eq 1 ]; then
+    NEW_ARGS="$NEW_ARGS '--strip-debug'"
+fi
+
+eval "set -- $NEW_ARGS"
+exec "$LLD" "$@"
+"#;
+        let _ = fs::write(&lld_wrapper_path, sh_wrapper);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&lld_wrapper_path, fs::Permissions::from_mode(0o755));
+        }
+    }
     Ok(())
 }
 

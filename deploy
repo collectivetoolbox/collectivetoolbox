@@ -582,6 +582,9 @@ echo "$commit" > COMMIT
 git add VERSION COMMIT
 git commit -m 'chore: Increase version after deploy'
 
+timestamp="$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+git tag -a "v$version" -m "Version $version - $timestamp"
+
 #./scripts/git-release "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" "$version" "$commit"
 
 echo

@@ -589,7 +589,8 @@ fn prepare_runtime_assets(
 
     let v86_images_vendor = project_root.join("vendor/v86_images");
     let guix_fs_json = v86_images_vendor.join("guix/guix-fs.json");
-    let guix_initrd = v86_images_vendor.join("guix/guix_posix_initrd.cpio.gz");
+    let guix_initrd = project_root.join("built/guix_posix_initrd.cpio.gz");
+
     let rebuild_requested = std::env::var("REBUILD_V86_IMAGES")
         .map(|v| v == "1" || v == "true")
         .unwrap_or(false);
@@ -615,9 +616,17 @@ fn prepare_runtime_assets(
 
     if guix_fs_json.is_file() && (initrd_out_of_date || rebuild_requested) {
         println!("cargo:warning=Building Guix POSIX initrd...");
+        ensure_parent_dir(&guix_initrd)?;
         if let Err(e) = crate::v86_packer::build_custom_initrd(&guix_fs_json, &guix_initrd) {
             println!("cargo:warning=Failed to build custom initrd: {e}");
         }
+    }
+
+    if guix_initrd.is_file() {
+        let initrd_dest_in_app_bundle = runtime_assets.join("vendor/v86_images/guix/guix_posix_initrd.cpio.gz");
+        ensure_parent_dir(&initrd_dest_in_app_bundle)?;
+        fs::copy(&guix_initrd, &initrd_dest_in_app_bundle)
+            .context("Failed to copy guix_posix_initrd.cpio.gz to runtime asset staging")?;
     }
 
     let dest_rsrc = project_root.join("built/v86_images.rsrc");
@@ -631,7 +640,6 @@ fn prepare_runtime_assets(
         .ok();
 
     let rsrc_out_of_date = !dest_rsrc.is_file()
-        || is_file_older(&dest_rsrc, &guix_initrd)
         || is_file_older(&dest_rsrc, &guix_fs_json)
         || dest_rsrc_mtime.map_or(true, |t| {
             is_any_file_newer(&v86_images_vendor, t).unwrap_or(true)

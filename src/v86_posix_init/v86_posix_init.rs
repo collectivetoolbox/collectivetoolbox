@@ -61,6 +61,34 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
     dest
 }
 
+#[cfg(target_arch = "x86")]
+unsafe fn outw(port: u16, val: u16) {
+    // SAFETY: Outputting 16-bit word value to x86 I/O port via out instruction.
+    unsafe {
+        core::arch::asm!(
+            "out dx, ax",
+            in("dx") port,
+            in("ax") val,
+            options(nomem, nostack, preserves_flags),
+        );
+    }
+}
+
+#[cfg(target_arch = "x86")]
+unsafe fn enable_vbe_lfb_1024x768() {
+    // SAFETY: Writing Bochs VBE DISPI registers (xres=1024, yres=768, bpp=32, enable=0x41) to ports 0x01ce/0x01cf.
+    unsafe {
+        outw(0x01ce, 1);
+        outw(0x01cf, 1024);
+        outw(0x01ce, 2);
+        outw(0x01cf, 768);
+        outw(0x01ce, 3);
+        outw(0x01cf, 32);
+        outw(0x01ce, 4);
+        outw(0x01cf, 0x41);
+    }
+}
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {
@@ -694,6 +722,12 @@ pub extern "C" fn _start() -> ! {
         sys_mount(c"devtmpfs".as_ptr().cast(), c"/root/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
     }
 
+    #[cfg(target_arch = "x86")]
+    // SAFETY: Enabling Bochs VBE 1024x768 32bpp LFB mode in WASM emulator engine.
+    unsafe {
+        enable_vbe_lfb_1024x768();
+    }
+
     print(b"[INIT] Chrooting into /root...\n");
     // SAFETY: Changing root directory to /root.
     unsafe {
@@ -708,9 +742,10 @@ pub extern "C" fn _start() -> ! {
 mkdir -p /bin /usr/bin /etc /tmp/.X11-unix /var/log /var/run
 chmod 1777 /tmp /tmp/.X11-unix
 
-for p in /gnu/store/*-profile/bin/* /gnu/store/*-profile/sbin/*; do
-    ln -sf \"$p\" /bin/ 2>/dev/null
-    ln -sf \"$p\" /usr/bin/ 2>/dev/null
+prof=$(echo /gnu/store/*-profile)
+for f in $prof/bin/* $prof/sbin/*; do
+    ln -sf \"$f\" /bin/ 2>/dev/null
+    ln -sf \"$f\" /usr/bin/ 2>/dev/null
 done
 
 for p in /gnu/store/*-profile; do
@@ -727,22 +762,36 @@ MP=$(
 )
 
 cat > /tmp/xorg.conf <<'EOF'
+Section \"Monitor\"
+    Identifier \"Monitor0\"
+    HorizSync 30.0 - 80.0
+    VertRefresh 50.0 - 75.0
+    Option \"PreferredMode\" \"1024x768\"
+EndSection
+
 Section \"Device\"
     Identifier \"Card0\"
     Driver \"modesetting\"
     Option \"kmsdev\" \"/dev/dri/card0\"
+    Option \"ShadowFB\" \"true\"
 EndSection
 
 Section \"Screen\"
     Identifier \"Screen0\"
     Device \"Card0\"
+    Monitor \"Monitor0\"
+    DefaultDepth 24
+    SubSection \"Display\"
+        Depth 24
+        Modes \"1024x768\"
+    EndSubSection
 EndSection
 EOF
 
 Xorg :0 -modulepath \"${MP}\" -config /tmp/xorg.conf -ac > /tmp/x.log 2>&1 &
 
 for i in $(seq 1 30); do
-    if obxprop -display :0 >/dev/null 2>&1; then
+    if [ -S /tmp/.X11-unix/X0 ]; then
         break
     fi
     sleep 1
@@ -751,7 +800,23 @@ done
 sleep 2
 cat /var/log/Xorg.0.log
 
+mkdir -p /usr/share/X11 /usr/lib/X11 /etc/X11 2>/dev/null || true
+cat > /usr/share/X11/rgb.txt <<'RGBEOF'
+  0   0 255		blue
+ 52 152 219		#3498db
+255   0   0		red
+  0 255   0		green
+255 255 255		white
+  0   0   0		black
+RGBEOF
+ln -sf /usr/share/X11/rgb.txt /usr/lib/X11/rgb.txt 2>/dev/null || true
+
 openbox --display :0 > /tmp/ob.log 2>&1 &
+xrandr --display :0 -s 1024x768 2>/dev/null || true
+xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true
+xterm -display :0 -geometry 120x60+0+0 -bg \"#3498db\" -fg white -bw 0 +sb 2>/dev/null &
+
+(while true; do xrandr --display :0 -s 800x600 2>/dev/null || true; sleep 1; xrandr --display :0 -s 1024x768 2>/dev/null || true; sleep 1; done) &
 
 sleep 2
 ps aux
@@ -759,7 +824,7 @@ ps aux
 exec /tmp/sh -i
 \0";
 
-    let path_env = c"PATH=/bin:/usr/bin";
+    let path_env = c"PATH=/gnu/store/c7b7yxchz14kgk1ln3j8jzs1frxzis6p-profile/bin:/gnu/store/c7b7yxchz14kgk1ln3j8jzs1frxzis6p-profile/sbin:/bin:/usr/bin";
     let home_env = c"HOME=/root";
     let term_env = c"TERM=vt100";
     let display_env = c"DISPLAY=:0";
