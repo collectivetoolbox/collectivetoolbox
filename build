@@ -31,7 +31,7 @@
 
 # Requires GNU Guix for source-bootstrapped v86 OS images and IceCat.
 # See https://guix.gnu.org/manual/en/html_node/Installation.html
-# guix system image --system=i686-linux --image-type=tarball scripts/guix/v86-os.scm
+# ./scripts/guix/build-v86-guix-image.sh
 # guix install icecat; guix pack -S /opt/gnu/bin=bin -RR icecat
 
 # FIXME: On Windows/Mac, it should probably use the system browser instead of IceCat; alternatively the whole thing could be stuffed into WSL2 though that is a little less obvious for users.

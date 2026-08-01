@@ -4,21 +4,30 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+PREBUILD_DEST=""
+if [ "${1:-}" = "--prebuild-tarball" ] && [ -n "${2:-}" ]; then
+    PREBUILD_DEST="$2"
+fi
+
 OUT_DIR="$WORKSPACE_ROOT/vendor/v86_images/guix"
 OUT_FLAT_DIR="$OUT_DIR/guix-rootfs-flat"
 OUT_FS_JSON="$OUT_DIR/guix-fs.json"
 
 export PATH="/var/guix/profiles/per-user/root/current-profile/bin:/root/.config/guix/current/bin:$PATH"
 
-mkdir -p "$OUT_FLAT_DIR"
+if [ -z "$PREBUILD_DEST" ]; then
+    mkdir -p "$OUT_FLAT_DIR"
+fi
 
 PREBUILT_TARBALL=""
-if [ -n "${PREBUILT_V86_TARBALL:-}" ] && [ -f "$PREBUILT_V86_TARBALL" ]; then
-    PREBUILT_TARBALL="$PREBUILT_V86_TARBALL"
-elif [ -f "/var/guix/v86-system-image.tar.gz" ]; then
-    PREBUILT_TARBALL="/var/guix/v86-system-image.tar.gz"
-elif [ -f "$OUT_DIR/v86-system-image.tar.gz" ]; then
-    PREBUILT_TARBALL="$OUT_DIR/v86-system-image.tar.gz"
+if [ -z "$PREBUILD_DEST" ]; then
+    if [ -n "${PREBUILT_V86_TARBALL:-}" ] && [ -f "$PREBUILT_V86_TARBALL" ]; then
+        PREBUILT_TARBALL="$PREBUILT_V86_TARBALL"
+    elif [ -f "/var/guix/v86-system-image.tar.gz" ]; then
+        PREBUILT_TARBALL="/var/guix/v86-system-image.tar.gz"
+    elif [ -f "$OUT_DIR/v86-system-image.tar.gz" ]; then
+        PREBUILT_TARBALL="$OUT_DIR/v86-system-image.tar.gz"
+    fi
 fi
 
 if [ -n "$PREBUILT_TARBALL" ]; then
@@ -32,18 +41,35 @@ else
     fi
 
     echo "Building ctb-nopersonality shared object in Rust..."
-    mkdir -p "$WORKSPACE_ROOT/target/release"
-    NOPERSONALITY_SO="$WORKSPACE_ROOT/target/release/libctb_nopersonality.so"
-    rustc --edition 2024 --crate-type cdylib -O "$WORKSPACE_ROOT/src/nopersonality/nopersonality.rs" -o "$NOPERSONALITY_SO"
+    TMP_BUILD_DIR="$(mktemp -d)"
+    NOPERSONALITY_SO="$TMP_BUILD_DIR/libctb_nopersonality.so"
+    if [ -f "$WORKSPACE_ROOT/src/nopersonality/nopersonality.rs" ]; then
+        NOPERSONALITY_RS="$WORKSPACE_ROOT/src/nopersonality/nopersonality.rs"
+    else
+        NOPERSONALITY_RS="$(cd "$SCRIPT_DIR/../../src/nopersonality" 2>/dev/null && pwd)/nopersonality.rs"
+    fi
+
+    rustc --edition 2024 --crate-type cdylib -O "$NOPERSONALITY_RS" -o "$NOPERSONALITY_SO"
 
     pkill -f guix-daemon 2>/dev/null || true
     sleep 1
     echo "Starting guix-daemon with nopersonality shim..."
-    LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot >/dev/null 2>&1 &
+    LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot --build-users-group=guixbuild >/dev/null 2>&1 &
+    DAEMON_PID=$!
     sleep 2
 
     echo "Building Guix i686 system tarball image..."
     TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image -L "$SCRIPT_DIR" --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
+
+    kill "$DAEMON_PID" 2>/dev/null || true
+    rm -rf "${TMP_BUILD_DIR?}" 2>/dev/null || true
+fi
+
+if [ -n "$PREBUILD_DEST" ]; then
+    mkdir -p "$(dirname "$PREBUILD_DEST")"
+    cp "$TARBALL_IMG" "$PREBUILD_DEST"
+    echo "Successfully prebuilt Guix system image tarball at: $PREBUILD_DEST"
+    exit 0
 fi
 
 echo "Guix image built at: $TARBALL_IMG"
@@ -60,4 +86,3 @@ if [ ! -f "$OUT_FS_JSON" ] || [ ! -d "$OUT_FLAT_DIR" ] || [ ! -f "$OUT_DIR/guix_
 fi
 
 echo "Successfully generated Guix 9pfs index at $OUT_FS_JSON, custom initrd at $OUT_DIR/guix_posix_initrd.cpio.gz, and chunks in $OUT_FLAT_DIR"
-
