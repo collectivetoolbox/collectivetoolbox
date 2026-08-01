@@ -480,7 +480,7 @@ mod tests {
         assert!(table.contains("Supported compression formats:"));
         assert!(table.contains("  br, brotli: Brotli compressed stream"));
         assert!(table.contains("  gz, gzip: GNU gzip format"));
-        assert!(table.contains("  sco, compress-h, compress-sco, sco-compress: Compress: SCO `compress -H` variant"));
+        assert!(table.contains("  sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
     }
 
     #[crate::ctb_test]
