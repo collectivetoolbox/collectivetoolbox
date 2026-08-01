@@ -212,6 +212,8 @@ deny = [
     # defaults to using a binary blob - could probably disable it if needed
     "v8",
     "sctk-adwaita",
+    "x11",
+    "x11-dl",
 ]
 
 # List of features to allow/deny
