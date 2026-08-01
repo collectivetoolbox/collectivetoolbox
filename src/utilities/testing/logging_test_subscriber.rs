@@ -37,7 +37,7 @@ impl io::Write for MockWriter<'_> {
         let mut target = self.buf()?;
 
         // Write to stdout in order to show up in tests
-        print!("{}", String::from_utf8(buf.to_vec()).unwrap());
+        print!("{}", String::from_utf8_lossy(buf));
 
         // Write to buffer
         target.write(buf)

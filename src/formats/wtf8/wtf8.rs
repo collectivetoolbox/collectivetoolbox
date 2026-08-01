@@ -54,41 +54,41 @@ pub fn encode_wtf8_single(int_value: u32) -> Result<Vec<u8>> {
         int_value <= 0x10FFFF,
         format!("WTF-8: Codepoint {int_value} out of range")
     );
-    fn create_byte(int_value: u32, shift: u32) -> u8 {
+    fn create_byte(int_value: u32, shift: u32) -> Result<u8> {
         u8::try_from(((int_value >> shift) & 0x3F) | 0x80)
-            .expect("Failed to create byte")
+            .context("Failed to create byte")
     }
 
     let mut symbol = Vec::new();
     if (int_value & 0xFFFFFF80) == 0 {
         // 1-byte sequence
-        symbol.push(u8::try_from(int_value).expect("Failed to create byte"));
+        symbol.push(u8::try_from(int_value).context("Failed to create byte")?);
     } else {
         if (int_value & 0xFFFFF800) == 0 {
             // 2-byte sequence
             symbol.push(
                 u8::try_from((int_value >> 6) & 0x1F | 0xC0)
-                    .expect("Failed to create byte"),
+                    .context("Failed to create byte")?,
             );
         } else if (int_value & 0xFFFF0000) == 0 {
             // 3-byte sequence
             symbol.push(
                 u8::try_from((int_value >> 12) & 0x0F | 0xE0)
-                    .expect("Failed to create byte"),
+                    .context("Failed to create byte")?,
             );
-            symbol.push(create_byte(int_value, 6));
+            symbol.push(create_byte(int_value, 6)?);
         } else if (int_value & 0xFFE00000) == 0 {
             // 4-byte sequence
             symbol.push(
                 u8::try_from((int_value >> 18) & 0x07 | 0xF0)
-                    .expect("Failed to create byte"),
+                    .context("Failed to create byte")?,
             );
-            symbol.push(create_byte(int_value, 12));
-            symbol.push(create_byte(int_value, 6));
+            symbol.push(create_byte(int_value, 12)?);
+            symbol.push(create_byte(int_value, 6)?);
         }
         symbol.push(
             u8::try_from((int_value & 0x3F) | 0x80)
-                .expect("Failed to create byte"),
+                .context("Failed to create byte")?,
         );
     }
     Ok(symbol)
@@ -230,7 +230,7 @@ pub fn decode_wtf8_to_ucs2(byte_array_input: &[u8]) -> Result<Vec<u16>> {
             codepoints_with_unpaired_surrogates.extend(surrogates);
         } else {
             codepoints_with_unpaired_surrogates
-                .push(u16::try_from(cp).expect("Failed to create u16"));
+                .push(u16::try_from(cp).context("Failed to create u16")?);
         }
         byte_index = byte_index.saturating_add(len);
     }

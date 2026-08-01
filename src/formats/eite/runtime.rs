@@ -113,7 +113,7 @@ pub fn start_document_exec(
         current_tick = current_tick.saturating_add(1);
 
         let ptr_pos = usize::try_from(state.get_current_exec_ptr_pos(exec_id)?)
-            .expect("Should work to get usize");
+            .context("Should work to get usize")?;
         if ptr_pos >= working_copy.len() {
             // Document done.
             continue_loop = false;

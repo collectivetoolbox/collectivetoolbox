@@ -773,7 +773,7 @@ pub fn ensure_crlite_cache_ready_sync() -> Result<CRLiteCacheManifest> {
     let _lock = CRLITE_REFRESH_MUTEX
         .get_or_init(|| Mutex::new(()))
         .lock()
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("CRLITE_REFRESH_MUTEX poisoned: {e}"))?;
 
     if let Some(manifest) = load_crlite_manifest()? {
         if manifest.is_fresh(SystemTime::now(), DEFAULT_CRLITE_MAX_AGE) {
@@ -860,7 +860,7 @@ pub fn get_or_load_crlite_state() -> Result<Arc<CachedCRLiteState>> {
 
     // 1. Read lock check
     {
-        let guard = cache.read().unwrap();
+        let guard = cache.read().map_err(|e| anyhow::anyhow!("CRLite state cache read lock poisoned: {e}"))?;
         if let Some(state) = &*guard {
             if let Ok(Some(manifest)) = load_crlite_manifest() {
                 if manifest.last_updated_unix_seconds
@@ -873,7 +873,7 @@ pub fn get_or_load_crlite_state() -> Result<Arc<CachedCRLiteState>> {
     }
 
     // 2. Write lock check and load
-    let mut guard = cache.write().unwrap();
+    let mut guard = cache.write().map_err(|e| anyhow::anyhow!("CRLite state cache write lock poisoned: {e}"))?;
     if let Some(state) = &*guard {
         if let Ok(Some(manifest)) = load_crlite_manifest() {
             if manifest.last_updated_unix_seconds

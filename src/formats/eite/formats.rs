@@ -265,11 +265,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 1,
             );
             if !exc_or_empty(&hex_str)? {
-                if let Err(err) = hex_str {
-                    return Err(err)
-                        .context(format!("Failed lookup Dc {dc} unicode",));
-                }
-                let hex_str = hex_str.expect("checked above");
+                let hex_str = hex_str.context(format!("Failed lookup Dc {dc} unicode"))?;
                 let cp = hex_to_dec_single(&hex_str)?;
                 return Ok((utf8_from_scalar(cp)?, log));
             }
@@ -282,13 +278,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 0,
             );
             if !exc_or_empty(&row_str)? {
-                if let Err(err) = row_str {
-                    return Err(err).context(format!(
-                        "Failed lookup Dc {dc} unicode fallback"
-                    ));
-                }
-                let row_str = row_str.expect("checked above");
-
+                let row_str = row_str.context(format!("Failed lookup Dc {dc} unicode fallback"))?;
                 let cp = hex_to_dec_single(&row_str)?;
                 return Ok((utf8_from_scalar(cp)?, log));
             }
@@ -302,13 +292,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
             let html_map =
                 dc_data_lookup_by_dc_in_col_0("mappings/to/html", dc, 1);
             if !exc_or_empty(&html_map)? {
-                if let Err(err) = html_map {
-                    return Err(err).context(format!(
-                        "Failed lookup HTML mapping for Dc {dc}"
-                    ));
-                }
-                let html_map = html_map.expect("checked above");
-
+                let html_map = html_map.context(format!("Failed lookup HTML mapping for Dc {dc}"))?;
                 return Ok((html_map.as_bytes().to_vec(), log));
             }
             dc_to_format("utf8", dc)
@@ -342,7 +326,7 @@ pub fn dc_from_format(
             let dc_str =
                 dc_data_lookup_by_value("mappings/from/unicode", 0, &hex, 1);
             if excep(&dc_str)?
-                || (dc_str.is_ok() && dc_str.as_ref().unwrap() == "")
+                || (dc_str.as_ref().map_or(false, String::is_empty))
             {
                 // FIXME: Add an option to save unmapped Unicode characters
                 // using Dcs 127-192 (individually)?

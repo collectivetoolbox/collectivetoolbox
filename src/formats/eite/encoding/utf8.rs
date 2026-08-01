@@ -16,7 +16,7 @@ pub fn utf8_char_array_from_byte_array(bytes: &[u8]) -> Result<Vec<u32>> {
         i = i.saturating_add(consumed);
     }
     Ok(String::from_utf8(out)
-        .expect("first_char_of_utf8_string should produce valid UTF-8")
+        .context("first_char_of_utf8_string should produce valid UTF-8")?
         .chars()
         .map(u32::from)
         .collect())

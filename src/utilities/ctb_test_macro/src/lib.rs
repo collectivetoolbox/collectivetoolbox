@@ -217,7 +217,7 @@ fn try_test(
     _input: ItemFn,
 ) -> syn::Result<Tokens> {
     // Parse annotated function
-    let mut function: ItemFn = parse(item).expect("Could not parse ItemFn");
+    let mut function: ItemFn = parse(item)?;
 
     // Determine scope
     let scope = get_free_scope(function.sig.ident.to_string());
@@ -230,22 +230,19 @@ fn try_test(
             });
         }
         .into(),
-    )
-    .expect("Could not parse quoted statement init");
+    )?;
     let span = parse::<Stmt>(
         quote! {
             let span = tracing::info_span!(#scope);
         }
         .into(),
-    )
-    .expect("Could not parse quoted statement span");
+    )?;
     let enter = parse::<Stmt>(
         quote! {
             let _enter = span.enter();
         }
         .into(),
-    )
-    .expect("Could not parse quoted statement enter");
+    )?;
     let logs_contain_fn = parse::<Stmt>(
         quote! {
             fn logs_contain(val: &str) -> bool {
@@ -254,8 +251,7 @@ fn try_test(
 
         }
         .into(),
-    )
-    .expect("Could not parse quoted statement logs_contain_fn");
+    )?;
     let logs_assert_fn = parse::<Stmt>(
         quote! {
             /// Run a function against the log lines. If the function returns
@@ -269,8 +265,7 @@ fn try_test(
             }
         }
         .into(),
-    )
-    .expect("Could not parse quoted statement logs_assert_fn");
+    )?;
 
     // Inject code into function
     function.block.stmts.insert(0, init);

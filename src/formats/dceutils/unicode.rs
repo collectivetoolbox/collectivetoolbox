@@ -18,7 +18,7 @@ pub fn convert_utf8_to_dc(data: &[u8]) -> Result<String> {
     let chunks = utf32_bytes.chunks_exact(4);
 
     for chunk in chunks {
-        let bytes: [u8; 4] = chunk.try_into().unwrap();
+        let bytes: [u8; 4] = chunk.try_into().context("Invalid chunk size for u32 BE")?;
         let cp = u32::from_be_bytes(bytes);
         // PHP: strtoupper(ltrim(substr($hex, $counter, 8), '0'))
         let hex_str = format!("{cp:X}");

@@ -200,7 +200,7 @@ pub fn register_views<'a>() -> Result<handlebars::Handlebars<'a>> {
     // Inline imports
 
     let inlined_app_css =
-        inline_css_imports(&app_css, "web/").expect("Failed to inline imports");
+        inline_css_imports(&app_css, "web/").context("Failed to inline imports")?;
 
     // app.css
     for line in inlined_app_css.lines() {

@@ -22,16 +22,10 @@ pub fn create_memfd(size: u64) -> Result<i32> {
         bail!("memfd_create failed: {}", std::io::Error::last_os_error());
     }
 
-    // Safety: ftruncate sizes the anonymous file backing.
-    let rc = unsafe {
-        libc::ftruncate(
-            fd,
-            i64::try_from(size)
-                .context("size too large for off_t")?
-                .try_into()
-                .expect("off_t size too large for c_int"),
-        )
-    };
+    let off_size: libc::off_t =
+        i64::try_from(size).context("size too large for off_t")?;
+    // SAFETY: ftruncate sizes the anonymous file backing.
+    let rc = unsafe { libc::ftruncate(fd, off_size) };
     if rc != 0 {
         let err = std::io::Error::last_os_error();
         // SAFETY: fd is a valid descriptor returned by memfd_create

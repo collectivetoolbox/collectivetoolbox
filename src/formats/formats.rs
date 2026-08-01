@@ -60,16 +60,12 @@ pub fn get_format_uuids<'a>() -> HashMap<Vec<u8>, Vec<u8>> {
 }
 
 pub fn get_format_from_uuid(document: Vec<u8>) -> Option<Vec<u8>> {
-    let head: Vec<u8>;
-    if document.len() < 36 {
-        head = document;
+    let head = if document.len() < 36 {
+        document
     } else {
-        head = document.get(..36).unwrap_or(&[]).to_vec();
-    }
-    let uuid = get_uuid_from_document(head);
-    uuid.as_ref()?;
-
-    let uuid_val = uuid.expect("checked earlier");
+        document.get(..36).unwrap_or(&[]).to_vec()
+    };
+    let uuid_val = get_uuid_from_document(head)?;
     get_format_uuids().get(&uuid_val).cloned()
 }
 
@@ -79,7 +75,7 @@ pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
     }
 
     let uuid_binary = Uuid::from_slice(document.get(..16).unwrap_or(&[]))
-        .expect("The length should be 16")
+        .ok()?
         .hyphenated()
         .to_string()
         .into_bytes();

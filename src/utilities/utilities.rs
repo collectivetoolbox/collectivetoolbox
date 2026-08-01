@@ -665,11 +665,7 @@ pub fn feature(feature_name: &str) -> bool {
 }
 
 pub fn get_embedded_asset(dir: &Dir, key: &str) -> Option<Vec<u8>> {
-    let key = if key.starts_with('/') {
-        key.strip_prefix('/').expect("Strip prefix failed")
-    } else {
-        key
-    };
+    let key = key.strip_prefix('/').unwrap_or(key);
 
     let file = dir.get_file(key);
 

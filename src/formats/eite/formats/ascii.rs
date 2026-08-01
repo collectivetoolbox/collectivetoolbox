@@ -22,7 +22,7 @@ pub fn dca_from_ascii(content: &[u8]) -> Result<(Vec<u32>, FormatLog)> {
     while c < content.len() {
         let b = content.get(c).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
         let result = dc_from_format("ascii", &[b])
-            .expect("all ASCII bytes should be able to map to Dc");
+            .context("all ASCII bytes should be able to map to Dc")?;
         let (mut dc, dc_log) = result;
         out.append(&mut dc);
         log.merge(&dc_log);
@@ -39,18 +39,21 @@ pub fn dca_to_ascii(dc_array: &[u32]) -> Result<(Vec<u8>, FormatLog)> {
     let mut out = Vec::new();
     let mut log = FormatLog::default();
     for (idx, &dc) in dc_array.iter().enumerate() {
-        let utf8 = dc_to_format("utf8", dc);
-        if utf8.is_err() {
-            log.export_warning_unmappable(idx.try_into().unwrap(), dc, "ascii");
-            continue;
-        }
-        let (utf8, dc_log) = utf8.unwrap();
+        let (utf8, dc_log) = match dc_to_format("utf8", dc) {
+            Ok(res) => res,
+            Err(_) => {
+                let idx_u64 = u64::try_from(idx).context("Index out of u64 bounds")?;
+                log.export_warning_unmappable(idx_u64, dc, "ascii");
+                continue;
+            }
+        };
         log.merge(&dc_log);
         let first_byte = utf8.first().copied().unwrap_or(0);
         if utf8.len() == 1 && first_byte <= 0x7F {
             out.push(first_byte);
         } else {
-            log.export_warning_unmappable(idx.try_into().unwrap(), dc, "ascii");
+            let idx_u64 = u64::try_from(idx).context("Index out of u64 bounds")?;
+            log.export_warning_unmappable(idx_u64, dc, "ascii");
             continue;
         }
     }
@@ -154,13 +157,14 @@ pub fn dca_to_ascii_safe_subset(
             out.extend(crlf());
         } else {
             // Map Dc to UTF-8 (one or more bytes)
-            let enc = dc_to_format("utf8", dc);
-            if enc.is_err() {
-                warn_unmappable(&mut log, input_index, dc);
-                input_index = input_index.saturating_add(1);
-                continue;
-            }
-            let (enc, dc_log) = enc.unwrap();
+            let (enc, dc_log) = match dc_to_format("utf8", dc) {
+                Ok(res) => res,
+                Err(_) => {
+                    warn_unmappable(&mut log, input_index, dc);
+                    input_index = input_index.saturating_add(1);
+                    continue;
+                }
+            };
             log.merge(&dc_log);
             if enc.is_empty() {
                 warn_unmappable(&mut log, input_index, dc);

@@ -38,15 +38,10 @@ pub fn hash(password: &Password) -> Result<String> {
         }
     }
     let salt = SaltString::generate(&mut OsRng);
-    let result_or_err =
-        Argon2::default().hash_password(&password.password, &salt);
-    if result_or_err.is_err() {
-        return Err(anyhow::anyhow!(
-            "Failed to hash password: {}",
-            result_or_err.err().unwrap()
-        ));
-    }
-    Ok(result_or_err.expect("Checked").to_string())
+    let phc = Argon2::default()
+        .hash_password(&password.password, &salt)
+        .map_err(|e| anyhow::anyhow!("Failed to hash password: {e}"))?;
+    Ok(phc.to_string())
 }
 
 pub fn verify(password: &Password, hash: &str) -> Result<bool> {
@@ -57,14 +52,9 @@ pub fn verify(password: &Password, hash: &str) -> Result<bool> {
             return Ok(true);
         }
     }
-    let parsed_hash_or_err = PasswordHash::new(hash);
-    if parsed_hash_or_err.is_err() {
-        return Err(anyhow::anyhow!(
-            "Failed to parse password hash: {}",
-            parsed_hash_or_err.err().unwrap()
-        ));
-    }
+    let parsed_hash = PasswordHash::new(hash)
+        .map_err(|e| anyhow::anyhow!("Failed to parse password hash: {e}"))?;
     Ok(Argon2::default()
-        .verify_password(&password.password, &parsed_hash_or_err.unwrap())
+        .verify_password(&password.password, &parsed_hash)
         .is_ok())
 }
