@@ -75,17 +75,36 @@ unsafe fn outw(port: u16, val: u16) {
 }
 
 #[cfg(target_arch = "x86")]
-unsafe fn enable_vbe_lfb_1024x768() {
-    // SAFETY: Writing Bochs VBE DISPI registers (xres=1024, yres=768, bpp=32, enable=0x41) to ports 0x01ce/0x01cf.
+unsafe fn sys_ioperm(from: usize, num: usize, turn_on: usize) -> isize {
+    // SAFETY: Executing raw Linux sys_ioperm syscall (sys_call 101) to request I/O port permissions.
     unsafe {
-        outw(0x01ce, 1);
-        outw(0x01cf, 1024);
-        outw(0x01ce, 2);
-        outw(0x01cf, 768);
-        outw(0x01ce, 3);
-        outw(0x01cf, 32);
-        outw(0x01ce, 4);
-        outw(0x01cf, 0x41);
+        let res: isize;
+        core::arch::asm!(
+            "int 0x80",
+            inout("eax") 101isize => res,
+            in("ebx") from,
+            in("ecx") num,
+            in("edx") turn_on,
+            options(nostack, preserves_flags),
+        );
+        res
+    }
+}
+
+#[cfg(target_arch = "x86")]
+unsafe fn enable_vbe_lfb_1024x768() {
+    // SAFETY: Requesting I/O permissions for Bochs VBE ports 0x01ce-0x01dd and writing VBE registers (xres=1024, yres=768, bpp=32, enable=0x41).
+    unsafe {
+        if sys_ioperm(0x01ce, 16, 1) == 0 {
+            outw(0x01ce, 1);
+            outw(0x01cf, 1024);
+            outw(0x01ce, 2);
+            outw(0x01cf, 768);
+            outw(0x01ce, 3);
+            outw(0x01cf, 32);
+            outw(0x01ce, 4);
+            outw(0x01cf, 0x41);
+        }
     }
 }
 
@@ -783,7 +802,7 @@ Section \"Screen\"
     DefaultDepth 24
     SubSection \"Display\"
         Depth 24
-        Modes \"1024x768\"
+        Modes \"1024x768\" \"800x600\"
     EndSubSection
 EndSection
 EOF
@@ -816,7 +835,7 @@ xrandr --display :0 -s 1024x768 2>/dev/null || true
 xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true
 xterm -display :0 -geometry 120x60+0+0 -bg \"#3498db\" -fg white -bw 0 +sb 2>/dev/null &
 
-(while true; do xrandr --display :0 -s 800x600 2>/dev/null || true; sleep 1; xrandr --display :0 -s 1024x768 2>/dev/null || true; sleep 1; done) &
+(while true; do xrandr --display :0 -s 800x600 2>/dev/null || true; xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true; sleep 1; xrandr --display :0 -s 1024x768 2>/dev/null || true; xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true; sleep 1; done) &
 
 sleep 2
 ps aux
