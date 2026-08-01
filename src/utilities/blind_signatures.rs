@@ -87,10 +87,13 @@ pub fn server_verify(server_key: &[u8], serial: &[u8], token_tag: &[u8]) -> Resu
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
-    use super::{generate_server_key, client_blind, server_evaluate, client_finalize, server_verify};
+    use super::{
+        client_blind, client_finalize, generate_server_key, server_evaluate,
+        server_verify,
+    };
     use anyhow::Result;
-
 
     #[crate::ctb_test]
     fn test_voprf_flow() -> Result<()> {
