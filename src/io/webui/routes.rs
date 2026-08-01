@@ -48,6 +48,7 @@ pub fn build_routes(state: AppState) -> Router {
         // --- v86 controller routes ---
         .route("/v86", get(v86::get_v86))
         .route("/v86/{profile}", get(v86::get_v86_profile))
+        .route("/vendor/v86/v86.css", get(v86::get_v86_css))
         // --- eite controller routes ---
 
         .route("/tools/eite-edit-tool", get(eite::get_edit_tool))
