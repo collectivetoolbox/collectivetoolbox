@@ -90,12 +90,12 @@ pub fn ucs2encode(array: &[u32]) -> Result<Vec<u16>> {
             let mut v = value.saturating_sub(0x10000);
             output.push(
                 u16::try_from((v >> 10) & 0x3FF | 0xD800)
-                    .expect("Failed to create u16"),
+                    .context("Failed to create u16")?,
             );
             v = 0xDC00 | (v & 0x3FF);
-            output.push(u16::try_from(v).expect("Failed to create u16"));
+            output.push(u16::try_from(v).context("Failed to create u16")?);
         } else if value <= 0x10FFFF {
-            output.push(u16::try_from(value).expect("Failed to create u16"));
+            output.push(u16::try_from(value).context("Failed to create u16")?);
         }
     }
     Ok(output)

@@ -112,21 +112,14 @@ pub fn jq_implementation(
     let loader = Loader::new(jaq_std::defs().chain(jaq_json::defs()));
     let arena = Arena::default();
 
-    let modules_wrapped = loader.load(&arena, program);
+    let modules = loader
+        .load(&arena, program)
+        .map_err(|e| anyhow::anyhow!("Error loading jaq modules: {e:?}"))?;
 
-    if let Err(e) = modules_wrapped {
-        return Err(anyhow::anyhow!(format!("Error: {e:?}")));
-    }
-    let modules = modules_wrapped.unwrap();
-
-    let filter_wrapped = jaq_core::Compiler::default()
+    let filter = jaq_core::Compiler::default()
         .with_funs(jaq_std::funs().chain(jaq_json::funs()))
-        .compile(modules);
-
-    if let Err(e) = filter_wrapped {
-        return Err(anyhow::anyhow!(format!("Error: {e:?}")));
-    }
-    let filter = filter_wrapped.unwrap();
+        .compile(modules)
+        .map_err(|e| anyhow::anyhow!("Error compiling jaq filter: {e:?}"))?;
 
     let inputs = RcIter::new(core::iter::empty());
 

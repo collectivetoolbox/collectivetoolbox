@@ -153,7 +153,7 @@ pub fn int_from_base_str_u32(s: &str, base: u8) -> Result<u32> {
             bail!("Overflow converting {s} base {base}");
         }
     }
-    Ok(u32::try_from(acc).expect("Did not fit in u32"))
+    Ok(u32::try_from(acc).context("Did not fit in u32")?)
 }
 
 /// Returns the integer represented by n in the requested base.

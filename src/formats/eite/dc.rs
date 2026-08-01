@@ -92,7 +92,7 @@ pub fn dc_get_field(dc: u32, field_number: usize) -> Result<String> {
     // Pass through field_number. If storage uses 0-based, change to field_number - 1 (with checks).
     dc_data_lookup_by_id(
         "DcData",
-        usize::try_from(dc).expect("Could not get usize from Dc"),
+        usize::try_from(dc).context("Could not get usize from Dc")?,
         field_number,
     )
     .map_err(|e| anyhow!("dc_get_field: {e}"))
@@ -174,7 +174,7 @@ pub fn dc_get_mapping_to_format(dc: u32, format: &str) -> Result<String> {
     // Underlying call may error if dataset/indices are invalid:
     match dc_data_lookup_by_id(
         &dataset,
-        usize::try_from(dc).expect("Could not get usize from Dc"),
+        usize::try_from(dc).context("Could not get usize from Dc")?,
         1,
     ) {
         Ok(s) => Ok(s),
@@ -246,7 +246,7 @@ pub fn dc_encapsulated_raw_to_bytes(input: &[u32]) -> Result<Vec<u8>> {
     }
 
     let base64 = decimal_to_standard_base64(dc_decoded)
-        .expect("Failed to translate Dcs to base64");
+        .context("Failed to translate Dcs to base64")?;
 
     out.extend_from_slice(&standard_base64_to_bytes(&base64)?);
 

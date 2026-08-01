@@ -103,8 +103,9 @@ pub fn derive_kek_with_params(
     {
         if password.password == crate::user::TEST_USER_PASS.as_bytes() {
             let parsed = PasswordHash::new(crate::user::TEST_USER_PHC)
-                .expect("Failed to parse PHC");
-            let output_key_material = parsed.hash.unwrap().as_bytes().to_vec();
+                .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
+            let hash = parsed.hash.ok_or_else(|| anyhow::anyhow!("Missing hash in PHC"))?;
+            let output_key_material = hash.as_bytes().to_vec();
             return Ok(output_key_material);
         }
     }
