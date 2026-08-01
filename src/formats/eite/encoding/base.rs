@@ -614,6 +614,7 @@ fn u32_slice_as_bytes_be(values: &[u32]) -> Vec<u8> {
  */
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
     use ctb_formats_utilities::{
         assert_string_ok_eq_no_errors, assert_string_ok_eq_no_warnings,

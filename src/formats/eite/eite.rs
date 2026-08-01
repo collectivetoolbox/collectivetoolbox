@@ -309,6 +309,7 @@ pub fn assert_vec_dc_eq_log(expected: &[u32], actual: &[u32], log: &FormatLog) {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
     use crate::{assert_vec_u8_eq, assert_vec_u32_eq};
 
