@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
+
 //! Pan numeric string helpers.
 
 use ctb_utilities::math::exact_float::u64_to_f64_exact;

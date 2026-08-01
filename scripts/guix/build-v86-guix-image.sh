@@ -54,11 +54,26 @@ else
     rustc --edition 2024 --crate-type cdylib -O "$NOPERSONALITY_RS" -o "$NOPERSONALITY_SO"
 
     pkill -f guix-daemon 2>/dev/null || true
+    rm -f /var/guix/daemon-socket/socket 2>/dev/null || true
     sleep 1
+
+    for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
+               /root/.config/guix/current/share/guix/*.pub \
+               /usr/local/share/guix/*.pub; do
+        if [ -f "$key" ]; then
+            guix archive --authorize < "$key" 2>/dev/null || true
+        fi
+    done
+
     echo "Starting guix-daemon with nopersonality shim..."
-    LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot --build-users-group=guixbuild >/dev/null 2>&1 &
+    LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
     DAEMON_PID=$!
     sleep 2
+    if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
+        echo "Error: guix-daemon failed to start with nopersonality shim." >&2
+        cat /tmp/guix-daemon.log >&2 || true
+        exit 1
+    fi
 
     echo "Building Guix i686 system tarball image..."
     TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image -L "$SCRIPT_DIR" --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"

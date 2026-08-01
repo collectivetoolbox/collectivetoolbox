@@ -61,12 +61,13 @@ RUN set -eux; \
     yes | /tmp/guix-install.sh; \
     rm -f /tmp/guix-install.sh; \
     mkdir -p /etc/guix; \
-    if [ -d /root/.config/guix/current/share/guix ]; then \
-        for key in /root/.config/guix/current/share/guix/*.pub; do \
-            [ -e "$key" ] || break; \
-            /root/.config/guix/current/bin/guix archive --authorize < "$key"; \
-        done; \
-    fi
+    for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
+               /root/.config/guix/current/share/guix/*.pub \
+               /usr/local/share/guix/*.pub; do \
+        if [ -f "$key" ]; then \
+            guix archive --authorize < "$key" || true; \
+        fi; \
+    done
 
 # Pre-build Guix i686 system image tarball in Docker image to avoid re-building on every CI run
 COPY scripts/guix /tmp/scripts/guix

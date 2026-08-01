@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
+
 //! Film feet+frames helpers for 35mm 4-perf (16 frames per foot).
 
 #[expect(unused_imports, reason = "imported module dependencies")]

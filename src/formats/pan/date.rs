@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
 
 //! Pan date formatting and parsing built on Julian day numbers.
 //! Day format is days between 1/1/4713 BC and the given date, with

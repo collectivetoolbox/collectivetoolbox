@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
+
 //! Implementation of the pan-ctb binary.
 //! Usage: pan-ctb csv pan-file
 //! pan-file may have .pan extension, but it is not required.

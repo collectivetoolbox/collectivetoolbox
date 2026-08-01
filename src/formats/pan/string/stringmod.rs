@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
+
 //! Additional Pan string utilities.
 
 use ctb_formats_applescript::escape_string;

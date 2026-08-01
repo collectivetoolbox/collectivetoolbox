@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: MIT */
+// See full license details in COPYING in the `ctb-formats-pan` crate source directory.
+
 //! Parser for .pan files.
 
 #![allow(clippy::too_many_lines, reason = "complicated")]
