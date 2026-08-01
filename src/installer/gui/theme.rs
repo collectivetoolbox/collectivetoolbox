@@ -88,7 +88,7 @@ pub(crate) fn disabled_button_text_color(ui: &egui::Ui) -> Color32 {
     }
 }
 
-#[allow(clippy::too_many_lines, reason = "large font registration function")]
+#[allow(expect_used, clippy::too_many_lines, reason = "large font registration function; expect is OK here since the fonts should be bundled correctly and if not something is majorly broken")]
 pub(crate) fn get_fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let mut fonts_list = HashMap::new();
@@ -153,22 +153,26 @@ pub(crate) fn get_fonts() -> FontDefinitions {
         "noto-sans-devanagari-2.006/NotoSansDevanagari-Regular.ttf",
     );
 
-    // for each font it to the list.
+    // for each font add it to the list.
     for (name, path) in &fonts_list {
+        let font_bytes = get_installer_data(&format!("resources/fonts/{path}"))
+            .unwrap_or_else(|| {
+                eprintln!(
+                    "Fatal error: failed to load embedded installer font '{name}'. Binary assets may be corrupted."
+                );
+                std::process::exit(1);
+            });
         fonts.font_data.insert(
             name.to_owned(),
-            std::sync::Arc::new(FontData::from_owned(
-                get_installer_data(&format!("resources/fonts/{path}"))
-                    .unwrap_or_else(|| {
-                        panic!("Loading failed for font {name}")
-                    }),
-            )),
+            std::sync::Arc::new(FontData::from_owned(font_bytes)),
         );
     }
 
     // List in order of priority
-    let proportional =
-        fonts.families.get_mut(&FontFamily::Proportional).unwrap();
+    let proportional = fonts
+        .families
+        .get_mut(&FontFamily::Proportional)
+        .expect("FontDefinitions contains Proportional family");
     proportional.push("Noto-Sans-R".to_owned());
     proportional.push("Noto-Sans-I".to_owned());
     proportional.push("Noto-Sans-B".to_owned());

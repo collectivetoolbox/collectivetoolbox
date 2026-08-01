@@ -638,7 +638,7 @@ fn decode_and_append_basenb_run(
             // UTF-8 character embedded in a basenb run
             if !basenb_run.is_empty() {
                 let decoded = byte_array_from_basenb_17_utf8(&basenb_run)?;
-                if excep_arr(&decoded) {
+                if excep_arr(&decoded)? {
                     log.import_warning(
                         u64::try_from(offset)?,
                         "Found exceptions in decoded basenb 17 run around this offset",
@@ -662,7 +662,7 @@ fn decode_and_append_basenb_run(
 
     if !basenb_run.is_empty() {
         let decoded = byte_array_from_basenb_17_utf8(&basenb_run)?;
-        if excep_arr(&decoded) {
+        if excep_arr(&decoded)? {
             log.import_warning(
                 u64::try_from(offset)?,
                 "Found exceptions in decoded basenb 17 run around this offset",

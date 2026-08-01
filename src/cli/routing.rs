@@ -622,7 +622,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::WaitRestart { pid, port } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
             fork(
-                &get_this_executable(),
+                &get_this_executable()?,
                 vec!["--ctoolbox-ipc-port", &port.to_string().as_str()],
             );
             Ok(ToolResult::immediate_ok(Vec::new()))
@@ -912,7 +912,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }),
         Command::Csum { algo, file, prefix_0x } => {
             let data = read_file_or_stdin(file.as_path())?;
-            let hash_algo = ctb_formats_checksum::HashAlgorithm::from(algo.clone());
+            let hash_algo = ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
             let output = format!(
                 "{}\n",
                 ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
@@ -1211,6 +1211,6 @@ mod tests {
         assert!(help_str.contains("Supported compression formats:"));
         assert!(help_str.contains("br, brotli: Brotli compressed stream"));
         assert!(help_str.contains("gz, gzip: GNU gzip format"));
-        assert!(help_str.contains("sco, compress-h, compress-sco, sco-compress: Compress: SCO `compress -H` variant"));
+        assert!(help_str.contains("sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
     }
 }

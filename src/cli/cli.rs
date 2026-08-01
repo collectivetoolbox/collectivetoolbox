@@ -52,11 +52,19 @@ impl Invocation {
         }
     }
 
-    pub fn expect_cli(&self) -> &Cli {
+    pub fn as_cli(&self) -> Option<&Cli> {
+        if let Invocation::User(cli) = self {
+            Some(cli)
+        } else {
+            None
+        }
+    }
+
+    pub fn expect_cli(&self) -> Result<&Cli> {
         match self {
-            Invocation::User(cli) => cli,
+            Invocation::User(cli) => Ok(cli),
             Invocation::Subprocess(_) => {
-                panic!("Called expect_cli() on a subprocess invocation")
+                anyhow::bail!("Called expect_cli() on a subprocess invocation")
             }
         }
     }

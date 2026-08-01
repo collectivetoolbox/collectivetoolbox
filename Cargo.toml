@@ -210,7 +210,7 @@ string_slice = "deny"
 indexing_slicing = "deny"
 # Ideally get rid of all panics other than "todo"/"unimplemented"/maybe "unreachable", but there were some places I'm not sure how.
 unwrap_used = "warn"
-panic = "warn"
+panic = "deny"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"

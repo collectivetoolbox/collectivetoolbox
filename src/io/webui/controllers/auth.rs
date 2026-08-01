@@ -91,7 +91,12 @@ pub async fn post_login(
         );
     } else if !local_exists && remote_exists {
         // Log in with remote account only: auto-create local account and do initial sync
-        panic!("Not implemented: log in with remote account only");
+        return recoverable_error(
+            &state,
+            req,
+            "login",
+            "Logging in with remote-only account is not yet implemented.",
+        );
     }
 
     // Either both exist, or only local exists. No problem, continue
