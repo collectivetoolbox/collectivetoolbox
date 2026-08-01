@@ -6,8 +6,8 @@
 
 fn to_ctb_storage_node(v: &::ctb_utilities::ipc::service_traits::storage::Node) -> ::ctb_storage::models::node::Node {
     ::ctb_storage::models::node::Node {
-        id: v.id,
-        graph_id: v.graph_id,
+        id: v.id.clone(),
+        graph_id: v.graph_id.clone(),
         node_type: to_ctb_storage_node_type(&v.node_type),
         data: v.data.clone(),
         checksum: v.checksum.clone(),
@@ -26,15 +26,15 @@ fn to_ctb_storage_table_row(v: &::ctb_utilities::ipc::service_traits::storage::T
     ::ctb_storage::db::TableRow {
         columns: v.columns.clone(),
         values: v.values.clone(),
-        page: v.page,
-        total_pages: v.total_pages,
-        total_rows: v.total_rows,
+        page: v.page.clone(),
+        total_pages: v.total_pages.clone(),
+        total_rows: v.total_rows.clone(),
     }
 }
 
 fn to_ctb_storage_user_dto(v: &::ctb_utilities::ipc::service_traits::storage::UserDto) -> ::ctb_storage::models::user_impl::UserDto {
     ::ctb_storage::models::user_impl::UserDto {
-        id: v.id,
+        id: v.id.clone(),
         username: v.username.clone(),
         uuid: v.uuid.clone(),
         auth: v.auth.clone(),
@@ -43,8 +43,8 @@ fn to_ctb_storage_user_dto(v: &::ctb_utilities::ipc::service_traits::storage::Us
         key_encryption_key_params: v.key_encryption_key_params.clone(),
         wrapped_dek: v.wrapped_dek.clone(),
         pubkey: v.pubkey.clone(),
-        subscription_expiry: v.subscription_expiry,
-        token_quota: v.token_quota,
+        subscription_expiry: v.subscription_expiry.clone(),
+        token_quota: v.token_quota.clone(),
         remote_status: v.remote_status.clone(),
     }
 }
