@@ -25,7 +25,7 @@ if [ -z "$PREBUILD_DEST" ]; then
 fi
 
 PREBUILT_TARBALL=""
-if [ -z "$PREBUILD_DEST" ]; then
+if [ -z "$PREBUILD_DEST" ] && [ "$FETCH_SOURCES_MODE" -eq 0 ]; then
     if [ -n "${PREBUILT_V86_TARBALL:-}" ] && [ -f "$PREBUILT_V86_TARBALL" ]; then
         PREBUILT_TARBALL="$PREBUILT_V86_TARBALL"
     elif [ -f "/var/guix/v86-system-image.tar.gz" ]; then
