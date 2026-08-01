@@ -446,6 +446,20 @@ pub fn run_layoutrom(
     Ok(())
 }
 
+fn strip_reloc_offset(name: &str) -> &str {
+    let name = name.split('+').next().unwrap_or(name);
+    if let Some(pos) = name.rfind('-') {
+        let suffix = name.get(pos.saturating_add(1)..).unwrap_or("");
+        if suffix.starts_with("0x")
+            || suffix.starts_with("0X")
+            || (!suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_hexdigit()))
+        {
+            return name.get(..pos).unwrap_or(name);
+        }
+    }
+    name
+}
+
 fn parse_objdump(
     path: &Path,
     fileid: &str,
@@ -551,14 +565,7 @@ fn parse_objdump(
                             current_reloc_section_idx,
                         ) {
                             let reloc_type = reloc_type_str.to_string();
-                            let symbolname = part2
-                                .split('+')
-                                .next()
-                                .unwrap_or(part2)
-                                .split('-')
-                                .next()
-                                .unwrap_or(part2)
-                                .to_string();
+                            let symbolname = strip_reloc_offset(part2).to_string();
                             if !symbols.contains_key(&symbolname) && section_map.contains_key(&symbolname) {
                                 symbols.insert(
                                     symbolname.clone(),
@@ -740,7 +747,7 @@ fn find_reachable(
     all_sections: &[Section],
     symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
 ) -> HashSet<(String, String)> {
-    let sec_by_key: HashMap<(String, String), &Section> = all_sections
+    let sec_map: HashMap<(String, String), &Section> = all_sections
         .iter()
         .map(|sec| ((sec.fileid.clone(), sec.name.clone()), sec))
         .collect();
@@ -749,17 +756,17 @@ fn find_reachable(
     let mut pending = Vec::new();
 
     for key in anchor_secs {
-        if sec_by_key.contains_key(key) && reachable.insert(key.clone()) {
+        if sec_map.contains_key(key) && reachable.insert(key.clone()) {
             pending.push(key.clone());
         }
     }
 
     while let Some(key) = pending.pop() {
-        if let Some(sec) = sec_by_key.get(&key) {
+        if let Some(sec) = sec_map.get(&key) {
             for reloc in &sec.relocs {
-                if let Some(next_key) = check_keep(reloc, &sec.fileid, symbols_by_fileid) {
-                    if sec_by_key.contains_key(&next_key) && reachable.insert(next_key.clone()) {
-                        pending.push(next_key);
+                if let Some(target_key) = check_keep(reloc, &sec.fileid, symbols_by_fileid) {
+                    if reachable.insert(target_key.clone()) {
+                        pending.push(target_key);
                     }
                 }
             }

@@ -321,7 +321,7 @@ for p in "${platforms[@]}"; do
             cp "$v86_tmp_dir/seabios/out/vgabios.bin" built/v86_out/bios/vgabios.bin
         fi
 
-        rm -rf "$v86_tmp_dir"
+        rm -rf "${v86_tmp_dir?}"
         rm -rf vendor/v86/build
         rm -rf vendor/seabios/out
     fi
