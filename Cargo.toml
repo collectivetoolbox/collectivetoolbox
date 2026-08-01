@@ -195,7 +195,7 @@ ok_expect = "deny"
 expect_used = "warn"
 # This doesn't seem to work:
 #[cfg(test) indexing_slicing = "warn"]
-unwrap_in_result = "warn"
+unwrap_in_result = "deny"
 panic_in_result_fn = "deny"
 collapsible_if = "allow"
 must_use_candidate = "allow"

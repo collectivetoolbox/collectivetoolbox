@@ -12,6 +12,8 @@ fn main() -> Result<()> {
     let manifest_path = Path::new(&manifest_dir);
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_owned());
     let is_release = profile == "release";
+    let skip_docs = env::var_os("CTB_SKIP_DOCS").is_some();
+    let include_rust_docs = is_release && !skip_docs;
 
     let build_rs_debug = env::var_os("CTB_BUILD_RS_DEBUG").is_some();
     if build_rs_debug {
@@ -36,9 +38,9 @@ fn main() -> Result<()> {
     let options = PrepareOptions {
         prepare_runtime_bundle: true,
         prepare_minimal_assets: true,
-        include_rust_docs: is_release,
+        include_rust_docs,
         archive_source: false,
-        write_debug_stubs: !is_release,
+        write_debug_stubs: !include_rust_docs,
     };
     if build_rs_debug {
         println!(
