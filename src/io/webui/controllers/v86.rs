@@ -61,6 +61,7 @@ fn render_v86_profile(
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
     use crate::test_helpers::test_get_no_login;
 
