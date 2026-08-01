@@ -41,8 +41,8 @@ apt-get update && apt-get install -y \
     file \
     xz-utils
 
-apt-get remove -y nodejs npm 2>/dev/null || true
-apt-get purge -y nodejs npm corepack node-corepack "node-*" 2>/dev/null || true
+apt-get remove -y nodejs npm python3 python3-minimal python2 java-common default-jre default-jdk 2>/dev/null || true
+apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true
 apt-get autoremove --purge -y 2>/dev/null || true
 
 if [[ -d /usr/local/share/nvm ]]; then
@@ -59,26 +59,34 @@ if [[ -d /home ]]; then
     done
 fi
 
-for bin_name in node npm npx corepack; do
+for bin_name in node npm npx corepack python python3 python2 java javac; do
     for bin_dir in /usr/local/bin /usr/bin /bin /usr/local/sbin /usr/sbin /sbin; do
         if [[ -e "$bin_dir/$bin_name" || -L "$bin_dir/$bin_name" ]]; then
-            rm "$bin_dir/$bin_name"
+            rm -f "$bin_dir/$bin_name" 2>/dev/null || true
         fi
     done
+    cat << EOF > "/usr/local/bin/$bin_name"
+#!/bin/sh
+echo "ERROR: $bin_name is prohibited as a build dependency." >&2
+exit 1
+EOF
+    chmod +x "/usr/local/bin/$bin_name"
 done
 
 export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v "nvm" | paste -sd: -)"
 unset NVM_DIR NVM_BIN NVM_INC NVM_CD_FLAGS
 
-if command -v npm >/dev/null 2>&1 || command -v npx >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || command -v corepack >/dev/null 2>&1; then
-    echo "node is not a permitted dependency." >&2
-    found_bin="$(command -v npm || command -v npx || command -v node || command -v corepack || true)"
-    if [[ -n "$found_bin" && -e "$found_bin" ]]; then
-        echo "Found remaining binary at: $found_bin" >&2
-        dpkg -S "$found_bin" || true
+for prohibited in node npm npx corepack python python3 java javac; do
+    if "$prohibited" >/dev/null 2>&1; then
+        echo "$prohibited is not a permitted dependency, but it succeeded." >&2
+        found_bin="$(command -v "$prohibited" || true)"
+        if [[ -n "$found_bin" && -e "$found_bin" ]]; then
+            echo "Found remaining binary at: $found_bin" >&2
+            dpkg -S "$found_bin" || true
+        fi
+        exit 1
     fi
-    exit 1
-fi
+done
 
 if ! command -v guix >/dev/null 2>&1; then
     echo "Installing GNU Guix..."

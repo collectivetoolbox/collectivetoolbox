@@ -88,6 +88,11 @@ fn main() -> Result<()> {
             Path::new(out32seg),
             Path::new(out32flat),
         )?;
+    } else if cmd.ends_with("ldnoexec.py") || cmd == "ldnoexec" {
+        let [infile, outfile, ..] = rest else {
+            bail!("ldnoexec requires <infilename> <outfilename>");
+        };
+        ctb_build_support::seabios_builder::run_ldnoexec(Path::new(infile), Path::new(outfile))?;
     } else if cmd == "generate-v86" {
         let v86_dir = if let Some(target_dir) = rest.first() {
             Path::new(target_dir)
