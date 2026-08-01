@@ -9,6 +9,7 @@
 //! - buildrom.py
 //! - checkrom.py
 //! - layoutrom.py
+//! - ldnoexec.py
 
 
 // From Makefile:
@@ -41,6 +42,11 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
+// From ldnoexec.py:
+// Copyright (C) 2020  Kevin O'Connor <kevin@koconnor.net>
+//
+// This file may be distributed under the terms of the GNU GPLv3 license.
+
 
 use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -55,8 +61,8 @@ pub const BUILD_LOWRAM_END: usize = 0xa0000;
 pub fn run_ldnoexec(infile: &Path, outfile: &Path) -> Result<()> {
     let mut data = fs::read(infile)
         .with_context(|| format!("Failed to read {}", infile.display()))?;
-    if data.len() > 16 {
-        data[16] = 0x01;
+    if let Some(elem) = data.get_mut(16) {
+        *elem = 0x01;
     }
     if let Some(parent) = outfile.parent() {
         fs::create_dir_all(parent)?;
@@ -465,7 +471,10 @@ fn parse_objdump(
             continue;
         }
         if line.starts_with("RELOCATION RECORDS FOR [") {
-            let sec_name = line.trim_start_matches("RELOCATION RECORDS FOR [").trim_end_matches(']');
+            let sec_name = line
+                .trim_start_matches("RELOCATION RECORDS FOR [")
+                .trim_end_matches(':')
+                .trim_end_matches(']');
             if sec_name.starts_with(".debug_") {
                 state = None;
                 continue;
@@ -481,9 +490,9 @@ fn parse_objdump(
                 if parts.len() >= 7 {
                     if let Some(align_part) = parts.get(6) {
                         if align_part.starts_with("2**") {
-                            let name = parts[1].to_string();
-                            let size = usize::from_str_radix(parts[2], 16).unwrap_or(0);
-                            let pow: u32 = align_part[3..].parse().unwrap_or(0);
+                            let name = parts.get(1).copied().unwrap_or("").to_string();
+                            let size = usize::from_str_radix(parts.get(2).copied().unwrap_or("0"), 16).unwrap_or(0);
+                            let pow: u32 = align_part.get(3..).unwrap_or("").parse().unwrap_or(0);
                             let align = 1_usize.checked_shl(pow).unwrap_or(1);
                             let idx = sections.len();
                             sections.push(Section {
@@ -503,44 +512,72 @@ fn parse_objdump(
             }
             Some("symbol") => {
                 if raw_line.len() > 17 {
-                    if let Ok(offset) = usize::from_str_radix(&raw_line[..8], 16) {
-                        let parts: Vec<&str> = raw_line[17..].split_whitespace().collect();
-                        let (sec_name, size_str, name) = if parts.len() == 3 {
-                            (Some(parts[0]), parts[1], parts[2])
-                        } else if parts.len() == 4 && parts[2] == ".hidden" {
-                            (Some(parts[0]), parts[1], parts[3])
-                        } else {
-                            continue;
-                        };
-                        let size = usize::from_str_radix(size_str, 16).unwrap_or(0);
-                        symbols.insert(
-                            name.to_string(),
-                            Symbol {
-                                name: name.to_string(),
-                                offset,
-                                size,
-                                section_name: sec_name.map(String::from),
-                                fileid: fileid.to_string(),
-                            },
-                        );
+                    if let Some(offset_str) = raw_line.get(..8) {
+                        if let Ok(offset) = usize::from_str_radix(offset_str, 16) {
+                            if let Some(rest) = raw_line.get(17..) {
+                                let parts: Vec<&str> = rest.split_whitespace().collect();
+                                let (sec_name_opt, size_str, name) = match parts.len() {
+                                    2 => (parts.get(0).copied(), "0", parts.get(1).copied().unwrap_or("")),
+                                    3 => (parts.get(0).copied(), parts.get(1).copied().unwrap_or("0"), parts.get(2).copied().unwrap_or("")),
+                                    4 if parts.get(2) == Some(&".hidden") => (parts.get(0).copied(), parts.get(1).copied().unwrap_or("0"), parts.get(3).copied().unwrap_or("")),
+                                    _ => continue,
+                                };
+                                let size = usize::from_str_radix(size_str, 16).unwrap_or(0);
+                                let sec_name = match sec_name_opt {
+                                    Some("*UND*") | None => None,
+                                    Some(s) => Some(s.to_string()),
+                                };
+                                symbols.insert(
+                                    name.to_string(),
+                                    Symbol {
+                                        name: name.to_string(),
+                                        offset,
+                                        size,
+                                        section_name: sec_name,
+                                        fileid: fileid.to_string(),
+                                    },
+                                );
+                            }
+                        }
                     }
                 }
             }
             Some("reloc") => {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 {
-                    if let (Ok(offset), Some(sec_idx)) = (
-                        usize::from_str_radix(parts[0], 16),
-                        current_reloc_section_idx,
-                    ) {
-                        let reloc_type = parts[1].to_string();
-                        let symbolname = parts[2].to_string();
-                        if let Some(sec) = sections.get_mut(sec_idx) {
-                            sec.relocs.push(Reloc {
-                                offset,
-                                reloc_type,
-                                symbolname,
-                            });
+                    if let (Some(part0), Some(reloc_type_str), Some(part2)) = (parts.get(0), parts.get(1), parts.get(2)) {
+                        if let (Ok(offset), Some(sec_idx)) = (
+                            usize::from_str_radix(part0, 16),
+                            current_reloc_section_idx,
+                        ) {
+                            let reloc_type = reloc_type_str.to_string();
+                            let symbolname = part2
+                                .split('+')
+                                .next()
+                                .unwrap_or(part2)
+                                .split('-')
+                                .next()
+                                .unwrap_or(part2)
+                                .to_string();
+                            if !symbols.contains_key(&symbolname) && section_map.contains_key(&symbolname) {
+                                symbols.insert(
+                                    symbolname.clone(),
+                                    Symbol {
+                                        name: symbolname.clone(),
+                                        offset: 0,
+                                        size: 0,
+                                        section_name: Some(symbolname.clone()),
+                                        fileid: fileid.to_string(),
+                                    },
+                                );
+                            }
+                            if let Some(sec) = sections.get_mut(sec_idx) {
+                                sec.relocs.push(Reloc {
+                                    offset,
+                                    reloc_type,
+                                    symbolname,
+                                });
+                            }
                         }
                     }
                 }
@@ -557,44 +594,81 @@ fn scan_config(path: &Path) -> HashMap<String, usize> {
     let Ok(content) = fs::read_to_string(path) else { return map; };
     for line in content.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() == 3 && parts[0] == "#define" {
-            let val_str = parts[2];
-            let val = if val_str.starts_with("0x") || val_str.starts_with("0X") {
-                usize::from_str_radix(&val_str[2..], 16).unwrap_or(0)
-            } else {
-                val_str.parse::<usize>().unwrap_or(0)
-            };
-            map.insert(parts[1].to_string(), val);
+        if parts.len() == 3 && parts.get(0) == Some(&"#define") {
+            if let (Some(name_str), Some(val_str)) = (parts.get(1), parts.get(2)) {
+                let val = if val_str.starts_with("0x") || val_str.starts_with("0X") {
+                    let hex_part = val_str.get(2..).unwrap_or("");
+                    usize::from_str_radix(hex_part, 16).unwrap_or(0)
+                } else {
+                    val_str.parse::<usize>().unwrap_or(0)
+                };
+                map.insert((*name_str).to_string(), val);
+            }
         }
     }
     map
 }
 
-fn check_keep_sym(
+
+
+fn resolve_reloc_symbol<'a>(
     reloc: &Reloc,
-    symbols: &HashMap<String, Symbol>,
-    fileid: &str,
-    is_xref: bool,
-) -> Option<Symbol> {
-    let mut symbolname = reloc.symbolname.as_str();
+    sec_fileid: &'a str,
+    symbols_by_fileid: &'a HashMap<String, HashMap<String, Symbol>>,
+) -> Option<(&'a Symbol, &'a str)> {
+    let symbolname = reloc.symbolname.as_str();
     let mustbecfunc = symbolname.starts_with("_cfunc");
+
     if mustbecfunc {
-        let symprefix = format!("_cfunc{fileid}_");
-        if !symbolname.starts_with(&symprefix) {
-            return None;
+        for fileid in ["16", "32seg", "32flat"] {
+            let symprefix = format!("_cfunc{fileid}_");
+            if symbolname.starts_with(&symprefix) {
+                let funcname = symbolname.get(symprefix.len()..).unwrap_or("");
+                if let Some(syms) = symbols_by_fileid.get(fileid) {
+                    if let Some(sym) = syms.get(funcname) {
+                        if let Some(ref sec_name) = sym.section_name {
+                            if !sec_name.starts_with(".discard.") {
+                                let isdestcfunc = sec_name.starts_with(".text.") && !sec_name.starts_with(".text.asm.");
+                                if isdestcfunc {
+                                    return Some((sym, fileid));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        symbolname = &symbolname[symprefix.len()..];
-    }
-    let sym = symbols.get(symbolname)?;
-    let sec_name = sym.section_name.as_deref()?;
-    if sec_name.starts_with(".discard.") {
         return None;
     }
-    let isdestcfunc = sec_name.starts_with(".text.") && !sec_name.starts_with(".text.asm.");
-    if (mustbecfunc && !isdestcfunc) || (!mustbecfunc && isdestcfunc && is_xref) {
-        return None;
+
+    if let Some(syms) = symbols_by_fileid.get(sec_fileid) {
+        if let Some(sym) = syms.get(symbolname) {
+            if let Some(ref sec_name) = sym.section_name {
+                if !sec_name.starts_with(".discard.") {
+                    return Some((sym, sec_fileid));
+                }
+            }
+        }
     }
-    Some(sym.clone())
+
+    for fileid in ["16", "32seg", "32flat"] {
+        if fileid != sec_fileid {
+            if let Some(syms) = symbols_by_fileid.get(fileid) {
+                if let Some(sym) = syms.get(symbolname) {
+                    if let Some(ref sec_name) = sym.section_name {
+                        if !sec_name.starts_with(".discard.") {
+                            let isdestcfunc = sec_name.starts_with(".text.") && !sec_name.starts_with(".text.asm.");
+                            if !isdestcfunc {
+                                return Some((sym, fileid));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn check_keep(
@@ -602,25 +676,63 @@ fn check_keep(
     sec_fileid: &str,
     symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
 ) -> Option<(String, String)> {
-    if let Some(sym) = symbols_by_fileid.get(sec_fileid).and_then(|syms| {
-        check_keep_sym(reloc, syms, sec_fileid, false)
-    }) {
-        if let Some(sec_name) = sym.section_name {
-            return Some((sym.fileid, sec_name));
+    if let Some((sym, _)) = resolve_reloc_symbol(reloc, sec_fileid, symbols_by_fileid) {
+        if let Some(ref sec_name) = sym.section_name {
+            return Some((sym.fileid.clone(), sec_name.clone()));
         }
     }
-    for fileid in ["16", "32seg", "32flat"] {
-        if fileid != sec_fileid {
-            if let Some(sym) = symbols_by_fileid.get(fileid).and_then(|syms| {
-                check_keep_sym(reloc, syms, fileid, true)
-            }) {
-                if let Some(sec_name) = sym.section_name {
-                    return Some((sym.fileid, sec_name));
+    None
+}
+
+fn out_xrefs(
+    sections_with_relocs: &[Section],
+    all_kept_sections: &[Section],
+    symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
+    export_syms: &[&Symbol],
+    use_seg: bool,
+    force_delta: isize,
+) -> String {
+    let mut xrefs: BTreeMap<String, usize> = BTreeMap::new();
+    for sym in export_syms {
+        if let Some(ref sec_name) = sym.section_name {
+            if let Some(sec) = all_kept_sections.iter().find(|s| s.fileid == sym.fileid && s.name == *sec_name) {
+                let loc = if use_seg { sec.finalsegloc } else { sec.finalloc.unwrap_or(0) };
+                let loc_isize = isize::try_from(loc).unwrap_or(0);
+                let offset_isize = isize::try_from(sym.offset).unwrap_or(0);
+                let final_loc_isize = loc_isize.saturating_add(force_delta).saturating_add(offset_isize);
+                let final_loc = usize::try_from(final_loc_isize).unwrap_or(0);
+                xrefs.insert(sym.name.clone(), final_loc);
+            }
+        }
+    }
+
+    for sec in sections_with_relocs {
+        for reloc in &sec.relocs {
+            let symbolname = &reloc.symbolname;
+            let res = resolve_reloc_symbol(reloc, &sec.fileid, symbols_by_fileid);
+            if let Some((sym, fid)) = res {
+                if fid != sec.fileid || sym.name != *symbolname {
+                    if let Some(ref sec_name) = sym.section_name {
+                        let target_sec = all_kept_sections.iter().find(|s| s.fileid == fid && s.name == *sec_name);
+                        if let Some(target_sec) = target_sec {
+                            let loc = if use_seg { target_sec.finalsegloc } else { target_sec.finalloc.unwrap_or(0) };
+                            let loc_isize = isize::try_from(loc).unwrap_or(0);
+                            let offset_isize = isize::try_from(sym.offset).unwrap_or(0);
+                            let final_loc_isize = loc_isize.saturating_add(force_delta).saturating_add(offset_isize);
+                            let final_loc = usize::try_from(final_loc_isize).unwrap_or(0);
+                            xrefs.insert(symbolname.clone(), final_loc);
+                        }
+                    }
                 }
             }
         }
     }
-    None
+
+    let mut out = String::new();
+    for (name, loc) in xrefs {
+        let _ = writeln!(out, "{name} = 0x{loc:x} ;");
+    }
+    out
 }
 
 fn find_reachable(
@@ -699,11 +811,11 @@ fn fit_sections(fixed_sections: &mut [(usize, Section)], fill_sections: &mut [Se
 
     let mut fixed_addr = Vec::new();
     for i in 0..fixed_sections.len() {
-        let (addr, ref sec) = fixed_sections[i];
-        let nextaddr = if i + 1 == fixed_sections.len() {
+        let Some((addr, ref sec)) = fixed_sections.get(i).map(|(a, s)| (*a, s)) else { continue; };
+        let nextaddr = if i.saturating_add(1) == fixed_sections.len() {
             BUILD_BIOS_SIZE
         } else {
-            fixed_sections[i + 1].0
+            fixed_sections.get(i.saturating_add(1)).map(|k| k.0).unwrap_or(BUILD_BIOS_SIZE)
         };
         let avail = nextaddr.saturating_sub(addr).saturating_sub(sec.size);
         fixed_addr.push((avail, addr, sec.size));
@@ -738,8 +850,10 @@ fn fit_sections(fixed_sections: &mut [(usize, Section)], fill_sections: &mut [Se
             }
             let Some((fitnextaddr, idx)) = canfit else { break; };
             used_indices.insert(idx);
-            fill_sections[idx].finalloc = Some(addpos.saturating_add(BUILD_BIOS_ADDR));
-            fill_sections[idx].finalsegloc = addpos;
+            if let Some(target) = fill_sections.get_mut(idx) {
+                target.finalloc = Some(addpos.saturating_add(BUILD_BIOS_ADDR));
+                target.finalsegloc = addpos;
+            }
             addpos = fitnextaddr;
         }
     }
@@ -759,7 +873,11 @@ fn set_sections_start(
         align = align.max(sec.align);
         totspace = alignpos(totspace, sec.align).saturating_add(sec.size);
     }
-    let startaddr = if align == 0 { endaddr.saturating_sub(totspace) } else { (endaddr.saturating_sub(totspace) / align) * align };
+    let startaddr = if align == 0 {
+        endaddr.saturating_sub(totspace)
+    } else {
+        (endaddr.saturating_sub(totspace).checked_div(align).unwrap_or(0)).saturating_mul(align)
+    };
     let mut curaddr = startaddr;
     for sec in sections.iter_mut() {
         curaddr = alignpos(curaddr, sec.align);
@@ -793,7 +911,7 @@ fn do_layout(
         2048
     };
 
-    let mut sections16 = get_sections_category(&sections, "16");
+    let sections16 = get_sections_category(&sections, "16");
     let mut textsections16 = get_sections_prefix(&sections16, ".text.");
     let rodatasections16 = get_sections_prefix(&sections16, ".rodata");
     let datasections16 = get_sections_prefix(&sections16, ".data16.");
@@ -938,8 +1056,12 @@ fn do_layout(
         (f_end, base)
     };
 
-    let relocdelta = final_sec32low_end as isize - sec32low_end as isize;
-    let segoff = (zonelow_base as isize - relocdelta) as usize;
+    let final_end_isize = isize::try_from(final_sec32low_end).unwrap_or(0);
+    let sec32low_end_isize = isize::try_from(sec32low_end).unwrap_or(0);
+    let relocdelta = final_end_isize.saturating_sub(sec32low_end_isize);
+    let zonelow_base_isize = isize::try_from(zonelow_base).unwrap_or(0);
+    let segoff_isize = zonelow_base_isize.saturating_sub(relocdelta);
+    let segoff = usize::try_from(segoff_isize).unwrap_or(0);
     let (sec32low_start, _) = set_sections_start(&mut sections32low, sec32low_end, 16, segoff);
 
     for sec in &sections32low {
@@ -949,18 +1071,19 @@ fn do_layout(
         }
     }
 
-    let final_sec32low_start = (sec32low_start as isize + relocdelta) as usize;
+    let sec32low_start_isize = isize::try_from(sec32low_start).unwrap_or(0);
+    let final_sec32low_start = usize::try_from(sec32low_start_isize.saturating_add(relocdelta)).unwrap_or(0);
 
-    let size16 = BUILD_BIOS_ADDR + BUILD_BIOS_SIZE - sec16_start;
-    let size32seg = sec16_start - sec32seg_start;
-    let size32textfseg = sec32seg_start - sec32textfseg_start;
-    let size32fseg = sec32textfseg_start - sec32fseg_start;
-    let size32flat = sec32fseg_start - sec32flat_start;
-    let size32init = sec32flat_start - sec32init_start;
-    let sizelow = sec32low_end - sec32low_start;
+    let size16 = BUILD_BIOS_ADDR.saturating_add(BUILD_BIOS_SIZE).saturating_sub(sec16_start);
+    let size32seg = sec16_start.saturating_sub(sec32seg_start);
+    let size32textfseg = sec32seg_start.saturating_sub(sec32textfseg_start);
+    let size32fseg = sec32textfseg_start.saturating_sub(sec32fseg_start);
+    let size32flat = sec32fseg_start.saturating_sub(sec32flat_start);
+    let size32init = sec32flat_start.saturating_sub(sec32init_start);
+    let sizelow = sec32low_end.saturating_sub(sec32low_start);
     println!("16bit size:           {size16}");
     println!("32bit segmented size: {size32seg}");
-    println!("32bit flat size:      {}", size32flat + size32textfseg);
+    println!("32bit flat size:      {}", size32flat.saturating_add(size32textfseg));
     println!("32bit flat init size: {size32init}");
     println!("Lowmem size:          {sizelow}");
     println!("f-segment var size:   {size32fseg}");
@@ -988,65 +1111,7 @@ fn max_align(a: usize, b: usize) -> usize {
     a.max(b)
 }
 
-fn out_xrefs(
-    sections: &[Section],
-    symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
-    export_syms: &[&Symbol],
-    use_seg: bool,
-    force_delta: isize,
-) -> String {
-    let mut xrefs: BTreeMap<String, usize> = BTreeMap::new();
-    for sym in export_syms {
-        if let Some(ref sec_name) = sym.section_name {
-            if let Some(sec) = sections.iter().find(|s| s.fileid == sym.fileid && s.name == *sec_name) {
-                let loc = if use_seg { sec.finalsegloc } else { sec.finalloc.unwrap_or(0) };
-                let final_loc = (loc as isize + force_delta + sym.offset as isize) as usize;
-                xrefs.insert(sym.name.clone(), final_loc);
-            }
-        }
-    }
-    for sec in sections {
-        for reloc in &sec.relocs {
-            let symbolname = &reloc.symbolname;
-            let fileid = &sec.fileid;
-            let mut resolved = None;
-            if let Some(syms) = symbols_by_fileid.get(fileid) {
-                if let Some(sym) = syms.get(symbolname) {
-                    resolved = Some((sym, fileid.as_str()));
-                }
-            }
-            if resolved.is_none() {
-                for fid in ["16", "32seg", "32flat"] {
-                    if fid != fileid {
-                        if let Some(syms) = symbols_by_fileid.get(fid) {
-                            if let Some(sym) = syms.get(symbolname) {
-                                resolved = Some((sym, fid));
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if let Some((sym, fid)) = resolved {
-                if let Some(ref sec_name) = sym.section_name {
-                    if fid != fileid || sym.name != *symbolname {
-                        if let Some(target_sec) = sections.iter().find(|s| s.fileid == fid && s.name == *sec_name) {
-                            let loc = if use_seg { target_sec.finalsegloc } else { target_sec.finalloc.unwrap_or(0) };
-                            let final_loc = (loc as isize + force_delta + sym.offset as isize) as usize;
-                            xrefs.insert(symbolname.clone(), final_loc);
-                        }
-                    }
-                }
-            }
-        }
-    }
 
-    let mut out = String::new();
-    for (name, loc) in xrefs {
-        let _ = writeln!(out, "{name} = 0x{loc:x} ;");
-    }
-    out
-}
 
 fn out_sections(sections: &[Section], use_seg: bool) -> String {
     let mut out = String::new();
@@ -1115,12 +1180,13 @@ fn write_linker_scripts(
     let out_16_str = format!(
         "{}{}\n    zonelow_base = 0x{:x} ;\n    _zonelow_seg = 0x{:x} ;\n\n{}\n{}",
         COMMONHEADER,
-        out_xrefs(&filesections16, symbols_by_fileid, &[], true, 0),
+        out_xrefs(&filesections16, &li.sections, symbols_by_fileid, &[], true, 0),
         li.zonelow_base,
         li.zonelow_base / 16,
         out_sections(&filesections16, true),
         COMMONTRAILER
     );
+
     if let Some(parent) = out16.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -1130,7 +1196,7 @@ fn write_linker_scripts(
     let out_32seg_str = format!(
         "{}{}{}\n{}",
         COMMONHEADER,
-        out_xrefs(&filesections32seg, symbols_by_fileid, &[], true, 0),
+        out_xrefs(&filesections32seg, &li.sections, symbols_by_fileid, &[], true, 0),
         out_sections(&filesections32seg, true),
         COMMONTRAILER
     );
@@ -1165,8 +1231,8 @@ fn write_linker_scripts(
         let mut relrelocs = get_relocs(&init_sections, &non_init_set, Some("R_386_PC32"));
         let mut initrelocs = get_relocs(&non_init_sections, &init_set, None);
 
-        let numrelocs = absrelocs.len() + relrelocs.len() + initrelocs.len();
-        sec32all_start = sec32all_start.saturating_sub(numrelocs * 4);
+        let numrelocs = absrelocs.len().saturating_add(relrelocs.len()).saturating_add(initrelocs.len());
+        sec32all_start = sec32all_start.saturating_sub(numrelocs.saturating_mul(4));
 
         relocstr = format!(
             "{}{}{}",
@@ -1177,8 +1243,10 @@ fn write_linker_scripts(
     }
 
     let export_varlow: Vec<&Symbol> = li.varlowsyms.iter().collect();
-    let force_delta = li.final_sec32low_start as isize - li.sec32low_start as isize;
-    let mut out_32flat_prefix = out_xrefs(&[], symbols_by_fileid, &export_varlow, false, force_delta);
+    let final_low_isize = isize::try_from(li.final_sec32low_start).unwrap_or(0);
+    let low_start_isize = isize::try_from(li.sec32low_start).unwrap_or(0);
+    let force_delta = final_low_isize.saturating_sub(low_start_isize);
+    let mut out_32flat_prefix = out_xrefs(&[], &li.sections, symbols_by_fileid, &export_varlow, false, force_delta);
 
     let multiboot_header = if li.config.get("CONFIG_MULTIBOOT").copied().unwrap_or(0) != 0 {
         sec32all_start = sec32all_start.saturating_sub(12);
@@ -1192,7 +1260,7 @@ fn write_linker_scripts(
     sec32all_start &= !mask;
 
     let entry_export = li.entrysym.as_ref().map(|s| vec![s]).unwrap_or_default();
-    out_32flat_prefix.push_str(&out_xrefs(&get_sections_fileid(&li.sections, "32flat"), symbols_by_fileid, &entry_export, false, 0));
+    out_32flat_prefix.push_str(&out_xrefs(&get_sections_fileid(&li.sections, "32flat"), &li.sections, symbols_by_fileid, &entry_export, false, 0));
 
     let filesections32flat = get_sections_fileid(&li.sections, "32flat");
     let rel_sections_str = out_rel_sections(&filesections32flat, "code32flat_start", false);
