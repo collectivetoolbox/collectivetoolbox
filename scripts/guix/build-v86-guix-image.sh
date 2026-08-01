@@ -51,19 +51,8 @@ else
         NOPERSONALITY_RS="$(cd "$SCRIPT_DIR/../../src/nopersonality" 2>/dev/null && pwd)/nopersonality.rs"
     fi
 
-    rustc --edition 2024 --crate-type cdylib -O "$NOPERSONALITY_RS" -o "$NOPERSONALITY_SO"
-
     pkill -f guix-daemon 2>/dev/null || true
-    rm -f /var/guix/daemon-socket/socket 2>/dev/null || true
     sleep 1
-
-    for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
-               /root/.config/guix/current/share/guix/*.pub \
-               /usr/local/share/guix/*.pub; do
-        if [ -f "$key" ]; then
-            guix archive --authorize < "$key" 2>/dev/null || true
-        fi
-    done
 
     echo "Starting guix-daemon with nopersonality shim..."
     LD_PRELOAD="$NOPERSONALITY_SO" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
@@ -76,7 +65,7 @@ else
     fi
 
     echo "Building Guix i686 system tarball image..."
-    TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image -L "$SCRIPT_DIR" --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
+    TARBALL_IMG="$(guix system image -L "$SCRIPT_DIR" --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
 
     kill "$DAEMON_PID" 2>/dev/null || true
     rm -rf "${TMP_BUILD_DIR?}" 2>/dev/null || true

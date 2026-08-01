@@ -1,0 +1,38 @@
+FROM mcr.microsoft.com/devcontainers/base:ubuntu
+
+ENV HOME=/root
+ENV PATH=/root/.cargo/bin:/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/current-profile/bin:${PATH}
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        xz-utils \
+        build-essential \
+        git; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
+
+RUN set -eux; \
+    curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh -o /tmp/guix-install.sh; \
+    chmod +x /tmp/guix-install.sh; \
+    sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh; \
+    yes | /tmp/guix-install.sh; \
+    rm -f /tmp/guix-install.sh; \
+    mkdir -p /etc/guix; \
+    if [ -d /root/.config/guix/current/share/guix ]; then \
+        for key in /root/.config/guix/current/share/guix/*.pub; do \
+            [ -e "$key" ] || break; \
+            /root/.config/guix/current/bin/guix archive --authorize < "$key"; \
+        done; \
+    fi
+
+COPY scripts/guix /tmp/scripts/guix
+COPY src/nopersonality /tmp/src/nopersonality
+
+RUN set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz
