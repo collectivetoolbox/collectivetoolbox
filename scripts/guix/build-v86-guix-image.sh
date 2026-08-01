@@ -6,8 +6,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+FETCH_SOURCES_MODE=0
 PREBUILD_DEST=""
-if [ "${1:-}" = "--prebuild-tarball" ] && [ -n "${2:-}" ]; then
+if [ "${1:-}" = "--fetch-sources" ]; then
+    FETCH_SOURCES_MODE=1
+elif [ "${1:-}" = "--prebuild-tarball" ] && [ -n "${2:-}" ]; then
     PREBUILD_DEST="$2"
 fi
 
@@ -62,6 +65,15 @@ else
         echo "Error: guix-daemon failed to start with nopersonality shim." >&2
         cat /tmp/guix-daemon.log >&2 || true
         exit 1
+    fi
+
+    if [ "$FETCH_SOURCES_MODE" -eq 1 ]; then
+        echo "Pre-fetching all transitive sources for Guix system image..."
+        guix build --sources=transitive -L "$SCRIPT_DIR" --system=i686-linux -e '((@ (gnu system) operating-system-packages) (load "'"$SCRIPT_DIR"'/v86-os.scm"))'
+        kill "$DAEMON_PID" 2>/dev/null || true
+        rm -rf "${TMP_BUILD_DIR?}" 2>/dev/null || true
+        echo "Successfully pre-fetched all system sources."
+        exit 0
     fi
 
     echo "Building Guix i686 system tarball image..."
