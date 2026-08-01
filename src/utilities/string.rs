@@ -62,8 +62,10 @@ pub(crate) const fn const_str_eq(a: &str, b: &str) -> bool {
 /// Strips all ANSI escape codes (e.g., terminal color and styling codes)
 /// from the string.
 pub fn strip_ansi_codes(s: &str) -> String {
-    let re = regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]").unwrap();
-    re.replace_all(s, "").into_owned()
+    static ANSI_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]").expect("Valid ANSI regex pattern")
+    });
+    ANSI_RE.replace_all(s, "").into_owned()
 }
 
 /// Checks if the given string matches a pattern containing a custom wildcard

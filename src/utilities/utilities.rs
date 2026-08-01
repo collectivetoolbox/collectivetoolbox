@@ -533,17 +533,17 @@ pub fn get_ctoolbox_process(s: &mut System, pid: u32) -> Option<&Process> {
     s.refresh_all();
     let process = s.process(Pid::from_u32(pid))?;
     let subprocess_exe = process.exe()?;
-    let this_exe = env::current_exe().unwrap();
+    let this_exe = env::current_exe().ok()?;
     if this_exe != subprocess_exe {
         return None;
     }
     Some(process)
 }
 
-pub fn get_this_executable() -> PathBuf {
+pub fn get_this_executable() -> Result<PathBuf> {
     let mut s = System::new_all();
     s.refresh_all();
-    env::current_exe().unwrap()
+    env::current_exe().context("Failed to get current executable path")
 }
 
 pub fn wait_for_ctoolbox_process_exit<'a>(pid: u32) {
@@ -567,7 +567,7 @@ pub fn package_version() -> String {
     build_info().version.clone()
 }
 
-pub fn generate_authentication_key() -> String {
+pub fn generate_authentication_key() -> Result<String> {
     let pg = PasswordGenerator {
         length: 64,
         numbers: true,
@@ -579,7 +579,8 @@ pub fn generate_authentication_key() -> String {
         strict: true,
     };
 
-    pg.generate_one().unwrap()
+    pg.generate_one()
+        .map_err(|e| anyhow::anyhow!("Failed to generate authentication key: {e}"))
 }
 
 pub fn u8_vec_to_formatted_hex(values: &[u8]) -> String {

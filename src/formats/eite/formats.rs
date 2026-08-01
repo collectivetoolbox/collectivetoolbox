@@ -264,7 +264,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 dc.to_string().as_str(),
                 1,
             );
-            if !exc_or_empty(&hex_str) {
+            if !exc_or_empty(&hex_str)? {
                 if let Err(err) = hex_str {
                     return Err(err)
                         .context(format!("Failed lookup Dc {dc} unicode",));
@@ -281,7 +281,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 &dc.to_string(),
                 0,
             );
-            if !exc_or_empty(&row_str) {
+            if !exc_or_empty(&row_str)? {
                 if let Err(err) = row_str {
                     return Err(err).context(format!(
                         "Failed lookup Dc {dc} unicode fallback"
@@ -301,7 +301,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
         "html" => {
             let html_map =
                 dc_data_lookup_by_dc_in_col_0("mappings/to/html", dc, 1);
-            if !exc_or_empty(&html_map) {
+            if !exc_or_empty(&html_map)? {
                 if let Err(err) = html_map {
                     return Err(err).context(format!(
                         "Failed lookup HTML mapping for Dc {dc}"
@@ -341,7 +341,7 @@ pub fn dc_from_format(
             // dataset: 'mappings/from/unicode', filter_field=0 (hex), desired_field=1 (Dc id)
             let dc_str =
                 dc_data_lookup_by_value("mappings/from/unicode", 0, &hex, 1);
-            if excep(&dc_str)
+            if excep(&dc_str)?
                 || (dc_str.is_ok() && dc_str.as_ref().unwrap() == "")
             {
                 // FIXME: Add an option to save unmapped Unicode characters

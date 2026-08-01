@@ -20,15 +20,33 @@ pub enum HashAlgorithm {
     XxHash3_128,
 }
 
-impl From<String> for HashAlgorithm {
-    fn from(s: String) -> Self {
+impl TryFrom<&str> for HashAlgorithm {
+    type Error = anyhow::Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.to_ascii_lowercase().as_str() {
-            "xxh32" | "xxhash32" => HashAlgorithm::XxHash32,
-            "xxh64" | "xxhash64" => HashAlgorithm::XxHash64,
-            "xxh3" | "xxhash3_64" | "xxhash3-64" => HashAlgorithm::XxHash3_64,
-            "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => HashAlgorithm::XxHash3_128,
-            _ => panic!("Unknown hash algorithm: {}", s),
+            "xxh32" | "xxhash32" => Ok(HashAlgorithm::XxHash32),
+            "xxh64" | "xxhash64" => Ok(HashAlgorithm::XxHash64),
+            "xxh3" | "xxhash3_64" | "xxhash3-64" => Ok(HashAlgorithm::XxHash3_64),
+            "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => Ok(HashAlgorithm::XxHash3_128),
+            _ => anyhow::bail!("Unknown hash algorithm: {}", s),
         }
+    }
+}
+
+impl TryFrom<String> for HashAlgorithm {
+    type Error = anyhow::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+impl std::str::FromStr for HashAlgorithm {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
     }
 }
 
