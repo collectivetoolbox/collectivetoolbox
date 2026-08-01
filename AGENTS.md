@@ -53,7 +53,7 @@
 - Never put a Clippy allow at the top level of a crate or file; attach it instead to the methods where it is relevant.
 - When prompted to address lints, accomplish this by fixing the problems causing the lint errors, not by turning off the lints or adding allows.
 - Node.js packages must never be installed in the application. A node_modules directory must never be present. Some Node packages are acceptable to use as development-only tools installed outside of the repository (currently permitted: tsc for faster linter runs, and Playwright for in-browser testing), but they must never be used as dependencies, nor be required for correct linting.
-- If you try multiple implementations of something, leave only the one that worked and remove any that would be dead code.
+- If you try multiple implementations of something or guess at multiple values, leave only the one that worked and remove any that would be dead code.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
