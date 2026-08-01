@@ -5,6 +5,8 @@
 )]
 use crate::utilities::*;
 
+// Any nontrivial logic should go in the associated crate, rather than this file.
+
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
 use ctb_formats_stagel::convert::run_stagel_bootstrap_convert;
@@ -59,6 +61,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "jq"
             | "json-escape"
             | "dceutils_php_to_csv"
+            | "x86-instruction-sets"
     )
 }
 
@@ -248,6 +251,12 @@ pub enum Command {
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
+    /// Analyze an x86/x64 object or archive file and list CPU instruction set features
+    #[command(name = "x86-instruction-sets")]
+    X86InstructionSets {
+        /// Path to the object or archive file
+        path: PathBuf,
+    },
     /// Internet Archive utilities.
     #[command(name = "ia")]
     IA {
@@ -1209,6 +1218,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let escaped = ctb_utilities::json::json_escape(&input_str)?;
             Ok(ToolResult::immediate_ok(escaped.into_bytes()))
         }
+        Command::X86InstructionSets { path } => {
+            let data = std::fs::read(path)
+                .with_context(|| format!("Failed to read file: {}", path.display()))?;
+            let sets = ctb_formats_x86::extract_instruction_sets(&data)?;
+            let mut output = sets.join("\n");
+            if !output.is_empty() {
+                output.push('\n');
+            }
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
+        }
     }
 }
 
@@ -1243,5 +1262,18 @@ mod tests {
         assert!(help_str.contains("br, brotli: Brotli compressed stream"));
         assert!(help_str.contains("gz, gzip: GNU gzip format"));
         assert!(help_str.contains("sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_x86_instruction_sets_command() {
+        assert!(is_lightweight_command("x86-instruction-sets"));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let sample_file = temp_dir.path().join("dummy.bin");
+        std::fs::write(&sample_file, b"not a binary").unwrap();
+
+        let cmd = Command::X86InstructionSets {
+            path: sample_file,
+        };
+        assert!(run_lightweight_command(&cmd).await.is_err());
     }
 }

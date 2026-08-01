@@ -50,6 +50,7 @@ pub use ctb_formats_utf8 as utf8;
 pub use ctb_formats_warc as warc;
 pub use ctb_formats_wfscan as wfscan;
 pub use ctb_formats_wtf8 as wtf8;
+pub use ctb_formats_x86 as x86;
 
 pub fn string_result_with_log_to_vec(
     result: Result<(String, FormatLog)>,

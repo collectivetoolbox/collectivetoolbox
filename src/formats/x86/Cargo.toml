@@ -1,0 +1,17 @@
+[package]
+name = "ctb-formats-x86"
+edition = "2024"
+
+[lib]
+path="x86.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+object = "0.40.0"
+iced-x86 = "1.21.0"
+
+[lints]
+workspace = true

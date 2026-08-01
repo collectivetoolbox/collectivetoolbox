@@ -433,7 +433,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4087686b4b0a3427190bae57a1d9a478dbb2d40c5dc1bd6e2b6d797913bdd348"
 dependencies = [
- "object",
+ "object 0.37.3",
 ]
 
 [[package]]
@@ -1063,7 +1063,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "miniz_oxide 0.8.9",
- "object",
+ "object 0.37.3",
  "rustc-demangle",
  "windows-link 0.2.1",
 ]
@@ -2592,6 +2592,7 @@ dependencies = [
  "ctb-formats-stagel",
  "ctb-formats-warc",
  "ctb-formats-wfscan",
+ "ctb-formats-x86",
  "ctb-installer",
  "ctb-storage",
  "ctb-utilities",
@@ -2644,6 +2645,7 @@ dependencies = [
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-wtf8",
+ "ctb-formats-x86",
  "ctb-utilities",
  "uuid",
 ]
@@ -3094,6 +3096,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-x86"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "iced-x86",
+ "object 0.40.0",
+]
+
+[[package]]
 name = "ctb-installer"
 version = "0.0.0"
 dependencies = [
@@ -3541,6 +3553,7 @@ dependencies = [
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-wtf8",
+ "ctb-formats-x86",
  "ctb-installer",
  "ctb-io",
  "ctb-io-webui",
@@ -6534,6 +6547,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced-x86"
+version = "1.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c447cff8c7f384a7d4f741cfcff32f75f3ad02b406432e8d6c878d56b1edf6b"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
 name = "icu_calendar"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8363,6 +8385,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd229a0361b9d0d4396176e02d65897f487eebeab7caa6d443855ee152ca0b9c"
+dependencies = [
+ "flate2",
+ "memchr",
+ "ruzstd",
+]
+
+[[package]]
 name = "oid-registry"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9861,6 +9894,15 @@ name = "rustversion"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
+
+[[package]]
+name = "ruzstd"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a252f5e20f038fe7b4ea53e073e65398d652c864cc162fc77c56c2f13717b888"
+dependencies = [
+ "twox-hash",
+]
 
 [[package]]
 name = "ryu"

@@ -45,6 +45,8 @@ ctb-formats-utf8 = { path = "utf8" }
 ctb-formats-warc = { path = "warc" }
 ctb-formats-wfscan = { path = "wfscan" }
 ctb-formats-wtf8 = { path = "wtf8" }
+ctb-formats-x86 = { path = "x86" }
+
 ctb-formats-utilities = { path = "utilities" }
 
 uuid = { version = "1.19.0", features = [ "v4", "macro-diagnostics", "js" ] }
