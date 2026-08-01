@@ -1,5 +1,11 @@
 While I won't document all breaking changes until this application is stable, I'll try to note the most significant ones here.
 
+# August 1, 2026
+
+Breaking changes:
+
+- Removed `ExpectWithErr` trait in favor of more graceful error handling. As it wouldn't be detected by the `expect_used` lint, it was something of a footgun.
+
 # July 19, 2026
 
 Breaking changes:

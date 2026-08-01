@@ -116,6 +116,7 @@ where
     })
 }
 
+#[allow(clippy::panic, reason = "Test-only utility helper panics when called outside test harness")]
 pub fn get_current_test_name() -> String {
     if let Some(p) = try_get_current_test_name() {
         p

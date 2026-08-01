@@ -431,8 +431,7 @@ fn start_webui_server_inner(
     tls_client_verification_cert: Option<String>,
 ) -> Result<()> {
     // Build templates once and share via state
-    let hbs =
-        register_views().expect_with_err("Could not register Handlebars views");
+    let state = AppState::try_new()?;
 
     // Clear downloads_cache directory at server startup
     if let Ok(storage_dir) = ctb_utilities::storage::get_storage_dir() {
@@ -443,16 +442,6 @@ fn start_webui_server_inner(
             }
         }
     }
-
-    let state = AppState {
-        hbs: Arc::new(hbs),
-        users: Arc::new(Mutex::new(HashMap::new())),
-        download_sizes: Arc::new(Mutex::new(None)),
-        storage_dir_override: None,
-        generating_downloads: Arc::new(Mutex::new(std::collections::HashSet::new())),
-        global_session_token: Arc::new(Mutex::new(None)),
-        eite_states: Arc::new(Mutex::new(HashMap::new())),
-    };
 
     let app = build_app_router(state);
 
@@ -591,7 +580,7 @@ mod tests {
         };
         new_settings.save().unwrap();
 
-        let app = build_app_router(AppState::default());
+        let app = build_app_router(AppState::try_new().unwrap());
         let request = Request::builder()
             .uri("/hello?x=1")
             .header("Host", "www.example.com")
@@ -614,7 +603,7 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_clears_invalid_session_cookie() {
-        let app = build_app_router(AppState::default());
+        let app = build_app_router(AppState::try_new().unwrap());
         let request = Request::builder()
             .uri("/")
             .header("Cookie", "session=invalid_or_expired_token")

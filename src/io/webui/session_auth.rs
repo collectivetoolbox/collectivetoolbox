@@ -220,7 +220,7 @@ mod tests {
 
     #[ctb_test("tokio")]
     async fn test_session_new() {
-        let mut state = AppState::default();
+        let mut state = AppState::try_new().unwrap();
         let username = function_name!();
         let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
@@ -246,7 +246,7 @@ mod tests {
 
     #[ctb_test("tokio")]
     async fn test_session_get_by_key() {
-        let mut state = AppState::default();
+        let mut state = AppState::try_new().unwrap();
         let username = function_name!();
         let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
@@ -268,7 +268,7 @@ mod tests {
 
     #[ctb_test("tokio")]
     async fn test_session_get_user_by_key() {
-        let mut state = AppState::default();
+        let mut state = AppState::try_new().unwrap();
         let username = function_name!();
         let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();
@@ -295,7 +295,7 @@ mod tests {
 
     #[ctb_test("tokio")]
     async fn test_session_invalidate() {
-        let mut state = AppState::default();
+        let mut state = AppState::try_new().unwrap();
         let username = function_name!();
         let _lock = ctb_storage::user::lock_by_name(username).expect("Could not lock name");
         ctb_storage::user::User::delete_by_name(username).ok();

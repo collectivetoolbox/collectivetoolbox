@@ -88,7 +88,7 @@ pub(crate) fn disabled_button_text_color(ui: &egui::Ui) -> Color32 {
     }
 }
 
-#[allow(expect_used, clippy::too_many_lines, reason = "large font registration function; expect is OK here since the fonts should be bundled correctly and if not something is majorly broken")]
+#[allow(clippy::expect_used, clippy::too_many_lines, reason = "large font registration function; expect is OK here since the fonts should be bundled correctly and if not something is majorly broken")]
 pub(crate) fn get_fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let mut fonts_list = HashMap::new();
@@ -158,7 +158,7 @@ pub(crate) fn get_fonts() -> FontDefinitions {
         let font_bytes = get_installer_data(&format!("resources/fonts/{path}"))
             .unwrap_or_else(|| {
                 eprintln!(
-                    "Fatal error: failed to load embedded installer font '{name}'. Binary assets may be corrupted."
+                    "Fatal error: failed to load embedded installer font '{name}'. The installer may be corrupted."
                 );
                 std::process::exit(1);
             });

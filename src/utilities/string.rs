@@ -61,6 +61,7 @@ pub(crate) const fn const_str_eq(a: &str, b: &str) -> bool {
 
 /// Strips all ANSI escape codes (e.g., terminal color and styling codes)
 /// from the string.
+#[allow(clippy::expect_used, reason = "It is always the same regex, and has test coverage. Seems unlikely to fail I guess? Returning Result would be awkward.")]
 pub fn strip_ansi_codes(s: &str) -> String {
     static ANSI_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]").expect("Valid ANSI regex pattern")

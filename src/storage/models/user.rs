@@ -603,6 +603,7 @@ fn next_user_id() -> Result<u64> {
     User::increment_and_get_user_id()
 }
 
+#[allow(clippy::panic, clippy::expect_used, reason = "Test user creation helper function panics on creation error")]
 pub fn get_test_user(name: &str) -> User {
     use crate::debug;
 

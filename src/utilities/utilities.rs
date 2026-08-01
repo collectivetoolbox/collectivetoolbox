@@ -761,36 +761,6 @@ pub fn default_url() -> String {
     pc_settings::DEFAULT_SERVER_URL.to_string()
 }
 
-pub trait ExpectWithErr<T> {
-    /// Like `Result::expect`, but includes the error's `Debug` output in the panic message.
-    fn expect_with_err(self, msg: impl Into<String>) -> T;
-    fn expect_with_err_fn<F>(self, f: F) -> T
-    where
-        F: FnOnce() -> String;
-}
-
-impl<T, E: Debug> ExpectWithErr<T> for Result<T, E> {
-    fn expect_with_err(self, msg: impl Into<String>) -> T {
-        self.expect_with_err_fn(|| msg.into())
-    }
-
-    fn expect_with_err_fn<F>(self, f: F) -> T
-    where
-        F: FnOnce() -> String,
-    {
-        match self {
-            Ok(v) => v,
-            Err(e) => {
-                let err_msg = format!("{}: {e:?}", f());
-                // Print to stderr (optional)
-                eprintln!("{err_msg}");
-                // Panic with the formatted message
-                panic!("{}", err_msg);
-            }
-        }
-    }
-}
-
 pub fn get_all_bytes() -> Vec<u8> {
     return get_utilities_data("all_bytes.bin").expect("Failed to get all_bytes");
 }
@@ -812,6 +782,7 @@ pub fn build_info() -> BuildInfo {
     }
 }
 
+#[allow(clippy::panic, reason = "Test assertion helper intentionally panics on error")]
 pub fn assert_vec_u32_ok_eq(
     expected: &[u32],
     actual: anyhow::Result<Vec<u32>>,
@@ -822,6 +793,7 @@ pub fn assert_vec_u32_ok_eq(
     }
 }
 
+#[allow(clippy::panic, reason = "Test assertion helper intentionally panics on error")]
 pub fn assert_vec_u8_ok_eq(
     expected: &[u8],
     actual: anyhow::Result<Vec<u8>>,
