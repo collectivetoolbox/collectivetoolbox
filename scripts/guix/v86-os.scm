@@ -10,7 +10,10 @@
              (gnu packages virtualization)
              (gnu services desktop)
              (gnu services xorg)
-             (gnu services networking))
+             (gnu services networking)
+             (patches))
+
+(define qemu-patched (apply-patches qemu))
 
 (operating-system
   (host-name "ctoolbox-v86")
@@ -38,8 +41,8 @@
                    openbox
                    xterm
                    bash
-                   qemu
+                   qemu-patched
                    %base-packages))
 
   (services (cons* (service static-networking-service-type '())
-                   %base-services)))
+                    %base-services)))

@@ -43,7 +43,7 @@ else
     sleep 2
 
     echo "Building Guix i686 system tarball image..."
-    TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
+    TARBALL_IMG="$(LD_PRELOAD="$NOPERSONALITY_SO" guix system image -L "$SCRIPT_DIR" --system=i686-linux --image-type=tarball "$SCRIPT_DIR/v86-os.scm")"
 fi
 
 echo "Guix image built at: $TARBALL_IMG"

@@ -70,6 +70,8 @@ RUN set -eux; \
 
 # Pre-build Guix i686 system image tarball in Docker image to avoid re-building on every CI run
 COPY scripts/guix/v86-os.scm /tmp/v86-os.scm
+COPY scripts/guix/patches.scm /tmp/patches.scm
+COPY scripts/guix/patches /tmp/patches
 COPY src/nopersonality/nopersonality.rs /tmp/nopersonality.rs
 
 RUN set -eux; \
@@ -79,10 +81,10 @@ RUN set -eux; \
     DAEMON_PID=$!; \
     sleep 2; \
     mkdir -p /var/guix; \
-    TARBALL_PATH=$(/root/.config/guix/current/bin/guix system image --system=i686-linux --image-type=tarball /tmp/v86-os.scm); \
+    TARBALL_PATH=$(/root/.config/guix/current/bin/guix system image -L /tmp --system=i686-linux --image-type=tarball /tmp/v86-os.scm); \
     cp "$TARBALL_PATH" /var/guix/v86-system-image.tar.gz; \
     kill "$DAEMON_PID" || true; \
-    rm -rf /tmp/v86-os.scm /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
+    rm -rf /tmp/v86-os.scm /tmp/patches.scm /tmp/patches /tmp/nopersonality.rs /tmp/libctb_nopersonality.so /tmp/guix-daemon.log
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
 ENV NOCACHEJULYTHIRTY=2
