@@ -3,7 +3,11 @@
 //! This module consolidates shared types, constants, and helper functions
 //! used by both the graphical and text-mode installers to avoid duplication.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::path::PathBuf;
@@ -236,14 +240,26 @@ pub fn window_title_uninstall() -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
     use crate::i18n::Locale;
 
     #[crate::ctb_test]
-    #[allow(clippy::float_cmp, reason = "direct exact float match checking in tests")]
+    #[allow(
+        clippy::float_cmp,
+        reason = "direct exact float match checking in tests"
+    )]
     fn test_progress_ratio() {
         assert_eq!(progress_ratio(0, 0), 0.0);
         assert_eq!(progress_ratio(0, 10), 0.0);

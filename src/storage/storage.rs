@@ -1,7 +1,15 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 pub use ctb_utilities::ipc::service_prelude::*;
 
 use anyhow::{Context, Result};
@@ -18,14 +26,13 @@ use std::{
 
 pub mod db;
 pub mod models;
-pub use models::{graph, node, user, sync};
-mod secret;
-mod resource_bundle;
+pub use models::{graph, node, sync, user};
+pub mod global_graph_layout;
 pub mod migrations;
 pub mod packaged_node;
-pub mod global_graph_layout;
+mod resource_bundle;
+mod secret;
 pub use models::graph::get_global_graph;
-
 
 pub fn put(key: Vec<u8>, value: Vec<u8>) {
     println!(
@@ -146,7 +153,7 @@ fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
     Ok(result)
 }
 
-#[allow(clippy::too_many_lines, reason = "large register_views function")]
+#[expect(clippy::too_many_lines, reason = "large register_views function")]
 pub fn register_views<'a>() -> Result<handlebars::Handlebars<'a>> {
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
@@ -199,8 +206,8 @@ pub fn register_views<'a>() -> Result<handlebars::Handlebars<'a>> {
 
     // Inline imports
 
-    let inlined_app_css =
-        inline_css_imports(&app_css, "web/").context("Failed to inline imports")?;
+    let inlined_app_css = inline_css_imports(&app_css, "web/")
+        .context("Failed to inline imports")?;
 
     // app.css
     for line in inlined_app_css.lines() {
@@ -305,7 +312,16 @@ pub fn overwrite_file(path: &Path, data: &[u8]) -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

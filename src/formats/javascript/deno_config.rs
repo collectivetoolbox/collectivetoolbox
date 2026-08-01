@@ -3,7 +3,11 @@
 // For parts derived from dlint:
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use deno_lint::rules::{LintRule, filtered_rules, get_all_rules};
@@ -65,7 +69,8 @@ impl Config {
 pub fn parse_config(bytes: &[u8]) -> Result<Config> {
     let config_str = std::str::from_utf8(bytes)?;
     let parsed: DenoJsonConfig = serde_json::from_str(config_str)?;
-    let mut actual_config = parsed.lint.clone().unwrap_or_else(|| parsed.direct.clone());
+    let mut actual_config =
+        parsed.lint.clone().unwrap_or_else(|| parsed.direct.clone());
     if actual_config.files.include.is_empty()
         && !actual_config.direct_files.include.is_empty()
     {
@@ -92,7 +97,8 @@ pub fn parse_config(bytes: &[u8]) -> Result<Config> {
         if actual_config.files.include.is_empty() {
             let mut top_level_include = Vec::new();
             top_level_include.extend(parsed.direct.files.include.clone());
-            top_level_include.extend(parsed.direct.direct_files.include.clone());
+            top_level_include
+                .extend(parsed.direct.direct_files.include.clone());
             actual_config.files.include = top_level_include;
         }
     }
@@ -120,7 +126,16 @@ pub fn get_rules_from_config(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use deno_lint::rules::recommended_rules;
@@ -211,7 +226,8 @@ mod tests {
                 "include": ["lint-include"],
                 "exclude": ["lint-exclude"]
             }
-        }"#.as_bytes();
+        }"#
+        .as_bytes();
         let config = parse_config(json_bytes).unwrap();
         assert_eq!(config.files.include, vec!["lint-include"]);
         assert!(config.files.exclude.contains(&"top-exclude".to_string()));

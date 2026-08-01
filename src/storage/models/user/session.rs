@@ -1,7 +1,11 @@
 //! User session and cache management.
 //! Manages decrypted database encryption keys (DEKs) and active sessions.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::secret::Secret;
@@ -32,7 +36,8 @@ fn user_keys() -> &'static RwLock<HashMap<u64, Secret>> {
 }
 
 /// Global registry of active user sessions.
-static USER_SESSIONS: OnceLock<RwLock<HashMap<String, StorageSession>>> = OnceLock::new();
+static USER_SESSIONS: OnceLock<RwLock<HashMap<String, StorageSession>>> =
+    OnceLock::new();
 
 fn user_sessions() -> &'static RwLock<HashMap<String, StorageSession>> {
     USER_SESSIONS.get_or_init(|| RwLock::new(HashMap::new()))
@@ -44,7 +49,9 @@ pub(crate) fn get_user_dek(user_id: u64) -> Result<Secret> {
         .read()
         .map_err(|e| anyhow!("Keys lock poisoned: {e}"))?;
     let secret = keys.get(&user_id).ok_or_else(|| {
-        anyhow!("Encryption key (DEK) not registered/available for user {user_id}")
+        anyhow!(
+            "Encryption key (DEK) not registered/available for user {user_id}"
+        )
     })?;
     let secret: Secret = secret.clone();
     Ok(secret)
@@ -96,7 +103,9 @@ pub(crate) async fn register_session(
             StorageSession {
                 token,
                 user_id,
-                expiry: Instant::now().checked_add(std::time::Duration::from_secs(duration_secs)).ok_or_else(|| anyhow!("Instant overflow"))?,
+                expiry: Instant::now()
+                    .checked_add(std::time::Duration::from_secs(duration_secs))
+                    .ok_or_else(|| anyhow!("Instant overflow"))?,
             },
         );
     }
@@ -107,7 +116,7 @@ pub(crate) async fn register_session(
     Ok(())
 }
 
-#[allow(dead_code, reason = "test helper function")]
+#[expect(dead_code, reason = "test helper function")]
 pub(crate) fn register_test_session(
     token: String,
     user_id: u64,
@@ -119,7 +128,9 @@ pub(crate) fn register_test_session(
             StorageSession {
                 token,
                 user_id,
-                expiry: Instant::now().checked_add(std::time::Duration::from_secs(duration_secs)).unwrap_or_else(Instant::now),
+                expiry: Instant::now()
+                    .checked_add(std::time::Duration::from_secs(duration_secs))
+                    .unwrap_or_else(Instant::now),
             },
         );
     }
@@ -133,7 +144,7 @@ pub async fn login_user(
     duration_secs: u64,
 ) -> Result<String> {
     let user_info = UserPublicInfo::get_by_name(&username)?
-        .ok_or_else(|| anyhow!("User '{}' not found", username))?;
+        .ok_or_else(|| anyhow!("User '{username}' not found"))?;
 
     let password = Password {
         password: password_bytes.clone(),
@@ -146,12 +157,13 @@ pub async fn login_user(
     // Generate random 32-byte session token
     let mut session_bytes = [0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::rng(), &mut session_bytes);
-    let token = URL_SAFE_NO_PAD.encode(&session_bytes);
+    let token = URL_SAFE_NO_PAD.encode(session_bytes);
     session_bytes.zeroize();
 
     // Register session locally
     let dek = user.take_dek().ok_or_else(|| anyhow!("User has no DEK"))?;
-    register_session(token.clone(), user.local_id(), dek, duration_secs).await?;
+    register_session(token.clone(), user.local_id(), dek, duration_secs)
+        .await?;
 
     Ok(token)
 }
@@ -174,12 +186,13 @@ pub async fn create_user_and_session(
     // Generate random 32-byte session token
     let mut session_bytes = [0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::rng(), &mut session_bytes);
-    let token = URL_SAFE_NO_PAD.encode(&session_bytes);
+    let token = URL_SAFE_NO_PAD.encode(session_bytes);
     session_bytes.zeroize();
 
     // Register session locally
     let dek = user.take_dek().ok_or_else(|| anyhow!("User has no DEK"))?;
-    register_session(token.clone(), user.local_id(), dek, duration_secs).await?;
+    register_session(token.clone(), user.local_id(), dek, duration_secs)
+        .await?;
 
     Ok(token)
 }
@@ -191,7 +204,9 @@ pub async fn refresh_session(token: String, duration_secs: u64) -> Result<()> {
         .write()
         .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
     if let Some(session) = sessions.get_mut(&token) {
-        session.expiry = Instant::now().checked_add(std::time::Duration::from_secs(duration_secs)).ok_or_else(|| anyhow!("Instant overflow"))?;
+        session.expiry = Instant::now()
+            .checked_add(std::time::Duration::from_secs(duration_secs))
+            .ok_or_else(|| anyhow!("Instant overflow"))?;
         Ok(())
     } else {
         Err(anyhow!("Session not found or expired"))
@@ -241,7 +256,9 @@ fn ensure_eviction_task() {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     if let Err(e) = active_evict_expired_sessions().await {
-                        error!(format!("Error in active session eviction loop: {e}"));
+                        error!(format!(
+                            "Error in active session eviction loop: {e}"
+                        ));
                     }
                 }
             });
@@ -280,7 +297,8 @@ async fn invalidate_session_internal(token: &str) -> Result<()> {
             .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
         if let Some(session) = sessions.remove(token) {
             let user_id = session.user_id;
-            let has_other_sessions = sessions.values().any(|s| s.user_id == user_id);
+            let has_other_sessions =
+                sessions.values().any(|s| s.user_id == user_id);
             (Some(user_id), has_other_sessions)
         } else {
             (None, false)
@@ -293,7 +311,9 @@ async fn invalidate_session_internal(token: &str) -> Result<()> {
                 "No active sessions left for user {user_id}. Deregistering."
             ));
             if let Err(e) = deregister_user(user_id).await {
-                error!(format!("Failed to automatically deregister user {user_id}: {e}"));
+                error!(format!(
+                    "Failed to automatically deregister user {user_id}: {e}"
+                ));
             }
         }
     }
@@ -301,7 +321,16 @@ async fn invalidate_session_internal(token: &str) -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -312,7 +341,13 @@ mod tests {
         let dek_bytes = vec![0x99u8; 32];
 
         // 1. Register session
-        register_session(token.clone(), user_id, Secret::new(dek_bytes.clone()), 2).await?;
+        register_session(
+            token.clone(),
+            user_id,
+            Secret::new(dek_bytes.clone()),
+            2,
+        )
+        .await?;
 
         // DEK should be cached
         assert_eq!(get_user_dek(user_id)?, Secret::new(dek_bytes.clone()));
@@ -328,11 +363,17 @@ mod tests {
         assert_eq!(validate_session(token.clone()).await?, None);
 
         // DEK should be evicted (since it was the last session)
-        assert!(get_user_dek(user_id).is_err());
+        get_user_dek(user_id).unwrap_err();
 
         // 4. Test active eviction on expiration
         let short_token = "short_token".to_string();
-        register_session(short_token.clone(), user_id, Secret::new(dek_bytes.clone()), 1).await?;
+        register_session(
+            short_token.clone(),
+            user_id,
+            Secret::new(dek_bytes.clone()),
+            1,
+        )
+        .await?;
 
         // Wait 1.5 seconds for active eviction loop to run
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
@@ -340,7 +381,7 @@ mod tests {
         // Session should be evicted
         assert_eq!(validate_session(short_token.clone()).await?, None);
         // DEK should be evicted
-        assert!(get_user_dek(user_id).is_err());
+        get_user_dek(user_id).unwrap_err();
 
         Ok(())
     }

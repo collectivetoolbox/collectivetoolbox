@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
@@ -30,7 +34,8 @@ pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
                 if next_idx >= data.len() {
                     break;
                 }
-                let next_byte = *data.get(next_idx).context("Index out of bounds")?;
+                let next_byte =
+                    *data.get(next_idx).context("Index out of bounds")?;
                 if (0x80..=0xbf).contains(&next_byte) {
                     k = offset;
                 } else {
@@ -43,14 +48,21 @@ pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
                 let mut cp = 0u32;
                 if k == n {
                     if n == 1 {
-                        let b2 = *data.get(i.saturating_add(1)).context("Index out of bounds")?;
-                        cp = ((u32::from(b1) & 0x1f) << 6) | (u32::from(b2) & 0x3f);
+                        let b2 = *data
+                            .get(i.saturating_add(1))
+                            .context("Index out of bounds")?;
+                        cp = ((u32::from(b1) & 0x1f) << 6)
+                            | (u32::from(b2) & 0x3f);
                         if cp > 0x7f {
                             cp_valid = true;
                         }
                     } else if n == 2 {
-                        let b2 = *data.get(i.saturating_add(1)).context("Index out of bounds")?;
-                        let b3 = *data.get(i.saturating_add(2)).context("Index out of bounds")?;
+                        let b2 = *data
+                            .get(i.saturating_add(1))
+                            .context("Index out of bounds")?;
+                        let b3 = *data
+                            .get(i.saturating_add(2))
+                            .context("Index out of bounds")?;
                         cp = ((u32::from(b1) & 0x0f) << 12)
                             | ((u32::from(b2) & 0x3f) << 6)
                             | (u32::from(b3) & 0x3f);
@@ -58,9 +70,15 @@ pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
                             cp_valid = true;
                         }
                     } else if n == 3 {
-                        let b2 = *data.get(i.saturating_add(1)).context("Index out of bounds")?;
-                        let b3 = *data.get(i.saturating_add(2)).context("Index out of bounds")?;
-                        let b4 = *data.get(i.saturating_add(3)).context("Index out of bounds")?;
+                        let b2 = *data
+                            .get(i.saturating_add(1))
+                            .context("Index out of bounds")?;
+                        let b3 = *data
+                            .get(i.saturating_add(2))
+                            .context("Index out of bounds")?;
+                        let b4 = *data
+                            .get(i.saturating_add(3))
+                            .context("Index out of bounds")?;
                         cp = ((u32::from(b1) & 0x07) << 18)
                             | ((u32::from(b2) & 0x3f) << 12)
                             | ((u32::from(b3) & 0x3f) << 6)
@@ -91,9 +109,17 @@ pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
     Ok(s)
 }
 
-
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -115,22 +141,25 @@ mod tests {
         assert_eq!(perl_utf8_decode(input).unwrap(), "\u{FFFD}".repeat(8));
 
         assert_eq!(perl_utf8_decode(b"\xff\x9f").unwrap().chars().count(), 1);
-        assert_eq!(perl_utf8_decode(b"\xff\x9f\x9f").unwrap().chars().count(), 1);
+        assert_eq!(
+            perl_utf8_decode(b"\xff\x9f\x9f").unwrap().chars().count(),
+            1
+        );
 
         let mut input12 = vec![0xff];
-        input12.extend(std::iter::repeat(0x9f).take(12));
+        input12.extend(std::iter::repeat_n(0x9f, 12));
         assert_eq!(perl_utf8_decode(&input12).unwrap().chars().count(), 1);
 
         let mut input13 = vec![0xff];
-        input13.extend(std::iter::repeat(0x9f).take(13));
+        input13.extend(std::iter::repeat_n(0x9f, 13));
         assert_eq!(perl_utf8_decode(&input13).unwrap().chars().count(), 2);
 
         let mut input5 = vec![0xfc];
-        input5.extend(std::iter::repeat(0x9f).take(5));
+        input5.extend(std::iter::repeat_n(0x9f, 5));
         assert_eq!(perl_utf8_decode(&input5).unwrap().chars().count(), 1);
 
         let mut input6 = vec![0xfc];
-        input6.extend(std::iter::repeat(0x9f).take(6));
+        input6.extend(std::iter::repeat_n(0x9f, 6));
         assert_eq!(perl_utf8_decode(&input6).unwrap().chars().count(), 2);
 
         assert_eq!(perl_utf8_decode(b"\xffA").unwrap().chars().count(), 2);

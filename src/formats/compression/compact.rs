@@ -1,9 +1,13 @@
-//! Implementation of Colin L. McMaster's 1979 Online Adaptive Huffman
+//! Implementation of Colin L. `McMaster`'s 1979 Online Adaptive Huffman
 //! Coding format (`compact` / `uncompact`, `.C` file format).
 //!
 //! Specification reference: `data/docs/compact.md`
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use std::io::{Read, Write};
 
@@ -65,7 +69,8 @@ impl<R: Read> WordReader<R> {
         let mut value = 0u8;
         for _ in 0..count {
             let bit = self.read_bit()?;
-            let bit_u8 = u8::try_from(bit).context("Bit conversion overflow")?;
+            let bit_u8 =
+                u8::try_from(bit).context("Bit conversion overflow")?;
             value = (value << 1) | bit_u8;
         }
         Ok(value)
@@ -140,7 +145,7 @@ impl<W: Write> WordWriter<W> {
     }
 }
 
-/// A child branch in McMaster's adaptive Huffman tree (Internal node vs Leaf symbol).
+/// A child branch in `McMaster`'s adaptive Huffman tree (Internal node vs Leaf symbol).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Child {
     Internal(usize),
@@ -154,7 +159,7 @@ struct LeafInfo {
     dir: usize,
 }
 
-/// A node in McMaster's adaptive Huffman tree dict array.
+/// A node in `McMaster`'s adaptive Huffman tree dict array.
 #[derive(Debug, Clone, Copy)]
 struct DictNode {
     fp: Option<usize>,
@@ -162,7 +167,7 @@ struct DictNode {
     count: [u32; 2],
 }
 
-/// McMaster's 1979 4.1cBSD Online Adaptive Huffman Coding Tree.
+/// `McMaster`'s 1979 4.1cBSD Online Adaptive Huffman Coding Tree.
 struct CompactTree {
     dict: Vec<DictNode>,
     leaf_info: [LeafInfo; 258],
@@ -199,13 +204,22 @@ impl CompactTree {
         }
 
         if let Some(info) = leaf_info.get_mut(first_byte_idx) {
-            *info = LeafInfo { fp: Some(0), dir: 1 };
+            *info = LeafInfo {
+                fp: Some(0),
+                dir: 1,
+            };
         }
         if let Some(info) = leaf_info.get_mut(usize::from(SYMBOL_NC)) {
-            *info = LeafInfo { fp: Some(1), dir: 0 };
+            *info = LeafInfo {
+                fp: Some(1),
+                dir: 0,
+            };
         }
         if let Some(info) = leaf_info.get_mut(usize::from(SYMBOL_EF)) {
-            *info = LeafInfo { fp: Some(1), dir: 1 };
+            *info = LeafInfo {
+                fp: Some(1),
+                dir: 1,
+            };
         }
 
         Self {
@@ -286,14 +300,23 @@ impl CompactTree {
         }
     }
 
-    fn is_in_subtree(&self, parent: usize, branch_dir: usize, mut sub: usize) -> bool {
+    fn is_in_subtree(
+        &self,
+        parent: usize,
+        branch_dir: usize,
+        mut sub: usize,
+    ) -> bool {
         if parent == sub {
             return false;
         }
         let mut steps = 0usize;
         while let Some(fp) = self.dict.get(sub).and_then(|n| n.fp) {
             if fp == parent {
-                let is_branch = match self.dict.get(fp).and_then(|n| n.sp.get(branch_dir)) {
+                let is_branch = match self
+                    .dict
+                    .get(fp)
+                    .and_then(|n| n.sp.get(branch_dir))
+                {
                     Some(&Child::Internal(child_idx)) => child_idx == sub,
                     _ => false,
                 };
@@ -318,7 +341,8 @@ impl CompactTree {
         let mut curr_b = info.dir;
 
         while let Some(p_idx) = curr_p {
-            let w = match self.dict.get(p_idx).and_then(|n| n.count.get(curr_b)) {
+            let w = match self.dict.get(p_idx).and_then(|n| n.count.get(curr_b))
+            {
                 Some(&cnt) => cnt,
                 None => break,
             };
@@ -332,7 +356,11 @@ impl CompactTree {
                 let cand_p = cand_linear >> 1;
                 let cand_b = cand_linear & 1;
 
-                let cand_count = match self.dict.get(cand_p).and_then(|n| n.count.get(cand_b)) {
+                let cand_count = match self
+                    .dict
+                    .get(cand_p)
+                    .and_then(|n| n.count.get(cand_b))
+                {
                     Some(&cnt) => cnt,
                     None => continue,
                 };
@@ -372,7 +400,8 @@ impl CompactTree {
                     Some(n) => n.sp[1],
                     None => Child::Leaf(0),
                 };
-                curr_b = if parent_right == Child::Internal(old_p_idx) { 1 } else { 0 };
+                curr_b =
+                    usize::from(parent_right == Child::Internal(old_p_idx));
             }
         }
     }
@@ -442,7 +471,8 @@ impl CompactTree {
         let mut curr_p = parent_idx;
 
         while path.len() <= 515 {
-            let bit = u32::try_from(curr_dir).context("Invalid branch direction")?;
+            let bit =
+                u32::try_from(curr_dir).context("Invalid branch direction")?;
             path.push(bit);
 
             let node = match self.dict.get(curr_p) {
@@ -460,7 +490,7 @@ impl CompactTree {
                 None => bail!("Corrupted parent node index {fp}"),
             };
 
-            curr_dir = if fp_node.sp[1] == Child::Internal(curr_p) { 1 } else { 0 };
+            curr_dir = usize::from(fp_node.sp[1] == Child::Internal(curr_p));
             curr_p = fp;
         }
 
@@ -495,7 +525,9 @@ pub fn compress_compact_stream<R: Read, W: Write>(
         .read(&mut initial_byte_buf)
         .context("Failed to read initial byte for compact compression")?;
     if n == 0 {
-        bail!("Input stream is empty; compact format requires at least 1 raw seed byte");
+        bail!(
+            "Input stream is empty; compact format requires at least 1 raw seed byte"
+        );
     }
 
     let first_byte = initial_byte_buf[0];
@@ -530,7 +562,12 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             let byte_u16 = u16::from(byte);
             let byte_usize = usize::from(byte);
 
-            if tree.leaf_info.get(byte_usize).and_then(|info| info.fp).is_some() {
+            if tree
+                .leaf_info
+                .get(byte_usize)
+                .and_then(|info| info.fp)
+                .is_some()
+            {
                 // Symbol already seen
                 tree.encode_symbol(&mut word_writer, byte_u16)?;
                 tree.uptree(byte_u16);
@@ -587,10 +624,13 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
         let symbol: u16 = loop {
             steps = steps.saturating_add(1);
             if steps > 515 {
-                bail!("Cycle detected during compact decompression tree traversal");
+                bail!(
+                    "Cycle detected during compact decompression tree traversal"
+                );
             }
             let bit = word_reader.read_bit()?;
-            let bit_usize = usize::try_from(bit).context("Invalid bit index")?;
+            let bit_usize =
+                usize::try_from(bit).context("Invalid bit index")?;
 
             let node = match tree.dict.get(curr_node_idx) {
                 Some(n) => n,
@@ -620,7 +660,8 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
                 .context("Failed to write decompressed byte")?;
             bytes_written = bytes_written.saturating_add(1);
         } else {
-            let byte = u8::try_from(symbol).context("Invalid data symbol value")?;
+            let byte =
+                u8::try_from(symbol).context("Invalid data symbol value")?;
             writer
                 .write_all(&[byte])
                 .context("Failed to write decompressed byte")?;
@@ -634,7 +675,7 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -676,7 +717,7 @@ mod tests {
         let mut out = Vec::new();
         let mut reader = &bad_input[..];
         let res = decompress_compact_stream(&mut reader, &mut out);
-        assert!(res.is_err());
+        res.unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -685,6 +726,6 @@ mod tests {
         let mut out = Vec::new();
         let mut reader = empty;
         let res = compress_compact_stream(&mut reader, &mut out);
-        assert!(res.is_err());
+        res.unwrap_err();
     }
 }

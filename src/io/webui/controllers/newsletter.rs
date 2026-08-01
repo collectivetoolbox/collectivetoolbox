@@ -1,6 +1,10 @@
 //! Controller for the newsletters pages.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use axum::{
@@ -17,7 +21,7 @@ use pc_settings::PcSettingStrKey;
 use std::fmt::Write;
 
 use crate::{
-    AppState, RequestState, error_400, error_404, render_page, render_view,
+    AppState, RequestState, error_400, error_404, render_page,
     respond_page_literal,
 };
 
@@ -444,7 +448,16 @@ fn get_newsletters_scripting_news_01(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::test_helpers::test_get_no_login;
 

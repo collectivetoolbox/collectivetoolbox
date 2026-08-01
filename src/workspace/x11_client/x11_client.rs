@@ -1,4 +1,7 @@
-#[expect(clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::anyhow;
@@ -391,8 +394,8 @@ impl WindowHandle {
         let row_stride = usize::from(self.surface.width).saturating_mul(4);
         ensure!(row_stride > 0, "X11 surface row stride must be non-zero");
 
-        let expected_pixels =
-            usize::from(self.surface.width).saturating_mul(usize::from(self.surface.height));
+        let expected_pixels = usize::from(self.surface.width)
+            .saturating_mul(usize::from(self.surface.height));
         ensure!(
             buffer.len() == expected_pixels,
             "X11 surface buffer length {} does not match {}x{}",
@@ -402,8 +405,12 @@ impl WindowHandle {
         );
 
         let max_request_words = usize::from(u16::MAX);
-        let max_payload_bytes = max_request_words.saturating_sub(6).saturating_mul(4);
-        let rows_per_chunk = std::cmp::max(1, max_payload_bytes.checked_div(row_stride).unwrap_or(1));
+        let max_payload_bytes =
+            max_request_words.saturating_sub(6).saturating_mul(4);
+        let rows_per_chunk = std::cmp::max(
+            1,
+            max_payload_bytes.checked_div(row_stride).unwrap_or(1),
+        );
         let chunk_count =
             usize::from(self.surface.height).div_ceil(rows_per_chunk);
         self.display.prepare_xid_allocations(chunk_count)?;
@@ -415,8 +422,10 @@ impl WindowHandle {
                 usize::from(self.surface.height),
             );
             let chunk_height = end_row.saturating_sub(start_row);
-            let chunk_start = start_row.saturating_mul(usize::from(self.surface.width));
-            let chunk_end = end_row.saturating_mul(usize::from(self.surface.width));
+            let chunk_start =
+                start_row.saturating_mul(usize::from(self.surface.width));
+            let chunk_end =
+                end_row.saturating_mul(usize::from(self.surface.width));
             let chunk = buffer.get(chunk_start..chunk_end).ok_or_else(|| {
                 anyhow!(
                     "X11 surface chunk {}..{} is out of bounds for {} pixels",
@@ -489,7 +498,16 @@ pub fn rounded_points_to_u16(value: f32) -> Result<u16> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

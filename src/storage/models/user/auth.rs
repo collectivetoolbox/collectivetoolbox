@@ -1,4 +1,4 @@
-#[allow(unused_imports, reason = "imported module dependencies")]
+#[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 
 use crate::utilities::password::Password;
@@ -93,7 +93,7 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
 
 // TODO: Remaining pieces are LLM-generated; haven't checked them for correctness.
 
-/// Derive a Key Encryption Key (KEK) from a password using specific KekParams.
+/// Derive a Key Encryption Key (KEK) from a password using specific `KekParams`.
 pub fn derive_kek_with_params(
     password: &Password,
     params: &KekParams,
@@ -104,7 +104,9 @@ pub fn derive_kek_with_params(
         if password.password == crate::user::TEST_USER_PASS.as_bytes() {
             let parsed = PasswordHash::new(crate::user::TEST_USER_PHC)
                 .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
-            let hash = parsed.hash.ok_or_else(|| anyhow::anyhow!("Missing hash in PHC"))?;
+            let hash = parsed
+                .hash
+                .ok_or_else(|| anyhow::anyhow!("Missing hash in PHC"))?;
             let output_key_material = hash.as_bytes().to_vec();
             return Ok(output_key_material);
         }
@@ -117,7 +119,7 @@ pub fn derive_kek_with_params(
         params.p_cost,
         Some(output_key_material.len()),
     )
-    .map_err(|e| anyhow::anyhow!("Invalid Argon2 params: {:?}", e))?;
+    .map_err(|e| anyhow::anyhow!("Invalid Argon2 params: {e:?}"))?;
 
     let hasher = Argon2::new(
         argon2::Algorithm::Argon2id,
@@ -130,7 +132,7 @@ pub fn derive_kek_with_params(
             &params.salt,
             &mut output_key_material,
         )
-        .map_err(|e| anyhow::anyhow!("Failed to derive KEK: {:?}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to derive KEK: {e:?}"))?;
 
     Ok(output_key_material)
 }
@@ -145,22 +147,24 @@ pub fn generate_dek() -> Result<Vec<u8>> {
 /// Additional Authenticated Data (AAD) is used to prevent key substitution.
 /// Returns the nonce (12 bytes) prepended to the ciphertext.
 pub fn wrap_key(kek: &[u8], dek: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
-    use aes_gcm::{aead::{Aead, KeyInit, Payload}, Aes256Gcm, Nonce};
+    use aes_gcm::{
+        Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit, Payload},
+    };
 
     // Generate a secure 12-byte nonce
     let nonce_bytes = crate::utilities::rand_bytes(12)?;
     let nonce = Nonce::try_from(nonce_bytes.as_slice())
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(kek)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {:?}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(kek).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
-    let payload = Payload {
-        msg: dek,
-        aad,
-    };
-    let ciphertext = cipher.encrypt(&nonce, payload)
-        .map_err(|e| anyhow::anyhow!("DEK encryption failed: {:?}", e))?;
+    let payload = Payload { msg: dek, aad };
+    let ciphertext = cipher
+        .encrypt(&nonce, payload)
+        .map_err(|e| anyhow::anyhow!("DEK encryption failed: {e:?}"))?;
 
     let mut out = nonce_bytes;
     out.extend_from_slice(&ciphertext);
@@ -170,7 +174,10 @@ pub fn wrap_key(kek: &[u8], dek: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
 /// Unwrap the DEK using the KEK (Key Encryption Key) and AES-256-GCM.
 /// Expects the 12-byte nonce prepended to the ciphertext.
 pub fn unwrap_key(kek: &[u8], wrapped: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
-    use aes_gcm::{aead::{Aead, KeyInit, Payload}, Aes256Gcm, Nonce};
+    use aes_gcm::{
+        Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit, Payload},
+    };
 
     if wrapped.len() < 12 {
         anyhow::bail!("Invalid wrapped key length");
@@ -180,15 +187,17 @@ pub fn unwrap_key(kek: &[u8], wrapped: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
     let nonce = Nonce::try_from(nonce_bytes)
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(kek)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {:?}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(kek).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
     let payload = Payload {
         msg: ciphertext,
         aad,
     };
-    let plaintext = cipher.decrypt(&nonce, payload)
-        .map_err(|e| anyhow::anyhow!("DEK decryption failed: {:?}", e))?;
+    let plaintext = cipher
+        .decrypt(&nonce, payload)
+        .map_err(|e| anyhow::anyhow!("DEK decryption failed: {e:?}"))?;
 
     Ok(plaintext)
 }
@@ -196,21 +205,26 @@ pub fn unwrap_key(kek: &[u8], wrapped: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
 /// Seal bytes (encrypt and authenticate) using AES-256-GCM.
 /// Returns the nonce (12 bytes) prepended to the ciphertext.
 pub fn seal_bytes(key: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
-    use aes_gcm::{aead::{Aead, KeyInit, Payload}, Aes256Gcm, Nonce};
+    use aes_gcm::{
+        Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit, Payload},
+    };
 
     let nonce_bytes = crate::utilities::rand_bytes(12)?;
     let nonce = Nonce::try_from(nonce_bytes.as_slice())
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {:?}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
     let payload = Payload {
         msg: plaintext,
         aad,
     };
-    let ciphertext = cipher.encrypt(&nonce, payload)
-        .map_err(|e| anyhow::anyhow!("Encryption failed: {:?}", e))?;
+    let ciphertext = cipher
+        .encrypt(&nonce, payload)
+        .map_err(|e| anyhow::anyhow!("Encryption failed: {e:?}"))?;
 
     let mut out = nonce_bytes;
     out.extend_from_slice(&ciphertext);
@@ -224,7 +238,10 @@ pub fn open_bytes(
     aad: &[u8],
     ciphertext: &[u8],
 ) -> Result<Vec<u8>> {
-    use aes_gcm::{aead::{Aead, KeyInit, Payload}, Aes256Gcm, Nonce};
+    use aes_gcm::{
+        Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit, Payload},
+    };
 
     if ciphertext.len() < 12 {
         anyhow::bail!("Invalid ciphertext length");
@@ -234,15 +251,17 @@ pub fn open_bytes(
     let nonce = Nonce::try_from(nonce_bytes)
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {:?}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
     let payload = Payload {
         msg: ciphertext_actual,
         aad,
     };
-    let plaintext = cipher.decrypt(&nonce, payload)
-        .map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
+    let plaintext = cipher
+        .decrypt(&nonce, payload)
+        .map_err(|e| anyhow::anyhow!("Decryption failed: {e:?}"))?;
 
     Ok(plaintext)
 }

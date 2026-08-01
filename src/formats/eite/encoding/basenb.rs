@@ -18,7 +18,11 @@
 //! dcBasenb is a way of encoding arbitrary Dcs into runs of Unicode private-use
 //! characters; see dcbasenb.rs
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow, bail};
@@ -154,19 +158,18 @@ pub fn byte_array_to_basenb_no_remainder_marker(
 pub fn byte_array_to_basenb_utf8(base: u32, input: &[u8]) -> Result<Vec<u8>> {
     let mut encoded = byte_array_to_basenb_no_remainder_marker(base, input)?;
     /* Remainder marker. The remainder length also needs to be stored, to be able to decode successfully. We'll calculate, encode, and append it. It's always 4 bytes, 1 UTF-8 character, and 2 UTF-16 characters long, after encoding (it has 2 added to it to make it always be the same byte length and UTF-16 length; this must be subtracted before passing it to the Base16b.decode function). */
-    let total_bits = input
-        .len()
-        .checked_mul(8)
-        .ok_or_else(|| anyhow!("Input length is too large to represent bits"))?;
+    let total_bits = input.len().checked_mul(8).ok_or_else(|| {
+        anyhow!("Input length is too large to represent bits")
+    })?;
     let base_usize = usize::try_from(base)?;
     let remainder = total_bits
         .checked_rem(base_usize)
         .ok_or_else(|| anyhow!("Base cannot be zero"))?;
     // Start with U+F809, and subtract the remainder to find the codepoint.
     let remainder_u32 = u32::try_from(remainder)?;
-    let codepoint = 63_497_u32
-        .checked_sub(remainder_u32)
-        .ok_or_else(|| anyhow!("Remainder too large for codepoint calculation"))?;
+    let codepoint = 63_497_u32.checked_sub(remainder_u32).ok_or_else(|| {
+        anyhow!("Remainder too large for codepoint calculation")
+    })?;
     encoded.extend(pack32(codepoint)?);
     Ok(encoded)
 }
@@ -226,7 +229,9 @@ pub fn byte_array_from_basenb_utf8(input: &[u8]) -> Result<Vec<u8>> {
     let subset_end = len_i64
         .checked_neg()
         .and_then(|val| val.checked_sub(1))
-        .ok_or_else(|| anyhow!("Subset end calculation overflow/underflow"))?;
+        .ok_or_else(|| {
+        anyhow!("Subset end calculation overflow/underflow")
+    })?;
 
     let subset = bail_if_none!(subset(input, 0, subset_end));
 
@@ -297,7 +302,9 @@ pub fn byte_array_from_armored_base17b_utf8(input: &[u8]) -> Result<Vec<u8>> {
         .len()
         .checked_sub(start.len())
         .and_then(|val| val.checked_sub(end.len()))
-        .ok_or_else(|| anyhow!("Input length underflow relative to start/end delimiters"))?;
+        .ok_or_else(|| {
+            anyhow!("Input length underflow relative to start/end delimiters")
+        })?;
     let end_idx = start
         .len()
         .checked_add(inner_len)
@@ -309,7 +316,16 @@ pub fn byte_array_from_armored_base17b_utf8(input: &[u8]) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
 
     use crate::formats::dcbasenb::DC_BASENB_EMBEDDED_START_BYTES;
@@ -392,10 +408,10 @@ mod tests {
         let lastn = &encoded_with_remainder[start_idx..];
         assert!(is_basenb_distinct_remainder_char(lastn));
         let cp = unpack32(lastn).unwrap();
-        let bits_len_u32 = u32::try_from(bits.len()).expect("Could not fit length in u32");
-        let expected_rem = bits_len_u32
-            .checked_rem(base)
-            .expect("base is zero");
+        let bits_len_u32 =
+            u32::try_from(bits.len()).expect("Could not fit length in u32");
+        let expected_rem =
+            bits_len_u32.checked_rem(base).expect("base is zero");
         let expected = 63_497_u32
             .checked_sub(expected_rem)
             .expect("Remainder too large for expected codepoint");

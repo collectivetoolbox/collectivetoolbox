@@ -9,7 +9,11 @@
 //! - RSS 0.92 and both RSS 0.91 variants only allow HTTP or FTP URLs
 //! - RSS 2.0 only allows IANA-registered URI schemes
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use chrono::{DateTime, Utc};
@@ -268,7 +272,10 @@ impl Entry {
 pub struct Feed {
     title: String,
     home_page_url: Option<String>,
-    #[allow(clippy::struct_field_names, reason = "feed_url is standard RSS/Atom nomenclature")]
+    #[expect(
+        clippy::struct_field_names,
+        reason = "feed_url is standard RSS/Atom nomenclature"
+    )]
     feed_url: Option<String>,
     image: Option<Image>,
     entries: Vec<Entry>,

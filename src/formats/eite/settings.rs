@@ -59,8 +59,11 @@ pub fn get_setting_for_format(
     let kv = get_settings_for_format(state, format, direction)?;
     let mut i: usize = 0;
     while i.saturating_add(1) < kv.len() {
-        if kv.get(i).map_or(false, |k| k == key) {
-            return Ok(kv.get(i.saturating_add(1)).cloned().unwrap_or_default());
+        if kv.get(i).is_some_and(|k| k == key) {
+            return Ok(kv
+                .get(i.saturating_add(1))
+                .cloned()
+                .unwrap_or_default());
         }
         i = i.saturating_add(2);
     }
@@ -154,7 +157,9 @@ pub fn get_export_settings(state: &EiteState, format_id: usize) -> String {
 /// Set the import settings string at a given format id, resizing vector as needed.
 fn set_import_settings(state: &mut EiteState, format_id: usize, new_val: &str) {
     if state.import_settings.len() <= format_id {
-        state.import_settings.resize(format_id.saturating_add(1), String::new());
+        state
+            .import_settings
+            .resize(format_id.saturating_add(1), String::new());
     }
     if let Some(item) = state.import_settings.get_mut(format_id) {
         *item = new_val.to_string();
@@ -164,7 +169,9 @@ fn set_import_settings(state: &mut EiteState, format_id: usize, new_val: &str) {
 /// Set the export settings string at a given format id, resizing vector as needed.
 fn set_export_settings(state: &mut EiteState, format_id: usize, new_val: &str) {
     if state.export_settings.len() <= format_id {
-        state.export_settings.resize(format_id.saturating_add(1), String::new());
+        state
+            .export_settings
+            .resize(format_id.saturating_add(1), String::new());
     }
     if let Some(item) = state.export_settings.get_mut(format_id) {
         *item = new_val.to_string();
@@ -242,7 +249,9 @@ pub fn setting_array_to_string(kv: &[String]) -> Result<String> {
     let mut out = String::new();
     for pair in kv.chunks(2) {
         let key = pair.first().ok_or_else(|| anyhow!("Empty chunk"))?;
-        let value = pair.get(1).ok_or_else(|| anyhow!("Missing value in chunk"))?;
+        let value = pair
+            .get(1)
+            .ok_or_else(|| anyhow!("Missing value in chunk"))?;
         if !is_valid_ident(key) {
             bail!("setting_array_to_string: invalid identifier '{key}'");
         }
@@ -461,7 +470,16 @@ pub fn set_exec_option(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use anyhow::Result;
 

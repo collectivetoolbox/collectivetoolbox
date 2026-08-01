@@ -1,11 +1,15 @@
 //! Centralized registry of file extension rules across format types.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use ctb_utilities::*;
 use crate::extension::ExtensionRule;
 use crate::format_id::FormatId;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use ctb_utilities::*;
 
-/// An entry associating a FormatId with an ExtensionRule.
+/// An entry associating a `FormatId` with an `ExtensionRule`.
 #[derive(Debug, Clone)]
 pub struct ExtensionEntry {
     pub format_id: FormatId,
@@ -112,7 +116,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
 ];
 
-/// Helper to lookup FormatId from a single extension string.
+/// Helper to lookup `FormatId` from a single extension string.
 pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {
     let mut matches = Vec::new();
     for entry in EXTENSION_REGISTRY {

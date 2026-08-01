@@ -311,29 +311,34 @@ async fn serve_manifest_file(
         let filename_owned = filename_owned.clone();
         let cached_file_path_clone = cached_file_path.clone();
 
-        let generate_res = tokio::task::spawn_blocking(move || -> Result<()> {
-            let manifest =
-                load_latest_release_manifest(&storage_override, &platform_owned)?;
-            let installer = find_release_file(&manifest, &filename_owned)?;
-            let bytes = assemble_release_file_bytes(&storage_override, installer)?;
+        let generate_res =
+            tokio::task::spawn_blocking(move || -> Result<()> {
+                let manifest = load_latest_release_manifest(
+                    &storage_override,
+                    &platform_owned,
+                )?;
+                let installer = find_release_file(&manifest, &filename_owned)?;
+                let bytes =
+                    assemble_release_file_bytes(&storage_override, installer)?;
 
-            // If archive_gzip is true, we compress it, otherwise we write the raw bytes
-            let bytes_to_write = if archive_gzip {
-                gzip_compress_bytes(&bytes)?
-            } else {
-                bytes
-            };
+                // If archive_gzip is true, we compress it, otherwise we write the raw bytes
+                let bytes_to_write = if archive_gzip {
+                    gzip_compress_bytes(&bytes)?
+                } else {
+                    bytes
+                };
 
-            // Write to a temporary file and rename atomically
-            let temp_file_path = cached_file_path_clone.with_extension("tmp");
-            if let Some(parent) = temp_file_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::write(&temp_file_path, bytes_to_write)?;
-            std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
-            Ok(())
-        })
-        .await;
+                // Write to a temporary file and rename atomically
+                let temp_file_path =
+                    cached_file_path_clone.with_extension("tmp");
+                if let Some(parent) = temp_file_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&temp_file_path, bytes_to_write)?;
+                std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
+                Ok(())
+            })
+            .await;
 
         // Clean up from the generating set
         let mut generating = state.generating_downloads.lock().await;
@@ -356,21 +361,38 @@ async fn serve_manifest_file(
     // 3. Serve the cached file
     let file = match tokio::fs::File::open(&cached_file_path).await {
         Ok(f) => f,
-        Err(e) => return error_400(state, req, anyhow!("Failed to open cached download file: {e}")),
+        Err(e) => {
+            return error_400(
+                state,
+                req,
+                anyhow!("Failed to open cached download file: {e}"),
+            );
+        }
     };
     let metadata = match file.metadata().await {
         Ok(m) => m,
-        Err(e) => return error_400(state, req, anyhow!("Failed to read cached download metadata: {e}")),
+        Err(e) => {
+            return error_400(
+                state,
+                req,
+                anyhow!("Failed to read cached download metadata: {e}"),
+            );
+        }
     };
     let total_size = metadata.len();
 
-    let range = crate::controllers::releases::parse_range_header(headers, total_size);
+    let range =
+        crate::controllers::releases::parse_range_header(headers, total_size);
 
     if let Some((start, end)) = range {
         // Range request / Partial content
         let mut file = file;
         if let Err(e) = file.seek(std::io::SeekFrom::Start(start)).await {
-            return error_400(state, req, anyhow!("Failed to seek cached file: {e}"));
+            return error_400(
+                state,
+                req,
+                anyhow!("Failed to seek cached file: {e}"),
+            );
         }
         let content_length = end.saturating_sub(start);
         let stream = ReaderStream::new(file.take(content_length));
@@ -392,11 +414,13 @@ async fn serve_manifest_file(
         headers_mut
             .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
 
-        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string()) {
+        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string())
+        {
             headers_mut.insert(header::CONTENT_LENGTH, len_val);
         }
 
-        let range_str = format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
+        let range_str =
+            format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
         if let Ok(range_val) = HeaderValue::from_str(&range_str) {
             headers_mut.insert(header::CONTENT_RANGE, range_val);
         }
@@ -468,11 +492,17 @@ where
     fn poll_frame(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+    ) -> std::task::Poll<
+        Option<Result<http_body::Frame<Self::Data>, Self::Error>>,
+    > {
         let this = self.project();
         match this.stream.poll_next(cx) {
-            std::task::Poll::Ready(Some(Ok(buf))) => std::task::Poll::Ready(Some(Ok(http_body::Frame::data(buf)))),
-            std::task::Poll::Ready(Some(Err(err))) => std::task::Poll::Ready(Some(Err(err))),
+            std::task::Poll::Ready(Some(Ok(buf))) => {
+                std::task::Poll::Ready(Some(Ok(http_body::Frame::data(buf))))
+            }
+            std::task::Poll::Ready(Some(Err(err))) => {
+                std::task::Poll::Ready(Some(Err(err)))
+            }
             std::task::Poll::Ready(None) => std::task::Poll::Ready(None),
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -669,7 +699,6 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
         }
     }
 
-
     if let Some(bytes) = asset {
         let mime_guess = mime_guess::from_path(path).first();
         let mime_guess_str: Cow<'static, str> = match mime_guess {
@@ -696,7 +725,16 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -733,7 +771,11 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
         let headers = resp.headers();
         assert_eq!(
-            headers.get(header::CACHE_CONTROL).unwrap().to_str().unwrap(),
+            headers
+                .get(header::CACHE_CONTROL)
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "no-store, no-cache, must-revalidate"
         );
         assert_eq!(

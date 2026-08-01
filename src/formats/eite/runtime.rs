@@ -8,7 +8,7 @@
 //! is ported.
 use crate::utilities::*;
 
-use anyhow::{Context, Result, ensure, anyhow};
+use anyhow::{Context, Result, anyhow, ensure};
 use ctb_formats_utilities::FormatLog;
 
 use crate::{
@@ -118,7 +118,10 @@ pub fn start_document_exec(
             // Document done.
             continue_loop = false;
         } else {
-            let dc = working_copy.get(ptr_pos).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+            let dc = working_copy
+                .get(ptr_pos)
+                .copied()
+                .ok_or_else(|| anyhow!("Index out of bounds"))?;
             debug!(
                 json!(state),
                 1,
@@ -342,7 +345,16 @@ pub fn get_document_frame(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

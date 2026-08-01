@@ -4,7 +4,11 @@
 //! installers to represent installable features/components. Features can be
 //! loaded from a `ReleaseManifest` or created programmatically.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::{HashMap, HashSet};
@@ -181,7 +185,10 @@ pub fn placeholder_feature_tree() -> Vec<Feature> {
 /// # Arguments
 /// * `manifest` - The release manifest to convert
 /// * `lang_code` - The language code for localized feature names (e.g., "en")
-#[allow(clippy::items_after_statements, reason = "helper helper structs defined after logic block")]
+#[allow(
+    clippy::items_after_statements,
+    reason = "helper helper structs defined after logic block"
+)]
 pub fn features_from_manifest(
     manifest: &ReleaseManifest,
     lang_code: &str,
@@ -337,7 +344,16 @@ pub fn toggle_feature_by_index(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

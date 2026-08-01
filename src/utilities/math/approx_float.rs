@@ -1,7 +1,6 @@
-
 use anyhow::{Context, Result, anyhow, bail};
 
-#[allow(clippy::arithmetic_side_effects, reason = "clearer this way")]
+#[expect(clippy::arithmetic_side_effects, reason = "clearer this way")]
 pub fn f64_to_f32_approx(value: f64) -> Result<f32> {
     if value.is_nan() {
         return Ok(f32::NAN);
@@ -18,12 +17,16 @@ pub fn f64_to_f32_approx(value: f64) -> Result<f32> {
         bail!("value out of range for f32: {value}");
     }
 
-    #[expect(clippy::as_conversions, clippy::cast_possible_truncation, reason = "casting range-checked f64 to f32")]
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        reason = "casting range-checked f64 to f32"
+    )]
     let f32_approx_impl = value as f32;
     Ok(f32_approx_impl)
 }
 
-#[allow(clippy::arithmetic_side_effects, reason = "clearer this way")]
+#[expect(clippy::arithmetic_side_effects, reason = "clearer this way")]
 fn f64_abs_to_u128_approx(value: f64) -> Result<u128> {
     if !value.is_finite() {
         bail!("value must be finite, got {value}");
@@ -187,7 +190,7 @@ fn f64_to_i128_approx_impl(value: f64) -> Result<i128> {
     }
 
     let v = i128::try_from(mag).context("magnitude did not fit in i128")?;
-    Ok(v.checked_neg().context("negation overflow")?)
+    v.checked_neg().context("negation overflow")
 }
 
 macro_rules! impl_f64_to_unsigned {
@@ -630,7 +633,16 @@ pub fn isize_to_f64_approx(value: isize) -> Result<f64> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -1182,7 +1194,9 @@ mod tests {
                 });
             match expected {
                 Ok(ev) => assert_eq!(f32_to_usize_approx(f).unwrap(), ev),
-                Err(_) => assert!(f32_to_usize_approx(f).is_err()),
+                Err(_) => {
+                    f32_to_usize_approx(f).unwrap_err();
+                }
             }
         }
 
@@ -1198,7 +1212,9 @@ mod tests {
                 });
             match expected {
                 Ok(ev) => assert_eq!(f32_to_isize_approx(f).unwrap(), ev),
-                Err(_) => assert!(f32_to_isize_approx(f).is_err()),
+                Err(_) => {
+                    f32_to_isize_approx(f).unwrap_err();
+                }
             }
         }
 
@@ -1239,7 +1255,9 @@ mod tests {
                 });
             match expected {
                 Ok(ev) => assert_eq!(f64_to_usize_approx(f).unwrap(), ev),
-                Err(_) => assert!(f64_to_usize_approx(f).is_err()),
+                Err(_) => {
+                    f64_to_usize_approx(f).unwrap_err();
+                }
             }
         }
 
@@ -1255,7 +1273,9 @@ mod tests {
                 });
             match expected {
                 Ok(ev) => assert_eq!(f64_to_isize_approx(f).unwrap(), ev),
-                Err(_) => assert!(f64_to_isize_approx(f).is_err()),
+                Err(_) => {
+                    f64_to_isize_approx(f).unwrap_err();
+                }
             }
         }
 
@@ -1282,11 +1302,11 @@ mod tests {
     fn f64_to_f32_approx_impl_rejects_finite_out_of_range() -> Result<()> {
         let max_f64 = f64::from(f32::MAX);
 
-        assert!(f64_to_f32_approx(max_f64).is_ok());
-        assert!(f64_to_f32_approx(-max_f64).is_ok());
+        f64_to_f32_approx(max_f64).unwrap();
+        f64_to_f32_approx(-max_f64).unwrap();
 
-        assert!(f64_to_f32_approx(max_f64 * 2.0).is_err());
-        assert!(f64_to_f32_approx(-max_f64 * 2.0).is_err());
+        f64_to_f32_approx(max_f64 * 2.0).unwrap_err();
+        f64_to_f32_approx(-max_f64 * 2.0).unwrap_err();
 
         Ok(())
     }
@@ -1304,7 +1324,11 @@ mod tests {
         // f32 can't represent all integers above 2^24; this checks
         // round-to-nearest, ties-to-even behavior via the cast.
         let a = 16_777_216.0_f64; // 2^24
-        #[expect(clippy::as_conversions, clippy::cast_possible_truncation, reason = "casting test float constant")]
+        #[expect(
+            clippy::as_conversions,
+            clippy::cast_possible_truncation,
+            reason = "casting test float constant"
+        )]
         let cast1 = a as f32;
         #[expect(clippy::float_cmp, reason = "comparing float results in test")]
         {

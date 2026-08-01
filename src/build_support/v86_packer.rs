@@ -10,7 +10,6 @@
 //!   and extracts chunk files)
 //! See license text at end of file.
 
-
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -42,7 +41,6 @@ pub fn hash_reader<R: Read>(mut reader: R) -> Result<String> {
         if let Some(chunk) = buffer.get(..n) {
             hasher.update(chunk);
         }
-
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -117,12 +115,11 @@ fn process_directory(
     for entry in entries {
         sorted_entries.push(entry?);
     }
-    sorted_entries.sort_by_key(|e| e.file_name());
+    sorted_entries.sort_by_key(std::fs::DirEntry::file_name);
 
     for entry in sorted_entries {
         let entry_path = entry.path();
-        let rel_path =
-            entry_path.strip_prefix(base_dir).unwrap_or(&entry_path);
+        let rel_path = entry_path.strip_prefix(base_dir).unwrap_or(&entry_path);
         let rel_path_str =
             format!("/{}", rel_path.to_string_lossy().replace('\\', "/"));
 
@@ -149,8 +146,15 @@ fn process_directory(
             (metadata.mode(), metadata.uid(), metadata.gid())
         };
         #[cfg(not(unix))]
-        let (mode, uid, gid) =
-            (if file_type.is_dir() { 0o40755 } else { 0o100644 }, 0, 0);
+        let (mode, uid, gid) = (
+            if file_type.is_dir() {
+                0o40755
+            } else {
+                0o100644
+            },
+            0,
+            0,
+        );
 
         let target_value: Value = if file_type.is_symlink() {
             let target = fs::read_link(&entry_path)?;
@@ -188,15 +192,7 @@ fn process_directory(
             json!(chunk_name)
         };
 
-        let node = json!([
-            name,
-            size,
-            mtime,
-            mode,
-            uid,
-            gid,
-            target_value
-        ]);
+        let node = json!([name, size, mtime, mode, uid, gid, target_value]);
         children.push(node);
     }
 
@@ -231,11 +227,16 @@ pub fn pack_rootfs_tar(
             temp_extract_dir.to_str().unwrap_or(""),
         ])
         .status()
-        .with_context(|| format!("Failed to extract tarball {}", tar_path.display()))?;
+        .with_context(|| {
+            format!("Failed to extract tarball {}", tar_path.display())
+        })?;
 
     if !tar_status.success() {
         fs::remove_dir_all(&temp_extract_dir).ok();
-        anyhow::bail!("Failed to extract rootfs tarball at {}", tar_path.display());
+        anyhow::bail!(
+            "Failed to extract rootfs tarball at {}",
+            tar_path.display()
+        );
     }
 
     let pack_res = pack_rootfs_dir(
@@ -263,13 +264,17 @@ pub fn pack_v86_rsrc(
     output_rsrc_path: &Path,
 ) -> Result<()> {
     if !v86_images_dir.is_dir() {
-        anyhow::bail!("v86 images directory does not exist: {}", v86_images_dir.display());
+        anyhow::bail!(
+            "v86 images directory does not exist: {}",
+            v86_images_dir.display()
+        );
     }
 
     let mut entries = Vec::new();
     collect_v86_entries(v86_images_dir, v86_images_dir, &mut entries)?;
 
-    let (bundle_bytes, _header) = ctb_formats_ctb_asset_bundle::build_asset_bundle(&entries)?;
+    let (bundle_bytes, _header) =
+        ctb_formats_ctb_asset_bundle::build_asset_bundle(&entries)?;
     if let Some(parent) = output_rsrc_path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -291,12 +296,17 @@ fn collect_v86_entries(
         }
 
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.ends_with(".rsrc") || name.ends_with(".lock") || name.ends_with(".tmp") || name == ".keep" {
+        if name.ends_with(".rsrc")
+            || name.ends_with(".lock")
+            || name.ends_with(".tmp")
+            || name == ".keep"
+        {
             continue;
         }
 
         let rel_path = path.strip_prefix(root_dir).unwrap_or(&path);
-        let bundle_path = format!("images/{}", rel_path.to_string_lossy().replace('\\', "/"));
+        let bundle_path =
+            format!("images/{}", rel_path.to_string_lossy().replace('\\', "/"));
         let contents = fs::read(&path)?;
         entries.push(ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry {
             path: bundle_path,
@@ -305,8 +315,6 @@ fn collect_v86_entries(
     }
     Ok(())
 }
-
-
 
 /*
 
@@ -364,19 +372,29 @@ THE SOFTWARE.
 */
 
 /// Native Rust builder for the v86 POSIX initrd archive.
-pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Result<()> {
-    println!("Building v86 Guix custom initrd in Rust from {}...", fs_json_path.display());
+pub fn build_custom_initrd(
+    fs_json_path: &Path,
+    output_initrd_path: &Path,
+) -> Result<()> {
+    println!(
+        "Building v86 Guix custom initrd in Rust from {}...",
+        fs_json_path.display()
+    );
 
-    let fs_json_content = fs::read_to_string(fs_json_path)
-        .with_context(|| format!("Failed to read {}", fs_json_path.display()))?;
+    let fs_json_content =
+        fs::read_to_string(fs_json_path).with_context(|| {
+            format!("Failed to read {}", fs_json_path.display())
+        })?;
 
     let profile_path = find_profile_store_path(&fs_json_content)?;
-    let full_profile = format!("/{}", profile_path);
+    let full_profile = format!("/{profile_path}");
 
-    println!("Resolved Guix Profile: {}", full_profile);
+    println!("Resolved Guix Profile: {full_profile}");
 
-    let rs_init_file = Path::new(env!("CARGO_MANIFEST_DIR")).join("../v86_posix_init/v86_posix_init.rs");
-    let tmp_bin_file = std::env::temp_dir().join(format!("v86_posix_init_{}", std::process::id()));
+    let rs_init_file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../v86_posix_init/v86_posix_init.rs");
+    let tmp_bin_file = std::env::temp_dir()
+        .join(format!("v86_posix_init_{}", std::process::id()));
 
     println!("Compiling dynamic 32-bit freestanding init binary with rustc...");
     let rustc_status = Command::new("rustc")
@@ -405,8 +423,12 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
         anyhow::bail!("rustc compilation of 32-bit v86 init binary failed");
     }
 
-    let init_bytes = fs::read(&tmp_bin_file)
-        .with_context(|| format!("Failed to read compiled init binary {}", tmp_bin_file.display()))?;
+    let init_bytes = fs::read(&tmp_bin_file).with_context(|| {
+        format!(
+            "Failed to read compiled init binary {}",
+            tmp_bin_file.display()
+        )
+    })?;
 
     let _ = fs::remove_file(&tmp_bin_file);
 
@@ -416,14 +438,31 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
     println!("Resolved Linux modules dir: {}", modules_dir.display());
 
     let mod_names = [
-        "virtio_ring.ko", "virtio.ko", "virtio_pci_legacy_dev.ko",
-        "virtio_pci_modern_dev.ko", "virtio_pci.ko", "fscache.ko", "netfs.ko",
-        "9pnet.ko", "9pnet_virtio.ko", "9p.ko",
-        "fb_sys_fops.ko", "sysfillrect.ko", "syscopyarea.ko", "sysimgblt.ko",
-        "cirrusfb.ko", "cec.ko",
-        "drm.ko", "drm_display_helper.ko", "drm_kms_helper.ko",
-        "drm_client_lib.ko", "ttm.ko", "drm_ttm_helper.ko",
-        "drm_shmem_helper.ko", "drm_vram_helper.ko", "bochs.ko",
+        "virtio_ring.ko",
+        "virtio.ko",
+        "virtio_pci_legacy_dev.ko",
+        "virtio_pci_modern_dev.ko",
+        "virtio_pci.ko",
+        "fscache.ko",
+        "netfs.ko",
+        "9pnet.ko",
+        "9pnet_virtio.ko",
+        "9p.ko",
+        "fb_sys_fops.ko",
+        "sysfillrect.ko",
+        "syscopyarea.ko",
+        "sysimgblt.ko",
+        "cirrusfb.ko",
+        "cec.ko",
+        "drm.ko",
+        "drm_display_helper.ko",
+        "drm_kms_helper.ko",
+        "drm_client_lib.ko",
+        "ttm.ko",
+        "drm_ttm_helper.ko",
+        "drm_shmem_helper.ko",
+        "drm_vram_helper.ko",
+        "bochs.ko",
         "uvesafb.ko",
     ];
 
@@ -433,25 +472,40 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
     let mut writer = std::io::BufWriter::new(file);
 
     let mut ino: usize = 1;
-    write_cpio_entry(&mut writer, ".", &[], 0o40755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "bin", &[], 0o40755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "sbin", &[], 0o40755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "lib", &[], 0o40755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "lib/modules", &[], 0o40755, ino)?; ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, ".", &[], 0o40755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "bin", &[], 0o40755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "sbin", &[], 0o40755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "lib", &[], 0o40755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "lib/modules", &[], 0o40755, ino)?;
+    ino = ino.saturating_add(1);
 
-    write_cpio_entry(&mut writer, "init", &init_bytes, 0o100755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "guix_profile", full_profile.as_bytes(), 0o100644, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "bin/sh", &bash_bytes, 0o100755, ino)?; ino = ino.saturating_add(1);
-    write_cpio_entry(&mut writer, "bin/bash", &bash_bytes, 0o100755, ino)?; ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "init", &init_bytes, 0o100755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(
+        &mut writer,
+        "guix_profile",
+        full_profile.as_bytes(),
+        0o100644,
+        ino,
+    )?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "bin/sh", &bash_bytes, 0o100755, ino)?;
+    ino = ino.saturating_add(1);
+    write_cpio_entry(&mut writer, "bin/bash", &bash_bytes, 0o100755, ino)?;
+    ino = ino.saturating_add(1);
 
     for m in &mod_names {
         if let Ok(b) = find_module_bytes(&modules_dir, m) {
             println!("Packaging kernel module {} ({} bytes)...", m, b.len());
-            let entry_name = format!("lib/modules/{}", m);
+            let entry_name = format!("lib/modules/{m}");
             write_cpio_entry(&mut writer, &entry_name, &b, 0o100644, ino)?;
             ino = ino.saturating_add(1);
         } else {
-            println!("Warning: Could not locate kernel module {}", m);
+            println!("Warning: Could not locate kernel module {m}");
         }
     }
 
@@ -472,25 +526,37 @@ pub fn build_custom_initrd(fs_json_path: &Path, output_initrd_path: &Path) -> Re
         anyhow::bail!("gzip failed to compress initrd");
     }
 
-    println!("Successfully built v86 initrd in Rust: {}", output_initrd_path.display());
+    println!(
+        "Successfully built v86 initrd in Rust: {}",
+        output_initrd_path.display()
+    );
     Ok(())
 }
 
 fn find_module_bytes(modules_dir: &Path, module_name: &str) -> Result<Vec<u8>> {
     let p1 = modules_dir.join(module_name);
-    if let Ok(b) = fs::read(&p1) { return Ok(b); }
-    let p1_zst = modules_dir.join(format!("{}.zst", module_name));
+    if let Ok(b) = fs::read(&p1) {
+        return Ok(b);
+    }
+    let p1_zst = modules_dir.join(format!("{module_name}.zst"));
     if p1_zst.is_file() {
-        if let Ok(b) = decompress_zstd_file(&p1_zst) { return Ok(b); }
+        if let Ok(b) = decompress_zstd_file(&p1_zst) {
+            return Ok(b);
+        }
     }
     if let Ok(entries) = fs::read_dir("/gnu/store") {
         for entry in entries.flatten() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
-            if path.is_dir() && (name.contains("linux-libre") || name.contains("linux-modules")) {
+            if path.is_dir()
+                && (name.contains("linux-libre")
+                    || name.contains("linux-modules"))
+            {
                 if let Some(fpath) = search_file_recursive(&path, module_name) {
                     if fpath.to_string_lossy().ends_with(".zst") {
-                        if let Ok(b) = decompress_zstd_file(&fpath) { return Ok(b); }
+                        if let Ok(b) = decompress_zstd_file(&fpath) {
+                            return Ok(b);
+                        }
                     } else if let Ok(b) = fs::read(&fpath) {
                         return Ok(b);
                     }
@@ -498,11 +564,11 @@ fn find_module_bytes(modules_dir: &Path, module_name: &str) -> Result<Vec<u8>> {
             }
         }
     }
-    anyhow::bail!("Kernel module {} not found", module_name)
+    anyhow::bail!("Kernel module {module_name} not found")
 }
 
 fn search_file_recursive(dir: &Path, name: &str) -> Option<PathBuf> {
-    let zst_name = format!("{}.zst", name);
+    let zst_name = format!("{name}.zst");
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -548,26 +614,53 @@ fn find_zstd_binary() -> Option<PathBuf> {
     None
 }
 
-fn write_cpio_entry(writer: &mut impl std::io::Write, name: &str, data: &[u8], mode: u32, ino: usize) -> Result<()> {
-    let name_bytes = format!("{}\0", name);
+fn write_cpio_entry(
+    writer: &mut impl std::io::Write,
+    name: &str,
+    data: &[u8],
+    mode: u32,
+    ino: usize,
+) -> Result<()> {
+    let name_bytes = format!("{name}\0");
     let header = format!(
         "070701{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}{:08X}",
-        ino, mode, 0, 0, 1, 0, data.len(), 0, 0, 0, 0, name_bytes.len(), 0
+        ino,
+        mode,
+        0,
+        0,
+        1,
+        0,
+        data.len(),
+        0,
+        0,
+        0,
+        0,
+        name_bytes.len(),
+        0
     );
     writer.write_all(header.as_bytes())?;
     writer.write_all(name_bytes.as_bytes())?;
     let header_name_len = 110_usize.saturating_add(name_bytes.len());
-    let pad1 = (4_usize.saturating_sub(header_name_len.rem_euclid(4))).rem_euclid(4);
-    if pad1 > 0 { writer.write_all(&vec![0u8; pad1])?; }
-    if !data.is_empty() { writer.write_all(data)?; }
+    let pad1 =
+        (4_usize.saturating_sub(header_name_len.rem_euclid(4))).rem_euclid(4);
+    if pad1 > 0 {
+        writer.write_all(&vec![0u8; pad1])?;
+    }
+    if !data.is_empty() {
+        writer.write_all(data)?;
+    }
     let pad2 = (4_usize.saturating_sub(data.len().rem_euclid(4))).rem_euclid(4);
-    if pad2 > 0 { writer.write_all(&vec![0u8; pad2])?; }
+    if pad2 > 0 {
+        writer.write_all(&vec![0u8; pad2])?;
+    }
     Ok(())
 }
 
 fn find_profile_store_path(json: &str) -> Result<String> {
     for line in json.lines() {
-        if (line.contains("openbox") || line.contains("Xorg") || line.contains("xterm"))
+        if (line.contains("openbox")
+            || line.contains("Xorg")
+            || line.contains("xterm"))
             && line.contains("-profile")
             && line.contains("gnu/store/")
         {
@@ -576,9 +669,11 @@ fn find_profile_store_path(json: &str) -> Result<String> {
                     let end = rest.find('"').unwrap_or(rest.len());
                     if let Some(sub) = rest.get(..end) {
                         let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) = (parts.get(0), parts.get(1)) {
+                        if let (Some(p0), Some(p1)) =
+                            (parts.first(), parts.get(1))
+                        {
                             if p1.ends_with("-profile") {
-                                return Ok(format!("{}/{}", p0, p1));
+                                return Ok(format!("{p0}/{p1}"));
                             }
                         }
                     }
@@ -593,7 +688,7 @@ fn find_profile_store_path(json: &str) -> Result<String> {
                 let ob = entry.path().join("bin/openbox");
                 let xo = entry.path().join("bin/Xorg");
                 if ob.is_file() || xo.is_file() {
-                    return Ok(format!("gnu/store/{}", name));
+                    return Ok(format!("gnu/store/{name}"));
                 }
             }
         }
@@ -602,7 +697,7 @@ fn find_profile_store_path(json: &str) -> Result<String> {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.ends_with("-profile") && !name.contains("dfv8n") {
-                return Ok(format!("gnu/store/{}", name));
+                return Ok(format!("gnu/store/{name}"));
             }
         }
     }
@@ -617,11 +712,16 @@ fn find_bash_static_bytes(json: &str) -> Result<Vec<u8>> {
                     let end = rest.find('"').unwrap_or(rest.len());
                     if let Some(sub) = rest.get(..end) {
                         let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) = (parts.get(0), parts.get(1)) {
-                            let p = format!("/{}/{}/bin/bash", p0, p1);
+                        if let (Some(p0), Some(p1)) =
+                            (parts.first(), parts.get(1))
+                        {
+                            let p = format!("/{p0}/{p1}/bin/bash");
                             if let Ok(bytes) = fs::read(&p) {
-                                if bytes.get(4) == Some(&1) { // ELFCLASS32
-                                    println!("Resolved 32-bit static bash from JSON store path: {}", p);
+                                if bytes.get(4) == Some(&1) {
+                                    // ELFCLASS32
+                                    println!(
+                                        "Resolved 32-bit static bash from JSON store path: {p}"
+                                    );
                                     return Ok(bytes);
                                 }
                             }
@@ -637,8 +737,12 @@ fn find_bash_static_bytes(json: &str) -> Result<Vec<u8>> {
             if name.contains("bash-static") {
                 let bpath = entry.path().join("bin/bash");
                 if let Ok(bytes) = fs::read(&bpath) {
-                    if bytes.get(4) == Some(&1) { // ELFCLASS32
-                        println!("Resolved 32-bit static bash from /gnu/store: {}", bpath.display());
+                    if bytes.get(4) == Some(&1) {
+                        // ELFCLASS32
+                        println!(
+                            "Resolved 32-bit static bash from /gnu/store: {}",
+                            bpath.display()
+                        );
                         return Ok(bytes);
                     }
                 }
@@ -654,7 +758,9 @@ fn find_linux_modules_dir(json: &str) -> PathBuf {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
             if name.contains("linux-modules") && !name.contains("-builder") {
-                if path.join("9p.ko").is_file() || path.join("lib/modules/9p.ko").is_file() {
+                if path.join("9p.ko").is_file()
+                    || path.join("lib/modules/9p.ko").is_file()
+                {
                     return path;
                 }
             }
@@ -667,8 +773,10 @@ fn find_linux_modules_dir(json: &str) -> PathBuf {
                     let end = rest.find('"').unwrap_or(rest.len());
                     if let Some(sub) = rest.get(..end) {
                         let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) = (parts.get(0), parts.get(1)) {
-                            let p = PathBuf::from(format!("/{}/{}", p0, p1));
+                        if let (Some(p0), Some(p1)) =
+                            (parts.first(), parts.get(1))
+                        {
+                            let p = PathBuf::from(format!("/{p0}/{p1}"));
                             if p.is_dir() {
                                 return p;
                             }
@@ -697,10 +805,15 @@ pub fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
         if let Ok(entries) = fs::read_dir(&gen_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("js") {
+                if path.is_file()
+                    && path.extension().and_then(|s| s.to_str()) == Some("js")
+                {
                     if let Ok(content) = fs::read_to_string(&path) {
                         let mangled = content
-                            .replace("#!/usr/bin/env node", "#!/usr/bin/env disabled_node")
+                            .replace(
+                                "#!/usr/bin/env node",
+                                "#!/usr/bin/env disabled_node",
+                            )
                             .replace("node ", "disabled_node ");
                         let _ = fs::write(&path, mangled);
                     }
@@ -710,7 +823,11 @@ pub fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
     }
 
     let lld_wrapper_path = v86_tmp.join("tools/rust-lld-wrapper");
-    if lld_wrapper_path.is_file() || lld_wrapper_path.parent().map_or(false, |p| p.is_dir()) {
+    if lld_wrapper_path.is_file()
+        || lld_wrapper_path
+            .parent()
+            .is_some_and(std::path::Path::is_dir)
+    {
         let sh_wrapper = r#"#!/bin/sh
 set -e
 
@@ -753,7 +870,10 @@ exec "$LLD" "$@"
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = fs::set_permissions(&lld_wrapper_path, fs::Permissions::from_mode(0o755));
+            let _ = fs::set_permissions(
+                &lld_wrapper_path,
+                fs::Permissions::from_mode(0o755),
+            );
         }
     }
     Ok(())
@@ -781,22 +901,42 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
             fs::create_dir_all(parent)?;
         }
         let cp_res = Command::new("cp")
-            .args(["-r", v86_src.to_str().unwrap_or(""), v86_tmp.to_str().unwrap_or("")])
+            .args([
+                "-r",
+                v86_src.to_str().unwrap_or(""),
+                v86_tmp.to_str().unwrap_or(""),
+            ])
             .status();
-        if cp_res.as_ref().map(|s| s.success()).unwrap_or(false) {
+        if cp_res
+            .as_ref()
+            .map(std::process::ExitStatus::success)
+            .unwrap_or(false)
+        {
             if let Err(e) = mangle_v86_build_scripts(&v86_tmp) {
-                println!("cargo:warning=Failed to mangle v86 build scripts: {e:?}");
+                println!(
+                    "cargo:warning=Failed to mangle v86 build scripts: {e:?}"
+                );
             }
             let x86_table_js = v86_src.join("gen/x86_table.js");
             let gen_dir = v86_tmp.join("src/rust/gen");
-            if let Err(e) = crate::v86_generator::generate_all_tables(&x86_table_js, &gen_dir) {
-                println!("cargo:warning=Failed to generate v86 Rust instruction tables natively: {e:?}");
+            if let Err(e) = crate::v86_generator::generate_all_tables(
+                &x86_table_js,
+                &gen_dir,
+            ) {
+                println!(
+                    "cargo:warning=Failed to generate v86 Rust instruction tables natively: {e:?}"
+                );
             }
 
             let make_res = Command::new("make")
                 .args(["-C", v86_tmp.to_str().unwrap_or(""), "build/v86.wasm"])
                 .status();
-            if make_res.as_ref().map(|s| s.success()).unwrap_or(false) && v86_tmp.join("build/v86.wasm").is_file() {
+            if make_res
+                .as_ref()
+                .map(std::process::ExitStatus::success)
+                .unwrap_or(false)
+                && v86_tmp.join("build/v86.wasm").is_file()
+            {
                 fs::copy(v86_tmp.join("build/v86.wasm"), &wasm_file)?;
             }
             fs::remove_dir_all(&v86_tmp).ok();
@@ -804,14 +944,19 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
     }
 
     if !bios_file.is_file() {
-        let prebuilt_bios_dir = project_root.join("built/assets/web/vendor/v86/bios");
+        let prebuilt_bios_dir =
+            project_root.join("built/assets/web/vendor/v86/bios");
         if prebuilt_bios_dir.is_dir() {
             if let Ok(entries) = fs::read_dir(&prebuilt_bios_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("bin") {
+                    if path.is_file()
+                        && path.extension().and_then(|s| s.to_str())
+                            == Some("bin")
+                    {
                         let fname = entry.file_name();
-                        fs::copy(&path, v86_out_dir.join("bios").join(fname)).ok();
+                        fs::copy(&path, v86_out_dir.join("bios").join(fname))
+                            .ok();
                     }
                 }
             }
@@ -822,7 +967,16 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -834,10 +988,13 @@ mod tests {
             let _ = fs::create_dir_all(&out_dir);
             let initrd_out = out_dir.join("guix_posix_initrd.cpio.gz");
             let res = build_custom_initrd(json_path, &initrd_out);
-            assert!(res.is_ok(), "build_custom_initrd failed: {:?}", res);
+            assert!(res.is_ok(), "build_custom_initrd failed: {res:?}");
             assert!(initrd_out.is_file(), "Generated initrd file not found!");
             let metadata = fs::metadata(&initrd_out).expect("Initrd metadata");
-            assert!(metadata.len() > 1000, "Generated initrd file is too small!");
+            assert!(
+                metadata.len() > 1000,
+                "Generated initrd file is too small!"
+            );
             let _ = fs::remove_file(&initrd_out);
         }
     }
@@ -847,7 +1004,11 @@ mod tests {
         let temp = std::env::temp_dir().join("ctb_test_mangle_v86");
         let _ = fs::create_dir_all(&temp);
         let makefile = temp.join("Makefile");
-        fs::write(&makefile, "default:\n\tjava -jar closure.jar\n\t./gen/generate_jit.js\n").unwrap();
+        fs::write(
+            &makefile,
+            "default:\n\tjava -jar closure.jar\n\t./gen/generate_jit.js\n",
+        )
+        .unwrap();
 
         let gen_dir = temp.join("gen");
         let _ = fs::create_dir_all(&gen_dir);
@@ -859,7 +1020,9 @@ mod tests {
         let mangled_makefile = fs::read_to_string(&makefile).unwrap();
         assert!(!mangled_makefile.contains("java -jar"));
         assert!(!mangled_makefile.contains("./gen/generate_"));
-        assert!(mangled_makefile.contains("ERROR: java is not permitted in build"));
+        assert!(
+            mangled_makefile.contains("ERROR: java is not permitted in build")
+        );
 
         let mangled_js = fs::read_to_string(&js_script).unwrap();
         assert!(!mangled_js.contains("#!/usr/bin/env node"));

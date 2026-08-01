@@ -3,7 +3,11 @@
 //! `Vec<u8>` apart from other arrays. `Vec<u8>` are specifically assumed to be
 //! file uploads.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Result, anyhow};
@@ -731,75 +735,84 @@ pub fn build_multipart<T: Serialize>(data: &T) -> Result<(Vec<u8>, String)> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use serde::Serialize;
 
     #[crate::ctb_test]
-fn test_build_multipart() {
-    #[derive(Serialize)]
-    struct TestData {
-        bytes_array: Vec<u8>,
-        admin_users: Vec<u64>,
-        fixed_port: u16,
-        server_address: String,
+    fn test_build_multipart() {
+        #[derive(Serialize)]
+        struct TestData {
+            bytes_array: Vec<u8>,
+            admin_users: Vec<u64>,
+            fixed_port: u16,
+            server_address: String,
+        }
+
+        let data = TestData {
+            bytes_array: vec![1, 2, 3],
+            admin_users: vec![12, 13],
+            fixed_port: 5678,
+            server_address: "bar".to_string(),
+        };
+
+        let result = build_multipart(&data);
+        assert!(result.is_ok());
+        let (buffer, content_type) = result.unwrap();
+        assert!(content_type.starts_with("multipart/form-data; boundary="));
+        // The buffer should contain the fields; exact boundary varies, so check for presence
+        let buffer_str = String::from_utf8_lossy(&buffer);
+        assert!(
+            buffer_str.contains("\"bytes_array\"\r\n\r\n\x01\x02\x03"),
+            "Buffer not contains expected: {buffer_str}"
+        );
+        assert!(
+            buffer_str.contains("\"admin_users\"\r\n\r\n12"),
+            "Buffer not contains expected: {buffer_str}"
+        );
+        assert!(
+            buffer_str.contains("\"admin_users\"\r\n\r\n13"),
+            "Buffer not contains expected: {buffer_str}"
+        );
+        assert!(
+            buffer_str.contains("\"fixed_port\"\r\n\r\n5678"),
+            "Buffer not contains expected: {buffer_str}"
+        );
+        assert!(
+            buffer_str.contains("\"server_address\"\r\n\r\nbar"),
+            "Buffer not contains expected: {buffer_str}"
+        );
     }
 
-    let data = TestData {
-        bytes_array: vec![1, 2, 3],
-        admin_users: vec![12, 13],
-        fixed_port: 5678,
-        server_address: "bar".to_string(),
-    };
+    #[crate::ctb_test]
+    fn test_build_multipart_omits_empty_vec_fields() {
+        #[derive(Serialize)]
+        struct TestData {
+            admin_users: Vec<u64>,
+            fixed_port: u16,
+        }
 
-    let result = build_multipart(&data);
-    assert!(result.is_ok());
-    let (buffer, content_type) = result.unwrap();
-    assert!(content_type.starts_with("multipart/form-data; boundary="));
-    // The buffer should contain the fields; exact boundary varies, so check for presence
-    let buffer_str = String::from_utf8_lossy(&buffer);
-    assert!(
-        buffer_str.contains("\"bytes_array\"\r\n\r\n\x01\x02\x03"),
-        "Buffer not contains expected: {buffer_str}"
-    );
-    assert!(
-        buffer_str.contains("\"admin_users\"\r\n\r\n12"),
-        "Buffer not contains expected: {buffer_str}"
-    );
-    assert!(
-        buffer_str.contains("\"admin_users\"\r\n\r\n13"),
-        "Buffer not contains expected: {buffer_str}"
-    );
-    assert!(
-        buffer_str.contains("\"fixed_port\"\r\n\r\n5678"),
-        "Buffer not contains expected: {buffer_str}"
-    );
-    assert!(
-        buffer_str.contains("\"server_address\"\r\n\r\nbar"),
-        "Buffer not contains expected: {buffer_str}"
-    );
-}
+        let data = TestData {
+            admin_users: Vec::new(),
+            fixed_port: 5678,
+        };
 
-#[crate::ctb_test]
-fn test_build_multipart_omits_empty_vec_fields() {
-    #[derive(Serialize)]
-    struct TestData {
-        admin_users: Vec<u64>,
-        fixed_port: u16,
+        let (buffer, _content_type) = build_multipart(&data).unwrap();
+        let buffer_str = String::from_utf8_lossy(&buffer);
+
+        // Empty Vecs should serialize like browsers typically do for checkbox
+        // groups: the field is absent.
+        assert!(!buffer_str.contains("\"admin_users\""), "{buffer_str}");
+        assert!(buffer_str.contains("\"fixed_port\""), "{buffer_str}");
     }
-
-    let data = TestData {
-        admin_users: Vec::new(),
-        fixed_port: 5678,
-    };
-
-    let (buffer, _content_type) = build_multipart(&data).unwrap();
-    let buffer_str = String::from_utf8_lossy(&buffer);
-
-    // Empty Vecs should serialize like browsers typically do for checkbox
-    // groups: the field is absent.
-    assert!(!buffer_str.contains("\"admin_users\""), "{buffer_str}");
-    assert!(buffer_str.contains("\"fixed_port\""), "{buffer_str}");
-}
 }

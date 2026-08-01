@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
@@ -601,34 +605,34 @@ pub fn create_context_with_bindings(
             )
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-    context
-        .register_global_builtin_callable(
-            js_string!("__rust_path_dirname"),
-            1,
-            NativeFunction::from_fn_ptr(rust_path_dirname),
-        )
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    context
-        .register_global_builtin_callable(
-            js_string!("__rust_path_basename"),
-            1,
-            NativeFunction::from_fn_ptr(rust_path_basename),
-        )
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    context
-        .register_global_builtin_callable(
-            js_string!("__rust_path_join"),
-            1,
-            NativeFunction::from_fn_ptr(rust_path_join),
-        )
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    context
-        .register_global_builtin_callable(
-            js_string!("__rust_path_resolve"),
-            1,
-            NativeFunction::from_fn_ptr(rust_path_resolve),
-        )
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        context
+            .register_global_builtin_callable(
+                js_string!("__rust_path_dirname"),
+                1,
+                NativeFunction::from_fn_ptr(rust_path_dirname),
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        context
+            .register_global_builtin_callable(
+                js_string!("__rust_path_basename"),
+                1,
+                NativeFunction::from_fn_ptr(rust_path_basename),
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        context
+            .register_global_builtin_callable(
+                js_string!("__rust_path_join"),
+                1,
+                NativeFunction::from_fn_ptr(rust_path_join),
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        context
+            .register_global_builtin_callable(
+                js_string!("__rust_path_resolve"),
+                1,
+                NativeFunction::from_fn_ptr(rust_path_resolve),
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     }
 
     let entry_abs = std::fs::canonicalize(entry_point)
@@ -694,7 +698,8 @@ pub fn run_js_module(
     loader_root: &Path,
     args: &[String],
 ) -> Result<()> {
-    let (mut context, loader) = create_context_with_bindings(entry_point, loader_root, args, true)?;
+    let (mut context, loader) =
+        create_context_with_bindings(entry_point, loader_root, args, true)?;
 
     // Load and run the main entry module
     let entry_source =
@@ -747,7 +752,16 @@ pub fn run_js_module(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -103,10 +103,16 @@ pub fn parse_fields(fields_str: &str) -> Vec<ElfField> {
         .split_whitespace()
         .map(|token| {
             if token.starts_with("cs(") && token.ends_with(')') {
-                let header = token.get(3..token.len().saturating_sub(1)).unwrap_or("").to_string();
+                let header = token
+                    .get(3..token.len().saturating_sub(1))
+                    .unwrap_or("")
+                    .to_string();
                 ElfField::RequestHeader(header)
             } else if token.starts_with("sc(") && token.ends_with(')') {
-                let header = token.get(3..token.len().saturating_sub(1)).unwrap_or("").to_string();
+                let header = token
+                    .get(3..token.len().saturating_sub(1))
+                    .unwrap_or("")
+                    .to_string();
                 ElfField::ResponseHeader(header)
             } else {
                 match token {
@@ -581,7 +587,10 @@ impl SharedLog {
                     .to_string(),
                 ElfField::UriQuery => {
                     if let Some(pos) = self.path_and_query.find('?') {
-                        self.path_and_query.get(pos.saturating_add(1)..).unwrap_or("").to_string()
+                        self.path_and_query
+                            .get(pos.saturating_add(1)..)
+                            .unwrap_or("")
+                            .to_string()
                     } else {
                         "-".to_string()
                     }
@@ -636,7 +645,16 @@ pub mod prelude {
 // --------------------------------------
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use bytes::Bytes;

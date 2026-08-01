@@ -1,5 +1,5 @@
-use crate::ipc::service_traits::ChildIpcContext;
 use crate::ipc::ChildKind;
+use crate::ipc::service_traits::ChildIpcContext;
 use anyhow::Result;
 use std::sync::{Arc, OnceLock};
 
@@ -15,10 +15,11 @@ pub fn init_ipc_context(
     ctx: &Arc<dyn ChildIpcContext>,
     local_kind: Option<ChildKind>,
 ) -> Result<()> {
-    let bypassed = Arc::new(crate::ipc::in_process::BypassingChildIpcContext::new(
-        Arc::clone(ctx),
-        local_kind,
-    ));
+    let bypassed =
+        Arc::new(crate::ipc::in_process::BypassingChildIpcContext::new(
+            Arc::clone(ctx),
+            local_kind,
+        ));
     if IPC_CONTEXT.set(bypassed).is_err() {
         return Ok(());
     }

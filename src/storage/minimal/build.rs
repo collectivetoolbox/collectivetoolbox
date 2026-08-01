@@ -1,7 +1,12 @@
 use std::env;
 use std::path::PathBuf;
 
-#[allow(clippy::expect_used, clippy::panic, clippy::panic_used, reason = "It is a build script, so panicking seems like an OK way to handle errors.")]
+#[expect(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::panic_used,
+    reason = "It is a build script, so panicking seems like an OK way to handle errors."
+)]
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let workspace = manifest
@@ -9,13 +14,12 @@ fn main() {
         .canonicalize()
         .expect("Failed to resolve workspace root from manifest dir");
 
-    if !workspace.join("assets").is_dir() || !workspace.join("vendor").is_dir()
-    {
-        panic!(
-            "Resolved workspace root does not look like the ctoolbox root: {}",
-            workspace.display()
-        );
-    }
+    assert!(
+        !(!workspace.join("assets").is_dir()
+            || !workspace.join("vendor").is_dir()),
+        "Resolved workspace root does not look like the ctoolbox root: {}",
+        workspace.display()
+    );
 
     // Use the shared build-support helper to ensure minimal assets exist.
     if let Err(err) =

@@ -60,7 +60,10 @@ pub enum SharedBlobDescriptor {
 /// The `size` parameter should come from the `BlobToken::size` field.
 ///
 /// Returns the blob contents as a `Vec<u8>`.
-#[expect(unsafe_code, reason = "calls unsafe std::fs::File::from_raw_fd and memmap2::Mmap::map")]
+#[expect(
+    unsafe_code,
+    reason = "calls unsafe std::fs::File::from_raw_fd and memmap2::Mmap::map"
+)]
 pub fn read_blob_contents(
     desc: &SharedBlobDescriptor,
     size: u64,
@@ -169,14 +172,20 @@ pub struct MappedRead<'a> {
 }
 
 impl MappedRead<'_> {
-    #[expect(unsafe_code, reason = "calls std::slice::from_raw_parts on raw ptr")]
+    #[expect(
+        unsafe_code,
+        reason = "calls std::slice::from_raw_parts on raw ptr"
+    )]
     pub fn as_slice(&self) -> &[u8] {
         // Safety: `ptr` and `len` are valid for the lifetime of `backing`.
         unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
     }
 }
 
-#[expect(dead_code, reason = "some mapping backends are platform-specific or empty fallback")]
+#[expect(
+    dead_code,
+    reason = "some mapping backends are platform-specific or empty fallback"
+)]
 enum MappedReadBacking {
     Memmap(memmap2::Mmap),
     #[cfg(windows)]
@@ -269,7 +278,10 @@ impl SharedMemoryBlobs {
         Some(records.remove(idx))
     }
 
-    #[expect(clippy::unused_self, reason = "method signature requires self to conform to allocator patterns")]
+    #[expect(
+        clippy::unused_self,
+        reason = "method signature requires self to conform to allocator patterns"
+    )]
     fn create_tempfile_blob(
         &self,
         size: u64,
@@ -292,7 +304,10 @@ impl SharedMemoryBlobs {
     /// The returned descriptor contains the raw FD which must be passed to
     /// the receiving process via `SCM_RIGHTS`.
     #[cfg(all(unix, target_os = "linux"))]
-    #[expect(clippy::unused_self, reason = "method signature requires self to conform to allocator patterns")]
+    #[expect(
+        clippy::unused_self,
+        reason = "method signature requires self to conform to allocator patterns"
+    )]
     fn create_memfd_blob(&self, size: u64) -> Result<SharedBlobDescriptor> {
         let fd = unix::create_memfd(size)?;
         Ok(SharedBlobDescriptor::UnixFd(fd))
@@ -377,7 +392,10 @@ impl BlobAllocator for SharedMemoryBlobs {
     }
 }
 
-#[expect(unsafe_code, reason = "calls unsafe memmap functions to read memory-mapped buffers")]
+#[expect(
+    unsafe_code,
+    reason = "calls unsafe memmap functions to read memory-mapped buffers"
+)]
 #[async_trait]
 impl BlobReader for SharedMemoryBlobs {
     async fn map_read<'a>(
@@ -465,7 +483,16 @@ pub fn descriptor_requires_fd_transfer(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use anyhow::Result;

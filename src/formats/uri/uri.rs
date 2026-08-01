@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use ctb_utilities::anyhow::ensure;
@@ -18,7 +22,10 @@ fn uri_schemes() -> Result<Arc<CsvTable>> {
         || {
             csv_tools::parse_csv_reader(
                 &bail_if_none!(get_uri_data("uri-schemes-1.csv")),
-                csv_tools::CsvParseOptions { has_header: true, ..Default::default() },
+                csv_tools::CsvParseOptions {
+                    has_header: true,
+                    ..Default::default()
+                },
             )
         },
     )
@@ -26,7 +33,9 @@ fn uri_schemes() -> Result<Arc<CsvTable>> {
 
 pub fn scheme_in(uri: &str, allowed_schemes: Vec<&str>) -> bool {
     if let Some(colon_pos) = uri.find(':') {
-        let Some(scheme) = uri.get(..colon_pos) else { return false; };
+        let Some(scheme) = uri.get(..colon_pos) else {
+            return false;
+        };
         for allowed_scheme in allowed_schemes {
             if scheme.eq_ignore_ascii_case(allowed_scheme) {
                 return true;
@@ -84,7 +93,9 @@ fn list_iana_schemes_by_status(status: &str) -> Result<Vec<String>> {
 
 pub fn is_iana_scheme(uri: &str) -> bool {
     if let Some(colon_pos) = uri.find(':') {
-        let Some(scheme) = uri.get(..colon_pos) else { return false; };
+        let Some(scheme) = uri.get(..colon_pos) else {
+            return false;
+        };
         if let Ok(schemes_table) = uri_schemes() {
             for row in schemes_table.rows_iter() {
                 if !row.is_empty() {
@@ -101,7 +112,16 @@ pub fn is_iana_scheme(uri: &str) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use anyhow::{Result, anyhow};

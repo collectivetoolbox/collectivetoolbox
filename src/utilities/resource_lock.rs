@@ -142,12 +142,14 @@ impl ResourceLock {
             "Unsupported platform: resource locking is only validated on Unix-like OSes and Windows"
         );
 
-        let test_name = crate::testing::try_get_current_test_name().unwrap_or_default();
-        let formatted_resource_type = if test_name.is_empty() || resource_type == "test_resource" {
-            resource_type.to_string()
-        } else {
-            format!("{test_name}_{resource_type}")
-        };
+        let test_name =
+            crate::testing::try_get_current_test_name().unwrap_or_default();
+        let formatted_resource_type =
+            if test_name.is_empty() || resource_type == "test_resource" {
+                resource_type.to_string()
+            } else {
+                format!("{test_name}_{resource_type}")
+            };
 
         let key = (formatted_resource_type.clone(), id.to_string());
         // Fetch or create the entry.
@@ -180,7 +182,8 @@ impl ResourceLock {
                         // Create & lock file just once for all nested acquisitions.
                         let root =
                             get_storage_dir().context("No storage dir")?;
-                        let locks_dir = root.join("locks").join(&formatted_resource_type);
+                        let locks_dir =
+                            root.join("locks").join(&formatted_resource_type);
                         fs::create_dir_all(&locks_dir)?;
                         let lock_path = locks_dir.join(id.to_string());
 
@@ -431,7 +434,11 @@ pub fn path_and_descriptor_match(path: &Path, file: &File) -> Result<bool> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_in_result, clippy::panic_in_result_fn, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicU64, Ordering::SeqCst};

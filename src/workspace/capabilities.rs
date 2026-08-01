@@ -3,7 +3,11 @@
 //! This module defines the capability sets that control what each subprocess
 //! (runtime, network) is allowed to do via IPC.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::HashMap;
@@ -148,7 +152,16 @@ pub fn create_renderer_capabilities() -> CapabilitySet {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -25,7 +25,10 @@ pub const DEBUG_LIBRARY_DOCS_STUB: &str = concat!(
 pub const DEBUG_SOURCE_ARCHIVE_STUB: &str = "src.tar.gz is no longer built; the corresponding file is built in the deploy script and will include the commit hash and such in the name.\n";
 
 /// Options for asset preparation.
-#[expect(clippy::struct_excessive_bools, reason = "PrepareOptions has several boolean configuration flags")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "PrepareOptions has several boolean configuration flags"
+)]
 #[derive(Debug, Clone, Default)]
 pub struct PrepareOptions {
     /// Whether to build the runtime resource bundle.
@@ -101,10 +104,7 @@ fn copy_dir_recursive(
             let entry = entry?;
             let src_path = entry.path();
             let dst_path = dst.join(entry.file_name());
-            if fs::metadata(&src_path)
-                .map(|m| m.is_dir())
-                .unwrap_or(false)
-            {
+            if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
                 copy_dir_recursive(
                     &src_path,
                     &dst_path,
@@ -126,7 +126,10 @@ fn copy_dir_recursive(
     Ok(())
 }
 
-#[allow(dead_code, reason = "Helper utility function for asset content comparison")]
+#[expect(
+    dead_code,
+    reason = "Helper utility function for asset content comparison"
+)]
 fn files_match(src: &Path, dst: &Path) -> Result<bool> {
     if !dst.is_file() {
         return Ok(false);
@@ -488,7 +491,10 @@ fn copy_license_files(project_root: &Path, docs_dir: &Path) -> Result<()> {
         else {
             continue;
         };
-        if name.starts_with("LICENSE") || name.starts_with("TRADEMARKS") || name.starts_with("CHANGELOG") {
+        if name.starts_with("LICENSE")
+            || name.starts_with("TRADEMARKS")
+            || name.starts_with("CHANGELOG")
+        {
             let dest = docs_dir.join(name);
             fs::copy(&path, &dest).with_context(|| {
                 format!(
@@ -541,7 +547,9 @@ fn prepare_runtime_assets(
         .context("Failed to copy vendor/v86 to runtime assets")?;
     }
 
-    if let Ok(v86_out) = crate::v86_packer::ensure_v86_assets_built(project_root) {
+    if let Ok(v86_out) =
+        crate::v86_packer::ensure_v86_assets_built(project_root)
+    {
         let v86_dest = runtime_assets.join("web/vendor/v86");
         let _ = copy_dir_recursive(
             &v86_out,
@@ -602,14 +610,17 @@ fn prepare_runtime_assets(
             let status = Command::new(&script)
                 .current_dir(project_root)
                 .status()
-                .with_context(|| format!("Failed to execute {}", script.display()))?;
+                .with_context(|| {
+                    format!("Failed to execute {}", script.display())
+                })?;
             if !status.success() {
                 bail!("Guix v86 image build failed with status {status}");
             }
         }
     }
 
-    let initrd_rs_src = project_root.join("src/v86_posix_init/v86_posix_init.rs");
+    let initrd_rs_src =
+        project_root.join("src/v86_posix_init/v86_posix_init.rs");
     let initrd_out_of_date = !guix_initrd.is_file()
         || is_file_older(&guix_initrd, &guix_fs_json)
         || is_file_older(&guix_initrd, &initrd_rs_src);
@@ -617,16 +628,20 @@ fn prepare_runtime_assets(
     if guix_fs_json.is_file() && (initrd_out_of_date || rebuild_requested) {
         println!("cargo:warning=Building Guix POSIX initrd...");
         ensure_parent_dir(&guix_initrd)?;
-        if let Err(e) = crate::v86_packer::build_custom_initrd(&guix_fs_json, &guix_initrd) {
+        if let Err(e) =
+            crate::v86_packer::build_custom_initrd(&guix_fs_json, &guix_initrd)
+        {
             println!("cargo:warning=Failed to build custom initrd: {e}");
         }
     }
 
     if guix_initrd.is_file() {
-        let initrd_dest_in_app_bundle = runtime_assets.join("vendor/v86_images/guix/guix_posix_initrd.cpio.gz");
+        let initrd_dest_in_app_bundle = runtime_assets
+            .join("vendor/v86_images/guix/guix_posix_initrd.cpio.gz");
         ensure_parent_dir(&initrd_dest_in_app_bundle)?;
-        fs::copy(&guix_initrd, &initrd_dest_in_app_bundle)
-            .context("Failed to copy guix_posix_initrd.cpio.gz to runtime asset staging")?;
+        fs::copy(&guix_initrd, &initrd_dest_in_app_bundle).context(
+            "Failed to copy guix_posix_initrd.cpio.gz to runtime asset staging",
+        )?;
     }
 
     let dest_rsrc = project_root.join("built/v86_images.rsrc");
@@ -635,18 +650,19 @@ fn prepare_runtime_assets(
         let _ = fs::remove_file(&v86_rsrc_vendor);
     }
 
-    let dest_rsrc_mtime = fs::metadata(&dest_rsrc)
-        .and_then(|m| m.modified())
-        .ok();
+    let dest_rsrc_mtime =
+        fs::metadata(&dest_rsrc).and_then(|m| m.modified()).ok();
 
     let rsrc_out_of_date = !dest_rsrc.is_file()
         || is_file_older(&dest_rsrc, &guix_fs_json)
-        || dest_rsrc_mtime.map_or(true, |t| {
+        || dest_rsrc_mtime.is_none_or(|t| {
             is_any_file_newer(&v86_images_vendor, t).unwrap_or(true)
         });
 
     if (rsrc_out_of_date || rebuild_requested) && v86_images_vendor.is_dir() {
-        println!("cargo:warning=Packaging v86 images into built/v86_images.rsrc...");
+        println!(
+            "cargo:warning=Packaging v86 images into built/v86_images.rsrc..."
+        );
         ensure_parent_dir(&dest_rsrc)?;
         crate::v86_packer::pack_v86_rsrc(&v86_images_vendor, &dest_rsrc)?;
     }
@@ -655,9 +671,12 @@ fn prepare_runtime_assets(
     let mut v86_asset_pack_sha256 = None;
     if dest_rsrc.is_file() {
         let bytes = fs::read(&dest_rsrc)?;
-        if let Ok(hdr) = asset_bundle_format::parse_asset_bundle_header(&bytes) {
+        if let Ok(hdr) = asset_bundle_format::parse_asset_bundle_header(&bytes)
+        {
             v86_asset_pack_uuid = Some(hdr.bundle_uuid.to_string());
-            v86_asset_pack_sha256 = Some(asset_bundle_format::format_sha256_hex(&hdr.content_sha256));
+            v86_asset_pack_sha256 = Some(
+                asset_bundle_format::format_sha256_hex(&hdr.content_sha256),
+            );
         }
     }
 
@@ -673,7 +692,6 @@ fn prepare_runtime_assets(
         v86_asset_pack_sha256,
     })
 }
-
 
 fn prepare_minimal_assets(project_root: &Path) -> Result<()> {
     let built_dir = project_root.join("built");
@@ -724,12 +742,9 @@ fn prepare_minimal_assets(project_root: &Path) -> Result<()> {
                     Ok(false)
                 };
 
-                match check_needed() {
-                    Ok(false) => {
-                        lock_file.unlock().ok();
-                        return Ok(());
-                    }
-                    _ => {}
+                if let Ok(false) = check_needed() {
+                    lock_file.unlock().ok();
+                    return Ok(());
                 }
             }
         }
@@ -931,8 +946,12 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
 }
 
 fn is_file_older(target: &Path, reference: &Path) -> bool {
-    let Ok(target_meta) = fs::metadata(target) else { return true; };
-    let Ok(ref_meta) = fs::metadata(reference) else { return false; };
+    let Ok(target_meta) = fs::metadata(target) else {
+        return true;
+    };
+    let Ok(ref_meta) = fs::metadata(reference) else {
+        return false;
+    };
     match (target_meta.modified(), ref_meta.modified()) {
         (Ok(t_mtime), Ok(r_mtime)) => t_mtime < r_mtime,
         _ => false,

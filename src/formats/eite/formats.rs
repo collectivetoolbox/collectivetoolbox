@@ -128,26 +128,32 @@ pub fn with_default_log<T, E>(r: Result<T, E>) -> Result<(T, FormatLog), E> {
 
 /// Parse input bytes (in a given "format") into a vector of Dc integers.
 /// Many formats are still TODO.
-fn apply_format_import_settings(state: &EiteState, in_format: &mut Format) -> Result<()> {
-    match in_format {
-        Format::UTF8 { settings } => {
-            let variants = crate::settings::get_enabled_variants_for_format(state, "utf8", "in")?;
-            settings.dc_basenb_enabled = variants.iter().any(|v| v == "dcBasenb");
-            settings.dc_basenb_fragment_enabled = variants.iter().any(|v| v == "dcBasenbFragment");
-        }
-        _ => {}
+fn apply_format_import_settings(
+    state: &EiteState,
+    in_format: &mut Format,
+) -> Result<()> {
+    if let Format::UTF8 { settings } = in_format {
+        let variants = crate::settings::get_enabled_variants_for_format(
+            state, "utf8", "in",
+        )?;
+        settings.dc_basenb_enabled = variants.iter().any(|v| v == "dcBasenb");
+        settings.dc_basenb_fragment_enabled =
+            variants.iter().any(|v| v == "dcBasenbFragment");
     }
     Ok(())
 }
 
-fn apply_format_export_settings(state: &EiteState, out_format: &mut Format) -> Result<()> {
-    match out_format {
-        Format::UTF8 { settings } => {
-            let variants = crate::settings::get_enabled_variants_for_format(state, "utf8", "out")?;
-            settings.dc_basenb_enabled = variants.iter().any(|v| v == "dcBasenb");
-            settings.dc_basenb_fragment_enabled = variants.iter().any(|v| v == "dcBasenbFragment");
-        }
-        _ => {}
+fn apply_format_export_settings(
+    state: &EiteState,
+    out_format: &mut Format,
+) -> Result<()> {
+    if let Format::UTF8 { settings } = out_format {
+        let variants = crate::settings::get_enabled_variants_for_format(
+            state, "utf8", "out",
+        )?;
+        settings.dc_basenb_enabled = variants.iter().any(|v| v == "dcBasenb");
+        settings.dc_basenb_fragment_enabled =
+            variants.iter().any(|v| v == "dcBasenbFragment");
     }
     Ok(())
 }
@@ -265,7 +271,8 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 1,
             );
             if !exc_or_empty(&hex_str)? {
-                let hex_str = hex_str.context(format!("Failed lookup Dc {dc} unicode"))?;
+                let hex_str = hex_str
+                    .context(format!("Failed lookup Dc {dc} unicode"))?;
                 let cp = hex_to_dec_single(&hex_str)?;
                 return Ok((utf8_from_scalar(cp)?, log));
             }
@@ -278,7 +285,9 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
                 0,
             );
             if !exc_or_empty(&row_str)? {
-                let row_str = row_str.context(format!("Failed lookup Dc {dc} unicode fallback"))?;
+                let row_str = row_str.context(format!(
+                    "Failed lookup Dc {dc} unicode fallback"
+                ))?;
                 let cp = hex_to_dec_single(&row_str)?;
                 return Ok((utf8_from_scalar(cp)?, log));
             }
@@ -292,7 +301,9 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
             let html_map =
                 dc_data_lookup_by_dc_in_col_0("mappings/to/html", dc, 1);
             if !exc_or_empty(&html_map)? {
-                let html_map = html_map.context(format!("Failed lookup HTML mapping for Dc {dc}"))?;
+                let html_map = html_map.context(format!(
+                    "Failed lookup HTML mapping for Dc {dc}"
+                ))?;
                 return Ok((html_map.as_bytes().to_vec(), log));
             }
             dc_to_format("utf8", dc)
@@ -325,8 +336,7 @@ pub fn dc_from_format(
             // dataset: 'mappings/from/unicode', filter_field=0 (hex), desired_field=1 (Dc id)
             let dc_str =
                 dc_data_lookup_by_value("mappings/from/unicode", 0, &hex, 1);
-            if excep(&dc_str)?
-                || (dc_str.as_ref().map_or(false, String::is_empty))
+            if excep(&dc_str)? || (dc_str.as_ref().is_ok_and(String::is_empty))
             {
                 // FIXME: Add an option to save unmapped Unicode characters
                 // using Dcs 127-192 (individually)?
@@ -704,7 +714,16 @@ impl PrefilterSettings {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_formats_utilities::assert_vec_u8_ok_eq_no_warnings;
 

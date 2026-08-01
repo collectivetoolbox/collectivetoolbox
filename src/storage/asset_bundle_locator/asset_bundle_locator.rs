@@ -1,10 +1,13 @@
 use std::{
-    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
 };
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 pub(crate) use ctb_utilities::utilities::*;
 
 pub fn find_resource_bundle_path() -> Result<PathBuf> {
@@ -99,7 +102,16 @@ fn resolve_allowed_candidate(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

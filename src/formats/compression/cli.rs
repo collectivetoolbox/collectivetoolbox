@@ -1,6 +1,10 @@
 //! CLI execution helpers for compression and decompression.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
@@ -46,8 +50,8 @@ pub enum CliCompressionOutput {
 pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
     let filename_str = input_path.to_string_lossy();
     let known_exts = [
-        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2", ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl",
-        ".Z", ".z", ".C",
+        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2",
+        ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl", ".Z", ".z", ".C",
     ];
     for ext in known_exts {
         let matches = if ext.eq_ignore_ascii_case(".gz")
@@ -85,7 +89,8 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-    let compression_format = crate::CompressionFormat::try_from(args.format.as_str())?;
+    let compression_format =
+        crate::CompressionFormat::try_from(args.format.as_str())?;
     let data = read_data(args.input_path.as_path())?;
     let compressed = crate::compress(&data, compression_format)?;
 
@@ -110,8 +115,9 @@ where
         if !check_overwrite(&target_path, args.force)? {
             return Ok(CliCompressionOutput::Cancelled);
         }
-        std::fs::write(&target_path, &compressed)
-            .with_context(|| format!("Failed to write to {}", target_path.display()))?;
+        std::fs::write(&target_path, &compressed).with_context(|| {
+            format!("Failed to write to {}", target_path.display())
+        })?;
         Ok(CliCompressionOutput::FileWritten(target_path))
     }
 }
@@ -128,7 +134,9 @@ where
 {
     let (resolved_input_path, explicit_format) = match args.format {
         Some(ref fmt_str) => {
-            if let Ok(parsed_fmt) = crate::CompressionFormat::try_from(fmt_str.as_str()) {
+            if let Ok(parsed_fmt) =
+                crate::CompressionFormat::try_from(fmt_str.as_str())
+            {
                 (args.input_path.clone(), Some(parsed_fmt))
             } else {
                 let in_path = PathBuf::from(fmt_str);
@@ -173,14 +181,15 @@ where
         if !check_overwrite(&target_path, args.force)? {
             return Ok(CliCompressionOutput::Cancelled);
         }
-        std::fs::write(&target_path, &decompressed)
-            .with_context(|| format!("Failed to write to {}", target_path.display()))?;
+        std::fs::write(&target_path, &decompressed).with_context(|| {
+            format!("Failed to write to {}", target_path.display())
+        })?;
         Ok(CliCompressionOutput::FileWritten(target_path))
     }
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -2,7 +2,11 @@
 
 // More-or-less independent implementation because Firefox reported that crate as malicious. I suspect it's a false positive, but used the test data and docs to create this alternative which is a bit easier to read for me but likely slower.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::HashMap;
@@ -19,7 +23,11 @@ pub struct Cp437Mapping {
 
 impl Cp437Mapping {
     pub fn chr(&self, code: u8) -> String {
-        self.decode_table.get(usize::from(code)).copied().unwrap_or('\0').to_string()
+        self.decode_table
+            .get(usize::from(code))
+            .copied()
+            .unwrap_or('\0')
+            .to_string()
     }
 
     pub fn asc(&self, s: &str) -> Option<u8> {
@@ -33,7 +41,9 @@ impl Cp437Mapping {
             if let Some(&byte) = self.encode_table.get(&c) {
                 result.push(byte);
             } else {
-                return Err(anyhow!("Encoding error: unmappable character '{c}'"));
+                return Err(anyhow!(
+                    "Encoding error: unmappable character '{c}'"
+                ));
             }
         }
         Ok(result)
@@ -42,7 +52,12 @@ impl Cp437Mapping {
     pub fn decode(&self, input: &[u8]) -> Result<String> {
         let mut result = String::with_capacity(input.len());
         for &byte in input {
-            result.push(self.decode_table.get(usize::from(byte)).copied().unwrap_or('\0'));
+            result.push(
+                self.decode_table
+                    .get(usize::from(byte))
+                    .copied()
+                    .unwrap_or('\0'),
+            );
         }
         Ok(result)
     }
@@ -108,12 +123,16 @@ fn try_load_mapping(
             if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
-                let byte = u8::from_str_radix(byte_str, 16)
-                    .map_err(|e| anyhow!("Failed to parse byte hex '{byte_str}': {e}"))?;
-                let uni_code = u32::from_str_radix(uni_str, 16)
-                    .map_err(|e| anyhow!("Failed to parse Unicode hex '{uni_str}': {e}"))?;
-                let character = char::from_u32(uni_code)
-                    .ok_or_else(|| anyhow!("Invalid Unicode code point '{uni_str}'"))?;
+                let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
+                    anyhow!("Failed to parse byte hex '{byte_str}': {e}")
+                })?;
+                let uni_code =
+                    u32::from_str_radix(uni_str, 16).map_err(|e| {
+                        anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
+                    })?;
+                let character = char::from_u32(uni_code).ok_or_else(|| {
+                    anyhow!("Invalid Unicode code point '{uni_str}'")
+                })?;
 
                 if let Some(slot) = decode_table.get_mut(usize::from(byte)) {
                     *slot = character;
@@ -137,12 +156,16 @@ fn try_load_mapping(
             if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
-                let byte = u8::from_str_radix(byte_str, 16)
-                    .map_err(|e| anyhow!("Failed to parse byte hex '{byte_str}': {e}"))?;
-                let uni_code = u32::from_str_radix(uni_str, 16)
-                    .map_err(|e| anyhow!("Failed to parse Unicode hex '{uni_str}': {e}"))?;
-                let character = char::from_u32(uni_code)
-                    .ok_or_else(|| anyhow!("Invalid Unicode code point '{uni_str}'"))?;
+                let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
+                    anyhow!("Failed to parse byte hex '{byte_str}': {e}")
+                })?;
+                let uni_code =
+                    u32::from_str_radix(uni_str, 16).map_err(|e| {
+                        anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
+                    })?;
+                let character = char::from_u32(uni_code).ok_or_else(|| {
+                    anyhow!("Invalid Unicode code point '{uni_str}'")
+                })?;
 
                 // Variants only extend the encode_table, do not overwrite the decode_table
                 encode_table.insert(character, byte);
@@ -156,7 +179,7 @@ fn try_load_mapping(
     })
 }
 
-#[expect(clippy::expect_used, reason="Better to fail early here")]
+#[expect(clippy::expect_used, reason = "Better to fail early here")]
 pub static CP437_DINGBATS: LazyLock<Cp437Mapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_dingbats/values.tsv",
@@ -166,7 +189,7 @@ pub static CP437_DINGBATS: LazyLock<Cp437Mapping> = LazyLock::new(|| {
     .expect("Failed to load CP437 dingbats mapping")
 });
 
-#[expect(clippy::expect_used, reason="Better to fail early here")]
+#[expect(clippy::expect_used, reason = "Better to fail early here")]
 pub static CP437_CONTROL: LazyLock<Cp437Mapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_control/values.tsv",
@@ -209,7 +232,16 @@ pub fn decode_control(input: &[u8]) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -218,8 +250,10 @@ mod tests {
         let all_bytes = get_all_bytes();
         let decoded = decode_control(&all_bytes)?;
 
-        let expected_bytes = crate::get_encoding_data("fixtures/cp437/cp437_control/all.utf8")
-            .ok_or_else(|| anyhow!("Missing all.utf8 fixture for control"))?;
+        let expected_bytes = crate::get_encoding_data(
+            "fixtures/cp437/cp437_control/all.utf8",
+        )
+        .ok_or_else(|| anyhow!("Missing all.utf8 fixture for control"))?;
         let expected = String::from_utf8(expected_bytes)?;
 
         assert_eq!(decoded, expected);
@@ -231,8 +265,11 @@ mod tests {
         let all_bytes = get_all_bytes();
         let decoded = decode(&all_bytes)?;
 
-        let expected_bytes = crate::get_encoding_data("fixtures/cp437/cp437_dingbats/all.utf8")
-            .ok_or_else(|| anyhow!("Missing all.utf8 fixture for dingbats"))?;
+        let expected_bytes =
+            crate::get_encoding_data("fixtures/cp437/cp437_dingbats/all.utf8")
+                .ok_or_else(|| {
+                    anyhow!("Missing all.utf8 fixture for dingbats")
+                })?;
         let expected = String::from_utf8(expected_bytes)?;
 
         assert_eq!(decoded, expected);
@@ -241,12 +278,16 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cp437_control_variants() -> Result<()> {
-        let variants_utf8_bytes = crate::get_encoding_data("fixtures/cp437/cp437_control/variants.utf8")
-            .ok_or_else(|| anyhow!("Missing variants.utf8 fixture for control"))?;
+        let variants_utf8_bytes = crate::get_encoding_data(
+            "fixtures/cp437/cp437_control/variants.utf8",
+        )
+        .ok_or_else(|| anyhow!("Missing variants.utf8 fixture for control"))?;
         let variants_utf8 = String::from_utf8(variants_utf8_bytes)?;
 
-        let expected_cp437 = crate::get_encoding_data("fixtures/cp437/cp437_control/variants.cp437")
-            .ok_or_else(|| anyhow!("Missing variants.cp437 fixture for control"))?;
+        let expected_cp437 = crate::get_encoding_data(
+            "fixtures/cp437/cp437_control/variants.cp437",
+        )
+        .ok_or_else(|| anyhow!("Missing variants.cp437 fixture for control"))?;
 
         let encoded = encode_control(&variants_utf8)?;
         assert_eq!(encoded, expected_cp437);
@@ -255,12 +296,18 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cp437_dingbats_variants() -> Result<()> {
-        let variants_utf8_bytes = crate::get_encoding_data("fixtures/cp437/cp437_dingbats/variants.utf8")
-            .ok_or_else(|| anyhow!("Missing variants.utf8 fixture for dingbats"))?;
+        let variants_utf8_bytes = crate::get_encoding_data(
+            "fixtures/cp437/cp437_dingbats/variants.utf8",
+        )
+        .ok_or_else(|| anyhow!("Missing variants.utf8 fixture for dingbats"))?;
         let variants_utf8 = String::from_utf8(variants_utf8_bytes)?;
 
-        let expected_cp437 = crate::get_encoding_data("fixtures/cp437/cp437_dingbats/variants.cp437")
-            .ok_or_else(|| anyhow!("Missing variants.cp437 fixture for dingbats"))?;
+        let expected_cp437 = crate::get_encoding_data(
+            "fixtures/cp437/cp437_dingbats/variants.cp437",
+        )
+        .ok_or_else(|| {
+            anyhow!("Missing variants.cp437 fixture for dingbats")
+        })?;
 
         let encoded = encode(&variants_utf8)?;
         assert_eq!(encoded, expected_cp437);

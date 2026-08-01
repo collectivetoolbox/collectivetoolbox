@@ -8,7 +8,11 @@
 //! during migration, but it intentionally avoids re-introducing the legacy IPC
 //! channel abstractions.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 /// Best-effort emergency exit for unrecoverable situations.

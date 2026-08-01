@@ -1,6 +1,5 @@
 // SPDX-License-Identifier for parts derived from SeaBIOS: GPL-3.0-only AND LGPL-3.0-only
 
-
 //! Native Rust implementation of SeaBIOS build tools.
 //!
 //! Replaces python scripts:
@@ -10,7 +9,6 @@
 //! - checkrom.py
 //! - layoutrom.py
 //! - ldnoexec.py
-
 
 // From Makefile:
 // Copyright (C) 2008-2012  Kevin O'Connor <kevin@koconnor.net>
@@ -46,7 +44,6 @@
 // Copyright (C) 2020  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
-
 
 use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -216,7 +213,10 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
         }
 
         let cksum: usize = data.iter().map(|&b| usize::from(b)).sum();
-        let ckbyte = u8::try_from((0x100_usize.saturating_sub(cksum.rem_euclid(256))).rem_euclid(256)).unwrap_or(0);
+        let ckbyte = u8::try_from(
+            (0x100_usize.saturating_sub(cksum.rem_euclid(256))).rem_euclid(256),
+        )
+        .unwrap_or(0);
         if let Some(slot) = data.get_mut(6) {
             *slot = ckbyte;
         }
@@ -229,7 +229,12 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfile: &Path) -> Result<()> {
+pub fn run_checkrom(
+    _objinfo: &Path,
+    finalsize_kb: usize,
+    rawfile: &Path,
+    outfile: &Path,
+) -> Result<()> {
     let rawdata = fs::read(rawfile)
         .with_context(|| format!("Failed to read {}", rawfile.display()))?;
 
@@ -263,7 +268,9 @@ pub fn run_checkrom(_objinfo: &Path, finalsize_kb: usize, rawfile: &Path, outfil
         0.0
     };
     let kb = finalsize.checked_div(1024).unwrap_or(0);
-    println!("Total size: {datasize}  Fixed: {datasize}  Free: {free} (used {pct:.1}% of {kb}KiB rom)");
+    println!(
+        "Total size: {datasize}  Fixed: {datasize}  Free: {free} (used {pct:.1}% of {kb}KiB rom)"
+    );
 
     if let Some(parent) = outfile.parent() {
         fs::create_dir_all(parent)?;
@@ -279,7 +286,7 @@ SECTIONS
 {
 "#;
 
-const COMMONTRAILER: &str = r#"
+const COMMONTRAILER: &str = r"
         /* Discard regular data sections to force a link error if
          * code attempts to access data not marked with VAR16 (or other
          * appropriate macro)
@@ -289,7 +296,7 @@ const COMMONTRAILER: &str = r#"
                 *(COMMON) *(.discard*) *(.eh_frame) *(.note*)
                 }
 }
-"#;
+";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol {
@@ -353,7 +360,8 @@ pub fn run_layoutrom(
 
     let config = scan_config(cfgfile);
 
-    let mut symbols_by_fileid: HashMap<String, HashMap<String, Symbol>> = HashMap::new();
+    let mut symbols_by_fileid: HashMap<String, HashMap<String, Symbol>> =
+        HashMap::new();
     symbols_by_fileid.insert("16".to_string(), info16_syms.clone());
     symbols_by_fileid.insert("32seg".to_string(), info32seg_syms.clone());
     symbols_by_fileid.insert("32flat".to_string(), info32flat_syms.clone());
@@ -384,10 +392,13 @@ pub fn run_layoutrom(
         }
     }
 
-    let keep_sections = find_reachable(&anchor_secs, &all_sections, &symbols_by_fileid);
+    let keep_sections =
+        find_reachable(&anchor_secs, &all_sections, &symbols_by_fileid);
     let mut sections: Vec<Section> = all_sections
         .into_iter()
-        .filter(|sec| keep_sections.contains(&(sec.fileid.clone(), sec.name.clone())))
+        .filter(|sec| {
+            keep_sections.contains(&(sec.fileid.clone(), sec.name.clone()))
+        })
         .collect();
 
     let mut runtime_anchors = Vec::new();
@@ -401,7 +412,8 @@ pub fn run_layoutrom(
         }
     }
 
-    let runtime_sections = find_runtime_reachable(&runtime_anchors, &sections, &symbols_by_fileid);
+    let runtime_sections =
+        find_runtime_reachable(&runtime_anchors, &sections, &symbols_by_fileid);
 
     for sec in &mut sections {
         if sec.name.starts_with(".data.varlow.") {
@@ -413,7 +425,8 @@ pub fn run_layoutrom(
         } else if sec.name.starts_with(".fixedaddr.") {
             sec.category = "fixed".to_string();
         } else if sec.fileid == "32flat"
-            && !runtime_sections.contains(&(sec.fileid.clone(), sec.name.clone()))
+            && !runtime_sections
+                .contains(&(sec.fileid.clone(), sec.name.clone()))
         {
             sec.category = "32init".to_string();
         } else {
@@ -452,7 +465,8 @@ fn strip_reloc_offset(name: &str) -> &str {
         let suffix = name.get(pos.saturating_add(1)..).unwrap_or("");
         if suffix.starts_with("0x")
             || suffix.starts_with("0X")
-            || (!suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_hexdigit()))
+            || (!suffix.is_empty()
+                && suffix.chars().all(|c| c.is_ascii_hexdigit()))
         {
             return name.get(..pos).unwrap_or(name);
         }
@@ -504,9 +518,18 @@ fn parse_objdump(
                 if parts.len() >= 7 {
                     if let Some(align_part) = parts.get(6) {
                         if align_part.starts_with("2**") {
-                            let name = parts.get(1).copied().unwrap_or("").to_string();
-                            let size = usize::from_str_radix(parts.get(2).copied().unwrap_or("0"), 16).unwrap_or(0);
-                            let pow: u32 = align_part.get(3..).unwrap_or("").parse().unwrap_or(0);
+                            let name =
+                                parts.get(1).copied().unwrap_or("").to_string();
+                            let size = usize::from_str_radix(
+                                parts.get(2).copied().unwrap_or("0"),
+                                16,
+                            )
+                            .unwrap_or(0);
+                            let pow: u32 = align_part
+                                .get(3..)
+                                .unwrap_or("")
+                                .parse()
+                                .unwrap_or(0);
                             let align = 1_usize.checked_shl(pow).unwrap_or(1);
                             let idx = sections.len();
                             sections.push(Section {
@@ -527,16 +550,34 @@ fn parse_objdump(
             Some("symbol") => {
                 if raw_line.len() > 17 {
                     if let Some(offset_str) = raw_line.get(..8) {
-                        if let Ok(offset) = usize::from_str_radix(offset_str, 16) {
+                        if let Ok(offset) =
+                            usize::from_str_radix(offset_str, 16)
+                        {
                             if let Some(rest) = raw_line.get(17..) {
-                                let parts: Vec<&str> = rest.split_whitespace().collect();
-                                let (sec_name_opt, size_str, name) = match parts.len() {
-                                    2 => (parts.get(0).copied(), "0", parts.get(1).copied().unwrap_or("")),
-                                    3 => (parts.get(0).copied(), parts.get(1).copied().unwrap_or("0"), parts.get(2).copied().unwrap_or("")),
-                                    4 if parts.get(2) == Some(&".hidden") => (parts.get(0).copied(), parts.get(1).copied().unwrap_or("0"), parts.get(3).copied().unwrap_or("")),
+                                let parts: Vec<&str> =
+                                    rest.split_whitespace().collect();
+                                let (sec_name_opt, size_str, name) = match parts
+                                    .len()
+                                {
+                                    2 => (
+                                        parts.first().copied(),
+                                        "0",
+                                        parts.get(1).copied().unwrap_or(""),
+                                    ),
+                                    3 => (
+                                        parts.first().copied(),
+                                        parts.get(1).copied().unwrap_or("0"),
+                                        parts.get(2).copied().unwrap_or(""),
+                                    ),
+                                    4 if parts.get(2) == Some(&".hidden") => (
+                                        parts.first().copied(),
+                                        parts.get(1).copied().unwrap_or("0"),
+                                        parts.get(3).copied().unwrap_or(""),
+                                    ),
                                     _ => continue,
                                 };
-                                let size = usize::from_str_radix(size_str, 16).unwrap_or(0);
+                                let size = usize::from_str_radix(size_str, 16)
+                                    .unwrap_or(0);
                                 let sec_name = match sec_name_opt {
                                     Some("*UND*") | None => None,
                                     Some(s) => Some(s.to_string()),
@@ -559,14 +600,19 @@ fn parse_objdump(
             Some("reloc") => {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 {
-                    if let (Some(part0), Some(reloc_type_str), Some(part2)) = (parts.get(0), parts.get(1), parts.get(2)) {
+                    if let (Some(part0), Some(reloc_type_str), Some(part2)) =
+                        (parts.first(), parts.get(1), parts.get(2))
+                    {
                         if let (Ok(offset), Some(sec_idx)) = (
                             usize::from_str_radix(part0, 16),
                             current_reloc_section_idx,
                         ) {
                             let reloc_type = reloc_type_str.to_string();
-                            let symbolname = strip_reloc_offset(part2).to_string();
-                            if !symbols.contains_key(&symbolname) && section_map.contains_key(&symbolname) {
+                            let symbolname =
+                                strip_reloc_offset(part2).to_string();
+                            if !symbols.contains_key(&symbolname)
+                                && section_map.contains_key(&symbolname)
+                            {
                                 symbols.insert(
                                     symbolname.clone(),
                                     Symbol {
@@ -598,25 +644,28 @@ fn parse_objdump(
 
 fn scan_config(path: &Path) -> HashMap<String, usize> {
     let mut map = HashMap::new();
-    let Ok(content) = fs::read_to_string(path) else { return map; };
+    let Ok(content) = fs::read_to_string(path) else {
+        return map;
+    };
     for line in content.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() == 3 && parts.get(0) == Some(&"#define") {
-            if let (Some(name_str), Some(val_str)) = (parts.get(1), parts.get(2)) {
-                let val = if val_str.starts_with("0x") || val_str.starts_with("0X") {
-                    let hex_part = val_str.get(2..).unwrap_or("");
-                    usize::from_str_radix(hex_part, 16).unwrap_or(0)
-                } else {
-                    val_str.parse::<usize>().unwrap_or(0)
-                };
+        if parts.len() == 3 && parts.first() == Some(&"#define") {
+            if let (Some(name_str), Some(val_str)) =
+                (parts.get(1), parts.get(2))
+            {
+                let val =
+                    if val_str.starts_with("0x") || val_str.starts_with("0X") {
+                        let hex_part = val_str.get(2..).unwrap_or("");
+                        usize::from_str_radix(hex_part, 16).unwrap_or(0)
+                    } else {
+                        val_str.parse::<usize>().unwrap_or(0)
+                    };
                 map.insert((*name_str).to_string(), val);
             }
         }
     }
     map
 }
-
-
 
 fn resolve_reloc_symbol<'a>(
     reloc: &Reloc,
@@ -635,7 +684,9 @@ fn resolve_reloc_symbol<'a>(
                     if let Some(sym) = syms.get(funcname) {
                         if let Some(ref sec_name) = sym.section_name {
                             if !sec_name.starts_with(".discard.") {
-                                let isdestcfunc = sec_name.starts_with(".text.") && !sec_name.starts_with(".text.asm.");
+                                let isdestcfunc = sec_name
+                                    .starts_with(".text.")
+                                    && !sec_name.starts_with(".text.asm.");
                                 if isdestcfunc {
                                     return Some((sym, fileid));
                                 }
@@ -664,7 +715,8 @@ fn resolve_reloc_symbol<'a>(
                 if let Some(sym) = syms.get(symbolname) {
                     if let Some(ref sec_name) = sym.section_name {
                         if !sec_name.starts_with(".discard.") {
-                            let isdestcfunc = sec_name.starts_with(".text.") && !sec_name.starts_with(".text.asm.");
+                            let isdestcfunc = sec_name.starts_with(".text.")
+                                && !sec_name.starts_with(".text.asm.");
                             if !isdestcfunc {
                                 return Some((sym, fileid));
                             }
@@ -683,7 +735,9 @@ fn check_keep(
     sec_fileid: &str,
     symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
 ) -> Option<(String, String)> {
-    if let Some((sym, _)) = resolve_reloc_symbol(reloc, sec_fileid, symbols_by_fileid) {
+    if let Some((sym, _)) =
+        resolve_reloc_symbol(reloc, sec_fileid, symbols_by_fileid)
+    {
         if let Some(ref sec_name) = sym.section_name {
             return Some((sym.fileid.clone(), sec_name.clone()));
         }
@@ -702,11 +756,20 @@ fn out_xrefs(
     let mut xrefs: BTreeMap<String, usize> = BTreeMap::new();
     for sym in export_syms {
         if let Some(ref sec_name) = sym.section_name {
-            if let Some(sec) = all_kept_sections.iter().find(|s| s.fileid == sym.fileid && s.name == *sec_name) {
-                let loc = if use_seg { sec.finalsegloc } else { sec.finalloc.unwrap_or(0) };
+            if let Some(sec) = all_kept_sections
+                .iter()
+                .find(|s| s.fileid == sym.fileid && s.name == *sec_name)
+            {
+                let loc = if use_seg {
+                    sec.finalsegloc
+                } else {
+                    sec.finalloc.unwrap_or(0)
+                };
                 let loc_isize = isize::try_from(loc).unwrap_or(0);
                 let offset_isize = isize::try_from(sym.offset).unwrap_or(0);
-                let final_loc_isize = loc_isize.saturating_add(force_delta).saturating_add(offset_isize);
+                let final_loc_isize = loc_isize
+                    .saturating_add(force_delta)
+                    .saturating_add(offset_isize);
                 let final_loc = usize::try_from(final_loc_isize).unwrap_or(0);
                 xrefs.insert(sym.name.clone(), final_loc);
             }
@@ -716,17 +779,28 @@ fn out_xrefs(
     for sec in sections_with_relocs {
         for reloc in &sec.relocs {
             let symbolname = &reloc.symbolname;
-            let res = resolve_reloc_symbol(reloc, &sec.fileid, symbols_by_fileid);
+            let res =
+                resolve_reloc_symbol(reloc, &sec.fileid, symbols_by_fileid);
             if let Some((sym, fid)) = res {
                 if fid != sec.fileid || sym.name != *symbolname {
                     if let Some(ref sec_name) = sym.section_name {
-                        let target_sec = all_kept_sections.iter().find(|s| s.fileid == fid && s.name == *sec_name);
+                        let target_sec = all_kept_sections
+                            .iter()
+                            .find(|s| s.fileid == fid && s.name == *sec_name);
                         if let Some(target_sec) = target_sec {
-                            let loc = if use_seg { target_sec.finalsegloc } else { target_sec.finalloc.unwrap_or(0) };
+                            let loc = if use_seg {
+                                target_sec.finalsegloc
+                            } else {
+                                target_sec.finalloc.unwrap_or(0)
+                            };
                             let loc_isize = isize::try_from(loc).unwrap_or(0);
-                            let offset_isize = isize::try_from(sym.offset).unwrap_or(0);
-                            let final_loc_isize = loc_isize.saturating_add(force_delta).saturating_add(offset_isize);
-                            let final_loc = usize::try_from(final_loc_isize).unwrap_or(0);
+                            let offset_isize =
+                                isize::try_from(sym.offset).unwrap_or(0);
+                            let final_loc_isize = loc_isize
+                                .saturating_add(force_delta)
+                                .saturating_add(offset_isize);
+                            let final_loc =
+                                usize::try_from(final_loc_isize).unwrap_or(0);
                             xrefs.insert(symbolname.clone(), final_loc);
                         }
                     }
@@ -764,7 +838,9 @@ fn find_reachable(
     while let Some(key) = pending.pop() {
         if let Some(sec) = sec_map.get(&key) {
             for reloc in &sec.relocs {
-                if let Some(target_key) = check_keep(reloc, &sec.fileid, symbols_by_fileid) {
+                if let Some(target_key) =
+                    check_keep(reloc, &sec.fileid, symbols_by_fileid)
+                {
                     if reachable.insert(target_key.clone()) {
                         pending.push(target_key);
                     }
@@ -798,9 +874,14 @@ fn find_runtime_reachable(
     while let Some(key) = pending.pop() {
         if let Some(sec) = sec_by_key.get(&key) {
             for reloc in &sec.relocs {
-                if let Some(next_key) = check_keep(reloc, &sec.fileid, symbols_by_fileid) {
+                if let Some(next_key) =
+                    check_keep(reloc, &sec.fileid, symbols_by_fileid)
+                {
                     if let Some(target_sec) = sec_by_key.get(&next_key) {
-                        if !target_sec.name.contains(".init.") && sec_by_key.contains_key(&next_key) && reachable.insert(next_key.clone()) {
+                        if !target_sec.name.contains(".init.")
+                            && sec_by_key.contains_key(&next_key)
+                            && reachable.insert(next_key.clone())
+                        {
                             pending.push(next_key);
                         }
                     }
@@ -812,17 +893,25 @@ fn find_runtime_reachable(
     reachable
 }
 
-fn fit_sections(fixed_sections: &mut [(usize, Section)], fill_sections: &mut [Section]) -> usize {
+fn fit_sections(
+    fixed_sections: &mut [(usize, Section)],
+    fill_sections: &mut [Section],
+) -> usize {
     fixed_sections.sort_by_key(|k| k.0);
-    let firstfixed = fixed_sections.first().map(|f| f.0).unwrap_or(BUILD_BIOS_SIZE);
+    let firstfixed = fixed_sections.first().map_or(BUILD_BIOS_SIZE, |f| f.0);
 
     let mut fixed_addr = Vec::new();
     for i in 0..fixed_sections.len() {
-        let Some((addr, ref sec)) = fixed_sections.get(i).map(|(a, s)| (*a, s)) else { continue; };
+        let Some((addr, sec)) = fixed_sections.get(i).map(|(a, s)| (*a, s))
+        else {
+            continue;
+        };
         let nextaddr = if i.saturating_add(1) == fixed_sections.len() {
             BUILD_BIOS_SIZE
         } else {
-            fixed_sections.get(i.saturating_add(1)).map(|k| k.0).unwrap_or(BUILD_BIOS_SIZE)
+            fixed_sections
+                .get(i.saturating_add(1))
+                .map_or(BUILD_BIOS_SIZE, |k| k.0)
         };
         let avail = nextaddr.saturating_sub(addr).saturating_sub(sec.size);
         fixed_addr.push((avail, addr, sec.size));
@@ -855,7 +944,9 @@ fn fit_sections(fixed_sections: &mut [(usize, Section)], fill_sections: &mut [Se
                 }
                 canfit = Some((fitnextaddr, idx));
             }
-            let Some((fitnextaddr, idx)) = canfit else { break; };
+            let Some((fitnextaddr, idx)) = canfit else {
+                break;
+            };
             used_indices.insert(idx);
             if let Some(target) = fill_sections.get_mut(idx) {
                 target.finalloc = Some(addpos.saturating_add(BUILD_BIOS_ADDR));
@@ -883,7 +974,11 @@ fn set_sections_start(
     let startaddr = if align == 0 {
         endaddr.saturating_sub(totspace)
     } else {
-        (endaddr.saturating_sub(totspace).checked_div(align).unwrap_or(0)).saturating_mul(align)
+        (endaddr
+            .saturating_sub(totspace)
+            .checked_div(align)
+            .unwrap_or(0))
+        .saturating_mul(align)
     };
     let mut curaddr = startaddr;
     for sec in sections.iter_mut() {
@@ -895,16 +990,28 @@ fn set_sections_start(
     (startaddr, align)
 }
 
-fn get_sections_category<'a>(sections: &'a [Section], category: &str) -> Vec<Section> {
-    sections.iter().filter(|s| s.category == category).cloned().collect()
+fn get_sections_category(sections: &[Section], category: &str) -> Vec<Section> {
+    sections
+        .iter()
+        .filter(|s| s.category == category)
+        .cloned()
+        .collect()
 }
 
-fn get_sections_prefix<'a>(sections: &'a [Section], prefix: &str) -> Vec<Section> {
-    sections.iter().filter(|s| s.name.starts_with(prefix)).cloned().collect()
+fn get_sections_prefix(sections: &[Section], prefix: &str) -> Vec<Section> {
+    sections
+        .iter()
+        .filter(|s| s.name.starts_with(prefix))
+        .cloned()
+        .collect()
 }
 
-fn get_sections_fileid<'a>(sections: &'a [Section], fileid: &str) -> Vec<Section> {
-    sections.iter().filter(|s| s.fileid == fileid).cloned().collect()
+fn get_sections_fileid(sections: &[Section], fileid: &str) -> Vec<Section> {
+    sections
+        .iter()
+        .filter(|s| s.fileid == fileid)
+        .cloned()
+        .collect()
 }
 
 fn do_layout(
@@ -912,11 +1019,12 @@ fn do_layout(
     config: &HashMap<String, usize>,
     genreloc: bool,
 ) -> LayoutInfo {
-    let min_biostable = if config.get("CONFIG_ROM_SIZE").copied().unwrap_or(0) >= 256 {
-        8192
-    } else {
-        2048
-    };
+    let min_biostable =
+        if config.get("CONFIG_ROM_SIZE").copied().unwrap_or(0) >= 256 {
+            8192
+        } else {
+            2048
+        };
 
     let sections16 = get_sections_category(&sections, "16");
     let mut textsections16 = get_sections_prefix(&sections16, ".text.");
@@ -926,7 +1034,10 @@ fn do_layout(
     let mut fixedsections: Vec<(usize, Section)> = Vec::new();
     for sec in &sections {
         if sec.category == "fixed" {
-            if let Ok(addr) = usize::from_str_radix(sec.name.trim_start_matches(".fixedaddr."), 16) {
+            if let Ok(addr) = usize::from_str_radix(
+                sec.name.trim_start_matches(".fixedaddr."),
+                16,
+            ) {
                 fixedsections.push((addr, sec.clone()));
             }
         }
@@ -936,7 +1047,9 @@ fn do_layout(
 
     for sec in &mut sections {
         if sec.fileid == "16" && sec.name.starts_with(".text.") {
-            if let Some(match_sec) = textsections16.iter().find(|s| s.name == sec.name) {
+            if let Some(match_sec) =
+                textsections16.iter().find(|s| s.name == sec.name)
+            {
                 sec.finalloc = match_sec.finalloc;
                 sec.finalsegloc = match_sec.finalsegloc;
             }
@@ -950,10 +1063,14 @@ fn do_layout(
         .filter(|s| s.finalloc.is_none())
         .collect();
 
-    let (sec16_start, _) = set_sections_start(&mut remsections, firstfixed, 1, BUILD_BIOS_ADDR);
+    let (sec16_start, _) =
+        set_sections_start(&mut remsections, firstfixed, 1, BUILD_BIOS_ADDR);
 
     for sec in &remsections {
-        if let Some(target) = sections.iter_mut().find(|s| s.fileid == "16" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.fileid == "16" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
@@ -968,27 +1085,43 @@ fn do_layout(
         .chain(rodatasections32seg)
         .chain(datasections32seg)
         .collect();
-    let (sec32seg_start, _) = set_sections_start(&mut sec32seg_all, sec16_start, 1, BUILD_BIOS_ADDR);
+    let (sec32seg_start, _) =
+        set_sections_start(&mut sec32seg_all, sec16_start, 1, BUILD_BIOS_ADDR);
     for sec in &sec32seg_all {
-        if let Some(target) = sections.iter_mut().find(|s| s.fileid == "32seg" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.fileid == "32seg" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
     }
 
     let mut sections32textfseg = get_sections_category(&sections, "32textfseg");
-    let (sec32textfseg_start, _) = set_sections_start(&mut sections32textfseg, sec32seg_start, 16, 0);
+    let (sec32textfseg_start, _) =
+        set_sections_start(&mut sections32textfseg, sec32seg_start, 16, 0);
     for sec in &sections32textfseg {
-        if let Some(target) = sections.iter_mut().find(|s| s.category == "32textfseg" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.category == "32textfseg" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
     }
 
     let mut sections32fseg = get_sections_category(&sections, "32fseg");
-    let (sec32fseg_start, _) = set_sections_start(&mut sections32fseg, sec32textfseg_start, 16, BUILD_BIOS_ADDR);
+    let (sec32fseg_start, _) = set_sections_start(
+        &mut sections32fseg,
+        sec32textfseg_start,
+        16,
+        BUILD_BIOS_ADDR,
+    );
     for sec in &sections32fseg {
-        if let Some(target) = sections.iter_mut().find(|s| s.category == "32fseg" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.category == "32fseg" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
@@ -1005,7 +1138,8 @@ fn do_layout(
         .chain(datasections32flat)
         .chain(bsssections32flat)
         .collect();
-    let (mut sec32flat_start, _) = set_sections_start(&mut sec32flat_all, sec32fseg_start, 16, 0);
+    let (mut sec32flat_start, _) =
+        set_sections_start(&mut sec32flat_all, sec32fseg_start, 16, 0);
 
     let sections32init = get_sections_category(&sections, "32init");
     let init_text = get_sections_prefix(&sections32init, ".text.");
@@ -1018,28 +1152,41 @@ fn do_layout(
         .chain(init_data)
         .chain(init_bss)
         .collect();
-    let (mut sec32init_start, mut sec32init_align) = set_sections_start(&mut sec32init_all, sec32flat_start, 16, 0);
+    let (mut sec32init_start, mut sec32init_align) =
+        set_sections_start(&mut sec32init_all, sec32flat_start, 16, 0);
 
-    let mut zonefseg_end = if genreloc { sec32flat_start } else { sec32init_start };
+    let mut zonefseg_end = if genreloc {
+        sec32flat_start
+    } else {
+        sec32init_start
+    };
     let mut zonefseg_start = BUILD_BIOS_ADDR;
     if zonefseg_start.saturating_add(min_biostable) > zonefseg_end {
         zonefseg_end = sec32fseg_start;
         zonefseg_start = zonefseg_end.saturating_sub(min_biostable);
-        let res_flat = set_sections_start(&mut sec32flat_all, zonefseg_start, 16, 0);
+        let res_flat =
+            set_sections_start(&mut sec32flat_all, zonefseg_start, 16, 0);
         sec32flat_start = res_flat.0;
-        let res_init = set_sections_start(&mut sec32init_all, sec32flat_start, 16, 0);
+        let res_init =
+            set_sections_start(&mut sec32init_all, sec32flat_start, 16, 0);
         sec32init_start = res_init.0;
         sec32init_align = res_init.1;
     }
 
     for sec in &sec32flat_all {
-        if let Some(target) = sections.iter_mut().find(|s| s.fileid == "32flat" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.fileid == "32flat" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
     }
     for sec in &sec32init_all {
-        if let Some(target) = sections.iter_mut().find(|s| s.category == "32init" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.category == "32init" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
@@ -1053,9 +1200,17 @@ fn do_layout(
 
     let mut sections32low = get_sections_category(&sections, "32low");
     let sec32low_end = sec32init_start;
-    let (final_sec32low_end, zonelow_base) = if config.get("CONFIG_MALLOC_UPPERMEMORY").copied().unwrap_or(0) != 0 {
+    let (final_sec32low_end, zonelow_base) = if config
+        .get("CONFIG_MALLOC_UPPERMEMORY")
+        .copied()
+        .unwrap_or(0)
+        != 0
+    {
         let f_end = final_readonly_start;
-        let base = max_align(BUILD_ROM_START, alignpos(f_end.saturating_sub(64 * 1024), 2 * 1024));
+        let base = max_align(
+            BUILD_ROM_START,
+            alignpos(f_end.saturating_sub(64 * 1024), 2 * 1024),
+        );
         (f_end, base)
     } else {
         let f_end = BUILD_LOWRAM_END;
@@ -1069,19 +1224,27 @@ fn do_layout(
     let zonelow_base_isize = isize::try_from(zonelow_base).unwrap_or(0);
     let segoff_isize = zonelow_base_isize.saturating_sub(relocdelta);
     let segoff = usize::try_from(segoff_isize).unwrap_or(0);
-    let (sec32low_start, _) = set_sections_start(&mut sections32low, sec32low_end, 16, segoff);
+    let (sec32low_start, _) =
+        set_sections_start(&mut sections32low, sec32low_end, 16, segoff);
 
     for sec in &sections32low {
-        if let Some(target) = sections.iter_mut().find(|s| s.category == "32low" && s.name == sec.name) {
+        if let Some(target) = sections
+            .iter_mut()
+            .find(|s| s.category == "32low" && s.name == sec.name)
+        {
             target.finalloc = sec.finalloc;
             target.finalsegloc = sec.finalsegloc;
         }
     }
 
     let sec32low_start_isize = isize::try_from(sec32low_start).unwrap_or(0);
-    let final_sec32low_start = usize::try_from(sec32low_start_isize.saturating_add(relocdelta)).unwrap_or(0);
+    let final_sec32low_start =
+        usize::try_from(sec32low_start_isize.saturating_add(relocdelta))
+            .unwrap_or(0);
 
-    let size16 = BUILD_BIOS_ADDR.saturating_add(BUILD_BIOS_SIZE).saturating_sub(sec16_start);
+    let size16 = BUILD_BIOS_ADDR
+        .saturating_add(BUILD_BIOS_SIZE)
+        .saturating_sub(sec16_start);
     let size32seg = sec16_start.saturating_sub(sec32seg_start);
     let size32textfseg = sec32seg_start.saturating_sub(sec32textfseg_start);
     let size32fseg = sec32textfseg_start.saturating_sub(sec32fseg_start);
@@ -1090,7 +1253,10 @@ fn do_layout(
     let sizelow = sec32low_end.saturating_sub(sec32low_start);
     println!("16bit size:           {size16}");
     println!("32bit segmented size: {size32seg}");
-    println!("32bit flat size:      {}", size32flat.saturating_add(size32textfseg));
+    println!(
+        "32bit flat size:      {}",
+        size32flat.saturating_add(size32textfseg)
+    );
     println!("32bit flat init size: {size32init}");
     println!("Lowmem size:          {sizelow}");
     println!("f-segment var size:   {size32fseg}");
@@ -1118,22 +1284,32 @@ fn max_align(a: usize, b: usize) -> usize {
     a.max(b)
 }
 
-
-
 fn out_sections(sections: &[Section], use_seg: bool) -> String {
     let mut out = String::new();
     for sec in sections {
-        let loc = if use_seg { sec.finalsegloc } else { sec.finalloc.unwrap_or(0) };
+        let loc = if use_seg {
+            sec.finalsegloc
+        } else {
+            sec.finalloc.unwrap_or(0)
+        };
         let _ = writeln!(out, "{} 0x{loc:x} : {{ *({}) }}", sec.name, sec.name);
     }
     out
 }
 
-fn out_rel_sections(sections: &[Section], startsym: &str, use_seg: bool) -> String {
+fn out_rel_sections(
+    sections: &[Section],
+    startsym: &str,
+    use_seg: bool,
+) -> String {
     let mut sorted_sections: Vec<(usize, &Section)> = sections
         .iter()
         .filter_map(|sec| {
-            let loc = if use_seg { sec.finalsegloc } else { sec.finalloc? };
+            let loc = if use_seg {
+                sec.finalsegloc
+            } else {
+                sec.finalloc?
+            };
             Some((loc, sec))
         })
         .collect();
@@ -1150,13 +1326,20 @@ fn out_rel_sections(sections: &[Section], startsym: &str, use_seg: bool) -> Stri
     out
 }
 
-fn get_relocs(sections: &[Section], to_section_set: &HashSet<(String, String)>, target_type: Option<&str>) -> Vec<usize> {
+fn get_relocs(
+    sections: &[Section],
+    to_section_set: &HashSet<(String, String)>,
+    target_type: Option<&str>,
+) -> Vec<usize> {
     let mut list = Vec::new();
     for sec in sections {
         if let Some(sec_loc) = sec.finalloc {
             for reloc in &sec.relocs {
-                if target_type.map_or(true, |t| reloc.reloc_type == t) {
-                    if to_section_set.contains(&(sec.fileid.clone(), reloc.symbolname.clone())) {
+                if target_type.is_none_or(|t| reloc.reloc_type == t) {
+                    if to_section_set.contains(&(
+                        sec.fileid.clone(),
+                        reloc.symbolname.clone(),
+                    )) {
                         list.push(sec_loc.saturating_add(reloc.offset));
                     }
                 }
@@ -1167,7 +1350,7 @@ fn get_relocs(sections: &[Section], to_section_set: &HashSet<(String, String)>, 
 }
 
 fn str_relocs(outname: &str, outrel: &str, relocs: &mut [usize]) -> String {
-    relocs.sort();
+    relocs.sort_unstable();
     let mut out = format!("        {outname}_start = ABSOLUTE(.) ;\n");
     for pos in relocs {
         let _ = writeln!(out, "LONG(0x{pos:x} - {outrel})");
@@ -1187,7 +1370,14 @@ fn write_linker_scripts(
     let out_16_str = format!(
         "{}{}\n    zonelow_base = 0x{:x} ;\n    _zonelow_seg = 0x{:x} ;\n\n{}\n{}",
         COMMONHEADER,
-        out_xrefs(&filesections16, &li.sections, symbols_by_fileid, &[], true, 0),
+        out_xrefs(
+            &filesections16,
+            &li.sections,
+            symbols_by_fileid,
+            &[],
+            true,
+            0
+        ),
         li.zonelow_base,
         li.zonelow_base / 16,
         out_sections(&filesections16, true),
@@ -1203,7 +1393,14 @@ fn write_linker_scripts(
     let out_32seg_str = format!(
         "{}{}{}\n{}",
         COMMONHEADER,
-        out_xrefs(&filesections32seg, &li.sections, symbols_by_fileid, &[], true, 0),
+        out_xrefs(
+            &filesections32seg,
+            &li.sections,
+            symbols_by_fileid,
+            &[],
+            true,
+            0
+        ),
         out_sections(&filesections32seg, true),
         COMMONTRAILER
     );
@@ -1215,10 +1412,11 @@ fn write_linker_scripts(
     let mut relocstr = String::new();
     let mut sec32all_start = li.sec32low_start;
     if li.genreloc {
-        let init_set: HashSet<(String, String)> = get_sections_category(&li.sections, "32init")
-            .into_iter()
-            .map(|s| (s.fileid, s.name))
-            .collect();
+        let init_set: HashSet<(String, String)> =
+            get_sections_category(&li.sections, "32init")
+                .into_iter()
+                .map(|s| (s.fileid, s.name))
+                .collect();
         let non_init_set: HashSet<(String, String)> = li
             .sections
             .iter()
@@ -1234,12 +1432,18 @@ fn write_linker_scripts(
             .cloned()
             .collect();
 
-        let mut absrelocs = get_relocs(&init_sections, &init_set, Some("R_386_32"));
-        let mut relrelocs = get_relocs(&init_sections, &non_init_set, Some("R_386_PC32"));
+        let mut absrelocs =
+            get_relocs(&init_sections, &init_set, Some("R_386_32"));
+        let mut relrelocs =
+            get_relocs(&init_sections, &non_init_set, Some("R_386_PC32"));
         let mut initrelocs = get_relocs(&non_init_sections, &init_set, None);
 
-        let numrelocs = absrelocs.len().saturating_add(relrelocs.len()).saturating_add(initrelocs.len());
-        sec32all_start = sec32all_start.saturating_sub(numrelocs.saturating_mul(4));
+        let numrelocs = absrelocs
+            .len()
+            .saturating_add(relrelocs.len())
+            .saturating_add(initrelocs.len());
+        sec32all_start =
+            sec32all_start.saturating_sub(numrelocs.saturating_mul(4));
 
         relocstr = format!(
             "{}{}{}",
@@ -1253,26 +1457,46 @@ fn write_linker_scripts(
     let final_low_isize = isize::try_from(li.final_sec32low_start).unwrap_or(0);
     let low_start_isize = isize::try_from(li.sec32low_start).unwrap_or(0);
     let force_delta = final_low_isize.saturating_sub(low_start_isize);
-    let mut out_32flat_prefix = out_xrefs(&[], &li.sections, symbols_by_fileid, &export_varlow, false, force_delta);
+    let mut out_32flat_prefix = out_xrefs(
+        &[],
+        &li.sections,
+        symbols_by_fileid,
+        &export_varlow,
+        false,
+        force_delta,
+    );
 
-    let multiboot_header = if li.config.get("CONFIG_MULTIBOOT").copied().unwrap_or(0) != 0 {
-        sec32all_start = sec32all_start.saturating_sub(12);
-        "LONG(0x1BADB002) LONG(0) LONG(-0x1BADB002)"
-    } else {
-        ""
-    };
+    let multiboot_header =
+        if li.config.get("CONFIG_MULTIBOOT").copied().unwrap_or(0) != 0 {
+            sec32all_start = sec32all_start.saturating_sub(12);
+            "LONG(0x1BADB002) LONG(0) LONG(-0x1BADB002)"
+        } else {
+            ""
+        };
 
     let max_align = li.sections.iter().map(|s| s.align).max().unwrap_or(1);
     let mask = max_align.saturating_sub(1);
     sec32all_start &= !mask;
 
-    let entry_export = li.entrysym.as_ref().map(|s| vec![s]).unwrap_or_default();
-    out_32flat_prefix.push_str(&out_xrefs(&get_sections_fileid(&li.sections, "32flat"), &li.sections, symbols_by_fileid, &entry_export, false, 0));
+    let entry_export =
+        li.entrysym.as_ref().map(|s| vec![s]).unwrap_or_default();
+    out_32flat_prefix.push_str(&out_xrefs(
+        &get_sections_fileid(&li.sections, "32flat"),
+        &li.sections,
+        symbols_by_fileid,
+        &entry_export,
+        false,
+        0,
+    ));
 
     let filesections32flat = get_sections_fileid(&li.sections, "32flat");
-    let rel_sections_str = out_rel_sections(&filesections32flat, "code32flat_start", false);
+    let rel_sections_str =
+        out_rel_sections(&filesections32flat, "code32flat_start", false);
 
-    let entry_name = li.entrysym.as_ref().map(|s| s.name.as_str()).unwrap_or("reset_vector");
+    let entry_name = li
+        .entrysym
+        .as_ref()
+        .map_or("reset_vector", |s| s.name.as_str());
 
     let out_32flat_str = format!(
         "{COMMONHEADER}{out_32flat_prefix}    _reloc_min_align = 0x{:x} ;\n    zonefseg_start = 0x{:x} ;\n    zonefseg_end = 0x{:x} ;\n    zonelow_base = 0x{:x} ;\n    final_varlow_start = 0x{:x} ;\n    final_readonly_start = 0x{:x} ;\n    varlow_start = 0x{:x} ;\n    varlow_end = 0x{:x} ;\n    code32init_start = 0x{:x} ;\n    code32init_end = 0x{:x} ;\n\n    code32flat_start = 0x{:x} ;\n    .text code32flat_start : {{\n{}\n{}\n{}\n        code32flat_end = ABSOLUTE(.) ;\n    }} :text\n{COMMONTRAILER}\nENTRY({entry_name})\nPHDRS\n{{\n        text PT_LOAD AT ( code32flat_start ) ;\n}}\n",
@@ -1986,7 +2210,7 @@ Public License instead of this License.  But first, please read
 COPYING.LESSER:
 
 ```
-		   GNU LESSER GENERAL PUBLIC LICENSE
+           GNU LESSER GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>

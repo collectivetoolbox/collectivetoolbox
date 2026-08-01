@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow};
@@ -19,7 +23,10 @@ pub fn dca_from_unicode_char(int_char: u32) -> Result<(Vec<u32>, FormatLog)> {
     if dcs.is_empty() {
         Ok((vec![], log))
     } else {
-        Ok((vec![*dcs.first().ok_or_else(|| anyhow!("dcs is empty"))?], log))
+        Ok((
+            vec![*dcs.first().ok_or_else(|| anyhow!("dcs is empty"))?],
+            log,
+        ))
     }
 }
 

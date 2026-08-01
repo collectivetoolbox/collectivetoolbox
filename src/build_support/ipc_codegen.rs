@@ -60,7 +60,10 @@ fn write_if_changed(path: &Path, content: &str) -> Result<()> {
 /// # Errors
 /// Returns an error if metadata cannot be loaded, files cannot be read/parsed,
 /// or the output file cannot be written.
-#[expect(clippy::too_many_lines, reason = "generate_workspace_ipc_methods is a long code generator function")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "generate_workspace_ipc_methods is a long code generator function"
+)]
 pub fn generate_workspace_ipc_methods(output_root: &Path) -> Result<()> {
     let metadata = MetadataCommand::new()
         .exec()
@@ -222,7 +225,10 @@ pub fn generate_workspace_ipc_methods(output_root: &Path) -> Result<()> {
 /// # Errors
 /// Returns an error if metadata cannot be loaded, files cannot be read/parsed,
 /// or any output file cannot be written.
-#[expect(clippy::too_many_lines, reason = "generate_ipc_service_boilerplate is a long code generator function")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "generate_ipc_service_boilerplate is a long code generator function"
+)]
 pub fn generate_ipc_service_boilerplate(output_root: &Path) -> Result<()> {
     let metadata = MetadataCommand::new()
         .exec()
@@ -899,7 +905,10 @@ fn write_workspace_dto_helpers(
     Ok(())
 }
 
-#[expect(clippy::needless_pass_by_value, reason = "original_type_path is cleaner with these parameters")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "original_type_path is cleaner with these parameters"
+)]
 fn original_type_path(d: &IpcDtoInfo, type_ident: &syn::Ident) -> String {
     let mut path = format!("::{}", d.original_crate_ident);
     if !d.original_type_module_path.is_empty() {
@@ -1373,7 +1382,10 @@ fn has_ipc_dto_attr(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "returns Result for consistency with other signature parsers")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "returns Result for consistency with other signature parsers"
+)]
 fn workspace_ipc_signature_from_item(
     item_fn: &syn::ItemFn,
 ) -> Result<Option<RenderedWorkspaceSignature>> {

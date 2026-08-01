@@ -45,7 +45,7 @@ pub fn not_excep_arr<T: ToString>(arr: &[T]) -> Result<bool> {
 /// Returns false if the result is not empty, or if the result is an Err other
 /// than an exception marker value.
 pub fn exc_or_empty(s: &Result<String>) -> Result<bool> {
-    if s.as_ref().map_or(false, String::is_empty) {
+    if s.as_ref().is_ok_and(String::is_empty) {
         Ok(true)
     } else {
         excep(s)
@@ -56,7 +56,16 @@ pub fn not_exc_or_empty(s: &Result<String>) -> Result<bool> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

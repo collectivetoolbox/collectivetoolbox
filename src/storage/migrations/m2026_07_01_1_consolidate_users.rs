@@ -1,10 +1,11 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::{Connection, Value};
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Users;
 pub const NAME: &str = "2026_07_01_1_consolidate_users";
-pub const DESCRIPTION: &str = "Consolidate fragmented user tables into a single users table";
+pub const DESCRIPTION: &str =
+    "Consolidate fragmented user tables into a single users table";
 pub const UP_SQL: Option<&str> = None;
 
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
@@ -85,13 +86,19 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     for (id, username) in user_records {
         let uuid = query_blob_helper(conn, "users_uuids", id).await?;
         let auth = query_text_helper(conn, "users_auth", id).await?;
-        let display_name = query_blob_helper(conn, "users_display_names", id).await?;
+        let display_name =
+            query_blob_helper(conn, "users_display_names", id).await?;
         let picture = query_blob_helper(conn, "users_pictures", id).await?;
-        let kek_params = query_blob_helper(conn, "users_key_encryption_key_params", id).await?;
-        let wrapped_dek = query_blob_helper(conn, "users_wrapped_dek", id).await?;
+        let kek_params =
+            query_blob_helper(conn, "users_key_encryption_key_params", id)
+                .await?;
+        let wrapped_dek =
+            query_blob_helper(conn, "users_wrapped_dek", id).await?;
         let pubkey = query_blob_helper(conn, "users_pubkeys", id).await?;
-        let subscription_expiry = query_int_helper(conn, "users_subscriptions", id).await?;
-        let token_quota = query_int_helper(conn, "users_token_quota", id).await?;
+        let subscription_expiry =
+            query_int_helper(conn, "users_subscriptions", id).await?;
+        let token_quota =
+            query_int_helper(conn, "users_token_quota", id).await?;
 
         conn.execute(
             "INSERT INTO users_new (id, username, uuid, auth, display_name, picture, key_encryption_key_params, wrapped_dek, pubkey, subscription_expiry, token_quota)
@@ -128,11 +135,13 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
         "users_token_quota",
     ];
     for table in tables_to_drop {
-        conn.execute(&format!("DROP TABLE IF EXISTS {}", table), ()).await?;
+        conn.execute(&format!("DROP TABLE IF EXISTS {table}"), ())
+            .await?;
     }
 
     // 6. Rename temporary table to users
-    conn.execute("ALTER TABLE users_new RENAME TO users", ()).await?;
+    conn.execute("ALTER TABLE users_new RENAME TO users", ())
+        .await?;
 
     // 7. Create index on username
     conn.execute(
@@ -144,10 +153,18 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-async fn query_blob_helper(conn: &Connection, table: &str, id: i64) -> Result<Option<Vec<u8>>> {
+async fn query_blob_helper(
+    conn: &Connection,
+    table: &str,
+    id: i64,
+) -> Result<Option<Vec<u8>>> {
     // Check if table exists first to avoid sqlite errors on clean environments
     let table_exists = {
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?1").await?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?1",
+            )
+            .await?;
         let mut rows = stmt.query((table,)).await?;
         rows.next().await?.is_some()
     };
@@ -155,7 +172,7 @@ async fn query_blob_helper(conn: &Connection, table: &str, id: i64) -> Result<Op
         return Ok(None);
     }
 
-    let sql = format!("SELECT value FROM {} WHERE key = ?1", table);
+    let sql = format!("SELECT value FROM {table} WHERE key = ?1");
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query((id,)).await?;
     if let Some(row) = rows.next().await? {
@@ -166,10 +183,18 @@ async fn query_blob_helper(conn: &Connection, table: &str, id: i64) -> Result<Op
     Ok(None)
 }
 
-async fn query_text_helper(conn: &Connection, table: &str, id: i64) -> Result<Option<String>> {
+async fn query_text_helper(
+    conn: &Connection,
+    table: &str,
+    id: i64,
+) -> Result<Option<String>> {
     // Check if table exists first
     let table_exists = {
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?1").await?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?1",
+            )
+            .await?;
         let mut rows = stmt.query((table,)).await?;
         rows.next().await?.is_some()
     };
@@ -177,7 +202,7 @@ async fn query_text_helper(conn: &Connection, table: &str, id: i64) -> Result<Op
         return Ok(None);
     }
 
-    let sql = format!("SELECT value FROM {} WHERE key = ?1", table);
+    let sql = format!("SELECT value FROM {table} WHERE key = ?1");
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query((id,)).await?;
     if let Some(row) = rows.next().await? {
@@ -188,9 +213,17 @@ async fn query_text_helper(conn: &Connection, table: &str, id: i64) -> Result<Op
     Ok(None)
 }
 
-async fn query_int_helper(conn: &Connection, table: &str, id: i64) -> Result<Option<i64>> {
+async fn query_int_helper(
+    conn: &Connection,
+    table: &str,
+    id: i64,
+) -> Result<Option<i64>> {
     let table_exists = {
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?1").await?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?1",
+            )
+            .await?;
         let mut rows = stmt.query((table,)).await?;
         rows.next().await?.is_some()
     };
@@ -198,7 +231,7 @@ async fn query_int_helper(conn: &Connection, table: &str, id: i64) -> Result<Opt
         return Ok(None);
     }
 
-    let sql = format!("SELECT value FROM {} WHERE key = ?1", table);
+    let sql = format!("SELECT value FROM {table} WHERE key = ?1");
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query((id,)).await?;
     if let Some(row) = rows.next().await? {

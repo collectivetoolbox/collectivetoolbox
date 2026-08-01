@@ -7,7 +7,11 @@ use crate::gui::access_key::AccessKeyButton;
 use crate::gui::modal::Modal;
 use crate::gui::theme::{get_fonts, update_theme};
 use crate::gui::utils::{GuiState, fill_most_of_screen};
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::path::PathBuf;
@@ -215,7 +219,11 @@ impl Default for InstallerApp {
 
 impl InstallerApp {
     /// Creates a new installer application.
-    #[allow(clippy::too_many_lines, clippy::needless_pass_by_value, reason = "large egui setup and config function")]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::needless_pass_by_value,
+        reason = "large egui setup and config function"
+    )]
     pub fn new(ctx: egui::Context) -> Self {
         let fonts = get_fonts();
         ctx.set_fonts(fonts);
@@ -1147,7 +1155,8 @@ impl InstallerApp {
                         .log(format!("  Using cached chunk {current}/{total}"));
                 }
                 DownloadEvent::FileAssembled { path, size } => {
-                    self.state.progress.files_completed = self.state.progress.files_completed.saturating_add(1);
+                    self.state.progress.files_completed =
+                        self.state.progress.files_completed.saturating_add(1);
                     if self.state.progress.total_files > 0 {
                         self.state.progress.overall_progress = progress_ratio(
                             self.state.progress.files_completed,
@@ -1488,7 +1497,16 @@ pub fn run_uninstall() -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -1509,7 +1527,10 @@ mod tests {
         let previous_wayland = std::env::var_os("WAYLAND_DISPLAY");
         let previous_session = std::env::var_os("XDG_SESSION_TYPE");
 
-        #[allow(unsafe_code, reason = "modifying environment variables in tests")]
+        #[allow(
+            unsafe_code,
+            reason = "modifying environment variables in tests"
+        )]
         // SAFETY: This is a single-threaded test environment where mutating environment variables is safe.
         unsafe {
             std::env::remove_var("DISPLAY");
@@ -1519,7 +1540,10 @@ mod tests {
 
         assert!(!should_preflight_x11());
 
-        #[allow(unsafe_code, reason = "modifying environment variables in tests")]
+        #[allow(
+            unsafe_code,
+            reason = "modifying environment variables in tests"
+        )]
         // SAFETY: This is a single-threaded test environment where mutating environment variables is safe.
         unsafe {
             if let Some(value) = previous_display {

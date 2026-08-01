@@ -1,10 +1,11 @@
+use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::{Connection, Value};
-use crate::migrations::DbSchemaType;
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Nodes;
 pub const NAME: &str = "2026_06_30_4_id_u128_blob";
-pub const DESCRIPTION: &str = "Convert node id and graph_id to 16-byte BLOB for u128 support";
+pub const DESCRIPTION: &str =
+    "Convert node id and graph_id to 16-byte BLOB for u128 support";
 pub const UP_SQL: Option<&str> = None;
 
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
@@ -23,7 +24,9 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     .await?;
 
     // 2. Fetch all nodes from the old nodes table (if it exists)
-    let mut stmt = conn.prepare("SELECT id, graph_id, type, data, checksum FROM nodes").await?;
+    let mut stmt = conn
+        .prepare("SELECT id, graph_id, type, data, checksum FROM nodes")
+        .await?;
     let mut rows = stmt.query(()).await?;
     let mut updates = Vec::new();
     while let Some(row) = rows.next().await? {
@@ -85,7 +88,8 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
 
     // 4. Swap tables
     conn.execute("DROP TABLE nodes", ()).await?;
-    conn.execute("ALTER TABLE nodes_new RENAME TO nodes", ()).await?;
+    conn.execute("ALTER TABLE nodes_new RENAME TO nodes", ())
+        .await?;
 
     // 5. Re-create index
     conn.execute(

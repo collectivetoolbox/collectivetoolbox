@@ -3,10 +3,10 @@
 //! Restricts setup requests to localhost and handles create-or-login operations.
 
 use axum::{
+    Json,
     extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -47,7 +47,9 @@ pub async fn post_setup_global_user(
                 let mut is_stale = false;
                 if let Ok(metadata) = std::fs::metadata(&token_file) {
                     if let Ok(modified) = metadata.modified() {
-                        if let Ok(elapsed) = std::time::SystemTime::now().duration_since(modified) {
+                        if let Ok(elapsed) = std::time::SystemTime::now()
+                            .duration_since(modified)
+                        {
                             if elapsed > std::time::Duration::from_secs(300) {
                                 is_stale = true;
                             }
@@ -56,11 +58,17 @@ pub async fn post_setup_global_user(
                 }
 
                 if is_stale {
-                    warn!("Rejecting setup token: file is stale (older than 5 minutes)");
+                    warn!(
+                        "Rejecting setup token: file is stale (older than 5 minutes)"
+                    );
                     let _ = std::fs::remove_file(&token_file);
-                } else if let Ok(stored_token) = std::fs::read_to_string(&token_file) {
+                } else if let Ok(stored_token) =
+                    std::fs::read_to_string(&token_file)
+                {
                     let stored_token = stored_token.trim();
-                    if !stored_token.is_empty() && stored_token == header_token.trim() {
+                    if !stored_token.is_empty()
+                        && stored_token == header_token.trim()
+                    {
                         authorized = true;
                     }
                     let _ = std::fs::remove_file(&token_file);
@@ -85,7 +93,13 @@ pub async fn post_setup_global_user(
     let duration_secs = 315_360_000; // 10 years
 
     let session_token = if user_exists {
-        match ctb_storage::user::login_user_async(&username, password_bytes, duration_secs).await {
+        match ctb_storage::user::login_user_async(
+            &username,
+            password_bytes,
+            duration_secs,
+        )
+        .await
+        {
             Ok(token) => token,
             Err(e) => {
                 error_fmt!("Failed to log in global user: {:?}", e);
@@ -97,7 +111,9 @@ pub async fn post_setup_global_user(
             &username,
             password_bytes,
             duration_secs,
-        ).await {
+        )
+        .await
+        {
             Ok(token) => token,
             Err(e) => {
                 error_fmt!("Failed to create global user: {:?}", e);
@@ -119,7 +135,16 @@ pub async fn post_setup_global_user(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::test_helpers::TestApp;
@@ -148,10 +173,9 @@ mod tests {
 
         // Insert non-loopback IP (e.g. 192.168.1.1)
         let mut req_non_local = req;
-        req_non_local.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [192, 168, 1, 1],
-            12345,
-        ))));
+        req_non_local
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([192, 168, 1, 1], 12345))));
 
         let resp = app.app.clone().oneshot(req_non_local).await.unwrap();
         assert_eq!(resp.status(), StatusCode::FORBIDDEN);
@@ -165,10 +189,9 @@ mod tests {
             .unwrap();
 
         let mut req_local = req_local;
-        req_local.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [127, 0, 0, 1],
-            12345,
-        ))));
+        req_local
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345))));
 
         let resp_local = app.app.clone().oneshot(req_local).await.unwrap();
         assert_eq!(resp_local.status(), StatusCode::OK);
@@ -197,10 +220,8 @@ mod tests {
             .unwrap();
 
         let mut req = req;
-        req.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [127, 0, 0, 1],
-            12345,
-        ))));
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345))));
 
         let resp = app.app.clone().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -217,7 +238,7 @@ mod tests {
             3600,
         )
         .await;
-        assert!(login_result.is_ok());
+        login_result.unwrap();
     }
 
     #[crate::ctb_test("tokio")]
@@ -245,10 +266,8 @@ mod tests {
             .unwrap();
 
         let mut req = req;
-        req.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [192, 168, 1, 1],
-            12345,
-        ))));
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([192, 168, 1, 1], 12345))));
 
         let resp = app.app.clone().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -269,21 +288,21 @@ mod tests {
             .unwrap();
 
         let mut req_no_token = req_no_token;
-        req_no_token.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [192, 168, 1, 1],
-            12345,
-        ))));
+        req_no_token
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([192, 168, 1, 1], 12345))));
 
-        let resp_no_token = app.app.clone().oneshot(req_no_token).await.unwrap();
+        let resp_no_token =
+            app.app.clone().oneshot(req_no_token).await.unwrap();
         assert_eq!(resp_no_token.status(), StatusCode::FORBIDDEN);
 
         // 3. Request with a stale token (mtime set to 10 minutes ago) should be rejected
         std::fs::write(&token_file, "my_secure_stale_token").unwrap();
         let path_str = token_file.to_str().unwrap();
         let status = std::process::Command::new("touch")
-            .args(&["-m", "-d", "10 minutes ago", path_str])
+            .args(["-m", "-d", "10 minutes ago", path_str])
             .status();
-        assert!(status.is_ok());
+        status.unwrap();
 
         let req_stale = Request::builder()
             .method(Method::POST)
@@ -294,10 +313,9 @@ mod tests {
             .unwrap();
 
         let mut req_stale = req_stale;
-        req_stale.extensions_mut().insert(ConnectInfo(SocketAddr::from((
-            [192, 168, 1, 1],
-            12345,
-        ))));
+        req_stale
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([192, 168, 1, 1], 12345))));
 
         let resp_stale = app.app.clone().oneshot(req_stale).await.unwrap();
         assert_eq!(resp_stale.status(), StatusCode::FORBIDDEN);

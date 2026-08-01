@@ -1,12 +1,16 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use ctb_formats_hexdump::hex2bin;
 
+use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
-use crate::dce_convert;
 
 pub fn convert_3_0a_to_dc(data: &[u8]) -> Result<String> {
     let hex = bin2hex(data);
@@ -43,7 +47,9 @@ pub fn convert_3_0a_to_dc(data: &[u8]) -> Result<String> {
     }
 
     if txt.len() >= 6 {
-        let sub = txt.get(3..txt.len().saturating_sub(3)).context("substring slice")?;
+        let sub = txt
+            .get(3..txt.len().saturating_sub(3))
+            .context("substring slice")?;
         txt = sub.to_string();
     } else {
         txt.clear();
@@ -59,7 +65,8 @@ pub fn convert_3_0a_raw_to_dc(data: &[u8]) -> Result<String> {
     }
 
     let mut wrapped = Vec::with_capacity(data.len().saturating_add(10));
-    wrapped.extend_from_slice(&[0x44, 0x43, 0x45, 0x65, 0x02, 0x01, 0x01, 0xFD]);
+    wrapped
+        .extend_from_slice(&[0x44, 0x43, 0x45, 0x65, 0x02, 0x01, 0x01, 0xFD]);
     wrapped.extend_from_slice(data);
     wrapped.extend_from_slice(&[0xFD, 0x03]);
 
@@ -79,15 +86,18 @@ pub fn convert_dc_to_3_0a_output(data: &str) -> Result<Vec<u8>> {
     }
     hex_str.push_str("81fd03");
 
-    let bytes = hex2bin(&hex_str)
-        .map_err(|e| anyhow!("Failed to encode hex in 3_0a serialization: {e}"))?;
+    let bytes = hex2bin(&hex_str).map_err(|e| {
+        anyhow!("Failed to encode hex in 3_0a serialization: {e}")
+    })?;
     Ok(bytes)
 }
 
 pub fn convert_dc_to_3_0a_raw_output(data: &str) -> Result<Vec<u8>> {
     let full = dce_convert(data.as_bytes(), "dc", "3_0a")?;
     if full.len() >= 12 {
-        let sub = full.get(9..full.len().saturating_sub(3)).context("substring slice")?;
+        let sub = full
+            .get(9..full.len().saturating_sub(3))
+            .context("substring slice")?;
         Ok(sub.to_vec())
     } else {
         bail!("Output too short")

@@ -251,16 +251,18 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         },
         1 => {
             let ty0 = decode_param_tys.first();
-            let id0 =
-                if matches!(param_transport.first(), Some(IpcParamTransport::DataPlane)) {
-                    dp_tmp_idents.first()
-                } else if param_tys.first().is_some_and(is_ref_to_str)
-                    || param_tys.first().is_some_and(is_ref_to_slice_u8)
-                {
-                    inline_tmp_idents.first()
-                } else {
-                    arg_idents.first()
-                };
+            let id0 = if matches!(
+                param_transport.first(),
+                Some(IpcParamTransport::DataPlane)
+            ) {
+                dp_tmp_idents.first()
+            } else if param_tys.first().is_some_and(is_ref_to_str)
+                || param_tys.first().is_some_and(is_ref_to_slice_u8)
+            {
+                inline_tmp_idents.first()
+            } else {
+                arg_idents.first()
+            };
             quote! {
                 let #id0: #ty0 = ::ctb_utilities::postcard::from_bytes(__ctb_ipc_args)?;
             }
@@ -268,7 +270,10 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => {
             let tuple_ty = quote! { ( #(#decode_param_tys),* ) };
             let tuple_bindings = (0..decode_param_tys.len()).map(|i| {
-                if matches!(param_transport.get(i), Some(IpcParamTransport::DataPlane)) {
+                if matches!(
+                    param_transport.get(i),
+                    Some(IpcParamTransport::DataPlane)
+                ) {
                     let id = dp_tmp_idents.get(i);
                     quote!(#id)
                 } else if param_tys.get(i).is_some_and(is_ref_to_str)

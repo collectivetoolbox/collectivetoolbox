@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 //! Film feet+frames helpers for 35mm 4-perf (16 frames per foot).
 
-#[allow(unused_imports, reason = "imported module dependencies")]
+#[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 
 const FRAMES_PER_FOOT_35MM: i64 = 16;
@@ -98,7 +98,16 @@ fn parse_feet_plus_frames(s: &str) -> Result<(i64, i64)> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 

@@ -8,7 +8,11 @@
 //!   on Mac)
 //! - OK and Cancel buttons
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::gui::access_key::AccessKeyButton;
@@ -475,8 +479,10 @@ impl FilePicker {
             // Select the next directory in the path (if any)
             if i.saturating_add(1) < chain.len() {
                 if let Some(next_path) = chain.get(i.saturating_add(1)) {
-                    column.selected =
-                        column.entries.iter().position(|e| e.path == *next_path);
+                    column.selected = column
+                        .entries
+                        .iter()
+                        .position(|e| e.path == *next_path);
                 }
             }
 
@@ -523,7 +529,8 @@ impl FilePicker {
             return;
         }
 
-        let current_selected = self.columns.get(col_idx).and_then(|col| col.selected);
+        let current_selected =
+            self.columns.get(col_idx).and_then(|col| col.selected);
         let current_pos = current_selected
             .and_then(|idx| selectable.iter().position(|s| *s == idx));
 
@@ -536,7 +543,9 @@ impl FilePicker {
                 }
             }
             (Some(pos), -1) => pos.saturating_sub(1),
-            (Some(pos), 1) => (pos.saturating_add(1)).min(selectable.len().saturating_sub(1)),
+            (Some(pos), 1) => {
+                (pos.saturating_add(1)).min(selectable.len().saturating_sub(1))
+            }
             (Some(pos), _) => pos,
         };
 
@@ -563,11 +572,15 @@ impl FilePicker {
         }
 
         let current_col = self.active_column_idx;
-        let Some(selected_idx) = self.columns.get(current_col).and_then(|col| col.selected) else {
+        let Some(selected_idx) =
+            self.columns.get(current_col).and_then(|col| col.selected)
+        else {
             return;
         };
-        let Some(selected_entry) =
-            self.columns.get(current_col).and_then(|col| col.entries.get(selected_idx))
+        let Some(selected_entry) = self
+            .columns
+            .get(current_col)
+            .and_then(|col| col.entries.get(selected_idx))
         else {
             return;
         };
@@ -575,8 +588,14 @@ impl FilePicker {
             return;
         }
 
-        self.active_column_idx = (self.active_column_idx.saturating_add(1)).min(last_col_idx);
-        if self.columns.get(self.active_column_idx).and_then(|col| col.selected).is_none() {
+        self.active_column_idx =
+            (self.active_column_idx.saturating_add(1)).min(last_col_idx);
+        if self
+            .columns
+            .get(self.active_column_idx)
+            .and_then(|col| col.selected)
+            .is_none()
+        {
             if let Some(first) =
                 self.first_selectable_entry_index(self.active_column_idx)
             {
@@ -794,7 +813,12 @@ impl FilePicker {
             if self.active_column_idx > last_col_idx {
                 self.active_column_idx = last_col_idx;
             }
-            if self.columns.get(self.active_column_idx).and_then(|col| col.selected).is_none() {
+            if self
+                .columns
+                .get(self.active_column_idx)
+                .and_then(|col| col.selected)
+                .is_none()
+            {
                 if let Some(first) =
                     self.first_selectable_entry_index(self.active_column_idx)
                 {
@@ -1261,7 +1285,9 @@ impl FilePicker {
         width: f32,
         height: f32,
     ) {
-        let Some(col) = self.columns.get(col_idx) else { return; };
+        let Some(col) = self.columns.get(col_idx) else {
+            return;
+        };
         let entries = col.entries.clone();
         let selected = col.selected;
         let path = col.path.clone();
@@ -1383,8 +1409,12 @@ impl FilePicker {
 
     /// Handles a single click on an entry.
     fn handle_entry_click(&mut self, col_idx: usize, entry_idx: usize) {
-        let Some(col) = self.columns.get(col_idx) else { return; };
-        let Some(entry) = col.entries.get(entry_idx).cloned() else { return; };
+        let Some(col) = self.columns.get(col_idx) else {
+            return;
+        };
+        let Some(entry) = col.entries.get(entry_idx).cloned() else {
+            return;
+        };
 
         // In folder-selection mode, keep files visible but non-interactive.
         if self.mode == FilePickerMode::SelectFolder && !entry.is_dir {
@@ -1412,8 +1442,12 @@ impl FilePicker {
 
     /// Handles a double click on an entry.
     fn handle_entry_double_click(&mut self, col_idx: usize, entry_idx: usize) {
-        let Some(col) = self.columns.get(col_idx) else { return; };
-        let Some(entry) = col.entries.get(entry_idx).cloned() else { return; };
+        let Some(col) = self.columns.get(col_idx) else {
+            return;
+        };
+        let Some(entry) = col.entries.get(entry_idx).cloned() else {
+            return;
+        };
 
         if entry.is_dir {
             self.navigate_to(&entry.path, true);
@@ -1683,7 +1717,16 @@ impl Clone for FilePicker {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

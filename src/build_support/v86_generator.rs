@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-/// Flag bit definitions corresponding to x86 flags in x86_table.js.
+/// Flag bit definitions corresponding to x86 flags in `x86_table.js`.
 pub const FLAG_CF: u32 = 1 << 0;
 pub const FLAG_PF: u32 = 1 << 2;
 pub const FLAG_AF: u32 = 1 << 4;
@@ -22,7 +22,7 @@ pub const FLAG_ZF: u32 = 1 << 6;
 pub const FLAG_SF: u32 = 1 << 7;
 pub const FLAG_OF: u32 = 1 << 11;
 
-/// Structure representing an instruction encoding entry from x86_table.js.
+/// Structure representing an instruction encoding entry from `x86_table.js`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Encoding {
     pub opcode: u32,
@@ -137,10 +137,14 @@ pub fn print_syntax_tree(nodes: &[AstNode]) -> Vec<String> {
 }
 
 fn hex_str(n: u32, pad: usize) -> String {
-    format!("{n:0width$X}", width = pad)
+    format!("{n:0pad$X}")
 }
 
-fn make_instruction_name(encoding: &Encoding, size: u32, is_interp: bool) -> String {
+fn make_instruction_name(
+    encoding: &Encoding,
+    size: u32,
+    is_interp: bool,
+) -> String {
     let suffix = if encoding.os {
         size.to_string()
     } else {
@@ -157,7 +161,9 @@ fn make_instruction_name(encoding: &Encoding, size: u32, is_interp: bool) -> Str
     } else {
         hex_str((encoding.opcode >> 16) & 0xFF, 2)
     };
-    let fixed_g_suffix = encoding.fixed_g.map_or_else(String::new, |g| format!("_{g}"));
+    let fixed_g_suffix = encoding
+        .fixed_g
+        .map_or_else(String::new, |g| format!("_{g}"));
 
     if is_interp {
         let module = if first_prefix == "0F" || second_prefix == "0F" {
@@ -165,13 +171,17 @@ fn make_instruction_name(encoding: &Encoding, size: u32, is_interp: bool) -> Str
         } else {
             "instructions"
         };
-        format!("{module}::instr{suffix}_{second_prefix}{first_prefix}{opcode_hex}{fixed_g_suffix}")
+        format!(
+            "{module}::instr{suffix}_{second_prefix}{first_prefix}{opcode_hex}{fixed_g_suffix}"
+        )
     } else {
-        format!("instr{suffix}_{second_prefix}{first_prefix}{opcode_hex}{fixed_g_suffix}")
+        format!(
+            "instr{suffix}_{second_prefix}{first_prefix}{opcode_hex}{fixed_g_suffix}"
+        )
     }
 }
 
-/// Parse flag expressions in x86_table.js (e.g., `of | sf | pf | zf`).
+/// Parse flag expressions in `x86_table.js` (e.g., `of | sf | pf | zf`).
 fn parse_flags_expr(expr: &str) -> Option<u32> {
     let expr = expr.trim();
     if expr.contains("TESTS_ASSUME_INTEL") {
@@ -194,7 +204,7 @@ fn parse_flags_expr(expr: &str) -> Option<u32> {
     if mask > 0 { Some(mask) } else { None }
 }
 
-/// Parse x86_table.js instruction definitions into a sorted list of `Encoding`s.
+/// Parse `x86_table.js` instruction definitions into a sorted list of `Encoding`s.
 pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
     let mut encodings = Vec::new();
     let mut in_array = false;
@@ -225,13 +235,20 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
                 }
                 let mut parts = kv.splitn(2, ':');
                 let key = parts.next().unwrap_or("").trim();
-                let val = parts.next().unwrap_or("").trim().trim_end_matches('}').trim();
+                let val = parts
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .trim_end_matches('}')
+                    .trim();
                 match key {
                     "opcode" => {
                         let op_str = val.trim_start_matches("0x");
                         enc.opcode = u32::from_str_radix(op_str, 16)
                             .or_else(|_| val.parse::<u32>())
-                            .with_context(|| format!("Failed to parse opcode '{val}'"))?;
+                            .with_context(|| {
+                                format!("Failed to parse opcode '{val}'")
+                            })?;
                     }
                     "os" => enc.os = val == "1",
                     "e" => enc.e = val == "1",
@@ -240,7 +257,9 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
                     }
                     "custom" => enc.custom = val == "1",
                     "block_boundary" => enc.block_boundary = val == "1",
-                    "no_next_instruction" => enc.no_next_instruction = val == "1",
+                    "no_next_instruction" => {
+                        enc.no_next_instruction = val == "1"
+                    }
                     "no_block_boundary_in_interpreted" => {
                         enc.no_block_boundary_in_interpreted = val == "1";
                     }
@@ -262,7 +281,9 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
                     "reg_ud" => enc.reg_ud = val == "1",
                     "mem_ud" => enc.mem_ud = val == "1",
                     "ignore_mod" => enc.ignore_mod = val == "1",
-                    "custom_modrm_resolve" => enc.custom_modrm_resolve = val == "1",
+                    "custom_modrm_resolve" => {
+                        enc.custom_modrm_resolve = val == "1"
+                    }
                     "custom_sti" => enc.custom_sti = val == "1",
                     "task_switch_test" => enc.task_switch_test = val == "1",
                     "sse" => enc.sse = val == "1",
@@ -276,18 +297,71 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
     // Expand loop opcodes (i = 0..8) matching x86_table.js lines 821-866
     for i in 0_u32..8_u32 {
         let i_u8 = u8::try_from(i)?;
-        encodings.push(Encoding { opcode: i << 3, custom: true, e: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x01 | (i << 3), custom: true, os: true, e: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x02 | (i << 3), custom: true, e: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x03 | (i << 3), custom: true, os: true, e: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x04 | (i << 3), custom: true, imm8: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x05 | (i << 3), custom: true, os: true, imm1632: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: i << 3,
+            custom: true,
+            e: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x01 | (i << 3),
+            custom: true,
+            os: true,
+            e: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x02 | (i << 3),
+            custom: true,
+            e: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x03 | (i << 3),
+            custom: true,
+            os: true,
+            e: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x04 | (i << 3),
+            custom: true,
+            imm8: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x05 | (i << 3),
+            custom: true,
+            os: true,
+            imm1632: true,
+            ..Default::default()
+        });
 
-        encodings.push(Encoding { opcode: 0x40 | i, os: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x48 | i, os: true, custom: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0x40 | i,
+            os: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x48 | i,
+            os: true,
+            custom: true,
+            ..Default::default()
+        });
 
-        encodings.push(Encoding { opcode: 0x50 | i, custom: true, os: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x58 | i, custom: true, os: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0x50 | i,
+            custom: true,
+            os: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x58 | i,
+            custom: true,
+            os: true,
+            ..Default::default()
+        });
 
         encodings.push(Encoding {
             opcode: 0x70 | i,
@@ -314,23 +388,123 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
             ..Default::default()
         });
 
-        encodings.push(Encoding { opcode: 0x80, e: true, fixed_g: Some(i_u8), imm8: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x81, os: true, e: true, fixed_g: Some(i_u8), imm1632: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x82, e: true, fixed_g: Some(i_u8), imm8: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x83, os: true, e: true, fixed_g: Some(i_u8), imm8s: true, custom: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0x80,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm8: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x81,
+            os: true,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm1632: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x82,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm8: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x83,
+            os: true,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm8s: true,
+            custom: true,
+            ..Default::default()
+        });
 
-        encodings.push(Encoding { opcode: 0xB0 | i, custom: true, imm8: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xB8 | i, custom: true, os: true, imm1632: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0xB0 | i,
+            custom: true,
+            imm8: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xB8 | i,
+            custom: true,
+            os: true,
+            imm1632: true,
+            ..Default::default()
+        });
 
-        encodings.push(Encoding { opcode: 0xC0, e: true, fixed_g: Some(i_u8), imm8: true, mask_flags: Some(FLAG_OF | FLAG_AF), custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xC1, os: true, e: true, fixed_g: Some(i_u8), imm8: true, mask_flags: Some(FLAG_OF | FLAG_AF), custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xD0, e: true, fixed_g: Some(i_u8), mask_flags: Some(FLAG_AF), custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xD1, os: true, e: true, fixed_g: Some(i_u8), mask_flags: Some(FLAG_AF), custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xD2, e: true, fixed_g: Some(i_u8), mask_flags: Some(FLAG_OF | FLAG_AF), custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0xD3, os: true, e: true, fixed_g: Some(i_u8), mask_flags: Some(FLAG_OF | FLAG_AF), custom: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0xC0,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm8: true,
+            mask_flags: Some(FLAG_OF | FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xC1,
+            os: true,
+            e: true,
+            fixed_g: Some(i_u8),
+            imm8: true,
+            mask_flags: Some(FLAG_OF | FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xD0,
+            e: true,
+            fixed_g: Some(i_u8),
+            mask_flags: Some(FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xD1,
+            os: true,
+            e: true,
+            fixed_g: Some(i_u8),
+            mask_flags: Some(FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xD2,
+            e: true,
+            fixed_g: Some(i_u8),
+            mask_flags: Some(FLAG_OF | FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0xD3,
+            os: true,
+            e: true,
+            fixed_g: Some(i_u8),
+            mask_flags: Some(FLAG_OF | FLAG_AF),
+            custom: true,
+            ..Default::default()
+        });
 
-        encodings.push(Encoding { opcode: 0x0F40 | i, e: true, os: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x0F48 | i, e: true, os: true, custom: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0x0F40 | i,
+            e: true,
+            os: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x0F48 | i,
+            e: true,
+            os: true,
+            custom: true,
+            ..Default::default()
+        });
 
         encodings.push(Encoding {
             opcode: 0x0F80 | i,
@@ -357,14 +531,32 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
             ..Default::default()
         });
 
-        encodings.push(Encoding { opcode: 0x0F90 | i, e: true, custom: true, ..Default::default() });
-        encodings.push(Encoding { opcode: 0x0F98 | i, e: true, custom: true, ..Default::default() });
+        encodings.push(Encoding {
+            opcode: 0x0F90 | i,
+            e: true,
+            custom: true,
+            ..Default::default()
+        });
+        encodings.push(Encoding {
+            opcode: 0x0F98 | i,
+            e: true,
+            custom: true,
+            ..Default::default()
+        });
     }
 
     // Sort matching x86_table.js lines 868-872
     encodings.sort_by(|e1, e2| {
-        let o1 = if (e1.opcode & 0xFF00) == 0x0F00 { e1.opcode & 0xFFFF } else { e1.opcode & 0xFF };
-        let o2 = if (e2.opcode & 0xFF00) == 0x0F00 { e2.opcode & 0xFFFF } else { e2.opcode & 0xFF };
+        let o1 = if (e1.opcode & 0xFF00) == 0x0F00 {
+            e1.opcode & 0xFFFF
+        } else {
+            e1.opcode & 0xFF
+        };
+        let o2 = if (e2.opcode & 0xFF00) == 0x0F00 {
+            e2.opcode & 0xFFFF
+        } else {
+            e2.opcode & 0xFF
+        };
         let g1 = e1.fixed_g.map_or(255_u8, |g| g);
         let g2 = e2.fixed_g.map_or(255_u8, |g| g);
         o1.cmp(&o2).then_with(|| g1.cmp(&g2))
@@ -374,10 +566,19 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
 }
 
 /// Generate `interpreter.rs` or `interpreter0f.rs` Rust code.
-pub fn generate_interpreter(encodings: &[Encoding], is_0f: bool) -> Result<String> {
+pub fn generate_interpreter(
+    encodings: &[Encoding],
+    is_0f: bool,
+) -> Result<String> {
     let filtered: Vec<&Encoding> = encodings
         .iter()
-        .filter(|e| if is_0f { (e.opcode & 0xFF00) == 0x0F00 } else { (e.opcode & 0xFF00) != 0x0F00 })
+        .filter(|e| {
+            if is_0f {
+                (e.opcode & 0xFF00) == 0x0F00
+            } else {
+                (e.opcode & 0xFF00) != 0x0F00
+            }
+        })
         .collect();
 
     let mut groups: BTreeMap<u32, Vec<&Encoding>> = BTreeMap::new();
@@ -408,7 +609,10 @@ pub fn generate_interpreter(encodings: &[Encoding], is_0f: bool) -> Result<Strin
             cases.push((vec![format!("0x{opcode_high_hex}")], body_32));
         } else {
             let body = gen_interp_instruction_body(group, 32);
-            cases.push((vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")], body));
+            cases.push((
+                vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")],
+                body,
+            ));
         }
     }
 
@@ -417,9 +621,7 @@ pub fn generate_interpreter(encodings: &[Encoding], is_0f: bool) -> Result<Strin
         cases,
         default_case: Some((
             "_".to_string(),
-            vec![
-                AstNode::Stmt("assert!(false);".to_string()),
-            ],
+            vec![AstNode::Stmt("assert!(false);".to_string())],
         )),
     };
 
@@ -478,7 +680,10 @@ fn gen_interp_read_imm_call(op: &Encoding, size: u32) -> Option<String> {
     }
 }
 
-fn gen_interp_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_interp_instruction_body(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -501,7 +706,10 @@ fn gen_interp_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNod
 
     let mut code = Vec::new();
     if enc0.e {
-        code.push(AstNode::Stmt(format!("let modrm_byte = {};", wrap_imm_call("read_imm8()"))));
+        code.push(AstNode::Stmt(format!(
+            "let modrm_byte = {};",
+            wrap_imm_call("read_imm8()")
+        )));
     }
 
     if !has_66.is_empty() || !has_f2.is_empty() || !has_f3.is_empty() {
@@ -529,9 +737,9 @@ fn gen_interp_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNod
         } else {
             "(prefix::PREFIX_F2 | prefix::PREFIX_F3)"
         };
-        let mut else_body = vec![
-            AstNode::Stmt(format!("dbg_assert!((prefixes_ & {check_prefixes}) == 0);")),
-        ];
+        let mut else_body = vec![AstNode::Stmt(format!(
+            "dbg_assert!((prefixes_ & {check_prefixes}) == 0);"
+        ))];
         else_body.extend(gen_interp_body_after_prefix(&no_prefix, size));
         code.insert(0, AstNode::Stmt("let prefixes_ = *prefixes;".to_string()));
         code.push(AstNode::IfElse {
@@ -544,7 +752,10 @@ fn gen_interp_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNod
     code
 }
 
-fn gen_interp_body_after_prefix(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_interp_body_after_prefix(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -586,14 +797,19 @@ fn gen_interp_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
             "!task_switch_test()"
         };
         code.push(AstNode::IfElse {
-            if_blocks: vec![(cond.to_string(), vec![AstNode::Stmt("return;".to_string())])],
+            if_blocks: vec![(
+                cond.to_string(),
+                vec![AstNode::Stmt("return;".to_string())],
+            )],
             else_block: None,
         });
     }
 
     if encoding.e {
         if encoding.ignore_mod {
-            code.push(AstNode::Stmt(format!("{name}(modrm_byte & 7, modrm_byte >> 3 & 7);")));
+            code.push(AstNode::Stmt(format!(
+                "{name}(modrm_byte & 7, modrm_byte >> 3 & 7);"
+            )));
         } else {
             let mem_resolve = "match modrm_resolve(modrm_byte) { Ok(a) => a, Err(()) => return }";
             let mut mem_args = Vec::new();
@@ -614,7 +830,10 @@ fn gen_interp_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
             let mem_call = format!("{name}_mem({});", mem_args.join(", "));
             let reg_call = format!("{name}_reg({});", reg_args.join(", "));
             code.push(AstNode::IfElse {
-                if_blocks: vec![("modrm_byte < 0xC0".to_string(), vec![AstNode::Stmt(mem_call)])],
+                if_blocks: vec![(
+                    "modrm_byte < 0xC0".to_string(),
+                    vec![AstNode::Stmt(mem_call)],
+                )],
                 else_block: Some(vec![AstNode::Stmt(reg_call)]),
             });
         }
@@ -631,17 +850,28 @@ fn gen_interp_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
         code.push(AstNode::Stmt(format!("{name}({});", args.join(", "))));
     }
 
-    if (encoding.block_boundary && !encoding.no_block_boundary_in_interpreted) || (!encoding.custom && encoding.e) {
+    if (encoding.block_boundary && !encoding.no_block_boundary_in_interpreted)
+        || (!encoding.custom && encoding.e)
+    {
         code.push(AstNode::Stmt("after_block_boundary();".to_string()));
     }
     code
 }
 
 /// Generate `analyzer.rs` or `analyzer0f.rs` Rust code.
-pub fn generate_analyzer(encodings: &[Encoding], is_0f: bool) -> Result<String> {
+pub fn generate_analyzer(
+    encodings: &[Encoding],
+    is_0f: bool,
+) -> Result<String> {
     let filtered: Vec<&Encoding> = encodings
         .iter()
-        .filter(|e| if is_0f { (e.opcode & 0xFF00) == 0x0F00 } else { (e.opcode & 0xFF00) != 0x0F00 })
+        .filter(|e| {
+            if is_0f {
+                (e.opcode & 0xFF00) == 0x0F00
+            } else {
+                (e.opcode & 0xFF00) != 0x0F00
+            }
+        })
         .collect();
 
     let mut groups: BTreeMap<u32, Vec<&Encoding>> = BTreeMap::new();
@@ -672,7 +902,10 @@ pub fn generate_analyzer(encodings: &[Encoding], is_0f: bool) -> Result<String> 
             cases.push((vec![format!("0x{opcode_high_hex}")], body_32));
         } else {
             let body = gen_analyzer_instruction_body(group, 32);
-            cases.push((vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")], body));
+            cases.push((
+                vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")],
+                body,
+            ));
         }
     }
 
@@ -681,9 +914,7 @@ pub fn generate_analyzer(encodings: &[Encoding], is_0f: bool) -> Result<String> 
         cases,
         default_case: Some((
             "_".to_string(),
-            vec![
-                AstNode::Stmt("dbg_assert!(false);".to_string()),
-            ],
+            vec![AstNode::Stmt("dbg_assert!(false);".to_string())],
         )),
     };
 
@@ -714,7 +945,10 @@ pub fn generate_analyzer(encodings: &[Encoding], is_0f: bool) -> Result<String> 
     Ok(code_lines.join("\n"))
 }
 
-fn gen_analyzer_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_analyzer_instruction_body(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -737,7 +971,9 @@ fn gen_analyzer_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstN
 
     let mut code = Vec::new();
     if enc0.e {
-        code.push(AstNode::Stmt("let modrm_byte = cpu.read_imm8();".to_string()));
+        code.push(AstNode::Stmt(
+            "let modrm_byte = cpu.read_imm8();".to_string(),
+        ));
     }
 
     if !has_66.is_empty() || !has_f2.is_empty() || !has_f3.is_empty() {
@@ -771,7 +1007,10 @@ fn gen_analyzer_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstN
     code
 }
 
-fn gen_analyzer_body_after_prefix(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_analyzer_body_after_prefix(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -788,8 +1027,13 @@ fn gen_analyzer_body_after_prefix(encodings: &[&Encoding], size: u32) -> Vec<Ast
             default_case: Some((
                 "_".to_string(),
                 vec![
-                    AstNode::Stmt("analysis.ty = analysis::AnalysisType::BlockBoundary;".to_string()),
-                    AstNode::Stmt("analysis.no_next_instruction = true;".to_string()),
+                    AstNode::Stmt(
+                        "analysis.ty = analysis::AnalysisType::BlockBoundary;"
+                            .to_string(),
+                    ),
+                    AstNode::Stmt(
+                        "analysis.no_next_instruction = true;".to_string(),
+                    ),
                 ],
             )),
         }]
@@ -822,19 +1066,28 @@ fn gen_analyzer_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
     let imm_read = gen_analyzer_read_imm_call(encoding, size);
 
     if encoding.prefix {
-        let name = format!("analysis::{}_analyze", make_instruction_name(encoding, size, false));
+        let name = format!(
+            "analysis::{}_analyze",
+            make_instruction_name(encoding, size, false)
+        );
         code.push(AstNode::Stmt(format!("{name}(cpu, analysis);")));
     } else if encoding.e {
         if !encoding.ignore_mod {
-            let mut mem_body = vec![
-                AstNode::Stmt("analysis::modrm_analyze(cpu, modrm_byte);".to_string()),
-            ];
+            let mut mem_body = vec![AstNode::Stmt(
+                "analysis::modrm_analyze(cpu, modrm_byte);".to_string(),
+            )];
             if encoding.mem_ud {
-                mem_body.push(AstNode::Stmt("analysis.ty = analysis::AnalysisType::BlockBoundary;".to_string()));
+                mem_body.push(AstNode::Stmt(
+                    "analysis.ty = analysis::AnalysisType::BlockBoundary;"
+                        .to_string(),
+                ));
             }
             let mut reg_body = Vec::new();
             if encoding.reg_ud {
-                reg_body.push(AstNode::Stmt("analysis.ty = analysis::AnalysisType::BlockBoundary;".to_string()));
+                reg_body.push(AstNode::Stmt(
+                    "analysis.ty = analysis::AnalysisType::BlockBoundary;"
+                        .to_string(),
+                ));
             }
             code.push(AstNode::IfElse {
                 if_blocks: vec![("modrm_byte < 0xC0".to_string(), mem_body)],
@@ -870,12 +1123,20 @@ fn gen_analyzer_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
     }
 
     if encoding.custom_sti {
-        code.push(AstNode::Stmt("analysis.ty = analysis::AnalysisType::STI;".to_string()));
-    } else if (encoding.block_boundary && !encoding.jump_offset_imm) || (!encoding.custom && encoding.e) {
-        code.push(AstNode::Stmt("analysis.ty = analysis::AnalysisType::BlockBoundary;".to_string()));
+        code.push(AstNode::Stmt(
+            "analysis.ty = analysis::AnalysisType::STI;".to_string(),
+        ));
+    } else if (encoding.block_boundary && !encoding.jump_offset_imm)
+        || (!encoding.custom && encoding.e)
+    {
+        code.push(AstNode::Stmt(
+            "analysis.ty = analysis::AnalysisType::BlockBoundary;".to_string(),
+        ));
     }
     if encoding.no_next_instruction {
-        code.push(AstNode::Stmt("analysis.no_next_instruction = true;".to_string()));
+        code.push(AstNode::Stmt(
+            "analysis.no_next_instruction = true;".to_string(),
+        ));
     }
     if encoding.absolute_jump {
         code.push(AstNode::Stmt("analysis.absolute_jump = true;".to_string()));
@@ -887,7 +1148,13 @@ fn gen_analyzer_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
 pub fn generate_jit(encodings: &[Encoding], is_0f: bool) -> Result<String> {
     let filtered: Vec<&Encoding> = encodings
         .iter()
-        .filter(|e| if is_0f { (e.opcode & 0xFF00) == 0x0F00 } else { (e.opcode & 0xFF00) != 0x0F00 })
+        .filter(|e| {
+            if is_0f {
+                (e.opcode & 0xFF00) == 0x0F00
+            } else {
+                (e.opcode & 0xFF00) != 0x0F00
+            }
+        })
         .collect();
 
     let mut groups: BTreeMap<u32, Vec<&Encoding>> = BTreeMap::new();
@@ -918,7 +1185,10 @@ pub fn generate_jit(encodings: &[Encoding], is_0f: bool) -> Result<String> {
             cases.push((vec![format!("0x{opcode_high_hex}")], body_32));
         } else {
             let body = gen_jit_instruction_body(group, 32);
-            cases.push((vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")], body));
+            cases.push((
+                vec![format!("0x{opcode_hex}"), format!("0x{opcode_high_hex}")],
+                body,
+            ));
         }
     }
 
@@ -927,9 +1197,7 @@ pub fn generate_jit(encodings: &[Encoding], is_0f: bool) -> Result<String> {
         cases,
         default_case: Some((
             "_".to_string(),
-            vec![
-                AstNode::Stmt("assert!(false);".to_string()),
-            ],
+            vec![AstNode::Stmt("assert!(false);".to_string())],
         )),
     };
 
@@ -951,7 +1219,10 @@ pub fn generate_jit(encodings: &[Encoding], is_0f: bool) -> Result<String> {
     Ok(code_lines.join("\n"))
 }
 
-fn gen_jit_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_jit_instruction_body(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -974,7 +1245,9 @@ fn gen_jit_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNode> 
 
     let mut code = Vec::new();
     if enc0.e {
-        code.push(AstNode::Stmt("let modrm_byte = ctx.cpu.read_imm8();".to_string()));
+        code.push(AstNode::Stmt(
+            "let modrm_byte = ctx.cpu.read_imm8();".to_string(),
+        ));
     }
 
     if !has_66.is_empty() || !has_f2.is_empty() || !has_f3.is_empty() {
@@ -1008,7 +1281,10 @@ fn gen_jit_instruction_body(encodings: &[&Encoding], size: u32) -> Vec<AstNode> 
     code
 }
 
-fn gen_jit_body_after_prefix(encodings: &[&Encoding], size: u32) -> Vec<AstNode> {
+fn gen_jit_body_after_prefix(
+    encodings: &[&Encoding],
+    size: u32,
+) -> Vec<AstNode> {
     let Some(&enc0) = encodings.first() else {
         return Vec::new();
     };
@@ -1026,7 +1302,10 @@ fn gen_jit_body_after_prefix(encodings: &[&Encoding], size: u32) -> Vec<AstNode>
                 "_".to_string(),
                 vec![
                     AstNode::Stmt("codegen::gen_trigger_ud(ctx);".to_string()),
-                    AstNode::Stmt("*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;".to_string()),
+                    AstNode::Stmt(
+                        "*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;"
+                            .to_string(),
+                    ),
                 ],
             )),
         }]
@@ -1063,7 +1342,9 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
     let mut instruction_postfix = Vec::new();
 
     if encoding.block_boundary || (!encoding.custom && encoding.e) {
-        instruction_postfix.push(AstNode::Stmt("*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;".to_string()));
+        instruction_postfix.push(AstNode::Stmt(
+            "*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;".to_string(),
+        ));
     }
 
     if encoding.task_switch_test || encoding.sse {
@@ -1077,8 +1358,14 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
 
     if !encoding.prefix {
         if !encoding.custom {
-            instruction_prefix.push(AstNode::Stmt("codegen::gen_move_registers_from_locals_to_memory(ctx);".to_string()));
-            instruction_postfix.push(AstNode::Stmt("codegen::gen_move_registers_from_memory_to_locals(ctx);".to_string()));
+            instruction_prefix.push(AstNode::Stmt(
+                "codegen::gen_move_registers_from_locals_to_memory(ctx);"
+                    .to_string(),
+            ));
+            instruction_postfix.push(AstNode::Stmt(
+                "codegen::gen_move_registers_from_memory_to_locals(ctx);"
+                    .to_string(),
+            ));
         }
     }
 
@@ -1093,19 +1380,35 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
         let mut mem_postfix = Vec::new();
         let mut reg_postfix = Vec::new();
         if encoding.mem_ud {
-            mem_postfix.push(AstNode::Stmt("*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;".to_string()));
+            mem_postfix.push(AstNode::Stmt(
+                "*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;"
+                    .to_string(),
+            ));
         }
         if encoding.reg_ud {
-            reg_postfix.push(AstNode::Stmt("*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;".to_string()));
+            reg_postfix.push(AstNode::Stmt(
+                "*instr_flags |= jit::JIT_INSTR_BLOCK_BOUNDARY_FLAG;"
+                    .to_string(),
+            ));
         }
 
         if encoding.ignore_mod {
-            let args = vec!["ctx.builder".to_string(), format!("\"{name}\""), "(modrm_byte & 7) as u32".to_string(), "(modrm_byte >> 3 & 7) as u32".to_string()];
-            code.push(AstNode::Stmt(format!("codegen::gen_fn{}_const({});", args.len().saturating_sub(2), args.join(", "))));
+            let args = [
+                "ctx.builder".to_string(),
+                format!("\"{name}\""),
+                "(modrm_byte & 7) as u32".to_string(),
+                "(modrm_byte >> 3 & 7) as u32".to_string(),
+            ];
+            code.push(AstNode::Stmt(format!(
+                "codegen::gen_fn{}_const({});",
+                args.len().saturating_sub(2),
+                args.join(", ")
+            )));
             code.extend(reg_postfix);
         } else if encoding.custom {
             let mut mem_args = vec!["ctx".to_string(), "addr".to_string()];
-            let mut reg_args = vec!["ctx".to_string(), "(modrm_byte & 7) as u32".to_string()];
+            let mut reg_args =
+                vec!["ctx".to_string(), "(modrm_byte & 7) as u32".to_string()];
             if encoding.fixed_g.is_none() {
                 mem_args.push("(modrm_byte >> 3 & 7) as u32".to_string());
                 reg_args.push("(modrm_byte >> 3 & 7) as u32".to_string());
@@ -1115,16 +1418,22 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
                 reg_args.push("imm".to_string());
             }
 
-            let mut mem_body = vec![
-                AstNode::Stmt("let addr = modrm::decode(ctx.cpu, modrm_byte);".to_string()),
-            ];
+            let mut mem_body = vec![AstNode::Stmt(
+                "let addr = modrm::decode(ctx.cpu, modrm_byte);".to_string(),
+            )];
             mem_body.extend(imm_bindings.clone());
-            mem_body.push(AstNode::Stmt(format!("jit_instructions::{name}_mem_jit({});", mem_args.join(", "))));
+            mem_body.push(AstNode::Stmt(format!(
+                "jit_instructions::{name}_mem_jit({});",
+                mem_args.join(", ")
+            )));
             mem_body.extend(mem_postfix);
 
             let mut reg_body = Vec::new();
             reg_body.extend(imm_bindings);
-            reg_body.push(AstNode::Stmt(format!("jit_instructions::{name}_reg_jit({});", reg_args.join(", "))));
+            reg_body.push(AstNode::Stmt(format!(
+                "jit_instructions::{name}_reg_jit({});",
+                reg_args.join(", ")
+            )));
             reg_body.extend(reg_postfix);
 
             code.push(AstNode::IfElse {
@@ -1132,8 +1441,13 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
                 else_block: Some(reg_body),
             });
         } else {
-            let mut mem_args = vec!["ctx.builder".to_string(), format!("\"{name}_mem\"")];
-            let mut reg_args = vec!["ctx.builder".to_string(), format!("\"{name}_reg\""), "(modrm_byte & 7) as u32".to_string()];
+            let mut mem_args =
+                vec!["ctx.builder".to_string(), format!("\"{name}_mem\"")];
+            let mut reg_args = vec![
+                "ctx.builder".to_string(),
+                format!("\"{name}_reg\""),
+                "(modrm_byte & 7) as u32".to_string(),
+            ];
             if encoding.fixed_g.is_none() {
                 mem_args.push("(modrm_byte >> 3 & 7) as u32".to_string());
                 reg_args.push("(modrm_byte >> 3 & 7) as u32".to_string());
@@ -1144,16 +1458,29 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
             }
 
             let mut mem_body = vec![
-                AstNode::Stmt("let addr = modrm::decode(ctx.cpu, modrm_byte);".to_string()),
-                AstNode::Stmt("codegen::gen_modrm_resolve(ctx, addr);".to_string()),
+                AstNode::Stmt(
+                    "let addr = modrm::decode(ctx.cpu, modrm_byte);"
+                        .to_string(),
+                ),
+                AstNode::Stmt(
+                    "codegen::gen_modrm_resolve(ctx, addr);".to_string(),
+                ),
             ];
             mem_body.extend(imm_bindings.clone());
-            mem_body.push(AstNode::Stmt(format!("codegen::gen_modrm_fn{}({});", mem_args.len().saturating_sub(2), mem_args.join(", "))));
+            mem_body.push(AstNode::Stmt(format!(
+                "codegen::gen_modrm_fn{}({});",
+                mem_args.len().saturating_sub(2),
+                mem_args.join(", ")
+            )));
             mem_body.extend(mem_postfix);
 
             let mut reg_body = Vec::new();
             reg_body.extend(imm_bindings);
-            reg_body.push(AstNode::Stmt(format!("codegen::gen_fn{}_const({});", reg_args.len().saturating_sub(2), reg_args.join(", "))));
+            reg_body.push(AstNode::Stmt(format!(
+                "codegen::gen_fn{}_const({});",
+                reg_args.len().saturating_sub(2),
+                reg_args.join(", ")
+            )));
             reg_body.extend(reg_postfix);
 
             code.push(AstNode::IfElse {
@@ -1170,21 +1497,32 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
             args.push("instr_flags".to_string());
         }
         code.extend(imm_bindings);
-        code.push(AstNode::Stmt(format!("jit_instructions::{name}_jit({});", args.join(", "))));
+        code.push(AstNode::Stmt(format!(
+            "jit_instructions::{name}_jit({});",
+            args.join(", ")
+        )));
     } else {
         let mut args = vec!["ctx.builder".to_string(), format!("\"{name}\"")];
         if imm_read.is_some() {
             args.push("imm".to_string());
         }
         if encoding.extra_imm16 {
-            imm_bindings.push(AstNode::Stmt("let imm2 = ctx.cpu.read_imm16() as u32;".to_string()));
+            imm_bindings.push(AstNode::Stmt(
+                "let imm2 = ctx.cpu.read_imm16() as u32;".to_string(),
+            ));
             args.push("imm2".to_string());
         } else if encoding.extra_imm8 {
-            imm_bindings.push(AstNode::Stmt("let imm2 = ctx.cpu.read_imm8() as u32;".to_string()));
+            imm_bindings.push(AstNode::Stmt(
+                "let imm2 = ctx.cpu.read_imm8() as u32;".to_string(),
+            ));
             args.push("imm2".to_string());
         }
         code.extend(imm_bindings);
-        code.push(AstNode::Stmt(format!("codegen::gen_fn{}_const({});", args.len().saturating_sub(2), args.join(", "))));
+        code.push(AstNode::Stmt(format!(
+            "codegen::gen_fn{}_const({});",
+            args.len().saturating_sub(2),
+            args.join(", ")
+        )));
     }
 
     code.extend(instruction_postfix);
@@ -1192,9 +1530,13 @@ fn gen_jit_body_fixed_g(encoding: &Encoding, size: u32) -> Vec<AstNode> {
 }
 
 /// Generate all 6 table files and `mod.rs` into `output_gen_dir`.
-pub fn generate_all_tables(x86_table_js_path: &Path, output_gen_dir: &Path) -> Result<()> {
-    let content = fs::read_to_string(x86_table_js_path)
-        .with_context(|| format!("Failed to read {}", x86_table_js_path.display()))?;
+pub fn generate_all_tables(
+    x86_table_js_path: &Path,
+    output_gen_dir: &Path,
+) -> Result<()> {
+    let content = fs::read_to_string(x86_table_js_path).with_context(|| {
+        format!("Failed to read {}", x86_table_js_path.display())
+    })?;
 
     let encodings = parse_x86_table(&content)?;
 
@@ -1230,13 +1572,25 @@ pub fn generate_all_tables(x86_table_js_path: &Path, output_gen_dir: &Path) -> R
     );
 
     fs::write(output_gen_dir.join("mod.rs"), mod_rs)?;
-    println!("Successfully generated v86 Rust instruction table modules in {}", output_gen_dir.display());
+    println!(
+        "Successfully generated v86 Rust instruction table modules in {}",
+        output_gen_dir.display()
+    );
 
     Ok(())
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -1307,8 +1661,12 @@ mod tests {
         let content = fs::read_to_string(&p).expect("Read x86_table.js");
         let encs = parse_x86_table(&content).expect("Parse x86_table.js");
         assert!(encs.len() > 400, "Parsed encodings count should be > 400");
-        let interp = generate_interpreter(&encs, false).expect("Gen interpreter");
-        assert!(interp.contains("pub unsafe fn run"), "Generated interpreter must contain entrypoint");
+        let interp =
+            generate_interpreter(&encs, false).expect("Gen interpreter");
+        assert!(
+            interp.contains("pub unsafe fn run"),
+            "Generated interpreter must contain entrypoint"
+        );
     }
 
     #[test]
@@ -1316,10 +1674,19 @@ mod tests {
         let root = find_workspace_root();
         let table_js_path = root.join("vendor/v86/gen/x86_table.js");
         let fixtures_dir = root.join("src/build_support/data/fixtures");
-        assert!(table_js_path.is_file(), "x86_table.js must exist at {}", table_js_path.display());
-        assert!(fixtures_dir.is_dir(), "fixtures_dir must exist at {}", fixtures_dir.display());
+        assert!(
+            table_js_path.is_file(),
+            "x86_table.js must exist at {}",
+            table_js_path.display()
+        );
+        assert!(
+            fixtures_dir.is_dir(),
+            "fixtures_dir must exist at {}",
+            fixtures_dir.display()
+        );
 
-        let content = fs::read_to_string(&table_js_path).expect("Read x86_table.js");
+        let content =
+            fs::read_to_string(&table_js_path).expect("Read x86_table.js");
         let encs = parse_x86_table(&content).expect("Parse x86_table.js");
 
         let files = [
@@ -1332,10 +1699,17 @@ mod tests {
         ];
 
         for (filename, gen_result) in files {
-            let generated_code = gen_result.unwrap_or_else(|e| panic!("Failed to generate {filename}: {e:?}"));
+            let generated_code = gen_result.unwrap_or_else(|e| {
+                panic!("Failed to generate {filename}: {e:?}")
+            });
             let fixture_path = fixtures_dir.join(filename);
             let fixture_code = fs::read_to_string(&fixture_path)
-                .unwrap_or_else(|e| panic!("Failed to read fixture {}: {e:?}", fixture_path.display()));
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to read fixture {}: {e:?}",
+                        fixture_path.display()
+                    )
+                });
 
             let norm_gen = strip_comments_and_normalize(&generated_code);
             let norm_fix = strip_comments_and_normalize(&fixture_code);
@@ -1343,21 +1717,21 @@ mod tests {
             let lines_gen: Vec<&str> = norm_gen.lines().collect();
             let lines_fix: Vec<&str> = norm_fix.lines().collect();
 
-            for (i, (g, f)) in lines_gen.iter().zip(lines_fix.iter()).enumerate() {
-                if g != f {
-                    panic!(
-                        "Mismatch in {filename} at line {}:\n  Generated: {g:?}\n    Fixture: {f:?}",
-                        i.saturating_add(1)
-                    );
-                }
-            }
-            if lines_gen.len() != lines_fix.len() {
-                panic!(
-                    "Mismatch in {filename} line count: generated={}, fixture={}",
-                    lines_gen.len(),
-                    lines_fix.len()
+            for (i, (g, f)) in
+                lines_gen.iter().zip(lines_fix.iter()).enumerate()
+            {
+                assert!(
+                    g == f,
+                    "Mismatch in {filename} at line {}:\n  Generated: {g:?}\n    Fixture: {f:?}",
+                    i.saturating_add(1)
                 );
             }
+            assert!(
+                lines_gen.len() == lines_fix.len(),
+                "Mismatch in {filename} line count: generated={}, fixture={}",
+                lines_gen.len(),
+                lines_fix.len()
+            )
         }
     }
 }

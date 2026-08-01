@@ -377,10 +377,7 @@ fn parse_asset_bundle_header_inner(
                     SHA256_OFFSET,
                     "sha256",
                 )?,
-                created_at_unix_secs: read_u64(
-                    bytes,
-                    TIMESTAMP_OFFSET,
-                )?,
+                created_at_unix_secs: read_u64(bytes, TIMESTAMP_OFFSET)?,
             },
             header_size: RESOURCE_BUNDLE_HEADER_SIZE,
         },

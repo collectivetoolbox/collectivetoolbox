@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 use ipc::ChildKind;
@@ -292,7 +296,16 @@ pub fn trusted_workspace_capabilities() -> CapabilitySet {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use anyhow::Result;
@@ -326,7 +339,7 @@ mod tests {
     fn fake_validator_err() -> Result<()> {
         let v = FakeTokenValidator;
         let res = v.validate(&CapabilityToken("bad".into()));
-        assert!(res.is_err());
+        res.unwrap_err();
         Ok(())
     }
 
@@ -355,7 +368,7 @@ mod tests {
         assert!(!v.has_token("test-token"));
 
         let res = v.validate(&CapabilityToken("test-token".into()));
-        assert!(res.is_err());
+        res.unwrap_err();
 
         Ok(())
     }
@@ -364,7 +377,7 @@ mod tests {
     fn in_memory_validator_invalid_token() -> Result<()> {
         let v = InMemoryTokenValidator::new();
         let res = v.validate(&CapabilityToken("nonexistent".into()));
-        assert!(res.is_err());
+        res.unwrap_err();
         Ok(())
     }
 }

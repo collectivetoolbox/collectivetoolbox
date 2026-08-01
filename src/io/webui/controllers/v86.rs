@@ -68,7 +68,9 @@ pub fn filter_v86_css(css: &str) -> String {
             in_body_block = true;
         }
 
-        if trimmed.starts_with("font-size:") || trimmed.starts_with("font-family:") {
+        if trimmed.starts_with("font-size:")
+            || trimmed.starts_with("font-family:")
+        {
             continue;
         }
 
@@ -120,10 +122,18 @@ fn render_v86_profile(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::test_helpers::test_get_no_login;
-
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_route_loads() {
@@ -136,23 +146,47 @@ mod tests {
     async fn test_v86_css_filtered() {
         let (status, body) = test_get_no_login("/vendor/v86/v86.css").await;
         assert_eq!(status, 200);
-        assert!(!body.contains("font-family: sans-serif"), "v86.css contained font-family: sans-serif");
-        assert!(!body.contains("color: #fff"), "v86.css contained color: #fff");
-        assert!(!body.contains("font-size: 13px"), "v86.css contained font-size: 13px");
-        assert!(!body.contains("background-color: #111"), "v86.css contained background-color: #111");
-        assert!(body.contains("color: transparent"), "v86.css should preserve color: transparent");
+        assert!(
+            !body.contains("font-family: sans-serif"),
+            "v86.css contained font-family: sans-serif"
+        );
+        assert!(
+            !body.contains("color: #fff"),
+            "v86.css contained color: #fff"
+        );
+        assert!(
+            !body.contains("font-size: 13px"),
+            "v86.css contained font-size: 13px"
+        );
+        assert!(
+            !body.contains("background-color: #111"),
+            "v86.css contained background-color: #111"
+        );
+        assert!(
+            body.contains("color: transparent"),
+            "v86.css should preserve color: transparent"
+        );
     }
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_initrd_asset_serves() {
-        let (status, _body) = test_get_no_login("/vendor/v86_images/guix/guix_posix_initrd.cpio.gz").await;
-        assert_ne!(status, 404, "Initrd asset URL /vendor/v86_images/guix/guix_posix_initrd.cpio.gz returned 404!");
+        let (status, _body) = test_get_no_login(
+            "/vendor/v86_images/guix/guix_posix_initrd.cpio.gz",
+        )
+        .await;
+        assert_ne!(
+            status, 404,
+            "Initrd asset URL /vendor/v86_images/guix/guix_posix_initrd.cpio.gz returned 404!"
+        );
     }
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_fs_json_asset_serves() {
-        let (status, _body) = test_get_no_login("/vendor/v86_images/guix/guix-fs.json").await;
-        assert_ne!(status, 404, "Guix fs.json asset URL /vendor/v86_images/guix/guix-fs.json returned 404!");
+        let (status, _body) =
+            test_get_no_login("/vendor/v86_images/guix/guix-fs.json").await;
+        assert_ne!(
+            status, 404,
+            "Guix fs.json asset URL /vendor/v86_images/guix/guix-fs.json returned 404!"
+        );
     }
 }
-

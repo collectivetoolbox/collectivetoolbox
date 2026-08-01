@@ -1,7 +1,15 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 pub use ctb_utilities::ipc::service_prelude::*;
 
 use ctb_formats_utilities::FormatLog;
@@ -29,9 +37,9 @@ pub use ctb_formats_markdown as markdown;
 pub use ctb_formats_math as math;
 pub use ctb_formats_multipart as multipart;
 pub use ctb_formats_pan as pan;
-pub use ctb_formats_perl as perl;
 pub use ctb_formats_pdf as pdf;
 pub use ctb_formats_pem as pem;
+pub use ctb_formats_perl as perl;
 pub use ctb_formats_stagel as stagel;
 pub use ctb_formats_troff as troff;
 pub use ctb_formats_unicode as unicode;
@@ -80,9 +88,10 @@ pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
         .to_string()
         .into_bytes();
     // let uuid_utf8=String::from_utf8_lossy(&document);
-    let uuid_string = String::from_utf8_lossy(document.get(..36).unwrap_or(&[]))
-        .to_string()
-        .into_bytes();
+    let uuid_string =
+        String::from_utf8_lossy(document.get(..36).unwrap_or(&[]))
+            .to_string()
+            .into_bytes();
 
     let formats = get_format_uuids();
 
@@ -108,7 +117,16 @@ pub fn convert_from(document: Vec<u8>, _filetype: Vec<u8>) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -6,7 +6,11 @@
 //! registered; instead, it marks a region of the UI that higher-level code can
 //! treat as a unit (for example, a sidebar panel or a Miller-column view).
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use egui::{Context, Id, Response, Sense, Ui};

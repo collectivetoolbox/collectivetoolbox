@@ -10,7 +10,11 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 use fancy_regex::Regex;
 
@@ -154,7 +158,16 @@ pub fn is_unspecified(addr: &str) -> Result<bool> {
 // NOTE: I haven't checked over these tests to make sure they match the original at https://raw.githubusercontent.com/sindresorhus/ip-regex/refs/heads/main/test.js
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -254,7 +267,10 @@ mod tests {
         std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
 
     #[crate::ctb_test]
-    #[allow(clippy::too_many_lines, reason = "comprehensive test fixture matrix")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "comprehensive test fixture matrix"
+    )]
     fn test_ip() {
         let v4 = v4();
         let v6 = v6();
@@ -573,7 +589,10 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(clippy::too_many_lines, reason = "comprehensive test fixture matrix")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "comprehensive test fixture matrix"
+    )]
     fn test_ip_v4() {
         let v4 = v4();
         let v4not = v4not();
@@ -698,7 +717,10 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(clippy::too_many_lines, reason = "comprehensive test fixture matrix")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "comprehensive test fixture matrix"
+    )]
     fn test_ip_v6() {
         let v6 = v6();
         let v6not = v6not();
@@ -950,7 +972,10 @@ mod tests {
         vec.into_iter().map(String::from).collect()
     }
 
-    #[allow(clippy::too_many_lines, reason = "comprehensive test fixture matrix")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "comprehensive test fixture matrix"
+    )]
     fn v6() -> Vec<String> {
         let vec = vec![
             "::",

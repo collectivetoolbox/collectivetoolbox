@@ -3,7 +3,11 @@
 //! error solvers, the `6r2` unique random number generator, and the `R.P.S.`
 //! sidecar game.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 /// Constant for the radical of 13 ($\sqrt{13}$), matching legacy button feature.
@@ -130,14 +134,18 @@ pub fn evaluate_basic_op(op: &str, a: f64, b: f64) -> Result<f64> {
             let ai = math::approx_float::f64_to_i64_approx(a)?;
             let bi = math::approx_float::f64_to_i64_approx(b)?;
             let res = integer_divide(ai, bi)?;
-            let res_i32 = i32::try_from(res).context("Integer division output out of i32 range for float conversion")?;
+            let res_i32 = i32::try_from(res).context(
+                "Integer division output out of i32 range for float conversion",
+            )?;
             Ok(f64::from(res_i32))
         }
         "Mod" => {
             let ai = math::approx_float::f64_to_i64_approx(a)?;
             let bi = math::approx_float::f64_to_i64_approx(b)?;
             let res = modulo(ai, bi)?;
-            let res_i32 = i32::try_from(res).context("Modulo output out of i32 range for float conversion")?;
+            let res_i32 = i32::try_from(res).context(
+                "Modulo output out of i32 range for float conversion",
+            )?;
             Ok(f64::from(res_i32))
         }
         _ => bail!("Unsupported operator: {op}"),
@@ -242,7 +250,8 @@ pub fn generate_unique_random_triplet<R: FnMut() -> i32>(
         let b = rand_func();
         let c = rand_func();
 
-        if a >= min && a <= max && b >= min && b <= max && c >= min && c <= max {
+        if a >= min && a <= max && b >= min && b <= max && c >= min && c <= max
+        {
             if a != b && b != c && a != c {
                 return Ok([a, b, c]);
             }
@@ -277,7 +286,7 @@ pub fn rps_choice_from_int(val: i32) -> Result<RpsChoice> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -296,7 +305,7 @@ mod tests {
         assert_eq!(subtract(10.0, 4.0), 6.0);
         assert_eq!(multiply(3.0, 7.0), 21.0);
         assert_eq!(divide(10.0, 2.0).unwrap(), 5.0);
-        assert!(divide(10.0, 0.0).is_err());
+        divide(10.0, 0.0).unwrap_err();
         assert_eq!(power(2.0, 3.0), 8.0);
     }
 
@@ -306,8 +315,8 @@ mod tests {
         assert_eq!(modulo(7, 3).unwrap(), 1);
         assert_eq!(quotient_and_remainder(7, 3).unwrap(), (2, 1));
         assert_eq!(format_modulo_result(2, 1), "2 r1");
-        assert!(integer_divide(5, 0).is_err());
-        assert!(modulo(5, 0).is_err());
+        integer_divide(5, 0).unwrap_err();
+        modulo(5, 0).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -319,7 +328,7 @@ mod tests {
         assert_eq!(evaluate_basic_op("^", 2.0, 4.0).unwrap(), 16.0);
         assert_eq!(evaluate_basic_op("\\", 9.0, 2.0).unwrap(), 4.0);
         assert_eq!(evaluate_basic_op("Mod", 9.0, 2.0).unwrap(), 1.0);
-        assert!(evaluate_basic_op("invalid", 1.0, 1.0).is_err());
+        evaluate_basic_op("invalid", 1.0, 1.0).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -368,23 +377,38 @@ mod tests {
         assert_eq!(scaled_random(0.5, 10.0), 5.0);
 
         let mut seq = vec![1, 2, 3].into_iter();
-        let res = generate_unique_random_triplet(|| seq.next().unwrap_or(0), 0, 5).unwrap();
+        let res =
+            generate_unique_random_triplet(|| seq.next().unwrap_or(0), 0, 5)
+                .unwrap();
         assert_eq!(res, [1, 2, 3]);
 
         let mut fail_seq = vec![1, 1, 1].into_iter();
-        let fail_res = generate_unique_random_triplet(|| fail_seq.next().unwrap_or(1), 0, 5);
-        assert!(fail_res.is_err());
+        let fail_res = generate_unique_random_triplet(
+            || fail_seq.next().unwrap_or(1),
+            0,
+            5,
+        );
+        fail_res.unwrap_err();
     }
 
     #[crate::ctb_test]
     fn test_rps() {
-        assert_eq!(play_rps(RpsChoice::Rock, RpsChoice::Rock), RpsOutcome::Draw);
-        assert_eq!(play_rps(RpsChoice::Rock, RpsChoice::Scissors), RpsOutcome::Win);
-        assert_eq!(play_rps(RpsChoice::Rock, RpsChoice::Paper), RpsOutcome::Loss);
+        assert_eq!(
+            play_rps(RpsChoice::Rock, RpsChoice::Rock),
+            RpsOutcome::Draw
+        );
+        assert_eq!(
+            play_rps(RpsChoice::Rock, RpsChoice::Scissors),
+            RpsOutcome::Win
+        );
+        assert_eq!(
+            play_rps(RpsChoice::Rock, RpsChoice::Paper),
+            RpsOutcome::Loss
+        );
 
         assert_eq!(rps_choice_from_int(1).unwrap(), RpsChoice::Rock);
         assert_eq!(rps_choice_from_int(2).unwrap(), RpsChoice::Paper);
         assert_eq!(rps_choice_from_int(3).unwrap(), RpsChoice::Scissors);
-        assert!(rps_choice_from_int(4).is_err());
+        rps_choice_from_int(4).unwrap_err();
     }
 }

@@ -52,8 +52,7 @@ pub async fn get_public_pc_settings(
         Some(v) => v.is_null(),
     };
 
-    let all_users = UserPublicInfo::list_all()
-        .web_err(&state, &req)?;
+    let all_users = UserPublicInfo::list_all().web_err(&state, &req)?;
 
     debug_fmt!("All users: {all_users:#?}");
 
@@ -147,7 +146,10 @@ pub async fn get_public_pc_settings(
 }
 
 #[derive(TryFromMultipart, Serialize, Deserialize)]
-#[allow(clippy::similar_names, reason = "settings form fields have similar names by design")]
+#[expect(
+    clippy::similar_names,
+    reason = "settings form fields have similar names by design"
+)]
 #[try_from_multipart(strict)]
 pub struct PcSettingsForm {
     show_users: Option<bool>,
@@ -194,7 +196,11 @@ pub struct PcSettingsForm {
     access_log_mode_default: Option<bool>,
 }
 
-#[allow(clippy::too_many_lines, clippy::similar_names, reason = "form processing is naturally long and references similar names")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::similar_names,
+    reason = "form processing is naturally long and references similar names"
+)]
 pub async fn post_public_pc_settings(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -255,19 +261,28 @@ pub async fn post_public_pc_settings(
     };
 
     if !current_admin_users.is_empty() {
-        let session_key_bytes = crate::session_auth::session_key_from_headers(&headers);
+        let session_key_bytes =
+            crate::session_auth::session_key_from_headers(&headers);
         let mut user_id = None;
         if let Some(key) = session_key_bytes {
-            if let Some(user_mutex) = crate::session_auth::Session::get_user_by_key(&mut state.clone(), &key).await {
+            if let Some(user_mutex) =
+                crate::session_auth::Session::get_user_by_key(
+                    &mut state.clone(),
+                    &key,
+                )
+                .await
+            {
                 user_id = Some(user_mutex.lock().await.local_id());
             }
         }
-        let is_admin = user_id.map(|id| current_admin_users.contains(&id)).unwrap_or(false);
+        let is_admin =
+            user_id.is_some_and(|id| current_admin_users.contains(&id));
         if !is_admin {
             return Ok(error_403(
                 &state,
                 &req,
-                "Must be logged in as an admin user to change settings".to_string(),
+                "Must be logged in as an admin user to change settings"
+                    .to_string(),
             ));
         }
     }
@@ -486,7 +501,8 @@ pub async fn post_public_pc_settings(
     };
 
     let admin_users = if admin_users.is_empty() {
-        let current_admin_users: Vec<u64> = match &current_settings.admin_users {
+        let current_admin_users: Vec<u64> = match &current_settings.admin_users
+        {
             MaybeOption::Value(v) => v.clone(),
             MaybeOption::Missing | MaybeOption::Null => Vec::new(),
         };
@@ -534,15 +550,24 @@ pub async fn post_public_pc_settings(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
 
     use crate::pc_settings::PcSettings;
     use crate::test_helpers::{
-        assert_body_contains, assert_body_not_contains, assert_eq_or_print_body,
-        test_get_no_login, test_post_no_login,
+        assert_body_contains, assert_body_not_contains,
+        assert_eq_or_print_body, test_get_no_login, test_post_no_login,
     };
-    use ctb_storage::user::{get_test_user, UserPublicInfo};
+    use ctb_storage::user::{UserPublicInfo, get_test_user};
     use ctb_utilities::json::maybe_value::{MaybeOption, MaybeValue};
 
     #[crate::ctb_test("tokio")]
@@ -696,7 +721,10 @@ mod tests {
         // Simulate a browser submission where many "use default" checkboxes
         // are checked because the keys are absent in the raw JSON.
         #[derive(serde::Serialize)]
-        #[allow(clippy::struct_excessive_bools, reason = "test form data mock structure")]
+        #[expect(
+            clippy::struct_excessive_bools,
+            reason = "test form data mock structure"
+        )]
         struct Form {
             // Intentionally set
             tls_certificate: Option<String>,
@@ -825,10 +853,8 @@ mod tests {
 
         // 1. Register and login admin_user first to get their actual local ID
         let admin_username = format!("{}_admin", function_name!());
-        let (admin_cookie, _admin_lock) = test_app
-            .register_and_login(&admin_username)
-            .await
-            .unwrap();
+        let (admin_cookie, _admin_lock) =
+            test_app.register_and_login(&admin_username).await.unwrap();
 
         // Look up the logged-in user's ID
         let admin_user_info = UserPublicInfo::get_by_name(&admin_username)
@@ -855,7 +881,13 @@ mod tests {
         };
 
         // Without admin users set, posting without login should succeed (redirects to /pc-settings)
-        let (status, body) = test_post_no_login("/pc-settings", None, Some(&form_to_submit), None).await;
+        let (status, body) = test_post_no_login(
+            "/pc-settings",
+            None,
+            Some(&form_to_submit),
+            None,
+        )
+        .await;
         assert_eq_or_print_body(status, 303, &body);
 
         // Now admin_user is in settings.admin_users
@@ -864,9 +896,18 @@ mod tests {
 
         // With admin users set:
         // A. POST without login should fail with 403
-        let (status, body) = test_post_no_login("/pc-settings", None, Some(&form_to_submit), None).await;
+        let (status, body) = test_post_no_login(
+            "/pc-settings",
+            None,
+            Some(&form_to_submit),
+            None,
+        )
+        .await;
         assert_eq_or_print_body(status, 403, &body);
-        assert_body_contains("Must be logged in as an admin user to change settings", &body);
+        assert_body_contains(
+            "Must be logged in as an admin user to change settings",
+            &body,
+        );
 
         // B. POST with non_admin_user logged in should fail with 403
         let (status, body) = test_app
@@ -880,7 +921,10 @@ mod tests {
             )
             .await;
         assert_eq_or_print_body(status, 403, &body);
-        assert_body_contains("Must be logged in as an admin user to change settings", &body);
+        assert_body_contains(
+            "Must be logged in as an admin user to change settings",
+            &body,
+        );
 
         // C. POST with admin_user logged in should succeed with 303
         let form_to_clear = Form {
@@ -902,6 +946,9 @@ mod tests {
 
         // Check that settings are updated and admin_users is cleared/missing
         let loaded = PcSettings::load().unwrap();
-        assert!(matches!(loaded.admin_users, MaybeOption::Missing | MaybeOption::Null));
+        assert!(matches!(
+            loaded.admin_users,
+            MaybeOption::Missing | MaybeOption::Null
+        ));
     }
 }

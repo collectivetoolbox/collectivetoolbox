@@ -1,9 +1,7 @@
 // SPDX-License-Identifier for parts derived from SeaBIOS: GPL-3.0-only AND LGPL-3.0-only
 
-
 //! CLI binary entry point for `seabios-tool`.
 //! Replaces python script calls in SeaBIOS `Makefile`.
-
 
 // From Makefile:
 // Copyright (C) 2008-2012  Kevin O'Connor <kevin@koconnor.net>
@@ -35,8 +33,6 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-
-
 use anyhow::{Result, bail};
 use std::env;
 use std::path::{Path, PathBuf};
@@ -58,15 +54,23 @@ fn main() -> Result<()> {
         let [infile, outfile, ..] = rest else {
             bail!("vgafixup requires <infilename> <outfilename>");
         };
-        ctb_build_support::seabios_builder::run_vgafixup(Path::new(infile), Path::new(outfile))?;
+        ctb_build_support::seabios_builder::run_vgafixup(
+            Path::new(infile),
+            Path::new(outfile),
+        )?;
     } else if cmd.ends_with("buildrom.py") || cmd == "buildrom" {
         let [inname, outname, ..] = rest else {
             bail!("buildrom requires <inname> <outname>");
         };
-        ctb_build_support::seabios_builder::run_buildrom(Path::new(inname), Path::new(outname))?;
+        ctb_build_support::seabios_builder::run_buildrom(
+            Path::new(inname),
+            Path::new(outname),
+        )?;
     } else if cmd.ends_with("checkrom.py") || cmd == "checkrom" {
         let [objinfo, finalsize_str, rawfile, outfile, ..] = rest else {
-            bail!("checkrom requires <objinfo> <finalsize> <rawfile> <outfile>");
+            bail!(
+                "checkrom requires <objinfo> <finalsize> <rawfile> <outfile>"
+            );
         };
         let finalsize: usize = finalsize_str.parse().unwrap_or(0);
         ctb_build_support::seabios_builder::run_checkrom(
@@ -76,8 +80,20 @@ fn main() -> Result<()> {
             Path::new(outfile),
         )?;
     } else if cmd.ends_with("layoutrom.py") || cmd == "layoutrom" {
-        let [in16, in32seg, in32flat, cfgfile, out16, out32seg, out32flat, ..] = rest else {
-            bail!("layoutrom requires in16 in32seg in32flat cfgfile out16 out32seg out32flat");
+        let [
+            in16,
+            in32seg,
+            in32flat,
+            cfgfile,
+            out16,
+            out32seg,
+            out32flat,
+            ..,
+        ] = rest
+        else {
+            bail!(
+                "layoutrom requires in16 in32seg in32flat cfgfile out16 out32seg out32flat"
+            );
         };
         ctb_build_support::seabios_builder::run_layoutrom(
             Path::new(in16),
@@ -92,7 +108,10 @@ fn main() -> Result<()> {
         let [infile, outfile, ..] = rest else {
             bail!("ldnoexec requires <infilename> <outfilename>");
         };
-        ctb_build_support::seabios_builder::run_ldnoexec(Path::new(infile), Path::new(outfile))?;
+        ctb_build_support::seabios_builder::run_ldnoexec(
+            Path::new(infile),
+            Path::new(outfile),
+        )?;
     } else if cmd == "generate-v86" {
         let v86_dir = if let Some(target_dir) = rest.first() {
             Path::new(target_dir)
@@ -105,7 +124,10 @@ fn main() -> Result<()> {
             PathBuf::from("vendor/v86/gen/x86_table.js")
         };
         let gen_dir = v86_dir.join("src/rust/gen");
-        ctb_build_support::v86_generator::generate_all_tables(&x86_table_js, &gen_dir)?;
+        ctb_build_support::v86_generator::generate_all_tables(
+            &x86_table_js,
+            &gen_dir,
+        )?;
         ctb_build_support::v86_packer::mangle_v86_build_scripts(v86_dir)?;
         // Update mtime of generated Rust files to be strictly newer than gen/x86_table.js.
         // POSIX `make` considers target files out of date if mtime(target) <= mtime(dependency).
@@ -114,7 +136,9 @@ fn main() -> Result<()> {
         let now = std::time::SystemTime::now();
         if let Ok(entries) = std::fs::read_dir(&gen_dir) {
             for entry in entries.flatten() {
-                if let Ok(file) = std::fs::OpenOptions::new().write(true).open(entry.path()) {
+                if let Ok(file) =
+                    std::fs::OpenOptions::new().write(true).open(entry.path())
+                {
                     let _ = file.set_modified(now);
                 }
             }
@@ -130,8 +154,7 @@ fn main() -> Result<()> {
             }
         }
         let gen_dir = out_dir
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("src/rust/gen"));
+            .map_or_else(|| PathBuf::from("src/rust/gen"), Path::to_path_buf);
         let v86_dir = gen_dir
             .parent()
             .and_then(Path::parent)
@@ -143,9 +166,14 @@ fn main() -> Result<()> {
         } else {
             v86_dir.join("gen/x86_table.js")
         };
-        ctb_build_support::v86_generator::generate_all_tables(&x86_table_js, &gen_dir)?;
+        ctb_build_support::v86_generator::generate_all_tables(
+            &x86_table_js,
+            &gen_dir,
+        )?;
         if v86_dir.join("Makefile").is_file() {
-            let _ = ctb_build_support::v86_packer::mangle_v86_build_scripts(v86_dir);
+            let _ = ctb_build_support::v86_packer::mangle_v86_build_scripts(
+                v86_dir,
+            );
         }
     } else {
         eprintln!("Unknown seabios-tool command: {cmd}");
@@ -841,7 +869,7 @@ Public License instead of this License.  But first, please read
 COPYING.LESSER:
 
 ```
-		   GNU LESSER GENERAL PUBLIC LICENSE
+           GNU LESSER GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>

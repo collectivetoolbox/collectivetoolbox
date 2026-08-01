@@ -3,7 +3,11 @@
 //! These are small adapters for workspace-style event loops that prefer to
 //! receive child-to-parent messages over tokio channels.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use tokio::sync::mpsc;

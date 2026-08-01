@@ -1,12 +1,16 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
-pub mod parse;
 pub mod codegen;
 pub mod convert;
+pub mod parse;
 
 #[cfg(test)]
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 
 #[cfg(test)]
 static STAGEL_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");

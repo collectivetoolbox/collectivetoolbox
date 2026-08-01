@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::HashMap;
@@ -27,16 +31,14 @@ fn parse_csv_map(csv_bytes: &[u8]) -> HashMap<String, String> {
         .has_headers(false)
         .from_reader(csv_bytes);
     let mut map = HashMap::new();
-    for result in rdr.records() {
-        if let Ok(record) = result {
-            if record.len() >= 2 {
-                if let (Some(k), Some(v)) = (record.get(0), record.get(1)) {
-                    let _ = map.insert(k.to_string(), v.to_string());
-                }
-            } else if record.len() == 1 {
-                if let Some(k) = record.get(0) {
-                    let _ = map.insert(k.to_string(), String::new());
-                }
+    for record in rdr.records().flatten() {
+        if record.len() >= 2 {
+            if let (Some(k), Some(v)) = (record.get(0), record.get(1)) {
+                let _ = map.insert(k.to_string(), v.to_string());
+            }
+        } else if record.len() == 1 {
+            if let Some(k) = record.get(0) {
+                let _ = map.insert(k.to_string(), String::new());
             }
         }
     }
@@ -48,14 +50,12 @@ fn parse_csv_vec(csv_bytes: &[u8]) -> Vec<String> {
         .has_headers(false)
         .from_reader(csv_bytes);
     let mut vec = vec![String::new(); 256];
-    for result in rdr.records() {
-        if let Ok(record) = result {
-            if record.len() >= 2 {
-                if let (Some(k), Some(v)) = (record.get(0), record.get(1)) {
-                    if let Ok(idx) = k.parse::<usize>() {
-                        if let Some(slot) = vec.get_mut(idx) {
-                            *slot = v.to_string();
-                        }
+    for record in rdr.records().flatten() {
+        if record.len() >= 2 {
+            if let (Some(k), Some(v)) = (record.get(0), record.get(1)) {
+                if let Ok(idx) = k.parse::<usize>() {
+                    if let Some(slot) = vec.get_mut(idx) {
+                        *slot = v.to_string();
                     }
                 }
             }

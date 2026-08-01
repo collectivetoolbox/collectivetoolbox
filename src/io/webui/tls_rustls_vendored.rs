@@ -33,15 +33,16 @@
 
 use axum::BoxError;
 use ctb_utilities::get_embedded_asset;
+use include_dir::{Dir, include_dir};
 use rustls::ServerConfig;
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 use std::{io, path::Path};
-use include_dir::{Dir, include_dir};
 
 pub use axum_server::tls_rustls::RustlsConfig;
 
-static TLS_RUSTLS_VENDORED_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/tls_rustls_vendored");
+static TLS_RUSTLS_VENDORED_DATA_DIR: Dir =
+    include_dir!("$CARGO_MANIFEST_DIR/tls_rustls_vendored");
 
 pub(crate) fn get_tls_rustls_vendored_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&TLS_RUSTLS_VENDORED_DATA_DIR, key)
@@ -152,7 +153,16 @@ async fn config_from_pem_chain_file(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::io;

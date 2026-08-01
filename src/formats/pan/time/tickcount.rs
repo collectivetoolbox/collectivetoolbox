@@ -1,9 +1,16 @@
 /* SPDX-License-Identifier: MIT */
 //! Cross-platform tick count helper.
 
-#![allow(clippy::module_name_repetitions, reason = "idiomatic module structure names")]
+#![allow(
+    clippy::module_name_repetitions,
+    reason = "idiomatic module structure names"
+)]
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 const TICKS_PER_SECOND: u128 = 60;
@@ -99,7 +106,16 @@ fn nanos_since_boot() -> Result<u128> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 

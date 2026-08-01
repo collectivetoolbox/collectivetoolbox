@@ -25,8 +25,13 @@ impl<'ast> Visit<'ast> for TestFnVisitor {
             let start = node.block.span().start();
             let end = node.block.span().end();
             let lines: Vec<&str> = self.file_content.lines().collect();
-            if start.line > 0 && end.line <= lines.len() && start.line <= end.line {
-                let Some(fn_lines) = lines.get(start.line.saturating_sub(1)..end.line) else {
+            if start.line > 0
+                && end.line <= lines.len()
+                && start.line <= end.line
+            {
+                let Some(fn_lines) =
+                    lines.get(start.line.saturating_sub(1)..end.line)
+                else {
                     return;
                 };
                 let fn_text = fn_lines.join("\n");
@@ -72,18 +77,41 @@ struct WriteCheckVisitor {
 impl<'ast> Visit<'ast> for WriteCheckVisitor {
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let syn::Expr::Path(expr_path) = &*node.func {
-            let path_str = quote::quote!(#expr_path).to_string().replace(" ", "");
+            let path_str =
+                quote::quote!(#expr_path).to_string().replace(' ', "");
             match path_str.as_str() {
-                "std::fs::write" | "fs::write" | "tokio::fs::write" | "tokio::fs::write_all" |
-                "std::fs::File::create" | "fs::File::create" | "File::create" | "tokio::fs::File::create" |
-                "std::fs::File::create_new" | "fs::File::create_new" | "File::create_new" | "tokio::fs::File::create_new" |
-                "std::fs::create_dir" | "fs::create_dir" | "tokio::fs::create_dir" |
-                "std::fs::create_dir_all" | "fs::create_dir_all" | "tokio::fs::create_dir_all" |
-                "std::fs::copy" | "fs::copy" | "tokio::fs::copy" |
-                "std::fs::rename" | "fs::rename" | "tokio::fs::rename" |
-                "std::fs::OpenOptions::new" | "fs::OpenOptions::new" | "OpenOptions::new" | "tokio::fs::OpenOptions::new" |
-                "std::fs::File::options" | "fs::File::options" | "File::options" | "tokio::fs::File::options"
-                => {
+                "std::fs::write"
+                | "fs::write"
+                | "tokio::fs::write"
+                | "tokio::fs::write_all"
+                | "std::fs::File::create"
+                | "fs::File::create"
+                | "File::create"
+                | "tokio::fs::File::create"
+                | "std::fs::File::create_new"
+                | "fs::File::create_new"
+                | "File::create_new"
+                | "tokio::fs::File::create_new"
+                | "std::fs::create_dir"
+                | "fs::create_dir"
+                | "tokio::fs::create_dir"
+                | "std::fs::create_dir_all"
+                | "fs::create_dir_all"
+                | "tokio::fs::create_dir_all"
+                | "std::fs::copy"
+                | "fs::copy"
+                | "tokio::fs::copy"
+                | "std::fs::rename"
+                | "fs::rename"
+                | "tokio::fs::rename"
+                | "std::fs::OpenOptions::new"
+                | "fs::OpenOptions::new"
+                | "OpenOptions::new"
+                | "tokio::fs::OpenOptions::new"
+                | "std::fs::File::options"
+                | "fs::File::options"
+                | "File::options"
+                | "tokio::fs::File::options" => {
                     self.has_write = true;
                     self.write_op = path_str;
                     return;
@@ -113,7 +141,12 @@ fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str());
         if path.is_dir() {
-            if name == Some("target") || name == Some("vendor") || name == Some(".git") || name == Some("old") || name == Some("built") {
+            if name == Some("target")
+                || name == Some("vendor")
+                || name == Some(".git")
+                || name == Some("old")
+                || name == Some("built")
+            {
                 continue;
             }
             find_rs_files(&path, files)?;
@@ -141,13 +174,19 @@ fn main() -> Result<()> {
     let mut violations = Vec::new();
 
     for file_path in rs_files {
-        let file_content = fs::read_to_string(&file_path)
-            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let file_content =
+            fs::read_to_string(&file_path).with_context(|| {
+                format!("failed to read {}", file_path.display())
+            })?;
 
         let syntax = match syn::parse_file(&file_content) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Warning: failed to parse {}: {}", file_path.display(), e);
+                eprintln!(
+                    "Warning: failed to parse {}: {}",
+                    file_path.display(),
+                    e
+                );
                 continue;
             }
         };
@@ -166,8 +205,12 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    eprintln!("tempdir lint failed: found write operations in tests without creating a tempdir first.");
-    eprintln!("If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block.");
+    eprintln!(
+        "tempdir lint failed: found write operations in tests without creating a tempdir first."
+    );
+    eprintln!(
+        "If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block."
+    );
     for v in &violations {
         let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
         eprintln!(

@@ -1,4 +1,8 @@
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 use crate::ipc::in_process_support::InProcessIpcCaller;
@@ -225,7 +229,9 @@ impl ChildIpcContext for BypassingChildIpcContext {
         bytes: Vec<u8>,
         content_type: &str,
     ) -> Result<()> {
-        self.inner.send_data_plane_message(bytes, content_type).await
+        self.inner
+            .send_data_plane_message(bytes, content_type)
+            .await
     }
 
     async fn request_workspace_shutdown(
@@ -244,4 +250,3 @@ impl ChildIpcContext for BypassingChildIpcContext {
         self.inner.call_raw(service, method, args).await
     }
 }
-

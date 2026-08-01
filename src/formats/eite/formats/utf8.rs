@@ -15,10 +15,14 @@
 // - Error handling uses anyhow::Result. Warnings replicate original semantic
 //   intent (they are emitted, but decoding continues).
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, anyhow, bail};
 use const_default::ConstDefault;
 
 use crate::dc::{
@@ -120,7 +124,10 @@ pub fn dca_to_utf8(
     let mut i: usize = 0;
 
     while i < len {
-        let dc = dc_array.get(i).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let dc = dc_array
+            .get(i)
+            .copied()
+            .ok_or_else(|| anyhow!("Index out of bounds"))?;
 
         // Manage escape flags
         if escape_next {
@@ -154,7 +161,10 @@ pub fn dca_to_utf8(
 
             // Scan forward for a valid end marker, ensuring all characters in between are valid.
             while j < len {
-                let cur = dc_array.get(j).copied().ok_or_else(|| anyhow!("Index out of bounds"))?;
+                let cur = dc_array
+                    .get(j)
+                    .copied()
+                    .ok_or_else(|| anyhow!("Index out of bounds"))?;
                 if cur == DC_END_ENCAPSULATION_UTF8 {
                     truncated = false;
                     break;
@@ -170,7 +180,8 @@ pub fn dca_to_utf8(
             if truncated {
                 // Determine slice to reprocess (excluding the invalid char, if any).
                 let end_exclusive = j.min(len);
-                let subseq = dc_array.get(start_index..end_exclusive).unwrap_or(&[]);
+                let subseq =
+                    dc_array.get(start_index..end_exclusive).unwrap_or(&[]);
                 if j >= len {
                     log.warn(&format!(
                         "Truncated encapsulated UTF-8 sequence at index {start_index} (missing end marker)"
@@ -432,7 +443,8 @@ pub fn dca_from_utf8(
                             log!("Char is not basenb, {:?}", first_char);
                             break;
                         }
-                        fragment_consumed = fragment_consumed.saturating_add(char_consumed);
+                        fragment_consumed =
+                            fragment_consumed.saturating_add(char_consumed);
                         found = true;
                     }
                     end_pos =
@@ -496,7 +508,9 @@ pub fn dca_from_utf8(
                     && !settings.dc_basenb_fragment_enabled
                 {
                     // Now update `remaining` to point after the end marker
-                    remaining = remaining.get(end_pos.saturating_add(end_marker.len())..).unwrap_or(&[]);
+                    remaining = remaining
+                        .get(end_pos.saturating_add(end_marker.len())..)
+                        .unwrap_or(&[]);
                     continue;
                 }
                 remaining = &[];
@@ -726,7 +740,16 @@ fn flush_unmappables(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use crate::utilities::assert_vec_u32_eq;
     use ctb_formats_utilities::{

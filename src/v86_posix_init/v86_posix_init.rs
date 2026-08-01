@@ -5,7 +5,10 @@
 
 #![no_std]
 #![no_main]
-#![expect(unsafe_code, reason = "Bare-metal no_std init binary using raw Linux int 0x80 syscalls and C memory functions")]
+#![expect(
+    unsafe_code,
+    reason = "Bare-metal no_std init binary using raw Linux int 0x80 syscalls and C memory functions"
+)]
 
 use core::cell::UnsafeCell;
 use core::ffi::CStr;
@@ -15,8 +18,10 @@ struct RawBuffer<const N: usize>(UnsafeCell<[u8; N]>);
 // SAFETY: RawBuffer is only used as a static global buffer in single-threaded bare-metal init process where no concurrent access occurs.
 unsafe impl<const N: usize> Sync for RawBuffer<N> {}
 
-static MODULE_BUF: RawBuffer<{ 2048 * 1024 }> = RawBuffer(UnsafeCell::new([0; 2048 * 1024]));
-static COPY_BUF: RawBuffer<{ 64 * 1024 }> = RawBuffer(UnsafeCell::new([0; 64 * 1024]));
+static MODULE_BUF: RawBuffer<{ 2048 * 1024 }> =
+    RawBuffer(UnsafeCell::new([0; 2048 * 1024]));
+static COPY_BUF: RawBuffer<{ 64 * 1024 }> =
+    RawBuffer(UnsafeCell::new([0; 64 * 1024]));
 
 /// C ABI memset implementation for bare-metal init.
 ///
@@ -43,7 +48,11 @@ pub unsafe extern "C" fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8 {
 /// # Safety
 /// `dest` and `src` must point to valid buffers of at least `n` bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
+pub unsafe extern "C" fn memcpy(
+    dest: *mut u8,
+    src: *const u8,
+    n: usize,
+) -> *mut u8 {
     let mut i: usize = 0;
     while i < n {
         // SAFETY: Source pointer offset is within valid bounds [0, n).
@@ -190,7 +199,14 @@ unsafe fn syscall3(n: usize, a1: usize, a2: usize, a3: usize) -> isize {
 }
 
 #[inline]
-unsafe fn syscall5(n: usize, a1: usize, a2: usize, a3: usize, a4: usize, a5: usize) -> isize {
+unsafe fn syscall5(
+    n: usize,
+    a1: usize,
+    a2: usize,
+    a3: usize,
+    a4: usize,
+    a5: usize,
+) -> isize {
     let ret: isize;
     #[cfg(target_arch = "x86")]
     // SAFETY: Executing x86 int 0x80 Linux syscall interface with saved/restored ESI register.
@@ -262,7 +278,16 @@ unsafe fn sys_mount(
     data: *const u8,
 ) -> isize {
     // SAFETY: Executing mount syscall (21).
-    unsafe { syscall5(21, dev.addr(), dir.addr(), fstype.addr(), flags, data.addr()) }
+    unsafe {
+        syscall5(
+            21,
+            dev.addr(),
+            dir.addr(),
+            fstype.addr(),
+            flags,
+            data.addr(),
+        )
+    }
 }
 
 #[inline]
@@ -294,7 +319,11 @@ unsafe fn sys_execve(
 }
 
 #[inline]
-unsafe fn sys_init_module(image: *const u8, len: usize, params: *const u8) -> isize {
+unsafe fn sys_init_module(
+    image: *const u8,
+    len: usize,
+    params: *const u8,
+) -> isize {
     // SAFETY: Executing init_module syscall (128).
     unsafe { syscall3(128, image.addr(), len, params.addr()) }
 }
@@ -306,7 +335,10 @@ unsafe fn sys_ioctl(fd: usize, cmd: usize, arg: *mut u8) -> isize {
 }
 
 #[repr(C)]
-#[expect(clippy::struct_field_names, reason = "Matching C ABI termios struct layout in Linux kernel")]
+#[expect(
+    clippy::struct_field_names,
+    reason = "Matching C ABI termios struct layout in Linux kernel"
+)]
 struct Termios {
     c_iflag: u32,
     c_oflag: u32,
@@ -402,7 +434,8 @@ fn load_module(path: &CStr) {
     }
     if total > 0 {
         // SAFETY: Calling init_module syscall with loaded module image bytes.
-        let res = unsafe { sys_init_module(mod_buf_ptr, total, c"".as_ptr().cast()) };
+        let res =
+            unsafe { sys_init_module(mod_buf_ptr, total, c"".as_ptr().cast()) };
         if res != 0 {
             print(b"[INIT] init_module ");
             print(path.to_bytes());
@@ -419,7 +452,10 @@ fn load_module(path: &CStr) {
 
 /// Entry point for 32-bit v86 POSIX Rust init process.
 #[unsafe(no_mangle)]
-#[expect(clippy::too_many_lines, reason = "Sequential bare-metal init process sequence")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Sequential bare-metal init process sequence"
+)]
 pub extern "C" fn _start() -> ! {
     // SAFETY: Creating /dev directory for tty device setup.
     unsafe {
@@ -427,7 +463,11 @@ pub extern "C" fn _start() -> ! {
     }
     // SAFETY: Creating /dev/ttyS0 device node with major 4 minor 64.
     unsafe {
-        sys_mknod(c"/dev/ttyS0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 64_usize);
+        sys_mknod(
+            c"/dev/ttyS0".as_ptr().cast(),
+            0o020_666,
+            4_usize.checked_shl(8).unwrap_or(0) | 64_usize,
+        );
     }
 
     // SAFETY: Opening serial console ttyS0.
@@ -475,19 +515,43 @@ pub extern "C" fn _start() -> ! {
 
     // SAFETY: Mounting procfs on /proc.
     unsafe {
-        sys_mount(c"proc".as_ptr().cast(), c"/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"proc".as_ptr().cast(),
+            c"/proc".as_ptr().cast(),
+            c"proc".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting sysfs on /sys.
     unsafe {
-        sys_mount(c"sysfs".as_ptr().cast(), c"/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"sysfs".as_ptr().cast(),
+            c"/sys".as_ptr().cast(),
+            c"sysfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting devtmpfs on /dev.
     unsafe {
-        sys_mount(c"devtmpfs".as_ptr().cast(), c"/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"devtmpfs".as_ptr().cast(),
+            c"/dev".as_ptr().cast(),
+            c"devtmpfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting tmpfs on /tmp.
     unsafe {
-        sys_mount(c"tmpfs".as_ptr().cast(), c"/tmp".as_ptr().cast(), c"tmpfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"tmpfs".as_ptr().cast(),
+            c"/tmp".as_ptr().cast(),
+            c"tmpfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
 
     // SAFETY: Creating devpts mount point directory.
@@ -496,7 +560,13 @@ pub extern "C" fn _start() -> ! {
     }
     // SAFETY: Mounting devpts on /dev/pts.
     unsafe {
-        sys_mount(c"devpts".as_ptr().cast(), c"/dev/pts".as_ptr().cast(), c"devpts".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"devpts".as_ptr().cast(),
+            c"/dev/pts".as_ptr().cast(),
+            c"devpts".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
 
     print(b"[INIT] Loading kernel modules...\n");
@@ -575,19 +645,43 @@ pub extern "C" fn _start() -> ! {
 
     // SAFETY: Mounting procfs on /root/proc.
     unsafe {
-        sys_mount(c"proc".as_ptr().cast(), c"/root/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"proc".as_ptr().cast(),
+            c"/root/proc".as_ptr().cast(),
+            c"proc".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting sysfs on /root/sys.
     unsafe {
-        sys_mount(c"sysfs".as_ptr().cast(), c"/root/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"sysfs".as_ptr().cast(),
+            c"/root/sys".as_ptr().cast(),
+            c"sysfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting devtmpfs on /root/dev.
     unsafe {
-        sys_mount(c"devtmpfs".as_ptr().cast(), c"/root/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"devtmpfs".as_ptr().cast(),
+            c"/root/dev".as_ptr().cast(),
+            c"devtmpfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting tmpfs on /root/tmp.
     unsafe {
-        sys_mount(c"tmpfs".as_ptr().cast(), c"/root/tmp".as_ptr().cast(), c"tmpfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"tmpfs".as_ptr().cast(),
+            c"/root/tmp".as_ptr().cast(),
+            c"tmpfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
 
     // SAFETY: Creating /root/dev/pts directory.
@@ -596,12 +690,22 @@ pub extern "C" fn _start() -> ! {
     }
     // SAFETY: Mounting devpts on /root/dev/pts.
     unsafe {
-        sys_mount(c"devpts".as_ptr().cast(), c"/root/dev/pts".as_ptr().cast(), c"devpts".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"devpts".as_ptr().cast(),
+            c"/root/dev/pts".as_ptr().cast(),
+            c"devpts".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
 
     // SAFETY: Creating /root/dev/fb0 device node (29, 0).
     unsafe {
-        sys_mknod(c"/root/dev/fb0".as_ptr().cast(), 0o020_666, 29_usize.checked_shl(8).unwrap_or(0));
+        sys_mknod(
+            c"/root/dev/fb0".as_ptr().cast(),
+            0o020_666,
+            29_usize.checked_shl(8).unwrap_or(0),
+        );
     }
     // SAFETY: Creating /root/dev/dri directory.
     unsafe {
@@ -609,58 +713,107 @@ pub extern "C" fn _start() -> ! {
     }
     // SAFETY: Creating /root/dev/dri/card0 device node (226, 0).
     unsafe {
-        sys_mknod(c"/root/dev/dri/card0".as_ptr().cast(), 0o020_666, 226_usize.checked_shl(8).unwrap_or(0));
+        sys_mknod(
+            c"/root/dev/dri/card0".as_ptr().cast(),
+            0o020_666,
+            226_usize.checked_shl(8).unwrap_or(0),
+        );
     }
     // SAFETY: Creating /root/dev/dri/renderD128 device node (226, 128).
     unsafe {
-        sys_mknod(c"/root/dev/dri/renderD128".as_ptr().cast(), 0o020_666, 226_usize.checked_shl(8).unwrap_or(0) | 128_usize);
+        sys_mknod(
+            c"/root/dev/dri/renderD128".as_ptr().cast(),
+            0o020_666,
+            226_usize.checked_shl(8).unwrap_or(0) | 128_usize,
+        );
     }
     // SAFETY: Creating /root/dev/tty0 device node (4, 0).
     unsafe {
-        sys_mknod(c"/root/dev/tty0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0));
+        sys_mknod(
+            c"/root/dev/tty0".as_ptr().cast(),
+            0o020_666,
+            4_usize.checked_shl(8).unwrap_or(0),
+        );
     }
     // SAFETY: Creating /root/dev/tty1 device node (4, 1).
     unsafe {
-        sys_mknod(c"/root/dev/tty1".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+        sys_mknod(
+            c"/root/dev/tty1".as_ptr().cast(),
+            0o020_666,
+            4_usize.checked_shl(8).unwrap_or(0) | 1_usize,
+        );
     }
     // SAFETY: Creating /root/dev/ttyS0 device node (4, 64).
     unsafe {
-        sys_mknod(c"/root/dev/ttyS0".as_ptr().cast(), 0o020_666, 4_usize.checked_shl(8).unwrap_or(0) | 64_usize);
+        sys_mknod(
+            c"/root/dev/ttyS0".as_ptr().cast(),
+            0o020_666,
+            4_usize.checked_shl(8).unwrap_or(0) | 64_usize,
+        );
     }
     // SAFETY: Creating /root/dev/zero device node (1, 5).
     unsafe {
-        sys_mknod(c"/root/dev/zero".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 5_usize);
+        sys_mknod(
+            c"/root/dev/zero".as_ptr().cast(),
+            0o020_666,
+            1_usize.checked_shl(8).unwrap_or(0) | 5_usize,
+        );
     }
     // SAFETY: Creating /root/dev/null device node (1, 3).
     unsafe {
-        sys_mknod(c"/root/dev/null".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 3_usize);
+        sys_mknod(
+            c"/root/dev/null".as_ptr().cast(),
+            0o020_666,
+            1_usize.checked_shl(8).unwrap_or(0) | 3_usize,
+        );
     }
     // SAFETY: Creating /root/dev/mem device node (1, 1).
     unsafe {
-        sys_mknod(c"/root/dev/mem".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+        sys_mknod(
+            c"/root/dev/mem".as_ptr().cast(),
+            0o020_666,
+            1_usize.checked_shl(8).unwrap_or(0) | 1_usize,
+        );
     }
     // SAFETY: Creating /root/dev/port device node (1, 4).
     unsafe {
-        sys_mknod(c"/root/dev/port".as_ptr().cast(), 0o020_666, 1_usize.checked_shl(8).unwrap_or(0) | 4_usize);
+        sys_mknod(
+            c"/root/dev/port".as_ptr().cast(),
+            0o020_666,
+            1_usize.checked_shl(8).unwrap_or(0) | 4_usize,
+        );
     }
     // SAFETY: Creating /root/dev/tty device node (5, 0).
     unsafe {
-        sys_mknod(c"/root/dev/tty".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0));
+        sys_mknod(
+            c"/root/dev/tty".as_ptr().cast(),
+            0o020_666,
+            5_usize.checked_shl(8).unwrap_or(0),
+        );
     }
     // SAFETY: Creating /root/dev/console device node (5, 1).
     unsafe {
-        sys_mknod(c"/root/dev/console".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0) | 1_usize);
+        sys_mknod(
+            c"/root/dev/console".as_ptr().cast(),
+            0o020_666,
+            5_usize.checked_shl(8).unwrap_or(0) | 1_usize,
+        );
     }
     // SAFETY: Creating /root/dev/ptmx device node (5, 2).
     unsafe {
-        sys_mknod(c"/root/dev/ptmx".as_ptr().cast(), 0o020_666, 5_usize.checked_shl(8).unwrap_or(0) | 2_usize);
+        sys_mknod(
+            c"/root/dev/ptmx".as_ptr().cast(),
+            0o020_666,
+            5_usize.checked_shl(8).unwrap_or(0) | 2_usize,
+        );
     }
 
     print(b"[INIT] Copying static shell to /root/tmp/sh...\n");
     // SAFETY: Opening source shell binary /bin/sh.
     let fsin = unsafe { sys_open(c"/bin/sh".as_ptr().cast(), 0, 0) };
     // SAFETY: Opening destination shell path /root/tmp/sh for writing.
-    let fsout = unsafe { sys_open(c"/root/tmp/sh".as_ptr().cast(), 65 | 512, 0o755) };
+    let fsout =
+        unsafe { sys_open(c"/root/tmp/sh".as_ptr().cast(), 65 | 512, 0o755) };
     if fsin >= 0 && fsout >= 0 {
         let fsin_u = usize::try_from(fsin).unwrap_or(0);
         let fsout_u = usize::try_from(fsout).unwrap_or(0);
@@ -697,7 +850,9 @@ pub extern "C" fn _start() -> ! {
     if pfd >= 0 {
         let pfd_u = usize::try_from(pfd).unwrap_or(0);
         // SAFETY: Reading profile path into profile_buf.
-        let pn = unsafe { sys_read(pfd_u, profile_buf.as_mut_ptr(), profile_buf.len()) };
+        let pn = unsafe {
+            sys_read(pfd_u, profile_buf.as_mut_ptr(), profile_buf.len())
+        };
         // SAFETY: Closing profile path file descriptor.
         unsafe {
             sys_close(pfd_u);
@@ -706,7 +861,11 @@ pub extern "C" fn _start() -> ! {
             let mut p_len = usize::try_from(pn).unwrap_or(0);
             while p_len > 0 {
                 if let Some(&last) = profile_buf.get(p_len.saturating_sub(1)) {
-                    if last == b'\n' || last == b'\r' || last == b' ' || last == b'\0' {
+                    if last == b'\n'
+                        || last == b'\r'
+                        || last == b' '
+                        || last == b'\0'
+                    {
                         p_len = p_len.saturating_sub(1);
                         continue;
                     }
@@ -730,15 +889,33 @@ pub extern "C" fn _start() -> ! {
     }
     // SAFETY: Mounting procfs in chroot.
     unsafe {
-        sys_mount(c"proc".as_ptr().cast(), c"/root/proc".as_ptr().cast(), c"proc".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"proc".as_ptr().cast(),
+            c"/root/proc".as_ptr().cast(),
+            c"proc".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting sysfs in chroot.
     unsafe {
-        sys_mount(c"sysfs".as_ptr().cast(), c"/root/sys".as_ptr().cast(), c"sysfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"sysfs".as_ptr().cast(),
+            c"/root/sys".as_ptr().cast(),
+            c"sysfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
     // SAFETY: Mounting devtmpfs in chroot.
     unsafe {
-        sys_mount(c"devtmpfs".as_ptr().cast(), c"/root/dev".as_ptr().cast(), c"devtmpfs".as_ptr().cast(), 0, core::ptr::null());
+        sys_mount(
+            c"devtmpfs".as_ptr().cast(),
+            c"/root/dev".as_ptr().cast(),
+            c"devtmpfs".as_ptr().cast(),
+            0,
+            core::ptr::null(),
+        );
     }
 
     #[cfg(target_arch = "x86")]
@@ -879,7 +1056,12 @@ exec /tmp/sh -i
         if target.is_null() {
             break;
         }
-        let argv: [*const u8; 4] = [target, c_flag.as_ptr().cast(), cmd_str.as_ptr(), core::ptr::null()];
+        let argv: [*const u8; 4] = [
+            target,
+            c_flag.as_ptr().cast(),
+            cmd_str.as_ptr(),
+            core::ptr::null(),
+        ];
         // SAFETY: Executing shell target binary via execve syscall.
         let res = unsafe { sys_execve(target, argv.as_ptr(), envp.as_ptr()) };
         print(b"[INIT] execve returned ");

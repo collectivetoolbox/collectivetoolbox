@@ -28,7 +28,10 @@ use nix::libc::{
     MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit, syscall,
 };
 
-#[allow(unsafe_code, reason = "installer process locking syscalls require unsafe")]
+#[expect(
+    unsafe_code,
+    reason = "installer process locking syscalls require unsafe"
+)]
 fn main() -> anyhow::Result<()> {
     // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
     // SAFETY: Calling mlockall is standard Unix process lifecycle configuration and safe to execute.
@@ -46,7 +49,8 @@ fn main() -> anyhow::Result<()> {
         setrlimit(RLIMIT_CORE, &raw const limit);
     }
 
-    let result = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    let result =
+        rustls::crypto::aws_lc_rs::default_provider().install_default();
     anyhow::ensure!(
         result.is_ok(),
         "Failed to initialize rustls aws-lc-rs provider: {:?}",

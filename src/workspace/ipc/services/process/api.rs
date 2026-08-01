@@ -3,7 +3,11 @@
 //! This service provides operations that any process can handle, such as
 //! graceful shutdown of its process tree.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::Result;

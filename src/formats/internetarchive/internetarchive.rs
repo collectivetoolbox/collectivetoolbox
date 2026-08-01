@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -1054,7 +1058,11 @@ fn sha1_hex_for_file(path: &Path) -> Result<String> {
         if bytes_read == 0 {
             break;
         }
-        hasher.update(buffer.get(..bytes_read).context("Invalid bytes read length")?);
+        hasher.update(
+            buffer
+                .get(..bytes_read)
+                .context("Invalid bytes read length")?,
+        );
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -1071,7 +1079,11 @@ fn md5_hex_for_file(path: &Path) -> Result<String> {
         if bytes_read == 0 {
             break;
         }
-        hasher.update(buffer.get(..bytes_read).context("Invalid bytes read length")?);
+        hasher.update(
+            buffer
+                .get(..bytes_read)
+                .context("Invalid bytes read length")?,
+        );
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -1097,7 +1109,12 @@ fn pretty_json_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use std::fs;

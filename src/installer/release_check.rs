@@ -11,7 +11,11 @@
 //! - Verifying each chunk's hash matches its content
 //! - Verifying the platform variants for the release
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::fs;
@@ -162,8 +166,10 @@ pub fn verify_release(
             match fs::read(&chunk_path) {
                 Ok(compressed_data) => {
                     // Decompress using Brotli
-                    let mut decoder =
-                        brotli::Decompressor::new(compressed_data.as_slice(), 4096);
+                    let mut decoder = brotli::Decompressor::new(
+                        compressed_data.as_slice(),
+                        4096,
+                    );
                     let mut data = Vec::new();
                     if let Err(e) =
                         std::io::Read::read_to_end(&mut decoder, &mut data)
@@ -286,7 +292,16 @@ pub fn run_dev_release_check(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::manifest::{ChunkInfo, FileEntry, Platform, ReleaseManifest};

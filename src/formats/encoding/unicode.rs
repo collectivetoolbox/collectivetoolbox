@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub fn utf8_to_utf32be(input: &[u8]) -> Result<Vec<u8>> {
@@ -11,14 +15,15 @@ pub fn utf8_to_utf32be(input: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub fn utf32be_to_utf8(input: &[u8]) -> Result<Vec<u8>> {
-    if input.len() % 4 != 0 {
+    if !input.len().is_multiple_of(4) {
         bail!("input length must be a multiple of 4");
     }
     let mut result = Vec::with_capacity(input.len());
     for chunk in input.chunks_exact(4) {
         let bytes: [u8; 4] = chunk.try_into().context("invalid chunk size")?;
         let code_point = u32::from_be_bytes(bytes);
-        let c = char::from_u32(code_point).context("invalid unicode code point")?;
+        let c =
+            char::from_u32(code_point).context("invalid unicode code point")?;
         let mut buf = [0u8; 4];
         let utf8_str = c.encode_utf8(&mut buf);
         result.extend_from_slice(utf8_str.as_bytes());
@@ -27,7 +32,16 @@ pub fn utf32be_to_utf8(input: &[u8]) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -55,8 +69,8 @@ mod tests {
         assert_eq!(spec_decoded, spec_utf8);
 
         // Test invalid inputs
-        assert!(utf8_to_utf32be(&[0xff, 0xff]).is_err());
-        assert!(utf32be_to_utf8(&[0, 0, 0]).is_err());
-        assert!(utf32be_to_utf8(&[0xff, 0xff, 0xff, 0xff]).is_err()); // invalid code point
+        utf8_to_utf32be(&[0xff, 0xff]).unwrap_err();
+        utf32be_to_utf8(&[0, 0, 0]).unwrap_err();
+        utf32be_to_utf8(&[0xff, 0xff, 0xff, 0xff]).unwrap_err(); // invalid code point
     }
 }

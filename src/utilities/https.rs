@@ -89,22 +89,29 @@ pub fn blocking_client(options: ClientOptions) -> Result<BlockingClient> {
 }
 
 pub fn blocking_client_no_crlite() -> Result<BlockingClient> {
-    static CACHE: std::sync::OnceLock<Result<BlockingClient, String>> = std::sync::OnceLock::new();
+    static CACHE: std::sync::OnceLock<Result<BlockingClient, String>> =
+        std::sync::OnceLock::new();
     let client_res = CACHE.get_or_init(|| {
         std::thread::spawn(|| {
-            let tls = build_rustls_client_config_no_crlite()
-                .map_err(|e| format!("Failed to build TLS config without CRLite: {e:#}"))?;
+            let tls = build_rustls_client_config_no_crlite().map_err(|e| {
+                format!("Failed to build TLS config without CRLite: {e:#}")
+            })?;
             let client = reqwest::blocking::Client::builder()
                 .use_preconfigured_tls(tls)
                 .build()
-                .map_err(|e| format!("Failed to build blocking HTTP client: {e:#}"))?;
+                .map_err(|e| {
+                    format!("Failed to build blocking HTTP client: {e:#}")
+                })?;
             Ok(BlockingClient {
                 inner: client,
                 skip_crlite_ready_check: true,
             })
         })
         .join()
-        .map_err(|_| "Thread panicked while constructing blocking HTTP client".to_string())
+        .map_err(|_| {
+            "Thread panicked while constructing blocking HTTP client"
+                .to_string()
+        })
         .and_then(|res| res)
     });
 
@@ -160,7 +167,12 @@ impl AsyncClient {
         Ok(AsyncResponse { inner: response })
     }
 
-    pub async fn post(&self, url: &str, body: Vec<u8>, headers: Option<reqwest::header::HeaderMap>) -> Result<AsyncResponse> {
+    pub async fn post(
+        &self,
+        url: &str,
+        body: Vec<u8>,
+        headers: Option<reqwest::header::HeaderMap>,
+    ) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
         let mut builder = self.inner.post(url).body(body);
         if let Some(h) = headers {
@@ -528,7 +540,8 @@ fn backoff_delay(attempt: usize) -> Duration {
     // 500 * 2^5 = 16000 (16 seconds), which already exceeds 10 seconds.
     // So capping exponent at 6 is perfectly fine and avoids overflow panics.
     let exponent = std::cmp::min(exponent, 6);
-    let delay_ms = BASE_RETRY_DELAY_MS.saturating_mul(2u64.checked_pow(exponent).unwrap_or(10000));
+    let delay_ms = BASE_RETRY_DELAY_MS
+        .saturating_mul(2u64.checked_pow(exponent).unwrap_or(10000));
     let jitter_ms = u64::from(rand::random::<u8>().rem_euclid(100));
     let delay = Duration::from_millis(delay_ms.saturating_add(jitter_ms));
     std::cmp::min(delay, Duration::from_secs(10))

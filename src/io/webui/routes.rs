@@ -3,7 +3,10 @@
 use axum::{Router, routing::get, routing::post};
 
 use crate::AppState;
-#[allow(clippy::wildcard_imports, reason = "controllers glob import pattern")]
+#[expect(
+    clippy::wildcard_imports,
+    reason = "controllers glob import pattern"
+)]
 use crate::controllers::*;
 use crate::debug;
 
@@ -50,7 +53,6 @@ pub fn build_routes(state: AppState) -> Router {
         .route("/v86/{profile}", get(v86::get_v86_profile))
         .route("/vendor/v86/v86.css", get(v86::get_v86_css))
         // --- eite controller routes ---
-
         .route("/tools/eite-edit-tool", get(eite::get_edit_tool))
         .route("/api/eite/call", post(eite::post_eite_call))
         // --- admin controller routes ---
@@ -145,14 +147,8 @@ pub fn build_routes(state: AppState) -> Router {
             "/releases/src/{filename}",
             get(base::get_versioned_release_source),
         )
-        .route(
-            "/installer-linux-x64",
-            get(base::get_installer_linux_x64),
-        )
-        .route(
-            "/installer-linux-x86",
-            get(base::get_installer_linux_x86),
-        )
+        .route("/installer-linux-x64", get(base::get_installer_linux_x64))
+        .route("/installer-linux-x86", get(base::get_installer_linux_x86))
         // static files or 404 page fallback
         .fallback(get(base::static_or_404))
         .with_state(state)

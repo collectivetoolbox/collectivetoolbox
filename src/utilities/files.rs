@@ -28,11 +28,15 @@ pub fn symlink_is_in_dir(path: &Path, dir: &Path) -> Result<PathBuf> {
 
 /// Checks if `path` is a symlink that resolves to a location inside `dir`.
 pub fn is_symlink_in_dir(path: &Path, dir: &Path) -> bool {
-    return symlink_is_in_dir(path, dir).is_ok();
+    symlink_is_in_dir(path, dir).is_ok()
 }
 
 #[cfg(test)]
-#[expect(clippy::unwrap_in_result, clippy::panic_in_result_fn, reason = "tests are allowed to unwrap/panic")]
+#[expect(
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    reason = "tests are allowed to unwrap/panic"
+)]
 mod tests {
     use super::*;
     use std::fs;
@@ -73,7 +77,7 @@ mod tests {
 
             // Invalid symlink pointing outside dir1 should fail
             let res = symlink_is_in_dir(&sym_out, &dir1);
-            assert!(res.is_err());
+            res.unwrap_err();
         }
 
         // Regular file should return path itself

@@ -10,7 +10,11 @@
 //! generation from a specific byte offset by computing where in the tarball
 //! we are and regenerating from that point.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use flate2::Compression;
@@ -97,7 +101,9 @@ impl TarHeader {
         };
         let name_bytes = name.as_bytes();
         let name_len = name_bytes.len().min(100);
-        if let (Some(dst), Some(src)) = (header.get_mut(..name_len), name_bytes.get(..name_len)) {
+        if let (Some(dst), Some(src)) =
+            (header.get_mut(..name_len), name_bytes.get(..name_len))
+        {
             dst.copy_from_slice(src);
         }
 
@@ -136,7 +142,9 @@ impl TarHeader {
     /// Returns the total size this entry occupies in the tarball (header +
     /// content + padding).
     fn total_size(&self) -> u64 {
-        TAR_BLOCK_SIZE.saturating_add(self.size).saturating_add(padding_to_block(self.size))
+        TAR_BLOCK_SIZE
+            .saturating_add(self.size)
+            .saturating_add(padding_to_block(self.size))
     }
 }
 
@@ -383,13 +391,15 @@ impl StreamingTarball {
             return Ok(Vec::new());
         }
 
-        let capacity = usize::try_from(end.saturating_sub(start)).unwrap_or(usize::MAX);
+        let capacity =
+            usize::try_from(end.saturating_sub(start)).unwrap_or(usize::MAX);
         let mut output = Vec::with_capacity(capacity);
         let mut current_pos = start;
 
         // Process each entry that overlaps with the requested range
         for entry in &self.entries {
-            let entry_end = entry.start_offset.saturating_add(entry.header.total_size());
+            let entry_end =
+                entry.start_offset.saturating_add(entry.header.total_size());
 
             // Skip entries entirely before our range
             if entry_end <= start {
@@ -420,7 +430,8 @@ impl StreamingTarball {
                 if let Some(slice) = entry_bytes.get(slice_start..slice_end) {
                     output.extend_from_slice(slice);
                 }
-                current_pos = entry.start_offset.saturating_add(entry_end_in_range);
+                current_pos =
+                    entry.start_offset.saturating_add(entry_end_in_range);
             }
         }
 
@@ -432,7 +443,9 @@ impl StreamingTarball {
             } else {
                 0
             };
-            let null_end = usize::try_from(end.saturating_sub(null_block_start).min(1024))?;
+            let null_end = usize::try_from(
+                end.saturating_sub(null_block_start).min(1024),
+            )?;
             let null_bytes = vec![0u8; null_end.saturating_sub(null_start)];
             output.extend_from_slice(&null_bytes);
         }
@@ -481,7 +494,8 @@ impl StreamingTarball {
     /// falls.
     pub fn locate_offset(&self, offset: u64) -> Option<(usize, u64)> {
         for (idx, entry) in self.entries.iter().enumerate() {
-            let entry_end = entry.start_offset.saturating_add(entry.header.total_size());
+            let entry_end =
+                entry.start_offset.saturating_add(entry.header.total_size());
             if offset >= entry.start_offset && offset < entry_end {
                 return Some((idx, offset.saturating_sub(entry.start_offset)));
             }
@@ -490,7 +504,10 @@ impl StreamingTarball {
         // Check if it's in the trailing null blocks
         let null_start = self.total_size.saturating_sub(1024);
         if offset >= null_start && offset < self.total_size {
-            return Some((self.entries.len(), offset.saturating_sub(null_start)));
+            return Some((
+                self.entries.len(),
+                offset.saturating_sub(null_start),
+            ));
         }
 
         None
@@ -560,7 +577,10 @@ impl TarballStream {
             return Ok(None);
         }
 
-        let chunk_end = self.position.saturating_add(u64::try_from(self.chunk_size)?).min(self.end_position);
+        let chunk_end = self
+            .position
+            .saturating_add(u64::try_from(self.chunk_size)?)
+            .min(self.end_position);
         let bytes = self
             .tarball
             .generate_range(self.position, Some(chunk_end))?;
@@ -569,7 +589,8 @@ impl TarballStream {
             return Ok(None);
         }
 
-        self.position = self.position.saturating_add(u64::try_from(bytes.len())?);
+        self.position =
+            self.position.saturating_add(u64::try_from(bytes.len())?);
         Ok(Some(bytes))
     }
 
@@ -682,7 +703,16 @@ pub fn download_offline_bundle_to_path(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use chrono::Utc;

@@ -124,7 +124,10 @@ impl EiteState {
         if !self.is_exec_id(exec_id) {
             return Err(anyhow!("Exec id out of range"));
         }
-        let ptr_str = self.document_exec_ptrs.get(exec_id).ok_or_else(|| anyhow!("Exec id out of range"))?;
+        let ptr_str = self
+            .document_exec_ptrs
+            .get(exec_id)
+            .ok_or_else(|| anyhow!("Exec id out of range"))?;
         Ok(str_split_escaped(ptr_str, ","))
     }
 
@@ -177,7 +180,9 @@ impl EiteState {
 
     pub fn get_next_level_exec_ptr_pos(&self, exec_id: usize) -> Result<u32> {
         let ptrs = self.get_exec_ptrs(exec_id)?;
-        if let Some(val) = ptrs.len().checked_sub(2).and_then(|idx| ptrs.get(idx)) {
+        if let Some(val) =
+            ptrs.len().checked_sub(2).and_then(|idx| ptrs.get(idx))
+        {
             Ok(Self::parse_ptr(val))
         } else {
             Ok(0)
@@ -188,7 +193,10 @@ impl EiteState {
         if !self.is_exec_id(exec_id) {
             return Err(anyhow!("Exec id out of range"));
         }
-        let data_str = self.document_exec_data.get(exec_id).ok_or_else(|| anyhow!("Exec id out of range"))?;
+        let data_str = self
+            .document_exec_data
+            .get(exec_id)
+            .ok_or_else(|| anyhow!("Exec id out of range"))?;
         int_arr_from_str_printed_arr(data_str)
     }
 
@@ -196,7 +204,10 @@ impl EiteState {
         if !self.is_exec_id(exec_id) {
             return Err(anyhow!("Exec id out of range"));
         }
-        let frames_str = self.document_exec_frames.get(exec_id).ok_or_else(|| anyhow!("Exec id out of range"))?;
+        let frames_str = self
+            .document_exec_frames
+            .get(exec_id)
+            .ok_or_else(|| anyhow!("Exec id out of range"))?;
         int_arr_from_str_printed_arr(frames_str)
     }
 
@@ -249,7 +260,8 @@ impl EiteState {
     ) -> Result<()> {
         ensure!(self.is_exec_id(exec_id), "Invalid exec id {exec_id}");
         if exec_id >= self.document_exec_frames.len() {
-            self.document_exec_frames.resize(exec_id.saturating_add(1), String::new());
+            self.document_exec_frames
+                .resize(exec_id.saturating_add(1), String::new());
         }
         if let Some(item) = self.document_exec_frames.get_mut(exec_id) {
             *item = print_arr(frame);

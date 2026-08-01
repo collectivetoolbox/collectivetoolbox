@@ -5,7 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// The leading u32 and symbolic prelude entries before tagged sections.
@@ -602,9 +606,9 @@ fn select_data_record_format(
                 break;
             }
 
-            let Some(row_payload) =
-                payload.get(probe_cursor.saturating_add(record_header_size)..record_end)
-            else {
+            let Some(row_payload) = payload.get(
+                probe_cursor.saturating_add(record_header_size)..record_end,
+            ) else {
                 first_error =
                     Some("Probe DATA row payload slice failed".to_string());
                 break;
@@ -658,7 +662,7 @@ fn select_data_record_format(
     bail!("Could not select DATA record format: {summary}")
 }
 
-#[allow(clippy::similar_names, reason = "field names matching specification")]
+#[expect(clippy::similar_names, reason = "field names matching specification")]
 fn parse_data_record_headers(
     payload: &[u8],
     cursor: usize,
@@ -797,7 +801,7 @@ fn add_data_record_header_candidate(
     Ok(())
 }
 
-#[allow(clippy::too_many_lines, reason = "+/- more readable")]
+#[expect(clippy::too_many_lines, reason = "+/- more readable")]
 fn parse_data_record_header_for_format(
     payload: &[u8],
     cursor: usize,
@@ -1369,7 +1373,8 @@ fn format_fixed_point(value: i64, scale: u8) -> String {
             .checked_add(1)
             .and_then(|required| required.checked_sub(digits.len()))
             .unwrap_or_default();
-        let mut prefixed = String::with_capacity(needed.saturating_add(digits.len()));
+        let mut prefixed =
+            String::with_capacity(needed.saturating_add(digits.len()));
         prefixed.push_str(&"0".repeat(needed));
         prefixed.push_str(&digits);
         digits = prefixed;
@@ -1412,7 +1417,9 @@ fn parse_prelude_entries(
             bail!("Prelude entry at offset {cursor:#x} has empty name")
         }
 
-        let name_start = cursor.checked_add(2).context("Prelude name start overflow")?;
+        let name_start = cursor
+            .checked_add(2)
+            .context("Prelude name start overflow")?;
         let name_end = name_start
             .checked_add(name_len)
             .context("Prelude name length overflow")?;
@@ -1503,14 +1510,15 @@ fn parse_prelude_kind_0_or_1_value(
         let shifted_value_cursor = (*value_cursor)
             .checked_add(1)
             .context("Prelude value cursor overflow")?;
-        let shifted_score = if shifted_value_cursor.saturating_add(4) <= pan_file.len() {
-            let boundary_after_shifted = shifted_value_cursor
-                .checked_add(4)
-                .context("Prelude shifted boundary cursor overflow")?;
-            prelude_boundary_score(pan_file, boundary_after_shifted)?
-        } else {
-            0
-        };
+        let shifted_score =
+            if shifted_value_cursor.saturating_add(4) <= pan_file.len() {
+                let boundary_after_shifted = shifted_value_cursor
+                    .checked_add(4)
+                    .context("Prelude shifted boundary cursor overflow")?;
+                prelude_boundary_score(pan_file, boundary_after_shifted)?
+            } else {
+                0
+            };
 
         if shifted_score > unshifted_score {
             selected_value_cursor = shifted_value_cursor;
@@ -1751,7 +1759,8 @@ fn parse_section_at_with_size(
         bail!("Section at offset {offset:#x} is too small")
     }
 
-    let section_start = offset.checked_add(4).context("Section start overflow")?;
+    let section_start =
+        offset.checked_add(4).context("Section start overflow")?;
     let section_end = offset
         .checked_add(declared_size)
         .context("Section end overflow")?;
@@ -1770,7 +1779,9 @@ fn parse_section_at_with_size(
     if name_len == 0 {
         bail!("Section name at offset {offset:#x} is empty")
     }
-    let name_start = section_start.checked_add(2).context("Section name start overflow")?;
+    let name_start = section_start
+        .checked_add(2)
+        .context("Section name start overflow")?;
     let name_end = name_start
         .checked_add(name_len)
         .context("Section name length overflow")?;
@@ -1808,7 +1819,7 @@ fn parse_section_at_with_size(
     })
 }
 
-#[allow(clippy::similar_names, reason = "field names matching specification")]
+#[expect(clippy::similar_names, reason = "field names matching specification")]
 fn section_declared_size_candidates(
     pan_file: &[u8],
     offset: usize,
@@ -1857,7 +1868,8 @@ fn section_layout_looks_valid_for_size(
         return false;
     }
 
-    let Some(name_len_byte) = pan_file.get(section_start.saturating_add(1)) else {
+    let Some(name_len_byte) = pan_file.get(section_start.saturating_add(1))
+    else {
         return false;
     };
     let name_len = usize::from(*name_len_byte);
@@ -2085,7 +2097,8 @@ fn parse_names_payload(
 }
 
 fn parse_widths_payload(payload: &[u8]) -> anyhow::Result<Vec<u16>> {
-    let width_bytes = if (payload.len() & 1) == 1 && payload.first() == Some(&0) {
+    let width_bytes = if (payload.len() & 1) == 1 && payload.first() == Some(&0)
+    {
         payload.get(1..).context("Invalid WIDTHS payload range")?
     } else {
         payload
@@ -2272,7 +2285,11 @@ fn read_u32_be(bytes: &[u8], offset: usize) -> anyhow::Result<u32> {
 }
 
 #[cfg(test)]
-#[allow(clippy::manual_assert, clippy::panic_in_result_fn, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::manual_assert,
+    clippy::panic_in_result_fn,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 
@@ -2335,7 +2352,11 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(clippy::manual_assert, clippy::panic_in_result_fn, reason = "Standard repository test boilerplate")]
+    #[expect(
+        clippy::manual_assert,
+        clippy::panic_in_result_fn,
+        reason = "Standard repository test boilerplate"
+    )]
     fn test_parse_pan_parses_sample_fixture_structure() -> anyhow::Result<()> {
         let pan_file = crate::get_pan_data("fixtures/SAMPLE.pan")
             .context("Could not load fixtures/SAMPLE.pan")?;

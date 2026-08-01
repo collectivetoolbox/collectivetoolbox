@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::Token;
@@ -37,19 +41,19 @@ fn push_token(
     if !active_token.typ.is_empty() || !active_token.content.is_empty() {
         tokens.push(active_token.clone());
         *active_token = Token {
-            pos: format!("{}:{}:{}", line, col, indent),
-            typ: "".to_string(),
-            content: "".to_string(),
+            pos: format!("{line}:{col}:{indent}"),
+            typ: String::new(),
+            content: String::new(),
         };
     }
-    active_token.pos = format!("{}:{}:{}", line, col, indent);
+    active_token.pos = format!("{line}:{col}:{indent}");
     active_token.typ = typ.to_string();
     active_token.content = content.to_string();
     tokens.push(active_token.clone());
     *active_token = Token {
-        pos: format!("{}:{}:{}", line, col, indent),
-        typ: "".to_string(),
-        content: "".to_string(),
+        pos: format!("{line}:{col}:{indent}"),
+        typ: String::new(),
+        content: String::new(),
     };
 }
 
@@ -64,20 +68,20 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
     let mut tokens: Vec<Token> = Vec::new();
 
     tokens.push(Token {
-        pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
+        pos: format!("{line_number}:{column_number}:{current_indent_level}"),
         typ: "start-document".to_string(),
-        content: "".to_string(),
+        content: String::new(),
     });
     tokens.push(Token {
-        pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
+        pos: format!("{line_number}:{column_number}:{current_indent_level}"),
         typ: "filename".to_string(),
         content: filename.to_string(),
     });
 
     let mut active_token = Token {
-        pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-        typ: "".to_string(),
-        content: "".to_string(),
+        pos: format!("{line_number}:{column_number}:{current_indent_level}"),
+        typ: String::new(),
+        content: String::new(),
     };
 
     let mut idx = 0;
@@ -85,30 +89,48 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
         let byte = *input.get(idx).context("Invalid input index")?;
         let is_newline = byte == 10 || byte == 13;
 
-        if is_newline || (byte == 59 && matches!(parser_state, ParserState::Token)) {
+        if is_newline
+            || (byte == 59 && matches!(parser_state, ParserState::Token))
+        {
             if matches!(parser_state, ParserState::Comment) {
                 parser_state = ParserState::Token;
-                if !active_token.typ.is_empty() || !active_token.content.is_empty() {
+                if !active_token.typ.is_empty()
+                    || !active_token.content.is_empty()
+                {
                     tokens.push(active_token.clone());
                     active_token = Token {
-                        pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-                        typ: "".to_string(),
-                        content: "".to_string(),
+                        pos: format!(
+                            "{line_number}:{column_number}:{current_indent_level}"
+                        ),
+                        typ: String::new(),
+                        content: String::new(),
                     };
                 }
                 counting_indent_spaces = true;
             } else if matches!(parser_state, ParserState::Token) {
-                if !active_token.typ.is_empty() || !active_token.content.is_empty() {
+                if !active_token.typ.is_empty()
+                    || !active_token.content.is_empty()
+                {
                     tokens.push(active_token.clone());
                     active_token = Token {
-                        pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-                        typ: "".to_string(),
-                        content: "".to_string(),
+                        pos: format!(
+                            "{line_number}:{column_number}:{current_indent_level}"
+                        ),
+                        typ: String::new(),
+                        content: String::new(),
                     };
                 }
             }
 
-             push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "newline", "");
+            push_token(
+                &mut tokens,
+                &mut active_token,
+                line_number,
+                column_number,
+                current_indent_level,
+                "newline",
+                "",
+            );
             line_number = line_number.saturating_add(1);
             column_number = 1;
             if is_newline {
@@ -117,19 +139,49 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
         } else {
             column_number = column_number.saturating_add(1);
 
-            if counting_indent_spaces && matches!(parser_state, ParserState::Token) {
+            if counting_indent_spaces
+                && matches!(parser_state, ParserState::Token)
+            {
                 if (32..=126).contains(&byte) && byte != 32 {
-                    if indent_spaces_counted % 4 == 0 && indent_spaces_counted < current_indent_level.saturating_mul(4) {
-                        let dedents = current_indent_level.saturating_sub(indent_spaces_counted.checked_div(4).unwrap_or(0));
+                    if indent_spaces_counted % 4 == 0
+                        && indent_spaces_counted
+                            < current_indent_level.saturating_mul(4)
+                    {
+                        let dedents = current_indent_level.saturating_sub(
+                            indent_spaces_counted.checked_div(4).unwrap_or(0),
+                        );
                         for _ in 0..dedents {
-                            current_indent_level = current_indent_level.saturating_sub(1);
-                            push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "dedent", "");
+                            current_indent_level =
+                                current_indent_level.saturating_sub(1);
+                            push_token(
+                                &mut tokens,
+                                &mut active_token,
+                                line_number,
+                                column_number,
+                                current_indent_level,
+                                "dedent",
+                                "",
+                            );
                         }
-                    } else if indent_spaces_counted == current_indent_level.saturating_mul(4) {
+                    } else if indent_spaces_counted
+                        == current_indent_level.saturating_mul(4)
+                    {
                         // expected indent spaces found; do nothing
-                    } else if indent_spaces_counted == (current_indent_level.saturating_add(1)).saturating_mul(4) {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "indent", "");
-                        current_indent_level = current_indent_level.saturating_add(1);
+                    } else if indent_spaces_counted
+                        == (current_indent_level.saturating_add(1))
+                            .saturating_mul(4)
+                    {
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "indent",
+                            "",
+                        );
+                        current_indent_level =
+                            current_indent_level.saturating_add(1);
                     } else {
                         bail!(
                             "Found {} spaces on line {}, column {}, but the current indentation level would expect {} spaces.",
@@ -142,54 +194,134 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
                     counting_indent_spaces = false;
                     indent_spaces_counted = 0;
                 } else if byte == 32 {
-                    indent_spaces_counted = indent_spaces_counted.saturating_add(1);
+                    indent_spaces_counted =
+                        indent_spaces_counted.saturating_add(1);
                 }
             }
 
             match parser_state {
                 ParserState::Token => {
-                    if (65..=90).contains(&byte) || (97..=122).contains(&byte) || (48..=57).contains(&byte) || byte == 45 || byte == 47 {
-                        if active_token.typ.is_empty() && active_token.content.is_empty() {
-                            active_token.pos = format!("{}:{}:{}", line_number, column_number, current_indent_level);
+                    if (65..=90).contains(&byte)
+                        || (97..=122).contains(&byte)
+                        || (48..=57).contains(&byte)
+                        || byte == 45
+                        || byte == 47
+                    {
+                        if active_token.typ.is_empty()
+                            && active_token.content.is_empty()
+                        {
+                            active_token.pos = format!(
+                                "{line_number}:{column_number}:{current_indent_level}"
+                            );
                         }
-                        active_token.content.push_str(&format!(" {}", byte));
+                        active_token.content.push_str(&format!(" {byte}"));
                     } else if byte == 32 {
                         if !active_token.content.is_empty() {
                             tokens.push(active_token.clone());
                             active_token = Token {
-                                pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-                                typ: "".to_string(),
-                                content: "".to_string(),
+                                pos: format!(
+                                    "{line_number}:{column_number}:{current_indent_level}"
+                                ),
+                                typ: String::new(),
+                                content: String::new(),
                             };
                         }
                     } else if byte == 125 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "inline-arglist-end", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "inline-arglist-end",
+                            "",
+                        );
                     } else if byte == 123 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "loop-block", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "loop-block",
+                            "",
+                        );
                     } else if byte == 39 {
                         parser_state = ParserState::LiteralS;
-                        active_token.pos = format!("{}:{}:{}", line_number, column_number, current_indent_level);
+                        active_token.pos = format!(
+                            "{line_number}:{column_number}:{current_indent_level}"
+                        );
                         active_token.typ = "literal-s".to_string();
                         active_token.content.clear();
                     } else if byte == 60 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-ab-start", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-ab-start",
+                            "",
+                        );
                     } else if byte == 62 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-ab-end", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-ab-end",
+                            "",
+                        );
                     } else if byte == 40 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-an-start", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-an-start",
+                            "",
+                        );
                     } else if byte == 41 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-an-end", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-an-end",
+                            "",
+                        );
                     } else if byte == 91 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-as-start", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-as-start",
+                            "",
+                        );
                     } else if byte == 93 {
-                        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "literal-as-end", "");
+                        push_token(
+                            &mut tokens,
+                            &mut active_token,
+                            line_number,
+                            column_number,
+                            current_indent_level,
+                            "literal-as-end",
+                            "",
+                        );
                     } else if byte == 35 {
                         parser_state = ParserState::Comment;
-                        active_token.pos = format!("{}:{}:{}", line_number, column_number, current_indent_level);
+                        active_token.pos = format!(
+                            "{line_number}:{column_number}:{current_indent_level}"
+                        );
                         active_token.typ = "comment".to_string();
                         active_token.content.clear();
                     } else {
-                        bail!("Unexpected byte {} in basic token.", byte);
+                        bail!("Unexpected byte {byte} in basic token.");
                     }
                 }
                 ParserState::LiteralS => {
@@ -197,21 +329,23 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
                         parser_state = ParserState::Token;
                         tokens.push(active_token.clone());
                         active_token = Token {
-                            pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-                            typ: "".to_string(),
-                            content: "".to_string(),
+                            pos: format!(
+                                "{line_number}:{column_number}:{current_indent_level}"
+                            ),
+                            typ: String::new(),
+                            content: String::new(),
                         };
                     } else if (32..=126).contains(&byte) {
-                        active_token.content.push_str(&format!(" {}", byte));
+                        active_token.content.push_str(&format!(" {byte}"));
                     } else {
-                        bail!("Non-printable byte {} in a string literal.", byte);
+                        bail!("Non-printable byte {byte} in a string literal.");
                     }
                 }
                 ParserState::Comment => {
                     if (32..=126).contains(&byte) {
-                        active_token.content.push_str(&format!(" {}", byte));
+                        active_token.content.push_str(&format!(" {byte}"));
                     } else {
-                        bail!("Non-printable byte {} in a comment.", byte);
+                        bail!("Non-printable byte {byte} in a comment.");
                     }
                 }
             }
@@ -222,19 +356,37 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
     if !active_token.typ.is_empty() || !active_token.content.is_empty() {
         tokens.push(active_token.clone());
         active_token = Token {
-            pos: format!("{}:{}:{}", line_number, column_number, current_indent_level),
-            typ: "".to_string(),
-            content: "".to_string(),
+            pos: format!(
+                "{line_number}:{column_number}:{current_indent_level}"
+            ),
+            typ: String::new(),
+            content: String::new(),
         };
     }
 
     let temp_indent = current_indent_level;
     for _ in 0..temp_indent {
         current_indent_level = current_indent_level.saturating_sub(1);
-        push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "dedent", "");
+        push_token(
+            &mut tokens,
+            &mut active_token,
+            line_number,
+            column_number,
+            current_indent_level,
+            "dedent",
+            "",
+        );
     }
 
-    push_token(&mut tokens, &mut active_token, line_number, column_number, current_indent_level, "end-document", "");
+    push_token(
+        &mut tokens,
+        &mut active_token,
+        line_number,
+        column_number,
+        current_indent_level,
+        "end-document",
+        "",
+    );
 
     // Labelling phase
     let prefixes = [
@@ -261,12 +413,13 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
             let content_bytes = parse_decimal_bytes(&token.content);
             if content_bytes.is_empty() {
                 token.typ = "command".to_string();
-                token.content = "".to_string();
+                token.content = String::new();
             } else if let Some(&first_byte) = content_bytes.first()
                 && ((48..=57).contains(&first_byte) || first_byte == 45)
             {
                 token.typ = "literal-n".to_string();
-                token.content = String::from_utf8_lossy(&content_bytes).to_string();
+                token.content =
+                    String::from_utf8_lossy(&content_bytes).to_string();
             } else if content_bytes == b"true" {
                 token.typ = "literal-b".to_string();
                 token.content = "true".to_string();
@@ -278,14 +431,19 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
                 for &(prefix, type_name) in &prefixes {
                     if content_bytes.starts_with(prefix) {
                         token.typ = type_name.to_string();
-                        token.content = to_space_separated_decimals(content_bytes.get(prefix.len()..).context("Invalid prefix length")?);
+                        token.content = to_space_separated_decimals(
+                            content_bytes
+                                .get(prefix.len()..)
+                                .context("Invalid prefix length")?,
+                        );
                         matched = true;
                         break;
                     }
                 }
                 if !matched {
                     token.typ = "command".to_string();
-                    token.content = String::from_utf8_lossy(&content_bytes).to_string();
+                    token.content =
+                        String::from_utf8_lossy(&content_bytes).to_string();
                 }
             }
         }
@@ -305,16 +463,26 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
-    use crate::{STAGEL_DATA_DIR, get_stagel_data};
+    use crate::get_stagel_data;
 
-use super::*;
+    use super::*;
 
     #[crate::ctb_test]
     fn test_parse_and_codegen() {
         // Load fixture files from data/fixtures
-        let html_content = get_stagel_data("fixtures/format-html.stagel").unwrap();
+        let html_content =
+            get_stagel_data("fixtures/format-html.stagel").unwrap();
 
         let parsed_html = parse(&html_content, "format-html").unwrap();
 

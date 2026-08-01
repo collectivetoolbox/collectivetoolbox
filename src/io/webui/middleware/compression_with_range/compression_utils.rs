@@ -28,7 +28,7 @@ pub(crate) struct AcceptEncoding {
 }
 
 impl AcceptEncoding {
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn to_header_value(self) -> Option<HeaderValue> {
         let accept = match (self.gzip, self.deflate, self.br, self.zstd) {
             (true, true, true, false) => "gzip,deflate,br",
@@ -51,22 +51,22 @@ impl AcceptEncoding {
         Some(HeaderValue::from_static(accept))
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn set_gzip(&mut self, enable: bool) {
         self.gzip = enable;
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn set_deflate(&mut self, enable: bool) {
         self.deflate = enable;
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn set_br(&mut self, enable: bool) {
         self.br = enable;
     }
 
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn set_zstd(&mut self, enable: bool) {
         self.zstd = enable;
     }
@@ -140,7 +140,7 @@ impl<M: DecorateAsyncRead> WrapBody<M> {
 }
 
 impl<M: DecorateAsyncRead> WrapBody<M> {
-    #[allow(dead_code, reason = "potentially unused API helper")]
+    #[expect(dead_code, reason = "potentially unused API helper")]
     pub(crate) fn new<B>(body: B, quality: CompressionLevel) -> Self
     where
         B: Body,
@@ -253,7 +253,7 @@ pin_project! {
     }
 }
 
-#[allow(dead_code, reason = "potentially unused API helper")]
+#[expect(dead_code, reason = "potentially unused API helper")]
 impl<B> BodyIntoStream<B>
 where
     B: Body,

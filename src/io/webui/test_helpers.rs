@@ -11,7 +11,11 @@
     reason = "Standard repository test boilerplate"
 )]
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace prelude"
+)]
 use crate::utilities::*;
 
 use crate::utilities::password::TEST_USER_PASS;
@@ -93,7 +97,7 @@ pub struct TestApp {
     pub _temp_dir: Option<tempfile::TempDir>,
 }
 
-#[allow(unsafe_code, unwrap_used, reason = "allowances for test code")]
+#[expect(unsafe_code, clippy::unwrap_used, reason = "allowances for test code")]
 impl Default for TestApp {
     fn default() -> Self {
         let temp_dir = tempfile::TempDir::new()
@@ -509,7 +513,10 @@ async fn body_to_bytes_truncate(
 /// must acquire the ID lock for the newly created user, we drop the initial
 /// locks and reacquire both after registration completes to avoid deadlocks.
 #[must_use]
-#[allow(clippy::too_many_lines, reason = "test helper function setup is naturally long")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "test helper function setup is naturally long"
+)]
 pub async fn register_and_login_test_user_with_app(
     app: &Router,
     username: &str,

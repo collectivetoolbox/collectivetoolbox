@@ -1,9 +1,16 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use crate::db::get_connection;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use anyhow::Result;
-use crate::db::get_connection;
+use sea_query::{
+    Alias, ConditionalStatement, Expr, ExprTrait, Iden, Query,
+    QueryStatementWriter, SchemaStatementBuilder, SqliteQueryBuilder,
+};
 use turso::Value;
-use sea_query::*;
 
 #[derive(sea_query::Iden)]
 #[iden(rename = "sync_tokens")]
@@ -27,7 +34,11 @@ enum SyncIdRanges {
 
 /// [CLIENT-SIDE] Stores a newly finalized blind token locally in the user's database.
 #[ipc_method]
-pub async fn save_local_token(user_id: u64, key: u64, token: String) -> Result<()> {
+pub async fn save_local_token(
+    user_id: u64,
+    key: u64,
+    token: String,
+) -> Result<()> {
     let db_name = format!("graphs/{user_id}/user_data");
     let conn = get_connection(&db_name).await?;
 
@@ -41,7 +52,7 @@ pub async fn save_local_token(user_id: u64, key: u64, token: String) -> Result<(
         .on_conflict(
             sea_query::OnConflict::column(SyncTokens::Key)
                 .update_column(SyncTokens::Token)
-                .to_owned()
+                .to_owned(),
         )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);
@@ -85,7 +96,9 @@ pub async fn delete_local_token(user_id: u64, key: u64) -> Result<()> {
 
     let (sql, values) = Query::delete()
         .from_table(SyncTokens::Table)
-        .and_where(Expr::col(SyncTokens::Key).eq(<i64 as TryFrom<_>>::try_from(key)?))
+        .and_where(
+            Expr::col(SyncTokens::Key).eq(<i64 as TryFrom<_>>::try_from(key)?),
+        )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);
     conn.execute(&sql, params).await?;
@@ -94,21 +107,22 @@ pub async fn delete_local_token(user_id: u64, key: u64) -> Result<()> {
 
 /// [CLIENT-SIDE] Saves the reserved local ID range for a graph in the user's database.
 #[ipc_method]
-pub async fn save_local_id_range(user_id: u64, graph_id: u128, range_bytes: Vec<u8>) -> Result<()> {
+pub async fn save_local_id_range(
+    user_id: u64,
+    graph_id: u128,
+    range_bytes: Vec<u8>,
+) -> Result<()> {
     let db_name = format!("graphs/{user_id}/user_data");
     let conn = get_connection(&db_name).await?;
 
     let (sql, values) = Query::insert()
         .into_table(SyncIdRanges::Table)
         .columns([SyncIdRanges::GraphId, SyncIdRanges::RangeData])
-        .values_panic([
-            graph_id.to_string().into(),
-            range_bytes.into(),
-        ])
+        .values_panic([graph_id.to_string().into(), range_bytes.into()])
         .on_conflict(
             sea_query::OnConflict::column(SyncIdRanges::GraphId)
                 .update_column(SyncIdRanges::RangeData)
-                .to_owned()
+                .to_owned(),
         )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);
@@ -118,7 +132,10 @@ pub async fn save_local_id_range(user_id: u64, graph_id: u128, range_bytes: Vec<
 
 /// [CLIENT-SIDE] Retrieves the reserved local ID range for a graph from the user's database.
 #[ipc_method]
-pub async fn get_local_id_range(user_id: u64, graph_id: u128) -> Result<Option<Vec<u8>>> {
+pub async fn get_local_id_range(
+    user_id: u64,
+    graph_id: u128,
+) -> Result<Option<Vec<u8>>> {
     let db_name = format!("graphs/{user_id}/user_data");
     let conn = get_connection(&db_name).await?;
 
@@ -174,7 +191,7 @@ pub async fn spend_token(serial_hex: String) -> Result<()> {
         .on_conflict(
             sea_query::OnConflict::column(Alias::new("key"))
                 .do_nothing()
-                .to_owned()
+                .to_owned(),
         )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);
@@ -221,7 +238,7 @@ pub async fn allocate_next_remote_range(graph_id: u128) -> Result<u64> {
             .on_conflict(
                 sea_query::OnConflict::column(Alias::new("graph_id"))
                     .update_column(Alias::new("start_id"))
-                    .to_owned()
+                    .to_owned(),
             )
             .build(SqliteQueryBuilder);
         let params_insert = crate::db::sea_values_to_turso(insert_values);
@@ -245,12 +262,20 @@ pub async fn allocate_next_remote_range(graph_id: u128) -> Result<u64> {
 
 /// [SERVER-SIDE] Stores an encrypted graph/node chunk payload on the server.
 #[ipc_method]
-pub async fn save_sync_chunk(hash: String, data: Vec<u8>, expiry: u64) -> Result<()> {
+pub async fn save_sync_chunk(
+    hash: String,
+    data: Vec<u8>,
+    expiry: u64,
+) -> Result<()> {
     let conn = get_connection("sync").await?;
 
     let (sql, values) = Query::insert()
         .into_table(Alias::new("sync_chunks"))
-        .columns([Alias::new("chunk_hash"), Alias::new("chunk_data"), Alias::new("expiry")])
+        .columns([
+            Alias::new("chunk_hash"),
+            Alias::new("chunk_data"),
+            Alias::new("expiry"),
+        ])
         .values_panic([
             hash.into(),
             data.into(),
@@ -258,8 +283,11 @@ pub async fn save_sync_chunk(hash: String, data: Vec<u8>, expiry: u64) -> Result
         ])
         .on_conflict(
             sea_query::OnConflict::column(Alias::new("chunk_hash"))
-                .update_columns([Alias::new("chunk_data"), Alias::new("expiry")])
-                .to_owned()
+                .update_columns([
+                    Alias::new("chunk_data"),
+                    Alias::new("expiry"),
+                ])
+                .to_owned(),
         )
         .build(SqliteQueryBuilder);
     let params = crate::db::sea_values_to_turso(values);

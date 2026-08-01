@@ -1,9 +1,17 @@
 //! Controller for the EITE edit tool.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-use axum::{extract::State, response::{IntoResponse, Response}, Json};
+use axum::{
+    Json,
+    extract::State,
+    response::{IntoResponse, Response},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -49,8 +57,13 @@ pub async fn post_eite_call(
         Ok(val) => Json(EiteCallResponse { value: val }).into_response(),
         Err(err) => {
             let err_msg = err.to_string();
-            crate::warn!("EITE RPC call to {} failed: {}", payload.function, err_msg.clone());
-            let response: Response = (axum::http::StatusCode::BAD_REQUEST, err_msg).into_response();
+            crate::warn!(
+                "EITE RPC call to {} failed: {}",
+                payload.function,
+                err_msg.clone()
+            );
+            let response: Response =
+                (axum::http::StatusCode::BAD_REQUEST, err_msg).into_response();
             response
         }
     }
@@ -65,27 +78,27 @@ async fn handle_eite_call(
         "setupIfNeeded" => Ok(Value::Null),
         "dcGetColumn" => {
             let dataset = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dataset"))?;
-            let col_idx_raw = args
-                .get(1)
-                .and_then(Value::as_u64)
-                .ok_or_else(|| anyhow::anyhow!("Missing arg 1: field_number"))?;
+            let col_idx_raw =
+                args.get(1).and_then(Value::as_u64).ok_or_else(|| {
+                    anyhow::anyhow!("Missing arg 1: field_number")
+                })?;
             let col_idx = usize::try_from(col_idx_raw)?;
             let col = ctb_formats_eite::dc::dc_get_column(dataset, col_idx)?;
             Ok(serde_json::to_value(col)?)
         }
         "dcDatasetLength" => {
             let dataset = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dataset"))?;
             if dataset == "DcData" {
                 let len = ctb_formats_eite::dc::get_dc_count();
                 Ok(serde_json::to_value(len)?)
             } else {
-                anyhow::bail!("Unknown dataset: {}", dataset)
+                anyhow::bail!("Unknown dataset: {dataset}")
             }
         }
         "listInputFormats" => {
@@ -98,7 +111,7 @@ async fn handle_eite_call(
         }
         "pushExportSettings" => {
             let format_id_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format_id"))?;
             let format_id = usize::try_from(format_id_raw)?;
@@ -106,12 +119,14 @@ async fn handle_eite_call(
                 .get(1)
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 1: settings"))?;
-            ctb_formats_eite::settings::push_export_settings(state, format_id, settings)?;
+            ctb_formats_eite::settings::push_export_settings(
+                state, format_id, settings,
+            )?;
             Ok(Value::Null)
         }
         "popExportSettings" => {
             let format_id_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format_id"))?;
             let format_id = usize::try_from(format_id_raw)?;
@@ -120,7 +135,7 @@ async fn handle_eite_call(
         }
         "pushImportSettings" => {
             let format_id_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format_id"))?;
             let format_id = usize::try_from(format_id_raw)?;
@@ -128,12 +143,14 @@ async fn handle_eite_call(
                 .get(1)
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 1: settings"))?;
-            ctb_formats_eite::settings::push_import_settings(state, format_id, settings)?;
+            ctb_formats_eite::settings::push_import_settings(
+                state, format_id, settings,
+            )?;
             Ok(Value::Null)
         }
         "popImportSettings" => {
             let format_id_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format_id"))?;
             let format_id = usize::try_from(format_id_raw)?;
@@ -142,7 +159,7 @@ async fn handle_eite_call(
         }
         "importAndExport" => {
             let in_fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: in_format"))?;
             let out_fmt_str = args
@@ -154,8 +171,10 @@ async fn handle_eite_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 2: content"))?;
             let content: Vec<u8> = serde_json::from_value(content_val.clone())?;
 
-            let in_fmt = ctb_formats_eite::formats::Format::from_string(in_fmt_str)?;
-            let out_fmt = ctb_formats_eite::formats::Format::from_string(out_fmt_str)?;
+            let in_fmt =
+                ctb_formats_eite::formats::Format::from_string(in_fmt_str)?;
+            let out_fmt =
+                ctb_formats_eite::formats::Format::from_string(out_fmt_str)?;
 
             let (res, _) = ctb_formats_eite::import_and_export(
                 state,
@@ -168,7 +187,7 @@ async fn handle_eite_call(
         }
         "strFromByteArray" => {
             let bytes_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
             let s = String::from_utf8(bytes)?;
@@ -176,7 +195,7 @@ async fn handle_eite_call(
         }
         "strToByteArray" => {
             let s = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: string"))?;
             let bytes = s.as_bytes().to_vec();
@@ -184,15 +203,16 @@ async fn handle_eite_call(
         }
         "runDocument" => {
             let dc_arr_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc_array"))?;
-            let dc_array: Vec<u32> = serde_json::from_value(dc_arr_val.clone())?;
+            let dc_array: Vec<u32> =
+                serde_json::from_value(dc_arr_val.clone())?;
             ctb_formats_eite::runtime::run_document(state, &dc_array)?;
             Ok(Value::Null)
         }
         "importDocument" => {
             let fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format"))?;
             let bytes_val = args
@@ -200,12 +220,13 @@ async fn handle_eite_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 1: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
             let fmt = ctb_formats_eite::formats::Format::from_string(fmt_str)?;
-            let (dc_array, _) = ctb_formats_eite::import_document(state, &fmt, &bytes)?;
+            let (dc_array, _) =
+                ctb_formats_eite::import_document(state, &fmt, &bytes)?;
             Ok(serde_json::to_value(dc_array)?)
         }
         "getFormatId" => {
             let fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format"))?;
             let id = ctb_formats_eite::formats::get_format_id(fmt_str)?;
@@ -213,7 +234,7 @@ async fn handle_eite_call(
         }
         "isKnownDc" => {
             let dc_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc"))?;
             let dc = u32::try_from(dc_raw)?;
@@ -222,7 +243,7 @@ async fn handle_eite_call(
         }
         "dcGetName" => {
             let dc_raw = args
-                .get(0)
+                .first()
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc"))?;
             let dc = u32::try_from(dc_raw)?;
@@ -231,23 +252,25 @@ async fn handle_eite_call(
         }
         "isSupportedInputFormat" => {
             let fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format"))?;
-            let b = ctb_formats_eite::formats::is_supported_input_format(fmt_str);
+            let b =
+                ctb_formats_eite::formats::is_supported_input_format(fmt_str);
             Ok(Value::Bool(b))
         }
         "isSupportedOutputFormat" => {
             let fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format"))?;
-            let b = ctb_formats_eite::formats::is_supported_output_format(fmt_str);
+            let b =
+                ctb_formats_eite::formats::is_supported_output_format(fmt_str);
             Ok(Value::Bool(b))
         }
         "getExportExtension" => {
             let fmt_str = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: format"))?;
             let ext = ctb_formats_eite::formats::get_export_extension(fmt_str)?;
@@ -255,22 +278,26 @@ async fn handle_eite_call(
         }
         "getFileFromPath" => {
             let path = args
-                .get(0)
+                .first()
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: path"))?;
-            let bytes = if path.starts_with("http://") || path.starts_with("https://") {
+            let bytes = if path.starts_with("http://")
+                || path.starts_with("https://")
+            {
                 crate::utilities::https::get(path).await?
             } else {
-                ctb_formats_eite::get_eite_data(path)
-                    .ok_or_else(|| anyhow::anyhow!("EITE asset not found: {}", path))?
+                ctb_formats_eite::get_eite_data(path).ok_or_else(|| {
+                    anyhow::anyhow!("EITE asset not found: {path}")
+                })?
             };
             Ok(serde_json::to_value(bytes)?)
         }
         "dcaToDcbnbFragmentUtf8" => {
             let dc_arr_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc_array"))?;
-            let dc_array: Vec<u32> = serde_json::from_value(dc_arr_val.clone())?;
+            let dc_array: Vec<u32> =
+                serde_json::from_value(dc_arr_val.clone())?;
             let (bytes, _log) = ctb_formats_eite::formats::dcbasenb::dca_to_dcbnb_fragment_utf8(
                 &dc_array,
                 &ctb_formats_eite::formats::utf8::UTF8FormatSettings::default(),
@@ -279,7 +306,7 @@ async fn handle_eite_call(
         }
         "dcaFromDcbnbFragmentUtf8" => {
             let bytes_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
             let (dc_array, _log) = ctb_formats_eite::formats::dcbasenb::dca_from_dcbnb_fragment_utf8(
@@ -290,34 +317,43 @@ async fn handle_eite_call(
         }
         "dcbnbGetFirstChar" => {
             let bytes_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
-            let first = ctb_formats_eite::formats::dcbasenb::dcbnb_get_first_char(&bytes)?;
+            let first =
+                ctb_formats_eite::formats::dcbasenb::dcbnb_get_first_char(
+                    &bytes,
+                )?;
             Ok(serde_json::to_value(first)?)
         }
         "dcbnbGetLastChar" => {
             let bytes_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
-            let last = ctb_formats_eite::formats::dcbasenb::dcbnb_get_last_char(&bytes)?;
+            let last =
+                ctb_formats_eite::formats::dcbasenb::dcbnb_get_last_char(
+                    &bytes,
+                )?;
             Ok(serde_json::to_value(last)?)
         }
         "printArr" => {
             let dc_arr_val = args
-                .get(0)
+                .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc_array"))?;
-            let dc_array: Vec<u32> = serde_json::from_value(dc_arr_val.clone())?;
+            let dc_array: Vec<u32> =
+                serde_json::from_value(dc_arr_val.clone())?;
             let s = ctb_formats_eite::util::array::print_arr(&dc_array);
             Ok(Value::String(s))
         }
-        other => anyhow::bail!("Function '{}' not found in EITE RPC allowlist", other),
+        other => {
+            anyhow::bail!("Function '{other}' not found in EITE RPC allowlist")
+        }
     }
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -329,8 +365,8 @@ async fn handle_eite_call(
 )]
 mod tests {
     use crate::test_helpers::{
-        assert_eq_or_print_body, test_get_no_login,
-        test_get_with_login, TestApp,
+        TestApp, assert_eq_or_print_body, test_get_no_login,
+        test_get_with_login,
     };
     use crate::utilities::anyhow;
     use axum::http::StatusCode;
@@ -349,14 +385,16 @@ mod tests {
             axum::http::header::CONTENT_TYPE,
             axum::http::HeaderValue::from_static("application/json"),
         );
-        let (status, body) = test_app.request::<()>(
-            axum::http::Method::POST,
-            uri,
-            Some(headers),
-            Some(&cookie_val),
-            Some(serde_json::to_vec(payload)?),
-            None,
-        ).await;
+        let (status, body) = test_app
+            .request::<()>(
+                axum::http::Method::POST,
+                uri,
+                Some(headers),
+                Some(&cookie_val),
+                Some(serde_json::to_vec(payload)?),
+                None,
+            )
+            .await;
         Ok((status, body, lock))
     }
 
@@ -374,14 +412,20 @@ mod tests {
             Some(Vec::new()),
             None,
             None,
-        ).await;
+        )
+        .await;
         assert_eq!(status, 401);
     }
 
     #[crate::ctb_test("tokio")]
     async fn authenticated_can_load_edit_tool() {
-        let (status, body, _lock) =
-            test_get_with_login("/tools/eite-edit-tool", None, function_name!()).await.unwrap();
+        let (status, body, _lock) = test_get_with_login(
+            "/tools/eite-edit-tool",
+            None,
+            function_name!(),
+        )
+        .await
+        .unwrap();
         assert_eq_or_print_body(status, 200, &body);
         assert!(body.contains("eiteDocumentRoot"));
     }
@@ -392,8 +436,13 @@ mod tests {
             "function": "isKnownDc",
             "args": [18]
         });
-        let (status, body, _lock) =
-            test_post_json_with_login("/api/eite/call", &payload, function_name!()).await.unwrap();
+        let (status, body, _lock) = test_post_json_with_login(
+            "/api/eite/call",
+            &payload,
+            function_name!(),
+        )
+        .await
+        .unwrap();
         assert_eq_or_print_body(status, 200, &body);
         let resp: serde_json::Value = serde_json::from_str(&body).unwrap();
         assert_eq!(resp["value"], true);
@@ -405,8 +454,13 @@ mod tests {
             "function": "nonExistentFunction",
             "args": []
         });
-        let (status, _body, _lock) =
-            test_post_json_with_login("/api/eite/call", &payload, function_name!()).await.unwrap();
+        let (status, _body, _lock) = test_post_json_with_login(
+            "/api/eite/call",
+            &payload,
+            function_name!(),
+        )
+        .await
+        .unwrap();
         assert_eq!(status, 400);
     }
 }

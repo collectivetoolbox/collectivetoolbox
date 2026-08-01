@@ -1,6 +1,10 @@
 //! File extension registry and matching utilities for format identification.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use ctb_utilities::*;
 
 /// Defines whether an extension comparison is case-sensitive or case-insensitive.
@@ -43,7 +47,11 @@ impl ExtensionRule {
     }
 
     /// Constructs a rule with a custom score weight.
-    pub const fn with_weight(extension: &'static str, case_sensitivity: CaseSensitivity, weight: u32) -> Self {
+    pub const fn with_weight(
+        extension: &'static str,
+        case_sensitivity: CaseSensitivity,
+        weight: u32,
+    ) -> Self {
         Self {
             extension,
             case_sensitivity,
@@ -62,13 +70,15 @@ impl ExtensionRule {
 
         match self.case_sensitivity {
             CaseSensitivity::Sensitive => ext == self.extension,
-            CaseSensitivity::Insensitive => ext.eq_ignore_ascii_case(self.extension),
+            CaseSensitivity::Insensitive => {
+                ext.eq_ignore_ascii_case(self.extension)
+            }
         }
     }
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

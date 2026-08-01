@@ -42,7 +42,10 @@ pub fn remove_suffix(string: &str, suffix: &str) -> Result<String> {
 
 /// Performs a compile-time (const) equality comparison between two string
 /// slices.
-#[expect(clippy::indexing_slicing, reason = "bracket indexing is necessary here as slice::get is not stable as const fn")]
+#[expect(
+    clippy::indexing_slicing,
+    reason = "bracket indexing is necessary here as slice::get is not stable as const fn"
+)]
 pub(crate) const fn const_str_eq(a: &str, b: &str) -> bool {
     let a_bytes = a.as_bytes();
     let b_bytes = b.as_bytes();
@@ -61,11 +64,16 @@ pub(crate) const fn const_str_eq(a: &str, b: &str) -> bool {
 
 /// Strips all ANSI escape codes (e.g., terminal color and styling codes)
 /// from the string.
-#[allow(clippy::expect_used, reason = "It is always the same regex, and has test coverage. Seems unlikely to fail I guess? Returning Result would be awkward.")]
+#[expect(
+    clippy::expect_used,
+    reason = "It is always the same regex, and has test coverage. Seems unlikely to fail I guess? Returning Result would be awkward."
+)]
 pub fn strip_ansi_codes(s: &str) -> String {
-    static ANSI_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]").expect("Valid ANSI regex pattern")
-    });
+    static ANSI_RE: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| {
+            regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]")
+                .expect("Valid ANSI regex pattern")
+        });
     ANSI_RE.replace_all(s, "").into_owned()
 }
 
@@ -113,7 +121,9 @@ pub fn pattern_match_custom_wildcard(
             continue;
         }
         // dbg!(part, i);
-        if i == parts.len().saturating_sub(1) && (part.is_empty() || *part == "\n") {
+        if i == parts.len().saturating_sub(1)
+            && (part.is_empty() || *part == "\n")
+        {
             // dbg!("exit 1 true", i);
             return true;
         }
@@ -189,12 +199,18 @@ pub fn to_hex_0x(bytes: &[u8]) -> String {
     format!("0x{}", to_hex(bytes))
 }
 
-fn split_escaped_internal(s: &str, separator: &str, trim: bool, step_back_bug: bool) -> Vec<String> {
+fn split_escaped_internal(
+    s: &str,
+    separator: &str,
+    trim: bool,
+    step_back_bug: bool,
+) -> Vec<String> {
     if s.is_empty() {
         return Vec::new();
     }
     if separator.is_empty() {
-        let mut result: Vec<String> = s.chars().map(|c| c.to_string()).collect();
+        let mut result: Vec<String> =
+            s.chars().map(|c| c.to_string()).collect();
         if trim {
             for item in &mut result {
                 *item = item.trim().to_string();
@@ -203,7 +219,10 @@ fn split_escaped_internal(s: &str, separator: &str, trim: bool, step_back_bug: b
         return result;
     }
 
-    let mut exploded: Vec<String> = s.split(separator).map(|segment| segment.to_string()).collect();
+    let mut exploded: Vec<String> = s
+        .split(separator)
+        .map(std::string::ToString::to_string)
+        .collect();
     let mut fixed = Vec::new();
     let mut k = 0_usize;
     while k < exploded.len() {
@@ -218,7 +237,8 @@ fn split_escaped_internal(s: &str, separator: &str, trim: bool, step_back_bug: b
                 break;
             }
             // Replace trailing '\' with separator
-            let sub = segment.get(..segment.len().saturating_sub(1)).unwrap_or("");
+            let sub =
+                segment.get(..segment.len().saturating_sub(1)).unwrap_or("");
             let mut prefix = sub.to_string();
             prefix.push_str(separator);
             // Append next segment
@@ -269,7 +289,16 @@ pub fn explode_escaped(s: &str, separator: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -278,7 +307,10 @@ mod tests {
         assert_eq!(to_hex(&[]), "");
         assert_eq!(to_hex(&[0]), "00");
         assert_eq!(to_hex(&[255]), "ff");
-        assert_eq!(to_hex(&[0x12, 0x34, 0x56, 0xab, 0xcd, 0xef]), "123456abcdef");
+        assert_eq!(
+            to_hex(&[0x12, 0x34, 0x56, 0xab, 0xcd, 0xef]),
+            "123456abcdef"
+        );
     }
 
     #[crate::ctb_test]
@@ -314,7 +346,10 @@ mod tests {
         assert_eq!(explode_escaped("a\\", ","), vec!["a\\"]);
 
         // Verify the step-back logic bug in split_escaped_bug_compat
-        assert_eq!(split_escaped_bug_compat("a,b\\,c", ","), vec!["a", "a", "b,c"]);
+        assert_eq!(
+            split_escaped_bug_compat("a,b\\,c", ","),
+            vec!["a", "a", "b,c"]
+        );
         assert_eq!(split_escaped("a,b\\,c", ","), vec!["a", "b,c"]);
     }
 

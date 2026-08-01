@@ -1,6 +1,10 @@
 //! Utilities for processing and parsing DCE data files.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Context, Result, anyhow};
@@ -27,9 +31,13 @@ pub fn php_to_csvs(bytes: &[u8]) -> Result<HashMap<String, Vec<u8>>> {
                 continue;
             }
             if let Some(arrow_idx) = find_arrow(elem_trimmed) {
-                let key_part = elem_trimmed.get(..arrow_idx).unwrap_or("").trim();
-                let arrow_idx_plus_2 = arrow_idx.checked_add(2).ok_or_else(|| anyhow!("Index overflow"))?;
-                let val_part = elem_trimmed.get(arrow_idx_plus_2..).unwrap_or("").trim();
+                let key_part =
+                    elem_trimmed.get(..arrow_idx).unwrap_or("").trim();
+                let arrow_idx_plus_2 = arrow_idx
+                    .checked_add(2)
+                    .ok_or_else(|| anyhow!("Index overflow"))?;
+                let val_part =
+                    elem_trimmed.get(arrow_idx_plus_2..).unwrap_or("").trim();
                 let key = parse_php_string(key_part);
                 let val = parse_php_string(val_part);
                 pairs.push((key, val));
@@ -56,22 +64,28 @@ pub fn php_file_to_csv_files<P: AsRef<std::path::Path>>(path: P) -> Result<()> {
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Invalid path filename"))?;
 
-    let bytes = std::fs::read(path)
-        .with_context(|| format!("Failed to read PHP file from {}", path.display()))?;
+    let bytes = std::fs::read(path).with_context(|| {
+        format!("Failed to read PHP file from {}", path.display())
+    })?;
 
     let csvs = php_to_csvs(&bytes)?;
 
     for (label, csv_bytes) in csvs {
         let out_filename = format!("{file_name}-{label}.csv");
         let out_path = std::path::Path::new(&out_filename);
-        std::fs::write(out_path, csv_bytes)
-            .with_context(|| format!("Failed to write CSV file {}", out_path.display()))?;
+        std::fs::write(out_path, csv_bytes).with_context(|| {
+            format!("Failed to write CSV file {}", out_path.display())
+        })?;
     }
 
     Ok(())
 }
 
-#[allow(clippy::too_many_lines, clippy::while_let_on_iterator, reason = "complex state-machine parser function")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::while_let_on_iterator,
+    reason = "complex state-machine parser function"
+)]
 fn find_arrays(input: &str) -> Vec<(String, String)> {
     let mut arrays = Vec::new();
     let mut chars = input.char_indices().peekable();
@@ -339,7 +353,9 @@ fn find_arrow(element: &str) -> Option<usize> {
 
 fn parse_php_string(s: &str) -> String {
     let s = s.trim();
-    if (s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')) {
+    if (s.starts_with('\'') && s.ends_with('\''))
+        || (s.starts_with('"') && s.ends_with('"'))
+    {
         let quote = if s.starts_with('\'') { '\'' } else { '"' };
         let content = s.get(1..s.len().saturating_sub(1)).unwrap_or("");
         let mut result = String::new();
@@ -356,12 +372,29 @@ fn parse_php_string(s: &str) -> String {
                         }
                     } else {
                         match next_c {
-                            '"' => { result.push('"'); chars.next(); }
-                            '\\' => { result.push('\\'); chars.next(); }
-                            'n' => { result.push('\n'); chars.next(); }
-                            'r' => { result.push('\r'); chars.next(); }
-                            't' => { result.push('\t'); chars.next(); }
-                            _ => { result.push('\\'); }
+                            '"' => {
+                                result.push('"');
+                                chars.next();
+                            }
+                            '\\' => {
+                                result.push('\\');
+                                chars.next();
+                            }
+                            'n' => {
+                                result.push('\n');
+                                chars.next();
+                            }
+                            'r' => {
+                                result.push('\r');
+                                chars.next();
+                            }
+                            't' => {
+                                result.push('\t');
+                                chars.next();
+                            }
+                            _ => {
+                                result.push('\\');
+                            }
                         }
                     }
                 } else {
@@ -413,7 +446,16 @@ fn escape_csv_field(field: &str) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -431,10 +473,7 @@ $sequential = array('first', 'second', 'third', '  whitespace  ', 'escaped\'quot
 
         let map_csv = &csvs["DcMap_test"];
         let map_csv_str = std::str::from_utf8(map_csv).unwrap();
-        assert_eq!(
-            map_csv_str,
-            "00,0\n01,16\n02,15\n0A,\n"
-        );
+        assert_eq!(map_csv_str, "00,0\n01,16\n02,15\n0A,\n");
 
         let seq_csv = &csvs["sequential"];
         let seq_csv_str = std::str::from_utf8(seq_csv).unwrap();

@@ -2,7 +2,11 @@
 use crate::error::Error;
 #[cfg(unix)]
 use crate::multiplex::session::Session;
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub use ctb_utilities::shared_memory;

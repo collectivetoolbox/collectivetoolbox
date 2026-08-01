@@ -3,7 +3,11 @@
 // For parts derived from dlint:
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use deno_ast::diagnostics::Diagnostic;

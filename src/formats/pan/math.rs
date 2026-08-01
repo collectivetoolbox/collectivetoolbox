@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 //! Pan math and numeric helpers.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 use ctb_utilities::math::exact_float::{f64_to_u64, u64_to_f64_exact};
 use malachite::Natural;
@@ -13,31 +17,46 @@ pub fn abs(number: f64) -> f64 {
 
 /// Adds two numbers.
 /// This will not match proper Pan math, which uses either ints/fixed point (I think both of those might wrap on overflow?) or floats (which I think are 32-bit).
-#[allow(clippy::arithmetic_side_effects, reason = "standard operators are saturating with floats I think")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "standard operators are saturating with floats I think"
+)]
 pub fn add(numerator: f64, denominator: f64) -> f64 {
     numerator + denominator
 }
 
 /// Subtracts `denominator` from `numerator`.
-#[allow(clippy::arithmetic_side_effects, reason = "standard operators are saturating with floats I think")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "standard operators are saturating with floats I think"
+)]
 pub fn sub(numerator: f64, denominator: f64) -> f64 {
     numerator - denominator
 }
 
 /// Multiplies two numbers.
-#[allow(clippy::arithmetic_side_effects, reason = "standard operators are saturating with floats I think")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "standard operators are saturating with floats I think"
+)]
 pub fn mul(numerator: f64, denominator: f64) -> f64 {
     numerator * denominator
 }
 
 /// Divides `numerator` by `denominator`.
-#[allow(clippy::arithmetic_side_effects, reason = "standard operators are saturating with floats I think")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "standard operators are saturating with floats I think"
+)]
 pub fn div(numerator: f64, denominator: f64) -> f64 {
     numerator / denominator
 }
 
 /// Divides, returning 0 when `denominator` is zero.
-#[allow(clippy::arithmetic_side_effects, reason = "standard operators are saturating with floats I think")]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "standard operators are saturating with floats I think"
+)]
 pub fn divzero(numerator: f64, denominator: f64) -> f64 {
     if denominator == 0.0 {
         0.0
@@ -339,7 +358,9 @@ pub fn fact(number: f64) -> Result<f64> {
     let mut i = 2_u64;
     while i <= n {
         acc = <f64 as std::ops::Mul<f64>>::mul(acc, u64_to_f64_exact(i)?);
-        i = i.checked_add(1).ok_or_else(|| anyhow::anyhow!("i overflowed"))?;
+        i = i
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("i overflowed"))?;
     }
     Ok(acc)
 }
@@ -349,8 +370,13 @@ pub fn fact_exact(n: u64) -> Result<Natural> {
     let mut acc = Natural::from(1_u32);
     let mut i = 2_u64;
     while i <= n {
-        <Natural as std::ops::MulAssign<Natural>>::mul_assign(&mut acc, Natural::from(i));
-        i = i.checked_add(1).ok_or_else(|| anyhow::anyhow!("i overflowed"))?;
+        <Natural as std::ops::MulAssign<Natural>>::mul_assign(
+            &mut acc,
+            Natural::from(i),
+        );
+        i = i
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("i overflowed"))?;
     }
     Ok(acc)
 }
@@ -468,7 +494,16 @@ pub fn pv(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use ctb_utilities::anyhow::ensure;
 

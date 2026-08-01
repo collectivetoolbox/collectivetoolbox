@@ -6,7 +6,11 @@
 //! be encapsulated into UTF-8 using `dcl_basenb` (base17) armoring, replaced
 //! with UTF-8 replacement characters (`U+FFFD`), or skipped.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use ctb_utilities::*;
 
 use anyhow::{Result, anyhow};
@@ -21,14 +25,10 @@ use ctb_formats_eite::encoding::basenb::{
     byte_array_from_basenb_17_utf8, byte_array_to_basenb_17_utf8,
     is_basenb_char,
 };
-use ctb_formats_utf8::{
-    UTF8_REPLACEMENT_CHARACTER, first_char_of_utf8_string,
-};
+use ctb_formats_utf8::{UTF8_REPLACEMENT_CHARACTER, first_char_of_utf8_string};
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
-use crate::{
-    CLASSIC_DC_OFFSET, DcList, dclist_to_dcutf, dcutf_to_dclist,
-};
+use crate::{CLASSIC_DC_OFFSET, DcList, dclist_to_dcutf, dcutf_to_dclist};
 
 /// Raw 16-byte array for Start UUID: `1880aba3-21df-42b2-9c96-e32cd647ffc5`
 pub const DCL_BASENB_START_UUID_RAW: [u8; 16] = [
@@ -144,13 +144,18 @@ pub fn dclist_to_utf8(
                         while j < dclist.len() {
                             let cur_dc = dclist.get(j).copied().unwrap_or(0);
                             if cur_dc >= CLASSIC_DC_OFFSET {
-                                let cur_diff = cur_dc.saturating_sub(CLASSIC_DC_OFFSET);
-                                if let Ok(cur_classic) = u32::try_from(cur_diff) {
-                                    if cur_classic == DC_END_ENCAPSULATION_UTF8 {
+                                let cur_diff =
+                                    cur_dc.saturating_sub(CLASSIC_DC_OFFSET);
+                                if let Ok(cur_classic) = u32::try_from(cur_diff)
+                                {
+                                    if cur_classic == DC_END_ENCAPSULATION_UTF8
+                                    {
                                         truncated = false;
                                         break;
                                     }
-                                    if !is_dc_base64_encapsulation_character(cur_classic) {
+                                    if !is_dc_base64_encapsulation_character(
+                                        cur_classic,
+                                    ) {
                                         break;
                                     }
                                 } else {
@@ -166,12 +171,16 @@ pub fn dclist_to_utf8(
                             let mut inner_dcs = Vec::new();
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
-                                    if let Ok(k_classic) = u32::try_from(k_dc.saturating_sub(CLASSIC_DC_OFFSET)) {
+                                    if let Ok(k_classic) = u32::try_from(
+                                        k_dc.saturating_sub(CLASSIC_DC_OFFSET),
+                                    ) {
                                         inner_dcs.push(k_classic);
                                     }
                                 }
                             }
-                            if let Ok(decoded_bytes) = dc_encapsulated_raw_to_bytes(&inner_dcs) {
+                            if let Ok(decoded_bytes) =
+                                dc_encapsulated_raw_to_bytes(&inner_dcs)
+                            {
                                 flush_unmappables(
                                     &mut out,
                                     &mut unmappables,
@@ -188,7 +197,11 @@ pub fn dclist_to_utf8(
                     }
 
                     // Sub-case 2b: Standard classic Dc to UTF-8 mapping
-                    if let Ok((mapped_bytes, dc_log)) = ctb_formats_eite::formats::dc_to_format("utf8", classic_dc) {
+                    if let Ok((mapped_bytes, dc_log)) =
+                        ctb_formats_eite::formats::dc_to_format(
+                            "utf8", classic_dc,
+                        )
+                    {
                         log.merge(&dc_log);
                         if !mapped_bytes.is_empty() {
                             flush_unmappables(
@@ -213,7 +226,10 @@ pub fn dclist_to_utf8(
             unmappables.push(dc);
         } else {
             let idx_u64 = u64::try_from(i).unwrap_or(0);
-            log.export_warning(idx_u64, &format!("Dc {dc} has no UTF-8 mapping"));
+            log.export_warning(
+                idx_u64,
+                &format!("Dc {dc} has no UTF-8 mapping"),
+            );
             if !settings.skip_unmappable {
                 out.extend_from_slice(UTF8_REPLACEMENT_CHARACTER);
             }
@@ -233,7 +249,10 @@ pub fn dclist_to_utf8(
     )?;
 
     // Append end UUID sentinel if armoring was active
-    if settings.dcl_basenb_enabled && found_any_unmappables && !settings.dcl_basenb_fragment_enabled {
+    if settings.dcl_basenb_enabled
+        && found_any_unmappables
+        && !settings.dcl_basenb_fragment_enabled
+    {
         out.extend_from_slice(&end_uuid_bytes);
     }
 
@@ -282,7 +301,9 @@ pub fn dclist_from_utf8(
     while !remaining.is_empty() {
         if settings.dcl_basenb_enabled {
             let is_start_basenb = if settings.dcl_basenb_fragment_enabled {
-                if let Ok((first_char, consumed)) = first_char_of_utf8_string(remaining) {
+                if let Ok((first_char, consumed)) =
+                    first_char_of_utf8_string(remaining)
+                {
                     consumed > 0 && is_basenb_char(&first_char)
                 } else {
                     false
@@ -293,25 +314,32 @@ pub fn dclist_from_utf8(
 
             if is_start_basenb {
                 if !settings.dcl_basenb_fragment_enabled {
-                    remaining = remaining.get(start_uuid.len()..).unwrap_or(&[]);
+                    remaining =
+                        remaining.get(start_uuid.len()..).unwrap_or(&[]);
                 }
 
                 let end_pos = if settings.dcl_basenb_fragment_enabled {
                     let mut consumed_total = 0;
                     while consumed_total < remaining.len() {
-                        let sub = remaining.get(consumed_total..).unwrap_or(&[]);
-                        if let Ok((ch_bytes, ch_len)) = first_char_of_utf8_string(sub) {
+                        let sub =
+                            remaining.get(consumed_total..).unwrap_or(&[]);
+                        if let Ok((ch_bytes, ch_len)) =
+                            first_char_of_utf8_string(sub)
+                        {
                             if ch_len == 0 || !is_basenb_char(&ch_bytes) {
                                 break;
                             }
-                            consumed_total = consumed_total.saturating_add(ch_len);
+                            consumed_total =
+                                consumed_total.saturating_add(ch_len);
                         } else {
                             break;
                         }
                     }
                     Some(consumed_total)
                 } else {
-                    remaining.windows(end_uuid.len()).position(|w| w == end_uuid)
+                    remaining
+                        .windows(end_uuid.len())
+                        .position(|w| w == end_uuid)
                 };
 
                 if let Some(pos) = end_pos {
@@ -320,18 +348,28 @@ pub fn dclist_from_utf8(
                     let mut inner_rem = inner_region;
 
                     while !inner_rem.is_empty() {
-                        if let Ok((ch_bytes, ch_len)) = first_char_of_utf8_string(inner_rem) {
+                        if let Ok((ch_bytes, ch_len)) =
+                            first_char_of_utf8_string(inner_rem)
+                        {
                             if ch_len > 0 && is_basenb_char(&ch_bytes) {
                                 basenb_run.extend_from_slice(&ch_bytes);
                             } else {
                                 if !basenb_run.is_empty() {
-                                    match byte_array_from_basenb_17_utf8(&basenb_run) {
+                                    match byte_array_from_basenb_17_utf8(
+                                        &basenb_run,
+                                    ) {
                                         Ok(dcutf_bytes) => {
-                                            result.extend(dcutf_to_dclist(&dcutf_bytes));
+                                            result.extend(dcutf_to_dclist(
+                                                &dcutf_bytes,
+                                            ));
                                         }
                                         Err(e) => {
-                                            let msg = format!("Failed to decode dcl_basenb 17 run: {e}");
-                                            if settings.dcl_basenb_fragment_strict {
+                                            let msg = format!(
+                                                "Failed to decode dcl_basenb 17 run: {e}"
+                                            );
+                                            if settings
+                                                .dcl_basenb_fragment_strict
+                                            {
                                                 log.import_error(0, &msg);
                                             } else {
                                                 log.import_warning(0, &msg);
@@ -341,9 +379,13 @@ pub fn dclist_from_utf8(
                                     basenb_run.clear();
                                 }
                                 if ch_len > 0 {
-                                    if let Ok(s) = std::str::from_utf8(&ch_bytes) {
+                                    if let Ok(s) =
+                                        std::str::from_utf8(&ch_bytes)
+                                    {
                                         for ch in s.chars() {
-                                            result.push(u128::from(u32::from(ch)));
+                                            result.push(u128::from(u32::from(
+                                                ch,
+                                            )));
                                         }
                                     }
                                 }
@@ -360,7 +402,9 @@ pub fn dclist_from_utf8(
                                 result.extend(dcutf_to_dclist(&dcutf_bytes));
                             }
                             Err(e) => {
-                                let msg = format!("Failed to decode dcl_basenb 17 run: {e}");
+                                let msg = format!(
+                                    "Failed to decode dcl_basenb 17 run: {e}"
+                                );
                                 if settings.dcl_basenb_fragment_strict {
                                     log.import_error(0, &msg);
                                 } else {
@@ -374,7 +418,9 @@ pub fn dclist_from_utf8(
                     if settings.dcl_basenb_fragment_enabled {
                         remaining = remaining.get(pos..).unwrap_or(&[]);
                     } else {
-                        remaining = remaining.get(pos.saturating_add(end_uuid.len())..).unwrap_or(&[]);
+                        remaining = remaining
+                            .get(pos.saturating_add(end_uuid.len())..)
+                            .unwrap_or(&[]);
                     }
                     continue;
                 }
@@ -415,7 +461,16 @@ pub fn utf8_to_dclist(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -463,7 +518,10 @@ mod tests {
         // Replacement mode
         let settings_replace = DcListUtf8Settings::default();
         let conv_replace = dclist_to_utf8(&input, &settings_replace).unwrap();
-        assert_eq!(String::from_utf8(conv_replace.result).unwrap(), "A\u{FFFD}B");
+        assert_eq!(
+            String::from_utf8(conv_replace.result).unwrap(),
+            "A\u{FFFD}B"
+        );
 
         // Skip mode
         let mut settings_skip = DcListUtf8Settings::default();
@@ -481,7 +539,10 @@ mod tests {
         // Without canonicalization: treated as unmappable (replaced with \u{FFFD} by default)
         let settings_no_canon = DcListUtf8Settings::default();
         let conv_no_canon = dclist_to_utf8(&input, &settings_no_canon).unwrap();
-        assert_eq!(String::from_utf8(conv_no_canon.result).unwrap(), "\u{FFFD}");
+        assert_eq!(
+            String::from_utf8(conv_no_canon.result).unwrap(),
+            "\u{FFFD}"
+        );
 
         // With canonicalization: maps classic Dc 65 to 'P'
         let mut settings_canon = DcListUtf8Settings::default();

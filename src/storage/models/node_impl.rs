@@ -1,10 +1,18 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use crate::utilities::*;
-use crate::models::node::NodeType;
-use anyhow::{Result, anyhow};
 use crate::db::{get_connection, validate_and_get_user};
+use crate::models::node::NodeType;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+use anyhow::{Result, anyhow};
+use sea_query::{
+    ConditionalStatement, Expr, ExprTrait, Iden, OrderedStatement, Query,
+    QueryStatementWriter, SchemaStatementBuilder, SqliteQueryBuilder,
+    ValueType,
+};
 use turso::Value;
-use sea_query::*;
 
 #[derive(sea_query::Iden)]
 #[iden(rename = "nodes")]
@@ -40,12 +48,26 @@ pub async fn insert_node(
         Sha256::digest(data).to_vec()
     };
 
-    let use_explicit_id = crate::models::sync_impl::get_local_id_range(user_id, graph_id).await.unwrap_or(None).is_some();
+    let use_explicit_id =
+        crate::models::sync_impl::get_local_id_range(user_id, graph_id)
+            .await
+            .unwrap_or(None)
+            .is_some();
     let node_id = if use_explicit_id {
-        let server_url = crate::pc_settings::get_str_setting(crate::pc_settings::PcSettingStrKey::ServerUrl)
-            .unwrap_or_else(|| crate::pc_settings::DEFAULT_SERVER_URL.to_string());
-        let session_id = crate::sync::start_sync_session(&server_url, user_id).await.ok();
-        let id = crate::sync::allocate_local_id(user_id, graph_id, &server_url, session_id.as_deref()).await?;
+        let server_url = crate::pc_settings::get_str_setting(
+            crate::pc_settings::PcSettingStrKey::ServerUrl,
+        )
+        .unwrap_or_else(|| crate::pc_settings::DEFAULT_SERVER_URL.to_string());
+        let session_id = crate::sync::start_sync_session(&server_url, user_id)
+            .await
+            .ok();
+        let id = crate::sync::allocate_local_id(
+            user_id,
+            graph_id,
+            &server_url,
+            session_id.as_deref(),
+        )
+        .await?;
         Some(id)
     } else {
         // Query the max ID lexicographically using SeaQuery
@@ -77,7 +99,13 @@ pub async fn insert_node(
 
     let (sql, values) = Query::insert()
         .into_table(Nodes::Table)
-        .columns([Nodes::Id, Nodes::GraphId, Nodes::Type, Nodes::Data, Nodes::Checksum])
+        .columns([
+            Nodes::Id,
+            Nodes::GraphId,
+            Nodes::Type,
+            Nodes::Data,
+            Nodes::Checksum,
+        ])
         .values_panic([
             id_blob.into(),
             graph_id_blob.into(),
@@ -161,9 +189,11 @@ pub async fn get_node(
 ) -> Result<Option<Vec<u8>>> {
     let user = validate_and_get_user(&session_token).await?;
     let db_name = if graph_id == 0 {
-        let global_user_id = crate::models::user_impl::get_user_by_name("global".to_string()).await?
-            .ok_or_else(|| anyhow!("Global user not found"))?
-            .id;
+        let global_user_id =
+            crate::models::user_impl::get_user_by_name("global".to_string())
+                .await?
+                .ok_or_else(|| anyhow!("Global user not found"))?
+                .id;
         format!("graphs/{global_user_id}/user_data")
     } else {
         format!("graphs/{}/user_data", user.local_id())
@@ -200,9 +230,11 @@ pub async fn get_node_dto(
 ) -> Result<Option<::ctb_utilities::ipc::service_traits::storage::Node>> {
     let user = validate_and_get_user(&session_token).await?;
     let db_name = if graph_id == 0 {
-        let global_user_id = crate::models::user_impl::get_user_by_name("global".to_string()).await?
-            .ok_or_else(|| anyhow!("Global user not found"))?
-            .id;
+        let global_user_id =
+            crate::models::user_impl::get_user_by_name("global".to_string())
+                .await?
+                .ok_or_else(|| anyhow!("Global user not found"))?
+                .id;
         format!("graphs/{global_user_id}/user_data")
     } else {
         format!("graphs/{}/user_data", user.local_id())
@@ -213,7 +245,13 @@ pub async fn get_node_dto(
     let graph_id_blob = graph_id.to_be_bytes().to_vec();
 
     let (sql, values) = Query::select()
-        .columns([Nodes::Id, Nodes::GraphId, Nodes::Type, Nodes::Data, Nodes::Checksum])
+        .columns([
+            Nodes::Id,
+            Nodes::GraphId,
+            Nodes::Type,
+            Nodes::Data,
+            Nodes::Checksum,
+        ])
         .from(Nodes::Table)
         .and_where(Expr::col(Nodes::Id).eq(id_blob))
         .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob))
@@ -276,7 +314,13 @@ pub async fn list_nodes(
     let conn = get_connection(&db_name).await?;
 
     let (sql, values) = Query::select()
-        .columns([Nodes::Id, Nodes::GraphId, Nodes::Type, Nodes::Data, Nodes::Checksum])
+        .columns([
+            Nodes::Id,
+            Nodes::GraphId,
+            Nodes::Type,
+            Nodes::Data,
+            Nodes::Checksum,
+        ])
         .from(Nodes::Table)
         .order_by(Nodes::Id, sea_query::Order::Desc)
         .build(SqliteQueryBuilder);

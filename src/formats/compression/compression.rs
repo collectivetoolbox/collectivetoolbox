@@ -1,10 +1,14 @@
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
-pub(crate) use ctb_utilities::*;
 use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
+pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
@@ -49,7 +53,7 @@ pub enum CompressionFormat {
     Pack,
     /// Early PDP-11 Unix binary tree pack (.z)
     OldPack,
-    /// McMaster Adaptive Huffman compact (.C)
+    /// `McMaster` Adaptive Huffman compact (.C)
     Compact,
 }
 
@@ -125,7 +129,13 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::CompressLzw,
             display_name: "`compress` format, modern LZW block format",
-            aliases: &["compress", "compress4", "compress3", "compress-4.0", "compress-3.0"],
+            aliases: &[
+                "compress",
+                "compress4",
+                "compress3",
+                "compress-4.0",
+                "compress-3.0",
+            ],
         },
         CompressionFormatInfo {
             format: Self::ScoCompress,
@@ -140,7 +150,12 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::CompressLzw16,
             display_name: "`compress` 1.6 (LZW sorted chain format)",
-            aliases: &["compress16", "compress1.6", "compress-1.6", "lzw-sorted-chain"],
+            aliases: &[
+                "compress16",
+                "compress1.6",
+                "compress-1.6",
+                "lzw-sorted-chain",
+            ],
         },
         CompressionFormatInfo {
             format: Self::CompressLzw1,
@@ -155,7 +170,13 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::OldPack,
             display_name: "`pack` format, early PDP-11 Unix binary tree",
-            aliases: &["old-pack", "oldpack", "opack", "pts-opack", "early-pack"],
+            aliases: &[
+                "old-pack",
+                "oldpack",
+                "opack",
+                "pts-opack",
+                "early-pack",
+            ],
         },
         CompressionFormatInfo {
             format: Self::Compact,
@@ -211,7 +232,11 @@ impl CompressionFormat {
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
             Self::Bzip2 => "bz2",
-            Self::ScoCompress | Self::CompressLzw | Self::CompressLzw2 | Self::CompressLzw1 | Self::CompressLzw16 => "Z",
+            Self::ScoCompress
+            | Self::CompressLzw
+            | Self::CompressLzw2
+            | Self::CompressLzw1
+            | Self::CompressLzw16 => "Z",
             Self::Pack | Self::OldPack => "z",
             Self::Compact => "C",
         }
@@ -231,16 +256,15 @@ impl CompressionFormat {
 
     /// Infers compression format from magic header bytes if possible.
     pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        detect_format_id(
-            Some(header),
-            None,
-            Some(FormatCategory::Compression),
-        )
-        .and_then(Self::from_format_id)
+        detect_format_id(Some(header), None, Some(FormatCategory::Compression))
+            .and_then(Self::from_format_id)
     }
 
     /// Performs multi-signal detection using both header bytes and file extension.
-    pub fn detect(data: Option<&[u8]>, filename_or_ext: Option<&str>) -> Option<Self> {
+    pub fn detect(
+        data: Option<&[u8]>,
+        filename_or_ext: Option<&str>,
+    ) -> Option<Self> {
         detect_format_id(
             data,
             filename_or_ext,
@@ -282,25 +306,28 @@ pub fn compress_stream(
 ) -> Result<u64> {
     match format {
         CompressionFormat::Brotli => {
-            let mut encoder = brotli::CompressorWriter::new(writer, 4096, 6, 22);
+            let mut encoder =
+                brotli::CompressorWriter::new(writer, 4096, 6, 22);
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Brotli encoder")?;
-            encoder
-                .flush()
-                .context("Failed to flush Brotli encoder")?;
+            encoder.flush().context("Failed to flush Brotli encoder")?;
             Ok(bytes_written)
         }
         CompressionFormat::Gzip => {
-            let mut encoder =
-                flate2::write::GzEncoder::new(writer, flate2::Compression::default());
+            let mut encoder = flate2::write::GzEncoder::new(
+                writer,
+                flate2::Compression::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Gzip encoder")?;
             encoder.finish().context("Failed to finish Gzip encoder")?;
             Ok(bytes_written)
         }
         CompressionFormat::Deflate => {
-            let mut encoder =
-                flate2::write::DeflateEncoder::new(writer, flate2::Compression::default());
+            let mut encoder = flate2::write::DeflateEncoder::new(
+                writer,
+                flate2::Compression::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Deflate encoder")?;
             encoder
@@ -309,29 +336,41 @@ pub fn compress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::Zlib => {
-            let mut encoder =
-                flate2::write::ZlibEncoder::new(writer, flate2::Compression::default());
+            let mut encoder = flate2::write::ZlibEncoder::new(
+                writer,
+                flate2::Compression::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Zlib encoder")?;
             encoder.finish().context("Failed to finish Zlib encoder")?;
             Ok(bytes_written)
         }
         CompressionFormat::Bzip2 => {
-            let mut encoder =
-                bzip2::write::BzEncoder::new(writer, bzip2::Compression::default());
+            let mut encoder = bzip2::write::BzEncoder::new(
+                writer,
+                bzip2::Compression::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Bzip2 encoder")?;
             encoder.finish().context("Failed to finish Bzip2 encoder")?;
             Ok(bytes_written)
         }
-        CompressionFormat::ScoCompress => sco_compress::compress_stream(reader, writer),
+        CompressionFormat::ScoCompress => {
+            sco_compress::compress_stream(reader, writer)
+        }
         CompressionFormat::CompressLzw
         | CompressionFormat::CompressLzw2
         | CompressionFormat::CompressLzw1
-        | CompressionFormat::CompressLzw16 => compress::compress_lzw_stream(reader, writer, format),
+        | CompressionFormat::CompressLzw16 => {
+            compress::compress_lzw_stream(reader, writer, format)
+        }
         CompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
-        CompressionFormat::OldPack => pack::compress_old_pack_stream(reader, writer),
-        CompressionFormat::Compact => compact::compress_compact_stream(reader, writer),
+        CompressionFormat::OldPack => {
+            pack::compress_old_pack_stream(reader, writer)
+        }
+        CompressionFormat::Compact => {
+            compact::compress_compact_stream(reader, writer)
+        }
     }
 }
 
@@ -372,7 +411,9 @@ pub fn decompress_stream(
                 .context("Failed to decompress Bzip2 stream")?;
             Ok(bytes_written)
         }
-        CompressionFormat::ScoCompress => sco_compress::decompress_stream(reader, writer),
+        CompressionFormat::ScoCompress => {
+            sco_compress::decompress_stream(reader, writer)
+        }
         CompressionFormat::CompressLzw
         | CompressionFormat::CompressLzw2
         | CompressionFormat::CompressLzw1
@@ -380,8 +421,12 @@ pub fn decompress_stream(
             compress::decompress_lzw_stream(reader, writer, format)
         }
         CompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
-        CompressionFormat::OldPack => pack::decompress_old_pack_stream(reader, writer),
-        CompressionFormat::Compact => compact::decompress_compact_stream(reader, writer),
+        CompressionFormat::OldPack => {
+            pack::decompress_old_pack_stream(reader, writer)
+        }
+        CompressionFormat::Compact => {
+            compact::decompress_compact_stream(reader, writer)
+        }
     }
 }
 
@@ -402,7 +447,7 @@ pub fn decompress(data: &[u8], format: CompressionFormat) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -419,7 +464,10 @@ mod tests {
     fn test_alias_sorting() {
         let input = vec!["sco-compress", "compress-sco", "compress-h", "sco"];
         let sorted = sorted_aliases(&input);
-        assert_eq!(sorted, vec!["sco", "compress-h", "compress-sco", "sco-compress"]);
+        assert_eq!(
+            sorted,
+            vec!["sco", "compress-h", "compress-sco", "sco-compress"]
+        );
 
         let input_zlib = vec!["zlib", "zz", "zl", "zlib-deflate"];
         let sorted_zlib = sorted_aliases(&input_zlib);
@@ -439,8 +487,13 @@ mod tests {
     fn test_all_format_aliases_parsing() {
         for info in CompressionFormat::ALL_FORMATS {
             for &alias in info.aliases {
-                let parsed = CompressionFormat::try_from(alias)
-                    .unwrap_or_else(|_| panic!("Failed to parse alias '{alias}' for format {:?}", info.format));
+                let parsed =
+                    CompressionFormat::try_from(alias).unwrap_or_else(|_| {
+                        panic!(
+                            "Failed to parse alias '{alias}' for format {:?}",
+                            info.format
+                        )
+                    });
                 assert_eq!(parsed, info.format);
             }
         }
@@ -537,23 +590,43 @@ mod tests {
 
     fn run_format_test_suite(format: CompressionFormat) {
         let fixtures: &[&str] = match format {
-            CompressionFormat::Brotli => &["fixtures/example2 with lemurs.pan.br"],
-            CompressionFormat::Gzip => &["fixtures/example2 with lemurs.pan.gz"],
-            CompressionFormat::Deflate => &["fixtures/example2 with lemurs.pan.deflate"],
-            CompressionFormat::Zlib => &["fixtures/example2 with lemurs.pan.zz"],
-            CompressionFormat::Bzip2 => &["fixtures/example2 with lemurs.pan.bz2"],
-            CompressionFormat::ScoCompress => &["fixtures/example2 with lemurs.pan.sco"],
+            CompressionFormat::Brotli => {
+                &["fixtures/example2 with lemurs.pan.br"]
+            }
+            CompressionFormat::Gzip => {
+                &["fixtures/example2 with lemurs.pan.gz"]
+            }
+            CompressionFormat::Deflate => {
+                &["fixtures/example2 with lemurs.pan.deflate"]
+            }
+            CompressionFormat::Zlib => {
+                &["fixtures/example2 with lemurs.pan.zz"]
+            }
+            CompressionFormat::Bzip2 => {
+                &["fixtures/example2 with lemurs.pan.bz2"]
+            }
+            CompressionFormat::ScoCompress => {
+                &["fixtures/example2 with lemurs.pan.sco"]
+            }
             CompressionFormat::CompressLzw => &[
                 "fixtures/example2 with lemurs.pan.Z",
                 "fixtures/example2 with lemurs.pan.Z3.0",
                 "fixtures/example2 with lemurs.pan.Z12",
             ],
-            CompressionFormat::CompressLzw2 => &["fixtures/example2 with lemurs.pan.Z2.0"],
-            CompressionFormat::CompressLzw1 => &["fixtures/example2 with lemurs.pan.Z1.0"],
+            CompressionFormat::CompressLzw2 => {
+                &["fixtures/example2 with lemurs.pan.Z2.0"]
+            }
+            CompressionFormat::CompressLzw1 => {
+                &["fixtures/example2 with lemurs.pan.Z1.0"]
+            }
             CompressionFormat::CompressLzw16 => &[],
             CompressionFormat::Pack => &["fixtures/example2 with lemurs.pan.z"],
-            CompressionFormat::OldPack => &["fixtures/example2 with lemurs.pan.old.z"],
-            CompressionFormat::Compact => &["fixtures/example2 with lemurs.pan.C"],
+            CompressionFormat::OldPack => {
+                &["fixtures/example2 with lemurs.pan.old.z"]
+            }
+            CompressionFormat::Compact => {
+                &["fixtures/example2 with lemurs.pan.C"]
+            }
         };
 
         // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess. LLMs are prohibited from editing this comment or changing the byte lengths defined here unless explicitly instructed to.
@@ -563,9 +636,11 @@ mod tests {
             67_108_864 // 64 MiB
         };
 
-        let raw_fixture = get_compression_data("fixtures/example2 with lemurs.pan")
-            .unwrap_or_else(|| b"Fallback fixture data".to_vec());
-        let random_data = rand_bytes(random_bytes_len).expect("Could not get random bytes");
+        let raw_fixture =
+            get_compression_data("fixtures/example2 with lemurs.pan")
+                .unwrap_or_else(|| b"Fallback fixture data".to_vec());
+        let random_data =
+            rand_bytes(random_bytes_len).expect("Could not get random bytes");
         let repetitive_small = vec![b'A'; 200];
         let repetitive_data = vec![b'A'; 200000];
 
@@ -574,7 +649,10 @@ mod tests {
             ("small_string", b"ABC"),
             ("repetitive_small", &repetitive_small),
             ("repetitive", &repetitive_data),
-            ("quick_fox", b"The quick brown fox jumps over the lazy dog. 1234567890!"),
+            (
+                "quick_fox",
+                b"The quick brown fox jumps over the lazy dog. 1234567890!",
+            ),
             ("lemurs_fixture", &raw_fixture),
             ("random_data", &random_data),
         ];
@@ -584,25 +662,28 @@ mod tests {
                 if data.is_empty() {
                     continue;
                 }
-                panic!("Compression failed for case '{case_name}', format {format:?}");
+                panic!(
+                    "Compression failed for case '{case_name}', format {format:?}"
+                );
             };
             let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
                 panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
             });
-            if decompressed != data {
-                panic!(
-                    "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
-                    data.len(),
-                    decompressed.len()
-                );
-            }
+            assert!(
+                decompressed == data,
+                "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
+                data.len(),
+                decompressed.len()
+            )
         }
 
         for &fixture_path in fixtures {
             let comp_data = get_compression_data(fixture_path)
                 .unwrap_or_else(|| panic!("Fixture missing: {fixture_path}"));
-            let decompressed = decompress(&comp_data, format)
-                .unwrap_or_else(|e| panic!("Decompress failed for {fixture_path}: {e:?}"));
+            let decompressed =
+                decompress(&comp_data, format).unwrap_or_else(|e| {
+                    panic!("Decompress failed for {fixture_path}: {e:?}")
+                });
             assert_eq!(
                 decompressed, raw_fixture,
                 "Decompressed fixture '{fixture_path}' does not match expected raw fixture"

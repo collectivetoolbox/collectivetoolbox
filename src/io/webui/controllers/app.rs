@@ -16,7 +16,9 @@ pub async fn get_home(
     user: AuthenticatedUser,
 ) -> Response {
     let mut u = user.user.lock().await;
-    if let Some(refreshed_info) = ctb_storage::user::UserPublicInfo::get_by_id(u.local_id()) {
+    if let Some(refreshed_info) =
+        ctb_storage::user::UserPublicInfo::get_by_id(u.local_id())
+    {
         u.set_remote_status(refreshed_info.remote_status().to_string());
     }
     if u.remote_status() == "Conflict" {
@@ -26,7 +28,16 @@ pub async fn get_home(
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
 
     use crate::test_helpers::{test_get_no_login, test_get_redirect_no_login};

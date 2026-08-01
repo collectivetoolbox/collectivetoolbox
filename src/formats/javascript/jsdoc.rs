@@ -222,9 +222,13 @@ fn parse_jsdoc_tags(text: &str) -> Vec<ParsedTag> {
                 });
             }
             if let Some(first_space_idx) = tag_line.find(char::is_whitespace) {
-                current_tag_name = tag_line.get(..first_space_idx).unwrap_or("").to_string();
-                current_tag_value =
-                    tag_line.get(first_space_idx..).unwrap_or("").trim().to_string();
+                current_tag_name =
+                    tag_line.get(..first_space_idx).unwrap_or("").to_string();
+                current_tag_value = tag_line
+                    .get(first_space_idx..)
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
             } else {
                 current_tag_name = tag_line.to_string();
                 current_tag_value = String::new();
@@ -276,7 +280,9 @@ fn get_param_name_from_tag_value(value: &str) -> String {
     let first_word = rest.split_whitespace().next().unwrap_or("");
     let mut param_name = first_word;
     if param_name.starts_with('[') && param_name.ends_with(']') {
-        param_name = param_name.get(1..param_name.len().saturating_sub(1)).unwrap_or("");
+        param_name = param_name
+            .get(1..param_name.len().saturating_sub(1))
+            .unwrap_or("");
     }
     if let Some(eq_idx) = param_name.find('=') {
         param_name = param_name.get(..eq_idx).unwrap_or("");
@@ -538,7 +544,16 @@ impl<'view> ReturnFinder {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use deno_ast::MediaType;

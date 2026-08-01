@@ -1,4 +1,8 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 pub mod chunking;
@@ -22,7 +26,10 @@ pub use ctb_utilities::storage::get_storage_dir;
 
 use clap::Parser;
 
-#[allow(clippy::allow_attributes_without_reason, reason = "clap Parser derive triggers it")]
+#[allow(
+    clippy::allow_attributes_without_reason,
+    reason = "clap Parser derive triggers it"
+)]
 #[derive(Parser, Debug)]
 #[command(
     name = "ctoolbox-installer",
@@ -30,7 +37,10 @@ use clap::Parser;
     about = "ctoolbox installer",
     disable_help_subcommand = true
 )]
-#[allow(clippy::struct_excessive_bools, reason = "CLI argument configuration options")]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "CLI argument configuration options"
+)]
 struct InstallerCli {
     /// Run repair mode.
     #[arg(long)]
@@ -130,7 +140,16 @@ pub fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::chunking::{
@@ -697,9 +716,11 @@ mod tests {
         let chunks_dir = bundle_dir.join("chunks");
         fs::create_dir_all(&chunks_dir).unwrap();
 
-        let file1_data = b"Hello world from offline bundle binary file!".to_vec();
+        let file1_data =
+            b"Hello world from offline bundle binary file!".to_vec();
         let mut chunks1 = chunk_data(&file1_data).unwrap();
-        write_chunks_to_directory_compressed(&mut chunks1, &chunks_dir).unwrap();
+        write_chunks_to_directory_compressed(&mut chunks1, &chunks_dir)
+            .unwrap();
 
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),

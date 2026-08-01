@@ -5,7 +5,11 @@
 //!
 //! LLM-assisted port of <https://github.com/arendjr/text-clipper>
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub fn truncate_html(html: &str, max_len: u64) -> String {
@@ -350,13 +354,13 @@ fn has_html_non_whitespace(units: &[u16], from: usize) -> bool {
     while let Some(&u) = units.get(i) {
         if u == TAG_OPEN_CHAR_CODE {
             i = i.saturating_add(1);
-            while units.get(i).map(|&x| is_white_space(x)).unwrap_or(false) {
+            while units.get(i).is_some_and(|&x| is_white_space(x)) {
                 i = i.saturating_add(1);
             }
 
             if units.get(i) == Some(&FORWARD_SLASH_CHAR_CODE) {
                 i = i.saturating_add(1);
-                while units.get(i).map(|&x| x != TAG_CLOSE_CHAR_CODE).unwrap_or(false) {
+                while units.get(i).is_some_and(|&x| x != TAG_CLOSE_CHAR_CODE) {
                     i = i.saturating_add(1);
                 }
             } else {
@@ -397,7 +401,8 @@ fn is_line_break(units: &[u16], index: usize) -> bool {
             if i == name_start {
                 return false;
             }
-            let tag = units.get(name_start..i)
+            let tag = units
+                .get(name_start..i)
                 .map(units_to_string)
                 .unwrap_or_default()
                 .to_ascii_lowercase();
@@ -405,7 +410,7 @@ fn is_line_break(units: &[u16], index: usize) -> bool {
                 return false;
             }
 
-            while units.get(i).map(|&u| is_white_space(u)).unwrap_or(false) {
+            while units.get(i).is_some_and(|&u| is_white_space(u)) {
                 i = i.saturating_add(1);
             }
             if units.get(i) == Some(&FORWARD_SLASH_CHAR_CODE) {
@@ -481,7 +486,7 @@ fn pop_tag_stack(
     result
 }
 
-#[allow(clippy::too_many_lines, reason = "+/- more readable")]
+#[expect(clippy::too_many_lines, reason = "+/- more readable")]
 fn clip_plain_text(
     text: &str,
     max_len: usize,
@@ -533,7 +538,8 @@ fn clip_plain_text(
                 if u == NEWLINE_CHAR_CODE {
                     let insert_indicator = insert_indicator_at_linebreak
                         && has_non_whitespace(&units, peek_index);
-                    let mut out = units.get(..peek_index).unwrap_or_default().to_vec();
+                    let mut out =
+                        units.get(..peek_index).unwrap_or_default().to_vec();
                     if insert_indicator {
                         out.extend_from_slice(&indicator_units);
                     }
@@ -567,8 +573,7 @@ fn clip_plain_text(
             }
         }
 
-        let next_is_newline =
-            next_char.first() == Some(&NEWLINE_CHAR_CODE);
+        let next_is_newline = next_char.first() == Some(&NEWLINE_CHAR_CODE);
         let insert_indicator = (insert_indicator_at_linebreak
             || !next_is_newline)
             && has_non_whitespace(&units, i);
@@ -614,7 +619,12 @@ fn clip_plain_text(
     text.to_string()
 }
 
-#[allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::indexing_slicing, reason = "complex HTML structure parsing logic")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    clippy::indexing_slicing,
+    reason = "complex HTML structure parsing logic"
+)]
 fn clip_html(
     text: &str,
     max_len: usize,
@@ -819,8 +829,10 @@ fn clip_html(
                         }
                         is_attribute_value = true;
 
-                        let first_attr =
-                            units.get(end_index.saturating_add(1)).copied().unwrap_or(0);
+                        let first_attr = units
+                            .get(end_index.saturating_add(1))
+                            .copied()
+                            .unwrap_or(0);
                         if first_attr == DOUBLE_QUOTE_CHAR_CODE
                             || first_attr == SINGLE_QUOTE_CHAR_CODE
                         {
@@ -830,11 +842,13 @@ fn clip_html(
                             attribute_quote = 0;
                         }
                     } else if cu == TAG_CLOSE_CHAR_CODE {
-                        let tag_name_start = i.saturating_add(if is_end_tag { 2 } else { 1 });
+                        let tag_name_start =
+                            i.saturating_add(if is_end_tag { 2 } else { 1 });
                         let tag_name_end =
                             index_of_white_space(&units, tag_name_start)
                                 .min(end_index);
-                        let mut tag_name = units.get(tag_name_start..tag_name_end)
+                        let mut tag_name = units
+                            .get(tag_name_start..tag_name_end)
                             .map(units_to_string)
                             .unwrap_or_default()
                             .to_ascii_lowercase();
@@ -992,14 +1006,21 @@ fn clip_html(
         if !indicator_units.is_empty() {
             let mut peek_index = i.saturating_add(next_char.len());
             while units.get(peek_index) == Some(&TAG_OPEN_CHAR_CODE)
-                && units.get(peek_index.saturating_add(1)) == Some(&FORWARD_SLASH_CHAR_CODE)
+                && units.get(peek_index.saturating_add(1))
+                    == Some(&FORWARD_SLASH_CHAR_CODE)
             {
-                let Some(tag_end) = units.get(peek_index.saturating_add(2)..)
-                    .and_then(|slice| slice.iter().position(|u| *u == TAG_CLOSE_CHAR_CODE))
+                let Some(tag_end) = units
+                    .get(peek_index.saturating_add(2)..)
+                    .and_then(|slice| {
+                        slice.iter().position(|u| *u == TAG_CLOSE_CHAR_CODE)
+                    })
                 else {
                     break;
                 };
-                let next_peek = peek_index.saturating_add(2).saturating_add(tag_end).saturating_add(1);
+                let next_peek = peek_index
+                    .saturating_add(2)
+                    .saturating_add(tag_end)
+                    .saturating_add(1);
                 peek_index = next_peek;
             }
 
@@ -1030,7 +1051,8 @@ fn clip_html(
                 bail!("Invalid HTML: {text}");
             };
 
-            let between = units.get(i.saturating_add(2)..tag_end_index)
+            let between = units
+                .get(i.saturating_add(2)..tag_end_index)
                 .map(units_to_string)
                 .unwrap_or_default()
                 .trim()
@@ -1204,7 +1226,16 @@ pub fn html_options(mut options: ClipHtmlOptions) -> ClipOptions {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

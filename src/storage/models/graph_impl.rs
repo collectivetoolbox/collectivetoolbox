@@ -1,9 +1,17 @@
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use crate::db::{authorize_db_access, get_connection, validate_and_get_user};
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
-use anyhow::{Result, Context, anyhow};
-use crate::db::{get_connection, validate_and_get_user, authorize_db_access};
+use anyhow::{Context, Result, anyhow};
+use sea_query::{
+    Alias, Asterisk, ConditionalStatement, Expr, ExprTrait, Iden,
+    OrderedStatement, Query, QueryStatementWriter, SchemaStatementBuilder,
+    SqliteQueryBuilder, ValueType,
+};
 use turso::{Connection, Value};
-use sea_query::*;
 
 #[derive(sea_query::Iden)]
 #[iden(rename = "nodes")]
@@ -75,9 +83,11 @@ async fn allocate_next_system_id_internal(conn: &Connection) -> Result<u128> {
 #[ipc_method]
 pub async fn allocate_next_system_id(session_token: String) -> Result<u128> {
     let user = validate_and_get_user(&session_token).await?;
-    let global_user_id = crate::models::user_impl::get_user_by_name("global".to_string()).await?
-        .ok_or_else(|| anyhow!("Global user not found"))?
-        .id;
+    let global_user_id =
+        crate::models::user_impl::get_user_by_name("global".to_string())
+            .await?
+            .ok_or_else(|| anyhow!("Global user not found"))?
+            .id;
     let global_db_name = format!("graphs/{global_user_id}/user_data");
     let conn = get_connection(&global_db_name).await?;
 
@@ -99,7 +109,9 @@ pub async fn publish_packaged_node_to_global(
     let user = validate_and_get_user(&session_token).await?;
 
     if !user.is_admin() {
-        anyhow::bail!("Admin privileges are required to publish nodes to the global graph.");
+        anyhow::bail!(
+            "Admin privileges are required to publish nodes to the global graph."
+        );
     }
 
     // Deserialize the packaged node
@@ -107,9 +119,11 @@ pub async fn publish_packaged_node_to_global(
         .context("Failed to deserialize packaged node")?;
 
     // Get global database connection
-    let global_user_id = crate::models::user_impl::get_user_by_name("global".to_string()).await?
-        .ok_or_else(|| anyhow!("Global user not found"))?
-        .id;
+    let global_user_id =
+        crate::models::user_impl::get_user_by_name("global".to_string())
+            .await?
+            .ok_or_else(|| anyhow!("Global user not found"))?
+            .id;
     let global_db_name = format!("graphs/{global_user_id}/user_data");
     let global_conn = get_connection(&global_db_name).await?;
 
@@ -117,14 +131,18 @@ pub async fn publish_packaged_node_to_global(
         // Disallow Unicode range
         let block = crate::global_graph_layout::get_block_name_for_id(tid)?;
         if block == "Unicode" {
-            anyhow::bail!("Publishing nodes to the Unicode range is disallowed.");
+            anyhow::bail!(
+                "Publishing nodes to the Unicode range is disallowed."
+            );
         }
 
         // Verify no node exists in global database using SeaQuery
         let (sql, values) = Query::select()
             .column(Nodes::Id)
             .from(Nodes::Table)
-            .and_where(Expr::col(Nodes::GraphId).eq(0u128.to_be_bytes().to_vec()))
+            .and_where(
+                Expr::col(Nodes::GraphId).eq(0u128.to_be_bytes().to_vec()),
+            )
             .and_where(Expr::col(Nodes::Id).eq(tid.to_be_bytes().to_vec()))
             .build(SqliteQueryBuilder);
 
@@ -132,7 +150,9 @@ pub async fn publish_packaged_node_to_global(
         let mut stmt = global_conn.prepare(&sql).await?;
         let mut rows = stmt.query(params).await?;
         if rows.next().await?.is_some() {
-            anyhow::bail!("Node with ID {tid} already exists in the global graph.");
+            anyhow::bail!(
+                "Node with ID {tid} already exists in the global graph."
+            );
         }
         tid
     } else {
@@ -143,7 +163,13 @@ pub async fn publish_packaged_node_to_global(
     // Insert into global graph (graph_id = 0)
     let (sql, values) = Query::insert()
         .into_table(Nodes::Table)
-        .columns([Nodes::Id, Nodes::GraphId, Nodes::Type, Nodes::Data, Nodes::Checksum])
+        .columns([
+            Nodes::Id,
+            Nodes::GraphId,
+            Nodes::Type,
+            Nodes::Data,
+            Nodes::Checksum,
+        ])
         .values_panic([
             allocated_id.to_be_bytes().to_vec().into(),
             0u128.to_be_bytes().to_vec().into(),
@@ -192,7 +218,8 @@ pub async fn list_databases(session_token: String) -> Result<Vec<String>> {
                 if let Ok(mut data_rows) = data_stmt.query(params).await {
                     while let Ok(Some(row)) = data_rows.next().await {
                         if let Ok(Value::Text(p)) = row.get_value(0) {
-                            let resolved = p.replace("{user_id}", &user_id.to_string());
+                            let resolved =
+                                p.replace("{user_id}", &user_id.to_string());
                             if !list.contains(&resolved) {
                                 list.push(resolved);
                             }
@@ -208,7 +235,10 @@ pub async fn list_databases(session_token: String) -> Result<Vec<String>> {
 
 /// List all table names in the specified database.
 #[ipc_method]
-pub async fn list_tables(session_token: String, db_name: String) -> Result<Vec<String>> {
+pub async fn list_tables(
+    session_token: String,
+    db_name: String,
+) -> Result<Vec<String>> {
     let user = validate_and_get_user(&session_token).await?;
     let user_id = user.local_id();
     authorize_db_access(user_id, &db_name)?;
@@ -263,7 +293,11 @@ pub async fn get_formatted_table_data(
     }
 
     let limit = 50u32;
-    let total_pages = total_rows.saturating_add(limit).saturating_sub(1).checked_div(limit).unwrap_or(0);
+    let total_pages = total_rows
+        .saturating_add(limit)
+        .saturating_sub(1)
+        .checked_div(limit)
+        .unwrap_or(0);
     let current_page = std::cmp::max(1, page);
     let offset = current_page.saturating_sub(1).saturating_mul(limit);
 
@@ -307,18 +341,30 @@ pub async fn get_formatted_table_data(
                 Ok(Value::Real(v)) => v.to_string(),
                 Ok(Value::Text(v)) => v,
                 Ok(Value::Blob(v)) => {
-                    if table_name == "nodes" && (Some(i) == id_col_idx || Some(i) == graph_id_col_idx) && v.len() == 16 {
+                    if table_name == "nodes"
+                        && (Some(i) == id_col_idx
+                            || Some(i) == graph_id_col_idx)
+                        && v.len() == 16
+                    {
                         if let Ok(bytes) = <[u8; 16]>::try_from(v.clone()) {
                             u128::from_be_bytes(bytes).to_string()
                         } else {
                             format!("0x{}", bin2hex(&v))
                         }
-                    } else if table_name == "nodes" && Some(i) == checksum_col_idx {
+                    } else if table_name == "nodes"
+                        && Some(i) == checksum_col_idx
+                    {
                         bin2hex(&v)
                     } else {
-                        let is_dctext = if table_name == "nodes" && Some(i) == data_col_idx {
+                        let is_dctext = if table_name == "nodes"
+                            && Some(i) == data_col_idx
+                        {
                             if let Some(t_val) = node_type_val {
-                                if let Ok(nt) = crate::models::node::NodeType::try_from(t_val) {
+                                if let Ok(nt) =
+                                    crate::models::node::NodeType::try_from(
+                                        t_val,
+                                    )
+                                {
                                     nt == crate::models::node::NodeType::Statements || nt == crate::models::node::NodeType::System
                                 } else {
                                     false
