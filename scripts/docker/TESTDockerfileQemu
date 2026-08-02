@@ -105,10 +105,14 @@ RUN set -eux; \
     sleep 2; \
     guix build -L /tmp/scripts/guix --system=i686-linux -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))'
 
+# Cross-compile Icecat for i686-linux-gnu (separate Docker step)
+RUN set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
+
 RUN set -eux; \
     rustc --edition 2024 --crate-type cdylib -O /tmp/src/nopersonality/nopersonality.rs -o /tmp/libctb_nopersonality.so; \
     pkill -f guix-daemon 2>/dev/null || true; \
     sleep 1; \
     LD_PRELOAD="/tmp/libctb_nopersonality.so" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 & \
     sleep 2; \
-    guix build -L /tmp/scripts/guix --source --system=i686-linux -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))'
+    guix build -L /tmp/scripts/guix --source --system=i686-linux -e '((@ (patches) apply-patches) (@ (gnu packages tmux) tmux))'

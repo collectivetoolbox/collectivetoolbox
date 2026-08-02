@@ -73,8 +73,9 @@ RUN set -eux; \
 COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
 
-# RUN set -eux; \
-#     /tmp/scripts/guix/build-v86-guix-image.sh --fetch-sources
+# Pre-compile cross-built Icecat in a separate Docker step for layer caching
+RUN set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
 
 RUN set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \

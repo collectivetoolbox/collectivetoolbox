@@ -26,12 +26,20 @@ fn main() -> Result<()> {
                 let input_dir = Path::new(arg1);
                 let output_dir = Path::new(arg2);
                 let output_fs_json = Path::new(arg3);
-                return v86_packer::pack_rootfs_dir(
+                v86_packer::pack_rootfs_dir(
                     input_dir,
                     output_dir,
                     output_fs_json,
                     true,
                     &["/boot/"],
+                )?;
+                let initrd_path = output_dir
+                    .parent()
+                    .unwrap()
+                    .join("guix_posix_initrd.cpio.gz");
+                return v86_packer::build_custom_initrd(
+                    output_fs_json,
+                    &initrd_path,
                 );
             }
             if cmd == "--pack-v86-tar" {
