@@ -1,0 +1,6 @@
+# BuildKit daemon configuration for ctoolbox docker buildx builders.
+# Configures fallback DNS servers so BuildKit container instances can resolve
+# external registries reliably without relying solely on host bridge DNS.
+
+[dns]
+nameservers = ["1.1.1.1", "8.8.8.8"]

@@ -62,11 +62,15 @@ else
     fi
     rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
 
-    pkill -f guix-daemon 2>/dev/null || true
-    sleep 1
+    chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
+    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     echo "Starting guix-daemon with nopersonality shim..."
-    LD_PRELOAD="$nopersonality_so" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+    if command -v proot >/dev/null 2>&1; then
+        proot -0 env LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+    else
+        LD_PRELOAD="$nopersonality_so" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+    fi
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then

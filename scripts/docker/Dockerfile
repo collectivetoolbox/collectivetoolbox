@@ -26,6 +26,8 @@ RUN set -eux; \
         patch \
         perl \
         pkg-config \
+        # Add later:
+        #proot \
         tar \
         xz-utils \
         xxd; \
@@ -61,6 +63,8 @@ RUN set -eux; \
     yes | /tmp/guix-install.sh; \
     rm -f /tmp/guix-install.sh; \
     mkdir -p /etc/guix; \
+    chown -R root:guixbuild /var/guix /gnu/store; \
+    chmod 1775 /gnu/store /var/guix; \
     for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
                /root/.config/guix/current/share/guix/*.pub \
                /usr/local/share/guix/*.pub; do \
@@ -73,6 +77,12 @@ RUN set -eux; \
 COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
 
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        proot; \
+    apt-get clean
+
 # Pre-compile cross-built Icecat in a separate Docker step for layer caching
 RUN set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
@@ -82,7 +92,7 @@ RUN set -eux; \
     rm -rf /tmp/scripts /tmp/src
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
-ENV NOCACHEJULYTHIRTY=2
+#ENV NOCACHEJULYTHIRTY=2
 COPY Cargo.toml Cargo.lock /tmp/ctb-ts-build/
 COPY src /tmp/ctb-ts-build/src
 COPY vendor /tmp/ctb-ts-build/vendor

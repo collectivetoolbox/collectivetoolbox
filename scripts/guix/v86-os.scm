@@ -23,6 +23,7 @@
              (gnu packages gnuzilla)
              (gnu packages web-browsers)
              (gnu packages tmux)
+             (gnu services)
              (gnu services desktop)
              (gnu services xorg)
              (gnu services networking)
@@ -50,9 +51,6 @@
   (initrd-modules (append '("virtio" "virtio_pci" "9p" "9pnet" "9pnet_virtio")
                           %base-initrd-modules))
 
-  (session-environment '(("GALLIUM_DRIVER" . "llvmpipe")
-                          ("MOZ_WEBRENDER" . "1")))
-
   (packages (cons* xorg-server
                    xf86-video-vesa
                    xf86-video-fbdev
@@ -65,5 +63,9 @@
                    %base-packages))
 
   (services (cons* (service static-networking-service-type '())
-                    %base-services)))
+                   (simple-service 'v86-session-environment
+                                   session-environment-service-type
+                                   '(("GALLIUM_DRIVER" . "llvmpipe")
+                                     ("MOZ_WEBRENDER" . "1")))
+                   %base-services)))
 

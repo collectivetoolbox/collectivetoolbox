@@ -116,7 +116,13 @@ export PATH="/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/cur
 
 if ! ps aux | grep -q "[g]uix-daemon"; then
     echo "Starting guix-daemon..."
-    nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+    chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
+    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
+    if command -v proot >/dev/null 2>&1; then
+        nohup proot -0 /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+    else
+        nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+    fi
     sleep 2
 fi
 
