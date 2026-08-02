@@ -2,12 +2,15 @@
 
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # 1. Clear previous instances
 docker buildx rm buildkit >/dev/null 2>&1 || true
 
-# 2. Create the builder with host networking allowed for the daemon container itself
+# 2. Create the builder with host networking and custom seccomp profile allowing ptrace
 docker buildx create --bootstrap --use --name buildkit \
   --driver-opt network=host \
+  --driver-opt security-opt="seccomp=$script_dir/docker/seccomp-ptrace.json" \
   --buildkitd-flags '--allow-insecure-entitlement network.host' \
   --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=-1 \
   --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=-1

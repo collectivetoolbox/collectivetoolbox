@@ -26,17 +26,14 @@ RUN set -eux; \
         patch \
         perl \
         pkg-config \
-        # Add later:
-        #proot \
+        proot \
         tar \
         xz-utils \
         xxd; \
     npm install -g typescript playwright; \
     npx playwright install-deps chromium; \
     npx playwright install chromium; \
-    apt-get clean; \
-    # FIXME: Remove this rm -rf next time I do a full Docker rebuild; it makes installing packages later slow
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean
 
 # Ensure system-wide umask is 0000 so files created inside container are readable/writable by host users
 RUN set -eux; \
@@ -76,12 +73,6 @@ RUN set -eux; \
 # Pre-build Guix i686 system image tarball in Docker image to avoid re-building on every CI run
 COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
-
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-        proot; \
-    apt-get clean
 
 # Pre-compile cross-built Icecat in a separate Docker step for layer caching
 RUN set -eux; \
