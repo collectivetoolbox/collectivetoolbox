@@ -20,6 +20,8 @@
              (gnu packages wm)
              (gnu packages bash)
              (gnu packages virtualization)
+             (gnu packages gnuzilla)
+             (gnu packages web-browsers)
              (gnu services desktop)
              (gnu services xorg)
              (gnu services networking)
@@ -53,6 +55,7 @@
                    openbox
                    xterm
                    bash
+                   dillo
                    qemu-patched
                    %base-packages))
 

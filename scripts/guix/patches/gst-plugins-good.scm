@@ -1,4 +1,4 @@
-;;; Patch for gst-plugins-good on i686-linux to disable hanging unit tests, lib64 directory, and glib-or-gtk wrap.
+;;; Patch for gst-plugins-good on i686-linux to disable hanging unit tests, lib64 directory, and pre-check Xvfb.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
     (arguments
       (substitute-keyword-arguments (package-arguments gst-plugins-good)
         ((#:tests? _ #f) #f)
-        ((#:glib-or-gtk? _ #f) #f)
         ((#:configure-flags flags #~'())
-         #~'("-Dlibdir=lib"))))))
+         #~'("-Dlibdir=lib"))
+        ((#:phases phases)
+         #~(modify-phases #$phases
+             (delete 'pre-check)))))))

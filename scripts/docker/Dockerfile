@@ -73,8 +73,8 @@ RUN set -eux; \
 COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
 
-RUN set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --fetch-sources
+# RUN set -eux; \
+#     /tmp/scripts/guix/build-v86-guix-image.sh --fetch-sources
 
 RUN set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \

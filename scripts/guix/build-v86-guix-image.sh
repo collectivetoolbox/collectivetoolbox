@@ -53,6 +53,7 @@ else
     else
         NOPERSONALITY_RS="$(cd "$SCRIPT_DIR/../../src/nopersonality" 2>/dev/null && pwd)/nopersonality.rs"
     fi
+    rustc --edition 2024 --crate-type cdylib -O "$NOPERSONALITY_RS" -o "$NOPERSONALITY_SO"
 
     pkill -f guix-daemon 2>/dev/null || true
     sleep 1
