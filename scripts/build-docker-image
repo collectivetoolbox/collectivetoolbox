@@ -7,15 +7,24 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 1. Clear previous instances
 docker buildx rm buildkit >/dev/null 2>&1 || true
 
-# 2. Create the builder with host networking and custom seccomp profile allowing ptrace
-docker buildx create --bootstrap --use --name buildkit \
+# 2. Create the builder container with custom buildkitd.toml config
+docker buildx create --use --name buildkit \
+  --config "$script_dir/docker/buildkitd.toml" \
   --driver-opt network=host \
-  --driver-opt security-opt="seccomp=$script_dir/docker/seccomp-ptrace.json" \
   --buildkitd-flags '--allow-insecure-entitlement network.host' \
   --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=-1 \
   --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
 
-# 3. Execute your build
+# 3. Copy custom seccomp profile into builder instance before bootstrapping
+container_name="$(docker ps -a --filter "name=buildkit" --format "{{.Names}}" | head -n 1)"
+if [ -n "$container_name" ]; then
+  docker cp "$script_dir/docker/seccomp-ptrace.json" "$container_name:/etc/buildkit/seccomp-ptrace.json"
+fi
+
+# 4. Bootstrap the builder
+docker buildx inspect --bootstrap buildkit
+
+# 5. Execute your build
 docker buildx build -f scripts/docker/Dockerfile . \
   --network=host \
   --allow network.host \
