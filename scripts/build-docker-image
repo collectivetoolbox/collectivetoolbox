@@ -4,27 +4,52 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 1. Clear previous instances
-docker buildx rm buildkit >/dev/null 2>&1 || true
+recreate_builder=false
 
-# 2. Create the builder container with custom buildkitd.toml config
-docker buildx create --use --name buildkit \
-  --config "$script_dir/docker/buildkitd.toml" \
-  --driver-opt network=host \
-  --buildkitd-flags '--allow-insecure-entitlement network.host' \
-  --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=-1 \
-  --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
+for arg in "$@"; do
+  case "$arg" in
+    --recreate|--clean|--reset)
+      recreate_builder=true
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--recreate]"
+      echo "Options:"
+      echo "  --recreate, --clean, --reset  Remove and recreate the buildkit builder"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
 
-# 3. Copy custom seccomp profile into builder instance before bootstrapping
-container_name="$(docker ps -a --filter "name=buildkit" --format "{{.Names}}" | head -n 1)"
-if [ -n "$container_name" ]; then
-  docker cp "$script_dir/docker/seccomp-ptrace.json" "$container_name:/etc/buildkit/seccomp-ptrace.json"
+if [ "$recreate_builder" = true ] && docker buildx inspect buildkit >/dev/null 2>&1; then
+  echo "Removing existing buildkit builder..."
+  docker buildx rm buildkit >/dev/null 2>&1
 fi
 
-# 4. Bootstrap the builder
-docker buildx inspect --bootstrap buildkit
+if docker buildx inspect buildkit >/dev/null 2>&1; then
+  echo "Reusing existing buildkit builder..."
+  docker buildx use buildkit
+else
+  echo "Creating buildkit builder..."
+  docker buildx create --use --name buildkit \
+    --config "$script_dir/docker/buildkitd.toml" \
+    --driver-opt network=host \
+    --buildkitd-flags '--allow-insecure-entitlement network.host' \
+    --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=-1 \
+    --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
 
-# 5. Execute your build
+  container_name="$(docker ps -a --filter "name=buildkit" --format "{{.Names}}" | head -n 1)"
+  if [ -n "$container_name" ]; then
+    docker cp "$script_dir/docker/seccomp-ptrace.json" "$container_name:/etc/buildkit/seccomp-ptrace.json"
+  fi
+
+  docker buildx inspect --bootstrap buildkit
+fi
+
+# Execute build
 docker buildx build -f scripts/docker/Dockerfile . \
   --network=host \
   --allow network.host \
