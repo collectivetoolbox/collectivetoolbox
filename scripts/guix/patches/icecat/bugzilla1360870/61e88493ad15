@@ -1,28 +1,455 @@
+
+# HG changeset patch
+# User Harveer Singh <hsingh@mozilla.com>
+# Date 1763135607 0
+# Node ID 61e88493ad1533487f94c277bd0eb844b5de2ca6
+# Parent  a06cecd6a32ffa933e79fd6fc842ba87ab5d7081
+Bug 1360870: Test changes.r=edenchuang,dom-worker-reviewers
+
+Differential Revision: https://phabricator.services.mozilla.com/D264457
+
+
 diff --git a/dom/serviceworkers/test/gtest/TestReadWrite.cpp b/dom/serviceworkers/test/gtest/TestReadWrite.cpp
-index 2e5859618b..f9fb46999e 100644
 --- a/dom/serviceworkers/test/gtest/TestReadWrite.cpp
 +++ b/dom/serviceworkers/test/gtest/TestReadWrite.cpp
-@@ -236,7 +236,10 @@ TEST(ServiceWorkerRegistrar, TestReadData)
+@@ -228,22 +228,16 @@ TEST(ServiceWorkerRegistrar, TestWrongVe
+ }
+ 
+ TEST(ServiceWorkerRegistrar, TestReadData)
+ {
+   nsCString buffer;
+   buffer.AppendInt(static_cast<uint32_t>(SERVICEWORKERREGISTRAR_VERSION));
    buffer.Append("\n");
  
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
    buffer.AppendLiteral("^inBrowser=1\n");
--  buffer.AppendLiteral("https://scope_0.org\ncurrentWorkerURL 0\n");
-+  buffer.AppendLiteral("https://scope_0.org\n");
-+  buffer.AppendInt(0);
-+  buffer.AppendLiteral("\n");
-+  buffer.AppendLiteral("currentWorkerURL 0\n");
+   buffer.AppendLiteral("https://scope_0.org\ncurrentWorkerURL 0\n");
    buffer.Append(SERVICEWORKERREGISTRAR_TRUE "\n");
    buffer.AppendLiteral("cacheName 0\n");
    buffer.AppendInt(nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_IMPORTS,
-@@ -256,7 +259,10 @@ TEST(ServiceWorkerRegistrar, TestReadData)
-   buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
- 
+                    16);
    buffer.AppendLiteral("\n");
--  buffer.AppendLiteral("https://scope_1.org\ncurrentWorkerURL 1\n");
-+  buffer.AppendLiteral("https://scope_1.org\n");
+   buffer.AppendInt(0);
+@@ -252,24 +246,26 @@ TEST(ServiceWorkerRegistrar, TestReadDat
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("true\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
+-  buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
+-
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
 +  buffer.AppendInt(0);
 +  buffer.AppendLiteral("\n");
-+  buffer.AppendLiteral("currentWorkerURL 1\n");
++  buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
++
+   buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("https://scope_1.org\ncurrentWorkerURL 1\n");
    buffer.Append(SERVICEWORKERREGISTRAR_FALSE "\n");
    buffer.AppendLiteral("cacheName 1\n");
    buffer.AppendInt(nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_ALL, 16);
+   buffer.AppendLiteral("\n");
+   PRTime ts = PR_Now();
+   buffer.AppendInt(ts);
+@@ -278,16 +274,24 @@ TEST(ServiceWorkerRegistrar, TestReadDat
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(ts);
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(1);
+   buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("false\n");
+   buffer.AppendInt(0);
+   buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
+   buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
+ 
+   ASSERT_TRUE(CreateFile(buffer))
+   << "CreateFile should not fail";
+ 
+   RefPtr<ServiceWorkerRegistrarTest> swr = new ServiceWorkerRegistrarTest;
+ 
+   nsresult rv = swr->TestReadData();
+@@ -1017,16 +1021,17 @@ TEST(ServiceWorkerRegistrar, TestDedupeW
+ {
+   {
+     RefPtr<ServiceWorkerRegistrarTest> swr = new ServiceWorkerRegistrarTest;
+ 
+     for (int i = 0; i < 2; ++i) {
+       ServiceWorkerRegistrationData reg;
+ 
+       reg.scope() = "https://scope_write.dedupe"_ns;
++      reg.type() = WorkerType::Classic;
+       reg.currentWorkerURL() = nsPrintfCString("currentWorkerURL write %d", i);
+       reg.currentWorkerHandlesFetch() = true;
+       reg.cacheName() =
+           NS_ConvertUTF8toUTF16(nsPrintfCString("cacheName write %d", i));
+       reg.updateViaCache() =
+           nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_IMPORTS;
+ 
+       nsAutoCString spec;
+@@ -1081,22 +1086,16 @@ TEST(ServiceWorkerRegistrar, TestDedupeW
+ }
+ 
+ TEST(ServiceWorkerRegistrar, TestLoadHandler)
+ {
+   nsCString buffer;
+   buffer.AppendInt(static_cast<uint32_t>(SERVICEWORKERREGISTRAR_VERSION));
+   buffer.Append("\n");
+ 
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
+-  buffer.AppendInt(0);
+-  buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("^inBrowser=1\n");
+   buffer.AppendLiteral("https://scope_0.org\ncurrentWorkerURL 0\n");
+   buffer.Append(SERVICEWORKERREGISTRAR_TRUE "\n");
+   buffer.AppendLiteral("cacheName 0\n");
+   buffer.AppendInt(nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_IMPORTS,
+                    16);
+   buffer.AppendLiteral("\n");
+   buffer.AppendInt(0);
+@@ -1109,16 +1108,24 @@ TEST(ServiceWorkerRegistrar, TestLoadHan
+   buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("true\n");
+   buffer.AppendInt(2);
+   buffer.AppendLiteral("\n");
+   buffer.AppendLiteral("handler_test\n");
+   buffer.AppendLiteral("hello world!\n");
+   buffer.AppendLiteral("handler_test2\n");
+   buffer.AppendLiteral("hello\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
+   buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
+ 
+   ASSERT_TRUE(CreateFile(buffer))
+   << "CreateFile should not fail";
+ 
+   {
+     RefPtr<ServiceWorkerRegistrarTest> swr = new ServiceWorkerRegistrarTest;
+     nsresult rv = swr->TestReadData();
+diff --git a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-credentialless.tentative.https.any.js.ini b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-credentialless.tentative.https.any.js.ini
+--- a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-credentialless.tentative.https.any.js.ini
++++ b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-credentialless.tentative.https.any.js.ini
+@@ -19,9 +19,10 @@
+ 
+ 
+ [reflection-credentialless.tentative.https.any.sharedworker-module.html]
+   [reflection-credentialless]
+     expected: FAIL
+ 
+ 
+ [reflection-credentialless.tentative.https.any.serviceworker-module.html]
+-  expected: ERROR
++  [reflection-credentialless]
++    expected: FAIL
+diff --git a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-require-corp.tentative.https.any.js.ini b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-require-corp.tentative.https.any.js.ini
+--- a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-require-corp.tentative.https.any.js.ini
++++ b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-require-corp.tentative.https.any.js.ini
+@@ -26,9 +26,10 @@
+ 
+ 
+ [reflection-require-corp.tentative.https.any.sharedworker-module.html]
+   [reflection-require-corp]
+     expected: FAIL
+ 
+ 
+ [reflection-require-corp.tentative.https.any.serviceworker-module.html]
+-  expected: ERROR
++  [reflection-require-corp]
++    expected: FAIL
+diff --git a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-unsafe-none.tentative.https.any.js.ini b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-unsafe-none.tentative.https.any.js.ini
+--- a/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-unsafe-none.tentative.https.any.js.ini
++++ b/testing/web-platform/meta/html/cross-origin-embedder-policy/reflection-unsafe-none.tentative.https.any.js.ini
+@@ -21,9 +21,10 @@
+ 
+ 
+ [reflection-unsafe-none.tentative.https.any.sharedworker-module.html]
+   [reflection-unsafe-none]
+     expected: FAIL
+ 
+ 
+ [reflection-unsafe-none.tentative.https.any.serviceworker-module.html]
+-  expected: ERROR
++  [reflection-unsafe-none]
++    expected: FAIL
+diff --git a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/json-module/json-module-service-worker-test.https.html.ini b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/json-module/json-module-service-worker-test.https.html.ini
+--- a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/json-module/json-module-service-worker-test.https.html.ini
++++ b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/json-module/json-module-service-worker-test.https.html.ini
+@@ -1,3 +1,4 @@
+ [json-module-service-worker-test.https.html]
+-  [Javascript importing JSON Module should load within the context of a service worker]
+-    expected: FAIL
++  # JSON module as a top-level is not throwing error, could be because of async script evaluation
++  [Trying to register a service worker with a top-level JSON Module should fail]
++    expected: FAIL
+\ No newline at end of file
+diff --git a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-object.any.js.ini b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-object.any.js.ini
+--- a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-object.any.js.ini
++++ b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-object.any.js.ini
+@@ -1,2 +0,0 @@
+-[import-meta-object.any.serviceworker-module.html]
+-  expected: ERROR
+diff --git a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-resolve.any.js.ini b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-resolve.any.js.ini
+--- a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-resolve.any.js.ini
++++ b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-resolve.any.js.ini
+@@ -1,11 +1,6 @@
+ [import-meta-resolve.any.worker-module.html]
+   expected:
+     if not fission and (os == "android") and not debug: [OK, CRASH]
+     if not fission and (os == "linux"): CRASH
+ 
+ [import-meta-resolve.any.sharedworker-module.html]
+-
+-[import-meta-resolve.any.serviceworker-module.html]
+-  expected:
+-    if tsan: TIMEOUT
+-    ERROR
+diff --git a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-url.any.js.ini b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-url.any.js.ini
+--- a/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-url.any.js.ini
++++ b/testing/web-platform/meta/html/semantics/scripting-1/the-script-element/module/import-meta/import-meta-url.any.js.ini
+@@ -6,9 +6,11 @@
+     if debug and (os == "android"): CRASH
+ 
+ [import-meta-url.any.sharedworker-module.html]
+   expected:
+     if (os == "mac") and not debug: [OK, CRASH]
+     if (os == "android") and not debug: [OK, CRASH]
+ 
+ [import-meta-url.any.serviceworker-module.html]
+-  expected: ERROR
++  expected:
++    if (os == "mac") and not debug: [OK, CRASH]
++    if (os == "android") and not debug: [OK, CRASH]
+diff --git a/testing/web-platform/meta/infrastructure/server/context.any.js.ini b/testing/web-platform/meta/infrastructure/server/context.any.js.ini
+--- a/testing/web-platform/meta/infrastructure/server/context.any.js.ini
++++ b/testing/web-platform/meta/infrastructure/server/context.any.js.ini
+@@ -1,12 +1,13 @@
+ [context.any.sharedworker-module.html]
+ 
+ [context.any.serviceworker-module.html]
+-  expected: ERROR
++  expected:
++    if (os == "android") and not debug: [OK, ERROR]
+ 
+ [context.any.worker.html]
+   expected:
+     if (os == "mac") and not debug: [OK, CRASH]
+     if (os == "android") and not debug: [OK, CRASH]
+ 
+ [context.any.serviceworker.html]
+   expected:
+diff --git a/testing/web-platform/meta/service-workers/service-worker/no-dynamic-import-in-module.any.js.ini b/testing/web-platform/meta/service-workers/service-worker/no-dynamic-import-in-module.any.js.ini
+deleted file mode 100644
+--- a/testing/web-platform/meta/service-workers/service-worker/no-dynamic-import-in-module.any.js.ini
++++ /dev/null
+@@ -1,4 +0,0 @@
+-[no-dynamic-import-in-module.any.serviceworker-module.html]
+-  expected:
+-    if (os == "android") and fission: [ERROR, TIMEOUT]
+-    ERROR
+diff --git a/testing/web-platform/meta/service-workers/service-worker/registration-scope-module-static-import.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/registration-scope-module-static-import.https.html.ini
+deleted file mode 100644
+--- a/testing/web-platform/meta/service-workers/service-worker/registration-scope-module-static-import.https.html.ini
++++ /dev/null
+@@ -1,9 +0,0 @@
+-[registration-scope-module-static-import.https.html]
+-  [static imports redirecting to outside path restriction should be allowed]
+-    expected: FAIL
+-
+-  [static imports to outside path restriction should be allowed]
+-    expected: FAIL
+-
+-  [imported-module-script.js works when used as top-level]
+-    expected: FAIL
+diff --git a/testing/web-platform/meta/service-workers/service-worker/registration-script-module.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/registration-script-module.https.html.ini
+--- a/testing/web-platform/meta/service-workers/service-worker/registration-script-module.https.html.ini
++++ b/testing/web-platform/meta/service-workers/service-worker/registration-script-module.https.html.ini
+@@ -1,6 +1,6 @@
+ [registration-script-module.https.html]
+   expected:
+     if (os == "mac") and not debug: [OK, TIMEOUT]
+   [Registering script including caught exception]
+     expected:
+-      if (os == "mac") and not debug: [PASS, TIMEOUT]
++      if (os == "mac") and not debug: [PASS, TIMEOUT]
+\ No newline at end of file
+diff --git a/testing/web-platform/meta/service-workers/service-worker/registration-script.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/registration-script.https.html.ini
+--- a/testing/web-platform/meta/service-workers/service-worker/registration-script.https.html.ini
++++ b/testing/web-platform/meta/service-workers/service-worker/registration-script.https.html.ini
+@@ -12,19 +12,19 @@
+   [Registering script including caught exception]
+     expected:
+       if (os == "android") and not debug: [PASS, NOTRUN]
+ 
+   [Registering script including parse error]
+     expected:
+       if (os == "android") and not debug: [PASS, TIMEOUT]
+ 
+-  [Registering script including undefined error]
++  [Registering script including undefined error: classic]
+     expected:
+       if (os == "android") and not debug: [PASS, NOTRUN]
+ 
+   [Registering non-existent script]
+     expected:
+       if (os == "android") and not debug: [PASS, NOTRUN]
+ 
+-  [Registering script including uncaught exception]
++  [Registering script including uncaught exception: classic]
+     expected:
+       if (os == "android") and not debug: [PASS, NOTRUN]
+diff --git a/testing/web-platform/meta/service-workers/service-worker/update-bytecheck-cors-import.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/update-bytecheck-cors-import.https.html.ini
+--- a/testing/web-platform/meta/service-workers/service-worker/update-bytecheck-cors-import.https.html.ini
++++ b/testing/web-platform/meta/service-workers/service-worker/update-bytecheck-cors-import.https.html.ini
+@@ -1,14 +1,3 @@
+ [update-bytecheck-cors-import.https.html]
+   expected:
+     if (os == "android") and debug: [OK, ERROR]
+-  [Test module script(main: default, imported: default)]
+-    expected: FAIL
+-
+-  [Test module script(main: default, imported: time)]
+-    expected: FAIL
+-
+-  [Test module script(main: time, imported: default)]
+-    expected: FAIL
+-
+-  [Test module script(main: time, imported: time)]
+-    expected: FAIL
+diff --git a/testing/web-platform/meta/service-workers/service-worker/update-bytecheck.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/update-bytecheck.https.html.ini
+--- a/testing/web-platform/meta/service-workers/service-worker/update-bytecheck.https.html.ini
++++ b/testing/web-platform/meta/service-workers/service-worker/update-bytecheck.https.html.ini
+@@ -1,19 +1,12 @@
+ [update-bytecheck.https.html]
+   max-asserts: 2
+   expected:
+     if (os == "android") and debug: [OK, ERROR]
+-  [Test module script(main: default, imported: default)]
+-    expected: FAIL
+-
+-  [Test module script(main: default, imported: time)]
+-    expected: FAIL
+ 
+   [Test module script(main: time, imported: default)]
+-    expected: FAIL
+-
+-  [Test module script(main: time, imported: time)]
+-    expected: FAIL
++    expected:
++      if (processor == "x86") and not debug: [PASS, FAIL]
+ 
+   [Test(main: time, imported: default)]
+     expected:
+       if (processor == "x86") and not debug: [PASS, FAIL]
+diff --git a/testing/web-platform/meta/service-workers/service-worker/update-registration-with-type.https.html.ini b/testing/web-platform/meta/service-workers/service-worker/update-registration-with-type.https.html.ini
+--- a/testing/web-platform/meta/service-workers/service-worker/update-registration-with-type.https.html.ini
++++ b/testing/web-platform/meta/service-workers/service-worker/update-registration-with-type.https.html.ini
+@@ -1,15 +1,9 @@
+ [update-registration-with-type.https.html]
+-  [Update the registration with a different script type (module => classic).]
+-    expected: FAIL
+-
+-  [Update the registration with a different script type (classic => module).]
+-    expected: FAIL
+-
+   [Update the registration with a different script type (classic => module) and with a same main script. Expect evaluation failed.]
+     expected: FAIL
+ 
+   [Update the registration with a different script type (module => classic) and with a same main script. Expect evaluation failed.]
+     expected: FAIL
+ 
+   [Update the registration with a different script type (module => classic) and with a same main script.]
+     expected:
+diff --git a/testing/web-platform/tests/infrastructure/metadata/infrastructure/server/context.any.js.ini b/testing/web-platform/tests/infrastructure/metadata/infrastructure/server/context.any.js.ini
+--- a/testing/web-platform/tests/infrastructure/metadata/infrastructure/server/context.any.js.ini
++++ b/testing/web-platform/tests/infrastructure/metadata/infrastructure/server/context.any.js.ini
+@@ -1,18 +1,17 @@
+ [context.any.serviceworker.html]
+   [context]
+     expected:
+       if product == "epiphany" or product == "webkit": FAIL # https://bugs.webkit.org/show_bug.cgi?id=200815
+ 
+ [context.any.serviceworker-module.html]
+-  expected:
+-    if product == "firefox_android": [OK, ERROR]
+-    # See e.g. https://community-tc.services.mozilla.com/tasks/IouM2LcdQy6b6ImEvgZ0kg
+-    if product == "firefox": [ERROR, OK]
++  [context]
++    expected:
++      if product == "epiphany" or product == "webkit": FAIL # https://bugs.webkit.org/show_bug.cgi?id=200815
+ 
+ [context.any.worker-module.html]
+ 
+ [context.any.sharedworker-module.html]
+ 
+ [context.any.sharedworker.html]
+ 
+ [context.any.html]
+diff --git a/testing/web-platform/tests/service-workers/service-worker/resources/registration-tests-script.js b/testing/web-platform/tests/service-workers/service-worker/resources/registration-tests-script.js
+--- a/testing/web-platform/tests/service-workers/service-worker/resources/registration-tests-script.js
++++ b/testing/web-platform/tests/service-workers/service-worker/resources/registration-tests-script.js
+@@ -25,31 +25,31 @@ function registration_tests_script(regis
+       return promise_rejects_js(t,
+           TypeError,
+           register_method(script, {scope: scope}),
+           'Registration of script including parse error should fail.');
+     }, 'Registering script including parse error');
+ 
+   promise_test(function(t) {
+       var script = 'resources/malformed-worker.py?undefined-error';
+-      var scope = 'resources/scope/undefined-error';
++      var scope = `resources/scope/undefined-error/${type}`;
+       return promise_rejects_js(t,
+           TypeError,
+           register_method(script, {scope: scope}),
+           'Registration of script including undefined error should fail.');
+-    }, 'Registering script including undefined error');
++    }, `Registering script including undefined error: ${type}`);
+ 
+   promise_test(function(t) {
+       var script = 'resources/malformed-worker.py?uncaught-exception';
+-      var scope = 'resources/scope/uncaught-exception';
++      var scope = `resources/scope/uncaught-exception/${type}`;
+       return promise_rejects_js(t,
+           TypeError,
+           register_method(script, {scope: scope}),
+           'Registration of script including uncaught exception should fail.');
+-    }, 'Registering script including uncaught exception');
++    }, `Registering script including uncaught exception: ${type}`);
+ 
+   if (type === 'classic') {
+     promise_test(function(t) {
+         var script = 'resources/malformed-worker.py?import-malformed-script';
+         var scope = 'resources/scope/import-malformed-script';
+         return promise_rejects_js(t,
+             TypeError,
+             register_method(script, {scope: scope}),
+

@@ -1,8 +1,23 @@
+
+# HG changeset patch
+# User Lando <lando@lando.test>
+# Date 1763135766 0
+# Node ID be5b6a995776126d73635d3edf70643377a94705
+# Parent  61e88493ad1533487f94c277bd0eb844b5de2ca6
+Bug 1360870, 1989386, 1990925, 1995558: apply code formatting via Lando
+
+# ignore-this-changeset
+
+
 diff --git a/dom/workers/ScriptLoader.cpp b/dom/workers/ScriptLoader.cpp
-index 735d02551c..3e0f8c3a0f 100644
 --- a/dom/workers/ScriptLoader.cpp
 +++ b/dom/workers/ScriptLoader.cpp
-@@ -1150,8 +1150,7 @@ nsresult WorkerScriptLoader::FillCompileOptionsForRequest(
+@@ -1141,18 +1141,17 @@ nsresult WorkerScriptLoader::FillCompile
+       aRequest->GetWorkerLoadContext()->mMutedErrorFlag.value());
+ 
+   if (aRequest->HasSourceMapURL()) {
+     aOptions->setSourceMapURL(aRequest->GetSourceMapURL().get());
+   }
  
    // disable top-level await for sw module scripts
    const auto* workerPrivate = GetCurrentThreadWorkerPrivate();
@@ -12,3 +27,32 @@ index 735d02551c..3e0f8c3a0f 100644
        aRequest->IsModuleRequest()) {
      aOptions->topLevelAwait = false;
    }
+ 
+   return NS_OK;
+ }
+ 
+ bool WorkerScriptLoader::EvaluateScript(JSContext* aCx,
+diff --git a/netwerk/protocol/http/HttpBaseChannel.cpp b/netwerk/protocol/http/HttpBaseChannel.cpp
+--- a/netwerk/protocol/http/HttpBaseChannel.cpp
++++ b/netwerk/protocol/http/HttpBaseChannel.cpp
+@@ -3041,17 +3041,18 @@ nsresult EnsureMIMEOfScript(HttpBaseChan
+     // script load has type script
+     glean::http::script_block_incorrect_mime
+         .EnumGet(glean::http::ScriptBlockIncorrectMimeLabel::eJavascript)
+         .Add();
+     return NS_OK;
+   }
+ 
+   const auto internalPolicyType = aLoadInfo->InternalContentPolicyType();
+-  if (internalPolicyType == nsIContentPolicy::TYPE_INTERNAL_WORKER_STATIC_MODULE &&
++  if (internalPolicyType ==
++          nsIContentPolicy::TYPE_INTERNAL_WORKER_STATIC_MODULE &&
+       nsContentUtils::IsJsonMimeType(typeString)) {
+     // script and json are both allowed
+     glean::http::script_block_incorrect_mime
+         .EnumGet(glean::http::ScriptBlockIncorrectMimeLabel::eTextJson)
+         .Add();
+     return NS_OK;
+   }
+ 
+

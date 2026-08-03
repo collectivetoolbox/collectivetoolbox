@@ -1,0 +1,28 @@
+diff --git a/dom/serviceworkers/test/gtest/TestReadWrite.cpp b/dom/serviceworkers/test/gtest/TestReadWrite.cpp
+index 2e5859618b..f9fb46999e 100644
+--- a/dom/serviceworkers/test/gtest/TestReadWrite.cpp
++++ b/dom/serviceworkers/test/gtest/TestReadWrite.cpp
+@@ -236,7 +236,10 @@ TEST(ServiceWorkerRegistrar, TestReadData)
+   buffer.Append("\n");
+ 
+   buffer.AppendLiteral("^inBrowser=1\n");
+-  buffer.AppendLiteral("https://scope_0.org\ncurrentWorkerURL 0\n");
++  buffer.AppendLiteral("https://scope_0.org\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendLiteral("currentWorkerURL 0\n");
+   buffer.Append(SERVICEWORKERREGISTRAR_TRUE "\n");
+   buffer.AppendLiteral("cacheName 0\n");
+   buffer.AppendInt(nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_IMPORTS,
+@@ -256,7 +259,10 @@ TEST(ServiceWorkerRegistrar, TestReadData)
+   buffer.Append(SERVICEWORKERREGISTRAR_TERMINATOR "\n");
+ 
+   buffer.AppendLiteral("\n");
+-  buffer.AppendLiteral("https://scope_1.org\ncurrentWorkerURL 1\n");
++  buffer.AppendLiteral("https://scope_1.org\n");
++  buffer.AppendInt(0);
++  buffer.AppendLiteral("\n");
++  buffer.AppendLiteral("currentWorkerURL 1\n");
+   buffer.Append(SERVICEWORKERREGISTRAR_FALSE "\n");
+   buffer.AppendLiteral("cacheName 1\n");
+   buffer.AppendInt(nsIServiceWorkerRegistrationInfo::UPDATE_VIA_CACHE_ALL, 16);
