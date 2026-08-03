@@ -1,8 +1,22 @@
+
+# HG changeset patch
+# User Harveer Singh <hsingh@mozilla.com>
+# Date 1763135605 0
+# Node ID 6695a4a7a6493a57876766ee50578147b8879367
+# Parent  c2852e647920d1e36f651a744fb819905a91f9ab
+Bug 1360870: idl changes to support module service workers.r=asuth,edenchuang,webidl,smaug,dom-worker-reviewers
+
+Differential Revision: https://phabricator.services.mozilla.com/D264454
+
+
 diff --git a/dom/serviceworkers/IPCServiceWorkerDescriptor.ipdlh b/dom/serviceworkers/IPCServiceWorkerDescriptor.ipdlh
-index d074eaaebb..460baa2fbe 100644
 --- a/dom/serviceworkers/IPCServiceWorkerDescriptor.ipdlh
 +++ b/dom/serviceworkers/IPCServiceWorkerDescriptor.ipdlh
-@@ -5,8 +5,10 @@
+@@ -1,30 +1,33 @@
+ /* This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
  include PBackgroundSharedTypes;
  
  include "mozilla/dom/ServiceWorkerIPCUtils.h";
@@ -13,7 +27,14 @@ index d074eaaebb..460baa2fbe 100644
  
  namespace mozilla {
  namespace dom {
-@@ -21,6 +23,7 @@ namespace dom {
+ 
+ // IPC type with enough information to create a ServiceWorker DOM object
+ // in a child process.  Note that the state may be slightly out-of-sync
+ // with the parent and should be updated dynamically if necessary.
+ [Comparable] struct IPCServiceWorkerDescriptor
+ {
+   uint64_t id;
+   uint64_t registrationId;
    uint64_t registrationVersion;
    PrincipalInfo principalInfo;
    nsCString scope;
@@ -21,11 +42,19 @@ index d074eaaebb..460baa2fbe 100644
    nsCString scriptURL;
    ServiceWorkerState state;
    bool handlesFetch;
+ };
+ 
+ } // namespace dom
+ } // namespace mozilla
 diff --git a/dom/serviceworkers/IPCServiceWorkerRegistrationDescriptor.ipdlh b/dom/serviceworkers/IPCServiceWorkerRegistrationDescriptor.ipdlh
-index 5619ba55de..3132e685a8 100644
 --- a/dom/serviceworkers/IPCServiceWorkerRegistrationDescriptor.ipdlh
 +++ b/dom/serviceworkers/IPCServiceWorkerRegistrationDescriptor.ipdlh
-@@ -7,9 +7,11 @@ include IPCServiceWorkerDescriptor;
+@@ -2,19 +2,21 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ include PBackgroundSharedTypes;
+ include IPCServiceWorkerDescriptor;
  
  include "ipc/ErrorIPCUtils.h";
  include "mozilla/dom/ServiceWorkerIPCUtils.h";
@@ -37,19 +66,39 @@ index 5619ba55de..3132e685a8 100644
  
  namespace mozilla {
  namespace dom {
-@@ -29,6 +31,7 @@ namespace dom {
+ 
+ // IPC type with enough information to create a ServiceWorker DOM object
+ // in a child process.  Note that the state may be slightly out-of-sync
+ // with the parent and should be updated dynamically if necessary.
+ [Comparable] struct IPCServiceWorkerRegistrationDescriptor
+@@ -24,17 +26,17 @@ namespace dom {
+ 
+   // These values should match the principal and scope in each
+   // associated worker.  It may be possible to optimize in the future,
+   // but for now we duplicate the information here to ensure correctness.
+   // Its possible we may need to reference a registration before the
    // worker is installed yet, etc.
    PrincipalInfo principalInfo;
    nsCString scope;
+-
 +  WorkerType type;
- 
    ServiceWorkerUpdateViaCache updateViaCache;
  
+   IPCServiceWorkerDescriptor? installing;
+   IPCServiceWorkerDescriptor? waiting;
+   IPCServiceWorkerDescriptor? active;
+ };
+ 
+ union IPCServiceWorkerRegistrationDescriptorOrCopyableErrorResult
 diff --git a/dom/serviceworkers/PServiceWorkerContainer.ipdl b/dom/serviceworkers/PServiceWorkerContainer.ipdl
-index 295f533d69..62afd00bf4 100644
 --- a/dom/serviceworkers/PServiceWorkerContainer.ipdl
 +++ b/dom/serviceworkers/PServiceWorkerContainer.ipdl
-@@ -6,8 +6,9 @@ include protocol PBackground;
+@@ -1,30 +1,31 @@
+ /* This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ include protocol PBackground;
  
  include ClientIPCTypes;
  include IPCServiceWorkerRegistrationDescriptor;
@@ -60,7 +109,10 @@ index 295f533d69..62afd00bf4 100644
  
  namespace mozilla {
  namespace dom {
-@@ -18,8 +19,8 @@ protocol PServiceWorkerContainer
+ 
+ [ChildImpl=virtual, ParentImpl=virtual]
+ protocol PServiceWorkerContainer
+ {
    manager PBackground;
  
  parent:
@@ -71,14 +123,22 @@ index 295f533d69..62afd00bf4 100644
          returns (IPCServiceWorkerRegistrationDescriptorOrCopyableErrorResult aResult);
  
    async GetRegistration(IPCClientInfo aClientInfo, nsCString aURL)
+         returns (IPCServiceWorkerRegistrationDescriptorOrCopyableErrorResult aResult);
+ 
+   async GetRegistrations(IPCClientInfo aClientInfo)
+         returns (IPCServiceWorkerRegistrationDescriptorListOrCopyableErrorResult aResult);
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrarTypes.ipdlh b/dom/serviceworkers/ServiceWorkerRegistrarTypes.ipdlh
-index d84b324797..5a0697d188 100644
 --- a/dom/serviceworkers/ServiceWorkerRegistrarTypes.ipdlh
 +++ b/dom/serviceworkers/ServiceWorkerRegistrarTypes.ipdlh
-@@ -4,6 +4,13 @@
+@@ -1,26 +1,35 @@
+ /* -*- Mode: C++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 8 -*- */
+ /* vim: set sw=4 ts=8 et tw=80 ft=cpp : */
+ /* This Source Code Form is subject to the terms of the Mozilla Public
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
  
+ include IPCNavigationPreloadState;
 +include "mozilla/dom/cache/IPCUtils.h";
 +include "mozilla/dom/WorkerIPCUtils.h";
 +
@@ -86,26 +146,40 @@ index d84b324797..5a0697d188 100644
 +
 +using mozilla::dom::WorkerType
 +  from "mozilla/dom/WorkerBinding.h";
- include IPCNavigationPreloadState;
  include PBackgroundSharedTypes;
  
-@@ -13,6 +20,8 @@ namespace dom {
+ namespace mozilla {
+ namespace dom {
+ 
  struct ServiceWorkerRegistrationData
  {
+   int64_t numberOfAttemptedActivations;
+   bool isBroken;
+   int64_t cacheAPIId;
    nsCString scope;
 +  WorkerType type;
 +
    nsCString currentWorkerURL;
    bool currentWorkerHandlesFetch;
  
+   nsString cacheName;
+ 
+   PrincipalInfo principal;
+ 
+   uint16_t updateViaCache;
 diff --git a/dom/webidl/ServiceWorkerContainer.webidl b/dom/webidl/ServiceWorkerContainer.webidl
-index 69f72a5c9e..3c4cf7a37d 100644
 --- a/dom/webidl/ServiceWorkerContainer.webidl
 +++ b/dom/webidl/ServiceWorkerContainer.webidl
-@@ -37,5 +37,6 @@ interface ServiceWorkerContainer : EventTarget {
+@@ -32,10 +32,11 @@ interface ServiceWorkerContainer : Event
+ 
+   attribute EventHandler oncontrollerchange;
+   attribute EventHandler onmessage;
+   attribute EventHandler onmessageerror;
+ };
  
  dictionary RegistrationOptions {
    USVString scope;
 +  WorkerType type = "classic";
    ServiceWorkerUpdateViaCache updateViaCache = "imports";
  };
+

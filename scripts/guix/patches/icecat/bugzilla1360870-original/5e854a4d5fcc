@@ -1,8 +1,23 @@
+
+# HG changeset patch
+# User Harveer Singh <hsingh@mozilla.com>
+# Date 1763135605 0
+# Node ID 5e854a4d5fccefc61b0b01e8b550b425cdba8995
+# Parent  6695a4a7a6493a57876766ee50578147b8879367
+Bug 1360870: Some source code plumbing and refactorings to support new serviceworker type.r=edenchuang,dom-worker-reviewers
+
+Differential Revision: https://phabricator.services.mozilla.com/D264455
+
+
 diff --git a/dom/serviceworkers/ServiceWorker.cpp b/dom/serviceworkers/ServiceWorker.cpp
-index e95001185f..8db383313c 100644
 --- a/dom/serviceworkers/ServiceWorker.cpp
 +++ b/dom/serviceworkers/ServiceWorker.cpp
-@@ -86,7 +86,7 @@ ServiceWorker::ServiceWorker(nsIGlobalObject* aGlobal,
+@@ -80,17 +80,17 @@ ServiceWorker::ServiceWorker(nsIGlobalOb
+   // The error event handler is required by the spec currently, but is not used
+   // anywhere.  Don't keep the object alive in that case.
+ 
+   // Attempt to get an existing binding object for the registration
+   // associated with this ServiceWorker.
    RefPtr<ServiceWorkerRegistration> reg =
        aGlobal->GetServiceWorkerRegistration(ServiceWorkerRegistrationDescriptor(
            mDescriptor.RegistrationId(), mDescriptor.RegistrationVersion(),
@@ -11,11 +26,20 @@ index e95001185f..8db383313c 100644
            ServiceWorkerUpdateViaCache::Imports));
  
    if (reg) {
+     MaybeAttachToRegistration(reg);
+     // Following codes are commented since GetRegistration has no
+     // implementation. If we can not get an existing binding object, probably
+     // need to create one to associate to it.
+     // https://bugzilla.mozilla.org/show_bug.cgi?id=1769652
 diff --git a/dom/serviceworkers/ServiceWorkerContainer.cpp b/dom/serviceworkers/ServiceWorkerContainer.cpp
-index ee6d711c8d..918cffca1c 100644
 --- a/dom/serviceworkers/ServiceWorkerContainer.cpp
 +++ b/dom/serviceworkers/ServiceWorkerContainer.cpp
-@@ -319,7 +319,7 @@ already_AddRefed<Promise> ServiceWorkerContainer::Register(
+@@ -313,17 +313,17 @@ already_AddRefed<Promise> ServiceWorkerC
+   RefPtr<ServiceWorkerContainer> self = this;
+ 
+   if (!mActor) {
+     aRv.ThrowInvalidStateError("Can't register service worker");
+     return nullptr;
    }
  
    mActor->SendRegister(
@@ -24,11 +48,20 @@ index ee6d711c8d..918cffca1c 100644
        nsCString(cleanedScriptURL), aOptions.mUpdateViaCache,
        [self,
         outer](const IPCServiceWorkerRegistrationDescriptorOrCopyableErrorResult&
+                   aResult) {
+         AUTO_PROFILER_MARKER_UNTYPED("SWC Register (inner)", DOM, {});
+ 
+         if (aResult.type() ==
+             IPCServiceWorkerRegistrationDescriptorOrCopyableErrorResult::
 diff --git a/dom/serviceworkers/ServiceWorkerContainerParent.cpp b/dom/serviceworkers/ServiceWorkerContainerParent.cpp
-index 7e942d54ba..c5007f149a 100644
 --- a/dom/serviceworkers/ServiceWorkerContainerParent.cpp
 +++ b/dom/serviceworkers/ServiceWorkerContainerParent.cpp
-@@ -22,7 +22,7 @@ void ServiceWorkerContainerParent::ActorDestroy(ActorDestroyReason aReason) {
+@@ -17,26 +17,26 @@ void ServiceWorkerContainerParent::Actor
+   if (mProxy) {
+     mProxy->RevokeActor(this);
+     mProxy = nullptr;
+   }
+ }
  
  IPCResult ServiceWorkerContainerParent::RecvRegister(
      const IPCClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -37,7 +70,8 @@ index 7e942d54ba..c5007f149a 100644
      const ServiceWorkerUpdateViaCache& aUpdateViaCache,
      RegisterResolver&& aResolver) {
    if (!mProxy) {
-@@ -31,7 +31,7 @@ IPCResult ServiceWorkerContainerParent::RecvRegister(
+     aResolver(CopyableErrorResult(NS_ERROR_DOM_INVALID_STATE_ERR));
+     return IPC_OK();
    }
  
    mProxy
@@ -46,11 +80,20 @@ index 7e942d54ba..c5007f149a 100644
                   aUpdateViaCache)
        ->Then(
            GetCurrentSerialEventTarget(), __func__,
+           [aResolver](const ServiceWorkerRegistrationDescriptor& aDescriptor) {
+             aResolver(aDescriptor.ToIPC());
+           },
+           [aResolver](const CopyableErrorResult& aResult) {
+             aResolver(aResult);
 diff --git a/dom/serviceworkers/ServiceWorkerContainerParent.h b/dom/serviceworkers/ServiceWorkerContainerParent.h
-index 83ce1c0442..7e81bfa61d 100644
 --- a/dom/serviceworkers/ServiceWorkerContainerParent.h
 +++ b/dom/serviceworkers/ServiceWorkerContainerParent.h
-@@ -25,7 +25,7 @@ class ServiceWorkerContainerParent final
+@@ -20,17 +20,17 @@ class ServiceWorkerContainerParent final
+ 
+   ~ServiceWorkerContainerParent();
+ 
+   // PServiceWorkerContainerParent
+   void ActorDestroy(ActorDestroyReason aReason) override;
  
    mozilla::ipc::IPCResult RecvRegister(
        const IPCClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -59,11 +102,20 @@ index 83ce1c0442..7e81bfa61d 100644
        const ServiceWorkerUpdateViaCache& aUpdateViaCache,
        RegisterResolver&& aResolver) override;
  
+   mozilla::ipc::IPCResult RecvGetRegistration(
+       const IPCClientInfo& aClientInfo, const nsACString& aURL,
+       GetRegistrationResolver&& aResolver) override;
+ 
+   mozilla::ipc::IPCResult RecvGetRegistrations(
 diff --git a/dom/serviceworkers/ServiceWorkerContainerProxy.cpp b/dom/serviceworkers/ServiceWorkerContainerProxy.cpp
-index 888731acef..cc1bcbbdb9 100644
 --- a/dom/serviceworkers/ServiceWorkerContainerProxy.cpp
 +++ b/dom/serviceworkers/ServiceWorkerContainerProxy.cpp
-@@ -42,7 +42,8 @@ void ServiceWorkerContainerProxy::RevokeActor(
+@@ -37,33 +37,35 @@ void ServiceWorkerContainerProxy::Revoke
+   AssertIsOnBackgroundThread();
+   MOZ_DIAGNOSTIC_ASSERT(mActor);
+   MOZ_DIAGNOSTIC_ASSERT(mActor == aActor);
+   mActor = nullptr;
+ }
  
  RefPtr<ServiceWorkerRegistrationPromise> ServiceWorkerContainerProxy::Register(
      const ClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -73,7 +125,7 @@ index 888731acef..cc1bcbbdb9 100644
    AssertIsOnBackgroundThread();
  
    RefPtr<ServiceWorkerRegistrationPromise::Private> promise =
-@@ -50,7 +51,7 @@ RefPtr<ServiceWorkerRegistrationPromise> ServiceWorkerContainerProxy::Register(
+       new ServiceWorkerRegistrationPromise::Private(__func__);
  
    nsCOMPtr<nsIRunnable> r = NS_NewRunnableFunction(
        __func__,
@@ -82,7 +134,7 @@ index 888731acef..cc1bcbbdb9 100644
         aScriptURL = nsCString(aScriptURL), aUpdateViaCache, promise]() mutable {
          auto scopeExit = MakeScopeExit(
              [&] { promise->Reject(NS_ERROR_DOM_INVALID_STATE_ERR, __func__); });
-@@ -58,7 +59,8 @@ RefPtr<ServiceWorkerRegistrationPromise> ServiceWorkerContainerProxy::Register(
+ 
          RefPtr<ServiceWorkerManager> swm = ServiceWorkerManager::GetInstance();
          NS_ENSURE_TRUE_VOID(swm);
  
@@ -92,11 +144,20 @@ index 888731acef..cc1bcbbdb9 100644
              ->ChainTo(promise.forget(), __func__);
  
          scopeExit.release();
+       });
+ 
+   MOZ_ALWAYS_SUCCEEDS(SchedulerGroup::Dispatch(r.forget()));
+ 
+   return promise;
 diff --git a/dom/serviceworkers/ServiceWorkerContainerProxy.h b/dom/serviceworkers/ServiceWorkerContainerProxy.h
-index b380465a3e..c00e87bb57 100644
 --- a/dom/serviceworkers/ServiceWorkerContainerProxy.h
 +++ b/dom/serviceworkers/ServiceWorkerContainerProxy.h
-@@ -27,7 +27,7 @@ class ServiceWorkerContainerProxy final {
+@@ -22,17 +22,17 @@ class ServiceWorkerContainerProxy final 
+ 
+  public:
+   explicit ServiceWorkerContainerProxy(ServiceWorkerContainerParent* aActor);
+ 
+   void RevokeActor(ServiceWorkerContainerParent* aActor);
  
    RefPtr<ServiceWorkerRegistrationPromise> Register(
        const ClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -105,19 +166,30 @@ index b380465a3e..c00e87bb57 100644
        ServiceWorkerUpdateViaCache aUpdateViaCache);
  
    RefPtr<ServiceWorkerRegistrationPromise> GetRegistration(
+       const ClientInfo& aClientInfo, const nsACString& aURL);
+ 
+   RefPtr<ServiceWorkerRegistrationListPromise> GetRegistrations(
+       const ClientInfo& aClientInfo);
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerDescriptor.cpp b/dom/serviceworkers/ServiceWorkerDescriptor.cpp
-index 898f271fea..41da3b20e4 100644
 --- a/dom/serviceworkers/ServiceWorkerDescriptor.cpp
 +++ b/dom/serviceworkers/ServiceWorkerDescriptor.cpp
-@@ -7,6 +7,7 @@
+@@ -3,48 +3,50 @@
+ /* This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
  #include "ServiceWorkerDescriptor.h"
+ 
  #include "mozilla/dom/IPCServiceWorkerDescriptor.h"
  #include "mozilla/dom/ServiceWorkerBinding.h"
 +#include "mozilla/dom/WorkerBinding.h"
  #include "mozilla/ipc/PBackgroundSharedTypes.h"
  
  namespace mozilla::dom {
-@@ -16,7 +17,7 @@ using mozilla::ipc::PrincipalInfoToPrincipal;
+ 
+ using mozilla::ipc::PrincipalInfo;
+ using mozilla::ipc::PrincipalInfoToPrincipal;
  
  ServiceWorkerDescriptor::ServiceWorkerDescriptor(
      uint64_t aId, uint64_t aRegistrationId, uint64_t aRegistrationVersion,
@@ -126,7 +198,9 @@ index 898f271fea..41da3b20e4 100644
      const nsACString& aScriptURL, ServiceWorkerState aState)
      : mData(MakeUnique<IPCServiceWorkerDescriptor>()) {
    MOZ_ALWAYS_SUCCEEDS(
-@@ -26,6 +27,7 @@ ServiceWorkerDescriptor::ServiceWorkerDescriptor(
+       PrincipalToPrincipalInfo(aPrincipal, &mData->principalInfo()));
+ 
+   mData->id() = aId;
    mData->registrationId() = aRegistrationId;
    mData->registrationVersion() = aRegistrationVersion;
    mData->scope() = aScope;
@@ -134,7 +208,9 @@ index 898f271fea..41da3b20e4 100644
    mData->scriptURL() = aScriptURL;
    mData->state() = aState;
    // Set HandlesFetch as true in default
-@@ -35,10 +37,10 @@ ServiceWorkerDescriptor::ServiceWorkerDescriptor(
+   mData->handlesFetch() = true;
+ }
+ 
  ServiceWorkerDescriptor::ServiceWorkerDescriptor(
      uint64_t aId, uint64_t aRegistrationId, uint64_t aRegistrationVersion,
      const mozilla::ipc::PrincipalInfo& aPrincipalInfo, const nsACString& aScope,
@@ -143,11 +219,21 @@ index 898f271fea..41da3b20e4 100644
      : mData(MakeUnique<IPCServiceWorkerDescriptor>(
            aId, aRegistrationId, aRegistrationVersion, aPrincipalInfo,
 -          nsCString(aScriptURL), nsCString(aScope), aState, true)) {}
-+          nsCString(aScope), aType, nsCString(aScriptURL), aState, true)) {}
++          nsCString(aScriptURL), aType, nsCString(aScope), aState, true)) {}
  
  ServiceWorkerDescriptor::ServiceWorkerDescriptor(
      const IPCServiceWorkerDescriptor& aDescriptor)
-@@ -102,6 +104,8 @@ const nsCString& ServiceWorkerDescriptor::Scope() const {
+     : mData(MakeUnique<IPCServiceWorkerDescriptor>(aDescriptor)) {}
+ 
+ ServiceWorkerDescriptor::ServiceWorkerDescriptor(
+     const ServiceWorkerDescriptor& aRight) {
+   operator=(aRight);
+@@ -98,16 +100,18 @@ Result<nsCOMPtr<nsIPrincipal>, nsresult>
+   AssertIsOnMainThread();
+   return PrincipalInfoToPrincipal(mData->principalInfo());
+ }
+ 
+ const nsCString& ServiceWorkerDescriptor::Scope() const {
    return mData->scope();
  }
  
@@ -156,11 +242,20 @@ index 898f271fea..41da3b20e4 100644
  const nsCString& ServiceWorkerDescriptor::ScriptURL() const {
    return mData->scriptURL();
  }
+ 
+ ServiceWorkerState ServiceWorkerDescriptor::State() const {
+   return mData->state();
+ }
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerDescriptor.h b/dom/serviceworkers/ServiceWorkerDescriptor.h
-index b85890089b..3b2100035d 100644
 --- a/dom/serviceworkers/ServiceWorkerDescriptor.h
 +++ b/dom/serviceworkers/ServiceWorkerDescriptor.h
-@@ -21,6 +21,7 @@ class PrincipalInfo;
+@@ -16,39 +16,40 @@ namespace mozilla {
+ 
+ namespace ipc {
+ class PrincipalInfo;
+ }  // namespace ipc
+ 
  namespace dom {
  
  class IPCServiceWorkerDescriptor;
@@ -168,7 +263,16 @@ index b85890089b..3b2100035d 100644
  enum class ServiceWorkerState : uint8_t;
  
  // This class represents a snapshot of a particular ServiceWorkerInfo object.
-@@ -37,13 +38,13 @@ class ServiceWorkerDescriptor final {
+ // It is threadsafe and can be transferred across processes.  This is useful
+ // because most of its values are immutable and can be relied upon to be
+ // accurate. Currently the only variable field is the ServiceWorkerState.
+ class ServiceWorkerDescriptor final {
+   // This class is largely a wrapper around an IPDL generated struct.  We
+   // need the wrapper class since IPDL generated code includes windows.h
+   // which is in turn incompatible with bindings code.
+   UniquePtr<IPCServiceWorkerDescriptor> mData;
+ 
+  public:
    ServiceWorkerDescriptor(uint64_t aId, uint64_t aRegistrationId,
                            uint64_t aRegistrationVersion,
                            nsIPrincipal* aPrincipal, const nsACString& aScope,
@@ -184,7 +288,17 @@ index b85890089b..3b2100035d 100644
                            const nsACString& aScriptURL,
                            ServiceWorkerState aState);
  
-@@ -74,6 +75,8 @@ class ServiceWorkerDescriptor final {
+   explicit ServiceWorkerDescriptor(
+       const IPCServiceWorkerDescriptor& aDescriptor);
+ 
+   ServiceWorkerDescriptor(const ServiceWorkerDescriptor& aRight);
+ 
+@@ -69,16 +70,18 @@ class ServiceWorkerDescriptor final {
+   uint64_t RegistrationVersion() const;
+ 
+   const mozilla::ipc::PrincipalInfo& PrincipalInfo() const;
+ 
+   Result<nsCOMPtr<nsIPrincipal>, nsresult> GetPrincipal() const;
  
    const nsCString& Scope() const;
  
@@ -193,11 +307,20 @@ index b85890089b..3b2100035d 100644
    const nsCString& ScriptURL() const;
  
    ServiceWorkerState State() const;
+ 
+   void SetState(ServiceWorkerState aState);
+ 
+   void SetRegistrationVersion(uint64_t aVersion);
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerIPCUtils.h b/dom/serviceworkers/ServiceWorkerIPCUtils.h
-index 9931af94e7..2724102bf8 100644
 --- a/dom/serviceworkers/ServiceWorkerIPCUtils.h
 +++ b/dom/serviceworkers/ServiceWorkerIPCUtils.h
-@@ -14,6 +14,7 @@
+@@ -9,16 +9,17 @@
+ #include "ipc/EnumSerializer.h"
+ 
+ // Undo X11/X.h's definition of None
+ #undef None
+ 
  #include "mozilla/dom/BindingIPCUtils.h"
  #include "mozilla/dom/ServiceWorkerBinding.h"
  #include "mozilla/dom/ServiceWorkerRegistrationBinding.h"
@@ -205,11 +328,20 @@ index 9931af94e7..2724102bf8 100644
  
  namespace IPC {
  
+ template <>
+ struct ParamTraits<mozilla::dom::ServiceWorkerState>
+     : public mozilla::dom::WebIDLEnumSerializer<
+           mozilla::dom::ServiceWorkerState> {};
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerInfo.cpp b/dom/serviceworkers/ServiceWorkerInfo.cpp
-index 9f42d12a12..833e756790 100644
 --- a/dom/serviceworkers/ServiceWorkerInfo.cpp
 +++ b/dom/serviceworkers/ServiceWorkerInfo.cpp
-@@ -232,16 +232,15 @@ void ServiceWorkerInfo::UpdateState(ServiceWorkerState aState) {
+@@ -227,26 +227,25 @@ void ServiceWorkerInfo::UpdateState(Serv
+   }
+   mDescriptor.SetState(aState);
+   if (State() == ServiceWorkerState::Redundant) {
+     serviceWorkerScriptCache::PurgeCache(mPrincipal, mCacheName);
+     mServiceWorkerPrivate->NoteDeadServiceWorkerInfo();
    }
  }
  
@@ -233,11 +365,20 @@ index 9f42d12a12..833e756790 100644
        mCacheName(aCacheName),
        mWorkerPrivateId(ComputeWorkerPrivateId()),
        mImportsLoadFlags(aImportsLoadFlags),
+       mCreationTime(PR_Now()),
+       mCreationTimeStamp(TimeStamp::Now()),
+       mInstalledTime(0),
+       mActivatedTime(0),
+       mRedundantTime(0),
 diff --git a/dom/serviceworkers/ServiceWorkerInfo.h b/dom/serviceworkers/ServiceWorkerInfo.h
-index 0784a23465..5e1ed0d9ba 100644
 --- a/dom/serviceworkers/ServiceWorkerInfo.h
 +++ b/dom/serviceworkers/ServiceWorkerInfo.h
-@@ -91,7 +91,7 @@ class ServiceWorkerInfo final : public nsIServiceWorkerInfo {
+@@ -86,17 +86,17 @@ class ServiceWorkerInfo final : public n
+     return mServiceWorkerPrivate;
+   }
+ 
+   nsIPrincipal* Principal() const { return mPrincipal; }
+ 
    const nsCString& ScriptSpec() const { return mDescriptor.ScriptURL(); }
  
    const nsCString& Scope() const { return mDescriptor.Scope(); }
@@ -246,7 +387,17 @@ index 0784a23465..5e1ed0d9ba 100644
    Maybe<ClientInfo> GetClientInfo();
  
    // Pass-through of ServiceWorkerPrivate::GetLifetimeDeadline(); note that
-@@ -114,7 +114,8 @@ class ServiceWorkerInfo final : public nsIServiceWorkerInfo {
+   // we have an XPCOM variation that returns a double for testing purposes.
+   TimeStamp LifetimeDeadline();
+ 
+   bool SkipWaitingFlag() const {
+     MOZ_ASSERT(NS_IsMainThread());
+@@ -109,17 +109,18 @@ class ServiceWorkerInfo final : public n
+   }
+ 
+   void ReportNavigationFault() {
+     MOZ_ASSERT(NS_IsMainThread());
+     mNavigationFaultCount++;
    }
  
    ServiceWorkerInfo(nsIPrincipal* aPrincipal, const nsACString& aScope,
@@ -256,11 +407,20 @@ index 0784a23465..5e1ed0d9ba 100644
                      const nsACString& aScriptSpec, const nsAString& aCacheName,
                      nsLoadFlags aImportsLoadFlags);
  
+   ServiceWorkerState State() const { return mDescriptor.State(); }
+ 
+   const OriginAttributes& GetOriginAttributes() const {
+     return mOriginAttributes;
+   }
 diff --git a/dom/serviceworkers/ServiceWorkerManager.cpp b/dom/serviceworkers/ServiceWorkerManager.cpp
-index 101dc1fa87..301c56e9cb 100644
 --- a/dom/serviceworkers/ServiceWorkerManager.cpp
 +++ b/dom/serviceworkers/ServiceWorkerManager.cpp
-@@ -189,6 +189,7 @@ nsresult PopulateRegistrationData(
+@@ -177,16 +177,17 @@ nsresult PopulateRegistrationData(
+   }
+ 
+   nsresult rv = PrincipalToPrincipalInfo(aPrincipal, &aData.principal());
+   if (NS_WARN_IF(NS_FAILED(rv))) {
+     return rv;
    }
  
    aData.scope() = aRegistration->Scope();
@@ -268,7 +428,17 @@ index 101dc1fa87..301c56e9cb 100644
  
    // TODO: When bug 1426401 is implemented we will need to handle more
    //       than just the active worker here.
-@@ -815,8 +816,10 @@ ServiceWorkerManager::RegisterForTest(nsIPrincipal* aPrincipal,
+   RefPtr<ServiceWorkerInfo> active = aRegistration->GetActive();
+   MOZ_ASSERT(active);
+   if (NS_WARN_IF(!active)) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -810,18 +811,20 @@ ServiceWorkerManager::RegisterForTest(ns
+     outer->MaybeRejectWithUnknownError("Error creating clientInfo");
+     outer.forget(aPromise);
+     return NS_OK;
+   }
+ 
    auto scope = NS_ConvertUTF16toUTF8(aScopeURL);
    auto scriptURL = NS_ConvertUTF16toUTF8(aScriptURL);
  
@@ -281,7 +451,17 @@ index 101dc1fa87..301c56e9cb 100644
    const RefPtr<ServiceWorkerManager> self(this);
    const nsCOMPtr<nsIPrincipal> principal(aPrincipal);
    regPromise->Then(
-@@ -844,7 +847,8 @@ ServiceWorkerManager::RegisterForTest(nsIPrincipal* aPrincipal,
+       GetMainThreadSerialEventTarget(), __func__,
+       [self, outer, principal,
+        scope](const ServiceWorkerRegistrationDescriptor& regDesc) {
+         RefPtr<ServiceWorkerRegistrationInfo> registration =
+             self->GetRegistration(principal, NS_ConvertUTF16toUTF8(scope));
+@@ -839,17 +842,18 @@ ServiceWorkerManager::RegisterForTest(ns
+ 
+   outer.forget(aPromise);
+ 
+   return NS_OK;
+ }
  
  RefPtr<ServiceWorkerRegistrationPromise> ServiceWorkerManager::Register(
      const ClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -291,7 +471,17 @@ index 101dc1fa87..301c56e9cb 100644
    AUTO_PROFILER_MARKER_UNTYPED("SWM Register", DOM, {});
  
    nsCOMPtr<nsIURI> scopeURI;
-@@ -897,7 +901,7 @@ RefPtr<ServiceWorkerRegistrationPromise> ServiceWorkerManager::Register(
+   nsresult rv = NS_NewURI(getter_AddRefs(scopeURI), aScopeURL);
+   if (NS_FAILED(rv)) {
+     // Odd, since it was serialiazed from an nsIURI.
+     CopyableErrorResult err;
+     err.ThrowInvalidStateError("Scope URL cannot be parsed");
+@@ -892,17 +896,17 @@ RefPtr<ServiceWorkerRegistrationPromise>
+       GetOrCreateJobQueue(scopeKey, aScopeURL);
+ 
+   RefPtr<ServiceWorkerResolveWindowPromiseOnRegisterCallback> cb =
+       new ServiceWorkerResolveWindowPromiseOnRegisterCallback();
+ 
    auto lifetime = DetermineLifetimeForClient(aClientInfo);
  
    RefPtr<ServiceWorkerRegisterJob> job = new ServiceWorkerRegisterJob(
@@ -300,7 +490,17 @@ index 101dc1fa87..301c56e9cb 100644
        static_cast<ServiceWorkerUpdateViaCache>(aUpdateViaCache), lifetime);
  
    job->AppendResultCallback(cb);
-@@ -1642,11 +1646,11 @@ void ServiceWorkerManager::LoadRegistration(
+   queue->ScheduleJob(job);
+ 
+   MOZ_ASSERT(NS_IsMainThread());
+ 
+   return cb->Promise();
+@@ -1635,21 +1639,21 @@ void ServiceWorkerManager::LoadRegistrat
+       PurgeServiceWorker(aRegistration, principal);
+       return;
+     }
+   }
+ 
    RefPtr<ServiceWorkerRegistrationInfo> registration =
        GetRegistration(principal, aRegistration.scope());
    if (!registration) {
@@ -317,7 +517,17 @@ index 101dc1fa87..301c56e9cb 100644
    } else {
      // If active worker script matches our expectations for a "current worker",
      // then we are done. Since scripts with the same URL might have different
-@@ -1671,9 +1675,9 @@ void ServiceWorkerManager::LoadRegistration(
+     // contents such as updated scripts or scripts with different LoadFlags, we
+     // use the CacheName to judge whether the two scripts are identical, where
+     // the CacheName is an UUID generated when a new script is found.
+     if (registration->GetActive() &&
+         registration->GetActive()->CacheName() == aRegistration.cacheName()) {
+@@ -1664,19 +1668,19 @@ void ServiceWorkerManager::LoadRegistrat
+   if (aRegistration.updateViaCache() !=
+       static_cast<uint16_t>(ServiceWorkerUpdateViaCache::None)) {
+     importsLoadFlags |= nsIRequest::VALIDATE_ALWAYS;
+   }
+ 
    const nsCString& currentWorkerURL = aRegistration.currentWorkerURL();
    if (!currentWorkerURL.IsEmpty()) {
      registration->SetActive(new ServiceWorkerInfo(
@@ -330,7 +540,17 @@ index 101dc1fa87..301c56e9cb 100644
      registration->GetActive()->SetHandlesFetch(
          aRegistration.currentWorkerHandlesFetch());
      registration->GetActive()->SetInstalledTime(
-@@ -2937,9 +2941,10 @@ ServiceWorkerManager::RegisterForAddonPrincipal(nsIPrincipal* aPrincipal,
+         aRegistration.currentWorkerInstalledTime());
+     registration->GetActive()->SetActivatedTime(
+         aRegistration.currentWorkerActivatedTime());
+   }
+ }
+@@ -2930,19 +2934,20 @@ ServiceWorkerManager::RegisterForAddonPr
+       dom::ClientManager::CreateInfo(ClientType::All, aPrincipal);
+ 
+   if (!clientInfo.isSome()) {
+     outer->MaybeRejectWithUnknownError("Error creating clientInfo");
+     outer.forget(aPromise);
      return NS_OK;
    }
  
@@ -344,7 +564,17 @@ index 101dc1fa87..301c56e9cb 100644
    const RefPtr<ServiceWorkerManager> self(this);
    const nsCOMPtr<nsIPrincipal> principal(aPrincipal);
    regPromise->Then(
-@@ -3113,7 +3118,7 @@ ServiceWorkerManager::GetRegistration(const nsACString& aScopeKey,
+       GetMainThreadSerialEventTarget(), __func__,
+       [self, outer, principal,
+        scope](const ServiceWorkerRegistrationDescriptor& regDesc) {
+         RefPtr<ServiceWorkerRegistrationInfo> registration =
+             self->GetRegistration(principal, scope);
+@@ -3105,32 +3110,33 @@ ServiceWorkerManager::GetRegistration(co
+   }
+ 
+   data->mInfos.Get(aScope, getter_AddRefs(reg));
+   return reg.forget();
+ }
  
  already_AddRefed<ServiceWorkerRegistrationInfo>
  ServiceWorkerManager::CreateNewRegistration(
@@ -353,7 +583,14 @@ index 101dc1fa87..301c56e9cb 100644
      ServiceWorkerUpdateViaCache aUpdateViaCache,
      IPCNavigationPreloadState aNavigationPreloadState) {
  #ifdef DEBUG
-@@ -3128,7 +3133,8 @@ ServiceWorkerManager::CreateNewRegistration(
+   MOZ_ASSERT(NS_IsMainThread());
+   nsCOMPtr<nsIURI> scopeURI;
+   nsresult rv = NS_NewURI(getter_AddRefs(scopeURI), aScope);
+   MOZ_ASSERT(NS_SUCCEEDED(rv));
+ 
+   RefPtr<ServiceWorkerRegistrationInfo> tmp =
+       GetRegistration(aPrincipal, aScope);
+   MOZ_ASSERT(!tmp);
  #endif
  
    RefPtr<ServiceWorkerRegistrationInfo> registration =
@@ -363,19 +600,38 @@ index 101dc1fa87..301c56e9cb 100644
                                          std::move(aNavigationPreloadState));
  
    // From now on ownership of registration is with
+   // mServiceWorkerRegistrationInfos.
+   AddScopeAndRegistration(aScope, registration);
+   return registration.forget();
+ }
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerManager.h b/dom/serviceworkers/ServiceWorkerManager.h
-index cdd876a4c1..3a0c26777e 100644
 --- a/dom/serviceworkers/ServiceWorkerManager.h
 +++ b/dom/serviceworkers/ServiceWorkerManager.h
-@@ -9,6 +9,7 @@
+@@ -5,16 +5,17 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #ifndef mozilla_dom_workers_serviceworkermanager_h
+ #define mozilla_dom_workers_serviceworkermanager_h
  
  #include <cstdint>
+ 
  #include "ErrorList.h"
 +#include "ServiceWorkerDescriptor.h"
  #include "ServiceWorkerShutdownState.h"
  #include "js/ErrorReport.h"
  #include "mozilla/AlreadyAddRefed.h"
-@@ -175,7 +176,7 @@ class ServiceWorkerManager final : public nsIServiceWorkerManager,
+ #include "mozilla/Assertions.h"
+ #include "mozilla/HashTable.h"
+ #include "mozilla/MozPromise.h"
+ #include "mozilla/RefPtr.h"
+ #include "mozilla/UniquePtr.h"
+@@ -171,35 +172,35 @@ class ServiceWorkerManager final : publi
+                   const nsACString& aScope);
+ 
+   void SoftUpdateInternal(const OriginAttributes& aOriginAttributes,
+                           const nsACString& aScope,
+                           ServiceWorkerUpdateFinishCallback* aCallback);
  
    RefPtr<ServiceWorkerRegistrationPromise> Register(
        const ClientInfo& aClientInfo, const nsACString& aScopeURL,
@@ -384,7 +640,16 @@ index cdd876a4c1..3a0c26777e 100644
        ServiceWorkerUpdateViaCache aUpdateViaCache);
  
    RefPtr<ServiceWorkerRegistrationPromise> GetRegistration(
-@@ -192,8 +193,8 @@ class ServiceWorkerManager final : public nsIServiceWorkerManager,
+       const ClientInfo& aClientInfo, const nsACString& aURL) const;
+ 
+   RefPtr<ServiceWorkerRegistrationListPromise> GetRegistrations(
+       const ClientInfo& aClientInfo) const;
+ 
+   already_AddRefed<ServiceWorkerRegistrationInfo> GetRegistration(
+       nsIPrincipal* aPrincipal, const nsACString& aScope) const;
+ 
+   already_AddRefed<ServiceWorkerRegistrationInfo> GetRegistration(
+       const mozilla::ipc::PrincipalInfo& aPrincipal,
        const nsACString& aScope) const;
  
    already_AddRefed<ServiceWorkerRegistrationInfo> CreateNewRegistration(
@@ -395,11 +660,20 @@ index cdd876a4c1..3a0c26777e 100644
        IPCNavigationPreloadState aNavigationPreloadState =
            IPCNavigationPreloadState(false, "true"_ns));
  
+   void RemoveRegistration(ServiceWorkerRegistrationInfo* aRegistration);
+ 
+   void StoreRegistration(nsIPrincipal* aPrincipal,
+                          ServiceWorkerRegistrationInfo* aRegistration);
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerPrivate.cpp b/dom/serviceworkers/ServiceWorkerPrivate.cpp
-index 807e0521d2..d9f9a7c0dd 100644
 --- a/dom/serviceworkers/ServiceWorkerPrivate.cpp
 +++ b/dom/serviceworkers/ServiceWorkerPrivate.cpp
-@@ -746,9 +746,13 @@ nsresult ServiceWorkerPrivate::Initialize() {
+@@ -738,19 +738,23 @@ nsresult ServiceWorkerPrivate::Initializ
+   if (NS_WARN_IF(!mClientInfo.isSome())) {
+     return NS_ERROR_DOM_INVALID_STATE_ERR;
+   }
+ 
+   mClientInfo->SetAgentClusterId(regInfo->AgentClusterId());
    mClientInfo->SetURL(mInfo->ScriptSpec());
    mClientInfo->SetFrameType(FrameType::None);
  
@@ -414,11 +688,20 @@ index 807e0521d2..d9f9a7c0dd 100644
        /* loading principal */ principalInfo, principalInfo,
        partitionedPrincipalInfo,
        /* useRegularPrincipal */ true,
+ 
+       // ServiceWorkers run as first-party, no storage-access permission needed.
+       /* usingStorageAccess */ false,
+ 
+       cjsData, domain,
 diff --git a/dom/serviceworkers/ServiceWorkerRegisterJob.cpp b/dom/serviceworkers/ServiceWorkerRegisterJob.cpp
-index c322fa388a..4236dbf471 100644
 --- a/dom/serviceworkers/ServiceWorkerRegisterJob.cpp
 +++ b/dom/serviceworkers/ServiceWorkerRegisterJob.cpp
-@@ -13,12 +13,13 @@
+@@ -8,22 +8,23 @@
+ 
+ #include "ServiceWorkerManager.h"
+ #include "mozilla/ProfilerMarkers.h"
+ #include "mozilla/dom/WorkerCommon.h"
+ 
  namespace mozilla::dom {
  
  ServiceWorkerRegisterJob::ServiceWorkerRegisterJob(
@@ -434,7 +717,17 @@ index c322fa388a..4236dbf471 100644
  
  void ServiceWorkerRegisterJob::AsyncExecute() {
    MOZ_ASSERT(NS_IsMainThread());
-@@ -45,8 +46,8 @@ void ServiceWorkerRegisterJob::AsyncExecute() {
+ 
+   AUTO_PROFILER_MARKER_UNTYPED("SWRJ AsyncExecute", DOM, {});
+ 
+   RefPtr<ServiceWorkerManager> swm = ServiceWorkerManager::GetInstance();
+   if (Canceled() || !swm) {
+@@ -40,18 +41,18 @@ void ServiceWorkerRegisterJob::AsyncExec
+ 
+     RefPtr<ServiceWorkerInfo> newest = registration->Newest();
+     if (newest && mScriptSpec.Equals(newest->ScriptSpec()) && sameUVC) {
+       SetRegistration(registration);
+       Finish(NS_OK);
        return;
      }
    } else {
@@ -445,11 +738,20 @@ index c322fa388a..4236dbf471 100644
      if (!registration) {
        FailUpdateJob(NS_ERROR_DOM_ABORT_ERR);
        return;
+     }
+   }
+ 
+   SetRegistration(registration);
+   Update();
 diff --git a/dom/serviceworkers/ServiceWorkerRegisterJob.h b/dom/serviceworkers/ServiceWorkerRegisterJob.h
-index 0b1c39b4ad..b4aec2ba0e 100644
 --- a/dom/serviceworkers/ServiceWorkerRegisterJob.h
 +++ b/dom/serviceworkers/ServiceWorkerRegisterJob.h
-@@ -18,11 +18,13 @@ class ServiceWorkerRegisterJob final : public ServiceWorkerUpdateJob {
+@@ -13,21 +13,23 @@ namespace mozilla::dom {
+ 
+ // The register job.  This implements the steps in the spec Register algorithm,
+ // but then uses ServiceWorkerUpdateJob to implement the Update and Install
+ // spec algorithms.
+ class ServiceWorkerRegisterJob final : public ServiceWorkerUpdateJob {
   public:
    ServiceWorkerRegisterJob(
        nsIPrincipal* aPrincipal, const nsACString& aScope,
@@ -464,11 +766,20 @@ index 0b1c39b4ad..b4aec2ba0e 100644
    // Implement the Register algorithm steps and then call the parent class
    // Update() to complete the job execution.
    virtual void AsyncExecute() override;
+ 
+   virtual ~ServiceWorkerRegisterJob();
+ };
+ 
+ }  // namespace mozilla::dom
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.cpp b/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.cpp
-index 8cf9ee94f3..a63783f202 100644
 --- a/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.cpp
 +++ b/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.cpp
-@@ -30,7 +30,8 @@ ServiceWorkerRegistrationDescriptor::NewestInternal() const {
+@@ -25,37 +25,39 @@ ServiceWorkerRegistrationDescriptor::New
+   } else if (mData->active().isSome()) {
+     result.emplace(mData->active().ref());
+   }
+   return result;
+ }
  
  ServiceWorkerRegistrationDescriptor::ServiceWorkerRegistrationDescriptor(
      uint64_t aId, uint64_t aVersion, nsIPrincipal* aPrincipal,
@@ -478,7 +789,7 @@ index 8cf9ee94f3..a63783f202 100644
      : mData(MakeUnique<IPCServiceWorkerRegistrationDescriptor>()) {
    MOZ_ALWAYS_SUCCEEDS(
        PrincipalToPrincipalInfo(aPrincipal, &mData->principalInfo()));
-@@ -38,6 +39,7 @@ ServiceWorkerRegistrationDescriptor::ServiceWorkerRegistrationDescriptor(
+ 
    mData->id() = aId;
    mData->version() = aVersion;
    mData->scope() = aScope;
@@ -486,7 +797,9 @@ index 8cf9ee94f3..a63783f202 100644
    mData->updateViaCache() = aUpdateViaCache;
    mData->installing() = Nothing();
    mData->waiting() = Nothing();
-@@ -47,10 +49,10 @@ ServiceWorkerRegistrationDescriptor::ServiceWorkerRegistrationDescriptor(
+   mData->active() = Nothing();
+ }
+ 
  ServiceWorkerRegistrationDescriptor::ServiceWorkerRegistrationDescriptor(
      uint64_t aId, uint64_t aVersion,
      const mozilla::ipc::PrincipalInfo& aPrincipalInfo, const nsACString& aScope,
@@ -500,7 +813,17 @@ index 8cf9ee94f3..a63783f202 100644
  
  ServiceWorkerRegistrationDescriptor::ServiceWorkerRegistrationDescriptor(
      const IPCServiceWorkerRegistrationDescriptor& aDescriptor)
-@@ -130,6 +132,10 @@ const nsCString& ServiceWorkerRegistrationDescriptor::Scope() const {
+     : mData(MakeUnique<IPCServiceWorkerRegistrationDescriptor>(aDescriptor)) {
+ #ifndef FUZZING_SNAPSHOT
+   MOZ_DIAGNOSTIC_ASSERT(IsValid());
+ #endif
+ }
+@@ -125,16 +127,20 @@ ServiceWorkerRegistrationDescriptor::Get
+   AssertIsOnMainThread();
+   return PrincipalInfoToPrincipal(mData->principalInfo());
+ }
+ 
+ const nsCString& ServiceWorkerRegistrationDescriptor::Scope() const {
    return mData->scope();
  }
  
@@ -511,19 +834,38 @@ index 8cf9ee94f3..a63783f202 100644
  Maybe<ServiceWorkerDescriptor>
  ServiceWorkerRegistrationDescriptor::GetInstalling() const {
    Maybe<ServiceWorkerDescriptor> result;
+ 
+   if (mData->installing().isSome()) {
+     result.emplace(ServiceWorkerDescriptor(mData->installing().ref()));
+   }
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.h b/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.h
-index ec0f969868..06cd8edb8d 100644
 --- a/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.h
 +++ b/dom/serviceworkers/ServiceWorkerRegistrationDescriptor.h
-@@ -8,6 +8,7 @@
+@@ -4,16 +4,17 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ #ifndef _mozilla_dom_ServiceWorkerRegistrationDescriptor_h
+ #define _mozilla_dom_ServiceWorkerRegistrationDescriptor_h
  
  #include "mozilla/Maybe.h"
+ #include "mozilla/UniquePtr.h"
  #include "mozilla/dom/ServiceWorkerDescriptor.h"
 +#include "mozilla/dom/WorkerBinding.h"
- #include "mozilla/UniquePtr.h"
  
  namespace mozilla {
-@@ -36,12 +37,14 @@ class ServiceWorkerRegistrationDescriptor final {
+ 
+ namespace ipc {
+ class PrincipalInfo;
+ }  // namespace ipc
+ 
+ namespace dom {
+@@ -31,22 +32,24 @@ class ServiceWorkerRegistrationDescripto
+   // which is in turn incompatible with bindings code.
+   UniquePtr<IPCServiceWorkerRegistrationDescriptor> mData;
+ 
+   Maybe<IPCServiceWorkerDescriptor> NewestInternal() const;
+ 
   public:
    ServiceWorkerRegistrationDescriptor(
        uint64_t aId, uint64_t aVersion, nsIPrincipal* aPrincipal,
@@ -540,7 +882,17 @@ index ec0f969868..06cd8edb8d 100644
  
    explicit ServiceWorkerRegistrationDescriptor(
        const IPCServiceWorkerRegistrationDescriptor& aDescriptor);
-@@ -74,6 +77,8 @@ class ServiceWorkerRegistrationDescriptor final {
+ 
+   ServiceWorkerRegistrationDescriptor(
+       const ServiceWorkerRegistrationDescriptor& aRight);
+ 
+   ServiceWorkerRegistrationDescriptor& operator=(
+@@ -69,16 +72,18 @@ class ServiceWorkerRegistrationDescripto
+   ServiceWorkerUpdateViaCache UpdateViaCache() const;
+ 
+   const mozilla::ipc::PrincipalInfo& PrincipalInfo() const;
+ 
+   Result<nsCOMPtr<nsIPrincipal>, nsresult> GetPrincipal() const;
  
    const nsCString& Scope() const;
  
@@ -549,11 +901,20 @@ index ec0f969868..06cd8edb8d 100644
    Maybe<ServiceWorkerDescriptor> GetInstalling() const;
  
    Maybe<ServiceWorkerDescriptor> GetWaiting() const;
+ 
+   Maybe<ServiceWorkerDescriptor> GetActive() const;
+ 
+   Maybe<ServiceWorkerDescriptor> Newest() const;
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrationInfo.cpp b/dom/serviceworkers/ServiceWorkerRegistrationInfo.cpp
-index 11c229547a..ddaaabce6e 100644
 --- a/dom/serviceworkers/ServiceWorkerRegistrationInfo.cpp
 +++ b/dom/serviceworkers/ServiceWorkerRegistrationInfo.cpp
-@@ -71,11 +71,11 @@ void ServiceWorkerRegistrationInfo::ClearAsCorrupt() {
+@@ -65,21 +65,21 @@ void ServiceWorkerRegistrationInfo::Clea
+ void ServiceWorkerRegistrationInfo::ClearAsCorrupt() {
+   mCorrupt = true;
+   Clear();
+ }
+ 
  bool ServiceWorkerRegistrationInfo::IsCorrupt() const { return mCorrupt; }
  
  ServiceWorkerRegistrationInfo::ServiceWorkerRegistrationInfo(
@@ -567,7 +928,17 @@ index 11c229547a..ddaaabce6e 100644
                    aUpdateViaCache),
        mControlledClientsCounter(0),
        mDelayMultiplier(0),
-@@ -131,6 +131,10 @@ const nsCString& ServiceWorkerRegistrationInfo::Scope() const {
+       mUpdateState(NoUpdate),
+       mCreationTime(PR_Now()),
+       mCreationTimeStamp(TimeStamp::Now()),
+       mLastUpdateTime(0),
+       mUnregistered(false),
+@@ -125,16 +125,20 @@ void ServiceWorkerRegistrationInfo::Remo
+   DebugOnly<bool> removed = mInstanceList.RemoveElement(aInstance);
+   MOZ_ASSERT(removed);
+ }
+ 
+ const nsCString& ServiceWorkerRegistrationInfo::Scope() const {
    return mDescriptor.Scope();
  }
  
@@ -578,11 +949,20 @@ index 11c229547a..ddaaabce6e 100644
  nsIPrincipal* ServiceWorkerRegistrationInfo::Principal() const {
    return mPrincipal;
  }
+ 
+ bool ServiceWorkerRegistrationInfo::IsUnregistered() const {
+   return mUnregistered;
+ }
+ 
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrationInfo.h b/dom/serviceworkers/ServiceWorkerRegistrationInfo.h
-index 1d12bebb2f..ef2107fb9e 100644
 --- a/dom/serviceworkers/ServiceWorkerRegistrationInfo.h
 +++ b/dom/serviceworkers/ServiceWorkerRegistrationInfo.h
-@@ -78,7 +78,7 @@ class ServiceWorkerRegistrationInfo final
+@@ -76,17 +76,17 @@ class ServiceWorkerRegistrationInfo fina
+ 
+  public:
+   NS_DECL_ISUPPORTS
+   NS_DECL_NSISERVICEWORKERREGISTRATIONINFO
+ 
    using TryToActivateCallback = std::function<void()>;
  
    ServiceWorkerRegistrationInfo(
@@ -591,7 +971,17 @@ index 1d12bebb2f..ef2107fb9e 100644
        ServiceWorkerUpdateViaCache aUpdateViaCache,
        IPCNavigationPreloadState&& aNavigationPreloadState);
  
-@@ -89,6 +89,8 @@ class ServiceWorkerRegistrationInfo final
+   int64_t GetNumberOfAttemptedActivations() const {
+     return mNumberOfAttemptedActivations;
+   }
+ 
+   bool IsBroken() const { return mIsBroken; }
+@@ -95,16 +95,18 @@ class ServiceWorkerRegistrationInfo fina
+ 
+   void AddInstance(ServiceWorkerRegistrationListener* aInstance,
+                    const ServiceWorkerRegistrationDescriptor& aDescriptor);
+ 
+   void RemoveInstance(ServiceWorkerRegistrationListener* aInstance);
  
    const nsCString& Scope() const;
  
@@ -600,11 +990,20 @@ index 1d12bebb2f..ef2107fb9e 100644
    nsIPrincipal* Principal() const;
  
    bool IsUnregistered() const;
+ 
+   void SetUnregistered();
+ 
+   already_AddRefed<ServiceWorkerInfo> Newest() const {
+     RefPtr<ServiceWorkerInfo> newest;
 diff --git a/dom/serviceworkers/ServiceWorkerUpdateJob.cpp b/dom/serviceworkers/ServiceWorkerUpdateJob.cpp
-index 867a4d7029..398333db33 100644
 --- a/dom/serviceworkers/ServiceWorkerUpdateJob.cpp
 +++ b/dom/serviceworkers/ServiceWorkerUpdateJob.cpp
-@@ -418,8 +418,9 @@ void ServiceWorkerUpdateJob::ComparisonResult(nsresult aStatus,
+@@ -413,18 +413,19 @@ void ServiceWorkerUpdateJob::ComparisonR
+ 
+   // Begin step 7 of the Update algorithm to evaluate the new script.
+   nsLoadFlags flags = aLoadFlags;
+   if (GetUpdateViaCache() == ServiceWorkerUpdateViaCache::None) {
+     flags |= nsIRequest::VALIDATE_ALWAYS;
    }
  
    RefPtr<ServiceWorkerInfo> sw = new ServiceWorkerInfo(
@@ -616,12 +1015,21 @@ index 867a4d7029..398333db33 100644
  
    // If the registration is corrupt enough to force an uninstall if the
    // upgrade fails, then we want to make sure the upgrade takes effect
+   // if it succeeds.  Therefore force the skip-waiting flag on to replace
+   // the broken worker after install.
+   if (aOnFailure == OnFailure::Uninstall) {
+     sw->SetSkipWaitingFlag();
+   }
 diff --git a/dom/workers/ScriptLoader.cpp b/dom/workers/ScriptLoader.cpp
-index fe4bd68bb3..735d02551c 100644
 --- a/dom/workers/ScriptLoader.cpp
 +++ b/dom/workers/ScriptLoader.cpp
-@@ -1148,6 +1148,14 @@ nsresult WorkerScriptLoader::FillCompileOptionsForRequest(
-     aOptions->setSourceMapURL(aRequest->mSourceMapURL->get());
+@@ -1139,16 +1139,24 @@ nsresult WorkerScriptLoader::FillCompile
+ 
+   aOptions->setMutedErrors(
+       aRequest->GetWorkerLoadContext()->mMutedErrorFlag.value());
+ 
+   if (aRequest->HasSourceMapURL()) {
+     aOptions->setSourceMapURL(aRequest->GetSourceMapURL().get());
    }
  
 +  // disable top-level await for sw module scripts
@@ -635,3 +1043,9 @@ index fe4bd68bb3..735d02551c 100644
    return NS_OK;
  }
  
+ bool WorkerScriptLoader::EvaluateScript(JSContext* aCx,
+                                         ScriptLoadRequest* aRequest) {
+   mWorkerRef->Private()->AssertIsOnWorkerThread();
+   MOZ_ASSERT(!IsDynamicImport(aRequest));
+ 
+
