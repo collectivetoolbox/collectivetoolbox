@@ -66,10 +66,19 @@ else
     chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     echo "Starting guix-daemon with nopersonality shim..."
+    mkdir -p /var/tmp/proot_tmp
+    export PROOT_TMP_DIR=/var/tmp/proot_tmp
     if command -v proot >/dev/null 2>&1; then
-        proot -0 env LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+        python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'"
+        echo "Done 0"
+        # PROOT_NO_SECCOMP=1 proot -0 env python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'" 2>&1
+        # echo "Done 1"
+        # PROOT_NO_SECCOMP=1 proot -0 env LD_PRELOAD="$nopersonality_so" python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'" 2>&1
+        # echo "Done 2"
+        LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+        # PROOT_NO_SECCOMP=1 proot -0 env LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
     else
-        LD_PRELOAD="$nopersonality_so" guix-daemon --disable-chroot --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+        LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
     fi
     daemon_pid=$!
     sleep 2
