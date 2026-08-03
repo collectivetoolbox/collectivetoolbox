@@ -54,7 +54,7 @@ else
 
     echo "Building ctb-nopersonality shared object in Rust..."
     tmp_build_dir="$(mktemp -d)"
-    nopersonality_so="/tmp/libctb_nopersonality.so"
+    nopersonality_so="/var/guix/libctb_nopersonality.so"
     if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
         nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
     else
@@ -62,25 +62,25 @@ else
     fi
     rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
 
+    mkdir -p /var/log/guix/drvs /var/guix
     chmod 755 "$tmp_build_dir" "$nopersonality_so"
 
-    chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
+    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
+    chmod -R 1777 /var/log/guix 2>/dev/null || true
     chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     echo "Starting guix-daemon with nopersonality shim..."
     mkdir -p /var/tmp/proot_tmp
     export PROOT_TMP_DIR=/var/tmp/proot_tmp
-    if command -v proot >/dev/null 2>&1; then
-        python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'"
-        echo "Done 0"
-        # PROOT_NO_SECCOMP=1 proot -0 env python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'" 2>&1
-        # echo "Done 1"
-        # PROOT_NO_SECCOMP=1 proot -0 env LD_PRELOAD="$nopersonality_so" python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'" 2>&1
-        # echo "Done 2"
-        LD_PRELOAD="$nopersonality_so" guix-daemon --chroot-directory="$tmp_build_dir" >/tmp/guix-daemon.log 2>&1 &
+    daemon_extra_args=()
+    if ! unshare -m true 2>/dev/null; then
+        echo "Note: unshare/clone (mount namespaces) blocked by container environment. Allow in the configuration to continue; unfortunately it doesn't seem possible to use Guix sandboxing otherwise."
+        exit 1
     else
-        LD_PRELOAD="$nopersonality_so" guix-daemon --chroot-directory="$tmp_build_dir" >/tmp/guix-daemon.log 2>&1 &
+        daemon_extra_args+=(--chroot-directory="$tmp_build_dir")
     fi
+
+    LD_PRELOAD="$nopersonality_so" guix-daemon "${daemon_extra_args[@]}" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
@@ -88,9 +88,6 @@ else
         cat /tmp/guix-daemon.log >&2 || true
         exit 1
     fi
-
-echo "try build dillo"
-    dillo_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)')"
 
     if [ "$fetch_sources_mode" -eq 1 ]; then
         echo "Pre-fetching all transitive sources for Guix system image..."
@@ -106,10 +103,13 @@ echo "try build dillo"
     # Note to LLM tools: Never add `--disable-chroot` on the Guix daemon. It breaks build reproducibility.
 
     if [ "$build_icecat_only" -eq 1 ]; then
-        echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
+        echo "Cross-compiling Dillo from host (x86_64) for i686-linux-gnu..."
         dillo_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)')"
-        icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat)))')"
-        echo "Cross-compiled Icecat at: $icecat_store_path"
+        echo "Cross-compiled Dillo at: $dillo_store_path"
+        # Temporarily commented out Icecat to allow fast testing with Dillo:
+        # echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
+        # icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
+        # echo "Cross-compiled Icecat at: $icecat_store_path"
         kill "$daemon_pid" 2>/dev/null || true
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
         exit 0
