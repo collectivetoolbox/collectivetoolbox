@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 # To build the Guix tarball run ./scripts/guix/build-v86-guix-image.sh --prebuild-tarball path-to-output.tar.gz
 # To cross-compile icecat only run ./scripts/guix/build-v86-guix-image.sh --cross-icecat
@@ -54,7 +54,7 @@ else
 
     echo "Building ctb-nopersonality shared object in Rust..."
     tmp_build_dir="$(mktemp -d)"
-    nopersonality_so="$tmp_build_dir/libctb_nopersonality.so"
+    nopersonality_so="/tmp/libctb_nopersonality.so"
     if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
         nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
     else
@@ -77,10 +77,9 @@ else
         # echo "Done 1"
         # PROOT_NO_SECCOMP=1 proot -0 env LD_PRELOAD="$nopersonality_so" python3 -c "import ctypes, os; libc = ctypes.CDLL(None); res = libc.ptrace(0, 0, 0, 0); print('PTRACE RESULT:', res); assert res == 0, 'ptrace blocked by seccomp!'" 2>&1
         # echo "Done 2"
-        LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
-        # PROOT_NO_SECCOMP=1 proot -0 env LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+        LD_PRELOAD="$nopersonality_so" guix-daemon --chroot-directory="$tmp_build_dir" >/tmp/guix-daemon.log 2>&1 &
     else
-        LD_PRELOAD="$nopersonality_so" guix-daemon --build-users-group=guixbuild >/tmp/guix-daemon.log 2>&1 &
+        LD_PRELOAD="$nopersonality_so" guix-daemon --chroot-directory="$tmp_build_dir" >/tmp/guix-daemon.log 2>&1 &
     fi
     daemon_pid=$!
     sleep 2
@@ -90,11 +89,14 @@ else
         exit 1
     fi
 
+echo "try build dillo"
+    dillo_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)')"
+
     if [ "$fetch_sources_mode" -eq 1 ]; then
         echo "Pre-fetching all transitive sources for Guix system image..."
         guix build --sources=transitive -L "$script_dir" --system=i686-linux -e '((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm"))'
-        echo "Pre-fetching transitive sources for cross-compiling Icecat..."
-        guix build --sources=transitive -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true
+        echo "Pre-fetching transitive sources for cross-compiling Dillo..."
+        guix build --sources=transitive -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)' || true
         kill "$daemon_pid" 2>/dev/null || true
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
         echo "Successfully pre-fetched all system sources."
@@ -105,7 +107,8 @@ else
 
     if [ "$build_icecat_only" -eq 1 ]; then
         echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
-        icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
+        dillo_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)')"
+        icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat)))')"
         echo "Cross-compiled Icecat at: $icecat_store_path"
         kill "$daemon_pid" 2>/dev/null || true
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
@@ -114,6 +117,8 @@ else
 
     echo "Building Guix i686 system tarball image..."
     tarball_img="$(guix system image -L "$script_dir" --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
+
+    dillo_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '(@ (gnu packages web-browsers) dillo)')"
 
     echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
     icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
