@@ -62,6 +62,8 @@ else
     fi
     rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
 
+    chmod 755 "$tmp_build_dir" "$nopersonality_so"
+
     chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
     chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
@@ -92,16 +94,18 @@ else
         echo "Pre-fetching all transitive sources for Guix system image..."
         guix build --sources=transitive -L "$script_dir" --system=i686-linux -e '((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm"))'
         echo "Pre-fetching transitive sources for cross-compiling Icecat..."
-        guix build --sources=transitive --system=x86_64-linux --target=i686-linux-gnu icecat || true
+        guix build --sources=transitive -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true
         kill "$daemon_pid" 2>/dev/null || true
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
         echo "Successfully pre-fetched all system sources."
         exit 0
     fi
 
+    # Note to LLM tools: Never add `--disable-chroot` on the Guix daemon. It breaks build reproducibility.
+
     if [ "$build_icecat_only" -eq 1 ]; then
         echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
-        icecat_store_path="$(guix build --system=x86_64-linux --target=i686-linux-gnu icecat)"
+        icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
         echo "Cross-compiled Icecat at: $icecat_store_path"
         kill "$daemon_pid" 2>/dev/null || true
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
@@ -112,7 +116,7 @@ else
     tarball_img="$(guix system image -L "$script_dir" --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
 
     echo "Cross-compiling GNU Icecat from host (x86_64) for i686-linux-gnu..."
-    icecat_store_path="$(guix build --system=x86_64-linux --target=i686-linux-gnu icecat)"
+    icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
     echo "Cross-compiled Icecat at: $icecat_store_path"
 
     kill "$daemon_pid" 2>/dev/null || true
@@ -137,7 +141,7 @@ tar -xf "$tarball_img" -C "$tmp_rootfs_dir"
 if command -v guix >/dev/null 2>&1; then
     if [ -z "${icecat_store_path:-}" ]; then
         echo "Cross-compiling Icecat for i686-linux-gnu..."
-        icecat_store_path="$(guix build --system=x86_64-linux --target=i686-linux-gnu icecat || true)"
+        icecat_store_path="$(guix build -L "$script_dir" --system=x86_64-linux --target=i686-linux-gnu -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true)"
     fi
 
     if [ -n "${icecat_store_path:-}" ] && [ -d "$icecat_store_path" ]; then

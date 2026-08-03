@@ -17,11 +17,13 @@
   #:use-module (guix packages)
   #:use-module (patches gst-plugins-good)
   #:use-module (patches spice-gtk)
+  #:use-module (patches icecat)
   #:export (apply-patches))
 
 (define package-patches
   `(("gst-plugins-good" . ,(const gst-plugins-good-no-tests))
-    ("spice-gtk" . ,(const spice-gtk-fixed))))
+    ("spice-gtk" . ,(const spice-gtk-fixed))
+    ("icecat" . ,(const icecat-patched))))
 
 (define apply-patches
   (package-input-rewriting/spec package-patches))
