@@ -46,11 +46,13 @@ fn main() -> Result<()> {
         println!(
             "cargo:warning=ctb-storage/build.rs: PrepareOptions={options:?}"
         );
-        let rust_doc_dir = ctoolbox_dir.join("target/doc");
+        let target_doc_dir =
+            ctoolbox_dir.join("target/x86_64-unknown-linux-musl/doc");
+        let built_doc_dir = ctoolbox_dir.join("built/docs");
         println!(
-            "cargo:warning=ctb-storage/build.rs: rust-docs source dir exists={} path={}",
-            rust_doc_dir.is_dir(),
-            rust_doc_dir.display()
+            "cargo:warning=ctb-storage/build.rs: target-docs exists={} built-docs exists={}",
+            target_doc_dir.is_dir(),
+            built_doc_dir.is_dir()
         );
     }
     let prepared_assets = prepare_assets(ctoolbox_dir, &options)?;

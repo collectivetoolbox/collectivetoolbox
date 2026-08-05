@@ -327,19 +327,39 @@ fn write_resource_bundle(
     Ok((header.bundle_uuid.to_string(), sha256_hex))
 }
 
-fn ensure_rust_docs_generated(project_root: &Path) -> Result<()> {
-    let rust_doc_dir =
+fn ensure_rust_docs_generated(
+    project_root: &Path,
+    workspace_root_canon: &Path,
+) -> Result<PathBuf> {
+    let target_doc_dir =
         project_root.join("target/x86_64-unknown-linux-musl/doc");
-    let has_index = rust_doc_dir.join("index.html").is_file();
-    let has_help = rust_doc_dir.join("help.html").is_file();
+    let built_doc_dir = project_root.join("built/docs");
 
-    if has_index || has_help {
-        return Ok(());
+    let target_has_docs = target_doc_dir.join("index.html").is_file()
+        || target_doc_dir.join("help.html").is_file();
+
+    if target_has_docs {
+        let mut visited = HashSet::new();
+        let _ = copy_dir_recursive(
+            &target_doc_dir,
+            &built_doc_dir,
+            workspace_root_canon,
+            &mut visited,
+        );
+        return Ok(built_doc_dir);
+    }
+
+    let built_has_docs = built_doc_dir.join("index.html").is_file()
+        || built_doc_dir.join("help.html").is_file();
+
+    if built_has_docs {
+        return Ok(built_doc_dir);
     }
 
     bail!(
-        "Rust documentation not found in {}. Spawning cargo doc inside a build script is not allowed due to cargo target locks deadlocking. Please generate the documentation beforehand using: `./build --docs` or `cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl`",
-        rust_doc_dir.display()
+        "Rust documentation not found in {} or {}. Spawning cargo doc inside a build script is not allowed due to cargo target locks deadlocking. Please generate the documentation beforehand using: `./build --docs` or `cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl`",
+        target_doc_dir.display(),
+        built_doc_dir.display()
     );
 }
 
@@ -570,23 +590,38 @@ fn prepare_runtime_assets(
     copy_license_files(project_root, &runtime_assets.join("docs"))?;
 
     if options.include_rust_docs {
-        ensure_rust_docs_generated(project_root)?;
-        let rust_doc_dir =
+        let rust_doc_src =
+            ensure_rust_docs_generated(project_root, &workspace_root_canon)?;
+        let mut visited_docs = HashSet::new();
+        copy_dir_recursive(
+            &rust_doc_src,
+            &runtime_assets.join("docs/lib"),
+            &workspace_root_canon,
+            &mut visited_docs,
+        )
+        .context("Failed to copy library documentation")?;
+    } else {
+        let target_doc_dir =
             project_root.join("target/x86_64-unknown-linux-musl/doc");
-        if rust_doc_dir.is_dir() {
-            copy_dir_recursive(
-                &rust_doc_dir,
-                &runtime_assets.join("docs/lib"),
+        if target_doc_dir.join("index.html").is_file()
+            || target_doc_dir.join("help.html").is_file()
+        {
+            let built_doc_dir = project_root.join("built/docs");
+            let mut visited_docs = HashSet::new();
+            let _ = copy_dir_recursive(
+                &target_doc_dir,
+                &built_doc_dir,
                 &workspace_root_canon,
-                &mut visited,
-            )
-            .context("Failed to copy library documentation")?;
+                &mut visited_docs,
+            );
         }
-    } else if options.write_debug_stubs {
-        write_text_file(
-            &runtime_assets.join("docs/lib/ctoolbox/index.html"),
-            DEBUG_LIBRARY_DOCS_STUB,
-        )?;
+
+        if options.write_debug_stubs {
+            write_text_file(
+                &runtime_assets.join("docs/lib/ctoolbox/index.html"),
+                DEBUG_LIBRARY_DOCS_STUB,
+            )?;
+        }
     }
 
     let ts_built_tar = project_root.join("vendor/TypeScript-built.tar");

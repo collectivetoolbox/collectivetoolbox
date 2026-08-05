@@ -24,9 +24,11 @@ fi
 
 if [[ -z "${CTB_SKIP_DOCS:-}" ]]; then
     # Documentation needs to exist to build linter (it's fine if it's not up to date, but does need to be there).
-    if [[ ! -f target/x86_64-unknown-linux-musl/doc/index.html ]] || [[ ! -f target/x86_64-unknown-linux-musl/doc/help.html ]]; then
+    if [[ ! -f target/x86_64-unknown-linux-musl/doc/index.html && ! -f built/docs/index.html ]]; then
         echo "Docs not found. Building..."
         cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl || exit 1
+        mkdir -p built/docs
+        cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
     fi
 fi
 

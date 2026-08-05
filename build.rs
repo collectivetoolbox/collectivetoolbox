@@ -42,11 +42,13 @@ fn main() -> Result<()> {
     };
     if build_rs_debug {
         println!("cargo:warning=ctoolbox/build.rs: PrepareOptions={options:?}");
-        let rust_doc_dir = manifest_path.join("target/doc");
+        let target_doc_dir =
+            manifest_path.join("target/x86_64-unknown-linux-musl/doc");
+        let built_doc_dir = manifest_path.join("built/docs");
         println!(
-            "cargo:warning=ctoolbox/build.rs: rust-docs source dir exists={} path={}",
-            rust_doc_dir.is_dir(),
-            rust_doc_dir.display()
+            "cargo:warning=ctoolbox/build.rs: target-docs exists={} built-docs exists={}",
+            target_doc_dir.is_dir(),
+            built_doc_dir.is_dir()
         );
     }
     let prepared_assets = prepare_assets(manifest_path, &options)?;
