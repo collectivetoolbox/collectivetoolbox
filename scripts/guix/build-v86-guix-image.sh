@@ -54,7 +54,9 @@ else
 
     echo "Building ctb-nopersonality shared object in Rust..."
     tmp_build_dir="$(mktemp -d)"
-    nopersonality_so="/var/guix/libctb_nopersonality.so"
+    nopersonality_dir="/var/guix/nopersonality"
+    nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
+    mkdir -p "$nopersonality_dir" /var/log/guix/drvs /var/guix
     if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
         nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
     else
@@ -62,8 +64,7 @@ else
     fi
     rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
 
-    mkdir -p /var/log/guix/drvs /var/guix
-    chmod 755 "$tmp_build_dir" "$nopersonality_so"
+    chmod 755 "$tmp_build_dir" "$nopersonality_dir" "$nopersonality_so"
 
     chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
     chmod -R 1777 /var/log/guix 2>/dev/null || true
@@ -73,11 +74,11 @@ else
     mkdir -p /var/tmp/proot_tmp
     export PROOT_TMP_DIR=/var/tmp/proot_tmp
     daemon_extra_args=()
-    if ! unshare -m true 2>/dev/null; then
+    if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
         echo "Note: unshare/clone (mount namespaces) blocked by container environment. Allow in the configuration to continue; unfortunately it doesn't seem possible to use Guix sandboxing otherwise."
         exit 1
     else
-        daemon_extra_args+=(--chroot-directory="$tmp_build_dir")
+        daemon_extra_args+=(--chroot-directory="$tmp_build_dir" --chroot-directory="$nopersonality_dir")
     fi
 
     LD_PRELOAD="$nopersonality_so" guix-daemon "${daemon_extra_args[@]}" >/tmp/guix-daemon.log 2>&1 &
