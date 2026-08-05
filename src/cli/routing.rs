@@ -139,6 +139,9 @@ pub enum IACommand {
         /// Destination directory. Defaults to the current directory.
         #[arg(long)]
         output_dir: Option<PathBuf>,
+        /// Only download files with source="original".
+        #[arg(long)]
+        original: bool,
     },
     /// Download a single file and write it to stdout.
     #[command(name = "downloadAsStream")]
@@ -816,11 +819,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             IACommand::MetaXml { target } => Ok(ToolResult::immediate_ok(
                 ctb_formats_internetarchive::metaxml(target)?,
             )),
-            IACommand::Download { target, output_dir } => {
+            IACommand::Download {
+                target,
+                output_dir,
+                original,
+            } => {
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download(
                         target,
                         output_dir.as_deref(),
+                        *original,
                     )?,
                 ))
             }

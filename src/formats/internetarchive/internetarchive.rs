@@ -288,8 +288,12 @@ pub fn metaxml(target: &str) -> Result<Vec<u8>> {
     metaxml_with_client(&LiveArchiveClient, target)
 }
 
-pub fn download(target: &str, output_dir: Option<&Path>) -> Result<Vec<u8>> {
-    download_with_client(&LiveArchiveClient, target, output_dir)
+pub fn download(
+    target: &str,
+    output_dir: Option<&Path>,
+    original: bool,
+) -> Result<Vec<u8>> {
+    download_with_client(&LiveArchiveClient, target, output_dir, original)
 }
 
 pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
@@ -307,6 +311,7 @@ fn download_with_client(
     client: &dyn ArchiveClient,
     target: &str,
     output_dir: Option<&Path>,
+    original: bool,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -315,7 +320,23 @@ fn download_with_client(
         format!("Failed to create {}", item_directory.display())
     })?;
 
-    let file_names = if let Some(file_name) = &archive_target.archive_path {
+    let file_names = if original {
+        let metadata_files =
+            client.fetch_metadata(&archive_target.identifier)?.files;
+        let original_files: Vec<String> = metadata_files
+            .into_iter()
+            .filter(|file| file.source.as_deref() == Some("original"))
+            .map(|file| file.name)
+            .collect();
+        if let Some(file_name) = &archive_target.archive_path {
+            original_files
+                .into_iter()
+                .filter(|name| name == file_name)
+                .collect()
+        } else {
+            original_files
+        }
+    } else if let Some(file_name) = &archive_target.archive_path {
         vec![file_name.clone()]
     } else {
         client
@@ -366,7 +387,7 @@ fn checkeddl_with_client(
     let base_output_dir = resolve_output_dir(output_dir)?;
     let item_directory = base_output_dir.join(&archive_target.identifier);
 
-    let _ = download_with_client(client, target, Some(&base_output_dir))?;
+    let _ = download_with_client(client, target, Some(&base_output_dir), false)?;
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
     let manifest = parse_files_manifest(
@@ -1466,6 +1487,7 @@ mod tests {
             &fixture_client(),
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1482,6 +1504,31 @@ mod tests {
             result_json["downloaded_files"].as_array().unwrap().len(),
             2
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_download_with_client_original() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let result = download_with_client(
+            &fixture_client(),
+            TEST_IDENTIFIER,
+            Some(temp_dir.path()),
+            true,
+        )
+        .unwrap();
+        let result_json: serde_json::Value =
+            serde_json::from_slice(&result).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(
+                temp_dir.path().join(TEST_IDENTIFIER).join(AUDIO_FILE_NAME)
+            )
+            .unwrap(),
+            "hello"
+        );
+        let downloaded = result_json["downloaded_files"].as_array().unwrap();
+        assert_eq!(downloaded.len(), 1);
+        assert_eq!(downloaded[0], AUDIO_FILE_NAME);
     }
 
     #[crate::ctb_test]
