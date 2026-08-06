@@ -176,6 +176,76 @@ impl Node {
         self.data = data.to_vec();
         Ok(())
     }
+
+    /// Publish this local node to the global graph repository.
+    ///
+    /// Validates the target ID against restricted graph ranges, serializes the node
+    /// into binary package format, transmits the package to the remote global graph
+    /// server (or direct in-process global graph import during tests), asserts that
+    /// local and global checksums match, and mutates the local node to a system
+    /// redirect node.
+    pub async fn publish(
+        &mut self,
+        session_token: &str,
+        global_session_token: Option<&str>,
+        target_id: Option<u128>,
+    ) -> Result<u128> {
+        if let Some(tid) = target_id {
+            crate::global_graph_layout::validate_publish_target(tid)?;
+        }
+
+        let local_checksum = bin2hex(self.checksum.as_deref().unwrap_or(&[]));
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let package_bytes = crate::packaged_node::serialize_packaged_node(
+            self.node_type,
+            timestamp,
+            self.checksum.as_deref().unwrap_or(&[]),
+            self.id,
+            self.graph_id,
+            &self.data,
+        )?;
+
+        let (allocated_id, global_checksum) = if cfg!(test) || is_in_test() {
+            let allocated_id = crate::models::graph::get_global_graph().import_node(
+                session_token,
+                &package_bytes,
+                target_id,
+            )?;
+            let global_node = Node::get(session_token, 0, allocated_id)?
+                .ok_or_else(|| anyhow::anyhow!("Global node not found after publish"))?;
+            let checksum = bin2hex(global_node.checksum.as_deref().unwrap_or(&[]));
+            (allocated_id, checksum)
+        } else {
+            let global_token = global_session_token
+                .ok_or_else(|| anyhow::anyhow!("Global graph user session is not initialized. Please ensure the deploy setup ran."))?;
+            let allocated_id = ctb_api_client::ApiClient::publish_packaged_node(
+                global_token,
+                &package_bytes,
+                target_id,
+            )
+            .await?;
+            let checksum = ctb_api_client::ApiClient::fetch_node_checksum(allocated_id).await?;
+            (allocated_id, checksum)
+        };
+
+        if global_checksum != local_checksum {
+            anyhow::bail!(
+                "Checksum mismatch! Local checksum is {local_checksum}, but global checksum is {global_checksum}."
+            );
+        }
+
+        let redirect_text = format!("@1114409@@{allocated_id}@");
+        let converted_data = ctb_formats_dctext::dctext_to_dcutf(redirect_text.into_bytes());
+
+        self.set_node_type(session_token, NodeType::System)?;
+        self.set_data(session_token, &converted_data)?;
+
+        Ok(allocated_id)
+    }
 }
 
 impl From<ctb_utilities::ipc::service_traits::storage::Node> for Node {

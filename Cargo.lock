@@ -2555,6 +2555,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-api-client"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "ctb-build-support"
 version = "0.0.0"
 dependencies = [
@@ -3276,6 +3287,7 @@ dependencies = [
  "anyhow",
  "argon2",
  "base64 0.22.1",
+ "ctb-api-client",
  "ctb-build-support",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dctext",
@@ -3511,6 +3523,7 @@ name = "ctoolbox"
 version = "0.1.49"
 dependencies = [
  "anyhow",
+ "ctb-api-client",
  "ctb-build-support",
  "ctb-cli",
  "ctb-formats",

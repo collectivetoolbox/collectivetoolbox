@@ -67,6 +67,21 @@ pub fn get_block_name_for_id(node_id: u128) -> Result<String> {
     Ok("Reserved".to_string())
 }
 
+/// Validate whether a node target ID is allowed for publishing.
+///
+/// Returns an error if the target ID falls within the restricted Unicode range.
+pub fn validate_publish_target(target_id: u128) -> Result<()> {
+    if let Some(ref block) = get_block("Unicode") {
+        if block.contains_id(target_id) {
+            anyhow::bail!("Publishing nodes to the Unicode range is disallowed.");
+        }
+    }
+    if get_block_name_for_id(target_id)? == "Unicode" {
+        anyhow::bail!("Publishing nodes to the Unicode range is disallowed.");
+    }
+    Ok(())
+}
+
 fn get_layout_table() -> Result<std::sync::Arc<csv_tools::CsvTable>> {
     csv_tools::get_or_load_cached(
         "ctb_storage::data/global-graph-layout.csv",

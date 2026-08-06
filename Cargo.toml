@@ -134,6 +134,7 @@ ctb-formats-wtf8 = { path = "src/formats/wtf8" }
 ctb-formats-x86 = { path = "src/formats/x86" }
 ctb-io = { path = "src/io" }
 ctb-io-webui = { path = "src/io/webui" }
+ctb-api-client = { path = "src/io/api_client" }
 ctb-installer = { path = "src/installer" }
 ctb-network = { path = "src/network" }
 ctb-renderer = { path = "src/renderer" }

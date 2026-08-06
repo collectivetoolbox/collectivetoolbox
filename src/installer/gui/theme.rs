@@ -197,13 +197,7 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     proportional.push("Noto-Emoji".to_owned());
     proportional.push("Emoji-Icon".to_owned());
 
-    let monospace = fonts.families.entry(FontFamily::Monospace)
-            .unwrap_or_else(|| {
-                eprintln!(
-                    "Fatal error: failed to load embedded installer font '{name}'. The installer may be corrupted."
-                );
-                std::process::exit(1);
-            });
+    let monospace = fonts.families.entry(FontFamily::Monospace).or_default();
     monospace.push("FiraCode-Regular".to_owned());
     monospace.push("FiraCode-Bold".to_owned());
     monospace.push("Noto-Sans-R".to_owned());

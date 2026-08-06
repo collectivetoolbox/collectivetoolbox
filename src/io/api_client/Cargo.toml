@@ -1,0 +1,17 @@
+[package]
+name = "ctb-api-client"
+edition = "2024"
+
+[lib]
+path = "api_client.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+reqwest = { version = "0.13", features = ["json", "stream", "multipart"] }
+tokio = { version = "1.49.0", features = ["full", "tracing"] }
+
+[lints]
+workspace = true
