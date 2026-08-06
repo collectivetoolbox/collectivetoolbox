@@ -6,10 +6,13 @@
 @import url('web/js/components/base/menu.css');
 @import url('web/js/components/themes/glass/common.css');
 @import url('web/js/components/themes/glass/button.css');
+@import url('web/js/components/themes/glass/menu.css');
 @import url('web/js/components/themes/solid/common.css');
 @import url('web/js/components/themes/solid/button.css');
+@import url('web/js/components/themes/solid/menu.css');
 @import url('web/js/components/themes/simple/common.css');
 @import url('web/js/components/themes/simple/button.css');
+@import url('web/js/components/themes/simple/menu.css');
 @import url('web/css/fonts.css');
 @import url('web/css/notifications.css');
 @import url('web/css/modals.css');

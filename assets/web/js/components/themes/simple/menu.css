@@ -1,0 +1,6 @@
+/* Simple theme menu overrides */
+html[data-ctb-ui-theme="simple"] ctb-menu,
+ctb-menu[theme="simple"] {
+    border-radius: 0;
+    box-shadow: none;
+}
