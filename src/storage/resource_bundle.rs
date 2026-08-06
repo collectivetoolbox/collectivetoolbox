@@ -185,36 +185,43 @@ impl ResourceBundle {
         // Try loading separate v86_images.rsrc if present
         let v86_path = bundle_path.with_file_name("v86_images.rsrc");
         if v86_path.is_file() {
-            if let Ok(v86_file) = open_resource_bundle_file(&v86_path) {
-                #[expect(unsafe_code, reason = "Mmap requires unsafe")]
-                // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
-                if let Ok(v86_mmap) = unsafe { Mmap::map(&v86_file) } {
-                    if let Ok(parsed_v86) =
-                        asset_bundle_format::parse_asset_bundle(&v86_mmap)
-                    {
-                        let verify_res = verify_bundle_integrity(
-                            &v86_path.display().to_string(),
-                            &parsed_v86.header,
-                            EXPECTED_V86_RESOURCE_BUNDLE_UUID,
-                            EXPECTED_V86_RESOURCE_BUNDLE_SHA256,
-                        );
-                        if verify_res.is_ok() {
-                            let mmap_idx = mmaps.len();
-                            mmaps.push(v86_mmap);
-                            for parsed_entry in parsed_v86.entries {
-                                let entry_index = entries.len();
-                                entries.push(ResourceBundleEntry {
-                                    path: parsed_entry.path.clone(),
-                                    mmap_index: mmap_idx,
-                                    data_range: parsed_entry.data_range,
-                                });
-                                entry_by_path
-                                    .insert(parsed_entry.path, entry_index);
-                            }
-                        }
-                    }
-                }
+            let v86_file = open_resource_bundle_file(&v86_path).with_context(|| {
+                format!("Failed to open v86 resource bundle {}", v86_path.display())
+            })?;
+            #[expect(unsafe_code, reason = "Mmap requires unsafe")]
+            // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
+            let v86_mmap = unsafe { Mmap::map(&v86_file) }.with_context(|| {
+                format!("Failed to map v86 resource bundle {}", v86_path.display())
+            })?;
+            let parsed_v86 = asset_bundle_format::parse_asset_bundle(&v86_mmap)
+                .with_context(|| {
+                    format!(
+                        "Failed to parse v86 resource bundle {}",
+                        v86_path.display()
+                    )
+                })?;
+            verify_bundle_integrity(
+                &v86_path.display().to_string(),
+                &parsed_v86.header,
+                EXPECTED_V86_RESOURCE_BUNDLE_UUID,
+                EXPECTED_V86_RESOURCE_BUNDLE_SHA256,
+            )?;
+            let mmap_idx = mmaps.len();
+            mmaps.push(v86_mmap);
+            for parsed_entry in parsed_v86.entries {
+                let entry_index = entries.len();
+                entries.push(ResourceBundleEntry {
+                    path: parsed_entry.path.clone(),
+                    mmap_index: mmap_idx,
+                    data_range: parsed_entry.data_range,
+                });
+                entry_by_path.insert(parsed_entry.path, entry_index);
             }
+        } else {
+            warn!(
+                "v86 resource bundle not found at {}; v86 VM assets will not be loaded",
+                v86_path.display()
+            );
         }
 
         Ok(Self {

@@ -357,7 +357,7 @@ fn ensure_rust_docs_generated(
     }
 
     bail!(
-        "Rust documentation not found in {} or {}. Spawning cargo doc inside a build script is not allowed due to cargo target locks deadlocking. Please generate the documentation beforehand using: `./build --docs` or `cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl`",
+        "Rust documentation not found in {} or {}. Spawning cargo doc inside a build script is not allowed due to cargo target locks deadlocking. Please generate the documentation beforehand using: `./build --docs-only` or `cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl`",
         target_doc_dir.display(),
         built_doc_dir.display()
     );
