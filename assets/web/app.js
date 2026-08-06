@@ -45,6 +45,8 @@ import './js/backdrop-filter-polyfill.js';
 import { CtbButton } from './js/components/base/button.js';
 import { CtbSegmentedControl as _CtbSegmentedControl } from './js/components/base/segmented-control.js';
 import { CtbFileInput as _CtbFileInput } from './js/components/base/file-input.js';
+import { CtbDropdown as _CtbDropdown } from './js/components/base/dropdown.js';
+import { CtbMenu as _CtbMenu } from './js/components/base/menu.js';
 CtbButton.defaultTheme = "glass";
 
 const CLIENT_SETTINGS_KEY = "ctb-client-side-settings";

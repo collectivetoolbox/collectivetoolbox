@@ -1,0 +1,25 @@
+/* ctb-dropdown component styling */
+ctb-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+ctb-dropdown ctb-menu,
+ctb-dropdown .ctb-dropdown-menu {
+    right: 0;
+    top: 100%;
+    margin-top: 0.25rem;
+}
+
+ctb-dropdown[align="left"] ctb-menu,
+ctb-dropdown[align="left"] .ctb-dropdown-menu {
+    right: auto;
+    left: 0;
+}
+
+ctb-dropdown[open] ctb-menu,
+ctb-dropdown[open] .ctb-dropdown-menu,
+ctb-dropdown.open ctb-menu,
+ctb-dropdown.open .ctb-dropdown-menu {
+    display: flex;
+}
