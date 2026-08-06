@@ -82,6 +82,11 @@ pub fn build_routes(state: AppState) -> Router {
             "/nodes/{graph_id}/{node_id}/publish-as",
             get(graph::get_nodes_publish_as),
         )
+        .route("/nodes/download", get(graph::get_nodes_download))
+        .route(
+            "/nodes/{graph_id}/{node_id}/download",
+            get(graph::get_nodes_download_path),
+        )
         .route(
             "/api/nodes/{graph_id}/{node_id}/publish",
             post(graph::post_publish_node),

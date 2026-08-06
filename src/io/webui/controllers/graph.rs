@@ -614,6 +614,135 @@ pub async fn get_node_checksum(
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct NodeDownloadQuery {
+    #[serde(alias = "node_id")]
+    pub id: Option<String>,
+    #[serde(alias = "graph_id")]
+    pub graph: Option<String>,
+    pub format: Option<String>,
+}
+
+pub async fn get_nodes_download(
+    State(state): State<AppState>,
+    req: RequestState,
+    sess: AuthenticatedUser,
+    Query(q): Query<NodeDownloadQuery>,
+) -> Response {
+    let Some(ref id_str) = q.id else {
+        return error_400(&state, &req, "Missing node ID");
+    };
+    let node_id = match string::to_u128(id_str) {
+        Ok(val) => val,
+        Err(e) => {
+            return error_400(&state, &req, format!("Invalid node ID: {e}"));
+        }
+    };
+
+    let token = {
+        let u = sess.user.lock().await;
+        u.session_token().map(String::from)
+    };
+    let Some(token) = token else {
+        return error_400(&state, &req, "No active session token");
+    };
+
+    let graph_id = if let Some(ref g_str) = q.graph {
+        match string::to_u128(g_str) {
+            Ok(val) => val,
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Invalid graph ID: {e}"),
+                );
+            }
+        }
+    } else {
+        let list = Node::list_nodes(&token).unwrap_or_default();
+        if let Some(n) = list.into_iter().find(|n| n.id == node_id) {
+            n.graph_id
+        } else {
+            return error_400(&state, &req, "Node not found");
+        }
+    };
+
+    download_node_response(&state, &req, &token, graph_id, node_id, q.format.as_deref()).await
+}
+
+pub async fn get_nodes_download_path(
+    State(state): State<AppState>,
+    req: RequestState,
+    sess: AuthenticatedUser,
+    axum::extract::Path((graph_id, node_id)): axum::extract::Path<(u128, u128)>,
+    Query(q): Query<NodeDownloadQuery>,
+) -> Response {
+    let token = {
+        let u = sess.user.lock().await;
+        u.session_token().map(String::from)
+    };
+    let Some(token) = token else {
+        return error_400(&state, &req, "No active session token");
+    };
+
+    download_node_response(&state, &req, &token, graph_id, node_id, q.format.as_deref()).await
+}
+
+async fn download_node_response(
+    state: &AppState,
+    req: &RequestState,
+    token: &str,
+    graph_id: u128,
+    node_id: u128,
+    format: Option<&str>,
+) -> Response {
+    let node = match Node::get(token, graph_id, node_id) {
+        Ok(Some(n)) => n,
+        Ok(None) => return error_400(state, req, "Node not found"),
+        Err(e) => {
+            return error_400(
+                state,
+                req,
+                format!("Failed to fetch node: {e}"),
+            );
+        }
+    };
+
+    let (bytes, filename) = match format {
+        Some("packaged" | "ctbn") => {
+            let pkg_bytes = match node.to_packaged_node() {
+                Ok(b) => b,
+                Err(e) => {
+                    return error_400(
+                        state,
+                        req,
+                        format!("Failed to serialize packaged node: {e}"),
+                    );
+                }
+            };
+            (pkg_bytes, format!("node_{node_id}.ctbn"))
+        }
+        _ => (node.data, format!("node_{node_id}.bin")),
+    };
+
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        axum::http::HeaderValue::from_static("application/octet-stream"),
+    );
+    if let Ok(disposition) = axum::http::HeaderValue::from_str(&format!(
+        "attachment; filename=\"{filename}\""
+    )) {
+        headers.insert(axum::http::header::CONTENT_DISPOSITION, disposition);
+    }
+    if let Ok(len_val) = axum::http::HeaderValue::from_str(&bytes.len().to_string()) {
+        headers.insert(axum::http::header::CONTENT_LENGTH, len_val);
+    }
+
+    use axum::response::IntoResponse;
+    (headers, bytes).into_response()
+}
+
 #[cfg(test)]
 #[expect(
     clippy::panic,
@@ -810,6 +939,36 @@ mod tests {
         )
         .await;
         assert_eq_or_print_body(status, 400, &body);
+
+        // 10. Test GET /nodes/1/1/download?format=packaged (should return 200 with CTBNODE header)
+        let (status, body) = test_request::<()>(
+            &test_app.app,
+            Method::GET,
+            "/nodes/1/1/download?format=packaged",
+            None,
+            Some(&cookie_val),
+            None,
+            None,
+            None,
+        )
+        .await;
+        assert_eq_or_print_body(status, 200, &body);
+        assert!(body.starts_with("CTBNODE\0"));
+
+        // 11. Test GET /nodes/1/1/download?format=raw (should return 200 with plain bytes "hello world")
+        let (status, body) = test_request::<()>(
+            &test_app.app,
+            Method::GET,
+            "/nodes/1/1/download?format=raw",
+            None,
+            Some(&cookie_val),
+            None,
+            None,
+            None,
+        )
+        .await;
+        assert_eq_or_print_body(status, 200, &body);
+        assert_eq!(body, "hello world");
     }
 
     #[crate::ctb_test("tokio")]

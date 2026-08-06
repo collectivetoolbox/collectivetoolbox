@@ -184,6 +184,22 @@ impl Node {
     /// server (or direct in-process global graph import during tests), asserts that
     /// local and global checksums match, and mutates the local node to a system
     /// redirect node.
+    pub fn to_packaged_node(&self) -> Result<Vec<u8>> {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        crate::packaged_node::serialize_packaged_node(
+            self.node_type,
+            timestamp,
+            self.checksum.as_deref().unwrap_or(&[]),
+            self.id,
+            self.graph_id,
+            &self.data,
+        )
+    }
+
     pub async fn publish(
         &mut self,
         session_token: &str,
@@ -195,19 +211,7 @@ impl Node {
         }
 
         let local_checksum = bin2hex(self.checksum.as_deref().unwrap_or(&[]));
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        let package_bytes = crate::packaged_node::serialize_packaged_node(
-            self.node_type,
-            timestamp,
-            self.checksum.as_deref().unwrap_or(&[]),
-            self.id,
-            self.graph_id,
-            &self.data,
-        )?;
+        let package_bytes = self.to_packaged_node()?;
 
         let (allocated_id, global_checksum) = if cfg!(test) || is_in_test() {
             let allocated_id = crate::models::graph::get_global_graph().import_node(

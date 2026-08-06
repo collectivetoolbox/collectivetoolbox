@@ -6,6 +6,15 @@
                 <a href="/nodes/{{node.graph_id}}/{{node.id}}/publish" class="btn btn-primary">Publish</a>
                 <a href="/nodes/{{node.graph_id}}/{{node.id}}/publish-as" class="btn">Publish as...</a>
             {{/if}}
+            <div class="relative">
+                <button type="button" class="btn" id="downloadMenuBtn" onclick="document.getElementById('downloadDropdownMenu').classList.toggle('hidden')">
+                    Download &#9660;
+                </button>
+                <div id="downloadDropdownMenu" class="hidden absolute right-0 mt-1 card flex flex-col gap-1 z-10">
+                    <a href="/nodes/{{node.graph_id}}/{{node.id}}/download?format=packaged" class="btn">Packaged Node (.ctbn)</a>
+                    <a href="/nodes/{{node.graph_id}}/{{node.id}}/download?format=raw" class="btn">Plain Bytes</a>
+                </div>
+            </div>
             <a href="/nodes" class="btn">
                 {{> icons._icon name="arrow-left" alt="" }}
                 <span>Back to Nodes</span>
