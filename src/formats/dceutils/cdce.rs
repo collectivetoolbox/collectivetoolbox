@@ -22,10 +22,10 @@ pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
 
     let codepoints: Vec<u32> = chunks
         .map(|chunk| {
-            let &[b0, b1, b2, b3] = chunk else {
-                return 0;
+            let Ok(bytes) = <[u8; 4]>::try_from(chunk) else {
+                unreachable!("chunks_exact(4) guarantees 4-byte chunks");
             };
-            u32::from_be_bytes([b0, b1, b2, b3])
+            u32::from_be_bytes(bytes)
         })
         .collect();
 
