@@ -34,11 +34,14 @@ pub fn base64_decode(base64: &str) -> Result<Vec<u8>> {
 pub fn standard_base64_to_decimal(base64: String) -> Result<Vec<u8>> {
     let alphabet = base64::alphabet::STANDARD.as_str();
 
-    // build an index of the base64 alphabet
     let index: HashMap<u8, u8> = alphabet
         .chars()
         .enumerate()
-        .map(|(i, c)| (u8::try_from(c).unwrap(), u8::try_from(i).unwrap()))
+        .filter_map(|(i, c)| {
+            let c_u8 = u8::try_from(c).ok()?;
+            let i_u8 = u8::try_from(i).ok()?;
+            Some((c_u8, i_u8))
+        })
         .collect();
 
     let mut out = Vec::new();

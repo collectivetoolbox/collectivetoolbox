@@ -82,10 +82,12 @@ fn _first_char_of_utf8_string(
             }
             return Ok((invalid.to_vec(), (invalid.len(), false)));
         }
-    } else {
+        let first_char = valid
+            .chars()
+            .next()
+            .context("Chunk contains no valid character")?;
         let out = &mut [0u8; 4];
-        let first_char_len =
-            valid.chars().next().unwrap().encode_utf8(out).len();
+        let first_char_len = first_char.encode_utf8(out).len();
 
         let char_bytes = out
             .get(..first_char_len)

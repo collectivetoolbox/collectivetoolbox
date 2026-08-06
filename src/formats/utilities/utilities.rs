@@ -285,6 +285,10 @@ impl std::fmt::Display for FormatLog {
 }
 
 // Test helpers
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 pub fn assert_vec_u8_ok_eq_no_warnings(
     expected: &[u8],
     actual: Result<(Vec<u8>, FormatLog)>,
@@ -299,6 +303,10 @@ pub fn assert_vec_u8_ok_eq_no_warnings(
     actual_bytes
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 pub fn assert_vec_u8_ok_eq_no_errors(
     expected: &[u8],
     actual: Result<(Vec<u8>, FormatLog)>,
@@ -310,6 +318,10 @@ pub fn assert_vec_u8_ok_eq_no_errors(
     (actual_bytes, log)
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 fn _assert_vec_u32_ok_eq_log(
     expected: &[u32],
     actual: Result<(Vec<u32>, FormatLog)>,
@@ -390,6 +402,10 @@ pub fn assert_string_eq(expected: &str, actual: String) -> String {
     actual_string
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 pub fn assert_string_ok_eq(expected: &str, actual: Result<String>) -> String {
     let actual_string = actual.unwrap();
 
@@ -402,6 +418,10 @@ pub fn assert_string_ok_eq(expected: &str, actual: Result<String>) -> String {
     actual_string
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 pub fn assert_string_ok_eq_no_warnings(
     expected: &str,
     actual: Result<(String, FormatLog)>,
@@ -423,6 +443,10 @@ pub fn assert_string_ok_eq_no_warnings(
     (actual_string, log)
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in test utilities"
+)]
 pub fn assert_string_ok_eq_no_errors(
     expected: &str,
     actual: Result<(String, FormatLog)>,

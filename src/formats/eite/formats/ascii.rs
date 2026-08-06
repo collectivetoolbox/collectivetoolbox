@@ -136,12 +136,11 @@ pub fn dca_to_ascii_safe_subset(
     let mut out: Vec<u8> = Vec::new();
     let mut input_index = 0usize;
 
-    fn warn_unmappable(log: &mut FormatLog, input_index: usize, dc: u32) {
-        log.export_warning_unmappable(
-            input_index.try_into().unwrap(),
-            dc,
-            "asciiSafeSubset",
-        );
+    fn warn_unmappable(log: &mut FormatLog, input_index: usize, dc: u32) -> Result<()> {
+        let index = u64::try_from(input_index)
+            .map_err(|e| anyhow!("Failed to convert input_index: {e}"))?;
+        log.export_warning_unmappable(index, dc, "asciiSafeSubset");
+        Ok(())
     }
 
     while input_index < len {
@@ -176,13 +175,13 @@ pub fn dca_to_ascii_safe_subset(
             let (enc, dc_log) = if let Ok(res) = dc_to_format("utf8", dc) {
                 res
             } else {
-                warn_unmappable(&mut log, input_index, dc);
+                warn_unmappable(&mut log, input_index, dc)?;
                 input_index = input_index.saturating_add(1);
                 continue;
             };
             log.merge(&dc_log);
             if enc.is_empty() {
-                warn_unmappable(&mut log, input_index, dc);
+                warn_unmappable(&mut log, input_index, dc)?;
                 input_index = input_index.saturating_add(1);
                 continue;
             }
@@ -196,7 +195,7 @@ pub fn dca_to_ascii_safe_subset(
                 out.extend(crlf());
             } else {
                 // Non-printable or multi-byte is not mappable in this subset
-                warn_unmappable(&mut log, input_index, dc);
+                warn_unmappable(&mut log, input_index, dc)?;
             }
         }
         input_index = input_index.saturating_add(1);

@@ -343,13 +343,18 @@ pub fn dc_from_format(
                 log.warn(&format!("Unmapped Unicode character U+{hex}"));
                 res.push(DC_REPLACEMENT_UNAVAIL_DC);
                 return Ok((res, log));
-            } else if dc_str.is_err() {
-                return Err(dc_str.err().unwrap()).context(format!(
-                    "Unexpected error looking up Unicode char U+{hex}"
-                ));
             }
-            if let Ok(dc_id) = dc_str?.parse::<u32>() {
-                res.push(dc_id);
+            match dc_str {
+                Err(err) => {
+                    return Err(err).context(format!(
+                        "Unexpected error looking up Unicode char U+{hex}"
+                    ));
+                }
+                Ok(dc_s) => {
+                    if let Ok(dc_id) = dc_s.parse::<u32>() {
+                        res.push(dc_id);
+                    }
+                }
             }
         }
         other => bail!("Unimplemented character source format: {other}"),

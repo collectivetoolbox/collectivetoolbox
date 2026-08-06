@@ -110,11 +110,9 @@ macro_rules! mini_quote {
         @$q:tt
         $tt:tt $($rest:tt)*
     ) => (
-        $q.extend(
-            stringify!($tt)
-                .parse::<TokenStream>()
-                .unwrap()
-        );
+        if let Ok(stream) = stringify!($tt).parse::<TokenStream>() {
+            $q.extend(stream);
+        }
         mini_quote!(@$q $($rest)*);
     );
 
@@ -202,7 +200,7 @@ fn registered_scopes() -> &'static Mutex<Vec<String>> {
 /// Check whether this test function name is already taken as scope. If yes, a
 /// counter is appended to make it unique. In the end, a unique scope is returned.
 fn get_free_scope(mut test_fn_name: String) -> String {
-    let mut vec = registered_scopes().lock().unwrap();
+    let mut vec = registered_scopes().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut counter = 1_usize;
     let len = test_fn_name.len();
     while vec.contains(&test_fn_name) {
@@ -511,11 +509,16 @@ fn named_impl(input: TokenStream) -> Result<TokenStream, &'static str> {
 
     // rest but scan the tt right after `fn`.
     let fname = loop {
-        let tt = tts.next().unwrap();
+        let Some(tt) = tts.next() else {
+            return Err("expected a `fn`");
+        };
         if matches!(tt, TokenTree::Ident(ref ident) if ident.to_string() == "fn")
         {
             input.push(tt);
-            let fname = tts.peek().unwrap().to_string();
+            let Some(peeked) = tts.peek() else {
+                return Err("expected function name after `fn`");
+            };
+            let fname = peeked.to_string();
             input.extend(tts);
             break Some(TokenTree::from(Literal::string(&fname)));
         }

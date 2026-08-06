@@ -207,8 +207,10 @@ pub fn byte_array_from_basenb_utf8(input: &[u8]) -> Result<Vec<u8>> {
     let mut remainder_arr: Vec<u8>;
     remainder_arr = bail_if_none!(subset(input, -3, -1));
     if is_basenb_distinct_remainder_char(&remainder_arr) {
-        remainder = unpack32(&remainder_arr)?;
-        remainder = 63497_u32.checked_sub(remainder).unwrap();
+        let raw_remainder = unpack32(&remainder_arr)?;
+        remainder = 63497_u32
+            .checked_sub(raw_remainder)
+            .ok_or_else(|| anyhow!("Underflow in basenb remainder calculation"))?;
     } else {
         /* last 4 bytes (1 character), which represent the remainder */
         remainder_arr = bail_if_none!(subset(input, -4, -1));

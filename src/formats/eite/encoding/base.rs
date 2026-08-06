@@ -214,12 +214,12 @@ pub fn int_to_base_str(mut n: u32, base: u8) -> Result<String> {
         let digit = n
             .checked_rem(u32::from(base))
             .ok_or_else(|| anyhow!("Base cannot be zero"))?;
-        out.push(
-            int_to_base36_char(digit.try_into()?)?
-                .chars()
-                .next()
-                .unwrap(),
-        );
+        let c_str = int_to_base36_char(digit.try_into()?)?;
+        let ch = c_str
+            .chars()
+            .next()
+            .ok_or_else(|| anyhow!("int_to_base36_char returned empty string"))?;
+        out.push(ch);
         n = n
             .checked_div(u32::from(base))
             .ok_or_else(|| anyhow!("Base cannot be zero"))?;

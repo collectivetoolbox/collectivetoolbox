@@ -184,9 +184,9 @@ pub(crate) fn encodings<'a>(
         .flat_map(|s| s.split(','))
         .filter_map(move |v| {
             let mut v = v.splitn(2, ';');
-
+            let coding = v.next()?.trim();
             let encoding = match Encoding::parse(
-                v.next().unwrap().trim(),
+                coding,
                 supported_encoding,
             ) {
                 Some(encoding) => encoding,
@@ -213,7 +213,7 @@ fn wildcard_qvalue(headers: &http::HeaderMap) -> Option<QValue> {
         .flat_map(|s| s.split(','))
         .find_map(|v| {
             let mut v = v.splitn(2, ';');
-            let coding = v.next().unwrap().trim();
+            let coding = v.next()?.trim();
             if coding != "*" {
                 return None;
             }

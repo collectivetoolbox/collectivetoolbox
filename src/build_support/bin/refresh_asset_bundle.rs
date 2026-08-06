@@ -35,7 +35,7 @@ fn main() -> Result<()> {
                 )?;
                 let initrd_path = output_dir
                     .parent()
-                    .unwrap()
+                    .ok_or_else(|| anyhow::anyhow!("output_dir has no parent directory"))?
                     .join("guix_posix_initrd.cpio.gz");
                 return v86_packer::build_custom_initrd(
                     output_fs_json,
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
                 )?;
                 let initrd_path = output_dir
                     .parent()
-                    .unwrap()
+                    .ok_or_else(|| anyhow::anyhow!("output_dir has no parent directory"))?
                     .join("guix_posix_initrd.cpio.gz");
                 return v86_packer::build_custom_initrd(
                     output_fs_json,

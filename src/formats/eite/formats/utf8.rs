@@ -544,15 +544,12 @@ pub fn dca_from_utf8(
                 // borrow the Ok(Vec) so we don't move it out of `dc`
                 log.debug(&format!("debug {ch_bytes:?} to err"));
             }
+            let err_msg = dc.as_ref().err().map_or_else(
+                || "Unknown error".to_string(),
+                |e| e.chain().map(std::string::ToString::to_string).collect::<Vec<_>>().join(": "),
+            );
             log.error(&format!(
-                "Failed to import UTF-8 character at offset {}: {}",
-                consumed,
-                dc.err()
-                    .unwrap()
-                    .chain()
-                    .map(std::string::ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(": ")
+                "Failed to import UTF-8 character at offset {consumed}: {err_msg}"
             ));
             bail!("Internal error trying to import UTF-8 character {log:?}");
         } else {
@@ -688,11 +685,10 @@ fn decode_and_append_basenb_run(
         // Preserve original semantics: lossy string with warning/error if not valid UTF-8.
         let pack32ed_string_not_lossy = String::from_utf8(decoded.clone());
         let pack32ed_string = String::from_utf8_lossy(&decoded);
-        if pack32ed_string_not_lossy.is_err() {
+        if let Err(err) = pack32ed_string_not_lossy {
             let offset = u64::try_from(offset)?;
             let message = &format!(
-                "Failed to decode basenb 17 run to UTF-8 string: {}",
-                pack32ed_string_not_lossy.err().unwrap()
+                "Failed to decode basenb 17 run to UTF-8 string: {err}"
             );
             if settings.dc_basenb_fragment_strict {
                 log.import_error(offset, message);

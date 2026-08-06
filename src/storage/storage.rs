@@ -67,15 +67,14 @@ pub fn get_help_troff() -> Vec<u8> {
     get_asset("docs/cli/ctoolbox.1").expect("Could not load help")
 }
 
-pub fn get_help_html() -> Vec<u8> {
-    let (converted, log) = convert_man_troff_to_html(get_help_troff())
-        .expect("Could not convert help");
+pub fn get_help_html() -> Result<Vec<u8>> {
+    let (converted, log) = convert_man_troff_to_html(get_help_troff())?;
     log.auto_log();
-    converted
+    Ok(converted)
 }
 
-pub fn get_help_for_tty(width: u16) -> Vec<u8> {
-    html2text_with_width(get_help_html(), width)
+pub fn get_help_for_tty(width: u16) -> Result<Vec<u8>> {
+    html2text_with_width(get_help_html()?, width)
 }
 
 fn get_asset_utf8(key: &str) -> Result<String> {
@@ -350,19 +349,20 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn can_get_help_html() {
+    fn can_get_help_html() -> Result<()> {
         assert!(
-            String::from_utf8_lossy(&get_help_html())
+            String::from_utf8_lossy(&get_help_html()?)
                 .contains(">Synopsis</h2>")
         );
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn can_get_help_for_tty() {
-        // The middle of "## Description", wrapped since it's only 8 characters
-        // terminal width
+    fn can_get_help_for_tty() -> Result<()> {
         assert!(
-            String::from_utf8_lossy(&get_help_for_tty(8)).contains("## iptio")
+            String::from_utf8_lossy(&get_help_for_tty(8)?)
+                .contains("## iptio")
         );
+        Ok(())
     }
 }

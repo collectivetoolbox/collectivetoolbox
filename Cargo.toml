@@ -210,12 +210,12 @@ allow_attributes_without_reason = "deny"
 string_slice = "deny"
 indexing_slicing = "deny"
 # Ideally get rid of all panics other than "todo"/"unimplemented"/maybe "unreachable", but there were some places I'm not sure how.
-unwrap_used = "warn"
+unwrap_used = "deny"
 panic = "deny"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"
-get_unwrap = "warn"
+get_unwrap = "deny"
 unchecked_time_subtraction = "deny"
 
 # Avoid silent failing

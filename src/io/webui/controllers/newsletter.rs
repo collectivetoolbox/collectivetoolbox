@@ -92,16 +92,15 @@ pub async fn get_newsletter(
     let md = format!("# {heading}\n\n{}", String::from_utf8_lossy(&md));
 
     // Content embedded as assets should be safe
-    let page = ctb_formats_markdown::markdown2html_unsafe(md.into());
-    let Ok(page) = page else {
-        return error_400(
-            &state,
-            &req,
-            format!(
-                "Failed to render newsletter markdown: {}",
-                page.err().unwrap()
-            ),
-        );
+    let page = match ctb_formats_markdown::markdown2html_unsafe(md.into()) {
+        Ok(page) => page,
+        Err(err) => {
+            return error_400(
+                &state,
+                &req,
+                format!("Failed to render newsletter markdown: {err}"),
+            );
+        }
     };
     let page = String::from_utf8_lossy(&page);
 

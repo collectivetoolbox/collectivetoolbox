@@ -259,6 +259,10 @@ fn _format_dcs_for_log(expected: &[u32], actual: &[u32]) -> String {
     )
 }
 
+#[expect(
+    clippy::unwrap_used,
+    reason = "Assertion helper function in format test utilities"
+)]
 fn _assert_vec_dc_ok_eq_log(
     expected: &[u32],
     actual: Result<(Vec<u32>, FormatLog)>,

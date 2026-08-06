@@ -279,7 +279,7 @@ impl User {
         user.public_info.name = name.to_string();
         user.public_info.uuid = uuid.to_vec();
         user.public_info.remote_status = Some("Pending".to_string());
-        user.local_config = user.local_config();
+        user.local_config = user.local_config()?;
         crate::user::session::register_user_dek(
             user_id,
             Secret::new(dek.clone()),
@@ -423,7 +423,7 @@ impl User {
 
         let mut user = User::default();
         user.public_info = public_info;
-        user.local_config = user.local_config();
+        user.local_config = user.local_config()?;
         user.dek = Some(Secret::new(dek));
         // Initialize user graphs with a default graph (id = 1)
         user.graphs.push(Graph::new(1, "Default", &user));
@@ -439,30 +439,31 @@ impl User {
         let mut user = User::default();
         user.public_info = public_info;
         user.session_token = session_token;
-        user.local_config = user.local_config();
+        user.local_config = user.local_config().unwrap_or_default();
         // Initialize user graphs with a default graph (id = 1)
         user.graphs.push(Graph::new(1, "Default", &user));
         user
     }
 
-    pub fn local_config(&self) -> UserLocalConfig {
-        let cache_dir = get_storage_dir().unwrap();
+    pub fn local_config(&self) -> Result<UserLocalConfig> {
+        let cache_dir = get_storage_dir().context("Failed to resolve storage directory")?;
         let user_cache_dir = std::path::Path::new(&cache_dir).join(self.name());
         std::fs::create_dir_all(&user_cache_dir)
-            .expect("Failed to create per-user cache directory");
+            .context("Failed to create per-user cache directory")?;
         let config_path = user_cache_dir.join("local_config");
         if !config_path.exists() {
             let default_config = UserLocalConfig {
                 default_store_location: cache_dir.into_os_string(),
             };
-            let json = serde_json::to_string_pretty(&default_config).unwrap();
+            let json = serde_json::to_string_pretty(&default_config)
+                .context("Failed to serialize default local_config")?;
             std::fs::write(&config_path, json)
-                .expect("Failed to write default local_config");
-            return default_config;
+                .context("Failed to write default local_config")?;
+            return Ok(default_config);
         }
         let json = std::fs::read_to_string(&config_path)
-            .expect("Failed to read local_config");
-        serde_json::from_str(&json).expect("Failed to deserialize local_config")
+            .context("Failed to read local_config")?;
+        serde_json::from_str(&json).context("Failed to deserialize local_config")
     }
 
     pub fn create_graph(&mut self, label: &str) -> Result<&Graph> {
@@ -895,7 +896,7 @@ mod tests {
     fn test_local_config_roundtrip() -> Result<()> {
         let user = get_test_user(function_name!());
 
-        let config = user.local_config();
+        let config = user.local_config()?;
         assert_eq!(
             config.default_store_location,
             get_storage_dir()?.into_os_string()

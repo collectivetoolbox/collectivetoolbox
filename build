@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-# Curl is required
 # Debian dependencies:
 
 # sudo dpkg --add-architecture i386
 # sudo apt-get update
 # sudo apt-get install build-essential musl-tools patch perl curl
-# sudo apt-get install gcc-multilib musl-dev:i386
+# sudo apt-get install gcc-multilib musl-dev:i386 binutils
 # sudo apt-get install mingw-w64
 
 # Vendored X11 dependencies:

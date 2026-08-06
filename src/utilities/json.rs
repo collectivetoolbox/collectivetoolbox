@@ -23,7 +23,7 @@ pub mod patch;
 macro_rules! utilities_json_json {
     ($($json:tt)+) => {
         // The $crate prefix is used to refer to the current crate, so that the macro can be used in other crates.
-        $crate::json::utilities_serde_json::to_string(&$crate::json::utilities_serde_json_json!($($json)+)).unwrap()
+        $crate::json::utilities_serde_json::to_string(&$crate::json::utilities_serde_json_json!($($json)+)).unwrap_or_else(|_| String::new())
     };
 }
 

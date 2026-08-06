@@ -45,7 +45,10 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
                 .expect("Could not decode test password salt")
                 .decode_b64(salt_bytes)
                 .expect("Failed to decode salt");
-            let output_key_material = parsed.hash.unwrap().as_bytes().to_vec();
+            let output_key_material = parsed
+                .hash
+                .as_ref()
+                .map_or_else(Vec::new, |h| h.as_bytes().to_vec());
             return (
                 output_key_material,
                 KekParams {

@@ -2190,19 +2190,18 @@ pub fn codegen(
                             .push(("plain-block".to_string(), String::new()));
                     }
                     "dedent" => {
-                        if block_stack
-                            .last()
-                            .is_some_and(|b| b.0 == "ident-r-v")
-                        {
-                            codegen_routine_definition_pre_end(
-                                target_lang,
-                                &block_stack.last().unwrap().0,
-                                debug_build,
-                                codegen_indent,
-                                &mut output,
-                                &mut codegen_new_line,
-                                &mut codegen_newline_looking_for_spaces,
-                            )?;
+                        if let Some(last_block) = block_stack.last() {
+                            if last_block.0 == "ident-r-v" {
+                                codegen_routine_definition_pre_end(
+                                    target_lang,
+                                    &last_block.0,
+                                    debug_build,
+                                    codegen_indent,
+                                    &mut output,
+                                    &mut codegen_new_line,
+                                    &mut codegen_newline_looking_for_spaces,
+                                )?;
+                            }
                         }
                         codegen_dedent_action(
                             target_lang,

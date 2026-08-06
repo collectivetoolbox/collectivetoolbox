@@ -28,15 +28,12 @@ pub fn char_at(s: &str, index: usize) -> String {
 
 pub fn set_char_at(s: &str, index: usize, ch: &str) -> String {
     assert!(ch.chars().count() == 1, "Replacement must be single char");
+    let Some(replacement) = ch.chars().next() else {
+        return s.to_string();
+    };
     s.chars()
         .enumerate()
-        .map(|(i, c)| {
-            if i == index {
-                ch.chars().next().unwrap()
-            } else {
-                c
-            }
-        })
+        .map(|(i, c)| if i == index { replacement } else { c })
         .collect()
 }
 
@@ -170,36 +167,18 @@ pub fn str_split(input: &str, separator: &str) -> Vec<String> {
         } else {
             // Consume one character
             let mut char_indices = remaining.char_indices();
-            let (_, _first_char) = char_indices.next().unwrap(); // safe
+            let Some((_, _first_char)) = char_indices.next() else {
+                // I don't think we could ever hit this branch because it's in a !remaining.is_empty() loop.
+                unreachable!();
+            };
             let next_index =
                 char_indices.next().map_or(remaining.len(), |(i, _)| i);
             let ch_str = remaining.get(..next_index).unwrap_or("");
-            if out.is_empty()
-                || !out.is_empty()
-                    && (out.last().unwrap().is_empty()
-                        && input.starts_with(separator))
-            {
-                // Append to a pending token if we started one; otherwise create one.
-            }
-            if out.is_empty()
-                || (out.last().is_some_and(std::string::String::is_empty)
-                    && input.starts_with(separator))
-            {
-                // Usually we only append when we already started; but simpler approach:
-            }
             // We append the char to a "current" token: emulate original incremental building.
-            if out.is_empty() {
-                out.push(ch_str.to_string());
+            if let Some(last_token) = out.last_mut() {
+                last_token.push_str(ch_str);
             } else {
-                // If last addition was due to encountering a separator, it created a new empty token.
-                if out.last().unwrap().is_empty() && remaining == input {
-                    out.last_mut().unwrap().push_str(ch_str);
-                } else if out.last().unwrap().is_empty() {
-                    out.last_mut().unwrap().push_str(ch_str);
-                } else {
-                    // Continue growing the last token.
-                    out.last_mut().unwrap().push_str(ch_str);
-                }
+                out.push(ch_str.to_string());
             }
             remaining = remaining.get(next_index..).unwrap_or("");
         }

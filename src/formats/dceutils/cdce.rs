@@ -15,11 +15,17 @@ pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
     let utf32_bytes = ctb_formats_encoding::unicode::utf8_to_utf32be(data)
         .map_err(|e| anyhow!("iconv conversion failed: {e}"))?;
 
-    let codepoints: Vec<u32> = utf32_bytes
-        .chunks_exact(4)
+    let chunks = utf32_bytes.chunks_exact(4);
+    if !chunks.remainder().is_empty() {
+        bail!("UTF-32BE payload length is not a multiple of 4");
+    }
+
+    let codepoints: Vec<u32> = chunks
         .map(|chunk| {
-            let bytes: [u8; 4] = chunk.try_into().unwrap();
-            u32::from_be_bytes(bytes)
+            let &[b0, b1, b2, b3] = chunk else {
+                return 0;
+            };
+            u32::from_be_bytes([b0, b1, b2, b3])
         })
         .collect();
 

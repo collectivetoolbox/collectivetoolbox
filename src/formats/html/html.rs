@@ -19,15 +19,14 @@ pub(crate) fn get_html_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&HTML_DATA_DIR, key)
 }
 
-pub fn html2text(html: Vec<u8>) -> Vec<u8> {
+pub fn html2text(html: Vec<u8>) -> Result<Vec<u8>> {
     html2text_with_width(html, 80)
 }
 
-pub fn html2text_with_width(html: Vec<u8>, width: u16) -> Vec<u8> {
-    from_read(html.as_slice(), width.into())
-        .unwrap()
-        .as_bytes()
-        .to_vec()
+pub fn html2text_with_width(html: Vec<u8>, width: u16) -> Result<Vec<u8>> {
+    let text = from_read(html.as_slice(), width.into())
+        .map_err(|e| anyhow::anyhow!("Failed to parse HTML to text: {e}"))?;
+    Ok(text.into_bytes())
 }
 
 pub fn sanitize_html(document: Vec<u8>) -> Vec<u8> {

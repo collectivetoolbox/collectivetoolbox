@@ -610,13 +610,11 @@ pub async fn post_nodes_publish(
         };
 
         let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(
-            reqwest::header::COOKIE,
-            reqwest::header::HeaderValue::from_str(&format!(
-                "session={global_token}"
-            ))
-            .unwrap(),
-        );
+        if let Ok(header_val) = reqwest::header::HeaderValue::from_str(&format!(
+            "session={global_token}"
+        )) {
+            headers.insert(reqwest::header::COOKIE, header_val);
+        }
 
         match client.post(&remote_url, package_bytes, Some(headers)).await {
             Ok(resp) => {

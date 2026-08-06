@@ -228,7 +228,9 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
         std::io::Write::flush(&mut std::io::stdout())?;
 
         let start = std::time::Instant::now();
-        let obj = val.as_object().unwrap();
+        let Some(obj) = val.as_object() else {
+            continue;
+        };
         let result =
             obj.call(&boa_engine::JsValue::undefined(), &[], &mut context);
 

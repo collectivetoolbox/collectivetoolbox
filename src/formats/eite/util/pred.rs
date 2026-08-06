@@ -25,11 +25,10 @@ pub fn is_char_str(s: &str) -> bool {
     if s.chars().count() != 1 {
         return false;
     }
-    let b = byte_from_stagel_char(s);
-    if let Err(_) = b {
+    let Ok(b) = byte_from_stagel_char(s) else {
         return false;
-    }
-    is_char_byte(i32::from(b.unwrap()))
+    };
+    is_char_byte(i32::from(b))
 }
 
 // ---------------
@@ -37,11 +36,10 @@ pub fn is_char_str(s: &str) -> bool {
 // ---------------
 
 pub fn is_valid_ident(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
     let mut chars = s.chars();
-    let first = chars.next().unwrap();
+    let Some(first) = chars.next() else {
+        return false;
+    };
     if !first.is_ascii_lowercase() {
         return false;
     }

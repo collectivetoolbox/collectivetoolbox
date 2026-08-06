@@ -263,7 +263,7 @@ fn generate_help_bytes() -> Vec<u8> {
     // let mut buf = Vec::new();
     // cmd.write_help(&mut buf).unwrap();
     // buf
-    get_help_for_tty(get_width())
+    get_help_for_tty(get_width()).unwrap_or_default()
 }
 
 /// Return the width of the terminal

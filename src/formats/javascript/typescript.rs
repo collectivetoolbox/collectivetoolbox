@@ -274,13 +274,14 @@ pub fn ts_check_files(
 
     for line in tsc_result.output.lines() {
         if let Some(captures) = error_re.captures(line) {
-            let file_path_str = captures.get(1).unwrap().as_str();
+            let file_path_str = captures.get(1).map_or("", |m| m.as_str());
             let line_num: usize =
-                captures.get(2).unwrap().as_str().parse().unwrap_or(0);
+                captures.get(2).map_or(0, |m| m.as_str().parse().unwrap_or(0));
             let col_num: usize =
-                captures.get(3).unwrap().as_str().parse().unwrap_or(0);
-            let code_str = captures.get(4).unwrap().as_str();
-            let message = captures.get(5).unwrap().as_str().to_string();
+                captures.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            let code_str = captures.get(4).map_or("", |m| m.as_str());
+            let message =
+                captures.get(5).map_or_else(String::new, |m| m.as_str().to_string());
 
             let file_path = PathBuf::from(file_path_str);
             let mut suffix_components = Vec::new();
