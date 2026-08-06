@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 
-# Automake/autoreconf are required
-# It probably also requires python because of X11 (sigh)
+# Curl is required
 # Debian dependencies:
 
 # sudo dpkg --add-architecture i386
 # sudo apt-get update
-# sudo apt-get install build-essential libssl-dev musl-tools bison patch perl
-# sudo apt-get install gcc-multilib libssl-dev:i386 musl-dev:i386
+# sudo apt-get install build-essential musl-tools patch perl curl
+# sudo apt-get install gcc-multilib musl-dev:i386
 # sudo apt-get install mingw-w64
-# sudo apt-get install libwayland-dev libwayland-dev:i386
-# sudo apt-get install meson ninja-build libffi-dev libffi-dev:i386 libexpat1-dev libexpat1-dev:i386
 
 # Vendored X11 dependencies:
 # https://packages.debian.org/trixie/libxi-dev
