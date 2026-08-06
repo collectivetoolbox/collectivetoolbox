@@ -28,6 +28,8 @@ enum Nodes {
     Data,
     #[iden(rename = "checksum")]
     Checksum,
+    #[iden(rename = "timestamp")]
+    Timestamp,
 }
 
 /// Insert a node into the user's graph database.
@@ -97,6 +99,12 @@ pub async fn insert_node(
     let id_blob = id.to_be_bytes().to_vec();
     let graph_id_blob = graph_id.to_be_bytes().to_vec();
 
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_micros();
+    let timestamp_blob = timestamp.to_be_bytes().to_vec();
+
     let (sql, values) = Query::insert()
         .into_table(Nodes::Table)
         .columns([
@@ -105,6 +113,7 @@ pub async fn insert_node(
             Nodes::Type,
             Nodes::Data,
             Nodes::Checksum,
+            Nodes::Timestamp,
         ])
         .values_panic([
             id_blob.into(),
@@ -112,6 +121,7 @@ pub async fn insert_node(
             u32::from(node_type).into(),
             data.into(),
             checksum.into(),
+            timestamp_blob.into(),
         ])
         .build(SqliteQueryBuilder);
 
@@ -251,6 +261,7 @@ pub async fn get_node_dto(
             Nodes::Type,
             Nodes::Data,
             Nodes::Checksum,
+            Nodes::Timestamp,
         ])
         .from(Nodes::Table)
         .and_where(Expr::col(Nodes::Id).eq(id_blob))
@@ -266,6 +277,7 @@ pub async fn get_node_dto(
         let mut type_val = NodeType::Data;
         let mut data_val = Vec::new();
         let mut checksum_val = None;
+        let mut timestamp_val = 0u128;
 
         if let Ok(Value::Blob(b)) = row.get_value(0) {
             id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
@@ -292,6 +304,22 @@ pub async fn get_node_dto(
         if let Ok(Value::Blob(b)) = row.get_value(4) {
             checksum_val = Some(b);
         }
+        match row.get_value(5) {
+            Ok(Value::Blob(b)) => {
+                if b.len() == 16 {
+                    timestamp_val =
+                        u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+                } else if b.len() == 8 {
+                    timestamp_val = u128::from(u64::from_be_bytes(
+                        b.try_into().unwrap_or([0; 8]),
+                    ));
+                }
+            }
+            Ok(Value::Integer(i)) => {
+                timestamp_val = u128::try_from(i).unwrap_or(0);
+            }
+            _ => {}
+        }
 
         return Ok(Some(::ctb_utilities::ipc::service_traits::storage::Node {
             id: id_val,
@@ -299,6 +327,7 @@ pub async fn get_node_dto(
             node_type: type_val.to_dto(),
             data: data_val,
             checksum: checksum_val,
+            timestamp: timestamp_val,
         }));
     }
     Ok(None)
@@ -320,6 +349,7 @@ pub async fn list_nodes(
             Nodes::Type,
             Nodes::Data,
             Nodes::Checksum,
+            Nodes::Timestamp,
         ])
         .from(Nodes::Table)
         .order_by(Nodes::Id, sea_query::Order::Desc)
@@ -335,6 +365,7 @@ pub async fn list_nodes(
         let mut type_val = NodeType::Data;
         let mut data_val = Vec::new();
         let mut checksum_val = None;
+        let mut timestamp_val = 0u128;
 
         if let Ok(Value::Blob(b)) = row.get_value(0) {
             id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
@@ -361,6 +392,22 @@ pub async fn list_nodes(
         if let Ok(Value::Blob(b)) = row.get_value(4) {
             checksum_val = Some(b);
         }
+        match row.get_value(5) {
+            Ok(Value::Blob(b)) => {
+                if b.len() == 16 {
+                    timestamp_val =
+                        u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+                } else if b.len() == 8 {
+                    timestamp_val = u128::from(u64::from_be_bytes(
+                        b.try_into().unwrap_or([0; 8]),
+                    ));
+                }
+            }
+            Ok(Value::Integer(i)) => {
+                timestamp_val = u128::try_from(i).unwrap_or(0);
+            }
+            _ => {}
+        }
 
         list.push(::ctb_utilities::ipc::service_traits::storage::Node {
             id: id_val,
@@ -368,6 +415,7 @@ pub async fn list_nodes(
             node_type: type_val.to_dto(),
             data: data_val,
             checksum: checksum_val,
+            timestamp: timestamp_val,
         });
     }
     Ok(list)

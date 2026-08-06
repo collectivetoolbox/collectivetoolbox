@@ -110,6 +110,7 @@ pub struct Node {
     pub node_type: NodeType,
     pub data: Vec<u8>,
     pub checksum: Option<Vec<u8>>,
+    pub timestamp: u128,
 }
 
 impl Node {
@@ -148,6 +149,7 @@ impl Node {
             node_type: self.node_type.to_dto(),
             data: self.data.clone(),
             checksum: self.checksum.clone(),
+            timestamp: self.timestamp,
         }
     }
 
@@ -185,10 +187,14 @@ impl Node {
     /// local and global checksums match, and mutates the local node to a system
     /// redirect node.
     pub fn to_packaged_node(&self) -> Result<Vec<u8>> {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let timestamp = if self.timestamp > 0 {
+            self.timestamp
+        } else {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_micros()
+        };
 
         crate::packaged_node::serialize_packaged_node(
             self.node_type,
@@ -260,6 +266,7 @@ impl From<ctb_utilities::ipc::service_traits::storage::Node> for Node {
             node_type: NodeType::from_dto(dto.node_type),
             data: dto.data,
             checksum: dto.checksum,
+            timestamp: dto.timestamp,
         }
     }
 }

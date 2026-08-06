@@ -18,6 +18,7 @@ use ctb_formats_troff::convert_man_troff_to_html;
 use ctb_utilities::string::remove_suffix_unchecked;
 use encre_css::{Config, Preflight};
 use handlebars::Handlebars;
+use include_dir::{Dir, include_dir};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -33,6 +34,14 @@ pub mod packaged_node;
 mod resource_bundle;
 mod secret;
 pub use models::graph::get_global_graph;
+
+static STORAGE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+pub(crate) fn get_storage_data(
+    key: &str,
+) -> Option<&'static include_dir::File<'static>> {
+    STORAGE_DATA_DIR.get_file(key)
+}
 
 pub fn put(key: Vec<u8>, value: Vec<u8>) {
     println!(

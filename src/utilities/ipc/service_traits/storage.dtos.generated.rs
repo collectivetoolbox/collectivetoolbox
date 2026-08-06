@@ -9,6 +9,7 @@ pub struct Node {
     pub node_type: NodeType,
     pub data: Vec < u8 >,
     pub checksum: Option < Vec < u8 > >,
+    pub timestamp: u128,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]

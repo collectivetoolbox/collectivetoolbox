@@ -11,6 +11,7 @@ fn to_ctb_storage_node(v: &::ctb_utilities::ipc::service_traits::storage::Node) 
         node_type: to_ctb_storage_node_type(&v.node_type),
         data: v.data.clone(),
         checksum: v.checksum.clone(),
+        timestamp: v.timestamp.clone(),
     }
 }
 

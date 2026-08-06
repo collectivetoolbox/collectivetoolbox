@@ -17,6 +17,7 @@ pub mod m2026_07_02_1_add_user_subscription;
 pub mod m2026_07_05_1_add_client_sync_tables;
 pub mod m2026_07_05_2_create_server_sync_tables;
 pub mod m2026_07_05_3_add_user_remote_status;
+pub mod m2026_08_06_1_add_node_timestamp;
 
 /// Represents a database schema migration.
 pub struct Migration {
@@ -54,6 +55,11 @@ pub static NODES_MIGRATIONS: &[Migration] = &[
         name: m2026_07_05_1_add_client_sync_tables::NAME,
         description: m2026_07_05_1_add_client_sync_tables::DESCRIPTION,
         up_sql: m2026_07_05_1_add_client_sync_tables::UP_SQL,
+    },
+    Migration {
+        name: m2026_08_06_1_add_node_timestamp::NAME,
+        description: m2026_08_06_1_add_node_timestamp::DESCRIPTION,
+        up_sql: m2026_08_06_1_add_node_timestamp::UP_SQL,
     },
 ];
 
@@ -143,6 +149,10 @@ async fn run_rust_migration(
             m2026_07_05_1_add_client_sync_tables::run_rust_migration(conn)
                 .await?;
         }
+        (DbSchemaType::Nodes, m2026_08_06_1_add_node_timestamp::NAME) => {
+            m2026_08_06_1_add_node_timestamp::run_rust_migration(conn)
+                .await?;
+        }
         (DbSchemaType::Sync, m2026_07_05_2_create_server_sync_tables::NAME) => {
             m2026_07_05_2_create_server_sync_tables::run_rust_migration(conn)
                 .await?;
@@ -225,6 +235,11 @@ pub async fn run_migrations(
                         if m.name == m2026_06_30_3_checksum::NAME {
                             let has_checksum = check_column_exists(conn, "nodes", "checksum").await?;
                             if !has_checksum {
+                                conn.execute(sql, ()).await?;
+                            }
+                        } else if m.name == m2026_08_06_1_add_node_timestamp::NAME {
+                            let has_timestamp = check_column_exists(conn, "nodes", "timestamp").await?;
+                            if !has_timestamp {
                                 conn.execute(sql, ()).await?;
                             }
                         } else {

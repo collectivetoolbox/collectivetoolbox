@@ -84,12 +84,18 @@ impl Graph {
             Some(Sha256::digest(&converted_data).to_vec())
         };
 
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_micros();
+
         Ok(Node {
             id: node_id,
             graph_id: self.graph_id,
             node_type,
             data: converted_data,
             checksum,
+            timestamp,
         })
     }
 

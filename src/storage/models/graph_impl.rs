@@ -27,6 +27,8 @@ enum Nodes {
     Data,
     #[iden(rename = "checksum")]
     Checksum,
+    #[iden(rename = "timestamp")]
+    Timestamp,
 }
 
 #[derive(sea_query::Iden)]
@@ -169,6 +171,7 @@ pub async fn publish_packaged_node_to_global(
             Nodes::Type,
             Nodes::Data,
             Nodes::Checksum,
+            Nodes::Timestamp,
         ])
         .values_panic([
             allocated_id.to_be_bytes().to_vec().into(),
@@ -176,6 +179,7 @@ pub async fn publish_packaged_node_to_global(
             u32::from(pkg.node_type).into(),
             pkg.body.into(),
             pkg.checksum.to_vec().into(),
+            pkg.timestamp.to_be_bytes().to_vec().into(),
         ])
         .build(SqliteQueryBuilder);
 

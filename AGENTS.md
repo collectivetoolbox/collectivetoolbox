@@ -9,6 +9,7 @@
 - Don't bother running `cargo check` commands, `cargo test` commands, or the ./test script when making front-end changes.
 - During development, you can use `./lint --quick` to check JS types.
 - Note that you may need to run `killall ctoolbox` or similar to exit the server process (which generally runs until it is shut down).
+- Your operator will sometimes be involved in the coding as you work. If you see edits come in as you're working on files, don't revert them: instead, re-read them and collaboratively take into account the direction of the edits.
 
 ## Standards and Style Guide
 - Use the `anyhow` crate for error handling in new code, and avoid panics.

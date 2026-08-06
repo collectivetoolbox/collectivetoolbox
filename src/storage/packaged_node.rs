@@ -3,6 +3,7 @@
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
+use crate::get_storage_data;
 use crate::utilities::*;
 use uuid::Uuid;
 
@@ -17,7 +18,7 @@ pub const NODE_SYSTEM_UUID: Uuid =
 
 pub struct PackagedNode {
     pub node_type: NodeType,
-    pub timestamp: u64,
+    pub timestamp: u128,
     pub checksum: [u8; 32],
     pub original_node_id: u128,
     pub original_graph_id: u128,
@@ -26,19 +27,19 @@ pub struct PackagedNode {
 
 pub fn serialize_packaged_node(
     node_type: NodeType,
-    timestamp: u64,
+    timestamp: u128,
     checksum: &[u8],
     original_node_id: u128,
     original_graph_id: u128,
     body: &[u8],
 ) -> Result<Vec<u8>> {
-    let mut out = Vec::with_capacity(97_usize.saturating_add(body.len()));
+    let mut out = Vec::with_capacity(105_usize.saturating_add(body.len()));
 
     // 1. Magic
     out.extend_from_slice(b"CTBNODE\x00");
 
-    // 2. Version
-    out.push(1);
+    // 2. Version (bumped to 2 for u128 high-resolution timestamp)
+    out.push(2);
 
     // 3. Node type UUID
     let type_uuid = match node_type {
@@ -48,7 +49,7 @@ pub fn serialize_packaged_node(
     };
     out.extend_from_slice(type_uuid.as_bytes());
 
-    // 4. Timestamp
+    // 4. Timestamp (u128, 16 bytes little-endian)
     out.extend_from_slice(&timestamp.to_le_bytes());
 
     // 5. Checksum
@@ -87,61 +88,140 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 
     // 2. Version
     let version = *bytes.get(8).context("Missing version byte")?;
-    if version != 1 {
-        anyhow::bail!("Unsupported packaged node version: {version}");
+
+    match version {
+        1 => {
+            if bytes.len() < 97 {
+                anyhow::bail!(
+                    "Version 1 package too small: minimum size is 97 bytes"
+                );
+            }
+
+            // 3. UUID
+            let type_uuid_bytes: [u8; 16] = bytes
+                .get(9..25)
+                .context("Missing type UUID bytes")?
+                .try_into()?;
+            let type_uuid = Uuid::from_bytes(type_uuid_bytes);
+            let node_type = match type_uuid {
+                NODE_DATA_UUID => NodeType::Data,
+                NODE_STATEMENTS_UUID => NodeType::Statements,
+                NODE_SYSTEM_UUID => NodeType::System,
+                other => anyhow::bail!(
+                    "Unsupported packaged node type UUID: {other}"
+                ),
+            };
+
+            // 4. Timestamp (v1 used u64)
+            let timestamp_bytes: [u8; 8] = bytes
+                .get(25..33)
+                .context("Missing timestamp bytes")?
+                .try_into()?;
+            let timestamp_u64 = u64::from_le_bytes(timestamp_bytes);
+            let timestamp = if timestamp_u64 < 10_000_000_000 {
+                u128::from(timestamp_u64).saturating_mul(1_000_000)
+            } else {
+                u128::from(timestamp_u64)
+            };
+
+            // 5. Checksum
+            let checksum: [u8; 32] = bytes
+                .get(33..65)
+                .context("Missing checksum bytes")?
+                .try_into()?;
+
+            // 6. Original Node ID
+            let original_node_id_bytes: [u8; 16] = bytes
+                .get(65..81)
+                .context("Missing original node ID bytes")?
+                .try_into()?;
+            let original_node_id = u128::from_le_bytes(original_node_id_bytes);
+
+            // 7. Original Graph ID
+            let original_graph_id_bytes: [u8; 16] = bytes
+                .get(81..97)
+                .context("Missing original graph ID bytes")?
+                .try_into()?;
+            let original_graph_id =
+                u128::from_le_bytes(original_graph_id_bytes);
+
+            // 8. Body
+            let body = bytes.get(97..).context("Missing body bytes")?.to_vec();
+
+            Ok(PackagedNode {
+                node_type,
+                timestamp,
+                checksum,
+                original_node_id,
+                original_graph_id,
+                body,
+            })
+        }
+        2 => {
+            if bytes.len() < 105 {
+                anyhow::bail!(
+                    "Version 2 package too small: minimum size is 105 bytes"
+                );
+            }
+
+            // 3. UUID
+            let type_uuid_bytes: [u8; 16] = bytes
+                .get(9..25)
+                .context("Missing type UUID bytes")?
+                .try_into()?;
+            let type_uuid = Uuid::from_bytes(type_uuid_bytes);
+            let node_type = match type_uuid {
+                NODE_DATA_UUID => NodeType::Data,
+                NODE_STATEMENTS_UUID => NodeType::Statements,
+                NODE_SYSTEM_UUID => NodeType::System,
+                other => anyhow::bail!(
+                    "Unsupported packaged node type UUID: {other}"
+                ),
+            };
+
+            // 4. Timestamp (v2 uses u128)
+            let timestamp_bytes: [u8; 16] = bytes
+                .get(25..41)
+                .context("Missing timestamp bytes")?
+                .try_into()?;
+            let timestamp = u128::from_le_bytes(timestamp_bytes);
+
+            // 5. Checksum
+            let checksum: [u8; 32] = bytes
+                .get(41..73)
+                .context("Missing checksum bytes")?
+                .try_into()?;
+
+            // 6. Original Node ID
+            let original_node_id_bytes: [u8; 16] = bytes
+                .get(73..89)
+                .context("Missing original node ID bytes")?
+                .try_into()?;
+            let original_node_id = u128::from_le_bytes(original_node_id_bytes);
+
+            // 7. Original Graph ID
+            let original_graph_id_bytes: [u8; 16] = bytes
+                .get(89..105)
+                .context("Missing original graph ID bytes")?
+                .try_into()?;
+            let original_graph_id =
+                u128::from_le_bytes(original_graph_id_bytes);
+
+            // 8. Body
+            let body =
+                bytes.get(105..).context("Missing body bytes")?.to_vec();
+
+            Ok(PackagedNode {
+                node_type,
+                timestamp,
+                checksum,
+                original_node_id,
+                original_graph_id,
+                body,
+            })
+        }
+        other => anyhow::bail!("Unsupported packaged node version: {other}"),
     }
-
-    // 3. UUID
-    let type_uuid_bytes: [u8; 16] = bytes
-        .get(9..25)
-        .context("Missing type UUID bytes")?
-        .try_into()?;
-    let type_uuid = Uuid::from_bytes(type_uuid_bytes);
-    let node_type = match type_uuid {
-        NODE_DATA_UUID => NodeType::Data,
-        NODE_STATEMENTS_UUID => NodeType::Statements,
-        NODE_SYSTEM_UUID => NodeType::System,
-        other => anyhow::bail!("Unsupported packaged node type UUID: {other}"),
-    };
-
-    // 4. Timestamp
-    let timestamp_bytes: [u8; 8] = bytes
-        .get(25..33)
-        .context("Missing timestamp bytes")?
-        .try_into()?;
-    let timestamp = u64::from_le_bytes(timestamp_bytes);
-
-    // 5. Checksum
-    let checksum: [u8; 32] = bytes
-        .get(33..65)
-        .context("Missing checksum bytes")?
-        .try_into()?;
-
-    // 6. Original Node ID
-    let original_node_id_bytes: [u8; 16] = bytes
-        .get(65..81)
-        .context("Missing original node ID bytes")?
-        .try_into()?;
-    let original_node_id = u128::from_le_bytes(original_node_id_bytes);
-
-    // 7. Original Graph ID
-    let original_graph_id_bytes: [u8; 16] = bytes
-        .get(81..97)
-        .context("Missing original graph ID bytes")?
-        .try_into()?;
-    let original_graph_id = u128::from_le_bytes(original_graph_id_bytes);
-
-    // 8. Body
-    let body = bytes.get(97..).context("Missing body bytes")?.to_vec();
-
-    Ok(PackagedNode {
-        node_type,
-        timestamp,
-        checksum,
-        original_node_id,
-        original_graph_id,
-        body,
-    })
 }
 
 #[cfg(test)]
@@ -159,9 +239,9 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_packaged_node_roundtrip() -> Result<()> {
+    fn test_packaged_node_v2_roundtrip() -> Result<()> {
         let node_type = NodeType::Data;
-        let timestamp = 123456789;
+        let timestamp = 1700000000123456u128;
         let checksum = b"12345678901234567890123456789012";
         let original_node_id = 98765432101234567890u128;
         let original_graph_id = 11223344556677889900u128;
@@ -185,6 +265,21 @@ mod tests {
         assert_eq!(deserialized.original_graph_id, original_graph_id);
         assert_eq!(deserialized.body, body.to_vec());
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_deserialize_v1_sample() -> Result<()> {
+        let file = get_storage_data("fixtures/packaged_node_v1_format_sample.ctbn")
+            .context("Missing v1 sample fixture file")?;
+        let bytes = file.contents();
+        let deserialized = deserialize_packaged_node(bytes)?;
+        assert_eq!(deserialized.node_type, NodeType::Data);
+        assert!(deserialized.timestamp > 0);
+        let expected_file =
+            get_storage_data("fixtures/example2 with lemurs.pan")
+                .context("Missing expected body fixture file")?;
+        assert_eq!(deserialized.body, expected_file.contents());
         Ok(())
     }
 }
