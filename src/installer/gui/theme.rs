@@ -180,7 +180,12 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     let proportional = fonts
         .families
         .get_mut(&FontFamily::Proportional)
-        .expect("FontDefinitions contains Proportional family");
+        .unwrap_or_else(|| {
+                eprintln!(
+                    "Fatal error: Could not load Proportional font family. There is a problem in the installer."
+                );
+                std::process::exit(1);
+            });
     proportional.push("Noto-Sans-R".to_owned());
     proportional.push("Noto-Sans-I".to_owned());
     proportional.push("Noto-Sans-B".to_owned());
@@ -197,7 +202,13 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     proportional.push("Noto-Emoji".to_owned());
     proportional.push("Emoji-Icon".to_owned());
 
-    let monospace = fonts.families.entry(FontFamily::Monospace).or_default();
+    let monospace = fonts.families.entry(FontFamily::Monospace)
+        .unwrap_or_else(|| {
+                eprintln!(
+                    "Fatal error: Could not load Monospace font family. There is a problem in the installer."
+                );
+                std::process::exit(1);
+            });
     monospace.push("FiraCode-Regular".to_owned());
     monospace.push("FiraCode-Bold".to_owned());
     monospace.push("Noto-Sans-R".to_owned());
