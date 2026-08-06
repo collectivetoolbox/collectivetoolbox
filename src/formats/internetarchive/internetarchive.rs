@@ -194,42 +194,47 @@ pub fn guess_identifer_from_path(path: &Path) -> Option<String> {
 
 /// If `check_live` is true, fetch the live files XML and verify the local item
 /// against that manifest instead of a local `*_files.xml`.
+/// If `original` is true, only verify files with source="original".
 pub fn verify(
     item_path: &Path,
     identifier: Option<&str>,
     check_live: bool,
+    original: bool,
 ) -> Result<Vec<u8>> {
     let root = normalize_item_root(item_path);
     let identifier = resolve_identifier(item_path, identifier)?;
-    let verification = if check_live {
+    let (manifest, files_xml_live_sha1) = if check_live {
         let live_files_xml_bytes = fetch_live_files_xml_bytes(&identifier)?;
         let manifest =
             parse_files_manifest(&identifier, &live_files_xml_bytes)?;
-        verify_against_manifest(
-            &root,
-            &identifier,
-            &manifest,
-            None,
-            true,
-            &VerificationOptions {
-                files_xml_live_sha1: Some(sha1_hex_for_bytes(
-                    &live_files_xml_bytes,
-                )),
-            },
-        )?
+        let sha1 = Some(sha1_hex_for_bytes(&live_files_xml_bytes));
+        (manifest, sha1)
     } else {
         let manifest = load_local_files_manifest(&root, &identifier)?;
-        verify_against_manifest(
-            &root,
-            &identifier,
-            &manifest,
-            None,
-            true,
-            &VerificationOptions {
-                files_xml_live_sha1: None,
-            },
-        )?
+        (manifest, None)
     };
+    let selected_files = if original {
+        Some(
+            manifest
+                .entries
+                .values()
+                .filter(|entry| entry.source.as_deref() == Some("original"))
+                .map(|entry| entry.name.clone())
+                .collect::<BTreeSet<_>>(),
+        )
+    } else {
+        None
+    };
+    let verification = verify_against_manifest(
+        &root,
+        &identifier,
+        &manifest,
+        selected_files.as_ref(),
+        true,
+        &VerificationOptions {
+            files_xml_live_sha1,
+        },
+    )?;
     pretty_json_bytes(&verification)
 }
 
@@ -374,31 +379,62 @@ fn download_with_client(
     pretty_json_bytes(&result)
 }
 
-pub fn checkeddl(target: &str, output_dir: Option<&Path>) -> Result<Vec<u8>> {
-    checkeddl_with_client(&LiveArchiveClient, target, output_dir)
+pub fn checkeddl(
+    target: &str,
+    output_dir: Option<&Path>,
+    original: bool,
+) -> Result<Vec<u8>> {
+    checkeddl_with_client(&LiveArchiveClient, target, output_dir, original)
 }
 
 fn checkeddl_with_client(
     client: &dyn ArchiveClient,
     target: &str,
     output_dir: Option<&Path>,
+    original: bool,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
     let item_directory = base_output_dir.join(&archive_target.identifier);
 
-    let _ = download_with_client(client, target, Some(&base_output_dir), false)?;
+    let _ = download_with_client(client, target, Some(&base_output_dir), original)?;
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
+    let files_xml_path = item_directory.join(format!(
+        "{}{FILES_XML_SUFFIX}",
+        archive_target.identifier
+    ));
+    if !files_xml_path.exists() {
+        let _ = fs::write(&files_xml_path, &live_files_xml_bytes);
+    }
     let manifest = parse_files_manifest(
         &archive_target.identifier,
         &live_files_xml_bytes,
     )?;
-    let selected_files = archive_target.archive_path.clone().map(|file_name| {
+    let selected_files = if let Some(file_name) = archive_target.archive_path.clone() {
         let mut files = BTreeSet::new();
-        files.insert(file_name);
-        files
-    });
+        if !original
+            || manifest
+                .entries
+                .get(&file_name)
+                .and_then(|entry| entry.source.as_deref())
+                == Some("original")
+        {
+            files.insert(file_name);
+        }
+        Some(files)
+    } else if original {
+        Some(
+            manifest
+                .entries
+                .values()
+                .filter(|entry| entry.source.as_deref() == Some("original"))
+                .map(|entry| entry.name.clone())
+                .collect(),
+        )
+    } else {
+        None
+    };
     let verification = verify_against_manifest(
         &item_directory,
         &archive_target.identifier,
@@ -1265,7 +1301,7 @@ mod tests {
     fn test_verify() {
         let temp_dir = tempfile::tempdir().unwrap();
         let item_path = write_basic_item(&temp_dir);
-        let result = verify(&item_path, None, false).unwrap();
+        let result = verify(&item_path, None, false, false).unwrap();
         let result_str = String::from_utf8(result).unwrap();
         assert!(result_str.starts_with("{\n"));
         let result_json: serde_json::Value =
@@ -1277,12 +1313,31 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_verify_original() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let item_path = temp_dir.path().join(TEST_IDENTIFIER);
+        fs::create_dir_all(&item_path).unwrap();
+        fs::write(item_path.join(AUDIO_FILE_NAME), b"hello").unwrap();
+        fs::write(
+            item_path.join(format!("{TEST_IDENTIFIER}{FILES_XML_SUFFIX}")),
+            fixture_xml(),
+        )
+        .unwrap();
+
+        let result = verify(&item_path, None, false, true).unwrap();
+        let result_json: serde_json::Value =
+            serde_json::from_slice(&result).unwrap();
+        assert_eq!(result_json["valid"], true);
+        assert_eq!(result_json["missing_files"], serde_json::json!([]));
+    }
+
+    #[crate::ctb_test]
     fn test_verify_reports_mismatch() {
         let temp_dir = tempfile::tempdir().unwrap();
         let item_path = write_basic_item(&temp_dir);
         fs::write(item_path.join(AUDIO_FILE_NAME), b"HELLO").unwrap();
 
-        let result = verify(&item_path, None, false).unwrap();
+        let result = verify(&item_path, None, false, false).unwrap();
         let result_json: serde_json::Value =
             serde_json::from_slice(&result).unwrap();
 
@@ -1356,7 +1411,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let item_path = write_basic_item(&temp_dir);
 
-        let result = verify(&item_path, None, false).unwrap();
+        let result = verify(&item_path, None, false, false).unwrap();
         let result_json: serde_json::Value =
             serde_json::from_slice(&result).unwrap();
 
@@ -1538,6 +1593,7 @@ mod tests {
             &fixture_client(),
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1548,5 +1604,27 @@ mod tests {
             result_json["checked_files"],
             serde_json::json!([AUDIO_FILE_NAME])
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_checkeddl_with_client_original() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let result = checkeddl_with_client(
+            &fixture_client(),
+            TEST_IDENTIFIER,
+            Some(temp_dir.path()),
+            true,
+        )
+        .unwrap();
+        let result_json: serde_json::Value =
+            serde_json::from_slice(&result).unwrap();
+
+        assert_eq!(result_json["valid"], true);
+        let checked = result_json["checked_files"].as_array().unwrap();
+        assert_eq!(checked.len(), 2);
+        assert!(checked.contains(&serde_json::json!(AUDIO_FILE_NAME)));
+        assert!(checked.contains(&serde_json::json!(format!(
+            "{TEST_IDENTIFIER}{FILES_XML_SUFFIX}"
+        ))));
     }
 }

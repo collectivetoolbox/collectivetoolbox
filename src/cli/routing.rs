@@ -78,6 +78,9 @@ pub enum IACommand {
         /// local copy.
         #[arg(long)]
         check_live: bool,
+        /// Only verify files with source="original".
+        #[arg(long)]
+        original: bool,
     },
     /// Print the expected sha1 for a file in an Internet Archive item.
     Sha1 {
@@ -165,6 +168,9 @@ pub enum IACommand {
         /// Destination directory. Defaults to the current directory.
         #[arg(long)]
         output_dir: Option<PathBuf>,
+        /// Only download and verify files with source="original".
+        #[arg(long)]
+        original: bool,
     },
 }
 
@@ -764,6 +770,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 item_path,
                 identifier,
                 check_live,
+                original,
             } => {
                 let item_path = if let Some(item_path) = item_path {
                     item_path.clone()
@@ -776,6 +783,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                         item_path.as_path(),
                         identifier.as_deref(),
                         *check_live,
+                        *original,
                     )?,
                 ))
             }
@@ -845,11 +853,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                     )?,
                 ))
             }
-            IACommand::Checkeddl { target, output_dir } => {
+            IACommand::Checkeddl {
+                target,
+                output_dir,
+                original,
+            } => {
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::checkeddl(
                         target,
                         output_dir.as_deref(),
+                        *original,
                     )?,
                 ))
             }
