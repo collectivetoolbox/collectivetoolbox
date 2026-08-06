@@ -4,15 +4,22 @@
 //! remote global graph server. Ensures session tokens are handled transiently
 //! at request boundaries.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use anyhow::{Context, Result, anyhow};
 
-/// Remote API client for interacting with the global node graph server.
-pub struct ApiClient;
+/// Remote API client for interacting with node operations on the global graph server.
+pub struct NodeApiClient;
 
-impl ApiClient {
+/// Alias for backwards compatibility.
+pub type ApiClient = NodeApiClient;
+
+impl NodeApiClient {
     /// Publish a packaged node binary to the remote global graph server.
     pub async fn publish_packaged_node(
         global_session_token: &str,
@@ -26,13 +33,7 @@ impl ApiClient {
             ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
         });
 
-        let mut remote_url = format!(
-            "{}/api/nodes/0/0/publish",
-            server_url.trim_end_matches('/')
-        );
-        if let Some(tid) = target_id {
-            remote_url.push_str(&format!("?target_id={tid}"));
-        }
+        let remote_url = Self::build_publish_url(&server_url, target_id);
 
         let client = ctb_utilities::https::async_client(Default::default())
             .context("Failed to create HTTPS client")?;
@@ -58,19 +59,7 @@ impl ApiClient {
             .text()
             .await
             .context("Failed to read publish server response")?;
-        let val: serde_json::Value =
-            serde_json::from_str(&body_text).unwrap_or(serde_json::Value::Null);
-
-        let alloc_id_str = val
-            .get("allocated_id")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Invalid server response structure: missing allocated_id"))?;
-
-        let allocated_id = alloc_id_str
-            .parse::<u128>()
-            .map_err(|e| anyhow!("Failed to parse allocated ID: {e}"))?;
-
-        Ok(allocated_id)
+        Self::parse_publish_response(&body_text)
     }
 
     /// Fetch the remote checksum of a published node on the global graph server.
@@ -82,10 +71,7 @@ impl ApiClient {
             ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
         });
 
-        let remote_url = format!(
-            "{}/api/nodes/0/{allocated_id}/checksum",
-            server_url.trim_end_matches('/')
-        );
+        let remote_url = Self::build_checksum_url(&server_url, allocated_id);
 
         let client = ctb_utilities::https::async_client(Default::default())
             .context("Failed to create HTTPS client")?;
@@ -104,27 +90,116 @@ impl ApiClient {
             .text()
             .await
             .context("Failed to read server checksum response")?;
-        let val: serde_json::Value =
-            serde_json::from_str(&body_text).unwrap_or(serde_json::Value::Null);
+        Self::parse_checksum_response(&body_text)
+    }
 
-        let checksum = val
-            .get("checksum")
+    /// Helper to construct the publish endpoint URL.
+    pub fn build_publish_url(server_url: &str, target_id: Option<u128>) -> String {
+        let base = format!(
+            "{}/api/nodes/0/0/publish",
+            server_url.trim_end_matches('/')
+        );
+        if let Some(tid) = target_id {
+            format!("{base}?target_id={tid}")
+        } else {
+            base
+        }
+    }
+
+    /// Helper to construct the checksum endpoint URL.
+    pub fn build_checksum_url(server_url: &str, allocated_id: u128) -> String {
+        format!(
+            "{}/api/nodes/0/{allocated_id}/checksum",
+            server_url.trim_end_matches('/')
+        )
+    }
+
+    /// Parse allocated node ID from publish server JSON response.
+    pub fn parse_publish_response(body_text: &str) -> Result<u128> {
+        let val: serde_json::Value =
+            serde_json::from_str(body_text).unwrap_or(serde_json::Value::Null);
+
+        let alloc_id_str = val
+            .get("allocated_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("Invalid server response structure: missing allocated_id"))?;
+
+        alloc_id_str
+            .parse::<u128>()
+            .map_err(|e| anyhow!("Failed to parse allocated ID: {e}"))
+    }
+
+    /// Parse checksum string from server checksum JSON response.
+    pub fn parse_checksum_response(body_text: &str) -> Result<String> {
+        let val: serde_json::Value =
+            serde_json::from_str(body_text).unwrap_or(serde_json::Value::Null);
+
+        val.get("checksum")
             .and_then(|v| v.as_str())
             .map(String::from)
-            .ok_or_else(|| anyhow!("Checksum not found in response"))?;
-
-        Ok(checksum)
+            .ok_or_else(|| anyhow!("Checksum not found in response"))
     }
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
-#[crate::ctb_test]
-fn () {
+    #[crate::ctb_test]
+    fn test_build_publish_url() {
+        let url_no_target = NodeApiClient::build_publish_url("https://example.com/", None);
+        assert_eq!(url_no_target, "https://example.com/api/nodes/0/0/publish");
 
-}
+        let url_with_target =
+            NodeApiClient::build_publish_url("https://example.com", Some(8589934595));
+        assert_eq!(
+            url_with_target,
+            "https://example.com/api/nodes/0/0/publish?target_id=8589934595"
+        );
+    }
 
+    #[crate::ctb_test]
+    fn test_build_checksum_url() {
+        let url = NodeApiClient::build_checksum_url("https://example.com/", 42);
+        assert_eq!(url, "https://example.com/api/nodes/0/42/checksum");
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_publish_response_valid() {
+        let json = r#"{"allocated_id": "123456789"}"#;
+        let id = NodeApiClient::parse_publish_response(json).unwrap();
+        assert_eq!(id, 123456789u128);
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_publish_response_invalid() {
+        let json_invalid_field = r#"{"other_field": "123"}"#;
+        assert!(NodeApiClient::parse_publish_response(json_invalid_field).is_err());
+
+        let json_invalid_number = r#"{"allocated_id": "not_a_number"}"#;
+        assert!(NodeApiClient::parse_publish_response(json_invalid_number).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_checksum_response_valid() {
+        let json = r#"{"checksum": "a1b2c3d4e5"}"#;
+        let checksum = NodeApiClient::parse_checksum_response(json).unwrap();
+        assert_eq!(checksum, "a1b2c3d4e5");
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_checksum_response_invalid() {
+        let json_missing = r#"{"status": "ok"}"#;
+        assert!(NodeApiClient::parse_checksum_response(json_missing).is_err());
+    }
 }

@@ -331,3 +331,6 @@ Import/export/tests support columns meaning:
 314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,application/x-pkcs12,".p12, .pfx",com.rsa.pkcs-12,,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 315,AppleSingle,AppleSingle,document,,application/applefile,.as,,,^0x00051600,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
 316,AppleDouble (RFC 1740),AppleDouble,document,,multipart/appledouble,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",,,^0x00051607,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+317,CtbNode,Collective Toolbox serialized node package,document,,,.ctbn,,,,,,,,,,,
+318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,,,.ctbn,,,,,CtbNode,,,,,,
+319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,,,.ctbn,,,,,CtbNode,,,,,,
