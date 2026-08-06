@@ -2564,6 +2564,7 @@ dependencies = [
  "fs2",
  "proc-macro2",
  "quote",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2",

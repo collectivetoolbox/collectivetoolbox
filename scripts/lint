@@ -42,6 +42,9 @@ popd || exit 1
 echo "=== Checking that patched crates are actually being used ==="
 ./scripts/lint-patches || exit 1
 
+echo "=== Checking for newer versions of vendored packages ==="
+./scripts/lint-vendor-versions ${offline} || exit 1
+
 echo "=== Checking for unsafe file writes in tests ==="
 ./scripts/lint-helper || exit 1
 
