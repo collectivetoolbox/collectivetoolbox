@@ -149,10 +149,9 @@ impl QValue {
                     if factor < 1 {
                         return None;
                     }
-                    let digit =
-                        u16::try_from(n).expect("In range?").saturating_sub(
-                            u16::try_from('0').expect("Should be in range"),
-                        );
+                    let n_u16 = u16::try_from(n).ok()?;
+                    let zero_u16 = 0_u16;
+                    let digit = n_u16.saturating_sub(zero_u16);
                     let product = factor.saturating_mul(digit);
                     value = value.saturating_add(product);
                 }

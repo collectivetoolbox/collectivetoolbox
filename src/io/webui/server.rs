@@ -189,10 +189,20 @@ pub fn start_webui_server() -> u16 {
     let port: u16 = if let Some(port) = relevant_port {
         log!("Using fixed port from settings: {}", port);
         port
+    } else if let Some(port) = pick_unused_port() {
+        port
     } else {
-        // Intentionally panicking here
-        pick_unused_port().expect("No ports free")
+        warn!("No ports free; not starting web UI.");
+        return 0;
     };
+     let port: u16 = if let Some(port) = relevant_port {
+         log!("Using fixed port from settings: {}", port);
+         port
+     } else {
+        // Intentionally panicking here
+        #[expect("expect_used", reason="There's no elegant way to recover in this case if the user's expecting the webUI to come up.")]
+        pick_unused_port().expect("No ports free")
+     };
     let bind_to_ip =
         current_settings.get_str(&pc_settings::PcSettingStrKey::BindToIp);
     let bind_to_ip = if let Some(s) = bind_to_ip {

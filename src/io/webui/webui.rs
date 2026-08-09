@@ -98,9 +98,8 @@ pub trait ViewContext: Serialize {
     {
         // Compose self and content into a merged JSON object.
         let mut map = serde_json::to_value(self)
-            .expect("context to be serializable")
-            .as_object()
-            .cloned()
+            .ok()
+            .and_then(|v| v.as_object().cloned())
             .unwrap_or_default();
         map.insert("content".to_string(), Value::String(content));
         Value::Object(map)

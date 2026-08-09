@@ -334,7 +334,9 @@ where
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
-        let state = this.state.as_ref().expect("state present while polling");
+        let Some(state) = this.state.as_ref() else {
+            return Poll::Pending;
+        };
 
         match this.inner.poll(cx) {
             Poll::Pending => Poll::Pending,
@@ -409,9 +411,13 @@ where
                 for (key, value) in &headers {
                     response_with_body = response_with_body.header(key, value);
                 }
+                #[expect(
+                    clippy::expect_used,
+                    reason = "Rebuilding response with cloned headers and status from existing valid response should in principle not fail"
+                )]
                 let response_with_body = response_with_body
                     .body(counting)
-                    .expect("response rebuild");
+                    .expect("response rebuild with valid status and headers");
 
                 // Drop state
                 *this.state = None;
