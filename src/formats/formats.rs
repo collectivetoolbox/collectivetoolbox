@@ -103,7 +103,7 @@ pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
     .hyphenated()
     .to_string()
     .into_bytes();
-    // Fall back to empty slice if document has fewer than 36 bytes for textual UUID representation
+    // Reason for fallback: document may be under 36 bytes, in which case empty slice safely prevents panic during textual UUID check.
     let uuid_string =
         String::from_utf8_lossy(document.get(..36).unwrap_or(&[]))
             .to_string()

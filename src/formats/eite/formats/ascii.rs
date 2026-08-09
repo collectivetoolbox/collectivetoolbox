@@ -55,6 +55,7 @@ pub fn dca_to_ascii(dc_array: &[u32]) -> Result<(Vec<u8>, FormatLog)> {
             continue;
         };
         log.merge(&dc_log);
+        // Reason for fallback: when utf8 byte vector is empty, first_byte is 0, which fails utf8.len() == 1 check and logs unmappable warning.
         let first_byte = utf8.first().copied().unwrap_or(0);
         if utf8.len() == 1 && first_byte <= 0x7F {
             out.push(first_byte);
@@ -151,6 +152,7 @@ pub fn dca_to_ascii_safe_subset(
         // Found ambiguous cr, lf in a row, so only output one crlf
         if dc == 121 {
             let next_dc = if input_index.saturating_add(1) < len {
+                // Reason for fallback: bounds check on line 154 guarantees index is within dc_array bounds.
                 dc_array
                     .get(input_index.saturating_add(1))
                     .copied()
@@ -185,6 +187,7 @@ pub fn dca_to_ascii_safe_subset(
                 input_index = input_index.saturating_add(1);
                 continue;
             }
+            // Reason for fallback: empty check on line 184 guarantees enc contains at least one byte.
             let first_enc = enc.first().copied().unwrap_or(0);
             if enc.len() == 1
                 && is_ascii_safe_subset_char(first_enc)

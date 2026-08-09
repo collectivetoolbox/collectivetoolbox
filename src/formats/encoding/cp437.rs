@@ -140,7 +140,9 @@ fn try_load_mapping(
 
         for row in table.rows_iter() {
             if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
+                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
+                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
                 let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
                     anyhow!("Failed to parse byte hex '{byte_str}': {e}")
@@ -173,7 +175,9 @@ fn try_load_mapping(
 
         for row in table.rows_iter() {
             if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
+                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
                 let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
+                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
                 let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
                 let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
                     anyhow!("Failed to parse byte hex '{byte_str}': {e}")

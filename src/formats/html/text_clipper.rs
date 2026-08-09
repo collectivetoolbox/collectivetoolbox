@@ -52,19 +52,24 @@ pub fn clip(text: &str, len: u64, options: Option<&ClipOptions>) -> String {
         html_mode = true;
     }
 
+    // Reason for fallback: when optional indicator string is omitted, unicode ellipsis "…" is used as default truncation indicator.
     let indicator = common
         .indicator
         .clone()
         .unwrap_or_else(|| "\u{2026}".to_string());
+    // Reason for fallback: when optional insert_indicator_at_linebreak option is omitted, true is default behavior.
     let insert_indicator_at_linebreak =
         common.insert_indicator_at_linebreak.unwrap_or(true);
+    // Reason for fallback: when optional break_words option is omitted, false is default behavior.
     let break_words = common.break_words.unwrap_or(false);
+    // Reason for fallback: when optional max_lines option is omitted, usize::MAX represents unlimited lines.
     let max_lines = common
         .max_lines
         .and_then(|v| usize::try_from(v).ok())
         .unwrap_or(usize::MAX);
 
     if html_mode {
+        // Reason for fallback: when optional image_weight option is omitted, 2 is standard HTML element weight default.
         let image_weight =
             html_options.and_then(|h| h.image_weight).unwrap_or(2);
         let strip_tags = html_options.and_then(|h| h.strip_tags.clone());
@@ -404,6 +409,7 @@ fn is_line_break(units: &[u16], index: usize) -> bool {
             let tag = units
                 .get(name_start..i)
                 .map(units_to_string)
+                // Reason for fallback: name_start < i is checked on line 406 and i <= units.len(), so slice is in bounds; fallback to empty string safely handles invalid slice.
                 .unwrap_or_default()
                 .to_ascii_lowercase();
             if !(is_block_element(&tag) || tag == "br") {
@@ -730,7 +736,7 @@ fn clip_html(
                         .context("num_chars does not fit in i64")?;
                     let max_len_i64 = i64::try_from(max_len)
                         .context("max_len does not fit in i64")?;
-
+                    // Reason for fallback: if arithmetic overflow occurs during clip index calculation, defaulting to 0 safely resets clip position to start of string.
                     let new_i = i64::try_from(i)?
                         .checked_add(next_block_size_i64)
                         .and_then(|v| v.checked_sub(num_chars_i64))
@@ -754,6 +760,7 @@ fn clip_html(
             break;
         };
         if u == TAG_OPEN_CHAR_CODE {
+            // Reason for fallback: if i + 1 is past the end of units vector, 0 is returned which is not '!' (EXCLAMATION_CHAR_CODE), avoiding false positive special tag match.
             let next_u = units.get(i.saturating_add(1)).copied().unwrap_or(0);
             let is_special_tag = next_u == EXCLAMATION_CHAR_CODE;
             if is_special_tag {
@@ -829,6 +836,7 @@ fn clip_html(
                         }
                         is_attribute_value = true;
 
+                        // Reason for fallback: if end_index + 1 is past end of units, 0 is returned which does not match quote characters.
                         let first_attr = units
                             .get(end_index.saturating_add(1))
                             .copied()
@@ -847,6 +855,7 @@ fn clip_html(
                         let tag_name_end =
                             index_of_white_space(&units, tag_name_start)
                                 .min(end_index);
+                        // Reason for fallback: if slice bounds tag_name_start..tag_name_end are invalid, defaulting to empty string results in empty tag name.
                         let mut tag_name = units
                             .get(tag_name_start..tag_name_end)
                             .map(units_to_string)
@@ -901,6 +910,7 @@ fn clip_html(
                                 }
                             }
                         } else if is_void_element(&tag_name)
+                            // Reason for fallback: if end_index is 0, 0 is returned which does not match '/' (FORWARD_SLASH_CHAR_CODE).
                             || units
                                 .get(end_index.saturating_sub(1))
                                 .copied()
@@ -1026,6 +1036,7 @@ fn clip_html(
 
             if peek_index == units.len() || is_line_break(&units, peek_index) {
                 i = i.saturating_add(next_char.len());
+                // Reason for fallback: when index i reaches or exceeds units length, empty vector indicates end of input stream.
                 next_char =
                     units.get(i).copied().map(|u| vec![u]).unwrap_or_default();
             }
@@ -1051,6 +1062,7 @@ fn clip_html(
                 bail!("Invalid HTML: {text}");
             };
 
+            // Reason for fallback: if slice bounds i + 2..tag_end_index fail, defaulting to empty string causes mismatch check with tag_name to trigger bail.
             let between = units
                 .get(i.saturating_add(2)..tag_end_index)
                 .map(units_to_string)
@@ -1067,6 +1079,7 @@ fn clip_html(
                 i = tag_end_index.saturating_add(1);
             }
 
+            // Reason for fallback: when index i reaches or exceeds units length, empty vector indicates end of input stream.
             next_char =
                 units.get(i).copied().map(|u| vec![u]).unwrap_or_default();
         }
@@ -1113,6 +1126,7 @@ fn clip_html(
                 break;
             }
 
+            // Reason for fallback: line 1086 checked i < units.len(), so ..i is in bounds; fallback to empty slice safely handles zero-length prefix.
             let mut out_units = units.get(..i).unwrap_or_default().to_vec();
             if insert_indicator {
                 out_units.extend_from_slice(&indicator_units);
@@ -1135,6 +1149,7 @@ fn clip_html(
             break;
         }
 
+        // Reason for fallback: i is bounded by units length, so ..i is in bounds; fallback to empty slice safely handles zero-length prefix.
         let mut out_units = units.get(..i).unwrap_or_default().to_vec();
         if insert_indicator {
             out_units.extend_from_slice(&indicator_units);

@@ -30,6 +30,7 @@ pub fn bit_not_8(a: u8) -> u8 {
 pub fn bit_lshift_8(a: u8, places: u8) -> u8 {
     assert!(places <= 8);
     let shifted = u32::from(a) << places;
+    // Reason for fallback: shifted max value is 65280 which fits in i32::MAX, so try_from conversion never fails.
     mask_byte(i32::try_from(shifted).unwrap_or(0))
 }
 
@@ -37,6 +38,7 @@ pub fn bit_lshift_8(a: u8, places: u8) -> u8 {
 pub fn bit_rshift_8(a: u8, places: u8) -> u8 {
     assert!(places <= 8);
     let shifted = u32::from(a) >> places;
+    // Reason for fallback: shifted max value is 255 which fits in i32::MAX, so try_from conversion never fails.
     mask_byte(i32::try_from(shifted).unwrap_or(0))
 }
 

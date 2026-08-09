@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub fn str_char(s: &str, index: usize) -> String {
+    // Reason for fallback: when index is past the end of the string, str_char returns an empty string.
     s.chars()
         .nth(index)
         .map(|c| c.to_string())
@@ -117,8 +118,10 @@ pub fn str_replace_once(haystack: &str, find: &str, replace: &str) -> String {
                 .saturating_sub(find.len())
                 .saturating_add(replace.len()),
         );
+        // Reason for fallback: pos returned by find() is a valid char boundary within haystack.
         out.push_str(haystack.get(..pos).unwrap_or(""));
         out.push_str(replace);
+        // Reason for fallback: pos + find.len() is a valid char boundary within haystack.
         out.push_str(
             haystack.get(pos.saturating_add(find.len())..).unwrap_or(""),
         );
@@ -161,6 +164,7 @@ pub fn str_split(input: &str, separator: &str) -> Vec<String> {
         if remaining.starts_with(separator) {
             // Push current collected (could be empty), then remove the separator
             out.push(String::new());
+            // Reason for fallback: starts_with check on line 161 guarantees remaining length >= sep_len.
             remaining = remaining.get(sep_len..).unwrap_or("");
         } else {
             // Consume one character
@@ -169,8 +173,10 @@ pub fn str_split(input: &str, separator: &str) -> Vec<String> {
                 // I don't think we could ever hit this branch because it's in a !remaining.is_empty() loop.
                 unreachable!();
             };
+            // Reason for fallback: next_index is bounded by remaining.len() from char_indices iteration.
             let next_index =
                 char_indices.next().map_or(remaining.len(), |(i, _)| i);
+            // Reason for fallback: next_index is a valid char boundary within remaining.
             let ch_str = remaining.get(..next_index).unwrap_or("");
             // We append the char to a "current" token: emulate original incremental building.
             if let Some(last_token) = out.last_mut() {
@@ -178,6 +184,7 @@ pub fn str_split(input: &str, separator: &str) -> Vec<String> {
             } else {
                 out.push(ch_str.to_string());
             }
+            // Reason for fallback: next_index is a valid char boundary within remaining.
             remaining = remaining.get(next_index..).unwrap_or("");
         }
     }
@@ -240,6 +247,7 @@ pub fn str_join_esc_no_trailing(parts: &[String], separator: &str) -> String {
     let joined = str_join_escaped(parts, separator);
     if joined.ends_with(separator) {
         let cut = joined.len().saturating_sub(separator.len());
+        // Reason for fallback: ends_with check on line 241 guarantees cut is a valid boundary.
         joined.get(..cut).unwrap_or("").to_string()
     } else {
         joined

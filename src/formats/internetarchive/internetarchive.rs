@@ -494,6 +494,7 @@ fn normalize_item_root(item_path: &Path) -> PathBuf {
     if item_path.is_file() {
         item_path
             .parent()
+            // Reason for fallback: when item_path is a root file without a parent directory, falling back to item_path itself maintains a valid PathBuf root.
             .map_or_else(|| item_path.to_path_buf(), Path::to_path_buf)
     } else {
         item_path.to_path_buf()
@@ -1070,6 +1071,7 @@ fn parse_archive_target_path(target: &str) -> Result<ArchiveTarget> {
         bail!("An Internet Archive identifier is required");
     }
     let mut parts = trimmed.splitn(2, '/');
+    // Reason for fallback: non-empty check on line 1069 guarantees splitn iterator yields at least one item; empty string fallback safely avoids panic.
     let identifier = parts.next().unwrap_or_default();
     if !is_probable_identifier(identifier) {
         bail!("{identifier} is not a plausible Internet Archive identifier");

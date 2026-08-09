@@ -69,6 +69,7 @@ impl Config {
 pub fn parse_config(bytes: &[u8]) -> Result<Config> {
     let config_str = std::str::from_utf8(bytes)?;
     let parsed: DenoJsonConfig = serde_json::from_str(config_str)?;
+    // Reason for fallback: when optional lint subsection is absent in deno.json, direct root config serves as fallback.
     let mut actual_config =
         parsed.lint.clone().unwrap_or_else(|| parsed.direct.clone());
     if actual_config.files.include.is_empty()

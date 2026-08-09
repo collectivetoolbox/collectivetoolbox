@@ -363,7 +363,7 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
 }
 
 fn has_domain_comment(line: &str) -> bool {
-    line.contains("Reason for fallback: ") || lower.contains(", reason = \"")
+    line.contains("Reason for fallback: ") || line.contains(", reason = \"")
 }
 
 fn get_repo_root() -> Result<PathBuf> {

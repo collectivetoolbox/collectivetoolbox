@@ -89,11 +89,17 @@ fn len_as_i64(s: &JsString) -> Result<i64> {
 ///
 /// Negative indices are relative to the end of the string. Indices are
 /// clamped into `[0, len]`. If `end` is `None`, it defaults to `len`.
+/// https://tc39.es/ecma262/#sec-string.prototype.slice
 pub fn slice_j(s: &JsString, start: i64, end: Option<i64>) -> Result<JsString> {
     let len = len_as_i64(s)?;
 
     let mut start = if start < 0 {
-        len.checked_add(start).unwrap_or(0)
+        #[expect(
+            clippy::expect_used,
+            reason = "len >= 0 and start < 0, so adding them moves value towards 0 and cannot overflow i64"
+        )]
+        len.checked_add(start)
+            .expect("len >= 0 and start < 0, addition cannot overflow")
     } else {
         start
     };
@@ -102,7 +108,12 @@ pub fn slice_j(s: &JsString, start: i64, end: Option<i64>) -> Result<JsString> {
     let mut end = match end {
         Some(end) => {
             if end < 0 {
-                len.checked_add(end).unwrap_or(0)
+                #[expect(
+                    clippy::expect_used,
+                    reason = "len >= 0 and end < 0, so adding them moves value towards 0 and cannot overflow i64"
+                )]
+                len.checked_add(end)
+                    .expect("len >= 0 and end < 0, addition cannot overflow")
             } else {
                 end
             }
@@ -149,7 +160,12 @@ pub fn substr_j(
     let len = len_as_i64(s)?;
 
     let mut start = if start < 0 {
-        len.checked_add(start).unwrap_or(0)
+        #[expect(
+            clippy::expect_used,
+            reason = "len >= 0 and start < 0, so adding them moves value towards 0 and cannot overflow i64"
+        )]
+        len.checked_add(start)
+            .expect("len >= 0 and start < 0, addition cannot overflow")
     } else {
         start
     };
@@ -163,6 +179,7 @@ pub fn substr_j(
 
     let end = start
         .checked_add(length)
+        // Reason for fallback: 0 <= start <= len and 0 <= length so checked_add is bounded by positive values; defaulting to len matches ECMAScript spec requiring length to be clamped to string end.
         .map_or(len, |v| clamp_i64_to_range(v, 0, len));
 
     slice_j(s, start, Some(end))

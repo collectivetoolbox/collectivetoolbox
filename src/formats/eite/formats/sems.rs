@@ -21,6 +21,7 @@ pub struct SEMSFormatSettings {
 }
 
 fn get_index(res: &[u32]) -> u64 {
+    // Reason for fallback: usize fits within u64 on 32-bit and 64-bit systems, so try_from conversion never overflows.
     u64::try_from(res.len()).unwrap_or(0)
 }
 

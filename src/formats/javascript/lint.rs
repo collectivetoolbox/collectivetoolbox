@@ -100,6 +100,7 @@ pub fn lint_file(
     let absolute_path = if file.is_absolute() {
         file.to_path_buf()
     } else {
+        // Reason for fallback: if current_dir query fails, empty PathBuf serves as relative base.
         std::env::current_dir().unwrap_or_default().join(file)
     };
     let specifier =

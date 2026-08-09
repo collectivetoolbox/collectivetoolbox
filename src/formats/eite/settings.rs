@@ -60,6 +60,7 @@ pub fn get_setting_for_format(
     let mut i: usize = 0;
     while i.saturating_add(1) < kv.len() {
         if kv.get(i).is_some_and(|k| k == key) {
+            // Reason for fallback: loop condition while i + 1 < kv.len() on line 61 guarantees index i + 1 is within bounds of kv array.
             return Ok(kv
                 .get(i.saturating_add(1))
                 .cloned()
@@ -136,6 +137,7 @@ pub fn get_preferred_code_language_for_format(
 ///
 /// (Original: getImportSettings)
 pub fn get_import_settings(state: &EiteState, format_id: usize) -> String {
+    // Reason for fallback: when format_id exceeds import_settings vector bounds, empty string represents unconfigured settings.
     state
         .import_settings
         .get(format_id)
@@ -147,6 +149,7 @@ pub fn get_import_settings(state: &EiteState, format_id: usize) -> String {
 ///
 /// (Original: getExportSettings)
 pub fn get_export_settings(state: &EiteState, format_id: usize) -> String {
+    // Reason for fallback: when format_id exceeds export_settings vector bounds, empty string represents unconfigured settings.
     state
         .export_settings
         .get(format_id)
@@ -446,6 +449,7 @@ pub fn get_exec_option(
     exec_id: usize,
     key: &str,
 ) -> Result<String> {
+    // Reason for fallback: get_exec_option returns Option<String>; when key is absent, empty string is returned as default.
     Ok(state
         .get_exec_option(exec_id, key)?
         .unwrap_or_else(String::new))

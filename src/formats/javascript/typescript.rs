@@ -50,6 +50,7 @@ pub fn resolve_tsconfig_files(
             )
         })?;
 
+    // Reason for fallback: if tsconfig_path has no parent directory component, empty Path serves as relative base.
     let base_dir = tsconfig_path.parent().unwrap_or(std::path::Path::new(""));
     resolve_project_files(base_dir, &config.include, &config.exclude)
 }
@@ -133,6 +134,7 @@ pub fn run_tsc(args: &[String]) -> Result<TscRunResult> {
         args,
     );
 
+    // Reason for fallback: if stdout capture lock fails or is empty, empty lines vector is returned.
     let captured_lines =
         ctb_formats_javascript_boa_host::stop_capturing_stdout()
             .unwrap_or_default();
@@ -168,6 +170,7 @@ pub fn ts_check_files(
     // Canonicalize target files for accurate diagnostic matching
     let target_canonical_paths: std::collections::HashSet<PathBuf> = paths
         .iter()
+        // Reason for fallback: if canonicalize fails (e.g. non-existent path), original PathBuf is retained.
         .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
         .collect();
 
@@ -177,6 +180,7 @@ pub fn ts_check_files(
             first_path.clone()
         } else {
             first_path.parent().map_or_else(
+                // Reason for fallback: if first_path has no parent and current_dir query fails, empty PathBuf serves as relative base.
                 || std::env::current_dir().unwrap_or_default(),
                 Path::to_path_buf,
             )
@@ -274,12 +278,17 @@ pub fn ts_check_files(
 
     for line in tsc_result.output.lines() {
         if let Some(captures) = error_re.captures(line) {
+            // Reason for fallback: Regex capture group 1 match fallback to empty string if absent.
             let file_path_str = captures.get(1).map_or("", |m| m.as_str());
+            // Reason for fallback: Regex capture group 2 match fallback to 0 if absent or unparseable.
             let line_num: usize =
                 captures.get(2).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            // Reason for fallback: Regex capture group 3 match fallback to 0 if absent or unparseable.
             let col_num: usize =
                 captures.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            // Reason for fallback: Regex capture group 4 match fallback to empty string if absent.
             let code_str = captures.get(4).map_or("", |m| m.as_str());
+            // Reason for fallback: Regex capture group 5 match fallback to empty String if absent.
             let message =
                 captures.get(5).map_or_else(String::new, |m| m.as_str().to_string());
 

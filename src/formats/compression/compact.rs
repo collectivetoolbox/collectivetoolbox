@@ -383,6 +383,7 @@ impl CompactTree {
                 }
             }
 
+            // Reason for fallback: if tree node update loop has not moved to parent (curr_p is None), p_idx serves as active node index.
             let active_p = curr_p.unwrap_or(p_idx);
             if let Some(n) = self.dict.get_mut(active_p) {
                 if let Some(slot) = n.count.get_mut(curr_b) {
@@ -557,6 +558,7 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             break;
         }
 
+        // Reason for fallback: bytes_read is bounded by 4096-byte buffer capacity, so ..bytes_read is in bounds; fallback to empty slice safely handles out-of-bounds.
         let slice = buf.get(..bytes_read).unwrap_or(&[]);
         for &byte in slice {
             let byte_u16 = u16::from(byte);

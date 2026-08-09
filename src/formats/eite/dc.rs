@@ -64,6 +64,7 @@ pub fn dc_is_printable(dc: u32) -> Result<bool> {
     if t == "Zl" || t == "Zp" {
         return Ok(false);
     }
+    // Reason for fallback: when type classification string t is empty, space char ' ' serves as non-control fallback, allowing function to return true.
     let general = t.chars().next().unwrap_or(' ');
     if general == '!' || general == 'C' {
         return Ok(false);

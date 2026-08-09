@@ -72,6 +72,7 @@ pub fn start_document_exec(
     ensure!(state.is_exec_id(exec_id), "Invalid exec id {exec_id}");
 
     // Tick / control options.
+    // Reason for fallback: when optional stopExecAtTick option is omitted or unparseable as u32, 0 indicates unlimited execution.
     let stop_exec_at_tick: u32 = state
         .get_exec_option(exec_id, "stopExecAtTick")?
         .unwrap_or_else(|| "0".to_string())
@@ -84,6 +85,7 @@ pub fn start_document_exec(
 
     // Working copy of the Dc data (parsed from stored string).
     let working_copy: Vec<u32> = {
+        // Reason for fallback: when document_exec_data has no entry for exec_id, empty string defaults to empty document.
         let data_str = state
             .document_exec_data
             .get(exec_id)
@@ -138,6 +140,7 @@ pub fn start_document_exec(
                     // Escape indicator
                     last_char_was_escape = true;
                 } else {
+                    // Reason for fallback: state_stack is initialized with "normal" on line 101; "normal" fallback prevents panic if stack becomes empty.
                     match state_stack.last().copied().unwrap_or("normal") {
                         "normal" => {
                             // Enter comment states?

@@ -139,6 +139,7 @@ pub fn pop<T: Clone>(a: &[T]) -> Vec<T> {
     if a.is_empty() {
         Vec::new()
     } else {
+        // Reason for fallback: empty slice check on line 139 guarantees a.len() >= 1, so a.len() - 1 range is within slice bounds.
         a.get(..a.len().saturating_sub(1)).unwrap_or(&[]).to_vec()
     }
 }
@@ -148,6 +149,7 @@ pub fn shift<T: Clone>(a: &[T]) -> Vec<T> {
     if a.len() <= 1 {
         Vec::new()
     } else {
+        // Reason for fallback: slice length check on line 148 guarantees a.len() > 1, so index range 1.. is within slice bounds.
         a.get(1..).unwrap_or(&[]).to_vec()
     }
 }

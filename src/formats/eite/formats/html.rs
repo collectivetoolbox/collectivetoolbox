@@ -75,8 +75,9 @@ pub fn dca_to_colorcoded_fragment(dc_array: &[u32]) -> Result<Vec<u8>> {
 /// Color-coded span for a single Dc.
 pub fn dc_to_colorcoded(dc: u32) -> Result<Vec<u8>> {
     // Determine classification
-    // Reason for fallback: when dc_get_type or dc_get_script returns an error or unclassified codepoint, defaulting to empty string falls through to default black text color.
+    // Reason for fallback: when dc_get_type returns an error or unclassified codepoint, defaulting to empty string falls through to default black text color.
     let dc_type = dc_get_type(dc).unwrap_or_default();
+    // Reason for fallback: when dc_get_script returns an error or unclassified codepoint, defaulting to empty string falls through to default black text color.
     let script = dc_get_script(dc).unwrap_or_default();
     let color = if dc_type.starts_with('L') {
         // Letter

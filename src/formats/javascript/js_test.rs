@@ -153,6 +153,7 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
             let loc = frame.position();
             let name = loc.function_name.to_std_string_escaped();
             let path = format!("{}", loc.path);
+            // Reason for fallback: if source position information is unavailable for stack frame, empty string fallback omits line/column.
             let pos = loc
                 .position
                 .map(|p| format!(":{}:{}", p.line_number(), p.column_number()))
@@ -280,6 +281,7 @@ fn run_test_file(file_path: &Path) -> Result<FileTestResult> {
                     let loc = frame.position();
                     let name = loc.function_name.to_std_string_escaped();
                     let path = format!("{}", loc.path);
+                    // Reason for fallback: if source position information is unavailable for stack frame, empty string fallback omits line/column.
                     let pos = loc
                         .position
                         .map(|p| {

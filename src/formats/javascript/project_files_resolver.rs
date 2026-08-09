@@ -27,6 +27,7 @@ pub fn resolve_project_files(
         .filter(|e| e.file_type().is_file())
     {
         let path = entry.path();
+        // Reason for fallback: strip_prefix returns Err if path is not under base_dir, falling back to original path.
         let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
         let relative_path_str =
             relative_path.to_string_lossy().replace('\\', "/");
@@ -44,22 +45,26 @@ pub fn resolve_project_files(
             true
         } else {
             include.iter().any(|inc| {
+                // Reason for fallback: strip_prefix returns None if "./" prefix is absent, falling back to original pattern inc.
                 let inc_norm =
                     inc.strip_prefix("./").unwrap_or(inc).trim_end_matches('/');
                 relative_path_str.starts_with(inc_norm)
                     || glob::Pattern::new(inc_norm)
                         .map(|pat| pat.matches(&relative_path_str))
+                        // Reason for fallback: if glob pattern fails to compile, false is returned to indicate no match.
                         .unwrap_or(false)
             })
         };
 
         if is_included {
             let is_excluded = exclude.iter().any(|exc| {
+                // Reason for fallback: strip_prefix returns None if "./" prefix is absent, falling back to original pattern exc.
                 let exc_norm =
                     exc.strip_prefix("./").unwrap_or(exc).trim_end_matches('/');
                 relative_path_str.starts_with(exc_norm)
                     || glob::Pattern::new(exc_norm)
                         .map(|pat| pat.matches(&relative_path_str))
+                        // Reason for fallback: if glob pattern fails to compile, false is returned to indicate no match.
                         .unwrap_or(false)
             });
 

@@ -352,6 +352,7 @@ pub fn bootstrap_typescript(ts_repo_path: &Path) -> Result<Vec<u8>> {
         let source_file =
             work_path.join("src/lib").join(format!("{}.d.ts", lib));
         if source_file.exists() {
+            // Reason for fallback: when optional explicit path map is missing for library lib, default filename lib.<lib>.d.ts is used.
             let dest_filename = libs_config
                 .paths
                 .get(lib)
@@ -375,6 +376,7 @@ pub fn bootstrap_typescript(ts_repo_path: &Path) -> Result<Vec<u8>> {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
+            // Reason for fallback: when file path has no extension or non-UTF8 extension, empty string fallback prevents matching .ts or .json.
             let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
             if ((ext == "ts" || ext == "tsx")
                 && !path.to_string_lossy().ends_with(".d.ts"))
@@ -397,6 +399,7 @@ pub fn bootstrap_typescript(ts_repo_path: &Path) -> Result<Vec<u8>> {
             std::fs::create_dir_all(parent)?;
         }
 
+        // Reason for fallback: when file path has no extension or non-UTF8 extension, empty string fallback prevents matching .ts or .json.
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
         if (ext == "ts" || ext == "tsx")
             && !path.to_string_lossy().ends_with(".d.ts")

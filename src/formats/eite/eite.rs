@@ -246,9 +246,11 @@ pub fn transform_document(
 
 // Test helpers. Similar to the u32 ones in ctb_formats_utilities, but specialized for Dc arrays.
 fn _format_dcs_for_log(expected: &[u32], actual: &[u32]) -> String {
+    // Reason for fallback: formatting helper is used in assertion diagnostic logging where empty byte vector is safe fallback if expected formatting fails.
     let (utf8_expected, _) =
         dca_to_utf8(expected, &UTF8FormatSettings::default())
             .unwrap_or_default();
+    // Reason for fallback: formatting helper is used in assertion diagnostic logging where empty byte vector is safe fallback if actual formatting fails.
     let (utf8_actual, _) =
         dca_to_utf8(actual, &UTF8FormatSettings::default()).unwrap_or_default();
 

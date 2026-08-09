@@ -38,6 +38,7 @@ pub fn kv_get_value(data: &[String], key: &str) -> String {
     let mut i: usize = 0;
     while i.saturating_add(1) < data.len() {
         if data.get(i).is_some_and(|k| k == key) {
+            // Reason for fallback: loop condition while i + 1 < data.len() on line 39 guarantees index i + 1 is within bounds of data array.
             return data.get(i.saturating_add(1)).cloned().unwrap_or_default();
         }
         i = i.saturating_add(2);

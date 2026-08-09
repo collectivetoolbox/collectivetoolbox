@@ -105,6 +105,7 @@ impl<W: Write> LzwBitWriter<W> {
         }
 
         let code_u64 = u64::from(code);
+        // Reason for fallback: shift is bounded by 0..8 (% 8), so checked_shl never overflows 64 bits.
         let val = code_u64.checked_shl(u32::try_from(shift)?).unwrap_or(0);
 
         for i in 0..4 {
@@ -126,6 +127,7 @@ impl<W: Write> LzwBitWriter<W> {
             let n_bits_usize = usize::try_from(n_bits)?;
             let step = n_bits_usize.saturating_mul(8);
             let p1 = self.block_posbits.saturating_sub(1);
+            // Reason for fallback: step is non-zero (n_bits * 8 >= 72), so checked_rem never divides by zero.
             let rem = p1.checked_rem(step).unwrap_or(0);
             let target = p1.saturating_add(step.saturating_sub(rem));
             let pad = target.saturating_sub(self.block_posbits);
@@ -182,16 +184,22 @@ impl<'a> LzwBitReader<'a> {
             return Ok(None);
         }
 
+        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
         let b0 = u64::from(*self.data.get(byte_pos).unwrap_or(&0));
+        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
         let b1 =
             u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
+        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
         let b2 =
             u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
+        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
         let b3 =
             u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
 
         let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+        // Reason for fallback: divisor 8 is non-zero constant, so checked_rem never divides by zero.
         let shift = u32::try_from(self.posbits.checked_rem(8).unwrap_or(0))?;
+        // Reason for fallback: n_bits is bounded by maxbits <= 16, so 1u64 << n_bits never overflows 64 bits.
         let mask = (1u64.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
 
         let code = u32::try_from((val >> shift) & mask)?;
@@ -206,6 +214,7 @@ impl<'a> LzwBitReader<'a> {
             let n_bits_usize = usize::try_from(n_bits)?;
             let step = n_bits_usize.saturating_mul(8);
             let p1 = self.block_posbits.saturating_sub(1);
+            // Reason for fallback: step is non-zero (n_bits * 8 >= 72), so checked_rem never divides by zero.
             let rem = p1.checked_rem(step).unwrap_or(0);
             let target = p1.saturating_add(step.saturating_sub(rem));
             let pad = target.saturating_sub(self.block_posbits);
@@ -259,7 +268,9 @@ pub fn compress_lzw_stream(
         FIRST_FREE_NONBLOCK
     };
     let mut n_bits = INIT_BITS;
+    // Reason for fallback: maxbits is bounded <= 16, so 1u32 << maxbits never overflows 32 bits.
     let maxmaxcode = 1u32.checked_shl(maxbits).unwrap_or(0);
+    // Reason for fallback: n_bits is bounded <= maxbits <= 16, so 1u32 << n_bits never overflows 32 bits.
     let mut maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
 
     let mut input_bytes = Vec::new();
@@ -293,6 +304,7 @@ pub fn compress_lzw_stream(
                 if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
                     bit_writer.align_block(n_bits)?;
                     n_bits = n_bits.saturating_add(1);
+                    // Reason for fallback: n_bits is bounded <= maxbits <= 16, so 1u32 << n_bits never overflows 32 bits.
                     maxcode = (1u32.checked_shl(n_bits).unwrap_or(0))
                         .saturating_sub(1);
                 }
@@ -302,6 +314,7 @@ pub fn compress_lzw_stream(
                 dict.clear();
                 free_ent = FIRST_FREE_BLOCK;
                 n_bits = INIT_BITS;
+                // Reason for fallback: n_bits is INIT_BITS (9), so 1u32 << 9 never overflows 32 bits.
                 maxcode =
                     (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
             }

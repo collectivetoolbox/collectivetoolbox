@@ -149,6 +149,7 @@ impl EiteState {
         if val.is_empty() {
             0
         } else {
+            // Reason for fallback: when pointer string val is unparseable as u32, 0 serves as standard state machine default for uninitialized pointer position.
             val.parse::<u32>().unwrap_or(0)
         }
     }

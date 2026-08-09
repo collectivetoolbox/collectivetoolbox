@@ -40,6 +40,7 @@ pub fn run_jsdoc_linter(
         visitor.diagnostics
     })
     .join()
+    // Reason for fallback: thread join returns Err if thread panics, defaulting to empty diagnostics vector.
     .unwrap_or_default()
 }
 
@@ -278,10 +279,12 @@ fn get_param_name_from_tag_value(value: &str) -> String {
             }
         }
         if let Some(end_idx) = end_idx {
+            // Reason for fallback: if end_idx + 1 reaches or exceeds string length, empty string is returned.
             rest = rest.get(end_idx.saturating_add(1)..).unwrap_or("").trim();
         }
     }
 
+    // Reason for fallback: if rest string contains only whitespace, empty string is returned as first word.
     let first_word = rest.split_whitespace().next().unwrap_or("");
     let mut param_name = first_word;
     if param_name.starts_with('[') && param_name.ends_with(']') {

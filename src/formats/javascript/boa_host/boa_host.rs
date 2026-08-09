@@ -82,6 +82,7 @@ fn rust_read_file(
 
     let path = Path::new(&path_str);
     let display_path = if let Ok(cwd) = std::env::current_dir() {
+        // Reason for fallback: strip_prefix returns Err if path is outside current working directory, falling back to full path.
         path.strip_prefix(&cwd).unwrap_or(path)
     } else {
         path
@@ -128,6 +129,7 @@ fn rust_write_file(
 
     let path = Path::new(&path_str);
     let display_path = if let Ok(cwd) = std::env::current_dir() {
+        // Reason for fallback: strip_prefix returns Err if path is outside current working directory, falling back to full path.
         path.strip_prefix(&cwd).unwrap_or(path)
     } else {
         path
@@ -182,7 +184,9 @@ fn rust_read_dir(
                 .with_message(format!("failed to read entry: {}", e))
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
+        // Reason for fallback: if file_type query fails due to permission or dangling symlink, false is returned for entry checks.
         let is_file = entry.file_type().map(|t| t.is_file()).unwrap_or(false);
+        // Reason for fallback: if file_type query fails due to permission or dangling symlink, false is returned for entry checks.
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         let js_name = js_string!(name);
         let js_entry = ObjectInitializer::new(context)
@@ -231,6 +235,7 @@ fn rust_file_size(
         })?
         .to_std_string_escaped();
 
+    // Reason for fallback: if metadata query fails for invalid path, 0 is returned as default size.
     let size = std::fs::metadata(&path_str).map(|m| m.len()).unwrap_or(0);
     Ok(JsValue::from(js_string!(size.to_string())))
 }
@@ -256,6 +261,7 @@ fn rust_file_mtime(
                 .map_err(std::io::Error::other)
         })
         .map(|d| d.as_millis().to_string())
+        // Reason for fallback: if metadata or modified time query fails, "0" timestamp string is returned as epoch default.
         .unwrap_or_else(|_| "0".to_string());
 
     Ok(JsValue::from(js_string!(mtime_str)))
@@ -325,6 +331,7 @@ fn rust_unlink_sync(
 
     let path = Path::new(&path_str);
     let display_path = if let Ok(cwd) = std::env::current_dir() {
+        // Reason for fallback: strip_prefix returns Err if path is outside current working directory, falling back to full path.
         path.strip_prefix(&cwd).unwrap_or(path)
     } else {
         path
@@ -340,11 +347,13 @@ fn rust_path_dirname(
     args: &[JsValue],
     _context: &mut Context,
 ) -> JsResult<JsValue> {
+    // Reason for fallback: if argument is missing or non-string, empty string is default path.
     let p = args
         .first()
         .and_then(|v| v.as_string())
         .map(|s| s.to_std_string_escaped())
         .unwrap_or_default();
+    // Reason for fallback: if path has no parent directory component, empty Path is returned.
     let parent = Path::new(&p).parent().unwrap_or_else(|| Path::new(""));
     let parent_str = parent.to_string_lossy().into_owned().replace('\\', "/");
     Ok(JsValue::from(js_string!(parent_str)))
@@ -355,6 +364,7 @@ fn rust_path_basename(
     args: &[JsValue],
     _context: &mut Context,
 ) -> JsResult<JsValue> {
+    // Reason for fallback: if argument is missing or non-string, empty string is default path.
     let p = args
         .first()
         .and_then(|v| v.as_string())
@@ -362,6 +372,7 @@ fn rust_path_basename(
         .unwrap_or_default();
     let basename = Path::new(&p)
         .file_name()
+        // Reason for fallback: if path has no file_name component (e.g. root or empty), empty OsStr is returned.
         .unwrap_or_else(|| std::ffi::OsStr::new(""));
     let basename_str = basename.to_string_lossy().into_owned();
     Ok(JsValue::from(js_string!(basename_str)))
@@ -432,6 +443,7 @@ fn rust_cwd(
 ) -> JsResult<JsValue> {
     let cwd = std::env::current_dir()
         .map(|p| p.to_string_lossy().into_owned().replace('\\', "/"))
+        // Reason for fallback: if current_dir query fails, root path "/" is returned as fallback CWD.
         .unwrap_or_else(|_| "/".to_string());
     Ok(JsValue::from(js_string!(cwd)))
 }
@@ -635,6 +647,7 @@ pub fn create_context_with_bindings(
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     }
 
+    // Reason for fallback: if canonicalize fails (e.g. file does not exist yet), falling back to raw entry_point PathBuf.
     let entry_abs = std::fs::canonicalize(entry_point)
         .unwrap_or_else(|_| entry_point.to_path_buf());
     let entry_abs_str =
@@ -642,6 +655,7 @@ pub fn create_context_with_bindings(
     let dirname_str = entry_abs
         .parent()
         .map(|p| p.to_string_lossy().into_owned().replace('\\', "/"))
+        // Reason for fallback: if entry_abs is a root path without a parent, root "/" is used as fallback __dirname.
         .unwrap_or_else(|| "/".to_string());
 
     context
@@ -733,6 +747,7 @@ pub fn run_js_module(
                 let loc = frame.position();
                 let name = loc.function_name.to_std_string_escaped();
                 let path = format!("{}", loc.path);
+                // Reason for fallback: if source position information is unavailable for stack frame, empty string fallback omits line/column.
                 let pos = loc
                     .position
                     .map(|p| {
