@@ -65,18 +65,18 @@ pub struct TuiInstaller {
 
 impl TuiInstaller {
     /// Creates a new TUI installer with default configuration.
-    pub fn new(unattended: bool) -> Self {
-        Self {
+    pub fn new(unattended: bool) -> Result<Self> {
+        Ok(Self {
             config: InstallConfig::new(
-                default_user_install_dir(),
-                default_storage_dir(),
+                default_user_install_dir()?,
+                default_storage_dir()?,
             ),
             features: placeholder_feature_tree(),
             release_manifest: None,
             unattended,
             stdin: Box::new(io::stdin().lock()),
             stdout: Box::new(io::stdout()),
-        }
+        })
     }
 
     /// Creates a TUI installer with custom I/O (for testing).
@@ -85,18 +85,18 @@ impl TuiInstaller {
         unattended: bool,
         stdin: Box<dyn BufRead>,
         stdout: Box<dyn Write>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             config: InstallConfig::new(
-                default_user_install_dir(),
-                default_storage_dir(),
+                default_user_install_dir()?,
+                default_storage_dir()?,
             ),
             features: placeholder_feature_tree(),
             release_manifest: None,
             unattended,
             stdin,
             stdout,
-        }
+        })
     }
 
     /// Runs the TUI installer and returns the result.
@@ -934,7 +934,7 @@ impl TuiInstaller {
 /// # Errors
 /// Returns an error if the installation fails.
 pub fn run_installer(unattended: bool) -> Result<()> {
-    let mut installer = TuiInstaller::new(unattended);
+    let mut installer = TuiInstaller::new(unattended)?;
 
     match installer.run() {
         Ok(()) => Ok(()),
@@ -957,7 +957,7 @@ pub fn run_installer(unattended: bool) -> Result<()> {
 /// # Errors
 /// Returns an error if the repair fails.
 pub fn run_repair() -> Result<()> {
-    let mut installer = TuiInstaller::new(false);
+    let mut installer = TuiInstaller::new(false)?;
     let record = InstallationRecord::load()
         .context("No installation found. Is ctoolbox installed?")?;
     installer.config = record.config.clone();
@@ -995,7 +995,7 @@ pub fn run_repair() -> Result<()> {
 /// # Errors
 /// Returns an error if the uninstall fails.
 pub fn run_uninstall() -> Result<()> {
-    let mut installer = TuiInstaller::new(false);
+    let mut installer = TuiInstaller::new(false)?;
     let record = InstallationRecord::load()
         .context("No installation found. Is ctoolbox installed?")?;
     installer.config = record.config.clone();
@@ -1061,13 +1061,13 @@ mod tests {
     fn make_test_installer(input: &str) -> TuiInstaller {
         let stdin = Box::new(Cursor::new(input.to_string()));
         let stdout = Box::new(Vec::new());
-        TuiInstaller::with_io(false, stdin, stdout)
+        TuiInstaller::with_io(false, stdin, stdout).unwrap()
     }
 
     fn make_unattended_installer() -> TuiInstaller {
         let stdin = Box::new(Cursor::new(String::new()));
         let stdout = Box::new(Vec::new());
-        TuiInstaller::with_io(true, stdin, stdout)
+        TuiInstaller::with_io(true, stdin, stdout).unwrap()
     }
 
     #[crate::ctb_test]

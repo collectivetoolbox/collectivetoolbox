@@ -147,7 +147,7 @@ impl ReleaseManifest {
     }
 
     /// Estimates the offline tarball size containing the manifest, chunks, and the installer.
-    pub fn estimate_offline_tarball_size(&self) -> u64 {
+    pub fn estimate_offline_tarball_size(&self) -> Result<u64> {
         let installer_size = self.installer_file_size();
 
         let mut seen_chunks = std::collections::HashSet::new();
@@ -161,9 +161,12 @@ impl ReleaseManifest {
                                 .saturating_add(comp_sz);
                     } else {
                         // Fallback to 45% of uncompressed size
-                        total_compressed_chunk_bytes = total_compressed_chunk_bytes.saturating_add(
-                            f64_to_u64_approx(u64_to_f64_approx(chunk.length).expect("The filesize is weird; it does not approximate to f64.") * 0.45).expect("The filesize is weird; it does not approximate to u64.")
-                        );
+                        let uncomp_f64 = u64_to_f64_approx(chunk.length)
+                            .context("Filesize does not approximate to f64")?;
+                        let est_comp_f64 = uncomp_f64 * 0.45;
+                        let est_comp_u64 = f64_to_u64_approx(est_comp_f64)
+                            .context("Estimated filesize does not approximate to u64")?;
+                        total_compressed_chunk_bytes = total_compressed_chunk_bytes.saturating_add(est_comp_u64);
                     }
                 }
             }
@@ -173,25 +176,25 @@ impl ReleaseManifest {
         // Let's assume a generic overhead of 200 KB
         let overhead = 200_000;
 
-        installer_size
+        Ok(installer_size
             .saturating_add(total_compressed_chunk_bytes)
-            .saturating_add(overhead)
+            .saturating_add(overhead))
     }
 
     /// Estimates the gzipped size of a file in the manifest.
-    pub fn estimate_gzipped_file_size(&self, path: &str) -> u64 {
+    pub fn estimate_gzipped_file_size(&self, path: &str) -> Result<u64> {
         let uncompressed = self
             .files
             .iter()
             .find(|f| f.path == path)
             .map_or(0, |f| f.file_size);
         // Assume 29.3% compression ratio for source code/dependencies tarballs
-        f64_to_u64_approx(
-            u64_to_f64_approx(uncompressed).expect(
-                "The filesize is weird; it does not approximate to f64.",
-            ) * 0.293,
-        )
-        .expect("The filesize is weird; it does not approximate to u64.")
+        let uncomp_f64 = u64_to_f64_approx(uncompressed)
+            .context("Filesize does not approximate to f64")?;
+        let est_f64 = uncomp_f64 * 0.293;
+        let est_u64 = f64_to_u64_approx(est_f64)
+            .context("Estimated filesize does not approximate to u64")?;
+        Ok(est_u64)
     }
 
     /// Creates a new release manifest with the current format version.
@@ -613,14 +616,14 @@ mod tests {
 
         // chunk1 (fallback to 45% of 10M = 4.5M) + chunk2 (8M) + installer (10M) + overhead (200k)
         // = 4.5M + 8M + 10M + 200k = 22.7M
-        let estimated_offline = manifest.estimate_offline_tarball_size();
+        let estimated_offline = manifest.estimate_offline_tarball_size()?;
         assert_eq!(
             estimated_offline,
             4_500_000 + 8_000_000 + 10_000_000 + 200_000
         );
 
         assert_eq!(
-            manifest.estimate_gzipped_file_size("bin/ctoolbox"),
+            manifest.estimate_gzipped_file_size("bin/ctoolbox")?,
             5_860_000
         );
     }

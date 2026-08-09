@@ -1155,50 +1155,53 @@ pub async fn calculate_download_sizes(
                     );
                 }
 
-                let offline_size = manifest.estimate_offline_tarball_size();
-                sizes.insert(
-                    "linux_x64_offline".to_string(),
-                    format!(
-                        "approx. {}",
-                        ctb_utilities::string::bytes::format_bytes_decimal(
-                            offline_size
-                        )
-                    ),
-                );
+                if let Ok(offline_size) = manifest.estimate_offline_tarball_size() {
+                    sizes.insert(
+                        "linux_x64_offline".to_string(),
+                        format!(
+                            "approx. {}",
+                            ctb_utilities::string::bytes::format_bytes_decimal(
+                                offline_size
+                            )
+                        ),
+                    );
+                }
 
                 let build_info = crate::utilities::build_info();
                 let src_name = format!(
                     "ctoolbox-src-{}-{}.tar",
                     manifest.ctoolbox_version, build_info.commit
                 );
-                let src_size = manifest.estimate_gzipped_file_size(&src_name);
-                if src_size > 0 {
-                    sizes.insert(
-                        "src_tar_gz".to_string(),
-                        format!(
-                            "approx. {}",
-                            ctb_utilities::string::bytes::format_bytes_decimal(
-                                src_size
-                            )
-                        ),
-                    );
+                if let Ok(src_size) = manifest.estimate_gzipped_file_size(&src_name) {
+                    if src_size > 0 {
+                        sizes.insert(
+                            "src_tar_gz".to_string(),
+                            format!(
+                                "approx. {}",
+                                ctb_utilities::string::bytes::format_bytes_decimal(
+                                    src_size
+                                )
+                            ),
+                        );
+                    }
                 }
 
                 let dep_name = format!(
                     "ctoolbox-dependencies-{}-{}.tar",
                     manifest.ctoolbox_version, build_info.commit
                 );
-                let dep_size = manifest.estimate_gzipped_file_size(&dep_name);
-                if dep_size > 0 {
-                    sizes.insert(
-                        "dependencies_tar_gz".to_string(),
-                        format!(
-                            "approx. {}",
-                            ctb_utilities::string::bytes::format_bytes_decimal(
-                                dep_size
-                            )
-                        ),
-                    );
+                if let Ok(dep_size) = manifest.estimate_gzipped_file_size(&dep_name) {
+                    if dep_size > 0 {
+                        sizes.insert(
+                            "dependencies_tar_gz".to_string(),
+                            format!(
+                                "approx. {}",
+                                ctb_utilities::string::bytes::format_bytes_decimal(
+                                    dep_size
+                                )
+                            ),
+                        );
+                    }
                 }
             }
         }
@@ -1229,16 +1232,17 @@ pub async fn calculate_download_sizes(
                     );
                 }
 
-                let offline_size = manifest.estimate_offline_tarball_size();
-                sizes.insert(
-                    "linux_x86_offline".to_string(),
-                    format!(
-                        "approx. {}",
-                        ctb_utilities::string::bytes::format_bytes_decimal(
-                            offline_size
-                        )
-                    ),
-                );
+                if let Ok(offline_size) = manifest.estimate_offline_tarball_size() {
+                    sizes.insert(
+                        "linux_x86_offline".to_string(),
+                        format!(
+                            "approx. {}",
+                            ctb_utilities::string::bytes::format_bytes_decimal(
+                                offline_size
+                            )
+                        ),
+                    );
+                }
             }
         }
 

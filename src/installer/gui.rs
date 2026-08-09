@@ -147,8 +147,8 @@ impl Default for AppState {
     fn default() -> Self {
         Self {
             config: InstallConfig::new(
-                default_user_install_dir(),
-                default_storage_dir(),
+                default_user_install_dir().unwrap_or_else(|_| PathBuf::from("/opt/ctoolbox")),
+                default_storage_dir().unwrap_or_else(|_| PathBuf::from("/var/lib/ctoolbox")),
             ),
             features: placeholder_feature_tree(),
             release_manifest: None,

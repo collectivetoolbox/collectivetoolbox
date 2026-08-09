@@ -22,6 +22,13 @@ pub struct Cp437Mapping {
 }
 
 impl Cp437Mapping {
+    pub fn decode_byte(&self, code: u8) -> Result<char> {
+        self.decode_table
+            .get(usize::from(code))
+            .copied()
+            .ok_or_else(|| anyhow!("Invalid Code Page 437 byte {code}"))
+    }
+
     pub fn chr(&self, code: u8) -> String {
         self.decode_table
             .get(usize::from(code))
@@ -203,6 +210,10 @@ pub fn chr(code: u8) -> String {
     CP437_DINGBATS.chr(code)
 }
 
+pub fn chr_char(code: u8) -> Result<char> {
+    CP437_DINGBATS.decode_byte(code)
+}
+
 pub fn asc(s: &str) -> Option<u8> {
     CP437_DINGBATS.asc(s)
 }
@@ -247,7 +258,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cp437_control_decoding() -> Result<()> {
-        let all_bytes = get_all_bytes();
+        let all_bytes = get_all_bytes()?;
         let decoded = decode_control(&all_bytes)?;
 
         let expected_bytes = crate::get_encoding_data(
@@ -262,7 +273,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cp437_dingbats_decoding() -> Result<()> {
-        let all_bytes = get_all_bytes();
+        let all_bytes = get_all_bytes()?;
         let decoded = decode(&all_bytes)?;
 
         let expected_bytes =

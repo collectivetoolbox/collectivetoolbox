@@ -138,7 +138,7 @@ pub fn dcbnb_get_first_char(bytes: &[u8]) -> Result<Vec<u8>> {
                 &remaining,
                 i64::try_from(next_utf8.len())?,
                 -1
-            ));
+            )?);
         } else {
             if res.is_empty() {
                 // FIXME: Tests seem to expect this, but it seems logically

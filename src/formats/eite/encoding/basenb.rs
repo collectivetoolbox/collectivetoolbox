@@ -205,7 +205,7 @@ pub fn byte_array_from_basenb_utf8(input: &[u8]) -> Result<Vec<u8>> {
     let mut remainder: u32;
     /* last 3 bytes (1 character), which represent the remainder */
     let mut remainder_arr: Vec<u8>;
-    remainder_arr = bail_if_none!(subset(input, -3, -1));
+    remainder_arr = bail_if_none!(subset(input, -3, -1)?);
     if is_basenb_distinct_remainder_char(&remainder_arr) {
         let raw_remainder = unpack32(&remainder_arr)?;
         remainder = 63497_u32
@@ -213,7 +213,7 @@ pub fn byte_array_from_basenb_utf8(input: &[u8]) -> Result<Vec<u8>> {
             .ok_or_else(|| anyhow!("Underflow in basenb remainder calculation"))?;
     } else {
         /* last 4 bytes (1 character), which represent the remainder */
-        remainder_arr = bail_if_none!(subset(input, -4, -1));
+        remainder_arr = bail_if_none!(subset(input, -4, -1)?);
         let remainder_decoded: Vec<u8> = byte_array_from_int_bit_array(
             &int_bit_array_from_basenb_string(&remainder_arr, Some(8))?,
         )?;
@@ -235,7 +235,7 @@ pub fn byte_array_from_basenb_utf8(input: &[u8]) -> Result<Vec<u8>> {
         anyhow!("Subset end calculation overflow/underflow")
     })?;
 
-    let subset = bail_if_none!(subset(input, 0, subset_end));
+    let subset = bail_if_none!(subset(input, 0, subset_end)?);
 
     log!("Getting bits from subset: {:?}, {:?}", &subset, remainder);
 

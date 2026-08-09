@@ -482,7 +482,7 @@ fn hbs_render<T: serde::Serialize>(
     // Convert data to a HashMap
     let req_value = to_value(req).context("Could not serialize request")?;
     let build_info = build_info();
-    let mut data_with_request = insert_key(data, "_request", req_value);
+    let mut data_with_request = insert_key(data, "_request", req_value)?;
 
     if let Value::Object(ref mut map) = data_with_request {
         let branding_keys = [

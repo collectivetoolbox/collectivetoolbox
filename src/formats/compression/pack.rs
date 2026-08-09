@@ -328,10 +328,9 @@ impl PartialOrd for HuffmanNode {
 
 fn collect_depths(node: &HuffmanNode, depth: usize, depths: &mut [usize; 257]) {
     if let Some(sym) = node.symbol {
-        if sym <= END_SYMBOL {
-            let slot = depths.get_mut(sym).expect("Symbol index in bounds");
-            *slot = depth;
-        }
+            if let Some(slot) = depths.get_mut(sym) {
+                *slot = depth;
+            }
     } else {
         if let Some(ref l) = node.left {
             collect_depths(l, depth.saturating_add(1), depths);
@@ -770,14 +769,13 @@ pub fn compress_old_pack_stream(
         tree_words.push(0);
 
         if let Some(sym) = node.symbol {
-            let slot_right = tree_words
-                .get_mut(tp.saturating_add(1))
-                .expect("tp+1 valid");
-            *slot_right = u16::try_from(sym).unwrap_or(0);
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
+                *slot_right = u16::try_from(sym).unwrap_or(0);
+            }
         } else {
-            let left_node = node.left.as_ref().expect("Internal node has left");
-            let right_node =
-                node.right.as_ref().expect("Internal node has right");
+            let (Some(left_node), Some(right_node)) = (node.left.as_ref(), node.right.as_ref()) else {
+                return tp;
+            };
 
             let left_tp = serialize_node(left_node, tree_words);
             let right_tp = serialize_node(right_node, tree_words);
@@ -787,12 +785,12 @@ pub fn compress_old_pack_stream(
             let right_offset =
                 u16::try_from(right_tp.saturating_sub(tp)).unwrap_or(0);
 
-            let slot_left = tree_words.get_mut(tp).expect("tp valid");
-            *slot_left = left_offset;
-            let slot_right = tree_words
-                .get_mut(tp.saturating_add(1))
-                .expect("tp+1 valid");
-            *slot_right = right_offset;
+            if let Some(slot_left) = tree_words.get_mut(tp) {
+                *slot_left = left_offset;
+            }
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
+                *slot_right = right_offset;
+            }
         }
         tp
     }
@@ -811,8 +809,9 @@ pub fn compress_old_pack_stream(
     ) {
         if let Some(sym) = node.symbol {
             if sym < 256 {
-                let slot = symbol_bits.get_mut(sym).expect("sym < 256");
-                *slot = (code, len);
+                if let Some(slot) = symbol_bits.get_mut(sym) {
+                    *slot = (code, len);
+                }
             }
         } else {
             if let Some(ref l) = node.left {

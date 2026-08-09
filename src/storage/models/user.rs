@@ -220,7 +220,7 @@ impl User {
         let id_lock = lock_by_id(user_id)?;
         let user_lock = NameAndIdLock { name_lock, id_lock };
 
-        let (mut kek, kek_params) = auth::derive_kek(password);
+        let (mut kek, kek_params) = auth::derive_kek(password)?;
         let dek = auth::generate_dek()?;
         let phc = hash(password)?;
 

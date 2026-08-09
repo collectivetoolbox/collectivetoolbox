@@ -158,7 +158,16 @@ pub async fn get_nodes_view(
     };
 
     let hex_dump = if is_data {
-        ctb_formats_hexdump::to_fancy_hex_dump(&node.data)
+        match ctb_formats_hexdump::to_fancy_hex_dump(&node.data) {
+            Ok(hd) => hd,
+            Err(e) => {
+                return error_400(
+                    &state,
+                    &req,
+                    format!("Failed to render hex dump: {e}"),
+                );
+            }
+        }
     } else {
         String::new()
     };

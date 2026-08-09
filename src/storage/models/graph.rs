@@ -117,12 +117,12 @@ impl Graph {
     pub fn is_writable_by(&self, user: &User) -> bool {
         // TODO
         // Local user graphs are writable by the user
-        if self.graph_id > 0
-            && usize::try_from(self.graph_id)
-                .expect("u128 did not fit in usize")
-                <= user.get_graph_count()
-        {
-            return true;
+        if self.graph_id > 0 {
+            if let Ok(graph_idx) = usize::try_from(self.graph_id) {
+                if graph_idx <= user.get_graph_count() {
+                    return true;
+                }
+            }
         }
         false
     }

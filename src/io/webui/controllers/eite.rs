@@ -95,18 +95,18 @@ async fn handle_eite_call(
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dataset"))?;
             if dataset == "DcData" {
-                let len = ctb_formats_eite::dc::get_dc_count();
+                let len = ctb_formats_eite::dc::get_dc_count()?;
                 Ok(serde_json::to_value(len)?)
             } else {
                 anyhow::bail!("Unknown dataset: {dataset}")
             }
         }
         "listInputFormats" => {
-            let list = ctb_formats_eite::formats::list_input_formats();
+            let list = ctb_formats_eite::formats::list_input_formats()?;
             Ok(serde_json::to_value(list)?)
         }
         "listOutputFormats" => {
-            let list = ctb_formats_eite::formats::list_output_formats();
+            let list = ctb_formats_eite::formats::list_output_formats()?;
             Ok(serde_json::to_value(list)?)
         }
         "pushExportSettings" => {
@@ -238,7 +238,7 @@ async fn handle_eite_call(
                 .and_then(Value::as_u64)
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc"))?;
             let dc = u32::try_from(dc_raw)?;
-            let b = ctb_formats_eite::dc::is_known_dc(dc);
+            let b = ctb_formats_eite::dc::is_known_dc(dc)?;
             Ok(Value::Bool(b))
         }
         "dcGetName" => {

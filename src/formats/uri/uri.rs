@@ -98,10 +98,8 @@ pub fn is_iana_scheme(uri: &str) -> bool {
         };
         if let Ok(schemes_table) = uri_schemes() {
             for row in schemes_table.rows_iter() {
-                if !row.is_empty() {
-                    if scheme.eq_ignore_ascii_case(
-                        row.first().expect("Checked non-empty row"),
-                    ) {
+                if let Some(first_col) = row.first() {
+                    if scheme.eq_ignore_ascii_case(first_col) {
                         return true;
                     }
                 }

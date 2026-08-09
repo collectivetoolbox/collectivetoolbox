@@ -35,17 +35,15 @@ pub const SUPPORTED_LANGUAGES: &[Locale] = Locale::all();
 
 /// Returns the default installation directory for the current platform.
 /// Systemwide installation isn't supported yet, so no function for that.
-#[must_use]
-pub fn default_user_install_dir() -> PathBuf {
+pub fn default_user_install_dir() -> Result<PathBuf> {
     utilities::storage::get_user_application_dir()
-        .expect("Could not get user application directory.")
+        .context("Could not get user application directory.")
 }
 
 /// Returns the default storage directory for the current platform.
-#[must_use]
-pub fn default_storage_dir() -> PathBuf {
+pub fn default_storage_dir() -> Result<PathBuf> {
     utilities::storage::get_storage_dir()
-        .expect("Could not get storage directory.")
+        .context("Could not get storage directory.")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,9 +266,9 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_default_paths_are_absolute() {
-        let install = default_user_install_dir();
-        let storage = default_storage_dir();
+    fn test_default_paths_are_absolute() -> Result<()> {
+        let install = default_user_install_dir()?;
+        let storage = default_storage_dir()?;
         assert!(
             install.is_absolute() || install == PathBuf::from("/opt/ctoolbox")
         );
@@ -278,6 +276,7 @@ mod tests {
             storage.is_absolute()
                 || storage == PathBuf::from("/var/lib/ctoolbox")
         );
+        Ok(())
     }
 
     #[crate::ctb_test]

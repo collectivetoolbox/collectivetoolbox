@@ -95,7 +95,7 @@ pub fn dollarsandcents(number: f64) -> Result<String> {
     let cents = u8::try_from(cents_total_u64 % 100)
         .context("cents modulo out of range")?;
 
-    let mut dollars_words = number_to_words(dollars);
+    let mut dollars_words = number_to_words(dollars)?;
     if dollars_words.is_empty() {
         dollars_words = "zero".to_owned();
     }
@@ -408,9 +408,9 @@ fn capitalize_first(s: &str) -> String {
     format!("{}{}", first.to_ascii_uppercase(), rest)
 }
 
-fn number_to_words(n: u64) -> String {
+fn number_to_words(n: u64) -> Result<String> {
     if n == 0 {
-        return "zero".to_owned();
+        return Ok("zero".to_owned());
     }
 
     const SCALES: [&str; 5] =
@@ -422,10 +422,13 @@ fn number_to_words(n: u64) -> String {
 
     while remaining > 0 {
         let chunk = u16::try_from(remaining % 1000)
-            .expect("Number modulo 1000 should fit in u16");
+            .context("Number modulo 1000 must fit in u16")?;
         if chunk != 0 {
             let mut chunk_words = chunk_to_words(chunk);
-            let scale = SCALES.get(scale_idx).copied().unwrap_or("");
+            let scale = SCALES
+                .get(scale_idx)
+                .copied()
+                .ok_or_else(|| anyhow::anyhow!("Scale index out of bounds"))?;
             if !scale.is_empty() {
                 chunk_words.push(scale.to_owned());
             }
@@ -437,7 +440,7 @@ fn number_to_words(n: u64) -> String {
     }
 
     parts.reverse();
-    parts.join(" ")
+    Ok(parts.join(" "))
 }
 
 fn chunk_to_words(n: u16) -> Vec<String> {

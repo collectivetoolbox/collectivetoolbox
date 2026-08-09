@@ -143,12 +143,12 @@ impl PanRng {
     /// Returns a deterministic value in the range $[0, 1)$.
     ///
     /// This RNG is not cryptographically secure.
-    pub fn rnd(&mut self) -> f64 {
+    pub fn rnd(&mut self) -> Result<f64> {
         // Map the top 53 bits to an f64 mantissa.
         let u = self.next_u64() >> 11;
         let denom = 9007199254740992.0_f64; // 2^53
-        (u64_to_f64_exact(u).expect("Error getting u64 to f64 conversion"))
-            / denom
+        let val = u64_to_f64_exact(u).context("Error converting u64 to f64")?;
+        Ok(val / denom)
     }
 
     /// Returns a deterministic integer in the inclusive range `start..=end`.
@@ -589,7 +589,7 @@ mod tests {
     fn random_is_in_range() -> Result<()> {
         let mut rng = PanRng::new(123456);
 
-        let r = rng.rnd();
+        let r = rng.rnd()?;
         ensure!((0.0..1.0).contains(&r));
 
         for _ in 0..100 {

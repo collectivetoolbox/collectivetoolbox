@@ -11,17 +11,17 @@ use crate::json;
 /// Inserts a key-value pair into a JSON object. If the input is an object, it adds
 /// the key directly. If not, it wraps the input in a new object under "original"
 /// and adds the new key. Returns the modified `Value`.
-pub fn insert_key<T: Serialize>(input: T, key: &str, value: Value) -> Value {
-    let mut val = to_value(input).expect("Could not serialize input");
+pub fn insert_key<T: Serialize>(input: T, key: &str, value: Value) -> Result<Value> {
+    let mut val = to_value(input)?;
     if let Value::Object(map) = &mut val {
         map.insert(key.to_string(), value);
-        val
+        Ok(val)
     } else {
         // If it's not an object, wrap it in a new object with the new key
         let mut map = serde_json::Map::new();
         map.insert(key.to_string(), value);
         map.insert("original".to_string(), val);
-        Value::Object(map)
+        Ok(Value::Object(map))
     }
 }
 
@@ -31,13 +31,15 @@ pub fn insert_key<T: Serialize>(input: T, key: &str, value: Value) -> Value {
 /// from an object key.
 pub fn get_bytes(val: &Value) -> Option<Vec<u8>> {
     let value_bytes: Vec<u8> = match val {
-        Value::Array(arr) => arr
-            .iter()
-            .map(|v| {
-                u8::try_from(v.as_u64().expect("Invalid u64 value"))
-                    .expect("Invalid u8 value")
-            })
-            .collect(),
+        Value::Array(arr) => {
+            let mut bytes = Vec::with_capacity(arr.len());
+            for v in arr {
+                let num = v.as_u64()?;
+                let byte = u8::try_from(num).ok()?;
+                bytes.push(byte);
+            }
+            bytes
+        }
         Value::String(s) => {
             standard_base64_to_bytes(s.clone()).unwrap_or_default()
         }
@@ -191,12 +193,13 @@ mod tests {
 
     /// Test creating a value from a primitive and inserting a key.
     #[crate::ctb_test]
-    fn test_insert_key_primitive() {
+    fn test_insert_key_primitive() -> Result<()> {
         let val = 42u64;
         let v = json_value!(val);
-        let v2 = insert_key(v, "extra", Value::String("hello".to_string()));
+        let v2 = insert_key(v, "extra", Value::String("hello".to_string()))?;
         assert!(get_key(&v2, "extra").is_some());
         assert_eq!(get_as_u64(&v2, "val"), None); // original key not present
+        Ok(())
     }
 
     /// Test creating a value from a struct and extracting fields.
@@ -213,15 +216,16 @@ mod tests {
 
     /// Test inserting a key into a struct value.
     #[crate::ctb_test]
-    fn test_insert_key_struct() {
+    fn test_insert_key_struct() -> Result<()> {
         let s = TestStruct {
             id: 1,
             name: "xyz".to_string(),
         };
         let v = json_value!(s);
-        let v2 = insert_key(v, "extra", Value::Bool(true));
+        let v2 = insert_key(v, "extra", Value::Bool(true))?;
         assert_eq!(get_key(&v2, "extra"), Some(Value::Bool(true)));
         assert_eq!(get_string(&v2, "name"), Some("xyz".to_string()));
+        Ok(())
     }
 
     /// Test extracting bytes from an array and a base64 string.

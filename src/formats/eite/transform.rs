@@ -52,7 +52,7 @@ impl std::fmt::Display for DocumentTransformation {
     }
 }
 
-pub fn list_document_transformations() -> Vec<String> {
+pub fn list_document_transformations() -> Result<Vec<String>> {
     dc_data_filter_by_value("formats", 6, "transformation", 1)
 }
 

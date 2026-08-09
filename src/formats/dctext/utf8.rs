@@ -98,7 +98,7 @@ pub fn dclist_to_utf8(
     let mut out = Vec::new();
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
-    let max_classic_u128 = u128::try_from(maximum_known_dc())
+    let max_classic_u128 = u128::try_from(maximum_known_dc()?)
         .map_err(|e| anyhow!("Failed to convert maximum_known_dc: {e}"))?;
 
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;

@@ -329,29 +329,27 @@ static BUNDLES: OnceLock<HashMap<Locale, Bundle>> = OnceLock::new();
 static CURRENT_LOCALE: RwLock<Locale> = RwLock::new(Locale::EnUs);
 
 /// Creates a Fluent bundle for a locale.
-fn create_bundle(locale: Locale) -> Bundle {
-    let lang_id = locale
-        .code()
-        .parse()
-        .unwrap_or_else(|_| "en-US".parse().expect("valid lang id"));
+fn create_bundle(locale: Locale) -> Option<Bundle> {
+    let lang_id = locale.code().parse().ok()?;
     let mut bundle = Bundle::new_concurrent(vec![lang_id]);
 
     let source = ftl_source(locale);
-    let resource = FluentResource::try_new(source.to_string())
-        .expect("FTL file should be valid");
+    let resource = FluentResource::try_new(source.to_string()).ok()?;
 
-    bundle
-        .add_resource(resource)
-        .expect("resource should be added");
+    if bundle.add_resource(resource).is_err() {
+        return None;
+    }
 
-    bundle
+    Some(bundle)
 }
 
 /// Initializes all locale bundles.
 fn init_bundles() -> HashMap<Locale, Bundle> {
     let mut bundles = HashMap::new();
     for locale in Locale::all() {
-        bundles.insert(*locale, create_bundle(*locale));
+        if let Some(b) = create_bundle(*locale) {
+            bundles.insert(*locale, b);
+        }
     }
     bundles
 }
@@ -359,9 +357,17 @@ fn init_bundles() -> HashMap<Locale, Bundle> {
 /// Gets the bundle for a locale.
 fn get_bundle(locale: Locale) -> &'static Bundle {
     let bundles = BUNDLES.get_or_init(init_bundles);
-    bundles
-        .get(&locale)
-        .expect("all locales should be initialized")
+    if let Some(bundle) = bundles.get(&locale) {
+        bundle
+    } else if let Some(en_bundle) = bundles.get(&Locale::EnUs) {
+        en_bundle
+    } else {
+        static FALLBACK_BUNDLE: std::sync::LazyLock<Bundle> = std::sync::LazyLock::new(|| {
+            let lang_id = "en-US".parse().unwrap_or_default();
+            Bundle::new_concurrent(vec![lang_id])
+        });
+        &FALLBACK_BUNDLE
+    }
 }
 
 /// Gets the current locale's bundle.
@@ -377,16 +383,17 @@ fn current_bundle() -> &'static Bundle {
 /// Gets the current locale.
 #[must_use]
 pub fn current_locale() -> Locale {
-    *CURRENT_LOCALE
-        .read()
-        .expect("locale lock should not be poisoned")
+    let Ok(guard) = CURRENT_LOCALE.read() else {
+        return Locale::EnUs;
+    };
+    *guard
 }
 
 /// Sets the current locale.
 pub fn set_locale(locale: Locale) {
-    let mut current = CURRENT_LOCALE
-        .write()
-        .expect("locale lock should not be poisoned");
+    let Ok(mut current) = CURRENT_LOCALE.write() else {
+        return;
+    };
     *current = locale;
 }
 

@@ -72,12 +72,12 @@ pub fn validate_resource_bundle() -> Result<()> {
     resource_bundle::validate_resource_bundle()
 }
 
-pub fn get_help_troff() -> Vec<u8> {
-    get_asset("docs/cli/ctoolbox.1").expect("Could not load help")
+pub fn get_help_troff() -> Result<Vec<u8>> {
+    get_asset("docs/cli/ctoolbox.1").context("Could not load help")
 }
 
 pub fn get_help_html() -> Result<Vec<u8>> {
-    let (converted, log) = convert_man_troff_to_html(get_help_troff())?;
+    let (converted, log) = convert_man_troff_to_html(get_help_troff()?)?;
     log.auto_log();
     Ok(converted)
 }
@@ -351,10 +351,11 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn can_get_help_troff() {
+    fn can_get_help_troff() -> Result<()> {
         assert!(
-            String::from_utf8_lossy(&get_help_troff()).contains(".SH SYNOPSIS")
+            String::from_utf8_lossy(&get_help_troff()?).contains(".SH SYNOPSIS")
         );
+        Ok(())
     }
 
     #[crate::ctb_test]

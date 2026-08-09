@@ -590,7 +590,7 @@ pub fn dca_from_utf8(
                 } else if !unmappables.is_empty() {
                     result.extend_from_slice(&bytes_as_dc_encapsulated_utf8(
                         unmappables.as_slice(),
-                    ));
+                    )?);
                     unmappables.clear();
                 }
             }
@@ -614,7 +614,7 @@ pub fn dca_from_utf8(
     if settings.utf8_base64_embed_enabled && !unmappables.is_empty() {
         result.extend_from_slice(&bytes_as_dc_encapsulated_utf8(
             unmappables.as_slice(),
-        ));
+        )?);
         unmappables.clear();
     }
 

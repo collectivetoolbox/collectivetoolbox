@@ -128,24 +128,26 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_dca_to_html_fragment() {
+    fn test_dca_to_html_fragment() -> Result<()> {
         let actual = dca_to_html_fragment(&[39, 46, 40]);
         let expected = str_to_byte_array(
             "<div style=\"white-space:pre-wrap\">5&lt;6</div>",
-        );
+        )?;
         assert_vec_u8_ok_eq_no_warnings(&expected, actual);
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_format_html() {
+    fn test_format_html() -> Result<()> {
         // Input Dcs: [39,46,40] expected to produce: "<div style=\"white-space:pre-wrap\">5&lt;6</div>"
         // Wrapped with full HTML skeleton per original JS dcaToHtml test.
         let expected_html = "<!DOCTYPE html><html><head><title></title></head><body><div style=\"white-space:pre-wrap\">5&lt;6</div></body></html>";
         let result = dca_to_html(&[39, 46, 40]);
         assert_vec_u8_ok_eq_no_warnings(
-            &str_to_byte_array(expected_html),
+            &str_to_byte_array(expected_html)?,
             result,
         );
+        Ok(())
     }
 
     #[crate::ctb_test]

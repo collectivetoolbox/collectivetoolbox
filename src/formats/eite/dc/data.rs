@@ -85,26 +85,26 @@ impl EiteData {
     }
 
     /// Returns total rows excluding header.
-    fn dc_dataset_length(&self, dataset: &str) -> usize {
+    fn dc_dataset_length(&self, dataset: &str) -> Result<usize> {
         let rows = self
             .data
             .get(dataset)
-            .expect("dataset not loaded: {dataset}");
-        rows.len().saturating_sub(2)
+            .with_context(|| format!("dataset not loaded: {dataset}"))?;
+        Ok(rows.len().saturating_sub(2))
     }
 
-    fn dc_data_get_column(&self, dataset: &str, col_num: usize) -> Vec<String> {
+    fn dc_data_get_column(&self, dataset: &str, col_num: usize) -> Result<Vec<String>> {
         let rows = self
             .data
             .get(dataset)
-            .expect("dataset not loaded: {dataset}");
+            .with_context(|| format!("dataset not loaded: {dataset}"))?;
         let mut out = Vec::new();
         for row in rows.iter().take(rows.len()) {
             if let Some(v) = row.get(col_num) {
                 out.push(v.clone());
             }
         }
-        out
+        Ok(out)
     }
 
     /// rowNum is zero-based for content rows (header skipped).
@@ -167,8 +167,11 @@ impl EiteData {
         filter_field: usize,
         filter_value: &str,
         desired_field: usize,
-    ) -> Vec<String> {
-        let rows = self.data.get(dataset).expect("dataset not loaded");
+    ) -> Result<Vec<String>> {
+        let rows = self
+            .data
+            .get(dataset)
+            .with_context(|| format!("dataset not loaded: {dataset}"))?;
         let mut out = Vec::new();
         for row in rows.iter().take(rows.len()) {
             if row.get(filter_field).is_some_and(|s| s == filter_value) {
@@ -177,7 +180,7 @@ impl EiteData {
                 }
             }
         }
-        out
+        Ok(out)
     }
 
     fn dc_data_filter_by_value_greater(
@@ -186,8 +189,11 @@ impl EiteData {
         filter_field: usize,
         filter_value: i32,
         desired_field: usize,
-    ) -> Vec<String> {
-        let rows = self.data.get(dataset).expect("dataset not loaded");
+    ) -> Result<Vec<String>> {
+        let rows = self
+            .data
+            .get(dataset)
+            .with_context(|| format!("dataset not loaded: {dataset}"))?;
         let mut out = Vec::new();
         for row in rows.iter().take(rows.len()) {
             if let Some(cell) = row.get(filter_field) {
@@ -200,13 +206,18 @@ impl EiteData {
                 }
             }
         }
-        out
+        Ok(out)
     }
 }
 
 // Lazy static instance
-static EITE_DATA: LazyLock<EiteData> =
-    LazyLock::new(|| EiteData::new().expect("Failed to initialize EITE_DATA"));
+static EITE_DATA: LazyLock<Result<EiteData>> = LazyLock::new(EiteData::new);
+
+fn get_eite_data() -> Result<&'static EiteData> {
+    EITE_DATA
+        .as_ref()
+        .map_err(|e| anyhow!("Failed to initialize EITE_DATA: {e:?}"))
+}
 
 /// Static list of known Dc datasets (mirrors original JS array).
 pub fn list_dc_datasets() -> Vec<&'static str> {
@@ -221,8 +232,8 @@ pub fn list_dc_datasets() -> Vec<&'static str> {
     ]
 }
 
-pub fn json() -> String {
-    EITE_DATA.json()
+pub fn json() -> Result<String> {
+    Ok(get_eite_data()?.json())
 }
 
 /// Returns true if the provided dataset name is one of the known Dc datasets.
@@ -230,12 +241,12 @@ pub fn is_dc_dataset(name: &str) -> bool {
     list_dc_datasets().iter().any(|s| s == &name)
 }
 
-pub fn dc_dataset_length(dataset: &str) -> usize {
-    EITE_DATA.dc_dataset_length(dataset)
+pub fn dc_dataset_length(dataset: &str) -> Result<usize> {
+    get_eite_data()?.dc_dataset_length(dataset)
 }
 
-pub fn dc_data_get_column(dataset: &str, col_num: usize) -> Vec<String> {
-    EITE_DATA.dc_data_get_column(dataset, col_num)
+pub fn dc_data_get_column(dataset: &str, col_num: usize) -> Result<Vec<String>> {
+    get_eite_data()?.dc_data_get_column(dataset, col_num)
 }
 
 pub fn dc_data_lookup_by_id(
@@ -243,7 +254,7 @@ pub fn dc_data_lookup_by_id(
     row_num: usize,
     field_num: usize,
 ) -> Result<String> {
-    EITE_DATA.dc_data_lookup_by_id(dataset, row_num, field_num)
+    get_eite_data()?.dc_data_lookup_by_id(dataset, row_num, field_num)
 }
 
 pub fn dc_data_lookup_by_value(
@@ -252,7 +263,7 @@ pub fn dc_data_lookup_by_value(
     filter_value: &str,
     desired_field: usize,
 ) -> Result<String> {
-    EITE_DATA.dc_data_lookup_by_value(
+    get_eite_data()?.dc_data_lookup_by_value(
         dataset,
         filter_field,
         filter_value,
@@ -273,8 +284,8 @@ pub fn dc_data_filter_by_value(
     filter_field: usize,
     filter_value: &str,
     desired_field: usize,
-) -> Vec<String> {
-    EITE_DATA.dc_data_filter_by_value(
+) -> Result<Vec<String>> {
+    get_eite_data()?.dc_data_filter_by_value(
         dataset,
         filter_field,
         filter_value,
@@ -287,8 +298,8 @@ pub fn dc_data_filter_by_value_greater(
     filter_field: usize,
     filter_value: i32,
     desired_field: usize,
-) -> Vec<String> {
-    EITE_DATA.dc_data_filter_by_value_greater(
+) -> Result<Vec<String>> {
+    get_eite_data()?.dc_data_filter_by_value_greater(
         dataset,
         filter_field,
         filter_value,
@@ -316,12 +327,13 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_data_loaded() {
-        assert_eq!(dc_dataset_length("DcData"), 299);
-        assert_eq!(get_dc_count(), 299);
-        assert_eq!(maximum_known_dc(), 298);
+    fn test_data_loaded() -> Result<()> {
+        assert_eq!(dc_dataset_length("DcData")?, 299);
+        assert_eq!(get_dc_count()?, 299);
+        assert_eq!(maximum_known_dc()?, 298);
         assert!(is_format("unicode"));
         assert!(is_format("utf8"));
+        Ok(())
     }
 
     #[crate::ctb_test]

@@ -101,8 +101,7 @@ pub fn workspace_ipc_methods_impl(input: TokenStream) -> TokenStream {
             arg_tys.push(ty);
         }
 
-        let ok_ty = ok_type_from_return(&sig.output)
-            .unwrap_or_else(|| syn::parse2(quote! { () }).expect("parse unit"));
+        let ok_ty = ok_type_from_return(&sig.output);
 
         let req_expr = match arg_idents.len() {
             0 => quote! { () },
@@ -209,16 +208,19 @@ impl Parse for WorkspaceIpcMethodsInput {
     }
 }
 
-fn ok_type_from_return(ret: &syn::ReturnType) -> Option<syn::Type> {
+fn ok_type_from_return(ret: &syn::ReturnType) -> syn::Type {
     let syn::ReturnType::Type(_, ty) = ret else {
-        return Some(syn::parse2(quote! { () }).expect("parse unit"));
+        return syn::Type::Tuple(syn::TypeTuple {
+            paren_token: syn::token::Paren::default(),
+            elems: syn::punctuated::Punctuated::new(),
+        });
     };
 
     if let Some(ok_ty) = parse_result_ok_type(ty.as_ref()) {
-        return Some(ok_ty);
+        return ok_ty;
     }
 
-    Some((**ty).clone())
+    (**ty).clone()
 }
 
 fn parse_result_ok_type(ty: &syn::Type) -> Option<syn::Type> {

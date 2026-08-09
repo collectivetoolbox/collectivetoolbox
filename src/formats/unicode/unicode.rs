@@ -155,8 +155,7 @@ pub fn js_like_slice_utf16(input: &str, start: usize, len: usize) -> Vec<u16> {
 pub fn u16_vec_to_le_bytes(v: &[u16]) -> Vec<u8> {
     let mut b = Vec::with_capacity(v.len().saturating_mul(2));
     for &u in v {
-        b.push(u8::try_from(u & 0xFF).expect("Failed to create byte"));
-        b.push(u8::try_from(u >> 8).expect("Failed to create byte"));
+        b.extend_from_slice(&u.to_le_bytes());
     }
     b
 }

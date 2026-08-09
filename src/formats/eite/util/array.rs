@@ -37,8 +37,8 @@ pub fn js_compat_array_slice<T: Clone>(
     a: &[T],
     start: i64,
     end_exclusive: i64,
-) -> Option<Vec<T>> {
-    let len = i64::try_from(a.len()).expect("usize not fit in i64");
+) -> Result<Option<Vec<T>>> {
+    let len = i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
 
     // Convert negative indices relative to length
     let mut s = if start < 0 {
@@ -68,14 +68,14 @@ pub fn js_compat_array_slice<T: Clone>(
 
     // If end <= start return empty vec (JS slice returns empty array)
     if e <= s {
-        return None;
+        return Ok(None);
     }
 
-    let s = usize::try_from(s).ok()?;
-    let e = usize::try_from(e).ok()?;
-    let slice = a.get(s..e)?;
+    let s_u = usize::try_from(s).context("Start index failed conversion to usize")?;
+    let e_u = usize::try_from(e).context("End index failed conversion to usize")?;
+    let slice = a.get(s_u..e_u).context("Slice range out of bounds")?;
 
-    Some(slice.to_vec())
+    Ok(Some(slice.to_vec()))
 }
 
 /// Close translation of StageL anSubset.
@@ -83,14 +83,14 @@ pub fn subset<T: Clone>(
     a: &[T],
     mut start: i64,
     mut end: i64,
-) -> Option<Vec<T>> {
-    let mut count = i64::try_from(a.len()).expect("usize not fit in i64");
+) -> Result<Option<Vec<T>>> {
+    let count_len = i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
 
     if start < 0 {
-        start = start.saturating_add(count);
+        start = start.saturating_add(count_len);
     }
     if end < 0 {
-        end = end.saturating_add(count);
+        end = end.saturating_add(count_len);
     }
 
     /* Copilot suggests:
@@ -115,21 +115,22 @@ pub fn subset<T: Clone>(
        Some(res)
     */
 
-    count = end;
+    let end_count = end;
     let mut res: Vec<T> = Vec::new();
 
     let mut i = i128::from(start);
-    let count_i128 = i128::from(count);
+    let count_i128 = i128::from(end_count);
     while i <= count_i128 {
-        if let Some(item) = a.get(usize::try_from(i).ok()?) {
+        let u_idx = usize::try_from(i).context("Index failed conversion to usize")?;
+        if let Some(item) = a.get(u_idx) {
             res.push(item.clone());
         } else {
-            return None;
+            return Ok(None);
         }
         i = i.saturating_add(1);
     }
 
-    Some(res)
+    Ok(Some(res))
 }
 
 /// JS pop(array) -> subset(array, 0, -2) meaning drop last element.
@@ -164,21 +165,25 @@ pub fn last<T: Clone>(a: &[T]) -> Option<T> {
 /// setElement(array, index, value) – panics if out of range except allowing
 /// index == len (append) in the original? JS code forbade index > length.
 /// If index == len we append.
-pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) {
-    let len = isize::try_from(a.len()).expect("usize not fit in isize");
+pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) -> Result<()> {
+    let len = isize::try_from(a.len()).context("Array length exceeds isize::MAX")?;
     let mut idx = index;
     if idx < 0 {
         idx = idx.saturating_add(len);
     }
-    assert!(
-        !(idx < 0 || idx > len),
-        "Cannot insert at position {index} greater than appending to the length of the array."
-    );
+    if idx < 0 || idx > len {
+        bail!(
+            "Cannot insert at position {index} greater than appending to the length of the array."
+        );
+    }
     if idx == len {
         a.push(value);
-    } else if let Some(elem) = a.get_mut(usize::try_from(idx).unwrap_or(0)) {
+    } else {
+        let u_idx = usize::try_from(idx).context("Index is negative")?;
+        let elem = a.get_mut(u_idx).context("Index out of bounds")?;
         *elem = value;
     }
+    Ok(())
 }
 
 // ===============
@@ -186,8 +191,8 @@ pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) {
 // These treat the end as inclusive, and allow negative indexes.
 // ===============
 
-fn normalize_bounds(len: usize, start: isize, end: isize) -> (usize, usize) {
-    let l = isize::try_from(len).expect("usize not fit in isize");
+fn normalize_bounds(len: usize, start: isize, end: isize) -> Result<(usize, usize)> {
+    let l = isize::try_from(len).context("Array length exceeds isize::MAX")?;
     let s = if start < 0 {
         l.saturating_add(start)
     } else {
@@ -196,53 +201,55 @@ fn normalize_bounds(len: usize, start: isize, end: isize) -> (usize, usize) {
     let e = if end < 0 { l.saturating_add(end) } else { end };
     let s = s.clamp(0, l.max(0));
     let e = e.clamp(0, l.max(0));
-    (
-        usize::try_from(s).expect("isize not fit in usize"),
-        usize::try_from(e).expect("isize not fit in usize"),
-    )
+    let s_u = usize::try_from(s).context("Start index failed conversion to usize")?;
+    let e_u = usize::try_from(e).context("End index failed conversion to usize")?;
+    Ok((s_u, e_u))
 }
 
-pub fn slice_inclusive_bool(a: &[bool], start: isize, end: isize) -> Vec<bool> {
+pub fn slice_inclusive_bool(a: &[bool], start: isize, end: isize) -> Result<Vec<bool>> {
     if a.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    let (s, e) = normalize_bounds(a.len(), start, end);
+    let (s, e) = normalize_bounds(a.len(), start, end)?;
     if e < s {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    a.get(s..=e.min(a.len().saturating_sub(1)))
-        .unwrap_or(&[])
-        .to_vec()
+    let slice = a
+        .get(s..=e.min(a.len().saturating_sub(1)))
+        .context("Slice range out of bounds")?;
+    Ok(slice.to_vec())
 }
 
-pub fn slice_inclusive_i32(a: &[i32], start: isize, end: isize) -> Vec<i32> {
+pub fn slice_inclusive_i32(a: &[i32], start: isize, end: isize) -> Result<Vec<i32>> {
     if a.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    let (s, e) = normalize_bounds(a.len(), start, end);
+    let (s, e) = normalize_bounds(a.len(), start, end)?;
     if e < s {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    a.get(s..=e.min(a.len().saturating_sub(1)))
-        .unwrap_or(&[])
-        .to_vec()
+    let slice = a
+        .get(s..=e.min(a.len().saturating_sub(1)))
+        .context("Slice range out of bounds")?;
+    Ok(slice.to_vec())
 }
 
 pub fn slice_inclusive_string(
     a: &[String],
     start: isize,
     end: isize,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     if a.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    let (s, e) = normalize_bounds(a.len(), start, end);
+    let (s, e) = normalize_bounds(a.len(), start, end)?;
     if e < s {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    a.get(s..=e.min(a.len().saturating_sub(1)))
-        .unwrap_or(&[])
-        .to_vec()
+    let slice = a
+        .get(s..=e.min(a.len().saturating_sub(1)))
+        .context("Slice range out of bounds")?;
+    Ok(slice.to_vec())
 }
 
 /// Convert a single primitive into a one-element array (abFromB / anFromN / asFromS).
@@ -263,13 +270,13 @@ pub fn contains<T: PartialEq>(a: &[T], needle: &T) -> bool {
     a.iter().any(|v| v == needle)
 }
 
-pub fn index_of<T: PartialEq>(a: &[T], needle: &T) -> isize {
+pub fn index_of<T: PartialEq>(a: &[T], needle: &T) -> Result<isize> {
     for (i, v) in a.iter().enumerate() {
         if v == needle {
-            return isize::try_from(i).expect("usize not fit in isize");
+            return isize::try_from(i).context("Index exceeds isize::MAX");
         }
     }
-    -1
+    Ok(-1)
 }
 
 // ---------------
@@ -321,11 +328,12 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_slice_inclusive() {
+    fn test_slice_inclusive() -> Result<()> {
         let v = vec![1, 2, 3, 4, 5];
-        assert_eq!(slice_inclusive_i32(&v, 1, 3), vec![2, 3, 4]);
-        assert_eq!(slice_inclusive_i32(&v, -3, -1), vec![3, 4, 5]);
-        assert_eq!(slice_inclusive_i32(&v, 0, 0), vec![1]);
+        assert_eq!(slice_inclusive_i32(&v, 1, 3)?, vec![2, 3, 4]);
+        assert_eq!(slice_inclusive_i32(&v, -3, -1)?, vec![3, 4, 5]);
+        assert_eq!(slice_inclusive_i32(&v, 0, 0)?, vec![1]);
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -338,10 +346,11 @@ mod tests {
     // PART 2
 
     #[crate::ctb_test]
-    fn test_index_of() {
+    fn test_index_of() -> Result<()> {
         let v = vec![1, 2, 3];
-        assert_eq!(index_of(&v, &2), 1);
-        assert_eq!(index_of(&v, &4), -1);
+        assert_eq!(index_of(&v, &2)?, 1);
+        assert_eq!(index_of(&v, &4)?, -1);
+        Ok(())
     }
 
     #[crate::ctb_test]

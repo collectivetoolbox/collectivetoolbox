@@ -29,7 +29,7 @@ pub struct KekParams {
 /// <https://rustcrypto.org/key-derivation/index.html>
 /// <https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html#key-encryption-keys>
 /// (last two are basically blank.)
-pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
+pub fn derive_kek(password: &Password) -> Result<(Vec<u8>, KekParams)> {
     // If in debug or test and password is TEST_USER_PASS, use hardcoded PHC
     #[cfg(any(debug_assertions, test))]
     {
@@ -37,34 +37,27 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
             // Hardcoded PHC string
 
             use crate::user::TEST_USER_PHC;
-            let parsed =
-                PasswordHash::new(TEST_USER_PHC).expect("Failed to parse PHC");
+            let parsed = PasswordHash::new(TEST_USER_PHC)
+                .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
             let salt_bytes = &mut [0u8; 16];
-            parsed
+            let salt = parsed
                 .salt
-                .expect("Could not decode test password salt")
-                .decode_b64(salt_bytes)
-                .expect("Failed to decode salt");
+                .ok_or_else(|| anyhow::anyhow!("Could not decode test password salt"))?;
+            salt.decode_b64(salt_bytes)
+                .map_err(|e| anyhow::anyhow!("Failed to decode salt: {e}"))?;
             let output_key_material = parsed
                 .hash
                 .as_ref()
-                .map_or_else(Vec::new, |h| h.as_bytes().to_vec());
-            return (
+                .map_or_else(Vec::new, |h: &argon2::password_hash::Output| h.as_bytes().to_vec());
+            return Ok((
                 output_key_material,
                 KekParams {
                     salt: salt_bytes.to_vec(),
-                    m_cost: parsed.params.get("m").map_or(19456, |v| {
-                        u32::try_from(v.decimal().unwrap_or(19456))
-                            .unwrap_or(19456)
-                    }),
-                    t_cost: parsed.params.get("t").map_or(2, |v| {
-                        u32::try_from(v.decimal().unwrap_or(2)).unwrap_or(2)
-                    }),
-                    p_cost: parsed.params.get("p").map_or(1, |v| {
-                        u32::try_from(v.decimal().unwrap_or(1)).unwrap_or(1)
-                    }),
+                    m_cost: parsed.params.get("m").map_or(19456, |v| v.decimal().unwrap_or(19456)),
+                    t_cost: parsed.params.get("t").map_or(2, |v| v.decimal().unwrap_or(2)),
+                    p_cost: parsed.params.get("p").map_or(1, |v| v.decimal().unwrap_or(1)),
                 },
-            );
+            ));
         }
     }
     // 32 * 8 = 256 bits which is suitable for AES-256
@@ -73,7 +66,7 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
     // Recommended length from password-hash 0.5.0 salt.rs is 16 bytes
     let mut salt_bytes = [0u8; 16];
     salt.decode_b64(&mut salt_bytes)
-        .expect("Failed to decode salt");
+        .map_err(|e| anyhow::anyhow!("Failed to decode salt: {e}"))?;
     let hasher = Argon2::default();
     let params = hasher.params();
     hasher
@@ -82,8 +75,8 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
             &salt_bytes,
             &mut output_key_material,
         )
-        .expect("Failed to derive KEK");
-    (
+        .map_err(|e| anyhow::anyhow!("Failed to derive KEK: {e:?}"))?;
+    Ok((
         output_key_material,
         KekParams {
             salt: salt_bytes.to_vec(),
@@ -91,7 +84,7 @@ pub fn derive_kek(password: &Password) -> (Vec<u8>, KekParams) {
             t_cost: params.t_cost(),
             p_cost: params.p_cost(),
         },
-    )
+    ))
 }
 
 // TODO: Remaining pieces are LLM-generated; haven't checked them for correctness.

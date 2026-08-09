@@ -14,11 +14,11 @@ pub use voprf::{
 pub const SERVER_KEY_SIZE: usize = 32;
 
 /// Generate a new random OPRF server instance.
-pub fn generate_server_key() -> Vec<u8> {
+pub fn generate_server_key() -> Result<Vec<u8>> {
     let mut rng = rand_08::thread_rng();
     let server = OprfServer::<Ristretto255>::new(&mut rng)
-        .expect("Failed to generate server key");
-    server.serialize().to_vec()
+        .map_err(|e| anyhow!("Failed to generate server key: {e:?}"))?;
+    Ok(server.serialize().to_vec())
 }
 
 /// Helper to serialize a `BlindedElement` to bytes.
@@ -127,7 +127,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_voprf_flow() -> Result<()> {
-        let server_key = generate_server_key();
+        let server_key = generate_server_key()?;
         let serial = b"my-unique-token-serial-123456789";
 
         // Client blinds

@@ -32,16 +32,16 @@ pub const DC_END_ENCAPSULATION_BINARY: u32 = 204;
 
 /* ===== Dc classification & queries ===== */
 
-pub fn is_known_dc(v: u32) -> bool {
-    v <= u32::try_from(maximum_known_dc())
-        .expect("Failed to convert maximum_known_dc to u32")
+pub fn is_known_dc(v: u32) -> Result<bool> {
+    let max = u32::try_from(maximum_known_dc()?)
+        .context("Failed to convert maximum_known_dc to u32")?;
+    Ok(v <= max)
 }
 
-pub fn maximum_known_dc() -> usize {
-    // JS: dcDatasetLength('DcData')
-    dc_dataset_length("DcData")
-        .checked_sub(1)
-        .expect("Failed to get maximum known Dc")
+pub fn maximum_known_dc() -> Result<usize> {
+    let len = dc_dataset_length("DcData")?;
+    len.checked_sub(1)
+        .context("Failed to get maximum known Dc")
 }
 
 /// Return true if Dc should be treated as a newline (coarse heuristic).
@@ -52,14 +52,14 @@ pub fn dc_is_newline(dc: u32) -> bool {
 
 /// True if general category 'Zs'.
 pub fn dc_is_space(dc: u32) -> Result<bool> {
-    ensure!(is_known_dc(dc), "Unknown Dc {dc}");
+    ensure!(is_known_dc(dc)?, "Unknown Dc {dc}");
     Ok(dc_get_type(dc)? == "Zs")
 }
 
 /// True if printable (excludes line/para separators, categories starting with
 /// '!' or 'C').
 pub fn dc_is_printable(dc: u32) -> Result<bool> {
-    ensure!(is_known_dc(dc), "Unknown Dc {dc}");
+    ensure!(is_known_dc(dc)?, "Unknown Dc {dc}");
     let t = dc_get_type(dc)?;
     if t == "Zl" || t == "Zp" {
         return Ok(false);
@@ -72,15 +72,15 @@ pub fn dc_is_printable(dc: u32) -> Result<bool> {
 }
 
 pub fn dc_is_el_code(dc: u32) -> Result<bool> {
-    ensure!(is_known_dc(dc), "Unknown Dc {dc}");
+    ensure!(is_known_dc(dc)?, "Unknown Dc {dc}");
     let script = dc_get_script(dc)?;
     Ok(script.get(0..3) == Some("EL "))
 }
 
 pub fn dc_get_el_class(dc: u32) -> Result<String> {
-    ensure!(is_known_dc(dc), "Unknown Dc {dc}");
+    ensure!(is_known_dc(dc)?, "Unknown Dc {dc}");
     let script = dc_get_script(dc)?;
-    Ok(substring_bug_compatible(&script, 3, -1))
+    substring_bug_compatible(&script, 3, -1)
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ pub fn dc_get_description(dc: u32) -> Result<String> {
 }
 
 /// Return length of the primary '`DcData`' dataset.
-pub fn get_dc_count() -> usize {
+pub fn get_dc_count() -> Result<usize> {
     dc_dataset_length("DcData")
 }
 
@@ -151,7 +151,7 @@ pub fn dc_get_column(
     if !is_dc_dataset(dataset) {
         return Err(anyhow!("dc_get_column: unknown dataset '{dataset}'"));
     }
-    let len = dc_dataset_length(dataset);
+    let len = dc_dataset_length(dataset)?;
     let mut out = Vec::with_capacity(len);
     for row in 0..len {
         let v = dc_data_lookup_by_id(dataset, row, field_number)
@@ -186,33 +186,35 @@ pub fn is_dc_base64_encapsulation_character(dc: u32) -> bool {
     (127..=190).contains(&dc) || dc == 195
 }
 
-pub fn string_to_dc_encapsulated_utf8(input: &str) -> Vec<u32> {
+pub fn string_to_dc_encapsulated_utf8(input: &str) -> Result<Vec<u32>> {
     bytes_as_dc_encapsulated_utf8(input.as_bytes())
 }
 
-pub fn bytes_as_dc_encapsulated_utf8(input: &[u8]) -> Vec<u32> {
+pub fn bytes_as_dc_encapsulated_utf8(input: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u32> = Vec::new();
 
     out.push(191); // Dc UTF-8 encapsulation start
-    out.append(&mut bytes_to_dc_encapsulated_raw(input));
+    let mut raw = bytes_to_dc_encapsulated_raw(input)?;
+    out.append(&mut raw);
     out.push(192); // Dc UTF-8 encapsulation end
 
-    out
+    Ok(out)
 }
 
-pub fn bytes_to_dc_encapsulated_binary(input: &[u8]) -> Vec<u32> {
+pub fn bytes_to_dc_encapsulated_binary(input: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u32> = Vec::new();
 
     out.push(203); // Dc binary encapsulation start
-    out.append(&mut bytes_to_dc_encapsulated_raw(input));
+    let mut raw = bytes_to_dc_encapsulated_raw(input)?;
+    out.append(&mut raw);
     out.push(204); // Dc binary encapsulation end
 
-    out
+    Ok(out)
 }
 
-pub fn bytes_to_dc_encapsulated_raw(bytes: &[u8]) -> Vec<u32> {
+pub fn bytes_to_dc_encapsulated_raw(bytes: &[u8]) -> Result<Vec<u32>> {
     let decimal = standard_base64_to_decimal(bytes_to_standard_base64(bytes))
-        .expect("Failed to encode base64");
+        .context("Failed to encode base64")?;
 
     let mut dc_encoded: Vec<u32> = Vec::new();
     for b64 in decimal {
@@ -224,7 +226,7 @@ pub fn bytes_to_dc_encapsulated_raw(bytes: &[u8]) -> Vec<u32> {
         }
     }
 
-    dc_encoded
+    Ok(dc_encoded)
 }
 
 pub fn dc_encapsulated_raw_to_bytes(input: &[u32]) -> Result<Vec<u8>> {
@@ -287,10 +289,11 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_dc_is_space() {
-        assert!(is_known_dc(18));
+    fn test_dc_is_space() -> Result<()> {
+        assert!(is_known_dc(18)?);
         assert_eq!(dc_get_type(18).expect("Dc type was incorrect"), "Zs");
         assert!(dc_is_space(18).expect("Dc 18 is a space"));
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -318,7 +321,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_bytes_to_dc_encapsulated_raw() {
+    fn test_bytes_to_dc_encapsulated_raw() -> Result<()> {
         let input = b"Hello, world!";
         // Base64: SGVsbG8sIHdvcmxkIQ==
         // Decimal: 18 6 21 44 27 6
@@ -331,8 +334,9 @@ mod tests {
             155, 165, 176, 163, 135, 143, //
             195, 195,
         ];
-        let result = bytes_to_dc_encapsulated_raw(input);
+        let result = bytes_to_dc_encapsulated_raw(input)?;
         assert_vec_u32_eq(&expected, &result);
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -349,7 +353,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_bytes_to_dc_encapsulated_utf8() {
+    fn test_string_to_dc_encapsulated_utf8() -> Result<()> {
         let input = "Hello, world!";
         // Base64: SGVsbG8sIHdvcmxkIQ==
         // Decimal: 18 6 21 44 27 6
@@ -364,14 +368,15 @@ mod tests {
             195, 195, //
             192,
         ];
-        let result = string_to_dc_encapsulated_utf8(input);
+        let result = string_to_dc_encapsulated_utf8(input)?;
         assert_eq!(result, expected);
-        let result = bytes_as_dc_encapsulated_utf8(input.as_bytes());
+        let result = bytes_as_dc_encapsulated_utf8(input.as_bytes())?;
         assert_eq!(result, expected);
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_bytes_to_dc_encapsulated_binary() {
+    fn test_bytes_to_dc_encapsulated_binary() -> Result<()> {
         let input = b"Hello, world!";
         // Base64: SGVsbG8sIHdvcmxkIQ==
         // Decimal: 18 6 21 44 27 6
@@ -386,7 +391,8 @@ mod tests {
             195, 195, //
             204,
         ];
-        let result = bytes_to_dc_encapsulated_binary(input);
+        let result = bytes_to_dc_encapsulated_binary(input)?;
         assert_eq!(result, expected);
+        Ok(())
     }
 }

@@ -194,7 +194,7 @@ as_conversions = "deny"
 unnecessary_fallible_conversions = "deny"
 try_err = "deny"
 ok_expect = "deny"
-expect_used = "warn"
+expect_used = "deny"
 # This doesn't seem to work:
 #[cfg(test) indexing_slicing = "warn"]
 unwrap_in_result = "deny"

@@ -168,7 +168,7 @@ impl EiteState {
         new_pos: u32,
     ) -> Result<()> {
         let mut ptrs = self.get_exec_ptrs(exec_id)?;
-        set_element(&mut ptrs, -1, new_pos.to_string());
+        set_element(&mut ptrs, -1, new_pos.to_string())?;
         self.set_exec_ptrs(exec_id, &ptrs)?;
         Ok(())
     }

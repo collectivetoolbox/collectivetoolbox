@@ -934,7 +934,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output_dir,
         } => {
             let cwd = std::env::current_dir()
-                .expect("Failed to get current directory");
+                .context("Failed to get current directory")?;
             let cwd = cwd.as_path();
             let output_dir =
                 ctb_formats_ctb_asset_bundle::extract_asset_bundle(

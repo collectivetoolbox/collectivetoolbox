@@ -81,24 +81,22 @@ pub fn substring_bug_compatible(
     s: &str,
     start: usize,
     length: isize,
-) -> String {
+) -> Result<String> {
     if length < 0 {
         // Negative length: JS code adjusts to (str.length + 1 + length)
         // Example: length = -1 => take (len + 1 - 1) = len chars (effectively whole string)
+        let len_isize = isize::try_from(s.len()).context("String length exceeds isize::MAX")?;
         let adj = usize::try_from(
-            (isize::try_from(s.len())
-                .expect("Failed to convert length to isize")
+            len_isize
                 .saturating_add(1)
-                .saturating_add(length))
-            .max(0),
+                .saturating_add(length)
+                .max(0),
         )
-        .expect("Failed to convert adjusted length to usize");
-        s.chars().skip(start).take(adj).collect()
+        .context("Adjusted length failed conversion to usize")?;
+        Ok(s.chars().skip(start).take(adj).collect())
     } else {
-        s.chars()
-            .skip(start)
-            .take(usize::try_from(length).expect("Conversion failed"))
-            .collect()
+        let take_len = usize::try_from(length).context("Length failed conversion to usize")?;
+        Ok(s.chars().skip(start).take(take_len).collect())
     }
 }
 
@@ -285,10 +283,11 @@ pub fn int_arr_from_str_printed_arr(s: &str) -> Result<Vec<u32>> {
 
 /// Convert string to vector of raw bytes (0..=255) treating each char's codepoint (0..=255).
 /// For bytes above ASCII range, the direct low-byte value of the char is used (mirroring JS charCodeAt & 0xFF).
-pub fn str_to_byte_array(s: &str) -> Vec<u8> {
+pub fn str_to_byte_array(s: &str) -> Result<Vec<u8>> {
     s.chars()
         .map(|c| {
-            u8::try_from(u32::from(c) & 0xFF).expect("Failed to convert to u8")
+            u8::try_from(u32::from(c) & 0xFF)
+                .context("Failed to convert character codepoint to u8")
         })
         .collect()
 }
@@ -313,13 +312,14 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_substring_bug_compatible_behavior() {
+    fn test_substring_bug_compatible_behavior() -> Result<()> {
         let s = "abcdef";
-        assert_eq!(substring_bug_compatible(s, 0, 3), "abc");
-        assert_eq!(substring_bug_compatible(s, 2, 2), "cd");
+        assert_eq!(substring_bug_compatible(s, 0, 3)?, "abc");
+        assert_eq!(substring_bug_compatible(s, 2, 2)?, "cd");
         // Negative length example (len=6): length=-1 => take len+1-1 = 5 chars from start
-        assert_eq!(substring_bug_compatible(s, 0, -1), "abcdef");
-        assert_eq!(substring_bug_compatible(s, 0, -2), "abcde");
+        assert_eq!(substring_bug_compatible(s, 0, -1)?, "abcdef");
+        assert_eq!(substring_bug_compatible(s, 0, -2)?, "abcde");
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -460,11 +460,12 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_str_to_from_byte_array_roundtrip() {
+    fn test_str_to_from_byte_array_roundtrip() -> Result<()> {
         let s = "ABC";
-        let bytes = str_to_byte_array(s);
+        let bytes = str_to_byte_array(s)?;
         assert_eq!(bytes, vec![65, 66, 67]);
         let s2 = str_from_byte_array(&bytes);
         assert_eq!(s2, s);
+        Ok(())
     }
 }

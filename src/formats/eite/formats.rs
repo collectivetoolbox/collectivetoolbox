@@ -258,7 +258,7 @@ pub fn dc_to_format(out_format: &str, dc: u32) -> Result<(Vec<u8>, FormatLog)> {
         is_supported_output_format(out_format),
         "Unsupported output format {out_format}"
     );
-    ensure!(is_known_dc(dc), "Unknown Dc {dc}");
+    ensure!(is_known_dc(dc)?, "Unknown Dc {dc}");
     let mut log = FormatLog::default();
 
     match out_format {
@@ -411,63 +411,76 @@ pub fn export_warning_unmappable(state: &mut EiteState, index: usize, dc: u32) {
 
 /// List all supported formats.
 /// Returns a vector of format names that are supported for conversion.
-pub fn list_formats() -> Vec<String> {
+pub fn list_formats() -> Result<Vec<String>> {
     dc_data_get_column("formats", 1) // The original simply pulled column 1 for all rows.
 }
 
 /// Check if a format is known.
 /// Returns true if the format is recognized, false otherwise.
 pub fn is_format(format: &str) -> bool {
-    list_formats().iter().any(|f| f == format)
+    let Ok(formats) = list_formats() else {
+        return false;
+    };
+    formats.iter().any(|f| f == format)
 }
 
 /// List all supported input formats.
 /// Returns a vector of format names that can be used as input for conversion.
-pub fn list_input_formats() -> Vec<String> {
+pub fn list_input_formats() -> Result<Vec<String>> {
     dc_data_filter_by_value_greater("formats", 3, 0, 1)
 }
 
 /// Check if a format is a supported input format.
 /// Returns true if the format can be used as input for conversion, false otherwise.
 pub fn is_supported_input_format(fmt: &str) -> bool {
-    list_input_formats().iter().any(|f| f == fmt)
+    let Ok(input_formats) = list_input_formats() else {
+        return false;
+    };
+    input_formats.iter().any(|f| f == fmt)
 }
 
 /// List all supported internal formats.
 /// Returns a vector of format names that are supported for internal processing.
-pub fn list_internal_formats() -> Vec<String> {
+pub fn list_internal_formats() -> Result<Vec<String>> {
     dc_data_filter_by_value("formats", 6, "internal", 1)
 }
 
 /// Check if a format is a supported internal format.
 /// Returns true if the format is supported for internal processing, false otherwise.
 pub fn is_supported_internal_format(fmt: &str) -> bool {
-    let inf = list_input_formats();
-    let intern = list_internal_formats();
+    let Ok(inf) = list_input_formats() else {
+        return false;
+    };
+    let Ok(intern) = list_internal_formats() else {
+        return false;
+    };
     inf.iter().any(|f| f == fmt) || intern.iter().any(|f| f == fmt)
 }
 
 /// List all supported output formats.
 /// Returns a vector of format names that can be used as output for conversion.
-pub fn list_output_formats() -> Vec<String> {
+pub fn list_output_formats() -> Result<Vec<String>> {
     dc_data_filter_by_value_greater("formats", 4, 0, 1)
 }
 
 /// Check if a format is a supported output format.
 /// Returns true if the format can be used as output for conversion, false otherwise.
 pub fn is_supported_output_format(fmt: &str) -> bool {
-    list_output_formats().iter().any(|f| f == fmt)
+    let Ok(output_formats) = list_output_formats() else {
+        return false;
+    };
+    output_formats.iter().any(|f| f == fmt)
 }
 
 /// List formats used for storing arbitrary data (currently only basenb)
-pub fn list_data_types() -> Vec<String> {
+pub fn list_data_types() -> Result<Vec<String>> {
     dc_data_filter_by_value("formats", 6, "data", 1)
 }
 
 /// List all variants that are available for the given format. Does NOT return v: prefix for variants.
 pub fn list_variants_for_format(format: &str) -> Result<Vec<String>> {
     let normalized = normalize_format(format)?;
-    let all = list_formats();
+    let all = list_formats()?;
     let mut res = Vec::new();
     for f in all {
         let ftype = get_format_type(&f)?;
@@ -833,11 +846,12 @@ mod tests {
         assert_eq!(state.export_deferred_settings_stack.len(), 1);
     }
     #[crate::ctb_test]
-    fn test_list_formats() {
-        let formats = list_formats();
+    fn test_list_formats() -> Result<()> {
+        let formats = list_formats()?;
         assert!(formats.contains(&"utf8".to_string()));
         assert!(formats.contains(&"ascii".to_string()));
         assert!(formats.contains(&"vt100".to_string()));
+        Ok(())
     }
     #[crate::ctb_test]
     fn test_is_format_true_false() {
@@ -845,9 +859,10 @@ mod tests {
         assert!(!is_format("not_a_format"));
     }
     #[crate::ctb_test]
-    fn test_list_input_formats() {
-        let formats = list_input_formats();
+    fn test_list_input_formats() -> Result<()> {
+        let formats = list_input_formats()?;
         assert!(formats.contains(&"semanticToText".to_string()));
+        Ok(())
     }
     #[crate::ctb_test]
     fn test_is_supported_input_format_true_false() {
@@ -855,10 +870,11 @@ mod tests {
         assert!(!is_supported_input_format("not_a_format"));
     }
     #[crate::ctb_test]
-    fn test_list_internal_formats() {
-        let formats = list_internal_formats();
+    fn test_list_internal_formats() -> Result<()> {
+        let formats = list_internal_formats()?;
         assert!(formats.contains(&"dc".to_string()));
         assert!(!formats.contains(&"utf8".to_string()));
+        Ok(())
     }
     #[crate::ctb_test]
     fn test_is_supported_internal_format_true_false() {
@@ -866,9 +882,10 @@ mod tests {
         assert!(!is_supported_internal_format("not_a_format"));
     }
     #[crate::ctb_test]
-    fn test_list_output_formats() {
-        let formats = list_output_formats();
+    fn test_list_output_formats() -> Result<()> {
+        let formats = list_output_formats()?;
         assert!(formats.contains(&"asciiSafeSubset".to_string()));
+        Ok(())
     }
     #[crate::ctb_test]
     fn test_is_supported_output_format() {
@@ -878,9 +895,10 @@ mod tests {
         assert!(!is_supported_output_format("not_a_format")); // not known
     }
     #[crate::ctb_test]
-    fn test_list_data_types() {
-        let types = list_data_types();
+    fn test_list_data_types() -> Result<()> {
+        let types = list_data_types()?;
         assert!(types.contains(&"basenb".to_string()));
+        Ok(())
     }
     #[crate::ctb_test]
     fn test_list_variants_for_format() {

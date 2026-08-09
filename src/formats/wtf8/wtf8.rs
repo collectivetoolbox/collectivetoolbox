@@ -137,10 +137,9 @@ pub fn encode_wtf8_from_scalars(codepoints: &[u32]) -> Result<Vec<u8>> {
 
 /// WTF-8 encode a UTF-16/UCS-2/JS string (as &[u16]) into `Vec<u8>`.
 /// Uses ucs2decode to convert to codepoints, then encodes as WTF-8.
-pub fn encode_wtf8_from_ucs2(ucs2: &[u16]) -> Vec<u8> {
+pub fn encode_wtf8_from_ucs2(ucs2: &[u16]) -> Result<Vec<u8>> {
     let codepoints = ucs2decode(ucs2);
     encode_wtf8_from_scalars(codepoints.as_slice())
-        .expect("It should not be possible to fail here")
 }
 
 fn read_continuation_byte(input: &[u8], byte_index: &mut usize) -> Result<u8> {
@@ -294,7 +293,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_wtf8_encode_decode() {
+    fn test_wtf8_encode_decode() -> Result<()> {
         let cases = [
             // 1-byte
             TestCase {
@@ -434,7 +433,7 @@ mod tests {
         ];
         for case in &cases {
             // Encode
-            let encoded = encode_wtf8_from_ucs2(case.decoded);
+            let encoded = encode_wtf8_from_ucs2(case.decoded)?;
             assert_eq!(encoded, case.encoded, "Encoding: {}", case.description);
             // Decode
             let decoded = decode_wtf8_to_ucs2(case.encoded);
@@ -458,6 +457,7 @@ mod tests {
                 );
             }
         }
+        Ok(())
     }
 
     #[crate::ctb_test]

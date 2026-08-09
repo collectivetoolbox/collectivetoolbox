@@ -88,13 +88,13 @@ fn deduct_allowance(
 
 // --- Key Management ---
 
-fn get_or_create_voprf_key() -> Vec<u8> {
+fn get_or_create_voprf_key() -> Result<Vec<u8>, StatusCode> {
     if let Ok(Some(key)) = ipcb!(storage).get_voprf_key_b() {
-        return key;
+        return Ok(key);
     }
-    let key = generate_server_key();
+    let key = generate_server_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let _ = ipcb!(storage).save_voprf_key_b(key.clone());
-    key
+    Ok(key)
 }
 
 // --- API Request/Response DTOs ---
@@ -181,7 +181,7 @@ pub async fn post_tokens_issue(
     }
 
     // 3. Sign blinded elements
-    let server_key = get_or_create_voprf_key();
+    let server_key = get_or_create_voprf_key()?;
     let mut evaluations = Vec::with_capacity(count);
 
     for blinded_b64 in payload.blinded_elements {
@@ -226,7 +226,7 @@ pub async fn post_sync_start(
     }
 
     // 2. Verify token signature
-    let server_key = get_or_create_voprf_key();
+    let server_key = get_or_create_voprf_key()?;
     let is_valid = server_verify(&server_key, &serial, &tag)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

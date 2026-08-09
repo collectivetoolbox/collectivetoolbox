@@ -543,10 +543,9 @@ pub fn upgrade_in_place(
 
 pub fn fork(path: &PathBuf, args: Vec<&str>) {
     if let Ok(Fork::Child) = daemon(false, false) {
-        Command::new(path)
-            .args(args)
-            .output()
-            .expect("failed to execute process");
+        if let Err(e) = Command::new(path).args(args).output() {
+            log!("failed to execute process: {e:?}");
+        }
     }
 }
 
@@ -750,13 +749,14 @@ where
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .expect("failed to create Tokio runtime");
-                rt.block_on(fut)
+                    .context("failed to create Tokio runtime")?;
+                Ok::<R, anyhow::Error>(rt.block_on(fut))
             });
             thread_handle.join()
         });
 
-        result.map_err(|e| anyhow::anyhow!("unasync thread panicked: {e:?}"))
+        let res = result.map_err(|e| anyhow::anyhow!("unasync thread panicked: {e:?}"))??;
+        Ok(res)
     } else {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -782,8 +782,8 @@ pub fn default_url() -> String {
     pc_settings::DEFAULT_SERVER_URL.to_string()
 }
 
-pub fn get_all_bytes() -> Vec<u8> {
-    get_utilities_data("all_bytes.bin").expect("Failed to get all_bytes")
+pub fn get_all_bytes() -> Result<Vec<u8>> {
+    get_utilities_data("all_bytes.bin").ok_or_else(|| anyhow::anyhow!("Failed to get all_bytes"))
 }
 
 #[derive(Serialize)]
