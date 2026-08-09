@@ -781,7 +781,7 @@ enum LzhSymbol {
     Match { length: usize, distance: usize },
 }
 
-fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
+fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) -> Result<()> {
     for len in bitlen.iter_mut() {
         *len = 0;
     }
@@ -794,7 +794,7 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
         .collect();
 
     if active.is_empty() {
-        return;
+        return Ok(());
     }
     if active.len() == 1 {
         if let Some(&(sym, _)) = active.first() {
@@ -802,7 +802,7 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
                 *l = 1;
             }
         }
-        return;
+        return Ok(());
     }
 
     #[derive(Clone)]
@@ -822,8 +822,12 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
 
     while heap.len() > 1 {
         heap.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
-        let (w1, i1) = heap.pop().unwrap_or((0, 0));
-        let (w2, i2) = heap.pop().unwrap_or((0, 0));
+        let (w1, i1) = heap
+            .pop()
+            .ok_or_else(|| anyhow::anyhow!("Huffman heap underflow on first pop"))?;
+        let (w2, i2) = heap
+            .pop()
+            .ok_or_else(|| anyhow::anyhow!("Huffman heap underflow on second pop"))?;
         let parent_idx = nodes.len();
         nodes.push(Node::Internal(i1, i2));
         heap.push((w1.saturating_add(w2), parent_idx));
@@ -854,6 +858,7 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
     if let Some(&(_, root)) = heap.first() {
         walk(&nodes, root, 0, bitlen, max_bits);
     }
+    Ok(())
 }
 
 fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) -> Result<()> {
@@ -1032,10 +1037,10 @@ fn compress_block<W: Write>(
     }
 
     let mut c_len = vec![0u8; NC];
-    build_huffman_lengths(&c_freqs, 16, &mut c_len);
+    build_huffman_lengths(&c_freqs, 16, &mut c_len)?;
 
     let mut p_len = vec![0u8; NP];
-    build_huffman_lengths(&p_freqs, 16, &mut p_len);
+    build_huffman_lengths(&p_freqs, 16, &mut p_len)?;
 
     enum PtEntry {
         Len(u8),
@@ -1102,7 +1107,7 @@ fn compress_block<W: Write>(
     }
 
     let mut pt_len = vec![0u8; NT];
-    build_huffman_lengths(&pt_freqs, 7, &mut pt_len);
+    build_huffman_lengths(&pt_freqs, 7, &mut pt_len)?;
 
     let mut pt_codes = vec![0u16; NT];
     build_canonical_codes(&pt_len, &mut pt_codes)?;

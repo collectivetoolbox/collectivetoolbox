@@ -142,6 +142,7 @@ pub fn dclist_to_utf8(
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
                         while j < dclist.len() {
+                            // Reason for fallback: j is bounded by dclist.len() loop condition, so dclist.get(j) is in bounds; fallback 0 safely handles out-of-bounds.
                             let cur_dc = dclist.get(j).copied().unwrap_or(0);
                             if cur_dc >= CLASSIC_DC_OFFSET {
                                 let cur_diff =
@@ -225,6 +226,7 @@ pub fn dclist_to_utf8(
         if settings.dcl_basenb_enabled {
             unmappables.push(dc);
         } else {
+            // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
             let idx_u64 = u64::try_from(i).unwrap_or(0);
             log.export_warning(
                 idx_u64,
@@ -314,15 +316,19 @@ pub fn dclist_from_utf8(
 
             if is_start_basenb {
                 if !settings.dcl_basenb_fragment_enabled {
-                    remaining =
-                        remaining.get(start_uuid.len()..).unwrap_or(&[]);
+                    if let Some(rem) = remaining.get(start_uuid.len()..) {
+                        remaining = rem;
+                    } else {
+                        remaining = &[];
+                    }
                 }
 
                 let end_pos = if settings.dcl_basenb_fragment_enabled {
                     let mut consumed_total = 0;
                     while consumed_total < remaining.len() {
-                        let sub =
-                            remaining.get(consumed_total..).unwrap_or(&[]);
+                        let Some(sub) = remaining.get(consumed_total..) else {
+                            break;
+                        };
                         if let Ok((ch_bytes, ch_len)) =
                             first_char_of_utf8_string(sub)
                         {
@@ -343,7 +349,9 @@ pub fn dclist_from_utf8(
                 };
 
                 if let Some(pos) = end_pos {
-                    let inner_region = remaining.get(..pos).unwrap_or(&[]);
+                    let Some(inner_region) = remaining.get(..pos) else {
+                        break;
+                    };
                     let mut basenb_run = Vec::new();
                     let mut inner_rem = inner_region;
 
@@ -390,7 +398,11 @@ pub fn dclist_from_utf8(
                                     }
                                 }
                             }
-                            inner_rem = inner_rem.get(ch_len..).unwrap_or(&[]);
+                            if let Some(rem) = inner_rem.get(ch_len..) {
+                                inner_rem = rem;
+                            } else {
+                                inner_rem = &[];
+                            }
                         } else {
                             break;
                         }
@@ -416,11 +428,17 @@ pub fn dclist_from_utf8(
                     }
 
                     if settings.dcl_basenb_fragment_enabled {
-                        remaining = remaining.get(pos..).unwrap_or(&[]);
+                        if let Some(rem) = remaining.get(pos..) {
+                            remaining = rem;
+                        } else {
+                            remaining = &[];
+                        }
                     } else {
-                        remaining = remaining
-                            .get(pos.saturating_add(end_uuid.len())..)
-                            .unwrap_or(&[]);
+                        if let Some(rem) = remaining.get(pos.saturating_add(end_uuid.len())..) {
+                            remaining = rem;
+                        } else {
+                            remaining = &[];
+                        }
                     }
                     continue;
                 }
@@ -435,7 +453,11 @@ pub fn dclist_from_utf8(
                         result.push(u128::from(u32::from(ch)));
                     }
                 }
-                remaining = remaining.get(consumed..).unwrap_or(&[]);
+                if let Some(rem) = remaining.get(consumed..) {
+                    remaining = rem;
+                } else {
+                    remaining = &[];
+                }
                 continue;
             }
         }
@@ -443,7 +465,11 @@ pub fn dclist_from_utf8(
         // Advance by 1 byte if invalid UTF-8
         if let Some(&b) = remaining.first() {
             log.import_warning(0, &format!("Invalid UTF-8 byte 0x{b:02X}"));
-            remaining = remaining.get(1..).unwrap_or(&[]);
+            if let Some(rem) = remaining.get(1..) {
+                remaining = rem;
+            } else {
+                remaining = &[];
+            }
         } else {
             break;
         }

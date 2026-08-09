@@ -117,6 +117,7 @@ pub fn render_scripting_news_10(feed: &Feed) -> Result<String> {
     push_text_element_raw(&mut out, 2, "pubDate", &pub_date);
     push_text_element_raw(&mut out, 2, "lastBuildDate", &last_build_date);
 
+    // Reason for fallback: docs element defaults to empty string if home_page_url is absent.
     let docs_url = feed.home_page_url().unwrap_or("");
     push_text_element_raw(&mut out, 2, "docs", &prep_string_10(docs_url)?);
 
@@ -133,6 +134,7 @@ pub fn render_scripting_news_10(feed: &Feed) -> Result<String> {
 
         push_open(&mut out, 2, "link");
 
+        // Reason for fallback: item URL falls back to item ID per scripting news specification.
         let url = entry.url().unwrap_or(entry.id());
         push_text_element_raw(&mut out, 3, "url", &prep_string_10(url)?);
         push_text_element_raw(
@@ -198,6 +200,7 @@ pub fn render_scripting_news_20(feed: &Feed) -> Result<String> {
     push_text_element_raw(&mut out, 2, "pubDate", &pub_date);
     push_text_element_raw(&mut out, 2, "lastBuildDate", &last_build_date);
 
+    // Reason for fallback: docs element defaults to empty string if home_page_url is absent.
     let docs_url = feed.home_page_url().unwrap_or("");
     push_text_element_raw(&mut out, 2, "docs", &prep_string_20(docs_url)?);
 
@@ -208,6 +211,7 @@ pub fn render_scripting_news_20(feed: &Feed) -> Result<String> {
         &prep_string_20(feed.title())?,
     );
 
+    // Reason for fallback: channelLink defaults to empty string if home_page_url is absent.
     let channel_link = feed.home_page_url().unwrap_or("");
     push_text_element_raw(
         &mut out,
@@ -239,6 +243,7 @@ pub fn render_scripting_news_20(feed: &Feed) -> Result<String> {
 
         push_open(&mut out, 2, "link");
 
+        // Reason for fallback: item URL falls back to item ID per scripting news specification.
         let url = entry.url().unwrap_or(entry.id());
         push_text_element_raw(&mut out, 3, "url", &prep_string_20(url)?);
         push_text_element_raw(

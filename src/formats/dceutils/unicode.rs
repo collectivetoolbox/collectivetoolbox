@@ -68,7 +68,9 @@ pub fn convert_utf8_dc64_to_dc(data: &[u8]) -> Result<String> {
         anyhow!("This document is not stored using the specified format.")
     })?;
     // Replicate PHP: `if ((substr($data, 0, 3) > 126) && (substr($data, 0, 3) < 191))`
+    // Reason for fallback: if data_str is shorter than 3 bytes, full data_str is used as prefix.
     let prefix = data_str.get(0..3).unwrap_or(data_str);
+    // Reason for fallback: non-numeric document prefix defaults to 0 so the range check (126..191) evaluates to false and falls back to standard processing.
     let prefix_val = prefix.parse::<i32>().unwrap_or(0);
     if prefix_val > 126 && prefix_val < 191 {
         let dc_array = explode_escaped(',', data_str);

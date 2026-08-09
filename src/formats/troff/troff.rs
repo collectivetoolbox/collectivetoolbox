@@ -272,18 +272,21 @@ fn convert_man_from_data<W: Write>(
 
     let mut stdout = io::BufWriter::new(out);
 
+    // Reason for fallback: document title defaults to "document" if filename parameter is None.
     let filename = filename.unwrap_or("document");
 
     while let Some(line) = reader.man_gets() {
         // Handle macro lines starting with '.'
         if line.starts_with('.') {
             let mut lp: &str = &line;
+            // Reason for fallback: macro_name defaults to empty string if line contains no token.
             let macro_name = parse_value(&mut lp).unwrap_or_default();
 
             if macro_name == "." {
                 continue;
             } else if macro_name == ".TH" {
                 // .TH title section ...
+                // Reason for fallback: title_val defaults to empty string if missing in .TH.
                 let title_val = parse_value(&mut lp).unwrap_or_default();
                 if title_val.is_empty() {
                     return Err(format!(
@@ -292,8 +295,10 @@ fn convert_man_from_data<W: Write>(
                         filename
                     ));
                 }
+                // Reason for fallback: section defaults to empty string if missing in .TH.
                 let section = parse_value(&mut lp).unwrap_or_default();
                 if section.is_empty()
+                    // Reason for fallback: defaults to space character if section string is empty.
                     || !section.chars().next().unwrap_or(' ').is_ascii_digit()
                 {
                     return Err(format!(
@@ -382,6 +387,7 @@ fn convert_man_from_data<W: Write>(
                 state.in_block = Some("pre");
             } else if macro_name == ".HP" {
                 let mut lp2 = lp;
+                // Reason for fallback: HP macro indent defaults to 2.5em per groff man specification.
                 let indent = parse_measurement(&mut lp2, 'n')
                     .unwrap_or_else(|| "2.5em".into());
                 close_link_if(state, &mut stdout);
@@ -417,7 +423,9 @@ fn convert_man_from_data<W: Write>(
                 );
             } else if macro_name == ".IP" {
                 let mut lp2 = lp;
+                // Reason for fallback: IP macro tag defaults to empty string if not supplied.
                 let tag = parse_value(&mut lp2).unwrap_or_default();
+                // Reason for fallback: IP macro indent defaults to 2.5em per groff man specification.
                 let indent = parse_measurement(&mut lp2, 'n')
                     .unwrap_or_else(|| "2.5em".into());
                 close_link_if(state, &mut stdout);
@@ -467,6 +475,7 @@ fn convert_man_from_data<W: Write>(
                 }
             } else if macro_name == ".MT" {
                 let mut lp2 = lp;
+                // Reason for fallback: MT macro email defaults to empty string if not supplied.
                 let email = parse_value(&mut lp2).unwrap_or_default();
                 if !email.is_empty() {
                     write!(
@@ -501,6 +510,7 @@ fn convert_man_from_data<W: Write>(
                 }
             } else if macro_name == ".RS" {
                 let mut lp2 = lp;
+                // Reason for fallback: RS macro indent defaults to 0.5in per groff man specification.
                 let indent = parse_measurement(&mut lp2, 'n')
                     .unwrap_or_else(|| "0.5in".into());
                 writeln!(stdout, "    <div style=\"margin-left: {indent};\">")
@@ -547,6 +557,7 @@ fn convert_man_from_data<W: Write>(
                 state.in_block = Some("p");
             } else if macro_name == ".TP" {
                 let mut lp2 = lp;
+                // Reason for fallback: TP macro indent defaults to 2.5em per groff man specification.
                 let indent = parse_measurement(&mut lp2, 'n')
                     .unwrap_or_else(|| "2.5em".into());
                 close_link_if(state, &mut stdout);
@@ -560,6 +571,7 @@ fn convert_man_from_data<W: Write>(
                 break_text = "<br>".into();
             } else if macro_name == ".UR" {
                 let mut lp2 = lp;
+                // Reason for fallback: UR macro url defaults to empty string if not supplied.
                 let url = parse_value(&mut lp2).unwrap_or_default();
                 if !url.is_empty() {
                     write!(stdout, "<a href=\"{}\">", html_escape(&url)).ok();
@@ -803,6 +815,7 @@ fn html_header(state: &mut State, topic: &str, w: &mut impl Write) {
             html_escape(subject)
         );
     }
+    // Reason for fallback: header title defaults to topic parameter or generic "Documentation" if title is unassigned.
     let title = state.title.as_deref().unwrap_or({
         if topic.is_empty() {
             "Documentation"
@@ -994,6 +1007,7 @@ fn capitalize_heading_words(s: &str) -> String {
             i = i.saturating_add(1);
         }
     }
+    // Reason for fallback: invalid UTF-8 title bytes default to empty string.
     String::from_utf8(title).unwrap_or_default()
 }
 
@@ -1119,6 +1133,7 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                 flush_fragment(fragment_start, i, w, bytes);
                 i = i.saturating_add(1);
 
+                // Reason for fallback: i is bounded by bytes.len() loop condition; 0 handles out-of-bounds byte.
                 let c = char::from(bytes.get(i).copied().unwrap_or(0));
                 match c {
                     'f' => {
@@ -1238,7 +1253,7 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         }
 
                         if matches!(bytes.get(j), Some(b']')) {
-                            // token inside \[ ... ]
+                            // Reason for fallback: empty slice fallback when getting slice of bytes.
                             let token_bytes = bytes
                                 .get(i.saturating_add(1)..j)
                                 .unwrap_or(&[]);
@@ -1345,8 +1360,10 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
             } else {
                 i = i.saturating_add(1);
             }
+        // Reason for fallback: i is bounded by bytes.len() loop condition; empty slice handles EOF.
         } else if starts_with_url(bytes.get(i..).unwrap_or(&[])) {
             flush_fragment(fragment_start, i, w, bytes);
+            // Reason for fallback: i is bounded by bytes.len() loop condition; empty slice handles EOF.
             let (url, consumed) = extract_url(bytes.get(i..).unwrap_or(&[]));
             let _ = write!(
                 w,
@@ -1371,11 +1388,13 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
 }
 
 fn starts_with_url(slice: &[u8]) -> bool {
+    // Reason for fallback: invalid UTF-8 slice defaults to empty string for URL detection.
     let s = std::str::from_utf8(slice).unwrap_or("");
     s.starts_with("http://") || s.starts_with("https://")
 }
 
 fn extract_url(slice: &[u8]) -> (String, usize) {
+    // Reason for fallback: invalid UTF-8 slice defaults to empty string for URL extraction.
     let s = std::str::from_utf8(slice).unwrap_or("");
     let mut end = 0usize;
     let chars: Vec<char> = s.chars().collect();
@@ -1397,6 +1416,7 @@ fn extract_url(slice: &[u8]) -> (String, usize) {
         }
         end = end.saturating_add(1);
     }
+    // Reason for fallback: end is bounded by chars.len(); empty slice fallback handles out-of-bounds.
     let url: String = chars.get(..end).unwrap_or_default().iter().collect();
     let len = url.len();
     (url, len)
@@ -1465,6 +1485,7 @@ fn parse_measurement(line: &mut &str, defunit: char) -> Option<String> {
         .chars()
         .next_back()
         .filter(char::is_ascii_alphabetic)
+        // Reason for fallback: unit char defaults to specified defunit (e.g. 'n') if last char is not alphabetic.
         .unwrap_or(defunit);
 
     let number_part =
@@ -1476,6 +1497,7 @@ fn parse_measurement(line: &mut &str, defunit: char) -> Option<String> {
             s.clone()
         };
 
+    // Reason for fallback: number parsing defaults to 0.0 if number_part is non-numeric.
     let parsed = number_part.parse::<f64>().unwrap_or(0.0);
 
     let converted = match unit {

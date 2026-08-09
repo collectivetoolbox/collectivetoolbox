@@ -25,6 +25,7 @@ pub fn markdown2html(markdown: Vec<u8>) -> Vec<u8> {
 
 pub fn markdown2html_str(markdown: &str) -> String {
     let replaced = branding::replace_magic_strings(markdown);
+    // Reason for fallback: markdown parser returns default empty string if HTML compilation produces an error.
     markdown::to_html_with_options(&replaced, &get_markdown_options(false))
         .unwrap_or_default()
 }

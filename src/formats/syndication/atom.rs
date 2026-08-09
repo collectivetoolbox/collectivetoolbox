@@ -36,6 +36,7 @@ pub(crate) fn render(feed: &Feed) -> Result<String> {
 
     // Required: id (use feed_url or home_page_url or a generated URN)
     let uuid = format!("urn:uuid:{}", uuid::Uuid::new_v4());
+    // Reason for fallback: Atom specification requires a feed id; if feed_url and home_page_url are missing, a random URN UUID is generated.
     let feed_id = feed.feed_url().or(feed.home_page_url()).unwrap_or(&uuid);
     write_text_element(&mut writer, "id", feed_id)?;
 
@@ -48,6 +49,7 @@ pub(crate) fn render(feed: &Feed) -> Result<String> {
             if d.is_empty() { None } else { Some(d) }
         })
         .max()
+        // Reason for fallback: Atom specification requires an updated timestamp; defaults to Epoch 1970-01-01 if no entry dates exist.
         .unwrap_or("1970-01-01T00:00:00Z");
     write_text_element(&mut writer, "updated", updated)?;
 

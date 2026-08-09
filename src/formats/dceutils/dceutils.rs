@@ -232,7 +232,7 @@ pub fn dce_convert(
     // Step 5: Convert the Dc list to the chosen output format
     match output_format {
         "dc" => {
-            let dc_out = convert_dc_to_dc_output(&dc_cleaned);
+            let dc_out = convert_dc_to_dc_output(&dc_cleaned)?;
             Ok(dc_out.into_bytes())
         }
         "legacy_cdce" => cdce::convert_dc_to_legacy_cdce_output(&dc_cleaned),
@@ -280,16 +280,28 @@ pub fn dce_convert(
     }
 }
 
-fn convert_dc_to_dc_output(data: &str) -> String {
-    let first_char = data.chars().next().unwrap_or('0');
-    let last_char = data.chars().last().unwrap_or('0');
-    let first_val = first_char.to_digit(10).unwrap_or(0);
-    let last_val = last_char.to_digit(10).unwrap_or(0);
+fn convert_dc_to_dc_output(data: &str) -> Result<String> {
+    // FIXME: Should empty input return empty string output? It looks like it would crash the PHP version.
+    let first_char = data
+        .chars()
+        .next()
+        .ok_or_else(|| anyhow!("Empty Dc payload"))?;
+    let last_char = data
+        .chars()
+        .last()
+        .ok_or_else(|| anyhow!("Empty Dc payload"))?;
+    let first_val = first_char
+        .to_digit(10)
+        .ok_or_else(|| anyhow!("Non-digit character '{first_char}' in Dc payload"))?;
+    let last_val = last_char
+        .to_digit(10)
+        .ok_or_else(|| anyhow!("Non-digit character '{last_char}' in Dc payload"))?;
+
     if !data.starts_with("114") && first_val != 0 && last_val != 0 {
-        format!("114,{data},115")
+        Ok(format!("114,{data},115"))
     } else if !data.starts_with("114") && first_val != 0 {
-        format!("114,{data}")
+        Ok(format!("114,{data}"))
     } else {
-        data.to_string()
+        Ok(data.to_string())
     }
 }

@@ -40,6 +40,7 @@ pub fn php_to_csvs(bytes: &[u8]) -> Result<HashMap<String, Vec<u8>>> {
                 let arrow_idx_plus_2 = arrow_idx
                     .checked_add(2)
                     .ok_or_else(|| anyhow!("Index overflow"))?;
+                // Reason for fallback: in PHP array syntax, trailing '=>' without a value specifies a key mapped to an empty string value.
                 let val_part =
                     elem_trimmed.get(arrow_idx_plus_2..).unwrap_or("").trim();
                 let key = parse_php_string(key_part);

@@ -129,6 +129,7 @@ pub fn scalars_to_unpaired_surrogates(codepoints: &[u32]) -> Result<Vec<u32>> {
 pub fn scalars_to_string_lossy(scalars: &[u32]) -> String {
     combine_surrogates(scalars.to_vec())
         .iter()
+        // Reason for fallback: invalid codepoint is replaced with Unicode replacement character U+FFFD as lossy conversion specification.
         .map(|&cp| char::from_u32(cp).unwrap_or('\u{FFFD}'))
         .collect()
 }

@@ -60,6 +60,7 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                 list.push(u128::from(u32::from(ch)));
             }
 
+            // Reason for fallback: if @ is the last character in rest, start + 1 exceeds string length and empty slice indicates no remaining text.
             rest = rest.get(start.saturating_add(1)..).unwrap_or("");
 
             if let Some(end) = rest.find('@') {
@@ -87,6 +88,7 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                         "Invalid DcID token @{token}@ in DcText"
                     ));
                 }
+                // Reason for fallback: if closing @ is the last character in rest, end + 1 exceeds string length and empty slice indicates no remaining text.
                 rest = rest.get(end.saturating_add(1)..).unwrap_or("");
             } else {
                 for ch in rest.chars() {
@@ -156,7 +158,7 @@ pub fn dcutf_to_dclist(document: &[u8]) -> DcList {
     let mut list = Vec::new();
     let mut i = 0;
     while i < document.len() {
-        let slice = document.get(i..).unwrap_or(&[]);
+        let Some(slice) = document.get(i..) else { break };
         if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
             list.push(codepoint);
             i = i.saturating_add(size);

@@ -48,6 +48,7 @@ pub struct FormatChain {
 
 /// Parses a filename or path into a structured `FormatChain`.
 pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
+    // Reason for fallback: rsplit yields at least one component, so fallback filename handles empty rsplit iterator.
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let mut parts: Vec<&str> = basename.split('.').collect();
     if parts.len() <= 1 {

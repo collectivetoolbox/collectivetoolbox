@@ -234,6 +234,7 @@ fn render_rss_091(feed: &Feed, flavor: Rss091Flavor) -> Result<String> {
             &ellipsize_to_max_bytes(entry.title(), 100),
         )?;
 
+        // Reason for fallback: per RSS 0.91 specification, feed item link falls back to item ID if explicit URL is absent.
         let item_link = entry.url().unwrap_or(entry.id());
         ensure_http_or_ftp_uri(item_link)?;
         write_text_element(

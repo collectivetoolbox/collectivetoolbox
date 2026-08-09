@@ -94,20 +94,22 @@ fn char_to_hex_val(b: u8) -> u8 {
         b'0'..=b'9' => b.saturating_sub(b'0'),
         b'a'..=b'f' => b.saturating_sub(b'a').saturating_add(10),
         b'A'..=b'F' => b.saturating_sub(b'A').saturating_add(10),
-        _ => 0, // PHP pack treats invalid hex characters as 0
+        _ => 0, // Invalid hex characters default to 0 in old/pack.c (line 480)
     }
 }
 
 /// Port of the legacy PHP `dce2hex` function.
-/// NOTE: Replicates the low-nibble-first hex decoding behavior of `pack("h*", ...)`.
+/// NOTE: Replicates the low-nibble-first hex decoding behavior of `pack("h*", ...)` in `old/pack.c`.
 pub fn dce2hex(hex_bytes: &[u8]) -> Vec<u8> {
     let capacity = hex_bytes.len().saturating_add(1).saturating_div(2);
     let mut bin = Vec::with_capacity(capacity);
     let mut i = 0_usize;
     while i < hex_bytes.len() {
+        // Reason for fallback: missing nibbles for odd-length hex strings default to 0, matching PHP's implementation.
         let low = hex_bytes.get(i).copied().map_or(0, char_to_hex_val);
         let next_idx = i.saturating_add(1);
         let high = if next_idx < hex_bytes.len() {
+            // Reason for fallback: missing nibbles for odd-length hex strings default to 0, matching PHP's implementation.
             hex_bytes.get(next_idx).copied().map_or(0, char_to_hex_val)
         } else {
             0
@@ -119,15 +121,17 @@ pub fn dce2hex(hex_bytes: &[u8]) -> Vec<u8> {
 }
 
 /// Port of the legacy PHP `hex2dce` function.
-/// NOTE: Replicates high-nibble-first / standard hex decoding of `pack("H*", ...)`.
+/// NOTE: Replicates high-nibble-first / standard hex decoding of `pack("H*", ...)` in `old/pack.c`.
 pub fn hex2dce(hex_bytes: &[u8]) -> Vec<u8> {
     let capacity = hex_bytes.len().saturating_add(1).saturating_div(2);
     let mut bin = Vec::with_capacity(capacity);
     let mut i = 0_usize;
     while i < hex_bytes.len() {
+        // Reason for fallback: missing nibbles for odd-length hex strings default to 0, matching PHP's implementation.
         let high = hex_bytes.get(i).copied().map_or(0, char_to_hex_val);
         let next_idx = i.saturating_add(1);
         let low = if next_idx < hex_bytes.len() {
+            // Reason for fallback: missing nibbles for odd-length hex strings default to 0, matching PHP's implementation.
             hex_bytes.get(next_idx).copied().map_or(0, char_to_hex_val)
         } else {
             0

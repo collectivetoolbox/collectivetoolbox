@@ -16,6 +16,7 @@ pub fn run_stagel_bootstrap_convert(
         format!("Failed to read input file: {input_file:?}")
     })?;
 
+    // Reason for fallback: default module stem name "input" used if file_stem is invalid UTF-8 or absent.
     let filename = input_file
         .file_stem()
         .and_then(|s| s.to_str())

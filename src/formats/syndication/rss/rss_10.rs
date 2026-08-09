@@ -88,6 +88,7 @@ pub fn render_rss_10(feed: &Feed) -> Result<String> {
         .context("writing rdf:Seq start")?;
 
     for entry in feed.entries() {
+        // Reason for fallback: per RSS 1.0 specification, item resource URL falls back to item ID if explicit URL is absent.
         let item_url = entry.url().unwrap_or(entry.id());
         writer
             .write(XmlEvent::start_element("rdf:li").attr("resource", item_url))
@@ -115,6 +116,7 @@ pub fn render_rss_10(feed: &Feed) -> Result<String> {
             ensure_http_https_or_ftp_uri(item_url)?;
         }
 
+        // Reason for fallback: per RSS 1.0 specification, item resource URL falls back to item ID if explicit URL is absent.
         let item_url = entry.url().unwrap_or(entry.id());
 
         writer

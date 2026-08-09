@@ -106,7 +106,7 @@ pub fn render_rss_20(feed: &Feed) -> Result<String> {
             write_text_element(&mut writer, "pubDate", entry.date())?;
         }
 
-        // guid (use id or url)
+        // Reason for fallback: per RSS 2.0 specification, item guid falls back to item ID if explicit URL is absent.
         let guid = entry.url().unwrap_or(entry.id());
         if !guid.is_empty() {
             write_text_element(&mut writer, "guid", guid)?;

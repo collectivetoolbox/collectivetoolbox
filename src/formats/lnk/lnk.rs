@@ -39,6 +39,7 @@ fn split_windowsish_path(path: &str) -> (Option<&str>, &str) {
     };
 
     let working_dir = path.get(..sep_index).filter(|d| !d.is_empty());
+    // Reason for fallback: if sep_index + 1 exceeds path length, fallback to whole path as file name.
     let file_name = path.get(sep_index.saturating_add(1)..).unwrap_or(path);
 
     (working_dir, file_name)
@@ -54,6 +55,7 @@ pub fn create_simple_lnk<P: AsRef<std::path::Path>>(
     let target = target_path.as_ref().to_string_lossy();
     let (working_dir, file_name) = split_windowsish_path(&target);
 
+    // Reason for fallback: working directory defaults to current directory '.' if no path separator was present in target path.
     let working_dir = working_dir.unwrap_or(".");
     let relative_name = if file_name.is_empty() {
         target.as_ref()
@@ -243,6 +245,7 @@ fn build_path_from_link_info(info: &LinkInfo) -> Result<PathBuf> {
             .as_ref()
             .context("Missing CommonNetworkRelativeLink in LinkInfo")?;
         std::panic::catch_unwind(|| common.name()).map_err(|panic_payload| {
+            // Reason for fallback: default description used when catch_unwind panic payload is not a str or String.
             let payload_msg = panic_payload
                 .downcast_ref::<&str>()
                 .map(|s| (*s).to_string())
@@ -289,6 +292,7 @@ fn build_path_from_string_data(string_data: &StringData) -> Result<PathBuf> {
         .relative_path()
         .as_ref()
         .context("Missing RelativePath in StringData")?;
+    // Reason for fallback: if relative path has no './' or '.\\' prefix, original relative path is retained.
     let relative_path = relative_path
         .strip_prefix(".\\")
         .or(relative_path.strip_prefix("./"))

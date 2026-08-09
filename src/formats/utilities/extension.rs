@@ -61,8 +61,10 @@ impl ExtensionRule {
 
     /// Checks if a given filename or extension matches this rule.
     pub fn matches(&self, candidate: &str) -> bool {
+        // Reason for fallback: rsplit yields at least one component, so fallback candidate handles empty rsplit iterator.
         let cand = candidate.rsplit(['/', '\\']).next().unwrap_or(candidate);
         let ext = if let Some(dot_idx) = cand.rfind('.') {
+            // Reason for fallback: if dot is trailing character in candidate, dot_idx + 1 exceeds length and empty string slice indicates empty extension.
             cand.get(dot_idx.saturating_add(1)..).unwrap_or("")
         } else {
             cand
