@@ -80,12 +80,16 @@ pub async fn insert_node(
             .limit(1)
             .build(SqliteQueryBuilder);
 
-        let params = crate::db::sea_values_to_turso(values);
+        let params = crate::db::sea_values_to_turso(values)?;
         let mut stmt = conn.prepare(&sql).await?;
         let mut rows = stmt.query(params).await?;
         let max_id = if let Some(row) = rows.next().await? {
             if let Ok(Value::Blob(b)) = row.get_value(0) {
-                u128::from_be_bytes(b.try_into().unwrap_or([0; 16]))
+                u128::from_be_bytes(
+                    b.as_slice()
+                        .try_into()
+                        .context("max_id blob did not fit into 16 bytes")?,
+                )
             } else {
                 0
             }
@@ -125,7 +129,7 @@ pub async fn insert_node(
         ])
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(id)
 }
@@ -155,7 +159,7 @@ pub async fn update_node_type(
         .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob))
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -185,7 +189,7 @@ pub async fn update_node_data(
         .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob))
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -220,7 +224,7 @@ pub async fn get_node(
         .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob))
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -268,7 +272,7 @@ pub async fn get_node_dto(
         .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob))
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -280,10 +284,18 @@ pub async fn get_node_dto(
         let mut timestamp_val = 0u128;
 
         if let Ok(Value::Blob(b)) = row.get_value(0) {
-            id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+            id_val = u128::from_be_bytes(
+                b.as_slice()
+                    .try_into()
+                    .context("Node ID blob did not fit into 16 bytes")?,
+            );
         }
         if let Ok(Value::Blob(b)) = row.get_value(1) {
-            graph_id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+            graph_id_val = u128::from_be_bytes(
+                b.as_slice()
+                    .try_into()
+                    .context("Graph ID blob did not fit into 16 bytes")?,
+            );
         }
         match row.get_value(2) {
             Ok(Value::Integer(i)) => {
@@ -307,16 +319,22 @@ pub async fn get_node_dto(
         match row.get_value(5) {
             Ok(Value::Blob(b)) => {
                 if b.len() == 16 {
-                    timestamp_val =
-                        u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+                    timestamp_val = u128::from_be_bytes(
+                        b.as_slice().try_into().context(
+                            "Timestamp 16-byte blob conversion failed",
+                        )?,
+                    );
                 } else if b.len() == 8 {
                     timestamp_val = u128::from(u64::from_be_bytes(
-                        b.try_into().unwrap_or([0; 8]),
+                        b.as_slice().try_into().context(
+                            "Timestamp 8-byte blob conversion failed",
+                        )?,
                     ));
                 }
             }
             Ok(Value::Integer(i)) => {
-                timestamp_val = u128::try_from(i).unwrap_or(0);
+                timestamp_val = u128::try_from(i)
+                    .context("integer timestamp did not fit into u128")?;
             }
             _ => {}
         }
@@ -355,7 +373,7 @@ pub async fn list_nodes(
         .order_by(Nodes::Id, sea_query::Order::Desc)
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     let mut list = Vec::new();
@@ -368,10 +386,18 @@ pub async fn list_nodes(
         let mut timestamp_val = 0u128;
 
         if let Ok(Value::Blob(b)) = row.get_value(0) {
-            id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+            id_val = u128::from_be_bytes(
+                b.as_slice()
+                    .try_into()
+                    .context("Node ID blob did not fit into 16 bytes")?,
+            );
         }
         if let Ok(Value::Blob(b)) = row.get_value(1) {
-            graph_id_val = u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+            graph_id_val = u128::from_be_bytes(
+                b.as_slice()
+                    .try_into()
+                    .context("Graph ID blob did not fit into 16 bytes")?,
+            );
         }
         match row.get_value(2) {
             Ok(Value::Integer(i)) => {
@@ -395,16 +421,22 @@ pub async fn list_nodes(
         match row.get_value(5) {
             Ok(Value::Blob(b)) => {
                 if b.len() == 16 {
-                    timestamp_val =
-                        u128::from_be_bytes(b.try_into().unwrap_or([0; 16]));
+                    timestamp_val = u128::from_be_bytes(
+                        b.as_slice().try_into().context(
+                            "Timestamp 16-byte blob conversion failed",
+                        )?,
+                    );
                 } else if b.len() == 8 {
                     timestamp_val = u128::from(u64::from_be_bytes(
-                        b.try_into().unwrap_or([0; 8]),
+                        b.as_slice().try_into().context(
+                            "Timestamp 8-byte blob conversion failed",
+                        )?,
                     ));
                 }
             }
             Ok(Value::Integer(i)) => {
-                timestamp_val = u128::try_from(i).unwrap_or(0);
+                timestamp_val = u128::try_from(i)
+                    .context("integer timestamp did not fit into u128")?;
             }
             _ => {}
         }

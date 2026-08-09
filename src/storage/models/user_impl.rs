@@ -86,7 +86,7 @@ pub async fn increment_and_get_user_id() -> Result<u64> {
             .and_where(Expr::col(UsersMetadata::Key).eq("last_user_id"))
             .build(SqliteQueryBuilder);
 
-        let params = crate::db::sea_values_to_turso(values);
+        let params = crate::db::sea_values_to_turso(values)?;
         let mut stmt = conn.prepare(&sql_query).await?;
         let mut rows = stmt.query(params).await?;
         let next_id = if let Some(row) = rows.next().await? {
@@ -116,7 +116,7 @@ pub async fn increment_and_get_user_id() -> Result<u64> {
 
         conn.execute(
             &sql_insert,
-            crate::db::sea_values_to_turso(insert_values),
+            crate::db::sea_values_to_turso(insert_values)?,
         )
         .await?;
 
@@ -243,7 +243,7 @@ pub async fn get_user_by_name(
         .from(Users::Table)
         .and_where(Expr::col(Users::Username).eq(name))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -275,7 +275,7 @@ pub async fn get_user_by_id(
         .from(Users::Table)
         .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -291,7 +291,7 @@ pub async fn get_all_user_ids() -> Result<Vec<u64>> {
         .column(Users::Id)
         .from(Users::Table)
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     let mut ids = Vec::new();
@@ -333,15 +333,19 @@ pub async fn create_user(user: UserDto) -> Result<()> {
             user.wrapped_dek.clone().into(),
             user.pubkey.clone().into(),
             user.subscription_expiry
-                .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                .transpose()
+                .context("subscription expiry did not fit into i64")?
                 .into(),
             user.token_quota
-                .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                .transpose()
+                .context("token quota did not fit into i64")?
                 .into(),
             user.remote_status.clone().into(),
         ])
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -366,13 +370,17 @@ pub async fn update_user(user: UserDto) -> Result<()> {
             (
                 Users::SubscriptionExpiry,
                 user.subscription_expiry
-                    .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                    .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                    .transpose()
+                    .context("subscription expiry did not fit into i64")?
                     .into(),
             ),
             (
                 Users::TokenQuota,
                 user.token_quota
-                    .map(|v| <i64 as TryFrom<_>>::try_from(v).unwrap_or(0))
+                    .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                    .transpose()
+                    .context("token quota did not fit into i64")?
                     .into(),
             ),
             (Users::RemoteStatus, user.remote_status.clone().into()),
@@ -381,7 +389,7 @@ pub async fn update_user(user: UserDto) -> Result<()> {
             Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(user.id)?),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -393,7 +401,7 @@ pub async fn delete_user_by_id(id: u64) -> Result<()> {
         .from_table(Users::Table)
         .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -407,7 +415,7 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
         .from(Users::Table)
         .and_where(Expr::col(Users::Username).eq(new_username.clone()))
         .build(SqliteQueryBuilder);
-    let check_params = crate::db::sea_values_to_turso(check_values);
+    let check_params = crate::db::sea_values_to_turso(check_values)?;
     let mut stmt = conn.prepare(&sql_check).await?;
     let mut rows = stmt.query(check_params).await?;
     if rows.next().await?.is_some() {
@@ -419,7 +427,7 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
         .from(Users::Table)
         .and_where(Expr::col(Users::Id).eq(<i64 as TryFrom<_>>::try_from(id)?))
         .build(SqliteQueryBuilder);
-    let user_params = crate::db::sea_values_to_turso(user_values);
+    let user_params = crate::db::sea_values_to_turso(user_values)?;
     let mut stmt_user = conn.prepare(&sql_user).await?;
     let mut rows_user = stmt_user.query(user_params).await?;
     let Some(row) = rows_user.next().await? else {
@@ -470,7 +478,7 @@ pub async fn rename_user(id: u64, new_username: String) -> Result<()> {
                 .build(SqliteQueryBuilder)
         };
 
-        let params_update = crate::db::sea_values_to_turso(update_values);
+        let params_update = crate::db::sea_values_to_turso(update_values)?;
         conn.execute(&sql_update, params_update).await?;
         Ok(())
     }
@@ -499,7 +507,7 @@ pub async fn get_voprf_key() -> Result<Option<Vec<u8>>> {
         .from(UsersMetadata::Table)
         .and_where(Expr::col(UsersMetadata::Key).eq("voprf_server_key"))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -526,7 +534,7 @@ pub async fn save_voprf_key(key: Vec<u8>) -> Result<()> {
                 .to_owned(),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }

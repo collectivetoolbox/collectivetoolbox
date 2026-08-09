@@ -41,9 +41,13 @@ pub fn timecode(frames: i64, framerate: i64) -> Result<String> {
     let fps_u = u128::try_from(fps).context("fps")?;
     let total = u128::try_from(frames).context("frames")?;
 
-    let total_seconds = total.checked_div(fps_u).unwrap_or(0);
-    let f = i64::try_from(total.checked_rem(fps_u).unwrap_or(0))
-        .context("frame number did not fit into i64")?;
+    let total_seconds = total
+        .checked_div(fps_u)
+        .context("division by fps failed")?;
+    let f = i64::try_from(
+        total.checked_rem(fps_u).context("remainder by fps failed")?,
+    )
+    .context("frame number did not fit into i64")?;
 
     let s = i64::try_from(total_seconds % 60)
         .context("seconds did not fit into i64")?;
@@ -188,7 +192,7 @@ fn scale_frames(frames: i64, from_fps: i64, to_fps: i64) -> Result<i64> {
         .checked_add(half)
         .context("scale overflow")?
         .checked_div(from)
-        .unwrap_or(0);
+        .context("division by from_fps failed")?;
 
     i64::try_from(scaled).context("scaled frame count did not fit into i64")
 }

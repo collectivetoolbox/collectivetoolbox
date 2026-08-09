@@ -379,7 +379,7 @@ pub fn arraynumericsort(text: &str, separator: char) -> Result<String> {
         parts.push((n, el));
     }
 
-    parts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
+    parts.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let out: Vec<&str> = parts.into_iter().map(|(_, s)| s).collect();
     Ok(join_parts(&out, separator))
@@ -825,6 +825,7 @@ fn arraytable_bound(
         }
     }
 
+    // Returning `default` when no floor/ceiling key matches is specified by the Pan array function contract.
     Ok(best_val.unwrap_or(default).to_string())
 }
 

@@ -59,13 +59,17 @@ async fn allocate_next_system_id_internal(conn: &Connection) -> Result<u128> {
         .limit(1)
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     let mut max_id = None;
     if let Some(row) = rows.next().await? {
         if let Ok(Value::Blob(b)) = row.get_value(0) {
-            max_id = Some(u128::from_be_bytes(b.try_into().unwrap_or([0; 16])));
+            max_id = Some(u128::from_be_bytes(
+                b.as_slice()
+                    .try_into()
+                    .context("Graph max_id blob did not fit into 16 bytes")?,
+            ));
         }
     }
 
@@ -148,7 +152,7 @@ pub async fn publish_packaged_node_to_global(
             .and_where(Expr::col(Nodes::Id).eq(tid.to_be_bytes().to_vec()))
             .build(SqliteQueryBuilder);
 
-        let params = crate::db::sea_values_to_turso(values);
+        let params = crate::db::sea_values_to_turso(values)?;
         let mut stmt = global_conn.prepare(&sql).await?;
         let mut rows = stmt.query(params).await?;
         if rows.next().await?.is_some() {
@@ -183,7 +187,7 @@ pub async fn publish_packaged_node_to_global(
         ])
         .build(SqliteQueryBuilder);
 
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = global_conn.prepare(&sql).await?;
     stmt.execute(params).await?;
 
@@ -217,9 +221,9 @@ pub async fn list_databases(session_token: String) -> Result<Vec<String>> {
                 .column(DatabaseSections::Path)
                 .from(DatabaseSections::Table)
                 .build(SqliteQueryBuilder);
-            let params = crate::db::sea_values_to_turso(values);
-            if let Ok(mut data_stmt) = conn.prepare(&sql).await {
-                if let Ok(mut data_rows) = data_stmt.query(params).await {
+            if let Ok(params) = crate::db::sea_values_to_turso(values) {
+                if let Ok(mut data_stmt) = conn.prepare(&sql).await {
+                    if let Ok(mut data_rows) = data_stmt.query(params).await {
                     while let Ok(Some(row)) = data_rows.next().await {
                         if let Ok(Value::Text(p)) = row.get_value(0) {
                             let resolved =
@@ -232,6 +236,7 @@ pub async fn list_databases(session_token: String) -> Result<Vec<String>> {
                 }
             }
         }
+    }
     }
 
     Ok(list)
@@ -286,13 +291,14 @@ pub async fn get_formatted_table_data(
         .from(Alias::new(&table_name))
         .build(SqliteQueryBuilder);
 
-    let count_params = crate::db::sea_values_to_turso(count_values);
+    let count_params = crate::db::sea_values_to_turso(count_values)?;
     let mut count_stmt = conn.prepare(&count_sql).await?;
     let mut count_rows = count_stmt.query(count_params).await?;
     let mut total_rows = 0u32;
     if let Some(row) = count_rows.next().await? {
         if let Ok(Value::Integer(v)) = row.get_value(0) {
-            total_rows = <u32 as TryFrom<_>>::try_from(v).unwrap_or(0);
+            total_rows = <u32 as TryFrom<_>>::try_from(v)
+                .context("Row count integer did not fit into u32")?;
         }
     }
 
@@ -301,7 +307,7 @@ pub async fn get_formatted_table_data(
         .saturating_add(limit)
         .saturating_sub(1)
         .checked_div(limit)
-        .unwrap_or(0);
+        .context("division by limit failed")?;
     let current_page = std::cmp::max(1, page);
     let offset = current_page.saturating_sub(1).saturating_mul(limit);
 
@@ -313,7 +319,7 @@ pub async fn get_formatted_table_data(
         .offset(u64::from(offset))
         .build(SqliteQueryBuilder);
 
-    let query_params = crate::db::sea_values_to_turso(query_values);
+    let query_params = crate::db::sea_values_to_turso(query_values)?;
     let mut stmt = conn.prepare(&query_sql).await?;
     let mut rows = stmt.query(query_params).await?;
 

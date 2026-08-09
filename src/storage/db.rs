@@ -217,49 +217,54 @@ pub fn close_connections(user_id: u64) -> Result<()> {
 }
 
 /// Convert `SeaQuery` Values to Turso Values.
-pub fn sea_values_to_turso(values: sea_query::Values) -> Vec<turso::Value> {
+pub fn sea_values_to_turso(
+    values: sea_query::Values,
+) -> Result<Vec<turso::Value>> {
     values
         .into_iter()
         .map(|val| match val {
             sea_query::Value::Bool(Some(b)) => {
-                turso::Value::Integer(i64::from(b))
+                Ok(turso::Value::Integer(i64::from(b)))
             }
             sea_query::Value::TinyInt(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
             sea_query::Value::SmallInt(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
             sea_query::Value::Int(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
-            sea_query::Value::BigInt(Some(v)) => turso::Value::Integer(v),
+            sea_query::Value::BigInt(Some(v)) => Ok(turso::Value::Integer(v)),
             sea_query::Value::TinyUnsigned(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
             sea_query::Value::SmallUnsigned(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
             sea_query::Value::Unsigned(Some(v)) => {
-                turso::Value::Integer(i64::from(v))
+                Ok(turso::Value::Integer(i64::from(v)))
             }
-            sea_query::Value::BigUnsigned(Some(v)) => turso::Value::Integer(
-                <i64 as TryFrom<_>>::try_from(v).unwrap_or(0),
-            ),
+            sea_query::Value::BigUnsigned(Some(v)) => {
+                let i = <i64 as TryFrom<_>>::try_from(v).context(
+                    "BigUnsigned value is out of bounds for Turso i64 integer",
+                )?;
+                Ok(turso::Value::Integer(i))
+            }
             sea_query::Value::Float(Some(v)) => {
-                turso::Value::Real(f64::from(v))
+                Ok(turso::Value::Real(f64::from(v)))
             }
-            sea_query::Value::Double(Some(v)) => turso::Value::Real(v),
+            sea_query::Value::Double(Some(v)) => Ok(turso::Value::Real(v)),
             sea_query::Value::String(Some(s)) => {
-                turso::Value::Text((*s).to_string())
+                Ok(turso::Value::Text((*s).to_string()))
             }
             sea_query::Value::Char(Some(c)) => {
-                turso::Value::Text(c.to_string())
+                Ok(turso::Value::Text(c.to_string()))
             }
             sea_query::Value::Bytes(Some(b)) => {
-                turso::Value::Blob((*b).to_vec())
+                Ok(turso::Value::Blob((*b).to_vec()))
             }
-            _ => turso::Value::Null,
+            _ => Ok(turso::Value::Null),
         })
         .collect()
 }

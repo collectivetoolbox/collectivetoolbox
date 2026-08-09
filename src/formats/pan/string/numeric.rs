@@ -628,11 +628,15 @@ fn format_number_in_base(radix: RadixSpec, n: i128) -> Result<String> {
 
     let mut digits: Vec<char> = Vec::new();
     while value > 0 {
-        let rem = (value.checked_rem(base_i128).unwrap_or(0))
+        let rem = (value
+            .checked_rem(base_i128)
+            .context("remainder by base failed")?)
             .try_into()
             .context("remainder out of range")?;
         digits.push(digit_char(rem));
-        value = value.checked_div(base_i128).unwrap_or(0);
+        value = value
+            .checked_div(base_i128)
+            .context("division by base failed")?;
     }
 
     digits.reverse();

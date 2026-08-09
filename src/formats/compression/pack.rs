@@ -123,7 +123,10 @@ impl<W: Write> BitWriter<W> {
             let space = 8u32.saturating_sub(self.valid);
             let take = rem_bits.min(space);
             let shift = rem_bits.saturating_sub(take);
-            let mask = (1u32.checked_shl(take).unwrap_or(0)).saturating_sub(1);
+            let mask = (1u32
+                .checked_shl(take)
+                .context("bit shift out of range")?)
+            .saturating_sub(1);
             let val = (code >> shift) & mask;
 
             self.bitbuf = (self.bitbuf << take) | val;
@@ -763,39 +766,47 @@ pub fn compress_old_pack_stream(
 
     let mut tree_words = Vec::<u16>::new();
 
-    fn serialize_node(node: &HuffmanNode, tree_words: &mut Vec<u16>) -> usize {
+    fn serialize_node(
+        node: &HuffmanNode,
+        tree_words: &mut Vec<u16>,
+    ) -> Result<usize> {
         let tp = tree_words.len();
         tree_words.push(0);
         tree_words.push(0);
 
         if let Some(sym) = node.symbol {
-            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
-                *slot_right = u16::try_from(sym).unwrap_or(0);
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1))
+            {
+                *slot_right = u16::try_from(sym)
+                    .context("Huffman symbol out of range for u16")?;
             }
         } else {
-            let (Some(left_node), Some(right_node)) = (node.left.as_ref(), node.right.as_ref()) else {
-                return tp;
+            let (Some(left_node), Some(right_node)) =
+                (node.left.as_ref(), node.right.as_ref())
+            else {
+                return Ok(tp);
             };
 
-            let left_tp = serialize_node(left_node, tree_words);
-            let right_tp = serialize_node(right_node, tree_words);
+            let left_tp = serialize_node(left_node, tree_words)?;
+            let right_tp = serialize_node(right_node, tree_words)?;
 
-            let left_offset =
-                u16::try_from(left_tp.saturating_sub(tp)).unwrap_or(0);
-            let right_offset =
-                u16::try_from(right_tp.saturating_sub(tp)).unwrap_or(0);
+            let left_offset = u16::try_from(left_tp.saturating_sub(tp))
+                .context("Left node offset out of range for u16")?;
+            let right_offset = u16::try_from(right_tp.saturating_sub(tp))
+                .context("Right node offset out of range for u16")?;
 
             if let Some(slot_left) = tree_words.get_mut(tp) {
                 *slot_left = left_offset;
             }
-            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1))
+            {
                 *slot_right = right_offset;
             }
         }
-        tp
+        Ok(tp)
     }
 
-    serialize_node(&root, &mut tree_words);
+    serialize_node(&root, &mut tree_words)?;
 
     let keysize = u16::try_from(tree_words.len())
         .context("OldPack tree size exceeds 16-bit capacity")?;
@@ -879,7 +890,10 @@ pub fn compress_old_pack_stream(
             let space = 16u32.saturating_sub(valid_bits);
             let take = rem_bits.min(space);
             let shift = rem_bits.saturating_sub(take);
-            let mask = (1u32.checked_shl(take).unwrap_or(0)).saturating_sub(1);
+            let mask = (1u32
+                .checked_shl(take)
+                .context("bit shift out of range")?)
+            .saturating_sub(1);
             let val = u16::try_from((code >> shift) & mask)?;
 
             word_buf = (word_buf << take) | val;

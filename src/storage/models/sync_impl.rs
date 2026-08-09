@@ -55,7 +55,7 @@ pub async fn save_local_token(
                 .to_owned(),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -70,7 +70,7 @@ pub async fn get_local_tokens(user_id: u64) -> Result<Vec<(u64, String)>> {
         .columns([SyncTokens::Key, SyncTokens::Token])
         .from(SyncTokens::Table)
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     let mut tokens = Vec::new();
@@ -100,7 +100,7 @@ pub async fn delete_local_token(user_id: u64, key: u64) -> Result<()> {
             Expr::col(SyncTokens::Key).eq(<i64 as TryFrom<_>>::try_from(key)?),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -125,7 +125,7 @@ pub async fn save_local_id_range(
                 .to_owned(),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -144,7 +144,7 @@ pub async fn get_local_id_range(
         .from(SyncIdRanges::Table)
         .and_where(Expr::col(SyncIdRanges::GraphId).eq(graph_id.to_string()))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {
@@ -165,7 +165,7 @@ pub async fn is_token_spent(serial_hex: String) -> Result<bool> {
         .from(Alias::new("spent_tokens"))
         .and_where(Expr::col(Alias::new("key")).eq(serial_hex))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     Ok(rows.next().await?.is_some())
@@ -178,7 +178,7 @@ pub async fn spend_token(serial_hex: String) -> Result<()> {
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
+        .context("System time is before UNIX epoch")?
         .as_secs();
 
     let (sql, values) = Query::insert()
@@ -194,7 +194,7 @@ pub async fn spend_token(serial_hex: String) -> Result<()> {
                 .to_owned(),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -213,7 +213,7 @@ pub async fn allocate_next_remote_range(graph_id: u128) -> Result<u64> {
             .from(Alias::new("graph_id_allocators"))
             .and_where(Expr::col(Alias::new("graph_id")).eq(&key))
             .build(SqliteQueryBuilder);
-        let params = crate::db::sea_values_to_turso(values);
+        let params = crate::db::sea_values_to_turso(values)?;
         let mut stmt = conn.prepare(&sql_query).await?;
         let mut rows = stmt.query(params).await?;
         let next_start = if let Some(row) = rows.next().await? {
@@ -241,7 +241,7 @@ pub async fn allocate_next_remote_range(graph_id: u128) -> Result<u64> {
                     .to_owned(),
             )
             .build(SqliteQueryBuilder);
-        let params_insert = crate::db::sea_values_to_turso(insert_values);
+        let params_insert = crate::db::sea_values_to_turso(insert_values)?;
         conn.execute(&sql_insert, params_insert).await?;
 
         Ok(next_start)
@@ -290,7 +290,7 @@ pub async fn save_sync_chunk(
                 .to_owned(),
         )
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     conn.execute(&sql, params).await?;
     Ok(())
 }
@@ -305,7 +305,7 @@ pub async fn get_sync_chunk(hash: String) -> Result<Option<Vec<u8>>> {
         .from(Alias::new("sync_chunks"))
         .and_where(Expr::col(Alias::new("chunk_hash")).eq(hash))
         .build(SqliteQueryBuilder);
-    let params = crate::db::sea_values_to_turso(values);
+    let params = crate::db::sea_values_to_turso(values)?;
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
     if let Some(row) = rows.next().await? {

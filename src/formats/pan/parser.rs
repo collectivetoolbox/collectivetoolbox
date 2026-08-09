@@ -1174,7 +1174,7 @@ fn decode_data_field_value(
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
                     integer, 1u8,
-                )));
+                )?));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1183,7 +1183,7 @@ fn decode_data_field_value(
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
                     integer, 2u8,
-                )));
+                )?));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1192,7 +1192,7 @@ fn decode_data_field_value(
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
                     integer, 3u8,
-                )));
+                )?));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1201,7 +1201,7 @@ fn decode_data_field_value(
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
                     integer, 4u8,
-                )));
+                )?));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1361,9 +1361,9 @@ fn decode_i64_from_le_varint(raw_bytes: &[u8]) -> anyhow::Result<i64> {
     Ok(i64::from_le_bytes(full))
 }
 
-fn format_fixed_point(value: i64, scale: u8) -> String {
+fn format_fixed_point(value: i64, scale: u8) -> Result<String> {
     if scale == 0 {
-        return value.to_string();
+        return Ok(value.to_string());
     }
 
     let scale_usize = usize::from(scale);
@@ -1374,7 +1374,7 @@ fn format_fixed_point(value: i64, scale: u8) -> String {
         let needed = scale_usize
             .checked_add(1)
             .and_then(|required| required.checked_sub(digits.len()))
-            .unwrap_or_default();
+            .context("fixed point scale padding overflow")?;
         let mut prefixed =
             String::with_capacity(needed.saturating_add(digits.len()));
         prefixed.push_str(&"0".repeat(needed));
@@ -1382,14 +1382,21 @@ fn format_fixed_point(value: i64, scale: u8) -> String {
         digits = prefixed;
     }
 
-    let whole_len = digits.len().checked_sub(scale_usize).unwrap_or_default();
-    let whole = digits.get(..whole_len).unwrap_or_default();
-    let fraction = digits.get(whole_len..).unwrap_or_default();
+    let whole_len = digits
+        .len()
+        .checked_sub(scale_usize)
+        .context("digits length underflow")?;
+    let whole = digits
+        .get(..whole_len)
+        .context("whole digits slice out of bounds")?;
+    let fraction = digits
+        .get(whole_len..)
+        .context("fraction digits slice out of bounds")?;
 
     if negative {
-        format!("-{whole}.{fraction}")
+        Ok(format!("-{whole}.{fraction}"))
     } else {
-        format!("{whole}.{fraction}")
+        Ok(format!("{whole}.{fraction}"))
     }
 }
 
