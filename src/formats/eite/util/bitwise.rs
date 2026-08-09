@@ -8,8 +8,12 @@ use crate::utilities::*;
 use anyhow::{Result, anyhow};
 
 /// Equivalent to JS internal bitwise mask (force into 0..=255).
+#[expect(
+    clippy::expect_used,
+    reason = "v & 0xFF is <= 255 so it is guaranteed to fit in u8"
+)]
 fn mask_byte(v: i32) -> u8 {
-    u8::try_from(v & 0xFF).unwrap_or(0)
+    u8::try_from(v & 0xFF).expect("v & 0xFF is <= 255")
 }
 
 /// Bitwise AND (8-bit) – direct translation of `bitAnd8`.

@@ -143,8 +143,16 @@ pub fn verify_release(
     for file_entry in &manifest.files {
         for chunk_info in &file_entry.chunks {
             let chunk_path = if chunk_info.hash.len() >= 4 {
-                let prefix1 = chunk_info.hash.get(0..2).unwrap_or("");
-                let prefix2 = chunk_info.hash.get(2..4).unwrap_or("");
+                #[expect(
+                    clippy::expect_used,
+                    reason = "hash.len() >= 4 is guaranteed by preceding condition"
+                )]
+                let prefix1 = chunk_info.hash.get(0..2).expect("hash.len() >= 4");
+                #[expect(
+                    clippy::expect_used,
+                    reason = "hash.len() >= 4 is guaranteed by preceding condition"
+                )]
+                let prefix2 = chunk_info.hash.get(2..4).expect("hash.len() >= 4");
                 chunks_dir
                     .join(prefix1)
                     .join(prefix2)
@@ -321,8 +329,16 @@ mod tests {
         data: &[u8],
     ) {
         let chunk_path: PathBuf = if hash.len() >= 4 {
-            let prefix1 = hash.get(0..2).unwrap_or("");
-            let prefix2 = hash.get(2..4).unwrap_or("");
+            #[expect(
+                clippy::expect_used,
+                reason = "hash.len() >= 4 is guaranteed by preceding condition"
+            )]
+            let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+            #[expect(
+                clippy::expect_used,
+                reason = "hash.len() >= 4 is guaranteed by preceding condition"
+            )]
+            let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
             chunks_dir
                 .join(prefix1)
                 .join(prefix2)

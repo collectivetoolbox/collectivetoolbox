@@ -478,6 +478,10 @@ pub fn list_data_types() -> Result<Vec<String>> {
 }
 
 /// List all variants that are available for the given format. Does NOT return v: prefix for variants.
+#[expect(
+    clippy::expect_used,
+    reason = "ftype starts_with v: guarantees length >= 2"
+)]
 pub fn list_variants_for_format(format: &str) -> Result<Vec<String>> {
     let normalized = normalize_format(format)?;
     let all = list_formats()?;
@@ -485,7 +489,7 @@ pub fn list_variants_for_format(format: &str) -> Result<Vec<String>> {
     for f in all {
         let ftype = get_format_type(&f)?;
         if ftype.starts_with("v:") {
-            let mut variant_type = ftype.get(2..).unwrap_or("").to_string();
+            let mut variant_type = ftype.get(2..).expect("ftype starts with v:").to_string();
             // Normalize
             if variant_type == "unicodePua" {
                 variant_type = "unicode".to_string();
@@ -534,10 +538,13 @@ pub fn get_format_extension(format: &str) -> Result<String> {
 
 /// Get the import support value for a format.
 /// Returns an integer indicating the level of import support for the format.
+/// Get the import support value for a format.
+/// Returns an integer indicating the level of import support for the format.
 pub fn get_format_import_support(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 3)?;
-    Ok(v.parse::<i32>().unwrap_or(0))
+    v.parse::<i32>()
+        .with_context(|| format!("Failed to parse import support integer for format '{format}' from '{v}'"))
 }
 
 /// Get the export support value for a format.
@@ -545,7 +552,8 @@ pub fn get_format_import_support(format: &str) -> Result<i32> {
 pub fn get_format_export_support(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 4)?;
-    Ok(v.parse::<i32>().unwrap_or(0))
+    v.parse::<i32>()
+        .with_context(|| format!("Failed to parse export support integer for format '{format}' from '{v}'"))
 }
 
 /// Get the test status value for a format.
@@ -553,7 +561,8 @@ pub fn get_format_export_support(format: &str) -> Result<i32> {
 pub fn get_format_tests_status(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 5)?;
-    Ok(v.parse::<i32>().unwrap_or(0))
+    v.parse::<i32>()
+        .with_context(|| format!("Failed to parse test status integer for format '{format}' from '{v}'"))
 }
 
 /// Get the type string for a format.
@@ -633,6 +642,10 @@ pub fn is_variant_type(variant_type: &str) -> bool {
 /// Get the variant type string for a variant format.
 /// Returns the underlying variant type (e.g., "unicodePua") for a format that
 /// is a variant (e.g. "dcBasenb").
+#[expect(
+    clippy::expect_used,
+    reason = "format_is_variant ensures string starts with v: prefix, so length >= 2"
+)]
 pub fn format_get_variant_type(variant: &str) -> Result<String> {
     ensure!(
         format_is_variant(variant)?,
@@ -640,7 +653,7 @@ pub fn format_get_variant_type(variant: &str) -> Result<String> {
     );
     let t = get_format_type(variant)?;
     // Remove "v:" prefix
-    Ok(t.get(2..).unwrap_or("").to_string())
+    Ok(t.get(2..).expect("t starts with v:").to_string())
 }
 
 /// Check if a format supports a given variant type.

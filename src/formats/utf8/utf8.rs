@@ -10,6 +10,10 @@ use anyhow::{Result, anyhow, bail};
 pub const UTF8_REPLACEMENT_CHARACTER: &[u8; 3] = &[0xEF, 0xBF, 0xBD];
 
 /// Truncate a string to a maximum byte length, respecting UTF-8 boundaries.
+#[expect(
+    clippy::expect_used,
+    reason = "end is guaranteed to be a valid char boundary within s"
+)]
 pub fn truncate_to_max_bytes(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         return s.to_owned();
@@ -19,7 +23,7 @@ pub fn truncate_to_max_bytes(s: &str, max_len: usize) -> String {
     while end > 0 && !s.is_char_boundary(end) {
         end = end.saturating_sub(1);
     }
-    s.get(..end).unwrap_or("").to_owned()
+    s.get(..end).expect("end is a valid char boundary within s").to_owned()
 }
 
 /// Ellipsize a string to a maximum byte length, respecting UTF-8 boundaries.

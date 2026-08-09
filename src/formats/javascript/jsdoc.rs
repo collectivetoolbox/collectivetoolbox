@@ -222,13 +222,18 @@ fn parse_jsdoc_tags(text: &str) -> Vec<ParsedTag> {
                 });
             }
             if let Some(first_space_idx) = tag_line.find(char::is_whitespace) {
-                current_tag_name =
-                    tag_line.get(..first_space_idx).unwrap_or("").to_string();
-                current_tag_value = tag_line
-                    .get(first_space_idx..)
-                    .unwrap_or("")
-                    .trim()
-                    .to_string();
+                #[expect(
+                    clippy::expect_used,
+                    reason = "first_space_idx is returned by tag_line.find, guaranteeing valid char boundary"
+                )]
+                let name = tag_line.get(..first_space_idx).expect("first_space_idx is returned by tag_line.find");
+                current_tag_name = name.to_string();
+                #[expect(
+                    clippy::expect_used,
+                    reason = "first_space_idx is returned by tag_line.find, guaranteeing valid char boundary"
+                )]
+                let val_slice = tag_line.get(first_space_idx..).expect("first_space_idx is returned by tag_line.find");
+                current_tag_value = val_slice.trim().to_string();
             } else {
                 current_tag_name = tag_line.to_string();
                 current_tag_value = String::new();
@@ -280,12 +285,22 @@ fn get_param_name_from_tag_value(value: &str) -> String {
     let first_word = rest.split_whitespace().next().unwrap_or("");
     let mut param_name = first_word;
     if param_name.starts_with('[') && param_name.ends_with(']') {
-        param_name = param_name
+        #[expect(
+            clippy::expect_used,
+            reason = "param_name starts with [ and ends with ], guaranteeing len >= 2"
+        )]
+        let inner = param_name
             .get(1..param_name.len().saturating_sub(1))
-            .unwrap_or("");
+            .expect("param_name starts with [ and ends with ]");
+        param_name = inner;
     }
     if let Some(eq_idx) = param_name.find('=') {
-        param_name = param_name.get(..eq_idx).unwrap_or("");
+        #[expect(
+            clippy::expect_used,
+            reason = "eq_idx is returned by param_name.find('=')"
+        )]
+        let prefix = param_name.get(..eq_idx).expect("eq_idx is returned by find('=')");
+        param_name = prefix;
     }
     param_name.to_string()
 }

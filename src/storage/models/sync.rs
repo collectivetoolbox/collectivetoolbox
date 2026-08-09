@@ -125,7 +125,11 @@ pub async fn replenish_tokens(
         // Save unspent token locally
         let serial_hex = bin2hex(serial);
         let tag_hex = bin2hex(token_tag);
-        let key_val = u64::try_from(i).unwrap_or(0);
+        #[expect(
+            clippy::expect_used,
+            reason = "Loop index i (usize) is guaranteed to fit in u64"
+        )]
+        let key_val = u64::try_from(i).expect("usize index i fits in u64");
         ipcb!(storage).save_local_token_b(
             user_id,
             key_val,

@@ -157,7 +157,11 @@ pub fn time24(time: PanTime) -> PanTime {
 /// Returns the signed shortest difference from `start` to `end`.
 pub fn timedifference(start: PanTime, end: PanTime) -> PanTime {
     let diff = end.saturating_sub(start);
-    let half_day = SECONDS_PER_DAY.checked_div(2).unwrap_or(43200);
+    #[expect(
+        clippy::expect_used,
+        reason = "Division by constant 2 is non-zero and cannot fail"
+    )]
+    let half_day = SECONDS_PER_DAY.checked_div(2).expect("2 is non-zero");
     diff.saturating_add(half_day)
         .rem_euclid(SECONDS_PER_DAY)
         .saturating_sub(half_day)

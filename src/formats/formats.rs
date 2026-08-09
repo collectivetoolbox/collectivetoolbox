@@ -68,27 +68,42 @@ pub fn get_format_uuids<'a>() -> HashMap<Vec<u8>, Vec<u8>> {
     )])
 }
 
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Slice bounds are verified by preceding len checks"
+)]
 pub fn get_format_from_uuid(document: Vec<u8>) -> Option<Vec<u8>> {
     let head = if document.len() < 36 {
         document
     } else {
-        document.get(..36).unwrap_or(&[]).to_vec()
+        document
+            .get(..36)
+            .expect("document length is >= 36")
+            .to_vec()
     };
     let uuid_val = get_uuid_from_document(head)?;
     get_format_uuids().get(&uuid_val).cloned()
 }
 
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Slice bounds for 16-byte binary UUID are verified by preceding len >= 16 check"
+)]
 pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
     if document.len() < 16 {
         return None;
     }
 
-    let uuid_binary = Uuid::from_slice(document.get(..16).unwrap_or(&[]))
-        .ok()?
-        .hyphenated()
-        .to_string()
-        .into_bytes();
-    // let uuid_utf8=String::from_utf8_lossy(&document);
+    let uuid_binary = Uuid::from_slice(
+        document.get(..16).expect("document length is >= 16"),
+    )
+    .ok()?
+    .hyphenated()
+    .to_string()
+    .into_bytes();
+    // Fall back to empty slice if document has fewer than 36 bytes for textual UUID representation
     let uuid_string =
         String::from_utf8_lossy(document.get(..36).unwrap_or(&[]))
             .to_string()

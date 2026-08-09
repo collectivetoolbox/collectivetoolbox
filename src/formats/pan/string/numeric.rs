@@ -372,12 +372,13 @@ fn fmt_trim_trailing_zeros(mut s: String) -> String {
     s
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Division by constant 3 is non-zero and cannot fail"
+)]
 fn commify_digits(digits: &str) -> String {
-    let mut out = String::with_capacity(
-        digits
-            .len()
-            .saturating_add(digits.len().checked_div(3).unwrap_or(0)),
-    );
+    let extra = digits.len().checked_div(3).expect("3 is non-zero");
+    let mut out = String::with_capacity(digits.len().saturating_add(extra));
     let mut count = 0usize;
 
     for ch in digits.chars().rev() {
@@ -543,7 +544,11 @@ fn parse_binary_bits_to_bytes(text: &str) -> Result<Vec<u8>> {
     }
 
     // Left-pad to a whole number of bytes.
-    let rem = t.len().checked_rem(8).unwrap_or(0);
+    #[expect(
+        clippy::expect_used,
+        reason = "Modulo by constant 8 is non-zero and cannot fail"
+    )]
+    let rem = t.len().checked_rem(8).expect("8 is non-zero");
     let pad = if rem == 0 {
         0
     } else {

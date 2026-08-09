@@ -207,7 +207,14 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
     }
     let base_usize = usize::try_from(base)?;
     let mut result_arr: Vec<String> = Vec::new();
-    let full_segments = input_arr.len().checked_div(base_usize).unwrap_or(0);
+    #[expect(
+        clippy::expect_used,
+        reason = "base_usize is in 7..=17, so division by zero is impossible"
+    )]
+    let full_segments = input_arr
+        .len()
+        .checked_div(base_usize)
+        .expect("base_usize is non-zero (7..=17)");
     let remain_bits = input_arr
         .len()
         .saturating_sub(full_segments.saturating_mul(base_usize));
@@ -222,7 +229,13 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
             let shift = u32::try_from(
                 base_usize.saturating_sub(1).saturating_sub(bit_idx),
             )?;
-            let bit_val = u32::from(b).checked_shl(shift).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "shift is < 17, so 32-bit shift cannot overflow"
+            )]
+            let bit_val = u32::from(b)
+                .checked_shl(shift)
+                .expect("shift is < 17, which fits in u32");
             segm_val = segm_val.saturating_add(bit_val);
         }
         let cp = to_code_point(segm_val, base);
@@ -241,7 +254,13 @@ pub fn encode(input_arr: &[u8], base: u32) -> Result<String> {
             let shift = u32::try_from(
                 remain_bits.saturating_sub(1).saturating_sub(bit_idx),
             )?;
-            let bit_val = u32::from(b).checked_shl(shift).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "shift is < remain_bits <= 17, so 32-bit shift cannot overflow"
+            )]
+            let bit_val = u32::from(b)
+                .checked_shl(shift)
+                .expect("shift is < 17, which fits in u32");
             segm_val = segm_val.saturating_add(bit_val);
         }
     }
@@ -284,7 +303,14 @@ pub fn decode(
     while bit >= 7 {
         let bit_minus_1 = bit.saturating_sub(1);
         let divisor = 2u32.pow(bit_minus_1);
-        if term_char_val.checked_div(divisor).unwrap_or(0) != 0 {
+        #[expect(
+            clippy::expect_used,
+            reason = "divisor is 2^(bit-1) >= 64, which is non-zero"
+        )]
+        let div_result = term_char_val
+            .checked_div(divisor)
+            .expect("divisor is non-zero power of 2");
+        if div_result != 0 {
             break;
         }
         bit = bit.saturating_sub(1);
@@ -318,7 +344,13 @@ pub fn decode(
         for bit_pos_usize in (0..sbl_usize).rev() {
             let bit_pos = u32::try_from(bit_pos_usize)?;
             let divisor = 2u64.pow(bit_pos);
-            let div_val = u64::from(segm_val).checked_div(divisor).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "divisor is 2^bit_pos >= 1, which is non-zero"
+            )]
+            let div_val = u64::from(segm_val)
+                .checked_div(divisor)
+                .expect("divisor is non-zero power of 2");
             let raw: u32 = u32::try_from(div_val.rem_euclid(2))?;
             let decoded_bit = u8::try_from(raw)?;
             if !original_api && decoded_bit > 1 {
@@ -340,7 +372,13 @@ pub fn decode(
         while bit >= 0 {
             let bit_u32: u32 = bit.try_into()?;
             let divisor = 2u32.pow(bit_u32);
-            let div_val = remain_val.checked_div(divisor).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "divisor is 2^bit_u32 >= 1, which is non-zero"
+            )]
+            let div_val = remain_val
+                .checked_div(divisor)
+                .expect("divisor is non-zero power of 2");
             let bit_val = u8::try_from(div_val.rem_euclid(2))?;
             result_arr.push(bit_val);
             bit = bit.saturating_sub(1);

@@ -29,11 +29,15 @@ impl Cp437Mapping {
             .ok_or_else(|| anyhow!("Invalid Code Page 437 byte {code}"))
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
+    )]
     pub fn chr(&self, code: u8) -> String {
         self.decode_table
             .get(usize::from(code))
             .copied()
-            .unwrap_or('\0')
+            .expect("u8 fits in 256-entry decode table")
             .to_string()
     }
 
@@ -56,6 +60,10 @@ impl Cp437Mapping {
         Ok(result)
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
+    )]
     pub fn decode(&self, input: &[u8]) -> Result<String> {
         let mut result = String::with_capacity(input.len());
         for &byte in input {
@@ -63,15 +71,19 @@ impl Cp437Mapping {
                 self.decode_table
                     .get(usize::from(byte))
                     .copied()
-                    .unwrap_or('\0'),
+                    .expect("u8 fits in 256-entry decode table"),
             );
         }
         Ok(result)
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
+    )]
     pub fn remap(&mut self, byte: u8, character: char) {
         let idx = usize::from(byte);
-        let old_char = self.decode_table.get(idx).copied().unwrap_or('\0');
+        let old_char = self.decode_table.get(idx).copied().expect("u8 fits in 256-entry decode table");
         if let Some(slot) = self.decode_table.get_mut(idx) {
             *slot = character;
         }

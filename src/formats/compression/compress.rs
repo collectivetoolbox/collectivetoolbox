@@ -136,8 +136,12 @@ impl<W: Write> LzwBitWriter<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
+        #[expect(
+            clippy::expect_used,
+            reason = "Division by constant 8 is non-zero and cannot fail"
+        )]
         let final_bytes =
-            (self.posbits.saturating_add(7)).checked_div(8).unwrap_or(0);
+            (self.posbits.saturating_add(7)).checked_div(8).expect("8 is non-zero");
         self.buffer.truncate(final_bytes);
         self.writer
             .write_all(&self.buffer)
@@ -169,7 +173,11 @@ impl<'a> LzwBitReader<'a> {
     }
 
     fn read_code(&mut self, n_bits: u32) -> Result<Option<u32>> {
-        let byte_pos = self.posbits.checked_div(8).unwrap_or(0);
+        #[expect(
+            clippy::expect_used,
+            reason = "Division by constant 8 is non-zero and cannot fail"
+        )]
+        let byte_pos = self.posbits.checked_div(8).expect("8 is non-zero");
         if byte_pos >= self.data.len() {
             return Ok(None);
         }

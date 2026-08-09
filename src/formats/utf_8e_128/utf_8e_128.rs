@@ -19,6 +19,10 @@ pub(crate) use ctb_utilities::*;
 /// Returns the number of bytes written.
 ///
 /// Panics if the provided buffer is too small (needs up to 24 bytes).
+#[expect(
+    clippy::expect_used,
+    reason = "Integer casts and array indexing are provably infallible due to preceding range checks and fixed array bounds"
+)]
 pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     // Standard UTF-8 path for values within Unicode range
 
@@ -30,48 +34,48 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     //     panic!("Cannot encode surrogate as scalar");
     // }
     if codepoint <= 0x10FFFF {
-        let cp = u32::try_from(codepoint).unwrap_or(0);
+        let cp = u32::try_from(codepoint).expect("codepoint <= 0x10FFFF fits in u32");
         if cp <= 0x7F {
             if let Some(b) = buf.get_mut(0) {
-                *b = u8::try_from(cp).unwrap_or(0);
+                *b = u8::try_from(cp).expect("cp <= 0x7F fits in u8");
             }
             return 1;
         } else if cp <= 0x7FF {
             if buf.len() >= 2 {
                 if let Some(b) = buf.get_mut(0) {
-                    *b = 0xC0 | u8::try_from(cp >> 6).unwrap_or(0);
+                    *b = 0xC0 | u8::try_from(cp >> 6).expect("cp >> 6 for cp <= 0x7FF is <= 31");
                 }
                 if let Some(b) = buf.get_mut(1) {
-                    *b = 0x80 | u8::try_from(cp & 0x3F).unwrap_or(0);
+                    *b = 0x80 | u8::try_from(cp & 0x3F).expect("cp & 0x3F is <= 63");
                 }
             }
             return 2;
         } else if cp <= 0xFFFF {
             if buf.len() >= 3 {
                 if let Some(b) = buf.get_mut(0) {
-                    *b = 0xE0 | u8::try_from(cp >> 12).unwrap_or(0);
+                    *b = 0xE0 | u8::try_from(cp >> 12).expect("cp >> 12 for cp <= 0xFFFF is <= 15");
                 }
                 if let Some(b) = buf.get_mut(1) {
-                    *b = 0x80 | u8::try_from((cp >> 6) & 0x3F).unwrap_or(0);
+                    *b = 0x80 | u8::try_from((cp >> 6) & 0x3F).expect("shifted mask is <= 63");
                 }
                 if let Some(b) = buf.get_mut(2) {
-                    *b = 0x80 | u8::try_from(cp & 0x3F).unwrap_or(0);
+                    *b = 0x80 | u8::try_from(cp & 0x3F).expect("cp & 0x3F is <= 63");
                 }
             }
             return 3;
         }
         if buf.len() >= 4 {
             if let Some(b) = buf.get_mut(0) {
-                *b = 0xF0 | u8::try_from(cp >> 18).unwrap_or(0);
+                *b = 0xF0 | u8::try_from(cp >> 18).expect("cp >> 18 for cp <= 0x10FFFF is <= 4");
             }
             if let Some(b) = buf.get_mut(1) {
-                *b = 0x80 | u8::try_from((cp >> 12) & 0x3F).unwrap_or(0);
+                *b = 0x80 | u8::try_from((cp >> 12) & 0x3F).expect("shifted mask is <= 63");
             }
             if let Some(b) = buf.get_mut(2) {
-                *b = 0x80 | u8::try_from((cp >> 6) & 0x3F).unwrap_or(0);
+                *b = 0x80 | u8::try_from((cp >> 6) & 0x3F).expect("shifted mask is <= 63");
             }
             if let Some(b) = buf.get_mut(3) {
-                *b = 0x80 | u8::try_from(cp & 0x3F).unwrap_or(0);
+                *b = 0x80 | u8::try_from(cp & 0x3F).expect("cp & 0x3F is <= 63");
             }
         }
         return 4;
@@ -79,7 +83,7 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
 
     // Extended form
     // Determine bit length
-    let leading_zeros = usize::try_from(codepoint.leading_zeros()).unwrap_or(0);
+    let leading_zeros = usize::try_from(codepoint.leading_zeros()).expect("u32 leading_zeros (0..=128) fits in usize");
     let bits = 128usize.saturating_sub(leading_zeros);
     let mut l = bits.div_ceil(6); // minimal number of 6-bit groups
     if l == 0 {
@@ -99,7 +103,7 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
         for i in 0..l {
             let idx = l.saturating_sub(1).saturating_sub(i);
             if let Some(g) = groups.get_mut(idx) {
-                *g = u8::try_from(tmp & 0x3F).unwrap_or(0);
+                *g = u8::try_from(tmp & 0x3F).expect("tmp & 0x3F is <= 63");
             }
             tmp >>= 6;
         }
@@ -107,13 +111,13 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     }
 
     // Canonical rule: first payload group must be non-zero (value > 0)
-    debug_assert!(groups.first().copied().unwrap_or(0) != 0);
+    debug_assert!(groups.first().copied().expect("groups array has length 22") != 0);
 
     if let Some(b) = buf.get_mut(0) {
         *b = 0xFF;
     }
     if let Some(b) = buf.get_mut(1) {
-        *b = 0x80 | u8::try_from(l).unwrap_or(0);
+        *b = 0x80 | u8::try_from(l).expect("l <= 22 fits in u8");
     }
 
     for i in 0..l {
@@ -127,7 +131,7 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
     // top 4 bits of first payload group must be zero (they are the unused padding bits).
     if l == 22 {
         debug_assert!(
-            (groups.first().copied().unwrap_or(0) & 0x3C) == 0,
+            (groups.first().copied().expect("groups array has length 22") & 0x3C) == 0,
             "Non-zero padding bits in 22-byte encoding"
         );
     }
@@ -138,6 +142,11 @@ pub fn encode_utf_8e_128_buf(buf: &mut [u8], codepoint: u128) -> usize {
 /// Decodes one UTF‑8 / UTF‑8e‑128 codepoint from the provided byte slice.
 /// On success returns Some((value, `length_consumed`)), else None.
 /// Enforces canonical (no overlong) encodings for both standard and extended forms.
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Fixed-size 22-element groups array guarantees first element presence and buf slice fits encoded length"
+)]
 pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
     let first = *bytes.first()?;
     if first == 0xFF {
@@ -167,12 +176,12 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
         }
 
         // Canonical: first group not zero
-        if groups.first().copied().unwrap_or(0) == 0 {
+        if groups.first().copied().expect("groups array has length 22") == 0 {
             return None;
         }
 
         // If l == 22, top 4 bits of first group (padding) must be zero.
-        if l == 22 && (groups.first().copied().unwrap_or(0) & 0x3C) != 0 {
+        if l == 22 && (groups.first().copied().expect("groups array has length 22") & 0x3C) != 0 {
             return None;
         }
 
@@ -183,7 +192,7 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
             return None; // should not happen with l<=22 and u128 output
         }
 
-        let g0 = groups.first().copied().unwrap_or(0);
+        let g0 = groups.first().copied().expect("groups array has length 22");
         // Ensure the extra (padding) high bits are zero
         if extra > 0 && (g0 >> (6usize.saturating_sub(extra))) != 0 {
             return None;
@@ -262,10 +271,14 @@ pub fn decode_utf_8e_128_buf(bytes: &[u8]) -> Option<(u128, usize)> {
 
 /// Generalized UTF-8 encoding for u128.
 /// Returns a `Vec<u8>` containing the encoded bytes.
+#[expect(
+    clippy::expect_used,
+    reason = "encode_utf_8e_128_buf returns length <= 24 which fits in 24-byte buf"
+)]
 pub fn encode_utf_8e_128(codepoint: u128) -> Vec<u8> {
     let mut buf = [0u8; 24];
     let encoded_len = encode_utf_8e_128_buf(&mut buf, codepoint);
-    buf.get(..encoded_len).unwrap_or(&[]).to_vec()
+    buf.get(..encoded_len).expect("encoded_len <= 24 fits in buf").to_vec()
 }
 
 /// Decodes one generalized UTF-8 codepoint from bytes.

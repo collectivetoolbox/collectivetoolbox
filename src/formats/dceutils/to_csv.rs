@@ -31,8 +31,12 @@ pub fn php_to_csvs(bytes: &[u8]) -> Result<HashMap<String, Vec<u8>>> {
                 continue;
             }
             if let Some(arrow_idx) = find_arrow(elem_trimmed) {
+                #[expect(
+                    clippy::expect_used,
+                    reason = "arrow_idx is returned by find_arrow, guaranteeing a valid char boundary"
+                )]
                 let key_part =
-                    elem_trimmed.get(..arrow_idx).unwrap_or("").trim();
+                    elem_trimmed.get(..arrow_idx).expect("arrow_idx is returned by find_arrow").trim();
                 let arrow_idx_plus_2 = arrow_idx
                     .checked_add(2)
                     .ok_or_else(|| anyhow!("Index overflow"))?;
@@ -351,13 +355,19 @@ fn find_arrow(element: &str) -> Option<usize> {
     None
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "s starts and ends with quote chars and has length >= 2"
+)]
 fn parse_php_string(s: &str) -> String {
     let s = s.trim();
     if (s.starts_with('\'') && s.ends_with('\''))
         || (s.starts_with('"') && s.ends_with('"'))
     {
         let quote = if s.starts_with('\'') { '\'' } else { '"' };
-        let content = s.get(1..s.len().saturating_sub(1)).unwrap_or("");
+        let content = s
+            .get(1..s.len().saturating_sub(1))
+            .expect("s starts and ends with quotes");
         let mut result = String::new();
         let mut chars = content.chars().peekable();
         while let Some(c) = chars.next() {

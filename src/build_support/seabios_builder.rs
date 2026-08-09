@@ -190,9 +190,17 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
     if data.len() >= 26 {
         let pci1 = usize::from(data.get(24).copied().unwrap_or(0));
         let pci2 = usize::from(data.get(25).copied().unwrap_or(0));
-        let pcidata = pci1 | (pci2.checked_shl(8).unwrap_or(0));
+        #[expect(
+            clippy::expect_used,
+            reason = "Shift of 8 bits fits within usize width (32/64 bit)"
+        )]
+        let pcidata = pci1 | (pci2.checked_shl(8).expect("8-bit shift fits in usize"));
         if pcidata != 0 && data.len() >= pcidata.saturating_add(18) {
-            let count_blocks = count.checked_div(512).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "Division by constant 512 is non-zero and cannot fail"
+            )]
+            let count_blocks = count.checked_div(512).expect("512 is non-zero");
             let blocks = u16::try_from(count_blocks).unwrap_or(0).to_le_bytes();
             if let Some(slot) = data.get_mut(pcidata.saturating_add(16)) {
                 *slot = blocks.first().copied().unwrap_or(0);
@@ -205,7 +213,11 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
 
     if data.len() >= 7 {
         if let Some(slot) = data.get_mut(2) {
-            let count_blocks = count.checked_div(512).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "Division by constant 512 is non-zero and cannot fail"
+            )]
+            let count_blocks = count.checked_div(512).expect("512 is non-zero");
             *slot = u8::try_from(count_blocks).unwrap_or(0);
         }
         if let Some(slot) = data.get_mut(6) {

@@ -23,9 +23,8 @@
 - Prefer `if let Some(...) = ...` over callback-requiring patterns like `.map(...).unwrap_or_else(...)`, unless there are compelling downsides or it makes the code substantially more verbose.
 - Reuse existing code wherever possible. If you find similar logic, refactor or extend it. Revise existing APIs to meet your needs rather than adding new similar ones. The utilities crate has solutions for many common tasks.
 - When requested to refactor code, don't limit the scope of refactoring, or leave messy or outdated API, out of concerns about existing callers - instead, make the refactor, and then fix the callers.
-- Disregard Clippy errors about panics/unwrapping in tests if they would make the test more complex.
-- The following Clippy errors are denied: unused_must_use, pedantic, as_conversions, unnecessary_fallible_conversions, try_err, ok_expect. Others are usually warnings; some agent integrations receive these as errors but they're non-fatal.
-- You're encouraged to add new submodules when modules grow. Keep modules concise; avoid unnecessary additions.
+- Disregard Clippy errors about panics/unwrapping in tests if they would make the test more complex. The standard test boilerplate should allow these.
+- You're encouraged to add new submodules when modules grow. Keep modules concise and narrowly scoped.
 - Prioritize making the project more production-ready. Address issues, missing features, and inconvenient APIs, rather than working around them. E.g.:
   - Always use file descriptor passing for shared memory on Linux, never temp files.
   - Never add in-process fallbacks for IPC calls.
@@ -55,6 +54,9 @@
 - When prompted to address lints, accomplish this by fixing the problems causing the lint errors, not by turning off the lints or adding allows.
 - Node.js packages must never be installed in the application. A node_modules directory must never be present. Some Node packages are acceptable to use as development-only tools installed outside of the repository (currently permitted: tsc for faster linter runs, and Playwright for in-browser testing), but they must never be used as dependencies, nor be required for correct linting.
 - If you try multiple implementations of something or guess at multiple values, leave only the one that worked and remove any that would be dead code.
+- Avoid panics, but do not fail silently - fail early and loudly:
+  - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
+  - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup). Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

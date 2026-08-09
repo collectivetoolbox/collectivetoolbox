@@ -139,6 +139,10 @@ pub fn string_to_scalars(s: &str) -> Vec<u32> {
 
 // Rust equivalent of JS 'string'.slice(...), replicating the behavior of being
 // able to slice in between surrogates.
+#[expect(
+    clippy::expect_used,
+    reason = "start < end <= utf16.len() is guaranteed by previous bounds logic"
+)]
 pub fn js_like_slice_utf16(input: &str, start: usize, len: usize) -> Vec<u16> {
     // Encode as UTF-16 code units
     let utf16: Vec<u16> = input.encode_utf16().collect();
@@ -147,7 +151,7 @@ pub fn js_like_slice_utf16(input: &str, start: usize, len: usize) -> Vec<u16> {
     if start >= end {
         Vec::new()
     } else {
-        utf16.get(start..end).unwrap_or(&[]).to_vec()
+        utf16.get(start..end).expect("start < end <= utf16.len()").to_vec()
     }
 }
 

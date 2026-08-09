@@ -37,6 +37,10 @@ pub type DcList = Vec<u128>;
 ///
 /// # Errors
 /// Returns an error if the document contains invalid UTF-8 or malformed syntax.
+#[expect(
+    clippy::expect_used,
+    reason = "start and end byte offsets are returned by rest.find('@'), guaranteeing valid char boundaries within rest"
+)]
 pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
     let mut log = FormatLog::default();
     let text = match std::str::from_utf8(document) {
@@ -51,7 +55,7 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
     for line in text.lines() {
         let mut rest = line;
         while let Some(start) = rest.find('@') {
-            let prefix = rest.get(..start).unwrap_or("");
+            let prefix = rest.get(..start).expect("start is index returned by rest.find('@')");
             for ch in prefix.chars() {
                 list.push(u128::from(u32::from(ch)));
             }
@@ -59,7 +63,7 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
             rest = rest.get(start.saturating_add(1)..).unwrap_or("");
 
             if let Some(end) = rest.find('@') {
-                let token = rest.get(..end).unwrap_or("");
+                let token = rest.get(..end).expect("end is index returned by rest.find('@')");
                 let mut dcid_str = token;
                 let mut l_prefix = false;
 

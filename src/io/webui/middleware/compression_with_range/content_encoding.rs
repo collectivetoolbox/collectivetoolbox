@@ -110,6 +110,11 @@ impl QValue {
     }
 
     // Parse a q-value as specified in RFC 7231 section 5.3.1.
+    #[expect(
+        clippy::expect_used,
+        clippy::unwrap_in_result,
+        reason = "Division by constant 10 is non-zero and cannot fail"
+    )]
     fn parse(s: &str) -> Option<Self> {
         let mut c = s.chars();
         // Parse "q=" (case-insensitively).
@@ -166,7 +171,7 @@ impl QValue {
                 }
                 _ => return None,
             }
-            factor = factor.checked_div(10).unwrap_or(0);
+            factor = factor.checked_div(10).expect("10 is non-zero");
         }
     }
 }

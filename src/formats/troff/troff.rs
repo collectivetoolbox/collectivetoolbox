@@ -1406,6 +1406,11 @@ fn extract_url(slice: &[u8]) -> (String, usize) {
 // Parsing helpers (parse_value / parse_measurement)
 // -----------------------------------------------------------------------------
 
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "String slices are guaranteed to be valid char boundaries by preceding starts_with or chars().next() checks"
+)]
 fn parse_value(line: &mut &str) -> Option<String> {
     let mut l = line.trim_start();
     if l.is_empty() {
@@ -1413,21 +1418,21 @@ fn parse_value(line: &mut &str) -> Option<String> {
     }
     let mut out = String::new();
     if l.starts_with('"') {
-        l = l.get(1..).unwrap_or("");
+        l = l.get(1..).expect("starts with quote");
         while !l.is_empty() {
             let c = l.chars().next()?;
             if c == '"' {
-                l = l.get(1..).unwrap_or("");
+                l = l.get(1..).expect("c == quote");
                 break;
             } else if c == '\\' {
-                l = l.get(1..).unwrap_or("");
+                l = l.get(1..).expect("c == backslash");
                 if let Some(nextc) = l.chars().next() {
                     out.push(nextc);
-                    l = l.get(nextc.len_utf8()..).unwrap_or("");
+                    l = l.get(nextc.len_utf8()..).expect("valid char boundary");
                 }
             } else {
                 out.push(c);
-                l = l.get(c.len_utf8()..).unwrap_or("");
+                l = l.get(c.len_utf8()..).expect("valid char boundary");
             }
         }
     } else {
@@ -1437,12 +1442,12 @@ fn parse_value(line: &mut &str) -> Option<String> {
                 break;
             }
             out.push(c);
-            l = l.get(c.len_utf8()..).unwrap_or("");
+            l = l.get(c.len_utf8()..).expect("valid char boundary");
             if c == '\\' && !l.is_empty() {
                 // Keep escaped char
                 let c2 = l.chars().next()?;
                 out.push(c2);
-                l = l.get(c2.len_utf8()..).unwrap_or("");
+                l = l.get(c2.len_utf8()..).expect("valid char boundary");
             }
         }
     }

@@ -125,17 +125,29 @@ impl<'a, R: Read> BitReader<'a, R> {
         Ok(x)
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Bitwise AND masks guarantee values fit within target integer types"
+    )]
     fn peekbits3(&self) -> u16 {
-        u16::try_from(safe_shr(u32::from(self.bitbuf), 13)).unwrap_or(0) & 7
+        u16::try_from(safe_shr(u32::from(self.bitbuf), 13)).expect("bitbuf shifted fits in u16") & 7
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Bitwise AND masks guarantee values fit within target integer types"
+    )]
     fn peekbits8(&self) -> usize {
-        usize::try_from(safe_shr(u32::from(self.bitbuf), 8) & 0xFF).unwrap_or(0)
+        usize::try_from(safe_shr(u32::from(self.bitbuf), 8) & 0xFF).expect("masked byte fits in usize")
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Bitwise AND masks guarantee values fit within target integer types"
+    )]
     fn peekbits12(&self) -> usize {
         usize::try_from(safe_shr(u32::from(self.bitbuf), 4) & 0xFFF)
-            .unwrap_or(0)
+            .expect("masked bits fit in usize")
     }
 
     fn dropbits(&mut self, n: u32) -> Result<()> {

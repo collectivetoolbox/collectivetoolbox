@@ -200,7 +200,10 @@ pub fn start_webui_server() -> u16 {
          port
      } else {
         // Intentionally panicking here
-        #[expect("expect_used", reason="There's no elegant way to recover in this case if the user's expecting the webUI to come up.")]
+        #[expect(
+            clippy::expect_used,
+            reason = "There's no elegant way to recover in this case if the user's expecting the webUI to come up."
+        )]
         pick_unused_port().expect("No ports free")
      };
     let bind_to_ip =
