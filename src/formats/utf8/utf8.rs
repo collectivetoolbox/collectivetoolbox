@@ -86,21 +86,21 @@ fn _first_char_of_utf8_string(
             }
             return Ok((invalid.to_vec(), (invalid.len(), false)));
         }
-        let first_char = valid
-            .chars()
-            .next()
-            .context("Chunk contains no valid character")?;
-        let out = &mut [0u8; 4];
-        let first_char_len = first_char.encode_utf8(out).len();
-
-        let char_bytes = out
-            .get(..first_char_len)
-            .context("Invalid character length")?
-            .to_vec();
-        return Ok((char_bytes, (first_char_len, true)));
+        bail!("Chunk contained neither valid nor invalid data");
     }
 
-    bail!("Chunk contained neither valid nor invalid data")
+    let first_char = valid
+        .chars()
+        .next()
+        .context("Chunk contains no valid character")?;
+    let out = &mut [0u8; 4];
+    let first_char_len = first_char.encode_utf8(out).len();
+
+    let char_bytes = out
+        .get(..first_char_len)
+        .context("Invalid character length")?
+        .to_vec();
+    Ok((char_bytes, (first_char_len, true)))
 }
 
 pub fn utf8_from_scalar(cp: u32) -> Result<Vec<u8>> {

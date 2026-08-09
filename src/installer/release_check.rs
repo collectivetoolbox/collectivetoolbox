@@ -161,6 +161,7 @@ pub fn verify_release(
                 chunks_dir.join(format!("{}.br", &chunk_info.hash))
             };
 
+            // Reason for fallback: slice bounds check for hash prefix formatting defaults to full hash string
             let short_hash = chunk_info.hash.get(..16).unwrap_or(&chunk_info.hash);
             if !chunk_path.exists() {
                 errors.push(format!(
@@ -200,6 +201,7 @@ pub fn verify_release(
 
                     let computed_hash = compute_sha256_hex(&data);
                     if computed_hash != chunk_info.hash {
+                        // Reason for fallback: slice bounds check for hash prefix formatting defaults to full hash string
                         let short_computed = computed_hash.get(..16).unwrap_or(&computed_hash);
                         errors.push(format!(
                             "Chunk {short_hash} has wrong hash: expected {}, got {short_computed}",

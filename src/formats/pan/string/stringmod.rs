@@ -72,7 +72,7 @@ pub fn defaulttext(text: &str, default: &str) -> String {
 /// Extracts the `item`-th element from an array.
 ///
 /// If `item` exceeds the number of elements, an empty string `""` is returned.
-pub fn extract(text: &str, item: i64, separator: char) -> Result<String> {
+pub fn extract(text: &str, separator: char, item: i64) -> Result<String> {
     if item == -1 {
         let count = if text.is_empty() {
             0

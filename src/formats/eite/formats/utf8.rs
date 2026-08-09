@@ -652,9 +652,10 @@ pub fn dca_from_utf8(
             clippy::expect_used,
             reason = "consumed <= remaining.len() guaranteed by UTF-8 char decode"
         )]
-        remaining = remaining
+        let next_remaining = remaining
             .get(consumed..)
             .expect("consumed <= remaining.len() guaranteed by UTF-8 char decode");
+        remaining = next_remaining;
     }
 
     if settings.utf8_base64_embed_enabled && !unmappables.is_empty() {

@@ -58,8 +58,10 @@ pub fn get_setting_for_format(
 ) -> Result<String> {
     let kv = get_settings_for_format(state, format, direction)?;
     for pair in kv.chunks_exact(2) {
-        if pair[0] == key {
-            return Ok(pair[1].clone());
+        if pair.first().is_some_and(|k| k == key) {
+            if let Some(v) = pair.get(1) {
+                return Ok(v.clone());
+            }
         }
     }
     Ok(String::new())

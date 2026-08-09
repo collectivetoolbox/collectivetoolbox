@@ -54,6 +54,10 @@ async fn redirect_www_to_non_www_middleware(
         return next.run(req).await;
     }
 
+    #[allow(
+        clippy::expect_used,
+        reason = "host_header verified to start with www. (4 ASCII bytes) above"
+    )]
     let host_without_www = host_header.get(4..).expect("Checked starts with www. above");
     if host_without_www.is_empty() {
         return next.run(req).await;

@@ -169,7 +169,7 @@ pub fn arraycolumn(
         let cell = row
             .split(colsep)
             .nth(idx)
-            .ok_or_else(|| anyhow!("Row contains fewer columns than requested column {colnum}"))?;
+            .ok_or_else(|| anyhow::anyhow!("Row contains fewer columns than requested column {colnum}"))?;
         out.push(cell.to_string());
     }
 
