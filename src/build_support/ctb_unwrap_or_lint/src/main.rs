@@ -24,8 +24,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup). Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
 //!   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
 
-use std::collections::HashSet;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -33,35 +31,8 @@ use std::process::Command;
 use anyhow::{Context, Result};
 
 fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let mut base_commit = "28244fca061dee824456340b617f94a667010bfb".to_string();
-    let mut check_all = false;
-
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--base-commit" => {
-                if i + 1 < args.len() {
-                    base_commit = args[i + 1].clone();
-                    i += 1;
-                }
-            }
-            "--all" => {
-                check_all = true;
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-
     let repo_root = get_repo_root()?;
     let src_dir = repo_root.join("src");
-
-    let changed_lines = if check_all {
-        None
-    } else {
-        Some(get_changed_lines(&repo_root, &base_commit)?)
-    };
 
     let mut files = Vec::new();
     collect_rs_files(&src_dir, &mut files)?;
@@ -115,13 +86,6 @@ fn main() -> Result<()> {
             }
 
             if line_contains_fallback(trimmed) {
-                // If checking diffs, filter by changed lines
-                if let Some(ref changed) = changed_lines {
-                    if !changed.contains(&(rel_path.clone(), line_num)) {
-                        continue;
-                    }
-                }
-
                 total_occurrences += 1;
 
                 let is_verified = has_domain_comment(trimmed)
@@ -141,11 +105,7 @@ fn main() -> Result<()> {
     }
 
     println!("=== CTB unwrap_or Domain Fallback Linter ===");
-    if check_all {
-        println!("Scope: All non-test source files in src/");
-    } else {
-        println!("Scope: Git diff against base commit {base_commit}..HEAD");
-    }
+    println!("Scope: All non-test source files in src/");
     println!("Total Fallback Occurrences: {total_occurrences}");
     println!("Verified (Documented Domain Fallbacks): {verified_occurrences}");
     println!(
@@ -197,53 +157,6 @@ fn get_repo_root() -> Result<PathBuf> {
         .context("Failed to run git rev-parse")?;
     let path_str = String::from_utf8(output.stdout)?.trim().to_string();
     Ok(PathBuf::from(path_str))
-}
-
-fn get_changed_lines(
-    repo_root: &Path,
-    base_commit: &str,
-) -> Result<HashSet<(String, usize)>> {
-    let mut set = HashSet::new();
-    let output = Command::new("git")
-        .args([
-            "diff",
-            "-U0",
-            &format!("{base_commit}..HEAD"),
-            "--",
-            "src/",
-        ])
-        .current_dir(repo_root)
-        .output()
-        .context("Failed to run git diff")?;
-
-    let diff_text = String::from_utf8(output.stdout)?;
-    let mut current_file = String::new();
-
-    for line in diff_text.lines() {
-        if line.starts_with("+++ b/") {
-            current_file = line[6..].to_string();
-        } else if line.starts_with("@@ ") {
-            // Parse @@ -a,b +c,d @@
-            if let Some(plus_idx) = line.find('+') {
-                let rest = &line[plus_idx + 1..];
-                let end_idx = rest.find(' ').unwrap_or(rest.len());
-                let spec = &rest[..end_idx];
-                let parts: Vec<&str> = spec.split(',').collect();
-                if let Ok(start) = parts[0].parse::<usize>() {
-                    let count = if parts.len() > 1 {
-                        parts[1].parse::<usize>().unwrap_or(1)
-                    } else {
-                        1
-                    };
-                    for offset in 0..count {
-                        set.insert((current_file.clone(), start + offset));
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(set)
 }
 
 fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {

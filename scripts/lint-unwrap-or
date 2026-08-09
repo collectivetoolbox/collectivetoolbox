@@ -10,15 +10,10 @@ set -euxo pipefail
 # Change directory to repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
-base_commit="28244fca061dee824456340b617f94a667010bfb"
 offline=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --base-commit)
-            base_commit="$2"
-            shift
-            ;;
         --offline)
             offline="--offline"
             ;;
@@ -26,5 +21,5 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-echo "=== Running unwrap_or domain fallback linter (base: ${base_commit}) ==="
-cargo run ${offline} -p ctb-unwrap-or-lint --bin lint-unwrap-or-bin --release -- --base-commit "${base_commit}"
+echo "=== Running unwrap_or domain fallback linter ==="
+cargo run ${offline} -p ctb-unwrap-or-lint --bin lint-unwrap-or-bin --release
