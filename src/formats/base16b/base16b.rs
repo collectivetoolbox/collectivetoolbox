@@ -100,6 +100,7 @@ fn char_bytes(segm_cp: &[u16]) -> usize {
 
 // Private: bytes needed for a character (fixed surrogate logic)
 fn char_bytes_fixed(segm_cp: &[u16]) -> u8 {
+    // Reason for fallback: when slice is empty, first code point is None (code = 0), which is not a UTF-16 surrogate (0xD800..=0xDFFF), returning 1 byte.
     let code = segm_cp.first().copied().unwrap_or(0);
     if (0xD800..=0xDBFF).contains(&code) || (0xDC00..=0xDFFF).contains(&code) {
         2
@@ -148,6 +149,7 @@ fn to_code_point(segm_val: u32, base: u32) -> u32 {
 
 // Private: code point to String (fixed surrogate logic)
 fn fixed_from_char_code(code_pt: u32) -> String {
+    // Reason for fallback: when code point is not a valid Unicode scalar value, format standard replacement character '\u{FFFD}'.
     std::char::from_u32(code_pt)
         .map_or_else(|| String::from("\u{FFFD}"), |c| c.to_string())
 }

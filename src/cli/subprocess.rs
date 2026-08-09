@@ -23,6 +23,7 @@ pub fn parse_subprocess_cli(
     use ctb_utilities::ipc::IPC_ARG;
     use ipc::child_kind_from_string;
 
+    // Reason for fallback:  raw contains command-line arguments starting with executable name at raw[0]. If raw is empty or contains only the executable name, raw.get(1..) returns None and defaulting to an empty slice correctly reflects zero remaining CLI arguments.
     let args = raw.get(1..).unwrap_or(&[]);
     let is_subprocess = args.first().is_some_and(|a| a == IPC_ARG);
     if !is_subprocess {
@@ -30,6 +31,7 @@ pub fn parse_subprocess_cli(
     }
 
     let args = if is_subprocess {
+        // Reason for fallback:  IPC_ARG "--ctoolbox-ipc" is at args[0]. Slicing at 1.. strips the IPC marker; if no further arguments follow, returning an empty slice correctly represents zero remaining subprocess arguments.
         args.get(1..).unwrap_or(&[])
     } else {
         args
@@ -38,7 +40,9 @@ pub fn parse_subprocess_cli(
     // Split at POSIX arg separator.
     let (ipc_args, remaining) = match args.iter().position(|a| a == "--") {
         Some(idx) => (
+            // Reason for fallback:  idx was returned by position(), guaranteed to be within bounds unless vector mutated concurrently.
             args.get(..idx).unwrap_or(&[]),
+            // Reason for fallback:  idx + 1 may exceed args length if "--" is the last element, returning an empty slice for remaining arguments.
             args.get(idx.saturating_add(1)..).unwrap_or(&[]).to_vec(),
         ),
         None => (args, Vec::new()),
@@ -72,16 +76,20 @@ pub fn parse_subprocess_cli(
 pub fn parse_subprocess_socket(raw: &[String]) -> Result<Option<String>> {
     use ctb_utilities::ipc::IPC_ARG;
 
+    // Reason for fallback:  raw contains argv where raw[0] is executable path. Default to empty slice if raw has <= 1 element.
     let args = raw.get(1..).unwrap_or(&[]);
     let is_subprocess = args.first().is_some_and(|a| a == IPC_ARG);
     if !is_subprocess {
         return Ok(None);
     }
+    // Reason for fallback:  strip IPC_ARG marker; if args has <= 1 element, default to empty slice for subprocess options.
     let args = args.get(1..).unwrap_or(&[]);
 
     // Only consider args before POSIX separator.
+    // Reason for fallback:  when "--" separator is not present, position() returns None and ipc_args_end defaults to full args length so all arguments are checked for --socket.
     let ipc_args_end =
         args.iter().position(|a| a == "--").unwrap_or(args.len());
+    // Reason for fallback:  ipc_args_end is guaranteed <= args.len().
     let ipc_args = args.get(..ipc_args_end).unwrap_or(&[]);
 
     let mut it = ipc_args.iter();
@@ -100,7 +108,12 @@ pub fn read_token_from_stdin() -> Result<String> {
 
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf)?;
-    let token = buf.lines().next().unwrap_or("").trim().to_string();
+    let token = buf
+        .lines()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("missing IPC token on stdin"))?
+        .trim()
+        .to_string();
     anyhow::ensure!(!token.is_empty(), "missing IPC token on stdin");
     Ok(token)
 }

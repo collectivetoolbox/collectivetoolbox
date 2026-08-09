@@ -88,6 +88,7 @@ pub fn create_simple_alias<P: AsRef<Path>>(
 ) -> Result<Vec<u8>> {
     let target_path = target_path.as_ref();
     let path_string = normalize_path_string(target_path)?;
+    // Reason for fallback: when display name is omitted and target_path has no filename component (e.g. root directory "/"), use full normalized path string as display name.
     let display_name = name
         .map(ToString::to_string)
         .or_else(|| {
@@ -378,6 +379,7 @@ fn build_alias_file(
         .map(ToString::to_string)
         .collect::<Vec<_>>();
 
+    // Reason for fallback: when normalized path components vector is empty (e.g. root directory "/"), file_name defaults to display_name string.
     let file_name = components
         .last()
         .cloned()
@@ -997,6 +999,7 @@ impl AliasRecord {
 
         if self.version == ALIAS_VERSION_2 {
             let volume_name = self.volume.name.replace(':', "/");
+            // Reason for fallback: v2 Mac alias record binary format uses empty Pascal string (len 0) for target filename when target has no filename component (e.g. volume root).
             let filename = self
                 .target
                 .filename

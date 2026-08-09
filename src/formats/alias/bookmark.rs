@@ -47,6 +47,7 @@ pub fn create_simple_bookmark<P: AsRef<Path>>(
 ) -> Result<Vec<u8>> {
     let target_path = target_path.as_ref();
     let path_string = normalize_path_string(target_path)?;
+    // Reason for fallback: when display name is omitted and target_path has no filename component (e.g. root directory "/"), use full normalized path string as display name.
     let display_name = name
         .map(str::to_owned)
         .or_else(|| {
@@ -283,6 +284,7 @@ fn build_bookmark_file(
         .map(str::to_owned)
         .collect::<Vec<_>>();
 
+    // Reason for fallback: when normalized path components vector is empty (e.g. root directory "/"), file_name defaults to display_name string.
     let file_name = components
         .last()
         .cloned()
@@ -381,6 +383,7 @@ fn compute_record_offsets(
 
 fn compute_toc_offset(records: &[BookmarkRecordBuilder]) -> Result<u32> {
     let offsets = compute_record_offsets(records)?;
+    // Reason for fallback: when bookmark records slice is empty, TOC cursor starts immediately after the 4-byte bookmark magic header (offset 4).
     let mut cursor = offsets.last().copied().unwrap_or(4u32);
     if let Some(last) = records.last() {
         cursor = cursor

@@ -877,8 +877,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let data = std::fs::read(input_file).with_context(|| {
                 format!("Failed to read input file: {input_file:?}")
             })?;
-            let filename =
-                input_file.file_stem().unwrap_or_default().to_string_lossy();
+            let filename = input_file
+                .file_stem()
+                .ok_or_else(|| anyhow::anyhow!("Input file path {:?} has no valid file stem", input_file))?
+                .to_string_lossy();
             let output = ctb_formats_stagel::parse::parse(&data, &filename)?;
             Ok(ToolResult::immediate_ok(output))
         }
@@ -936,6 +938,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let cwd = std::env::current_dir()
                 .context("Failed to get current directory")?;
             let cwd = cwd.as_path();
+            // Reason for fallback: when optional output_dir CLI parameter is omitted, extraction defaults to current working directory (cwd), which was verified above.
             let output_dir =
                 ctb_formats_ctb_asset_bundle::extract_asset_bundle(
                     bundle_path.as_path(),

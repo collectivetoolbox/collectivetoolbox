@@ -179,6 +179,7 @@ pub fn run_base_convert(
         ));
     }
 
+    // Reason for fallback: base_to_base_string takes optional from_base and to_base CLI arguments. When both are None (neither explicitly supplied by user), the CLI command defaults to decimal (base 10) for both input and output.
     let converted = base_to_base_string(
         string_input.input.as_str(),
         from_base.unwrap_or(10),

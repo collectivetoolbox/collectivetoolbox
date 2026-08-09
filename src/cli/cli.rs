@@ -75,6 +75,7 @@ impl Invocation {
 
     pub fn get_service_name(&self) -> String {
         if self.is_subprocess() {
+            // Reason for fallback: format_child_kind returns a String for subprocesses; if self.subprocess() is None (non-subprocess invocation state), defaulting to empty string indicates no subprocess service name.
             self.subprocess()
                 .map(|s| format_child_kind(&s.kind).to_string())
                 .unwrap_or_default()
@@ -96,6 +97,7 @@ pub struct SubprocessArgs {
 
 // Public parsing entry point used by lib::entry().
 pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
+    // Reason for fallback: when caller passes None for explicit args (normal entrypoint), harvest process arguments directly from std::env::args().
     let raw: Vec<String> = args.unwrap_or_else(|| env::args().collect());
     let (kind, _remaining_args) =
         subprocess::parse_subprocess_cli(raw.clone())?;
@@ -263,11 +265,13 @@ fn generate_help_bytes() -> Vec<u8> {
     // let mut buf = Vec::new();
     // cmd.write_help(&mut buf).unwrap();
     // buf
+    // Reason for fallback: when TTY help generation produces no output or fails, returning empty byte slice indicates no help text was rendered.
     get_help_for_tty(get_width()).unwrap_or_default()
 }
 
 /// Return the width of the terminal
 pub fn get_width() -> u16 {
+    // Reason for fallback: when stdout is non-interactive (not a TTY) or terminal dimension query fails, 80 columns is standard default terminal width.
     termsize::get().map_or(80, |s| s.cols)
 }
 

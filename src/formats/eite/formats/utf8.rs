@@ -180,6 +180,7 @@ pub fn dca_to_utf8(
             if truncated {
                 // Determine slice to reprocess (excluding the invalid char, if any).
                 let end_exclusive = j.min(len);
+                // Reason for fallback: when start_index..end_exclusive slice bounds exceed array, default to empty slice for subsequence re-processing.
                 let subseq =
                     dc_array.get(start_index..end_exclusive).unwrap_or(&[]);
                 if j >= len {
@@ -189,6 +190,7 @@ pub fn dca_to_utf8(
                 } else {
                     log.warn(&format!(
                         "Invalid character {} inside encapsulated UTF-8 sequence starting at index {} (treating as truncated)",
+                        // Reason for fallback: when j exceeds array bounds during truncation logging, 0 indicates out-of-bounds codepoint.
                         dc_array.get(j).copied().unwrap_or(0),
                         start_index
                     ));
@@ -220,6 +222,7 @@ pub fn dca_to_utf8(
                 // Valid sequence: dc_array[i] == start, dc_array[j] == end.
                 // Inner slice excludes start and end markers.
                 let inner = if j > i.saturating_add(1) {
+                    // Reason for fallback: inner slice between start and end markers defaults to empty slice if bounds are out of range.
                     dc_array.get(i.saturating_add(1)..j).unwrap_or(&[])
                 } else {
                     &[]
@@ -253,6 +256,7 @@ pub fn dca_to_utf8(
                     Err(e) => {
                         log.warn(&format!(
                             "Failed to decode encapsulated UTF-8 sequence {:?} at {}..{}: {} (fallback to plain processing)",
+                            // Reason for fallback: slice bounded by markers i..=j defaults to empty slice if index range is invalid.
                             dc_array.get(i..=j).unwrap_or(&[]), i, j, e
                         ));
                         // Fallback: reprocess entire sequence (including markers) with embedding disabled.
@@ -299,6 +303,7 @@ pub fn dca_to_utf8(
             if dc_basenb_enabled {
                 unmappables.push(dc);
             } else {
+                // Reason for fallback: try_into u32 for warning log offset; if index exceeds u32::MAX, 0 is logged.
                 log.export_warning(
                     i.try_into().unwrap_or(0),
                     &format!("Dc {dc} has no UTF-8 mapping"),
@@ -429,6 +434,7 @@ pub fn dca_from_utf8(
                     while fragment_consumed < remaining.len() {
                         log!(
                             "Consumed, remaining {:?}",
+                            // Reason for fallback: sliding window slice fallback to empty slice when fragment_consumed reaches or exceeds remaining length.
                             remaining.get(fragment_consumed..).unwrap_or(&[])
                         );
                         let first_char = first_char_of_utf8_string(
@@ -458,9 +464,11 @@ pub fn dca_from_utf8(
                 if let Some(end_pos) = end_pos {
                     // `end_pos` is the index where the end marker starts
                     let section = if settings.dc_basenb_fragment_enabled {
+                        // Reason for fallback: slice before end marker defaults to empty slice if end_pos index is out of bounds.
                         remaining.get(..end_pos).unwrap_or(&[]) // No end marker for fragment
                     } else {
                         // bytes after the start marker and before the end marker
+                        // Reason for fallback: slice between start UUID marker (32 bytes) and end_pos defaults to empty slice if end_pos < 32.
                         remaining.get(32..end_pos).unwrap_or(&[])
                     };
                     #[cfg(debug_assertions)]
@@ -483,6 +491,7 @@ pub fn dca_from_utf8(
                     let section = if settings.dc_basenb_fragment_enabled {
                         remaining
                     } else {
+                        // Reason for fallback: slice after start UUID marker defaults to empty slice if remaining length is under 33 bytes.
                         remaining.get(33..).unwrap_or(&[]) // or just "remaining" as above?
                     };
                     section_vec = section.to_vec();
@@ -508,6 +517,7 @@ pub fn dca_from_utf8(
                     && !settings.dc_basenb_fragment_enabled
                 {
                     // Now update `remaining` to point after the end marker
+                    // Reason for fallback: remaining window slice after end marker defaults to empty slice when end position is at end of stream.
                     remaining = remaining
                         .get(end_pos.saturating_add(end_marker.len())..)
                         .unwrap_or(&[]);
@@ -544,6 +554,7 @@ pub fn dca_from_utf8(
                 // borrow the Ok(Vec) so we don't move it out of `dc`
                 log.debug(&format!("debug {ch_bytes:?} to err"));
             }
+            // Reason for fallback: map_or_else formats error chain string, falling back to "Unknown error" if err is unexpectedly None.
             let err_msg = dc.as_ref().err().map_or_else(
                 || "Unknown error".to_string(),
                 |e| e.chain().map(std::string::ToString::to_string).collect::<Vec<_>>().join(": "),
@@ -608,6 +619,7 @@ pub fn dca_from_utf8(
             log.merge(&dc_log);
         }
 
+        // Reason for fallback: advance remaining sliding window by consumed bytes; defaults to empty slice when input is fully consumed.
         remaining = remaining.get(consumed..).unwrap_or(&[]);
     }
 

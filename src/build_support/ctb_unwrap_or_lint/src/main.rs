@@ -23,12 +23,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
 //!   - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup). Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
 //!   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
+//! - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use syn::spanned::Spanned;
+use syn::visit::{self, Visit};
+
 
 fn main() -> Result<()> {
     let repo_root = get_repo_root()?;
@@ -63,43 +67,26 @@ fn main() -> Result<()> {
             Err(_) => continue,
         };
 
+        let file_ast = match syn::parse_file(&content) {
+            Ok(ast) => ast,
+            Err(_) => continue,
+        };
+
         let lines: Vec<&str> = content.lines().collect();
-        let mut in_test_module = false;
+        let mut visitor = FallbackVisitor::new(&lines);
+        visitor.visit_file(&file_ast);
 
-        for (idx, line) in lines.iter().enumerate() {
-            let line_num = idx + 1;
-            let trimmed = line.trim();
+        for occurrence in visitor.occurrences {
+            total_occurrences += 1;
 
-            if trimmed.contains("mod tests")
-                || trimmed.contains("#[cfg(test)]")
-                || trimmed.contains("#[crate::ctb_test")
-            {
-                in_test_module = true;
-            }
-
-            // Skip test modules/functions
-            if in_test_module {
-                if trimmed == "}" && !line.starts_with(' ') && !line.starts_with('\t') {
-                    in_test_module = false;
-                }
-                continue;
-            }
-
-            if line_contains_fallback(trimmed) {
-                total_occurrences += 1;
-
-                let is_verified = has_domain_comment(trimmed)
-                    || (idx > 0 && has_domain_comment(lines[idx - 1].trim()));
-
-                if is_verified {
-                    verified_occurrences += 1;
-                } else {
-                    unverified_occurrences.push((
-                        rel_path.clone(),
-                        line_num,
-                        line.to_string(),
-                    ));
-                }
+            if is_occurrence_verified(&occurrence, &lines) {
+                verified_occurrences += 1;
+            } else {
+                unverified_occurrences.push((
+                    rel_path.clone(),
+                    occurrence.line_num,
+                    occurrence.call_text,
+                ));
             }
         }
     }
@@ -126,28 +113,257 @@ fn main() -> Result<()> {
     }
 }
 
-fn line_contains_fallback(line: &str) -> bool {
-    // Ignore comments
-    if line.starts_with("//") || line.starts_with("/*") || line.starts_with('*') {
-        return false;
+#[derive(Debug)]
+struct FallbackCall {
+    line_num: usize,
+    call_text: String,
+    stmt_start_line: usize,
+    stmt_end_line: usize,
+    parent_stmt_starts: Vec<usize>,
+}
+
+struct FallbackVisitor<'a> {
+    lines: &'a [&'a str],
+    stmt_stack: Vec<(usize, usize)>,
+    occurrences: Vec<FallbackCall>,
+}
+
+impl<'a> FallbackVisitor<'a> {
+    fn new(lines: &'a [&'a str]) -> Self {
+        Self {
+            lines,
+            stmt_stack: Vec::new(),
+            occurrences: Vec::new(),
+        }
     }
 
-    line.contains("unwrap_or(")
-        || line.contains("unwrap_or_default(")
-        || line.contains("unwrap_or_else(")
-        || line.contains("map_or(")
-        || line.contains("map_or_else(")
+    fn record_fallback(&mut self, span: proc_macro2::Span) {
+        let line_num = span.start().line;
+        let (stmt_start_line, stmt_end_line) = self
+            .stmt_stack
+            .last()
+            .copied()
+            .unwrap_or((line_num, line_num));
+
+        let parent_stmt_starts: Vec<usize> = self
+            .stmt_stack
+            .iter()
+            .map(|(start, _)| *start)
+            .collect();
+
+        let call_text = if line_num >= 1 && line_num <= self.lines.len() {
+            self.lines[line_num - 1].trim().to_string()
+        } else {
+            String::new()
+        };
+
+        self.occurrences.push(FallbackCall {
+            line_num,
+            call_text,
+            stmt_start_line,
+            stmt_end_line,
+            parent_stmt_starts,
+        });
+    }
+}
+
+impl<'ast, 'a> Visit<'ast> for FallbackVisitor<'a> {
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        if is_test_item_mod(node) {
+            return;
+        }
+        visit::visit_item_mod(self, node);
+    }
+
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        if is_test_item_fn(node) {
+            return;
+        }
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_item_fn(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_stmt(&mut self, node: &'ast syn::Stmt) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_stmt(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_item_const(&mut self, node: &'ast syn::ItemConst) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_item_const(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_item_static(&mut self, node: &'ast syn::ItemStatic) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_item_static(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_arm(&mut self, node: &'ast syn::Arm) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_arm(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_expr_closure(&mut self, node: &'ast syn::ExprClosure) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_expr_closure(self, node);
+        self.stmt_stack.pop();
+    }
+
+    fn visit_field_value(&mut self, node: &'ast syn::FieldValue) {
+        let span = node.span();
+        let start = span.start().line;
+        let end = span.end().line;
+        self.stmt_stack.push((start, end));
+        visit::visit_field_value(self, node);
+        self.stmt_stack.pop();
+    }
+
+
+    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        let method_name = node.method.to_string();
+        if is_fallback_name(&method_name) {
+            self.record_fallback(node.method.span());
+        }
+        visit::visit_expr_method_call(self, node);
+    }
+
+    fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(ref path_expr) = *node.func {
+            if let Some(last_seg) = path_expr.path.segments.last() {
+                let func_name = last_seg.ident.to_string();
+                if is_fallback_name(&func_name) {
+                    self.record_fallback(last_seg.ident.span());
+                }
+            }
+        }
+        visit::visit_expr_call(self, node);
+    }
+
+    fn visit_macro(&mut self, node: &'ast syn::Macro) {
+        check_tokens_for_fallbacks(node.tokens.clone(), self);
+        visit::visit_macro(self, node);
+    }
+}
+
+fn check_tokens_for_fallbacks(
+    tokens: proc_macro2::TokenStream,
+    visitor: &mut FallbackVisitor,
+) {
+    for tt in tokens {
+        match tt {
+            proc_macro2::TokenTree::Ident(ident) => {
+                let name = ident.to_string();
+                if is_fallback_name(&name) {
+                    visitor.record_fallback(ident.span());
+                }
+            }
+            proc_macro2::TokenTree::Group(group) => {
+                check_tokens_for_fallbacks(group.stream(), visitor);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn is_test_item_mod(node: &syn::ItemMod) -> bool {
+    node.ident == "tests" || has_test_attribute(&node.attrs)
+}
+
+fn is_test_item_fn(node: &syn::ItemFn) -> bool {
+    has_test_attribute(&node.attrs)
+}
+
+fn has_test_attribute(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if attr.path().is_ident("test") || attr.path().is_ident("ctb_test") {
+            return true;
+        }
+        if attr.path().is_ident("cfg") {
+            if let syn::Meta::List(ref list) = attr.meta {
+                let tokens_str = list.tokens.to_string();
+                if tokens_str.contains("test") {
+                    return true;
+                }
+            }
+        }
+        false
+    })
+}
+
+fn is_fallback_name(name: &str) -> bool {
+    matches!(
+        name,
+        "unwrap_or" | "unwrap_or_default" | "unwrap_or_else" | "map_or" | "map_or_else"
+    )
+}
+
+fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
+    let mut start_lines = vec![call.stmt_start_line];
+    start_lines.extend(call.parent_stmt_starts.iter().copied());
+
+    for &start_line in &start_lines {
+        if start_line == 0 || start_line > lines.len() {
+            continue;
+        }
+        let start_idx = start_line - 1;
+
+        if has_domain_comment(lines[start_idx]) {
+            return true;
+        }
+
+        for offset in 1..=3 {
+            if start_idx >= offset {
+                let line_above = lines[start_idx - offset].trim();
+                if has_domain_comment(line_above) {
+                    return true;
+                }
+                if !line_above.starts_with("//")
+                    && !line_above.starts_with("/*")
+                    && !line_above.starts_with('*')
+                    && !line_above.is_empty()
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    let start_idx = call.stmt_start_line.saturating_sub(1);
+    let end_idx = (call.stmt_end_line).min(lines.len()).saturating_sub(1);
+    for idx in start_idx..=end_idx {
+        if idx < lines.len() && has_domain_comment(lines[idx]) {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn has_domain_comment(line: &str) -> bool {
-    let lower = line.to_lowercase();
-    lower.contains("// domain")
-        || lower.contains("// contract")
-        || lower.contains("// fallback")
-        || lower.contains("// audit")
-        || lower.contains("// infallible")
-        || lower.contains("reason =")
-        || lower.contains("expect_used")
+    line.contains("Reason for fallback: ") || lower.contains(", reason = \"")
 }
 
 fn get_repo_root() -> Result<PathBuf> {
@@ -174,3 +390,4 @@ fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     }
     Ok(())
 }
+

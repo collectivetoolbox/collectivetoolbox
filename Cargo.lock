@@ -3346,6 +3346,8 @@ name = "ctb-unwrap-or-lint"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "proc-macro2",
+ "syn 2.0.117",
 ]
 
 [[package]]

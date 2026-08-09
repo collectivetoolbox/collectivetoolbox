@@ -311,7 +311,9 @@ pub fn byte_array_from_armored_base17b_utf8(input: &[u8]) -> Result<Vec<u8>> {
         .len()
         .checked_add(inner_len)
         .ok_or_else(|| anyhow!("End index overflow"))?;
-    let inner = input.get(start.len()..end_idx).unwrap_or(&[]);
+    let inner = input
+        .get(start.len()..end_idx)
+        .ok_or_else(|| anyhow!("Input slice out of bounds"))?;
     // Decode the inner Base17b UTF-8 segment back to raw bytes.
     let decoded = byte_array_from_basenb_17_utf8(inner)?;
     Ok(decoded)
