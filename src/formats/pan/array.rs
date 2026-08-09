@@ -22,6 +22,7 @@ pub fn array(text: &str, item: usize, sep: char) -> Result<String> {
     }
 
     let idx = item.saturating_sub(1);
+    // Reason for fallback: out of bounds item index in separator split defaults to empty string per Pan documentation.
     Ok(text.split(sep).nth(idx).unwrap_or("").to_string())
 }
 
@@ -147,6 +148,10 @@ pub fn arrayelement(text: &str, position: usize, sep: char) -> Result<usize> {
 }
 
 /// Extracts a column from a row/column delimited table.
+///
+/// # Errors
+/// Returns an error if `colnum == 0` (column numbers are 1-based) or if any row
+/// contains fewer columns than `colnum`.
 pub fn arraycolumn(
     text: &str,
     colnum: usize,
@@ -161,7 +166,10 @@ pub fn arraycolumn(
 
     let mut out: Vec<String> = Vec::new();
     for row in text.split(rowsep) {
-        let cell = row.split(colsep).nth(idx).unwrap_or("");
+        let cell = row
+            .split(colsep)
+            .nth(idx)
+            .ok_or_else(|| anyhow!("Row contains fewer columns than requested column {colnum}"))?;
         out.push(cell.to_string());
     }
 
@@ -235,6 +243,7 @@ pub fn arrayfirst(text: &str, sep: char) -> Result<String> {
 
 /// Returns the last element in the array.
 pub fn arraylast(text: &str, sep: char) -> Result<String> {
+    // Reason for fallback: empty array string defaults last element to empty string
     Ok(text.split(sep).next_back().unwrap_or("").to_string())
 }
 
@@ -324,9 +333,11 @@ pub fn arrayreverselookup(
     Ok(default.to_string())
 }
 
-/// Zips two arrays, joining elements with `joiner`.
+/// Zips two arrays, joining corresponding elements with `joiner`.
 ///
-/// The `joiner` must be 1 to 10 characters long.
+/// # Errors
+/// Returns an error if `joiner` is empty or longer than 10 characters, or if
+/// `array1` and `array2` have unequal element counts.
 pub fn arraymerge(
     array1: &str,
     array2: &str,
@@ -340,12 +351,16 @@ pub fn arraymerge(
 
     let a1: Vec<&str> = array1.split(separator).collect();
     let a2: Vec<&str> = array2.split(separator).collect();
-    let len = a1.len().max(a2.len());
+    if a1.len() != a2.len() {
+        bail!(
+            "arraymerge arrays must have equal length: array1 has {}, array2 has {}",
+            a1.len(),
+            a2.len()
+        );
+    }
 
-    let mut out: Vec<String> = Vec::with_capacity(len);
-    for i in 0..len {
-        let left = a1.get(i).copied().unwrap_or("");
-        let right = a2.get(i).copied().unwrap_or("");
+    let mut out: Vec<String> = Vec::with_capacity(a1.len());
+    for (left, right) in a1.into_iter().zip(a2) {
         out.push(format!("{left}{joiner}{right}"));
     }
 
@@ -627,7 +642,9 @@ fn split_kv(line: &str, subsep: char) -> (&str, &str) {
     }
 
     let mut it = line.splitn(2, subsep);
+    // Reason for fallback: subseparator line split missing key or value defaults missing part to empty string
     let k = it.next().unwrap_or("");
+    // Reason for fallback: subseparator line split missing key or value defaults missing part to empty string
     let v = it.next().unwrap_or("");
     (k, v)
 }
@@ -825,7 +842,7 @@ fn arraytable_bound(
         }
     }
 
-    // Returning `default` when no floor/ceiling key matches is specified by the Pan array function contract.
+    // Reason for fallback: per docblock (returning default when no floor/ceiling key matches is specified by Pan array contract)
     Ok(best_val.unwrap_or(default).to_string())
 }
 
@@ -916,10 +933,11 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_arraycolumn_extracts_missing_as_empty() -> Result<()> {
-        let t = "a,b,c|d,e|x";
-        assert_eq!(arraycolumn(t, 2, '|', ',')?, "b|e|");
+    fn test_arraycolumn() -> Result<()> {
+        let t = "a,b,c|d,e,f";
+        assert_eq!(arraycolumn(t, 2, '|', ',')?, "b|e");
         arraycolumn(t, 0, '|', ',').unwrap_err();
+        arraycolumn("a,b|d", 2, '|', ',').unwrap_err();
         Ok(())
     }
 
@@ -983,7 +1001,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_arraymerge() -> Result<()> {
-        assert_eq!(arraymerge("a;b;c", "1;2", ';', ":")?, "a:1;b:2;c:");
+        assert_eq!(arraymerge("a;b;c", "1;2;3", ';', ":")?, "a:1;b:2;c:3");
+        arraymerge("a;b;c", "1;2", ';', ":").unwrap_err();
         arraymerge("a", "b", ';', "").unwrap_err();
         Ok(())
     }

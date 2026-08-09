@@ -29,6 +29,7 @@ impl NodeApiClient {
         let server_url = ctb_utilities::pc_settings::get_str_setting(
             ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
         )
+        // Reason for fallback: unconfigured server URL setting defaults to DEFAULT_SERVER_URL constant
         .unwrap_or_else(|| {
             ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
         });
@@ -51,6 +52,7 @@ impl NodeApiClient {
             .context("Failed to connect to remote server for node publish")?;
 
         if !resp.is_success() {
+            // Reason for fallback: failed HTTP response text reading defaults error text to empty string
             let err_text = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server error publishing node: {err_text}");
         }
@@ -67,6 +69,7 @@ impl NodeApiClient {
         let server_url = ctb_utilities::pc_settings::get_str_setting(
             ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
         )
+        // Reason for fallback: unconfigured server URL setting defaults to DEFAULT_SERVER_URL constant
         .unwrap_or_else(|| {
             ctb_utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
         });
@@ -82,6 +85,7 @@ impl NodeApiClient {
             .context("Failed to fetch remote checksum")?;
 
         if !resp.is_success() {
+            // Reason for fallback: failed HTTP response text reading defaults error text to empty string
             let err_text = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server checksum query error: {err_text}");
         }
@@ -116,6 +120,7 @@ impl NodeApiClient {
 
     /// Parse allocated node ID from publish server JSON response.
     pub fn parse_publish_response(body_text: &str) -> Result<u128> {
+        // Reason for fallback: malformed JSON response string defaults to Value::Null prior to field extraction
         let val: serde_json::Value =
             serde_json::from_str(body_text).unwrap_or(serde_json::Value::Null);
 
@@ -131,6 +136,7 @@ impl NodeApiClient {
 
     /// Parse checksum string from server checksum JSON response.
     pub fn parse_checksum_response(body_text: &str) -> Result<String> {
+        // Reason for fallback: malformed JSON response string defaults to Value::Null prior to field extraction
         let val: serde_json::Value =
             serde_json::from_str(body_text).unwrap_or(serde_json::Value::Null);
 

@@ -10,6 +10,7 @@ use std::path::Path;
 fn main() -> Result<()> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
     let manifest_path = Path::new(&manifest_dir);
+    // Reason for fallback: builds executed outside cargo environment default profile string to "debug"
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_owned());
     let is_release = profile == "release";
     let skip_docs = env::var_os("CTB_SKIP_DOCS").is_some();

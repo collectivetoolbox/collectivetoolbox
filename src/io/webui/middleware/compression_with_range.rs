@@ -324,18 +324,13 @@ where
     }
 }
 
-fn contains_ignore_ascii_case(mut haystack: &[u8], needle: &[u8]) -> bool {
-    while needle.len() <= haystack.len() {
-        if haystack
-            .get(..needle.len())
-            .unwrap_or(&[])
-            .eq_ignore_ascii_case(needle)
-        {
-            return true;
-        }
-        haystack = haystack.get(1..).unwrap_or(&[]);
+fn contains_ignore_ascii_case(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() {
+        return true;
     }
-    false
+    haystack
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle))
 }
 
 pin_project! {

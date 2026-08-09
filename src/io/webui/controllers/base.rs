@@ -407,6 +407,7 @@ async fn serve_manifest_file(
         let headers_mut = resp.headers_mut();
         headers_mut.insert(
             header::CONTENT_TYPE,
+            // Reason for fallback: invalid MIME type header string defaults to application/octet-stream
             HeaderValue::from_str(download_mime_type).unwrap_or_else(|_| {
                 HeaderValue::from_static("application/octet-stream")
             }),
@@ -449,6 +450,7 @@ async fn serve_manifest_file(
         let headers_mut = resp.headers_mut();
         headers_mut.insert(
             header::CONTENT_TYPE,
+            // Reason for fallback: invalid MIME type header string defaults to application/octet-stream
             HeaderValue::from_str(download_mime_type).unwrap_or_else(|_| {
                 HeaderValue::from_static("application/octet-stream")
             }),
@@ -709,6 +711,7 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
         let mut resp = Response::new(Body::from(bytes));
         resp.headers_mut().insert(
             header::CONTENT_TYPE,
+            // Reason for fallback: invalid MIME type header string defaults to application/octet-stream
             HeaderValue::from_str(mime_guess_str.as_ref()).unwrap_or_else(
                 |_| HeaderValue::from_static("application/octet-stream"),
             ),

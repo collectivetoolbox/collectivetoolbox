@@ -274,6 +274,7 @@ impl IpcPeer {
 
         if let Some(resp) = self.take_pending(id).await {
             if !resp.ok {
+                // Reason for fallback: failed IPC call response lacking error detail defaults to "unknown error"
                 let msg = resp
                     .error
                     .map_or_else(|| "unknown error".into(), |e| e.message);
@@ -319,6 +320,7 @@ impl IpcPeer {
             ))
         })?;
         if !resp.ok {
+            // Reason for fallback: failed IPC call response lacking error detail defaults to "unknown error"
             let msg = resp
                 .error
                 .map_or_else(|| "unknown error".into(), |e| e.message);

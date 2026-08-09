@@ -206,9 +206,11 @@ impl Locale {
     pub fn get_system_default() -> Locale {
         Locale::from_code(
             get_locale()
+                // Reason for fallback: system locale detection failure defaults to "en-US"
                 .unwrap_or_else(|| String::from("en-US"))
                 .as_str(),
         )
+        // Reason for fallback: unrecognized system locale string falls back to Locale::EnUs
         .unwrap_or(Locale::EnUs)
     }
 }
@@ -363,6 +365,7 @@ fn get_bundle(locale: Locale) -> &'static Bundle {
         en_bundle
     } else {
         static FALLBACK_BUNDLE: std::sync::LazyLock<Bundle> = std::sync::LazyLock::new(|| {
+            // Reason for fallback: static string "en-US" parse error defaults to initial LanguageIdentifier
             let lang_id = "en-US".parse().unwrap_or_default();
             Bundle::new_concurrent(vec![lang_id])
         });
@@ -417,9 +420,11 @@ pub fn detect_system_locale() {
     let lang = std::env::var("LANG")
         .or_else(|_| std::env::var("LC_ALL"))
         .or_else(|_| std::env::var("LC_MESSAGES"))
+        // Reason for fallback: missing LANG/LC_* environment variables default locale string to empty
         .unwrap_or_default();
 
     // Extract the language code (e.g., "en_US.UTF-8" -> "en-US")
+    // Reason for fallback: language string without dot separator retains full language string
     let code = lang.split('.').next().unwrap_or(&lang).replace('_', "-");
 
     if !code.is_empty() {
@@ -541,6 +546,7 @@ pub fn t_count(id: &str, count: usize) -> String {
     };
 
     let mut args = FluentArgs::new();
+    // Reason for fallback: count parameter usize to i64 conversion overflow saturates to i64::MAX
     let count_i64 = i64::try_from(count).unwrap_or(i64::MAX);
     args.set("count", FluentValue::from(count_i64));
 
@@ -561,6 +567,7 @@ fn t_count_with_bundle(bundle: &Bundle, id: &str, count: usize) -> String {
     };
 
     let mut args = FluentArgs::new();
+    // Reason for fallback: count parameter usize to i64 conversion overflow saturates to i64::MAX
     let count_i64 = i64::try_from(count).unwrap_or(i64::MAX);
     args.set("count", FluentValue::from(count_i64));
 

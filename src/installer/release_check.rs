@@ -161,10 +161,10 @@ pub fn verify_release(
                 chunks_dir.join(format!("{}.br", &chunk_info.hash))
             };
 
+            let short_hash = chunk_info.hash.get(..16).unwrap_or(&chunk_info.hash);
             if !chunk_path.exists() {
                 errors.push(format!(
-                    "Missing chunk {} for file {}",
-                    chunk_info.hash.get(..16).unwrap_or(""),
+                    "Missing chunk {short_hash} for file {}",
                     file_entry.path
                 ));
                 continue;
@@ -183,30 +183,27 @@ pub fn verify_release(
                         std::io::Read::read_to_end(&mut decoder, &mut data)
                     {
                         errors.push(format!(
-                            "Failed to decompress chunk {}: {e}",
-                            chunk_info.hash.get(..16).unwrap_or("")
+                            "Failed to decompress chunk {short_hash}: {e}"
                         ));
                         continue;
                     }
 
+                    // Reason for fallback: chunk data buffer length u64 conversion overflow defaults data_len to 0
                     let data_len = u64::try_from(data.len()).unwrap_or(0);
                     if data_len != chunk_info.length {
                         errors.push(format!(
-                            "Chunk {} has wrong size: expected {}, got {}",
-                            chunk_info.hash.get(..16).unwrap_or(""),
-                            chunk_info.length,
-                            data_len
+                            "Chunk {short_hash} has wrong size: expected {}, got {data_len}",
+                            chunk_info.length
                         ));
                         continue;
                     }
 
                     let computed_hash = compute_sha256_hex(&data);
                     if computed_hash != chunk_info.hash {
+                        let short_computed = computed_hash.get(..16).unwrap_or(&computed_hash);
                         errors.push(format!(
-                            "Chunk {} has wrong hash: expected {}, got {}",
-                            chunk_info.hash.get(..16).unwrap_or(""),
-                            chunk_info.hash.get(..16).unwrap_or(""),
-                            computed_hash.get(..16).unwrap_or("")
+                            "Chunk {short_hash} has wrong hash: expected {}, got {short_computed}",
+                            chunk_info.hash
                         ));
                         continue;
                     }
@@ -215,8 +212,7 @@ pub fn verify_release(
                 }
                 Err(e) => {
                     errors.push(format!(
-                        "Failed to read chunk {}: {e}",
-                        chunk_info.hash.get(..16).unwrap_or("")
+                        "Failed to read chunk {short_hash}: {e}"
                     ));
                 }
             }
@@ -275,6 +271,7 @@ pub fn run_dev_release_check(
     let storage_dir = get_storage_dir()?;
     let releases_dir = storage_dir.join("releases");
 
+    // Reason for fallback: unconfigured platform parameter falls back to current runtime platform string
     let resolved_platform =
         platform.map_or_else(crate::download::current_platform, str::to_string);
 

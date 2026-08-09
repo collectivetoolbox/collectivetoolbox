@@ -123,6 +123,7 @@ pub async fn get_nodes_view(
             }
         }
     } else {
+        // Reason for fallback: IPC node listing error defaults to empty node list
         let list = Node::list_nodes(&token).unwrap_or_default();
         if let Some(n) = list.into_iter().find(|n| n.id == node_id) {
             n.graph_id
@@ -158,16 +159,7 @@ pub async fn get_nodes_view(
     };
 
     let hex_dump = if is_data {
-        match ctb_formats_hexdump::to_fancy_hex_dump(&node.data) {
-            Ok(hd) => hd,
-            Err(e) => {
-                return error_400(
-                    &state,
-                    &req,
-                    format!("Failed to render hex dump: {e}"),
-                );
-            }
-        }
+        ctb_formats_hexdump::to_fancy_hex_dump(&node.data)
     } else {
         String::new()
     };
@@ -668,6 +660,7 @@ pub async fn get_nodes_download(
             }
         }
     } else {
+        // Reason for fallback: IPC node listing error defaults to empty node list
         let list = Node::list_nodes(&token).unwrap_or_default();
         if let Some(n) = list.into_iter().find(|n| n.id == node_id) {
             n.graph_id

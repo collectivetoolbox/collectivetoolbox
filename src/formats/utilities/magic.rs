@@ -75,11 +75,9 @@ impl MagicPattern {
                 if mask.len() != self.bytes.len() {
                     return false;
                 }
-                for (idx, &byte) in slice.iter().enumerate() {
-                    // Reason for fallback: slice.len() is verified to equal self.bytes.len() and mask.len(), so idx is in bounds of mask array.
-                    let m = mask.get(idx).copied().unwrap_or(0xFF);
-                    // Reason for fallback: slice.len() is verified to equal self.bytes.len(), so idx is in bounds of bytes array.
-                    let expected = self.bytes.get(idx).copied().unwrap_or(0);
+                for ((&byte, &m), &expected) in
+                    slice.iter().zip(mask).zip(self.bytes)
+                {
                     if (byte & m) != expected {
                         return false;
                     }

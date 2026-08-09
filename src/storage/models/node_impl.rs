@@ -53,12 +53,14 @@ pub async fn insert_node(
     let use_explicit_id =
         crate::models::sync_impl::get_local_id_range(user_id, graph_id)
             .await
+            // Reason for fallback: sync range lookup failure defaults to None (unassigned range)
             .unwrap_or(None)
             .is_some();
     let node_id = if use_explicit_id {
         let server_url = crate::pc_settings::get_str_setting(
             crate::pc_settings::PcSettingStrKey::ServerUrl,
         )
+        // Reason for fallback: unconfigured server URL setting defaults to DEFAULT_SERVER_URL constant
         .unwrap_or_else(|| crate::pc_settings::DEFAULT_SERVER_URL.to_string());
         let session_id = crate::sync::start_sync_session(&server_url, user_id)
             .await
@@ -105,6 +107,7 @@ pub async fn insert_node(
 
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
+        // Reason for fallback: system clock time prior to UNIX epoch defaults duration to 0 duration
         .unwrap_or_default()
         .as_micros();
     let timestamp_blob = timestamp.to_be_bytes().to_vec();

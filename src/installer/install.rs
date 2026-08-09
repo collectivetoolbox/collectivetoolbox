@@ -276,6 +276,7 @@ fn is_binary_file(entry: &FileEntry) -> bool {
         && path.extension().is_none()
     {
         // Files like "ctoolbox" at the root
+        // Reason for fallback: path without file_name component defaults to empty OsStr
         let filename = path.file_name().unwrap_or_default().to_string_lossy();
         // Common executable names
         if filename == "ctoolbox" || filename.starts_with("ctb-") {
@@ -1214,8 +1215,10 @@ pub fn run_update_check(
     server_url: Option<&str>,
     unattended: bool,
 ) -> Result<()> {
+    // Reason for fallback: unconfigured server URL parameter and setting default to default_url constant
     let server = server_url.map(ToOwned::to_owned).unwrap_or_else(|| {
         pc_settings::get_str_setting(pc_settings::PcSettingStrKey::ServerUrl)
+            // Reason for fallback: unconfigured server URL setting defaults to default_url constant
             .unwrap_or(default_url())
     });
 

@@ -255,6 +255,7 @@ async fn query_server_update_status(
 /// If the scheduled time has already passed today, returns 0 (check immediately).
 fn seconds_until_check_time(scheduled_seconds: u32) -> u64 {
     let now = Local::now();
+    // Reason for fallback: conversion overflow from seconds_from_midnight uses scheduled_seconds
     let current_seconds = u32::try_from(now.num_seconds_from_midnight())
         .unwrap_or(scheduled_seconds);
 
@@ -289,6 +290,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
             *UPDATE_STATUS.write().await = status.clone();
             log_fmt!(
                 "Update check skipped: {}",
+                // Reason for fallback: empty string fallback when last_error field is None
                 status.last_error.as_ref().unwrap_or(&String::new())
             );
             return;
@@ -309,6 +311,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
                 *UPDATE_STATUS.write().await = status.clone();
                 warn_fmt!(
                     "Update-status API preflight failed: {}",
+                    // Reason for fallback: empty string fallback when last_error field is None
                     status.last_error.as_ref().unwrap_or(&String::new())
                 );
                 return;
@@ -348,6 +351,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
                 *UPDATE_STATUS.write().await = status.clone();
                 warn_fmt!(
                     "Update check failed: {}",
+                    // Reason for fallback: empty string fallback when last_error field is None
                     status.last_error.as_ref().unwrap_or(&String::new())
                 );
                 return;
@@ -376,6 +380,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
             *UPDATE_STATUS.write().await = status.clone();
             warn_fmt!(
                 "Manifest download failed after API reported newer build: {}",
+                // Reason for fallback: empty string fallback when last_error field is None
                 status.last_error.as_ref().unwrap_or(&String::new())
             );
             return;
@@ -602,6 +607,7 @@ async fn quick_update_check() -> StartupUpdateResult {
     };
 
     // Get server URL from settings
+    // Reason for fallback: unconfigured server URL setting uses default official server URL
     let server_url = ctb_utilities::pc_settings::get_str_setting(
         ctb_utilities::pc_settings::PcSettingStrKey::ServerUrl,
     )

@@ -155,6 +155,7 @@ pub async fn post_tokens_issue(
     let user_id = u.local_id();
 
     // 1. Verify subscription
+    // Reason for fallback: system clock time prior to UNIX epoch defaults timestamp to 0 seconds
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -164,17 +165,20 @@ pub async fn post_tokens_issue(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
+    // Reason for fallback: user DTO missing subscription_expiry defaults expiry to 0 timestamp
     let expiry = dto.subscription_expiry.unwrap_or(0);
     if expiry <= now {
         return Err(StatusCode::PAYMENT_REQUIRED);
     }
 
     // 2. Verify quota
+    // Reason for fallback: user DTO missing token_quota defaults quota to 0
     let quota = dto.token_quota.unwrap_or(0);
     let count = payload.blinded_elements.len();
     if count == 0 {
         return Err(StatusCode::BAD_REQUEST);
     }
+    // Reason for fallback: blinded elements vector length u64 conversion overflow defaults count to 0
     let count_u64 = u64::try_from(count).unwrap_or(0);
     if quota < count_u64 {
         return Err(StatusCode::FORBIDDEN);
@@ -251,6 +255,7 @@ pub async fn post_sync_start(
                 upload_allowance: 1024 * 1024, // 1MB
                 expiry: Instant::now()
                     .checked_add(std::time::Duration::from_secs(15 * 60))
+                    // Reason for fallback: Instant addition overflow falls back to current Instant
                     .unwrap_or_else(Instant::now),
             },
         );
@@ -299,6 +304,7 @@ pub async fn post_upload_chunks(
     deduct_allowance(&session_id, size)?;
 
     // Save chunk to database with expiry timestamp (2 months from now)
+    // Reason for fallback: system clock time prior to UNIX epoch defaults timestamp to 0 seconds
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()

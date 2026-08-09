@@ -138,6 +138,7 @@ impl ReleaseManifest {
         self.files
             .iter()
             .find(|f| f.path == "ctoolbox-installer")
+            // Reason for fallback: file entry missing from manifest defaults file size to 0 bytes
             .map_or(0, |f| f.file_size)
     }
 
@@ -187,6 +188,7 @@ impl ReleaseManifest {
             .files
             .iter()
             .find(|f| f.path == path)
+            // Reason for fallback: file entry missing from manifest defaults file size to 0 bytes
             .map_or(0, |f| f.file_size);
         // Assume 29.3% compression ratio for source code/dependencies tarballs
         let uncomp_f64 = u64_to_f64_approx(uncompressed)
@@ -328,6 +330,7 @@ impl FileEntry {
             .iter()
             .map(|chunk| chunk.offset.saturating_add(chunk.length))
             .max()
+            // Reason for fallback: chunk list empty defaults computed file size to 0 bytes
             .unwrap_or(0);
     }
 

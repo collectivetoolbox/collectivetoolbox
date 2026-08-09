@@ -142,6 +142,7 @@ impl ResourceLock {
             "Unsupported platform: resource locking is only validated on Unix-like OSes and Windows"
         );
 
+        // Reason for fallback: when lock is acquired outside active test harness context, test name is empty string
         let test_name =
             crate::testing::try_get_current_test_name().unwrap_or_default();
         let formatted_resource_type =

@@ -69,14 +69,19 @@ pub fn defaulttext(text: &str, default: &str) -> String {
     }
 }
 
-/// Extracts a 1-based element from a separator-delimited string.
+/// Extracts the `item`-th element from an array.
 ///
-/// If `item` is -1, returns the element count as a string.
-pub fn extract(text: &str, separator: char, item: i64) -> Result<String> {
+/// If `item` exceeds the number of elements, an empty string `""` is returned.
+pub fn extract(text: &str, item: i64, separator: char) -> Result<String> {
     if item == -1 {
-        let count = text.split(separator).count();
+        let count = if text.is_empty() {
+            0
+        } else {
+            text.split(separator).count()
+        };
         return Ok(count.to_string());
     }
+
     if item < 1 {
         bail!("extract(): item must be >= 1, or -1 to request the item count");
     }
@@ -87,6 +92,7 @@ pub fn extract(text: &str, separator: char, item: i64) -> Result<String> {
     Ok(text
         .split(separator)
         .nth(idx)
+        // Reason for fallback: requested item index out of bounds in separator split defaults to empty string (as per official Pan docs and docblock here)
         .unwrap_or_default()
         .to_owned())
 }
@@ -110,6 +116,10 @@ pub fn fixedwidth(text: &str, width: usize) -> String {
 }
 
 /// Right-aligns `text` to `width`, truncating from the left if needed.
+#[allow(
+    clippy::expect_used,
+    reason = "start = chars.len() - width < chars.len() guaranteed by chars.len() > width"
+)]
 pub fn fixedwidthright(text: &str, width: usize) -> String {
     if width == 0 {
         return String::new();
@@ -118,7 +128,11 @@ pub fn fixedwidthright(text: &str, width: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
     if chars.len() > width {
         let start = chars.len().saturating_sub(width);
-        return chars.get(start..).unwrap_or(&[]).iter().collect();
+        return chars
+            .get(start..)
+            .expect("start < chars.len() guaranteed by chars.len() > width")
+            .iter()
+            .collect();
     }
 
     let pad = width.saturating_sub(chars.len());
@@ -128,7 +142,10 @@ pub fn fixedwidthright(text: &str, width: usize) -> String {
     out
 }
 
-/// Left-pads `text` with zeros to `width`, truncating from the left.
+#[allow(
+    clippy::expect_used,
+    reason = "start = chars.len() - width < chars.len() guaranteed by chars.len() > width"
+)]
 pub fn padzero(text: &str, width: usize) -> String {
     if width == 0 {
         return String::new();
@@ -137,7 +154,11 @@ pub fn padzero(text: &str, width: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
     if chars.len() > width {
         let start = chars.len().saturating_sub(width);
-        return chars.get(start..).unwrap_or(&[]).iter().collect();
+        return chars
+            .get(start..)
+            .expect("start < chars.len() guaranteed by chars.len() > width")
+            .iter()
+            .collect();
     }
 
     let pad = width.saturating_sub(chars.len());
@@ -148,6 +169,10 @@ pub fn padzero(text: &str, width: usize) -> String {
 }
 
 /// Removes empty lines and normalizes line breaks to `\n`.
+#[allow(
+    clippy::expect_used,
+    reason = "Infallible byte indexing and ASCII character boundary slice ranges in linestrip"
+)]
 pub fn linestrip(text: &str) -> String {
     let mut out: Vec<&str> = Vec::new();
     let mut start = 0usize;
@@ -155,7 +180,9 @@ pub fn linestrip(text: &str) -> String {
     let mut i = 0usize;
 
     while i < bytes.len() {
-        let b = *bytes.get(i).unwrap_or(&0);
+        let b = *bytes
+            .get(i)
+            .expect("i < bytes.len() guaranteed by loop condition");
         let is_cr = b == b'\r';
         let is_lf = b == b'\n';
         if !is_cr && !is_lf {
@@ -163,7 +190,9 @@ pub fn linestrip(text: &str) -> String {
             continue;
         }
 
-        let line = text.get(start..i).unwrap_or("");
+        let line = text
+            .get(start..i)
+            .expect("start..i is a valid char boundary range <= text.len()");
         if !line.trim().is_empty() {
             out.push(line);
         }
@@ -176,7 +205,9 @@ pub fn linestrip(text: &str) -> String {
         start = i;
     }
 
-    let tail = text.get(start..).unwrap_or("");
+    let tail = text
+        .get(start..)
+        .expect("start is a valid char boundary <= text.len()");
     if !tail.trim().is_empty() {
         out.push(tail);
     }
@@ -366,7 +397,13 @@ pub fn batchreplace(
             continue;
         }
         let mut parts = row.splitn(2, subsep);
-        let before = parts.next().unwrap_or_default();
+        #[allow(
+            clippy::expect_used,
+            reason = "row is non-empty so splitn yields at least one part"
+        )]
+        let before = parts
+            .next()
+            .expect("row is non-empty so splitn yields at least one part");
         let after = parts
             .next()
             .context("batchreplace(): row missing subseparator")?;

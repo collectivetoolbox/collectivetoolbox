@@ -407,6 +407,7 @@ impl WindowHandle {
         let max_request_words = usize::from(u16::MAX);
         let max_payload_bytes =
             max_request_words.saturating_sub(6).saturating_mul(4);
+        // Reason for fallback: if row_stride division fails due to zero row_stride, fall back to minimum 1 row per chunk
         let rows_per_chunk = std::cmp::max(
             1,
             max_payload_bytes.checked_div(row_stride).unwrap_or(1),

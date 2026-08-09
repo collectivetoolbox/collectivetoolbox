@@ -201,6 +201,7 @@ pub fn bool_or_default<M>(v: &M, default: bool) -> bool
 where
     M: MaybeField<bool>,
 {
+    // Reason for fallback: unconfigured or missing MaybeField value returns parameter default bool
     v.as_value().copied().unwrap_or(default)
 }
 

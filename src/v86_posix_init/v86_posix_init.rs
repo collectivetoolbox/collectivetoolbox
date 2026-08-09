@@ -416,6 +416,7 @@ fn load_module(path: &CStr) {
         print(b"\n");
         return;
     }
+    // Reason for fallback: c_int system call return value conversion to usize defaults to 0 on negative error return
     let fd_u = usize::try_from(fd).unwrap_or(0);
     let mod_buf_ptr = MODULE_BUF.0.get().cast::<u8>();
     let mod_cap = 2048_usize.saturating_mul(1024);
@@ -429,6 +430,7 @@ fn load_module(path: &CStr) {
         if n <= 0 {
             break;
         }
+        // Reason for fallback: ssize_t read count conversion to usize defaults to 0 on negative error return
         let n_u = usize::try_from(n).unwrap_or(0);
         total = total.saturating_add(n_u);
     }
@@ -470,6 +472,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/dev/ttyS0".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             4_usize.checked_shl(8).unwrap_or(0) | 64_usize,
         );
     }
@@ -477,6 +480,7 @@ pub extern "C" fn _start() -> ! {
     // SAFETY: Opening serial console ttyS0.
     let fd = unsafe { sys_open(c"/dev/ttyS0".as_ptr().cast(), 2, 0) };
     if fd >= 0 {
+        // Reason for fallback: c_int file descriptor conversion to usize defaults to 0 on negative error return
         let fd_u = usize::try_from(fd).unwrap_or(0);
         if fd_u != 0 {
             // SAFETY: Duplicating console file descriptor to stdin.
@@ -708,6 +712,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/fb0".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             29_usize.checked_shl(8).unwrap_or(0),
         );
     }
@@ -720,6 +725,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/dri/card0".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             226_usize.checked_shl(8).unwrap_or(0),
         );
     }
@@ -728,6 +734,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/dri/renderD128".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             226_usize.checked_shl(8).unwrap_or(0) | 128_usize,
         );
     }
@@ -736,6 +743,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/tty0".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             4_usize.checked_shl(8).unwrap_or(0),
         );
     }
@@ -744,6 +752,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/tty1".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             4_usize.checked_shl(8).unwrap_or(0) | 1_usize,
         );
     }
@@ -752,6 +761,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/ttyS0".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             4_usize.checked_shl(8).unwrap_or(0) | 64_usize,
         );
     }
@@ -760,6 +770,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/zero".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             1_usize.checked_shl(8).unwrap_or(0) | 5_usize,
         );
     }
@@ -768,6 +779,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/null".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             1_usize.checked_shl(8).unwrap_or(0) | 3_usize,
         );
     }
@@ -776,6 +788,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/mem".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             1_usize.checked_shl(8).unwrap_or(0) | 1_usize,
         );
     }
@@ -784,6 +797,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/port".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             1_usize.checked_shl(8).unwrap_or(0) | 4_usize,
         );
     }
@@ -792,6 +806,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/tty".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             5_usize.checked_shl(8).unwrap_or(0),
         );
     }
@@ -800,6 +815,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/console".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             5_usize.checked_shl(8).unwrap_or(0) | 1_usize,
         );
     }
@@ -808,6 +824,7 @@ pub extern "C" fn _start() -> ! {
         sys_mknod(
             c"/root/dev/ptmx".as_ptr().cast(),
             0o020_666,
+            // Reason for fallback: constant bitwise major number shift cannot overflow usize
             5_usize.checked_shl(8).unwrap_or(0) | 2_usize,
         );
     }
@@ -819,7 +836,9 @@ pub extern "C" fn _start() -> ! {
     let fsout =
         unsafe { sys_open(c"/root/tmp/sh".as_ptr().cast(), 65 | 512, 0o755) };
     if fsin >= 0 && fsout >= 0 {
+        // Reason for fallback: c_int file descriptor conversion to usize defaults to 0 on negative error return
         let fsin_u = usize::try_from(fsin).unwrap_or(0);
+        // Reason for fallback: c_int file descriptor conversion to usize defaults to 0 on negative error return
         let fsout_u = usize::try_from(fsout).unwrap_or(0);
         let copy_buf_ptr = COPY_BUF.0.get().cast::<u8>();
         let copy_cap = 64_usize.saturating_mul(1024);
@@ -829,6 +848,7 @@ pub extern "C" fn _start() -> ! {
             if n <= 0 {
                 break;
             }
+            // Reason for fallback: ssize_t read count conversion to usize defaults to 0 on negative error return
             let n_u = usize::try_from(n).unwrap_or(0);
             // SAFETY: Writing n_u bytes to fsout.
             unsafe {
@@ -852,6 +872,7 @@ pub extern "C" fn _start() -> ! {
     // SAFETY: Opening /guix_profile path file descriptor.
     let pfd = unsafe { sys_open(c"/guix_profile".as_ptr().cast(), 0, 0) };
     if pfd >= 0 {
+        // Reason for fallback: c_int file descriptor conversion to usize defaults to 0 on negative error return
         let pfd_u = usize::try_from(pfd).unwrap_or(0);
         // SAFETY: Reading profile path into profile_buf.
         let pn = unsafe {
@@ -862,6 +883,7 @@ pub extern "C" fn _start() -> ! {
             sys_close(pfd_u);
         }
         if pn > 0 {
+            // Reason for fallback: ssize_t read count conversion to usize defaults to 0 on negative error return
             let mut p_len = usize::try_from(pn).unwrap_or(0);
             while p_len > 0 {
                 if let Some(&last) = profile_buf.get(p_len.saturating_sub(1)) {

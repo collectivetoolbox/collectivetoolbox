@@ -278,5 +278,6 @@ fn open_resource_bundle_file(bundle_path: &Path) -> Result<File> {
 }
 
 fn normalize_asset_key(key: &str) -> &str {
+    // Reason for fallback: asset key without leading slash retains original relative key path
     key.strip_prefix('/').unwrap_or(key)
 }

@@ -15,6 +15,7 @@ pub fn is_cargo_target_binary() -> bool {
     let Ok(exe_path) = std::env::current_exe() else {
         return false;
     };
+    // Reason for fallback: if binary executable path cannot be canonicalized, use raw std::env::current_exe path
     let exe_path = fs::canonicalize(&exe_path).unwrap_or(exe_path);
     workspace_root_for_cargo_target_exe(&exe_path).is_some()
 }

@@ -63,6 +63,10 @@ fn byte_index_at_char(s: &str, char_pos: usize) -> usize {
     s.len()
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "start_b and end_b are valid character boundary byte indices <= s.len()"
+)]
 fn slice_chars(s: &str, start_char: usize, len_chars: usize) -> String {
     if len_chars == 0 {
         return String::new();
@@ -70,22 +74,40 @@ fn slice_chars(s: &str, start_char: usize, len_chars: usize) -> String {
 
     let start_b = byte_index_at_char(s, start_char);
     let end_b = byte_index_at_char(s, start_char.saturating_add(len_chars));
-    s.get(start_b..end_b).unwrap_or("").to_string()
+    s.get(start_b..end_b)
+        .expect("start_b and end_b are valid char boundaries <= s.len()")
+        .to_string()
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "start_b is a valid character boundary byte index <= s.len()"
+)]
 fn slice_chars_from(s: &str, start_char: usize) -> String {
     let start_b = byte_index_at_char(s, start_char);
-    s.get(start_b..).unwrap_or("").to_string()
+    s.get(start_b..)
+        .expect("start_b is a valid char boundary <= s.len()")
+        .to_string()
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "end_b is a valid character boundary byte index <= s.len()"
+)]
 fn slice_chars_to(s: &str, end_char: usize) -> String {
     let end_b = byte_index_at_char(s, end_char);
-    s.get(..end_b).unwrap_or("").to_string()
+    s.get(..end_b)
+        .expect("end_b is a valid char boundary <= s.len()")
+        .to_string()
 }
 
 /// Returns the substring after the first occurrence of `tag`.
 ///
 /// Returns an empty string if `tag` is empty or not found.
+#[allow(
+    clippy::expect_used,
+    reason = "start = pos + tag.len() is a valid character boundary byte index <= text.len()"
+)]
 pub fn after(text: &str, tag: &str) -> String {
     if tag.is_empty() {
         return String::new();
@@ -94,12 +116,15 @@ pub fn after(text: &str, tag: &str) -> String {
         return String::new();
     };
     let start = pos.saturating_add(tag.len());
-    text.get(start..).unwrap_or("").to_string()
+    text.get(start..)
+        .expect("start is a valid char boundary <= text.len()")
+        .to_string()
 }
 
-/// Returns the substring before the first occurrence of `tag`.
-///
-/// Returns an empty string if `tag` is empty or not found.
+#[allow(
+    clippy::expect_used,
+    reason = "pos from text.find(tag) is a valid character boundary byte index <= text.len()"
+)]
 pub fn before(text: &str, tag: &str) -> String {
     if tag.is_empty() {
         return String::new();
@@ -107,7 +132,9 @@ pub fn before(text: &str, tag: &str) -> String {
     let Some(pos) = text.find(tag) else {
         return String::new();
     };
-    text.get(..pos).unwrap_or("").to_string()
+    text.get(..pos)
+        .expect("pos is a valid char boundary <= text.len()")
+        .to_string()
 }
 
 /// Returns the first line split by `\n`.
@@ -234,6 +261,10 @@ pub fn snip(text: &str, startposition: usize, count: i64) -> String {
 }
 
 /// Returns the substring after `tag`, or `text` when not found.
+#[allow(
+    clippy::expect_used,
+    reason = "start = pos + tag.len() is a valid character boundary byte index <= text.len()"
+)]
 pub fn textafter(text: &str, tag: &str) -> String {
     if tag.is_empty() {
         return text.to_string();
@@ -242,10 +273,15 @@ pub fn textafter(text: &str, tag: &str) -> String {
         return text.to_string();
     };
     let start = pos.saturating_add(tag.len());
-    text.get(start..).unwrap_or("").to_string()
+    text.get(start..)
+        .expect("start is a valid char boundary <= text.len()")
+        .to_string()
 }
 
-/// Returns the substring before `tag`, or `text` when not found.
+#[allow(
+    clippy::expect_used,
+    reason = "pos from text.find(tag) is a valid character boundary byte index <= text.len()"
+)]
 pub fn textbefore(text: &str, tag: &str) -> String {
     if tag.is_empty() {
         return text.to_string();
@@ -253,7 +289,9 @@ pub fn textbefore(text: &str, tag: &str) -> String {
     let Some(pos) = text.find(tag) else {
         return text.to_string();
     };
-    text.get(..pos).unwrap_or("").to_string()
+    text.get(..pos)
+        .expect("pos is a valid char boundary <= text.len()")
+        .to_string()
 }
 
 /// Removes `len` characters from the end of `text`.
@@ -336,6 +374,10 @@ pub fn rangematch(text: &str, therange: &str) -> bool {
 }
 
 /// Returns the 1-based character index of `phrase`, or 0 if missing.
+#[allow(
+    clippy::expect_used,
+    reason = "byte_pos from text.find(phrase) is a valid character boundary byte index <= text.len()"
+)]
 pub fn search(text: &str, phrase: &str) -> usize {
     if phrase.is_empty() {
         return 0;
@@ -344,7 +386,9 @@ pub fn search(text: &str, phrase: &str) -> usize {
         return 0;
     };
 
-    let prefix = text.get(..byte_pos).unwrap_or("");
+    let prefix = text
+        .get(..byte_pos)
+        .expect("byte_pos is a valid char boundary <= text.len()");
     prefix.chars().count().saturating_add(1)
 }
 

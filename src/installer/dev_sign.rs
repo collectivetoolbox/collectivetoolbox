@@ -30,6 +30,7 @@ use ctb_utilities::pc_settings::{PcSettingStrKey, PcSettings};
 
 /// Default input directory for release artifacts.
 fn default_input_dir() -> PathBuf {
+    // Reason for fallback: home directory resolution failure falls back to relative current directory "."
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("ctb_release")
@@ -38,6 +39,7 @@ fn default_input_dir() -> PathBuf {
 
 /// Default output directory for signed releases.
 fn default_output_dir() -> PathBuf {
+    // Reason for fallback: home directory resolution failure falls back to relative current directory "."
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("ctb_release")
@@ -176,6 +178,7 @@ fn get_artifact_config(artifact_path: &Path) -> ArtifactConfig {
     let filename = artifact_path
         .file_name()
         .and_then(|n| n.to_str())
+        // Reason for fallback: artifact path without file_name component defaults filename to "unknown"
         .unwrap_or("unknown");
 
     let install_path = filename.to_string();
@@ -333,8 +336,9 @@ pub fn run_dev_sign(
     output_dir: Option<&Path>,
     platform: Option<&str>,
 ) -> Result<DevSignSummary> {
-    // Resolve directories
+    // Reason for fallback: unconfigured input directory option falls back to default input directory
     let input_dir = input_dir.map_or_else(default_input_dir, PathBuf::from);
+    // Reason for fallback: unconfigured output directory option falls back to default output directory
     let output_dir = output_dir.map_or_else(default_output_dir, PathBuf::from);
     let chunk_dir = output_dir.join("bh");
 
@@ -345,6 +349,7 @@ pub fn run_dev_sign(
     };
 
     // Load signing key from pc_settings
+    // Reason for fallback: unreadable pc_settings file defaults settings struct to default values
     let settings = PcSettings::load().unwrap_or_default();
     let private_key_b64 = settings
         .get_str(&PcSettingStrKey::DevSigningPrivateKey)
@@ -385,6 +390,7 @@ pub fn run_dev_sign(
             "Processing: {}",
             artifact_path
                 .file_name()
+                // Reason for fallback: artifact path without file_name component defaults to empty OsStr
                 .unwrap_or_default()
                 .to_string_lossy()
         );

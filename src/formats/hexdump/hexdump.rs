@@ -33,7 +33,7 @@ pub fn to_hex_dump(data: &[u8]) -> String {
     out
 }
 
-pub fn to_fancy_hex_dump(data: &[u8]) -> Result<String> {
+pub fn to_fancy_hex_dump(data: &[u8]) -> String {
     let mut out = String::new();
     for (i, chunk) in data.chunks(16).enumerate() {
         out.push_str(&format!("{:08x}: ", i.saturating_mul(16)));
@@ -46,91 +46,97 @@ pub fn to_fancy_hex_dump(data: &[u8]) -> Result<String> {
         }
         out.push_str(" |");
         for &b in chunk {
-            out.push(byte_to_graphical(b)?);
+            out.push(byte_to_graphical(b));
         }
         out.push_str("|\n");
     }
-    Ok(out)
+    out
 }
 
-pub fn byte_to_graphical(b: u8) -> Result<char> {
+#[allow(
+    clippy::expect_used,
+    reason = "CP437 mapping is defined for all u8 byte values 0..=255"
+)]
+pub fn byte_to_graphical(b: u8) -> char {
     if b == 0 {
-        Ok('␀')
+        '␀'
     } else if b == 1 {
-        Ok('␁')
+        '␁'
     } else if b == 2 {
-        Ok('␂')
+        '␂'
     } else if b == 3 {
-        Ok('␃')
+        '␃'
     } else if b == 4 {
-        Ok('␄')
+        '␄'
     } else if b == 5 {
-        Ok('␅')
+        '␅'
     } else if b == 6 {
-        Ok('␆')
+        '␆'
     } else if b == 7 {
-        Ok('␇')
+        '␇'
     } else if b == 8 {
-        Ok('␈')
+        '␈'
     } else if b == 9 {
-        Ok('␉')
+        '␉'
     } else if b == 10 {
-        Ok('␊')
+        '␊'
     } else if b == 11 {
-        Ok('␋')
+        '␋'
     } else if b == 12 {
-        Ok('␌')
+        '␌'
     } else if b == 13 {
-        Ok('␍')
+        '␍'
     } else if b == 14 {
-        Ok('␎')
+        '␎'
     } else if b == 15 {
-        Ok('␏')
+        '␏'
     } else if b == 16 {
-        Ok('␐')
+        '␐'
     } else if b == 17 {
-        Ok('␑')
+        '␑'
     } else if b == 18 {
-        Ok('␒')
+        '␒'
     } else if b == 19 {
-        Ok('␓')
+        '␓'
     } else if b == 20 {
-        Ok('␔')
+        '␔'
     } else if b == 21 {
-        Ok('␕')
+        '␕'
     } else if b == 22 {
-        Ok('␖')
+        '␖'
     } else if b == 23 {
-        Ok('␗')
+        '␗'
     } else if b == 24 {
-        Ok('␘')
+        '␘'
     } else if b == 25 {
-        Ok('␙')
+        '␙'
     } else if b == 26 {
-        Ok('␚')
+        '␚'
     } else if b == 27 {
-        Ok('␛')
+        '␛'
     } else if b == 28 {
-        Ok('␜')
+        '␜'
     } else if b == 29 {
-        Ok('␝')
+        '␝'
     } else if b == 30 {
-        Ok('␞')
+        '␞'
     } else if b == 31 {
-        Ok('␟')
+        '␟'
     } else if b == 32 {
-        Ok('␠')
+        '␠'
     } else if (33..=126).contains(&b) {
-        Ok(char::from(b))
+        char::from(b)
     } else if b == 127 {
-        Ok('␡')
+        '␡'
     } else if b < 255 {
         ctb_formats_encoding::cp437::chr_char(b)
+            .expect("CP437 mapping is defined for all u8 byte values 0..=255")
     } else {
-        Ok('⍽')
+        '⍽'
     }
 }
 
+/// Decodes a hexadecimal string into a byte vector.
 /// Decodes a hexadecimal string into a byte vector.
 ///
 /// Any prefix of "0x" or "0X" is stripped, and whitespace or colons are ignored.
@@ -176,25 +182,23 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_fancy_hexdump() -> Result<()> {
+    fn test_fancy_hexdump() {
         let data = b"Hello, World!\x00\x01\xff";
-        let dump = to_fancy_hex_dump(data)?;
+        let dump = to_fancy_hex_dump(data);
         // Note: 'H' is 'H' (72), '\x00' is '␀', '\x01' is '␁', '\xff' is ' ' (NBSP in CP437, code 160)
         let expected = "00000000: 48 65 6c 6c 6f 2c 20 57 6f 72 6c 64 21 00 01 ff  |Hello,␠World!␀␁⍽|\n";
         assert_eq!(dump, expected);
-        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_byte_to_graphical_all_bytes() -> Result<()> {
+    fn test_byte_to_graphical_all_bytes() {
         // Verify every byte 0..=255 returns a unique character
         let mut seen = std::collections::HashSet::new();
         for b in 0u8..=255 {
-            let c = byte_to_graphical(b)?;
+            let c = byte_to_graphical(b);
             assert!(seen.insert(c), "Duplicate glyph found for byte {b}: {c}");
         }
         assert_eq!(seen.len(), 256);
-        Ok(())
     }
 
     #[crate::ctb_test]

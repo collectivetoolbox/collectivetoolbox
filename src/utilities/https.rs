@@ -361,6 +361,7 @@ fn configure_async_builder(
     if let Some(timeout) = options.timeout {
         builder = builder.timeout(timeout);
     }
+    // Reason for fallback: caller omitted custom User-Agent in ClientOptions; format application branding header
     let user_agent = options.user_agent.unwrap_or_else(|| {
         let name = branding::user_agent_name();
         format!("{}/{}", name, crate::environment::ctb_version())
@@ -376,6 +377,7 @@ fn configure_blocking_builder(
     if let Some(timeout) = options.timeout {
         builder = builder.timeout(timeout);
     }
+    // Reason for fallback: caller omitted custom User-Agent in ClientOptions; format application branding header
     let user_agent = options.user_agent.unwrap_or_else(|| {
         let name = branding::user_agent_name();
         format!("{}/{}", name, crate::environment::ctb_version())
@@ -428,6 +430,7 @@ fn build_webpki_rustls_client_config() -> Result<ClientConfig> {
 fn build_rustls_client_config_no_crlite() -> Result<ClientConfig> {
     match tls_certificate_source() {
         TlsCertificateSource::OperatingSystem => {
+            // Reason for fallback: default rustls process-global CryptoProvider falls back to aws_lc_rs provider
             let provider = rustls::crypto::CryptoProvider::get_default()
                 .cloned()
                 .unwrap_or_else(|| {
@@ -534,12 +537,14 @@ fn is_transient_error(err: &reqwest::Error) -> bool {
 }
 
 fn backoff_delay(attempt: usize) -> Duration {
+    // Reason for fallback: attempt counter overflow saturates to maximum exponent for delay calculation
     let exponent = u32::try_from(attempt).unwrap_or(u32::MAX).saturating_sub(1);
     // 2^exponent fits in u64 only if exponent < 64.
     // Since delay is capped at 10 seconds, and BASE_RETRY_DELAY_MS is 500,
     // 500 * 2^5 = 16000 (16 seconds), which already exceeds 10 seconds.
     // So capping exponent at 6 is perfectly fine and avoids overflow panics.
     let exponent = std::cmp::min(exponent, 6);
+    // Reason for fallback: power computation overflow defaults to 10,000ms max exponential multiplier
     let delay_ms = BASE_RETRY_DELAY_MS
         .saturating_mul(2u64.checked_pow(exponent).unwrap_or(10000));
     let jitter_ms = u64::from(rand::random::<u8>().rem_euclid(100));

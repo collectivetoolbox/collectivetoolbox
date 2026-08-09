@@ -34,6 +34,7 @@ pub async fn get_db_tables(
     user: AuthenticatedUser,
     Query(query): Query<DbQuery>,
 ) -> Response {
+    // Reason for fallback: query param db_name absent defaults to "users" database
     let db_name = query.db_name.clone().unwrap_or_else(|| "users".to_string());
     let token = {
         let u = user.user.lock().await;
@@ -93,7 +94,9 @@ pub async fn get_db_table_data(
     Path(table_name): Path<String>,
     Query(query): Query<DbQuery>,
 ) -> Response {
+    // Reason for fallback: query param db_name absent defaults to "users" database
     let db_name = query.db_name.clone().unwrap_or_else(|| "users".to_string());
+    // Reason for fallback: query param page absent defaults to page 1
     let page = query.page.unwrap_or(1);
 
     let token = {

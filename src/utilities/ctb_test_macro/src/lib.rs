@@ -174,6 +174,7 @@ fn is_test_attribute(attr: &Attribute) -> bool {
             .is_some_and(|seg| seg.arguments.is_none() && seg.ident == "test");
     if is_single_test_segment {
         return true;
+    // Reason for fallback: empty candidate list defaults expected segment length to 0
     } else if path.segments.len() != candidates.first().map_or(0, |c| c.len()) {
         return false;
     }
@@ -200,6 +201,7 @@ fn registered_scopes() -> &'static Mutex<Vec<String>> {
 /// Check whether this test function name is already taken as scope. If yes, a
 /// counter is appended to make it unique. In the end, a unique scope is returned.
 fn get_free_scope(mut test_fn_name: String) -> String {
+    // Reason for fallback: poisoned mutex lock recovers guard via PoisonError::into_inner
     let mut vec = registered_scopes().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut counter = 1_usize;
     let len = test_fn_name.len();
@@ -481,6 +483,7 @@ fn run_pre_test(_attribute_args: &AttributeArgs) -> Tokens {
                         "workspace".to_string()
                     );
                     if (!ctb_macro_logging_temp.is_ok()) {
+                        // Reason for fallback: logger setup error extraction fallback constructs default anyhow error message
                         let ctb_macro_logging_err_mess = ctb_macro_logging_temp.err().unwrap_or(crate::utilities::anyhow::anyhow!("Error getting macro logging error message"));
                         let ctb_macro_logging_err_mess = format!("{:?}", ctb_macro_logging_err_mess);
                         if (!ctb_macro_logging_err_mess.contains("global default trace dispatcher has already been set")) {

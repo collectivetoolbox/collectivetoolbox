@@ -363,6 +363,7 @@ pub async fn test_get_redirect_no_login(uri: &str) -> (StatusCode, String) {
         .headers()
         .get("Location")
         .and_then(|v| v.to_str().ok())
+        // Reason for fallback: response missing Location header defaults redirect target to empty string
         .unwrap_or("")
         .to_string();
     (status, redirect_target)
@@ -490,6 +491,7 @@ async fn body_to_bytes_truncate(
                     if bytes_rem.is_none() {
                         warn!("Truncating body but bytes read out of bounds");
                     }
+                    // Reason for fallback: slice out-of-bounds fallback during body truncation defaults to empty slice
                     let bytes_rem = bytes_rem.unwrap_or(&[]);
                     result.extend_from_slice(bytes_rem);
                     break;

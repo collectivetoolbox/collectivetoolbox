@@ -184,10 +184,12 @@ pub fn is_debug_build() -> bool {
 }
 
 pub fn ctb_version() -> &'static str {
+    // Reason for fallback: builds without explicit CTB_VERSION env var default to unversioned 0.0.0 placeholder
     option_env!("CTB_VERSION").unwrap_or("0.0.0")
 }
 
 pub fn ctb_version_semver() -> semver::Version {
+    // Reason for fallback: unparseable version string falls back to 0.0.0 semver
     semver::Version::parse(ctb_version())
         .unwrap_or_else(|_| semver::Version::new(0, 0, 0))
 }
@@ -226,6 +228,7 @@ pub fn is_official_signed_build() -> bool {
 
 fn verify_official_signature_impl() -> bool {
     let handle = std::thread::spawn(verify_official_signature_in_thread);
+    // Reason for fallback: thread panic during signature verification treats verification as failed
     handle.join().unwrap_or(false)
 }
 

@@ -676,6 +676,7 @@ pub fn fmt_mismatch_string(expected: &str, actual: &str) -> String {
 }
 
 pub fn feature(feature_name: &str) -> bool {
+    // Reason for fallback: when settings configuration cannot be loaded, feature flag check uses default disabled settings
     let current_settings =
         crate::pc_settings::PcSettings::load().unwrap_or_default();
     match feature_name {
@@ -688,6 +689,7 @@ pub fn feature(feature_name: &str) -> bool {
 }
 
 pub fn get_embedded_asset(dir: &Dir, key: &str) -> Option<Vec<u8>> {
+    // Reason for fallback: asset lookup keys without a leading slash retain original relative path key
     let key = key.strip_prefix('/').unwrap_or(key);
 
     let file = dir.get_file(key);

@@ -192,6 +192,7 @@ impl Node {
         } else {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
+                // Reason for fallback: system clock time prior to UNIX epoch defaults duration to 0 duration
                 .unwrap_or_default()
                 .as_micros()
         };
@@ -199,6 +200,7 @@ impl Node {
         crate::packaged_node::serialize_packaged_node(
             self.node_type,
             timestamp,
+            // Reason for fallback: unchecksummed node missing checksum field defaults to empty byte slice
             self.checksum.as_deref().unwrap_or(&[]),
             self.id,
             self.graph_id,
@@ -216,6 +218,7 @@ impl Node {
             crate::global_graph_layout::validate_publish_target(tid)?;
         }
 
+        // Reason for fallback: unchecksummed node missing checksum field defaults to empty byte slice
         let local_checksum = bin2hex(self.checksum.as_deref().unwrap_or(&[]));
         let package_bytes = self.to_packaged_node()?;
 
@@ -227,6 +230,7 @@ impl Node {
             )?;
             let global_node = Node::get(session_token, 0, allocated_id)?
                 .ok_or_else(|| anyhow::anyhow!("Global node not found after publish"))?;
+            // Reason for fallback: unchecksummed node missing checksum field defaults to empty byte slice
             let checksum = bin2hex(global_node.checksum.as_deref().unwrap_or(&[]));
             (allocated_id, checksum)
         } else {

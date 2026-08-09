@@ -103,6 +103,7 @@ impl UserPublicInfo {
         self.picture.as_deref()
     }
     pub fn remote_status(&self) -> &str {
+        // Reason for fallback: user remote_status field missing in DB record defaults to "Pending"
         self.remote_status.as_deref().unwrap_or("Pending")
     }
 
@@ -186,6 +187,7 @@ impl User {
     }
 
     pub fn is_admin(&self) -> bool {
+        // Reason for fallback: unreadable settings file defaults admin check to initial settings struct
         let settings = crate::utilities::pc_settings::PcSettings::load()
             .unwrap_or_default();
         match &settings.admin_users {
@@ -439,6 +441,7 @@ impl User {
         let mut user = User::default();
         user.public_info = public_info;
         user.session_token = session_token;
+        // Reason for fallback: missing user local_config defaults to default UserConfig struct
         user.local_config = user.local_config().unwrap_or_default();
         // Initialize user graphs with a default graph (id = 1)
         user.graphs.push(Graph::new(1, "Default", &user));
@@ -663,6 +666,7 @@ pub fn get_test_user(name: &str) -> User {
     let _ = lock_by_name(name).expect("Could not lock name");
     debug!(
         "Thread {} acquired lock for test user '{}'",
+        // Reason for fallback: unnamed thread in test harness logs "<unnamed>"
         std::thread::current().name().unwrap_or("unnamed"),
         name
     );
@@ -674,20 +678,24 @@ pub fn get_test_user(name: &str) -> User {
     );
     debug!(
         "Thread {} sees that test user not exists '{}'",
+        // Reason for fallback: unnamed thread in test harness logs "<unnamed>"
         std::thread::current().name().unwrap_or("unnamed"),
         name
     );
 
     let password = get_test_password();
+    // Reason for fallback: test user creation failure triggers test assertion panic with thread details
     let mut user = User::create(name, &password).unwrap_or_else(|err| {
         panic!(
             "User creation failed {} due to error: {:?}",
+            // Reason for fallback: unnamed thread in test harness logs "<unnamed>"
             std::thread::current().name().unwrap_or("unnamed"),
             err
         )
     });
     debug!(
         "Thread {} was able to create user '{}'",
+        // Reason for fallback: unnamed thread in test harness logs "<unnamed>"
         std::thread::current().name().unwrap_or("unnamed"),
         name
     );

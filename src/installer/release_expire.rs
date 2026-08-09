@@ -136,11 +136,14 @@ fn scan_chunks_directory(
                     let hash = chunk_path
                         .file_name()
                         .and_then(|n| n.to_str())
+                        // Reason for fallback: chunk filename without .br extension retains original filename string
                         .map(|s| s.strip_suffix(".br").unwrap_or(s))
                         .map(String::from)
+                        // Reason for fallback: invalid UTF-8 filename defaults hash string to empty
                         .unwrap_or_default();
 
                     let size =
+                        // Reason for fallback: chunk entry metadata read error defaults chunk size to 0 bytes
                         chunk_entry.metadata().map(|m| m.len()).unwrap_or(0);
                     chunks.push((chunk_path, hash, size));
                 }

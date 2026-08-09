@@ -450,9 +450,19 @@ impl ChunkDownloader {
         hash: &str,
         expected_length: u64,
     ) -> Result<Chunk> {
-        // Use two-level prefix: bh/{first-2-chars}/{next-2-chars}/{rest-of-hash}
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        if hash.len() < 4 {
+            bail!("Invalid chunk hash length: {hash}");
+        }
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked above"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked above"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         let url = format!(
             "{}/releases/chunks/{}/{}/{}",
             self.server_url, prefix1, prefix2, hash
@@ -845,8 +855,16 @@ fn spawn_chunk_download_task(
 /// Format: `{cache_dir}/{first-2-chars}/{next-2-chars}/{full-hash}`
 fn chunk_cache_path(cache_dir: &Path, hash: &str) -> PathBuf {
     if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         cache_dir.join(prefix1).join(prefix2).join(hash)
     } else {
         cache_dir.join(hash)
@@ -858,8 +876,16 @@ fn chunk_cache_path(cache_dir: &Path, hash: &str) -> PathBuf {
 /// Format: `bh/{first-2-chars}/{next-2-chars}/{full-hash}`
 pub fn chunk_server_path(hash: &str) -> PathBuf {
     if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         PathBuf::from("bh").join(prefix1).join(prefix2).join(hash)
     } else {
         PathBuf::from("bh").join(hash)

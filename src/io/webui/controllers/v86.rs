@@ -22,6 +22,7 @@ pub async fn get_v86(
     Query(query): Query<V86Query>,
     req: RequestState,
 ) -> Response {
+    // Reason for fallback: query parameter profile missing defaults to "guix" profile
     let profile = query.profile.unwrap_or_else(|| "guix".to_string());
     render_v86_profile(&state, req, &profile)
 }
@@ -43,6 +44,7 @@ pub async fn get_v86_css() -> Response {
         return Response::builder()
             .status(404)
             .body(Body::empty())
+            // Reason for fallback: response builder failure falls back to default empty Response
             .unwrap_or_else(|_| Response::default());
     };
 
@@ -52,6 +54,7 @@ pub async fn get_v86_css() -> Response {
     Response::builder()
         .header(header::CONTENT_TYPE, "text/css")
         .body(Body::from(filtered_css))
+        // Reason for fallback: response builder failure falls back to default empty Response
         .unwrap_or_else(|_| Response::default())
 }
 

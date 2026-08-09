@@ -201,6 +201,7 @@ async fn handle_parent_message(
         ResolvedParentMessage::ShutdownRequest { reason } => {
             println!(
                 "Workspace received shutdown request: {}",
+                // Reason for fallback: IPC shutdown notification without explicit message defaults to "no reason" summary string
                 reason.unwrap_or_else(|| "no reason".into())
             );
         }

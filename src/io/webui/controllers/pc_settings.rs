@@ -40,6 +40,7 @@ pub async fn get_public_pc_settings(
     }
 
     let build_info = build_info();
+    // Reason for fallback: unreadable settings file defaults to default settings struct
     let current_settings = pc_settings::PcSettings::load().unwrap_or_default();
     let raw_settings = match pc_settings::PcSettings::load_raw_json() {
         Ok(v) => v,
@@ -88,8 +89,10 @@ pub async fn get_public_pc_settings(
             "server_url_default" => is_default_key("server_url"),
             "domain_name" => str_or_empty(&current_settings.domain_name),
             "domain_name_default" => is_default_key("domain_name"),
+            // Reason for fallback: unconfigured fixed port option defaults string representation to empty
             "fixed_http_port" => u16_or_empty(&current_settings.fixed_http_port).map(|p| p.to_string()).unwrap_or_default(),
             "fixed_http_port_default" => is_default_key("fixed_http_port"),
+            // Reason for fallback: unconfigured fixed port option defaults string representation to empty
             "fixed_https_port" => u16_or_empty(&current_settings.fixed_https_port).map(|p| p.to_string()).unwrap_or_default(),
             "fixed_https_port_default" => is_default_key("fixed_https_port"),
             "http_redirect" => bool_or_default(&current_settings.http_redirect, pc_settings::DEFAULT_HTTP_REDIRECT),
@@ -253,6 +256,7 @@ pub async fn post_public_pc_settings(
     let admin_password: Option<Password> = admin_password
         .map(|admin_password| Password::from_string(&admin_password));
 
+    // Reason for fallback: unreadable settings file defaults to default settings struct
     let current_settings = pc_settings::PcSettings::load().unwrap_or_default();
 
     let current_admin_users: Vec<u64> = match &current_settings.admin_users {
@@ -329,6 +333,7 @@ pub async fn post_public_pc_settings(
             None
         };
 
+    // Reason for fallback: unselected checkbox form input defaults boolean state to false
     let checkbox_is_checked = |v: Option<bool>| v.unwrap_or(false);
 
     let show_users =
@@ -384,6 +389,7 @@ pub async fn post_public_pc_settings(
         MaybeValue::Value(s) => s.as_str(),
         MaybeValue::Missing => pc_settings::DEFAULT_BIND_TO_IP,
     };
+    // Reason for fallback: invalid IP address string format evaluates bind address check as specified
     let is_target_zero =
         ctb_formats_ipaddr::is_unspecified(target_bind_to_ip).unwrap_or(false);
     if is_target_zero {

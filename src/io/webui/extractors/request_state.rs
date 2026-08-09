@@ -24,7 +24,9 @@ fn query_has_embed_flag(query: Option<&str>) -> bool {
     query.is_some_and(|query| {
         query.split('&').any(|pair| {
             let mut parts = pair.splitn(2, '=');
+            // Reason for fallback: query pair without equals sign defaults key/value to empty string
             let key = parts.next().unwrap_or_default();
+            // Reason for fallback: query pair without equals sign defaults key/value to empty string
             let value = parts.next().unwrap_or_default();
             key == "embed"
                 && (value == "1" || value.eq_ignore_ascii_case("true"))
@@ -319,6 +321,7 @@ pub fn generate_breadcrumbs(route: &str) -> Option<Vec<BreadcrumbItem>> {
             let mut current_subpath = "/docs".to_string();
             for part in &parts {
                 let part_clean = if part.to_ascii_lowercase().ends_with(".md") {
+                    // Reason for fallback: slice truncation safety on non-ASCII suffix defaults to empty string
                     part.get(..part.len().saturating_sub(3)).unwrap_or("")
                 } else {
                     *part
@@ -364,6 +367,7 @@ fn format_segment_label(segment: &str) -> String {
 }
 
 fn parse_relative_back_url(val: &str) -> Option<String> {
+    // Reason for fallback: url without query string separator retains original url string
     let path_part = val.split('?').next().unwrap_or(val);
     let bytes = path_part.as_bytes();
     if path_part.starts_with('/')

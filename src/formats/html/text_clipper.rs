@@ -406,11 +406,14 @@ fn is_line_break(units: &[u16], index: usize) -> bool {
             if i == name_start {
                 return false;
             }
+            #[allow(
+                clippy::expect_used,
+                reason = "name_start < i <= units.len() guaranteed by loop termination"
+            )]
             let tag = units
                 .get(name_start..i)
                 .map(units_to_string)
-                // Reason for fallback: name_start < i is checked on line 406 and i <= units.len(), so slice is in bounds; fallback to empty string safely handles invalid slice.
-                .unwrap_or_default()
+                .expect("name_start < i <= units.len() is in bounds")
                 .to_ascii_lowercase();
             if !(is_block_element(&tag) || tag == "br") {
                 return false;
@@ -544,8 +547,14 @@ fn clip_plain_text(
                 if u == NEWLINE_CHAR_CODE {
                     let insert_indicator = insert_indicator_at_linebreak
                         && has_non_whitespace(&units, peek_index);
-                    let mut out =
-                        units.get(..peek_index).unwrap_or_default().to_vec();
+                    #[allow(
+                        clippy::expect_used,
+                        reason = "peek_index < units.len() checked on line 543"
+                    )]
+                    let mut out = units
+                        .get(..peek_index)
+                        .expect("peek_index < units.len() is in bounds")
+                        .to_vec();
                     if insert_indicator {
                         out.extend_from_slice(&indicator_units);
                     }
@@ -594,7 +603,14 @@ fn clip_plain_text(
             break;
         }
 
-        let mut out = units.get(..i).unwrap_or_default().to_vec();
+        #[allow(
+            clippy::expect_used,
+            reason = "i <= units.len() invariant in loop"
+        )]
+        let mut out = units
+            .get(..i)
+            .expect("i <= units.len() is in bounds")
+            .to_vec();
         if insert_indicator {
             out.extend_from_slice(&indicator_units);
         }
@@ -615,7 +631,14 @@ fn clip_plain_text(
             break;
         }
 
-        let mut out = units.get(..i).unwrap_or_default().to_vec();
+        #[allow(
+            clippy::expect_used,
+            reason = "i <= units.len() invariant in loop"
+        )]
+        let mut out = units
+            .get(..i)
+            .expect("i <= units.len() is in bounds")
+            .to_vec();
         if insert_indicator {
             out.extend_from_slice(&indicator_units);
         }
@@ -855,7 +878,7 @@ fn clip_html(
                         let tag_name_end =
                             index_of_white_space(&units, tag_name_start)
                                 .min(end_index);
-                        // Reason for fallback: if slice bounds tag_name_start..tag_name_end are invalid, defaulting to empty string results in empty tag name.
+                        // Reason for fallback: malformed HTML tag syntax with invalid range bounds defaults tag name to empty string, causing unparseable tags to be skipped safely
                         let mut tag_name = units
                             .get(tag_name_start..tag_name_end)
                             .map(units_to_string)
@@ -1062,13 +1085,10 @@ fn clip_html(
                 bail!("Invalid HTML: {text}");
             };
 
-            // Reason for fallback: if slice bounds i + 2..tag_end_index fail, defaulting to empty string causes mismatch check with tag_name to trigger bail.
-            let between = units
-                .get(i.saturating_add(2)..tag_end_index)
-                .map(units_to_string)
-                .unwrap_or_default()
-                .trim()
-                .to_string();
+            let Some(between_units) = units.get(i.saturating_add(2)..tag_end_index) else {
+                bail!("Invalid HTML: {text}");
+            };
+            let between = units_to_string(between_units).trim().to_string();
             if between != tag_name {
                 bail!("Invalid HTML: {text}");
             }
@@ -1126,8 +1146,14 @@ fn clip_html(
                 break;
             }
 
-            // Reason for fallback: line 1086 checked i < units.len(), so ..i is in bounds; fallback to empty slice safely handles zero-length prefix.
-            let mut out_units = units.get(..i).unwrap_or_default().to_vec();
+            #[allow(
+                clippy::expect_used,
+                reason = "i <= units.len() invariant in clip_html_text loop"
+            )]
+            let mut out_units = units
+                .get(..i)
+                .expect("i <= units.len() is in bounds")
+                .to_vec();
             if insert_indicator {
                 out_units.extend_from_slice(&indicator_units);
             }
@@ -1149,8 +1175,14 @@ fn clip_html(
             break;
         }
 
-        // Reason for fallback: i is bounded by units length, so ..i is in bounds; fallback to empty slice safely handles zero-length prefix.
-        let mut out_units = units.get(..i).unwrap_or_default().to_vec();
+        #[allow(
+            clippy::expect_used,
+            reason = "i <= units.len() invariant in clip_html_text loop"
+        )]
+        let mut out_units = units
+            .get(..i)
+            .expect("i <= units.len() is in bounds")
+            .to_vec();
         if insert_indicator {
             out_units.extend_from_slice(&indicator_units);
         }

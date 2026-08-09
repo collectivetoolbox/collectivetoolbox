@@ -385,9 +385,8 @@ pub fn compress_pack_stream(
 
     // Ensure at least 2 leaves in tree
     if heap.len() < 2 {
-        for dummy_sym in 0..256 {
-            // Reason for fallback: dummy_sym is bounded by 0..256 so index is within 256-element freqs array bounds.
-            if freqs.get(dummy_sym).copied().unwrap_or(0) == 0 {
+        for (dummy_sym, &freq) in freqs.iter().enumerate() {
+            if freq == 0 {
                 heap.push(HuffmanNode {
                     freq: 1,
                     symbol: Some(dummy_sym),
@@ -417,8 +416,16 @@ pub fn compress_pack_stream(
     let mut depths = [0usize; 257];
     collect_depths(&root, 0, &mut depths);
 
-    // Reason for fallback: depths is a non-empty 257-element array so max() is guaranteed to return Some.
-    let max_len = depths.iter().copied().max().unwrap_or(1).max(1);
+    #[allow(
+        clippy::expect_used,
+        reason = "depths is a non-empty 257-element array"
+    )]
+    let max_len = depths
+        .iter()
+        .copied()
+        .max()
+        .expect("depths is a non-empty 257-element array")
+        .max(1);
     if max_len > MAX_BITLEN {
         bail!(
             "Generated Huffman code length {max_len} exceeds maximum allowed depth {MAX_BITLEN}"
@@ -585,14 +592,7 @@ pub fn decompress_old_pack_stream(
     reader
         .read_exact(&mut size_buf)
         .context("Failed to read OldPack origsize")?;
-    // Reason for fallback: size_buf is a 4-byte array so indices 0..4 are guaranteed to be in bounds.
-    let hi_b0 = size_buf.first().copied().unwrap_or(0);
-    // Reason for fallback: size_buf is a 4-byte array so indices 0..4 are guaranteed to be in bounds.
-    let hi_b1 = size_buf.get(1).copied().unwrap_or(0);
-    // Reason for fallback: size_buf is a 4-byte array so indices 0..4 are guaranteed to be in bounds.
-    let lo_b0 = size_buf.get(2).copied().unwrap_or(0);
-    // Reason for fallback: size_buf is a 4-byte array so indices 0..4 are guaranteed to be in bounds.
-    let lo_b1 = size_buf.get(3).copied().unwrap_or(0);
+    let [hi_b0, hi_b1, lo_b0, lo_b1] = size_buf;
 
     let hi = u32::from(u16::from_le_bytes([hi_b0, hi_b1]));
     let lo = u32::from(u16::from_le_bytes([lo_b0, lo_b1]));
@@ -622,8 +622,7 @@ pub fn decompress_old_pack_stream(
         reader
             .read_exact(&mut b_buf)
             .context("Failed to read OldPack dictionary byte")?;
-        // Reason for fallback: b_buf is a 1-byte array so index 0 is guaranteed to be in bounds.
-        let b = b_buf.first().copied().unwrap_or(0);
+        let [b] = b_buf;
         if b == 0xFF {
             let mut w_buf = [0u8; 2];
             reader
@@ -741,9 +740,8 @@ pub fn compress_old_pack_stream(
 
     // Ensure at least 2 leaves in tree
     if heap.len() < 2 {
-        for dummy_sym in 0..256 {
-            // Reason for fallback: dummy_sym is bounded by 0..256 so index is within 256-element freqs array bounds.
-            if freqs.get(dummy_sym).copied().unwrap_or(0) == 0 {
+        for (dummy_sym, &freq) in freqs.iter().enumerate() {
+            if freq == 0 {
                 heap.push(HuffmanNode {
                     freq: 1,
                     symbol: Some(dummy_sym),

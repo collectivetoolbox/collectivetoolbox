@@ -558,8 +558,13 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             break;
         }
 
-        // Reason for fallback: bytes_read is bounded by 4096-byte buffer capacity, so ..bytes_read is in bounds; fallback to empty slice safely handles out-of-bounds.
-        let slice = buf.get(..bytes_read).unwrap_or(&[]);
+        #[allow(
+            clippy::expect_used,
+            reason = "bytes_read <= buf.len() guaranteed by std::io::Read"
+        )]
+        let slice = buf
+            .get(..bytes_read)
+            .expect("bytes_read <= buf.len() guaranteed by std::io::Read");
         for &byte in slice {
             let byte_u16 = u16::from(byte);
             let byte_usize = usize::from(byte);

@@ -54,11 +54,12 @@ async fn redirect_www_to_non_www_middleware(
         return next.run(req).await;
     }
 
-    let host_without_www = host_header.get(4..).unwrap_or("");
+    let host_without_www = host_header.get(4..).expect("Checked starts with www. above");
     if host_without_www.is_empty() {
         return next.run(req).await;
     }
 
+    // Reason for fallback: URI without PathAndQuery component redirects to root path "/"
     let path_and_query =
         req.uri().path_and_query().map_or("/", |pq| pq.as_str());
 
@@ -164,6 +165,7 @@ pub fn build_app_router(state: AppState) -> Router {
 )]
 pub fn start_webui_server() -> u16 {
     log!("Starting local web UI server");
+    // Reason for fallback: unreadable settings file defaults web UI server configuration to initial settings
     let current_settings = pc_settings::PcSettings::load().unwrap_or_default();
     // debug_fmt!("Current PC settings for web UI: {:#?}", current_settings);
 
@@ -214,6 +216,7 @@ pub fn start_webui_server() -> u16 {
         warn!("No bind IP configured; not starting web UI.");
         return 0;
     };
+    // Reason for fallback: invalid IP address format in settings evaluates bind address as specified
     let is_zero_ip =
         ctb_formats_ipaddr::is_unspecified(&bind_to_ip).unwrap_or(false);
     if is_zero_ip {
@@ -402,6 +405,7 @@ fn resolve_host(headers: &header::HeaderMap, uri: &axum::http::Uri) -> String {
             .as_str()
             .rsplit('@')
             .next()
+            // Reason for fallback: URI authority slice without userinfo segment retains full authority host
             .unwrap_or("")
             .to_string();
     }

@@ -174,33 +174,30 @@ impl<'a> LzwBitReader<'a> {
         }
     }
 
+    #[allow(
+        clippy::expect_used,
+        reason = "Infallible constant divisor, range bounds, and shift range invariants in read_code"
+    )]
     fn read_code(&mut self, n_bits: u32) -> Result<Option<u32>> {
-        #[expect(
-            clippy::expect_used,
-            reason = "Division by constant 8 is non-zero and cannot fail"
-        )]
         let byte_pos = self.posbits.checked_div(8).expect("8 is non-zero");
         if byte_pos >= self.data.len() {
             return Ok(None);
         }
 
-        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
-        let b0 = u64::from(*self.data.get(byte_pos).unwrap_or(&0));
-        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
+        let b0 = u64::from(*self.data.get(byte_pos).expect("byte_pos < self.data.len() checked above"));
+        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
         let b1 =
             u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
-        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
+        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
         let b2 =
             u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
-        // Reason for fallback: byte_pos bounds check on line 181 ensures at least 1 byte exists; 0 is returned for EOF padding bytes.
+        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
         let b3 =
             u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
 
         let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        // Reason for fallback: divisor 8 is non-zero constant, so checked_rem never divides by zero.
-        let shift = u32::try_from(self.posbits.checked_rem(8).unwrap_or(0))?;
-        // Reason for fallback: n_bits is bounded by maxbits <= 16, so 1u64 << n_bits never overflows 64 bits.
-        let mask = (1u64.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+        let shift = u32::try_from(self.posbits.checked_rem(8).expect("divisor 8 is non-zero"))?;
+        let mask = (1u64.checked_shl(n_bits).expect("n_bits <= 16 is in u64 shift range")).saturating_sub(1);
 
         let code = u32::try_from((val >> shift) & mask)?;
         let n_bits_usize = usize::try_from(n_bits)?;

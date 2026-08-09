@@ -58,7 +58,9 @@ pub fn progress_ratio(current: usize, total: usize) -> f32 {
     if total == 0 {
         return 0.0;
     }
+    // Reason for fallback: progress count usize to u16 conversion overflow saturates to u16::MAX
     let current_f32 = f32::from(u16::try_from(current).unwrap_or(u16::MAX));
+    // Reason for fallback: progress count usize to u16 conversion overflow saturates to u16::MAX
     let total_f32 = f32::from(u16::try_from(total).unwrap_or(u16::MAX));
     current_f32 / total_f32
 }
@@ -131,6 +133,7 @@ pub fn simulate_installation(
 
         let _ = tx.send(DownloadEvent::FileAssembled {
             path: PathBuf::from(path),
+            // Reason for fallback: chunk count usize to u64 conversion overflow defaults size to 0 bytes
             size: u64::try_from(chunks).unwrap_or(0).saturating_mul(65536),
         });
     }

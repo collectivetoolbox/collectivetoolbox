@@ -281,11 +281,13 @@ impl MockParentMessenger {
 
     /// Get all received messages.
     pub fn messages(&self) -> Vec<ParentMessage> {
+        // Reason for fallback: poisoned mutex lock in mock test harness returns empty vector of messages
         self.messages.lock().map(|g| g.clone()).unwrap_or_default()
     }
 
     /// Get all spawn requests.
     pub fn spawn_requests(&self) -> Vec<SpawnChildRequest> {
+        // Reason for fallback: poisoned mutex lock in mock test harness returns empty vector of spawn requests
         self.spawn_requests
             .lock()
             .map(|g| g.clone())

@@ -1133,8 +1133,11 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                 flush_fragment(fragment_start, i, w, bytes);
                 i = i.saturating_add(1);
 
-                // Reason for fallback: i is bounded by bytes.len() loop condition; 0 handles out-of-bounds byte.
-                let c = char::from(bytes.get(i).copied().unwrap_or(0));
+                #[allow(
+                    clippy::expect_used,
+                    reason = "i < bytes.len() guaranteed by preceding is_some check"
+                )]
+                let c = char::from(*bytes.get(i).expect("i < bytes.len() guaranteed by is_some check"));
                 match c {
                     'f' => {
                         if let Some(&b2) = bytes.get(i.saturating_add(1)) {
@@ -1253,10 +1256,13 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         }
 
                         if matches!(bytes.get(j), Some(b']')) {
-                            // Reason for fallback: empty slice fallback when getting slice of bytes.
+                            #[allow(
+                                clippy::expect_used,
+                                reason = "i + 1 <= j < bytes.len() verified by bracket scan"
+                            )]
                             let token_bytes = bytes
                                 .get(i.saturating_add(1)..j)
-                                .unwrap_or(&[]);
+                                .expect("i + 1 <= j < bytes.len() in bracket scan");
                             match token_bytes {
                                 b"aq" => {
                                     let _ = write!(w, "'");
@@ -1360,11 +1366,21 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
             } else {
                 i = i.saturating_add(1);
             }
-        // Reason for fallback: i is bounded by bytes.len() loop condition; empty slice handles EOF.
-        } else if starts_with_url(bytes.get(i..).unwrap_or(&[])) {
+        } else if ({
+            #[allow(
+                clippy::expect_used,
+                reason = "i < bytes.len() guaranteed by loop condition"
+            )]
+            let rem = bytes.get(i..).expect("i < bytes.len() in loop");
+            starts_with_url(rem)
+        }) {
             flush_fragment(fragment_start, i, w, bytes);
-            // Reason for fallback: i is bounded by bytes.len() loop condition; empty slice handles EOF.
-            let (url, consumed) = extract_url(bytes.get(i..).unwrap_or(&[]));
+            #[allow(
+                clippy::expect_used,
+                reason = "i < bytes.len() guaranteed by loop condition"
+            )]
+            let rem = bytes.get(i..).expect("i < bytes.len() in loop");
+            let (url, consumed) = extract_url(rem);
             let _ = write!(
                 w,
                 "<a href=\"{}\">{}</a>",
@@ -1393,6 +1409,7 @@ fn starts_with_url(slice: &[u8]) -> bool {
     s.starts_with("http://") || s.starts_with("https://")
 }
 
+/// Get URL from a chunk of bytes. If it is not valid UTF-8, returns empty string.
 fn extract_url(slice: &[u8]) -> (String, usize) {
     // Reason for fallback: invalid UTF-8 slice defaults to empty string for URL extraction.
     let s = std::str::from_utf8(slice).unwrap_or("");
@@ -1416,8 +1433,15 @@ fn extract_url(slice: &[u8]) -> (String, usize) {
         }
         end = end.saturating_add(1);
     }
-    // Reason for fallback: end is bounded by chars.len(); empty slice fallback handles out-of-bounds.
-    let url: String = chars.get(..end).unwrap_or_default().iter().collect();
+    #[allow(
+        clippy::expect_used,
+        reason = "end <= chars.len() guaranteed by while end < chars.len() loop"
+    )]
+    let url: String = chars
+        .get(..end)
+        .expect("end <= chars.len() in extract_url")
+        .iter()
+        .collect();
     let len = url.len();
     (url, len)
 }

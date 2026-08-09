@@ -100,35 +100,41 @@ fn format_bytes(bytes: u128, unit: u128, suffixes: &[&str]) -> String {
 }
 
 fn scale_and_round(bytes: u128, unit_pow: u128) -> (u128, Option<u8>) {
-    let integer = bytes.checked_div(unit_pow).unwrap_or(0);
-    let remainder = bytes.checked_rem(unit_pow).unwrap_or(0);
+    let Some(integer) = bytes.checked_div(unit_pow) else {
+        return (0, None);
+    };
+    let Some(remainder) = bytes.checked_rem(unit_pow) else {
+        return (0, None);
+    };
+
+    let Some(half) = unit_pow.checked_div(2) else {
+        return (integer, None);
+    };
 
     if integer >= 10 {
-        let half = unit_pow.checked_div(u128::from(2u8)).unwrap_or(0);
+        // Reason for fallback: arithmetic addition overflow during rounding retains unrounded integer scale
         let rounded = bytes
             .checked_add(half)
             .and_then(|sum| sum.checked_div(unit_pow))
-            .unwrap_or(0);
+            .unwrap_or(integer);
         return (rounded, None);
     }
 
     let ten = u128::from(10u8);
-    let half = unit_pow.checked_div(u128::from(2u8)).unwrap_or(0);
-
     let scaled_remainder = remainder.saturating_mul(ten);
+    // Reason for fallback: rounding precision is cosmetic; falling back to 0 omits the decimal component on math overflow
     let digit_u128 = scaled_remainder
         .checked_add(half)
         .and_then(|sum| sum.checked_div(unit_pow))
         .unwrap_or(0);
-    let mut digit = u8::try_from(digit_u128).unwrap_or(u8::MAX);
-
-    let mut integer = integer;
+    // Reason for fallback: u128 multiplication overflow during rounding truncates to u8::MAX to maintain maximum scale
+    let digit = u8::try_from(digit_u128).unwrap_or(u8::MAX);
     if digit >= 10 {
-        integer = integer.saturating_add(u128::from(1u8));
-        digit = 0;
+        let rounded = integer.saturating_add(1);
+        (rounded, None)
+    } else {
+        (integer, Some(digit))
     }
-
-    (integer, Some(digit))
 }
 
 fn format_scaled_int(integer: u128, decimal_digit: Option<u8>) -> String {

@@ -15,6 +15,7 @@ pub fn find_resource_bundle_path() -> Result<PathBuf> {
     let mut exe_dir = None;
 
     if let Ok(exe_path) = std::env::current_exe() {
+        // Reason for fallback: if binary executable path cannot be canonicalized, use raw std::env::current_exe path
         let exe_path = fs::canonicalize(&exe_path).unwrap_or(exe_path);
         if let Some(parent) = exe_path.parent() {
             exe_dir = Some(parent.to_path_buf());

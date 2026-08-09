@@ -80,6 +80,7 @@ impl<'a> AccessKeyButton<'a> {
     /// checking if the access key was pressed.
     #[must_use]
     pub fn build(self) -> AccessKeyResult {
+        // Reason for fallback: unconfigured text color option defaults to ui visuals text color
         let color =
             self.color.unwrap_or_else(|| self.ui.visuals().text_color());
         let text = format_access_key_text(
@@ -157,6 +158,7 @@ pub fn format_access_key_text(
     text_color: Color32,
     font_selection: Option<egui::FontSelection>,
 ) -> WidgetText {
+    // Reason for fallback: unconfigured font selection option defaults to egui Default font selection
     let font_selection = font_selection.unwrap_or(egui::FontSelection::Default);
 
     let Some((byte_idx, matched_ch)) = label

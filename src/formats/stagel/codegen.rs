@@ -571,6 +571,7 @@ fn codegen_dedent_action(
         );
     } else if target_lang == "bash" {
         let len = block_stack.len();
+        // Reason for fallback: empty block stack defaults grandparent block type string to empty
         let grandparent_type = block_stack
             .get(len.saturating_sub(2))
             .map_or("", |x| x.0.as_str());
@@ -1131,6 +1132,7 @@ fn codegen_command_invocation_end(
             );
         }
     } else if target_lang == "bash" {
+        // Reason for fallback: empty block stack defaults last block type string to empty
         let last_block = block_stack.last().map_or("", |b| b.1.as_str());
         if last_block == "if" || last_block == "elif" || last_block == "while" {
             if last_block == "while" {
@@ -1730,6 +1732,7 @@ pub fn codegen(
                     }
 
                     let parts: Vec<&str> = loop_indent.pos.split(':').collect();
+                    // Reason for fallback: unparseable position suffix string defaults indent level to 0
                     let indent_level = parts
                         .last()
                         .and_then(|s| s.parse::<usize>().ok())
@@ -1908,10 +1911,12 @@ pub fn codegen(
         let current_token = tokens.get(j).context("Missing current token")?;
         let next_token_content = tokens
             .get(j.saturating_add(1))
+            // Reason for fallback: out of bounds lookahead token index defaults next token content string to empty
             .map_or("", |t| t.content.as_str());
         let mut token_lookahead = tokens
             .get(j.saturating_add(1))
             .map(|t| t.typ.clone())
+            // Reason for fallback: out of bounds lookahead token index defaults next token type string to empty
             .unwrap_or_default();
 
         let mut codegen_indent = current_token
@@ -1919,6 +1924,7 @@ pub fn codegen(
             .split(':')
             .next_back()
             .and_then(|s| s.parse::<usize>().ok())
+            // Reason for fallback: unparseable position suffix string defaults token indent level to 0
             .unwrap_or(0);
 
         if current_token.typ == "filename" {
@@ -1962,6 +1968,7 @@ pub fn codegen(
             ));
             state_stack.push("literal-as".to_string());
         } else {
+            // Reason for fallback: empty state stack defaults current state string to empty
             let current_state = state_stack.last().cloned().unwrap_or_default();
             match current_state.as_str() {
                 "literal-ab" => match current_token.typ.as_str() {
@@ -2349,9 +2356,11 @@ pub fn codegen(
                         "A {}, {}, isn't allowed here, in {} {}.",
                         current_token.typ,
                         current_token.content,
+                        // Reason for fallback: empty block stack defaults grandparent or parent block type string to empty
                         block_stack
                             .get(block_stack.len().saturating_sub(2))
                             .map_or("", |x| x.0.as_str()),
+                        // Reason for fallback: empty block stack defaults grandparent or parent block type string to empty
                         block_stack.last().map_or("", |x| x.0.as_str())
                     ),
                 },
@@ -2405,6 +2414,7 @@ pub fn codegen(
                         token_lookahead = tokens
                             .get(j.saturating_add(1))
                             .map(|t| t.typ.clone())
+                            // Reason for fallback: out of bounds lookahead token index defaults token type string to empty
                             .unwrap_or_default();
                         codegen_command_invocation_start(
                             target_lang,
@@ -2425,9 +2435,11 @@ pub fn codegen(
                     } else {
                         bail!(
                             "A {} {} wants an identifier here, not a {}.",
+                            // Reason for fallback: empty block stack defaults grandparent or parent block type string to empty
                             block_stack
                                 .get(block_stack.len().saturating_sub(2))
                                 .map_or("", |x| x.0.as_str()),
+                            // Reason for fallback: empty block stack defaults grandparent or parent block type string to empty
                             block_stack.last().map_or("", |x| x.0.as_str()),
                             current_token.typ
                         );

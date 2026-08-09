@@ -482,6 +482,7 @@ impl TuiInstaller {
             .position(|locale| {
                 locale.code().eq_ignore_ascii_case(&self.config.language)
             })
+            // Reason for fallback: unrecognized language code in config defaults language index to 0
             .unwrap_or(0);
 
         let lang_choice = self.prompt_choice(
@@ -876,6 +877,7 @@ impl TuiInstaller {
             start_menu_summary_label()
                 .split(':')
                 .next()
+                // Reason for fallback: localized start menu summary label string without colon separator defaults to "Start Menu shortcut"
                 .unwrap_or("Start Menu shortcut"),
             if self.config.add_to_start_menu {
                 t(msg::YES)
@@ -888,6 +890,7 @@ impl TuiInstaller {
             t(msg::DESKTOP_SHORTCUT)
                 .split(':')
                 .next()
+                // Reason for fallback: localized desktop shortcut string without colon separator defaults to "Desktop shortcut"
                 .unwrap_or("Desktop shortcut"),
             if self.config.add_desktop_shortcut {
                 t(msg::YES)
@@ -900,6 +903,7 @@ impl TuiInstaller {
             t(msg::ADDED_TO_PATH)
                 .split(':')
                 .next()
+                // Reason for fallback: localized added-to-path string without colon separator defaults to "Added to PATH"
                 .unwrap_or("Added to PATH"),
             if self.config.add_to_path {
                 t(msg::YES)

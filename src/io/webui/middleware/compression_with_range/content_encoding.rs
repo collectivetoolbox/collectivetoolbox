@@ -269,6 +269,7 @@ fn preferred_encoding_with_wildcard(
     let all_supported = all_supported_encodings(supported_encoding);
 
     let effective = all_supported.iter().filter_map(|e| *e).map(|enc| {
+        // Reason for fallback: encoding not explicitly listed in Accept-Encoding header uses wildcard q-value weight
         let q = explicit
             .iter()
             .find(|(e, _)| *e == enc)

@@ -43,6 +43,7 @@ where
         let mut state = AppState::from_ref(state);
         let session_key_bytes = session_key_from_headers(&parts.headers);
         let Some(session_key_bytes) = session_key_bytes else {
+            // Reason for fallback: request state extraction failure defaults to fallback request state structure for error response rendering
             let req = RequestState::from_request_parts(parts, &state)
                 .await
                 .unwrap_or_else(|_| RequestState {
@@ -67,6 +68,7 @@ where
             Session::get_user_by_key(&mut state, &session_key_bytes).await;
         let Some(user) = user else {
             debug!("No user found for session key");
+            // Reason for fallback: request state extraction failure defaults to fallback request state structure for error response rendering
             let req = RequestState::from_request_parts(parts, &state)
                 .await
                 .unwrap_or_else(|_| RequestState {
@@ -140,6 +142,7 @@ impl Session {
         mut user: User,
         token: &str,
     ) -> Self {
+        // Reason for fallback: invalid base64 session token decoding falls back to zero-filled 32-byte session key
         let key = URL_SAFE_NO_PAD
             .decode(token)
             .unwrap_or_else(|_| vec![0u8; 32]);

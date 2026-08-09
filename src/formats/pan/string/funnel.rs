@@ -49,7 +49,13 @@ fn split_spec(spec: &str) -> (String, String, Separator) {
         }
         if !in_quotes && (ch == ',' || ch == ';') {
             let (a, b) = spec.split_at(i);
-            let b = b.get(ch.len_utf8()..).unwrap_or("");
+            #[allow(
+                clippy::expect_used,
+                reason = "b starts with delimiter character ch, so b[ch.len_utf8()..] is in bounds"
+            )]
+            let b = b
+                .get(ch.len_utf8()..)
+                .expect("b starts with delimiter character");
             let sep = if ch == ';' {
                 Separator::Semicolon
             } else {
@@ -238,17 +244,24 @@ fn resolve_end_index(n: i64, len: usize) -> Option<usize> {
     Some(len.saturating_sub(1).saturating_sub(back_usize))
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "Caller guarantees start < chars.len(); 1 <= start < chars.len() guarantees in-bounds indexing for start, start - 1, and start - 2"
+)]
 fn adjust_start_for_negated_alnum_run(chars: &[char], start: usize) -> usize {
+    assert!(start < chars.len(), "start index must be in bounds");
     if start == 0 {
-        return start;
+        return 0;
     }
 
-    let cur = *chars.get(start).unwrap_or(&'\0');
+    let cur = *chars.get(start).expect("start < chars.len() asserted above");
     if !cur.is_ascii_digit() {
         return start;
     }
 
-    let prev = *chars.get(start.saturating_sub(1)).unwrap_or(&'\0');
+    let prev = *chars
+        .get(start.saturating_sub(1))
+        .expect("1 <= start < chars.len() guarantees start - 1 is in bounds");
     if !prev.is_ascii_alphabetic() {
         return start;
     }
@@ -256,7 +269,9 @@ fn adjust_start_for_negated_alnum_run(chars: &[char], start: usize) -> usize {
     let preceded_by_delim = if start < 2 {
         true
     } else {
-        let before_prev = *chars.get(start.saturating_sub(2)).unwrap_or(&'\0');
+        let before_prev = *chars
+            .get(start.saturating_sub(2))
+            .expect("2 <= start < chars.len() guarantees start - 2 is in bounds");
         before_prev.is_ascii_whitespace() || before_prev == ','
     };
 
@@ -335,6 +350,7 @@ pub fn funnel(text: &str, funnel: &str) -> String {
 
             let lo = start.min(end);
             let hi = start.max(end);
+            // Reason for fallback: character range slice out of bounds defaults to empty char slice
             chars.get(lo..=hi).unwrap_or(&[]).iter().collect()
         }
         Separator::Comma | Separator::None => {
@@ -357,6 +373,7 @@ pub fn funnel(text: &str, funnel: &str) -> String {
                 return String::new();
             }
 
+            // Reason for fallback: character range slice out of bounds defaults to empty char slice
             chars.get(start..=end).unwrap_or(&[]).iter().collect()
         }
     }

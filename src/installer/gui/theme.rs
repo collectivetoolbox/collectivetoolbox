@@ -163,6 +163,7 @@ pub(crate) fn get_fonts() -> FontDefinitions {
 
     // for each font add it to the list.
     for (name, path) in &fonts_list {
+        // Reason for fallback: embedded font asset missing triggers fatal error installer exit
         let font_bytes = get_installer_data(&format!("resources/fonts/{path}"))
             .unwrap_or_else(|| {
                 eprintln!(
@@ -180,6 +181,7 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     let proportional = fonts
         .families
         .get_mut(&FontFamily::Proportional)
+        // Reason for fallback: font family missing from egui FontDefinitions triggers fatal error installer exit
         .unwrap_or_else(|| {
                 eprintln!(
                     "Fatal error: Could not load Proportional font family. There is a problem in the installer."
@@ -205,6 +207,7 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     let monospace = fonts
         .families
         .get_mut(&FontFamily::Monospace)
+        // Reason for fallback: font family missing from egui FontDefinitions triggers fatal error installer exit
         .unwrap_or_else(|| {
             eprintln!(
                 "Fatal error: Could not load Monospace font family. There is a problem in the installer."

@@ -192,6 +192,7 @@ impl StreamingTarball {
         chunks_dir: String,
         installer_source: Option<(TarballDataSource, u64)>,
     ) -> Result<Self> {
+        // Reason for fallback: manifest date timestamp i64 conversion overflow defaults mtime to 0
         let mtime = u64::try_from(manifest.date.timestamp()).unwrap_or(0);
 
         let mut entries = Vec::new();
@@ -253,8 +254,19 @@ impl StreamingTarball {
                         })?
                         .len();
 
-                    let prefix1 = chunk.hash.get(0..2).unwrap_or("");
-                    let prefix2 = chunk.hash.get(2..4).unwrap_or("");
+                    if chunk.hash.len() < 4 {
+                        bail!("Invalid chunk SHA-256 hash length: {}", chunk.hash);
+                    }
+                    #[allow(
+                        clippy::expect_used,
+                        reason = "chunk.hash.len() >= 4 checked above"
+                    )]
+                    let prefix1 = chunk.hash.get(0..2).expect("hash.len() >= 4");
+                    #[allow(
+                        clippy::expect_used,
+                        reason = "chunk.hash.len() >= 4 checked above"
+                    )]
+                    let prefix2 = chunk.hash.get(2..4).expect("hash.len() >= 4");
                     let chunk_name = format!(
                         "{chunks_subdir_name}/{prefix1}/{prefix2}/{}.br",
                         chunk.hash
@@ -343,6 +355,7 @@ impl StreamingTarball {
         let installer_source = installer_bytes.map(|bytes| {
             (
                 TarballDataSource::Inline(bytes.clone()),
+                // Reason for fallback: installer bytes length u64 conversion overflow saturates to u64::MAX
                 u64::try_from(bytes.len()).unwrap_or(u64::MAX),
             )
         });
@@ -385,12 +398,14 @@ impl StreamingTarball {
         start: u64,
         end: Option<u64>,
     ) -> Result<Vec<u8>> {
+        // Reason for fallback: unspecified end byte offset defaults to total tarball size
         let end = end.unwrap_or(self.total_size).min(self.total_size);
 
         if start >= end {
             return Ok(Vec::new());
         }
 
+        // Reason for fallback: range length u64 to usize conversion overflow saturates to usize::MAX
         let capacity =
             usize::try_from(end.saturating_sub(start)).unwrap_or(usize::MAX);
         let mut output = Vec::with_capacity(capacity);
@@ -518,8 +533,16 @@ impl StreamingTarball {
 /// scheme.
 fn compressed_chunk_path(chunks_dir: &str, hash: &str) -> String {
     if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         format!("{chunks_dir}/{prefix1}/{prefix2}/{hash}.br")
     } else {
         format!("{chunks_dir}/{hash}.br")
@@ -646,6 +669,7 @@ pub fn download_offline_bundle_to_path(
     } else {
         current_platform()
     };
+    // Reason for fallback: unconfigured version parameter defaults release version string to "latest"
     let version = version.unwrap_or("latest");
     let url = format!("{server_url}/releases/{platform}/{version}.tar");
 
@@ -668,6 +692,7 @@ pub fn download_offline_bundle_to_path(
 
     if !response.is_success() {
         let status = response.status_code();
+        // Reason for fallback: failed error response text read defaults body log to "<body unavailable>"
         let body = response
             .text()
             .unwrap_or_else(|_| String::from("<body unavailable>"));

@@ -141,15 +141,19 @@ pub fn ipc_method_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let (service_lit, method_lit): (LitStr, LitStr) = {
+        // Reason for fallback: builds outside cargo environment default CARGO_PKG_NAME to empty string
         let pkg: String = std::env::var("CARGO_PKG_NAME").unwrap_or_default();
 
         let pkg = pkg.as_str();
+        // Reason for fallback: crate package name without "ctb-" prefix retains original package name string
         let without_prefix = pkg.strip_prefix("ctb-").unwrap_or(pkg);
 
+        // Reason for fallback: package name without hyphen delimiters defaults service name to package name
         let service =
             without_prefix.split('-').next().unwrap_or(without_prefix);
         let service = if service.is_empty() { "ipc" } else { service };
 
+        // Reason for fallback: package name without subservice prefix defaults subservice string to empty
         let subservice = without_prefix
             .strip_prefix(&format!("{service}-"))
             .unwrap_or("");

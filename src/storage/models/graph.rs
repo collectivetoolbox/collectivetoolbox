@@ -86,6 +86,7 @@ impl Graph {
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
+            // Reason for fallback: system clock time prior to UNIX epoch defaults duration to 0 duration
             .unwrap_or_default()
             .as_micros();
 

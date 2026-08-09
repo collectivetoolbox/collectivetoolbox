@@ -57,16 +57,10 @@ pub fn get_setting_for_format(
     key: &str,
 ) -> Result<String> {
     let kv = get_settings_for_format(state, format, direction)?;
-    let mut i: usize = 0;
-    while i.saturating_add(1) < kv.len() {
-        if kv.get(i).is_some_and(|k| k == key) {
-            // Reason for fallback: loop condition while i + 1 < kv.len() on line 61 guarantees index i + 1 is within bounds of kv array.
-            return Ok(kv
-                .get(i.saturating_add(1))
-                .cloned()
-                .unwrap_or_default());
+    for pair in kv.chunks_exact(2) {
+        if pair[0] == key {
+            return Ok(pair[1].clone());
         }
-        i = i.saturating_add(2);
     }
     Ok(String::new())
 }

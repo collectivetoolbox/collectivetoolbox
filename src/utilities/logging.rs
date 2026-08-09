@@ -86,6 +86,7 @@ where
         let meta = event.metadata();
 
         // Module path (preferred) falls back to target, then "unknown"
+        // Reason for fallback: synthetic log events missing a module path or target display as "unknown"
         let target = meta
             .module_path()
             .or_else(|| Some(meta.target()))
@@ -94,14 +95,17 @@ where
         let (file, line) = extract_file_line(event);
 
         // File/line (fallback "unknown:0")
+        // Reason for fallback: log events from macro callers without file metadata default to "unknown"
         let mut file = file
             .or_else(|| meta.file().map(std::string::ToString::to_string))
             .unwrap_or_else(|| "unknown".to_string());
         if file.starts_with("src/") {
+            // Reason for fallback: empty or non-path file metadata string retains full name when trailing segment is absent
             file = file.rsplit('/').next().unwrap_or(&file).to_string();
         } else if meta.level() == &Level::DEBUG {
             return Ok(());
         }
+        // Reason for fallback: log events without line metadata default to line 0
         let line = line.or_else(|| meta.line()).unwrap_or(0);
 
         let mut column = "";
@@ -114,6 +118,7 @@ where
             .is_ok()
         {
             if let Some((_, after)) = buf.split_once(COLUMN_UUID_DELIM) {
+                // Reason for fallback: formatted log event without column text leaves column empty
                 let col_text = after.split_whitespace().next().unwrap_or("");
                 column = col_text;
             }
@@ -125,7 +130,9 @@ where
         }
 
         let pid = self.pid;
+        // Reason for fallback: main workspace process does not have a subprocess index
         let sub_idx = self.sub_index.as_deref().unwrap_or("");
+        // Reason for fallback: main service context defaults to user service target
         let svc_name = self.service_name.as_deref().unwrap_or("user");
         let ts = Self::format_timestamp();
 
@@ -210,6 +217,7 @@ fn create_env_filter() -> (EnvFilter, String) {
     }
 
     // Use the builder pattern to properly parse directives
+    // Reason for fallback: invalid custom log directives fall back to default level directives parse_lossy
     let filter = EnvFilter::builder()
         .with_default_directive(Level::INFO.into())
         .parse(&directives)
@@ -485,6 +493,7 @@ static ACCESS_LOG_WRITER: OnceLock<
 
 pub fn write_access_log_line(line: &str) {
     let writer = ACCESS_LOG_WRITER.get_or_init(|| {
+        // Reason for fallback: storage dir lookup failure defaults to relative "logs" directory
         let log_dir = get_storage_dir().map_or_else(|_| std::path::PathBuf::from("logs"), |d| d.join("logs"));
         let _ = std::fs::create_dir_all(&log_dir);
         let filename_base = if is_in_test() { "test-webui-access" } else { "webui-access" };

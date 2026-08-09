@@ -29,6 +29,7 @@ where
 pub(super) fn scalars_to_string_lossy(scalars: &[u32]) -> String {
     combine_surrogates(scalars.to_vec())
         .iter()
+        // Reason for fallback: U+FFFD replacement character is the standard Unicode fallback for invalid codepoint values in lossy string conversion
         .map(|&cp| char::from_u32(cp).unwrap_or('\u{FFFD}'))
         .collect()
 }

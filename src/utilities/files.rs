@@ -10,6 +10,7 @@ pub fn symlink_is_in_dir(path: &Path, dir: &Path) -> Result<PathBuf> {
             let canonical = std::fs::canonicalize(path).with_context(|| {
                 format!("Failed to resolve symlink {}", path.display())
             })?;
+            // Reason for fallback: directory may not exist on disk yet, so fallback to raw PathBuf for prefix checking
             let canonical_dir = std::fs::canonicalize(dir)
                 .unwrap_or_else(|_| dir.to_path_buf());
             if !canonical.starts_with(&canonical_dir) {

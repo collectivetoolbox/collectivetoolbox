@@ -147,6 +147,7 @@ pub fn parse(input: &[u8], filename: &str) -> Result<Vec<u8>> {
                         && indent_spaces_counted
                             < current_indent_level.saturating_mul(4)
                     {
+                        // Reason for fallback: division by constant non-zero divisor 4 is infallible
                         let dedents = current_indent_level.saturating_sub(
                             indent_spaces_counted.checked_div(4).unwrap_or(0),
                         );

@@ -189,6 +189,7 @@ pub async fn run_service(
             };
             debug_fmt!(
                 "[{process_kind}] Shutdown acknowledged; exiting: {}",
+                // Reason for fallback: shutdown signal without explicit description string defaults to "no reason"
                 reason.unwrap_or_else(|| "no reason".into())
             );
         }

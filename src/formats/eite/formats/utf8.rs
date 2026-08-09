@@ -180,18 +180,27 @@ pub fn dca_to_utf8(
             if truncated {
                 // Determine slice to reprocess (excluding the invalid char, if any).
                 let end_exclusive = j.min(len);
-                // Reason for fallback: start_index <= j and end_exclusive = j.min(len) <= len, so start_index..end_exclusive is bounded by len; fallback to empty slice safely prevents panic if start_index > end_exclusive.
-                let subseq =
-                    dc_array.get(start_index..end_exclusive).unwrap_or(&[]);
+                #[allow(
+                    clippy::expect_used,
+                    reason = "start_index <= j and end_exclusive <= len is in bounds"
+                )]
+                let subseq = dc_array
+                    .get(start_index..end_exclusive)
+                    .expect("start_index <= j and end_exclusive <= len is in bounds");
                 if j >= len {
                     log.warn(&format!(
                         "Truncated encapsulated UTF-8 sequence at index {start_index} (missing end marker)"
                     ));
                 } else {
+                    #[allow(
+                        clippy::expect_used,
+                        reason = "j < len checked by else branch"
+                    )]
+                    let char_dc = *dc_array
+                        .get(j)
+                        .expect("j < len checked by else branch");
                     log.warn(&format!(
-                        "Invalid character {} inside encapsulated UTF-8 sequence starting at index {} (treating as truncated)",
-                        // Reason for fallback: when j >= len (truncation), j is out of bounds so 0 is logged as placeholder codepoint.
-                        dc_array.get(j).copied().unwrap_or(0),
+                        "Invalid character {char_dc} inside encapsulated UTF-8 sequence starting at index {} (treating as truncated)",
                         start_index
                     ));
                 }
@@ -222,8 +231,13 @@ pub fn dca_to_utf8(
                 // Valid sequence: dc_array[i] == start, dc_array[j] == end.
                 // Inner slice excludes start and end markers.
                 let inner = if j > i.saturating_add(1) {
-                    // Reason for fallback: i and j are verified markers (i < j < len), so i + 1..j is in bounds; fallback to empty slice safely prevents panic if i + 1 > j.
-                    dc_array.get(i.saturating_add(1)..j).unwrap_or(&[])
+                    #[allow(
+                        clippy::expect_used,
+                        reason = "i < j < len verified by marker search loop"
+                    )]
+                    dc_array
+                        .get(i.saturating_add(1)..j)
+                        .expect("i + 1 < j < len is in bounds")
                 } else {
                     &[]
                 };
@@ -255,13 +269,17 @@ pub fn dca_to_utf8(
                     }
                     Err(e) => {
                         // Fallback: reprocess entire sequence (including markers) with embedding disabled.
+                        #[allow(
+                            clippy::expect_used,
+                            reason = "markers i and j verified in bounds (i <= j < len) by marker search loop"
+                        )]
+                        let subseq = dc_array
+                            .get(i..=j)
+                            .expect("markers i and j verified in bounds");
                         log.warn(&format!(
                             "Failed to decode encapsulated UTF-8 sequence {:?} at {}..{}: {} (fallback to plain processing)",
-                            // Reason for fallback: markers i and j were verified in bounds (i <= j < len) by marker search loop; empty slice fallback safely avoids panics in log formatting.
-                            dc_array.get(i..=j).unwrap_or(&[]), i, j, e
+                            subseq, i, j, e
                         ));
-                        // Reason for fallback: markers i and j were verified in bounds (i <= j < len) by marker search loop; empty slice fallback safely avoids panics during retry.
-                        let subseq = dc_array.get(i..=j).unwrap_or(&[]);
                         let mut retry_settings = settings.clone();
                         retry_settings.utf8_base64_embed_enabled = false;
                         let (retry_bytes, retry_log) =
@@ -433,14 +451,18 @@ pub fn dca_from_utf8(
                         remaining
                     );
                     while fragment_consumed < remaining.len() {
+                        #[allow(
+                            clippy::expect_used,
+                            reason = "fragment_consumed < remaining.len() guaranteed by while loop"
+                        )]
+                        let rem_slice = remaining
+                            .get(fragment_consumed..)
+                            .expect("fragment_consumed < remaining.len() in loop");
                         log!(
                             "Consumed, remaining {:?}",
-                            // Reason for fallback: fragment_consumed is bounded by remaining.len() in loop, so slice is in bounds; fallback to empty slice safely prevents panic during debug logging.
-                            remaining.get(fragment_consumed..).unwrap_or(&[])
+                            rem_slice
                         );
-                        let first_char = first_char_of_utf8_string(
-                            bail_if_none!(remaining.get(fragment_consumed..)),
-                        );
+                        let first_char = first_char_of_utf8_string(rem_slice);
                         if first_char.is_err() {
                             log!("Char errored, {:?}", first_char);
                             break;
@@ -465,8 +487,13 @@ pub fn dca_from_utf8(
                 if let Some(end_pos) = end_pos {
                     // `end_pos` is the index where the end marker starts
                     let section = if settings.dc_basenb_fragment_enabled {
-                        // Reason for fallback: end_pos is bounded by fragment scan (end_pos <= remaining.len()), so ..end_pos is in bounds; fallback to empty slice safely avoids panic.
-                        remaining.get(..end_pos).unwrap_or(&[]) // No end marker for fragment
+                        #[allow(
+                            clippy::expect_used,
+                            reason = "end_pos <= remaining.len() guaranteed by fragment scan"
+                        )]
+                        remaining
+                            .get(..end_pos)
+                            .expect("end_pos <= remaining.len() in fragment scan")
                     } else {
                         // bytes after the start marker and before the end marker
                         // Reason for fallback: 32..end_pos slices payload between 32-byte header and end_pos; fallback to empty slice safely handles truncated sections under 32 bytes without panic.
@@ -620,8 +647,14 @@ pub fn dca_from_utf8(
             log.merge(&dc_log);
         }
 
-        // Reason for fallback: advancing remaining window by consumed bytes defaults to empty slice when input is fully processed.
-        remaining = remaining.get(consumed..).unwrap_or(&[]);
+        // Advance remaining window by consumed bytes
+        #[allow(
+            clippy::expect_used,
+            reason = "consumed <= remaining.len() guaranteed by UTF-8 char decode"
+        )]
+        remaining = remaining
+            .get(consumed..)
+            .expect("consumed <= remaining.len() guaranteed by UTF-8 char decode");
     }
 
     if settings.utf8_base64_embed_enabled && !unmappables.is_empty() {

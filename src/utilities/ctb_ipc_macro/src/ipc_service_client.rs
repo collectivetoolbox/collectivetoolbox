@@ -80,6 +80,7 @@ pub fn ipc_service_client_impl(input: TokenStream) -> TokenStream {
     let client_trait_path: syn::Path = syn::parse2(quote! {
         ::ctb_utilities::ipc::service_traits::#client_trait_ident
     })
+    // Reason for fallback: proc_macro token parsing failure falls back to single-segment trait path
     .unwrap_or_else(|_| syn::Path::from(client_trait_ident.clone()));
 
     let mut method_const_idents: Vec<Ident> = Vec::new();
@@ -323,6 +324,7 @@ pub fn ipc_service_client_impl(input: TokenStream) -> TokenStream {
                 ext_args,
             )| {
                 let args_decl = args.iter().map(|(id, ty)| quote!(#id: #ty));
+                // Reason for fallback: uncustomized extension method name defaults to macro IPC method identifier
                 let ext_method_ident =
                     ext_method.as_ref().unwrap_or(method_ident);
                 quote! {
@@ -426,6 +428,7 @@ pub fn ipc_service_client_impl(input: TokenStream) -> TokenStream {
                 ext_args,
             )| {
                 let args_decl = args.iter().map(|(id, ty)| quote!(#id: #ty));
+                // Reason for fallback: uncustomized extension method name defaults to macro IPC method identifier
                 let ext_method_ident =
                     ext_method.as_ref().unwrap_or(method_ident);
                 quote! {

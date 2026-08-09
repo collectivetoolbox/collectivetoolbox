@@ -45,6 +45,7 @@ pub fn derive_kek(password: &Password) -> Result<(Vec<u8>, KekParams)> {
                 .ok_or_else(|| anyhow::anyhow!("Could not decode test password salt"))?;
             salt.decode_b64(salt_bytes)
                 .map_err(|e| anyhow::anyhow!("Failed to decode salt: {e}"))?;
+            // Reason for fallback: Argon2 password hash output missing hash bytes defaults to empty vector
             let output_key_material = parsed
                 .hash
                 .as_ref()
@@ -52,10 +53,13 @@ pub fn derive_kek(password: &Password) -> Result<(Vec<u8>, KekParams)> {
             return Ok((
                 output_key_material,
                 KekParams {
-                    salt: salt_bytes.to_vec(),
+                    // Reason for fallback: invalid or unparsed Argon2 m_cost parameter defaults to recommended 19456 KiB
                     m_cost: parsed.params.get("m").map_or(19456, |v| v.decimal().unwrap_or(19456)),
+                    // Reason for fallback: invalid or unparsed Argon2 t_cost parameter defaults to recommended 2 iterations
                     t_cost: parsed.params.get("t").map_or(2, |v| v.decimal().unwrap_or(2)),
+                    // Reason for fallback: invalid or unparsed Argon2 p_cost parameter defaults to recommended 1 parallelism degree
                     p_cost: parsed.params.get("p").map_or(1, |v| v.decimal().unwrap_or(1)),
+                    salt: salt_bytes.to_vec(),
                 },
             ));
         }

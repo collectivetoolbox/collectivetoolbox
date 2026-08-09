@@ -22,10 +22,13 @@ impl GraphBlock {
 pub fn get_block(name: &str) -> Option<GraphBlock> {
     let table = get_layout_table().ok()?;
     for i in 0..table.row_count() {
+        // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
         let block_name = table.cell_by_header(i, "Block name").unwrap_or("");
         if block_name == name {
+            // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
             let first_str =
                 table.cell_by_header(i, "First ID in region").unwrap_or("");
+            // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
             let last_str =
                 table.cell_by_header(i, "Last ID in region").unwrap_or("");
             if let (Ok(first), Ok(last)) =
@@ -45,10 +48,13 @@ pub fn get_block(name: &str) -> Option<GraphBlock> {
 pub fn get_block_name_for_id(node_id: u128) -> Result<String> {
     let table = get_layout_table()?;
     for i in 0..table.row_count() {
+        // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
         let first_str =
             table.cell_by_header(i, "First ID in region").unwrap_or("");
+        // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
         let last_str =
             table.cell_by_header(i, "Last ID in region").unwrap_or("");
+        // Reason for fallback: layout table missing expected CSV column cell defaults to empty string
         let block_name = table.cell_by_header(i, "Block name").unwrap_or("");
 
         if let (Ok(first), Ok(last)) =

@@ -135,22 +135,32 @@ pub fn subset<T: Clone>(
 
 /// JS pop(array) -> subset(array, 0, -2) meaning drop last element.
 /// We replicate safe behavior (no negative wrap).
+#[allow(
+    clippy::expect_used,
+    reason = "non-empty slice check guarantees a.len() - 1 is within slice bounds"
+)]
 pub fn pop<T: Clone>(a: &[T]) -> Vec<T> {
     if a.is_empty() {
         Vec::new()
     } else {
-        // Reason for fallback: empty slice check on line 139 guarantees a.len() >= 1, so a.len() - 1 range is within slice bounds.
-        a.get(..a.len().saturating_sub(1)).unwrap_or(&[]).to_vec()
+        a.get(..a.len().saturating_sub(1))
+            .expect("non-empty slice guarantees a.len() - 1 is in bounds")
+            .to_vec()
     }
 }
 
 /// shift(array) -> subset(array, 1, -1) => drop first element
+#[allow(
+    clippy::expect_used,
+    reason = "slice length check > 1 guarantees index 1 is within slice bounds"
+)]
 pub fn shift<T: Clone>(a: &[T]) -> Vec<T> {
     if a.len() <= 1 {
         Vec::new()
     } else {
-        // Reason for fallback: slice length check on line 148 guarantees a.len() > 1, so index range 1.. is within slice bounds.
-        a.get(1..).unwrap_or(&[]).to_vec()
+        a.get(1..)
+            .expect("slice length > 1 guarantees index 1 is in bounds")
+            .to_vec()
     }
 }
 

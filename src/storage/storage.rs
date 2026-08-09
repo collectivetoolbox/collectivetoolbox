@@ -120,6 +120,7 @@ fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
             {
                 let resolved =
                     if path.starts_with("web/") || path.starts_with('/') {
+                        // Reason for fallback: CSS import path without leading slash retains original path string
                         path.strip_prefix('/').unwrap_or(path).to_string()
                     } else {
                         Path::new(base_path)
@@ -144,6 +145,7 @@ fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
                 })?;
                 let new_base = Path::new(&resolved)
                     .parent()
+                    // Reason for fallback: root asset path without parent directory defaults parent path to empty Path
                     .unwrap_or(Path::new(""))
                     .to_string_lossy();
                 let inlined = inline_css_imports(&imported_css, &new_base)?;

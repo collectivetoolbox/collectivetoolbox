@@ -350,10 +350,13 @@ fn split_short_meridiem(t: &str) -> Option<(&str, Meridiem)> {
     }
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "suffix is ASCII so t.len() - suffix.len() is an infallible UTF-8 character boundary in t"
+)]
 fn split_meridiem(raw: &str) -> (&str, Option<Meridiem>) {
     let t = raw.trim();
     let lower = t.to_lowercase();
-    let lower = lower.as_str();
 
     // Prefer explicit suffixes (with optional dots).
     for (suffix, mer) in [
@@ -366,9 +369,11 @@ fn split_meridiem(raw: &str) -> (&str, Option<Meridiem>) {
         ("am", Meridiem::Am),
         ("pm", Meridiem::Pm),
     ] {
-        if let Some(core_lower) = lower.strip_suffix(suffix) {
-            let core_len = core_lower.len();
-            let core = t.get(..core_len).unwrap_or("");
+        if lower.ends_with(suffix) {
+            let core_len = t.len().saturating_sub(suffix.len());
+            let core = t
+                .get(..core_len)
+                .expect("suffix is ASCII so t.len() - suffix.len() is a valid character boundary in t");
             return (core.trim(), Some(mer));
         }
     }

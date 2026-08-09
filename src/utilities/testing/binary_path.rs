@@ -107,6 +107,7 @@ impl CommandUnderTest {
     pub fn succeeds(&mut self) -> Result<&mut Self> {
         let status = self.run()?;
         if !status.success() {
+            // Reason for fallback: Unix processes terminated by signals have no exit code, formatted as "<none>"
             let exit_code = status
                 .code()
                 .map_or_else(|| "<none>".to_string(), |c| c.to_string());

@@ -41,7 +41,7 @@ pub fn get_bytes(val: &Value) -> Option<Vec<u8>> {
             bytes
         }
         Value::String(s) => {
-            standard_base64_to_bytes(s.clone()).unwrap_or_default()
+            standard_base64_to_bytes(s.clone()).ok()?
         }
         _ => return None,
     };

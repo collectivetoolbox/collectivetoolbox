@@ -30,6 +30,7 @@ pub(crate) fn ensure_response_ok(
         return Ok(());
     }
 
+    // Reason for fallback: JSON-RPC error payload missing a detailed error message defaults to generic "unknown error"
     let msg = response
         .error
         .as_ref()

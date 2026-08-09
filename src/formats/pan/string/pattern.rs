@@ -168,6 +168,7 @@ fn split_prefix_numeric_suffix(pat: &str) -> Result<(String, String, String)> {
         .get(first..=end)
         .context("Invalid numeric index")?
         .to_string();
+    // Reason for fallback: pattern without trailing suffix after numeric part defaults suffix string to empty
     let suffix = pat.get(end.saturating_add(1)..).unwrap_or("").to_string();
 
     Ok((prefix, numeric, suffix))
@@ -185,6 +186,7 @@ fn apply_plural_suffix(s: String, is_one: bool) -> String {
     while let Some(tilde_pos) = rest.find('~') {
         let (before_tilde, with_tilde) = rest.split_at(tilde_pos);
 
+        // Reason for fallback: word start search without preceding whitespace defaults word boundary offset to 0
         let word_start = before_tilde
             .rfind(|c: char| c.is_whitespace())
             .map_or(0, |i| i.saturating_add(1));
@@ -196,6 +198,7 @@ fn apply_plural_suffix(s: String, is_one: bool) -> String {
         }
 
         // Skip the tilde.
+        // Reason for fallback: rest slice stripping tilde at end of string defaults remaining rest to empty string
         rest = with_tilde.get(1..).unwrap_or("");
     }
 

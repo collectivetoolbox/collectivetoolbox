@@ -164,6 +164,7 @@ pub struct CRLiteCollectionRecord {
 
 impl CRLiteCollectionRecord {
     pub fn channel_name(&self) -> &str {
+        // Reason for fallback: Mozilla CRLite collection schema omits channel field for default channel feeds
         self.channel.as_deref().unwrap_or(DEFAULT_CRLITE_CHANNEL)
     }
 }
@@ -344,6 +345,7 @@ impl CachedCRLiteState {
         let mut maybe_good = false;
         let mut covered = false;
 
+        // Reason for fallback: initial unversioned filter manifests omit effectiveTimestamp; 0 represents the baseline start of epoch
         let mut max_filter_timestamp = self
             .manifest
             .current_filter
@@ -449,6 +451,7 @@ pub fn select_current_records(
         "No CRLite records found for channel {channel}"
     );
 
+    // Reason for fallback: legacy collection records without an explicit timestamp are treated as baseline epoch 0 so delta filters sort after them
     records.sort_by_key(|record| record.effective_timestamp.unwrap_or(0));
 
     let full_filter = records
@@ -459,10 +462,12 @@ pub fn select_current_records(
             anyhow::anyhow!("No CRLite full filter found for channel {channel}")
         })?;
 
+    // Reason for fallback: baseline full filters missing explicit timestamp sort before incremental deltas
     let full_effective_timestamp = full_filter.effective_timestamp.unwrap_or(0);
     let deltas = records
         .into_iter()
         .filter(|record| {
+            // Reason for fallback: baseline full filters missing explicit timestamp sort before incremental deltas
             record.incremental
                 && record.effective_timestamp.unwrap_or(0)
                     >= full_effective_timestamp
@@ -919,6 +924,7 @@ impl CRLiteVerifier {
     }
 
     pub fn with_platform_verifier() -> Result<Self> {
+        // Reason for fallback: applications not registering a custom rustls CryptoProvider fall back to standard aws_lc_rs provider
         let provider = rustls::crypto::CryptoProvider::get_default()
             .cloned()
             .unwrap_or_else(|| {

@@ -97,6 +97,7 @@ pub trait ViewContext: Serialize {
         Self: Sized,
     {
         // Compose self and content into a merged JSON object.
+        // Reason for fallback: serialization failure on non-object ViewContext defaults to empty JSON map
         let mut map = serde_json::to_value(self)
             .ok()
             .and_then(|v| v.as_object().cloned())
@@ -176,6 +177,7 @@ fn _respond_markdown(
 
     if let Some(md) = md {
         let page = if allow_unsafe {
+            // Reason for fallback: markdown parsing error on asset contents falls back to empty byte buffer
             markdown2html_unsafe(md).unwrap_or_else(|_| Vec::new())
         } else {
             markdown2html(md)
@@ -247,6 +249,7 @@ fn _respond_text_file(
                 "text/plain; charset=utf-8",
             )
             .body(axum::body::Body::from(content))
+            // Reason for fallback: response builder failure renders 500 internal server error page
             .unwrap_or_else(|e| error_500(state, &req, e))
     } else {
         error_404(state, &req, format!("Text file not found: {asset_path}"))

@@ -50,6 +50,7 @@ impl Chunk {
     /// The offset and length are set based on the provided values.
     pub fn new(data: Vec<u8>, offset: u64) -> Self {
         let hash = compute_sha256_hex(&data);
+        // Reason for fallback: chunk data buffer length u64 conversion overflow saturates to u64::MAX
         let length = u64::try_from(data.len()).unwrap_or(u64::MAX);
         Self {
             hash,
@@ -97,7 +98,10 @@ pub fn compute_file_sha256_hex(path: &Path) -> Result<String> {
         if bytes_read == 0 {
             break;
         }
-        hasher.update(buffer.get(..bytes_read).unwrap_or(&[]));
+        let slice = buffer
+            .get(..bytes_read)
+            .context("bytes_read returned by std::io::Read exceeded buffer size")?;
+        hasher.update(slice);
     }
 
     Ok(bin2hex(hasher.finalize()))
@@ -135,7 +139,7 @@ pub fn chunk_data(data: &[u8]) -> Result<Vec<Chunk>> {
                 chunk_result.offset
                     ..chunk_result.offset.saturating_add(chunk_result.length),
             )
-            .unwrap_or(&[])
+            .context("Chunk range calculated by FastCDC exceeded data bounds")?
             .to_vec();
         chunks.push(Chunk::new(chunk_data, offset));
     }
@@ -234,8 +238,16 @@ pub fn write_chunks_to_directory(
 
     for chunk in chunks {
         let chunk_path = if chunk.hash.len() >= 4 {
-            let prefix1 = chunk.hash.get(0..2).unwrap_or("");
-            let prefix2 = chunk.hash.get(2..4).unwrap_or("");
+            #[allow(
+                clippy::expect_used,
+                reason = "chunk.hash.len() >= 4 checked in if condition"
+            )]
+            let prefix1 = chunk.hash.get(0..2).expect("hash.len() >= 4");
+            #[allow(
+                clippy::expect_used,
+                reason = "chunk.hash.len() >= 4 checked in if condition"
+            )]
+            let prefix2 = chunk.hash.get(2..4).expect("hash.len() >= 4");
             output_dir.join(prefix1).join(prefix2).join(&chunk.hash)
         } else {
             output_dir.join(&chunk.hash)
@@ -288,8 +300,16 @@ pub fn write_chunks_to_directory_compressed(
 
     for chunk in chunks {
         let chunk_path = if chunk.hash.len() >= 4 {
-            let prefix1 = chunk.hash.get(0..2).unwrap_or("");
-            let prefix2 = chunk.hash.get(2..4).unwrap_or("");
+            #[allow(
+                clippy::expect_used,
+                reason = "chunk.hash.len() >= 4 checked in if condition"
+            )]
+            let prefix1 = chunk.hash.get(0..2).expect("hash.len() >= 4");
+            #[allow(
+                clippy::expect_used,
+                reason = "chunk.hash.len() >= 4 checked in if condition"
+            )]
+            let prefix2 = chunk.hash.get(2..4).expect("hash.len() >= 4");
             output_dir
                 .join(prefix1)
                 .join(prefix2)
@@ -327,6 +347,7 @@ pub fn write_chunks_to_directory_compressed(
             encoder.flush().context("Failed to flush brotli encoder")?;
         }
 
+        // Reason for fallback: compressed chunk data length u64 conversion overflow defaults size to 0
         let compressed_size = u64::try_from(compressed_data.len()).unwrap_or(0);
         chunk.compressed_size = Some(compressed_size);
 
@@ -359,8 +380,16 @@ pub fn read_chunk_from_directory(
 ) -> Result<Chunk> {
     let flat_path = directory.join(hash);
     let nested_path = if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         directory.join(prefix1).join(prefix2).join(hash)
     } else {
         flat_path.clone()
@@ -416,8 +445,16 @@ pub fn read_chunk_from_directory_compressed(
 ) -> Result<Chunk> {
     let flat_path = directory.join(format!("{hash}.br"));
     let nested_path = if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         directory
             .join(prefix1)
             .join(prefix2)
@@ -457,6 +494,7 @@ pub fn read_chunk_from_directory_compressed(
             .context("Chunk length exceeds u64 range")?,
         data,
         compressed_size: Some(
+            // Reason for fallback: compressed chunk data length u64 conversion overflow defaults size to 0
             u64::try_from(compressed_data.len()).unwrap_or(0),
         ),
     };
@@ -490,8 +528,16 @@ pub fn read_compressed_chunk_bytes(
 ) -> Result<Vec<u8>> {
     let flat_path = directory.join(format!("{hash}.br"));
     let nested_path = if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         directory
             .join(prefix1)
             .join(prefix2)

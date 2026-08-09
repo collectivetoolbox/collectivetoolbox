@@ -231,6 +231,7 @@ impl Workspace for CtbWorkspace {
 
         // Spawn background update checker
         if !self.args().no_update {
+            // Reason for fallback: unconfigured server URL setting uses default official server URL
             let server_url = pc_settings::get_str_setting(
                 pc_settings::PcSettingStrKey::ServerUrl,
             )
@@ -392,6 +393,7 @@ async fn handle_parent_message(
         ResolvedParentMessage::ShutdownRequest { reason } => {
             debug_fmt!(
                 "Workspace received shutdown request: {}",
+                // Reason for fallback: shutdown request without explicit reason message defaults to "no reason"
                 reason.unwrap_or_else(|| "no reason".into())
             );
         }

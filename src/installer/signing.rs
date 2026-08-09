@@ -127,8 +127,14 @@ impl KeyId {
         hasher.update(public_key.to_bytes());
         let hash = hasher.finalize();
 
-        let mut id = [0u8; KEY_ID_LENGTH];
-        id.copy_from_slice(hash.get(..KEY_ID_LENGTH).unwrap_or(&[]));
+        #[allow(
+            clippy::expect_used,
+            reason = "SHA-256 hash length is 32 bytes >= KEY_ID_LENGTH"
+        )]
+        id.copy_from_slice(
+            hash.get(..KEY_ID_LENGTH)
+                .expect("SHA-256 output is 32 bytes >= KEY_ID_LENGTH"),
+        );
         Self(id)
     }
 

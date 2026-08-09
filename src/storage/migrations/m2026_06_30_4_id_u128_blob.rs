@@ -31,9 +31,11 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     let mut updates = Vec::new();
     while let Some(row) = rows.next().await? {
         let old_id = match row.get_value(0)? {
+            // Reason for fallback: negative integer ID values during migration fallback to 0
             Value::Integer(v) => u128::try_from(v).unwrap_or(0),
             Value::Blob(b) => {
                 if b.len() == 16 {
+                    // Reason for fallback: slice conversion error during 16-byte blob conversion defaults to 0 u128
                     u128::from_be_bytes(b.try_into().unwrap_or([0; 16]))
                 } else {
                     0
@@ -42,9 +44,11 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
             _ => 0,
         };
         let old_graph_id = match row.get_value(1)? {
+            // Reason for fallback: negative integer ID values during migration fallback to 0
             Value::Integer(v) => u128::try_from(v).unwrap_or(0),
             Value::Blob(b) => {
                 if b.len() == 16 {
+                    // Reason for fallback: slice conversion error during 16-byte blob conversion defaults to 0 u128
                     u128::from_be_bytes(b.try_into().unwrap_or([0; 16]))
                 } else {
                     0

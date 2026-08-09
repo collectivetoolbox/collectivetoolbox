@@ -188,6 +188,7 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
     let trailing_non_zero_end = trailing_full
         .iter()
         .rposition(|byte| *byte != 0)
+        // Reason for fallback: empty trailing PAN byte slice returns offset 0
         .map_or(0, |idx| idx.saturating_add(1));
     let trailing_bytes = trailing_full
         .get(..trailing_non_zero_end)
@@ -546,6 +547,7 @@ fn parse_data_record_with_fallback(
     let preview = payload
         .get(cursor..preview_end)
         .map(hex_string)
+        // Reason for fallback: cursor slice read error defaults raw byte preview string to empty
         .unwrap_or_default();
     bail!(
         "DATA record decode failed at cursor {cursor:#x}; bytes={preview}; candidates={}",
@@ -1721,6 +1723,7 @@ fn parse_section_at_within_range(
         }
     }
 
+    // Reason for fallback: section header parse failure falls back to default size encoding error description
     let reason = parse_error.unwrap_or_else(|| {
         "section header did not match a supported size encoding".to_string()
     });
@@ -2027,6 +2030,7 @@ fn build_schema_from_names_section(
             output_pattern: output_patterns
                 .get(field_index)
                 .cloned()
+                // Reason for fallback: missing output pattern for schema field index defaults to None
                 .unwrap_or(None),
         })
         .collect::<Vec<_>>();

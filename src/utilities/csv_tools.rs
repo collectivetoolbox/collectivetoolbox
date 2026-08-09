@@ -48,6 +48,7 @@ impl CsvTable {
 
     /// Return the maximum number of columns across all rows.
     pub fn max_column_count(&self) -> usize {
+        // Reason for fallback: empty dataset contains 0 columns
         self.rows.iter().map(std::vec::Vec::len).max().unwrap_or(0)
     }
 

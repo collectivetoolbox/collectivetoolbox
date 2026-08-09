@@ -80,6 +80,7 @@ impl QuotaSet {
         let Some(rate) = self.bytes_per_sec else {
             return None;
         };
+        // Reason for fallback: unconfigured burst capacity defaults to 1-second burst at target rate per docblock
         Some(self.burst.unwrap_or(rate))
     }
 
@@ -91,6 +92,7 @@ impl QuotaSet {
         let Some(rate) = self.ops_per_sec else {
             return None;
         };
+        // Reason for fallback: unconfigured burst capacity defaults to 1-second burst at target rate per docblock
         Some(self.burst.unwrap_or(rate))
     }
 }

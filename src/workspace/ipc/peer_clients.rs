@@ -120,6 +120,7 @@ pub(crate) async fn request_spawn_child(
     if !result.accepted {
         anyhow::bail!(
             "spawn request rejected: {}",
+            // Reason for fallback: spawn rejection without explicit message defaults to "no reason"
             result.error.unwrap_or_else(|| "no reason".into())
         );
     }
@@ -258,6 +259,7 @@ impl PeerProxiedClient {
             .await?;
 
         if !proxied.ok {
+            // Reason for fallback: proxied IPC call failure without error message defaults to "unknown error"
             let msg = proxied
                 .error
                 .map_or_else(|| "unknown error".to_string(), |e| e.message);
@@ -320,6 +322,7 @@ fn proxied_result_bytes(
     context: &str,
 ) -> Result<Vec<u8>> {
     if !proxied.ok {
+        // Reason for fallback: proxied response failure without error message defaults to "unknown error"
         let msg = proxied
             .error
             .as_ref()

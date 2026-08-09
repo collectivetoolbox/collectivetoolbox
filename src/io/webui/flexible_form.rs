@@ -44,6 +44,7 @@ where
             .headers()
             .get(axum::http::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
+            // Reason for fallback: request missing Content-Type header defaults to empty content type string
             .unwrap_or("");
 
         match content_type {

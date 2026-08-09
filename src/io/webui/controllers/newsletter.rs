@@ -184,6 +184,7 @@ fn newsletters_feed(
 }
 
 fn server_url() -> String {
+    // Reason for fallback: unconfigured server URL setting defaults to default_url constant
     pc_settings::get_str_setting(PcSettingStrKey::ServerUrl)
         .unwrap_or_else(default_url)
 }

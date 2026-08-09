@@ -103,12 +103,14 @@ pub fn parse_fields(fields_str: &str) -> Vec<ElfField> {
         .split_whitespace()
         .map(|token| {
             if token.starts_with("cs(") && token.ends_with(')') {
+                // Reason for fallback: invalid header format token length slice defaults to empty header name
                 let header = token
                     .get(3..token.len().saturating_sub(1))
                     .unwrap_or("")
                     .to_string();
                 ElfField::RequestHeader(header)
             } else if token.starts_with("sc(") && token.ends_with(')') {
+                // Reason for fallback: invalid header format token length slice defaults to empty header name
                 let header = token
                     .get(3..token.len().saturating_sub(1))
                     .unwrap_or("")
@@ -237,6 +239,7 @@ where
         let start_time_utc: DateTime<Utc> = Utc::now();
 
         let method = req.method().clone();
+        // Reason for fallback: URI without PathAndQuery component falls back to raw path string
         let uri_path = req
             .uri()
             .path_and_query()
@@ -254,6 +257,7 @@ where
         } else {
             &req.extensions()
                 .get::<ConnectInfo<SocketAddr>>()
+                // Reason for fallback: request missing socket address extension displays "-" in access log
                 .map_or_else(|| "-".into(), |c| c.0.ip().to_string())
         };
 
@@ -392,6 +396,7 @@ where
                     path_and_query: state.path_and_query.clone(),
                     protocol: http_version_str(state.version).to_string(),
                     status: status.as_u16(),
+                    // Reason for fallback: response missing content-length header defaults initial byte count to 0
                     bytes: AtomicUsize::new(content_length_guess.unwrap_or(0)),
                     logged: AtomicBool::new(false),
                     mode: state.mode.clone(),
@@ -589,12 +594,14 @@ impl SharedLog {
                     .path_and_query
                     .split('?')
                     .next()
+                    // Reason for fallback: path string without query component defaults URI stem to empty string
                     .unwrap_or("")
                     .to_string(),
                 ElfField::UriQuery => {
                     if let Some(pos) = self.path_and_query.find('?') {
                         self.path_and_query
                             .get(pos.saturating_add(1)..)
+                            // Reason for fallback: query parameter slice bound fallback defaults query string to empty
                             .unwrap_or("")
                             .to_string()
                     } else {
@@ -603,6 +610,7 @@ impl SharedLog {
                 }
                 ElfField::Version => self.protocol.clone(),
                 ElfField::Status => self.status.to_string(),
+                // Reason for fallback: missing request header field displays "-" in W3C ELF log
                 ElfField::RequestHeader(name) => self
                     .req_headers
                     .iter()
@@ -611,6 +619,7 @@ impl SharedLog {
                         || "-".to_string(),
                         |(_, v)| format_elf_string(v),
                     ),
+                // Reason for fallback: missing response header field displays "-" in W3C ELF log
                 ElfField::ResponseHeader(name) => self
                     .resp_headers
                     .iter()

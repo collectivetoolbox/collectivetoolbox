@@ -32,6 +32,7 @@ fn pascal_to_snake_case(s: &str) -> String {
 
 fn trait_base_name(trait_ident: &Ident) -> String {
     let name = trait_ident.to_string();
+    // Reason for fallback: trait identifier without "ClientTrait" suffix retains original name string
     name.strip_suffix("ClientTrait")
         .unwrap_or(name.as_str())
         .to_string()
@@ -260,6 +261,7 @@ pub fn ipc_client_trait_impl(
             let transport = arg_transport
                 .get(idx)
                 .copied()
+                // Reason for fallback: unannotated IPC parameter defaults to inline serialization transport
                 .unwrap_or(IpcParamTransport::Inline);
 
             if matches!(transport, IpcParamTransport::DataPlane) {

@@ -605,6 +605,7 @@ pub fn ensure_pc_settings() -> Result<()> {
 }
 
 pub fn get_settings() -> PcSettings {
+    // Reason for fallback: missing or unreadable settings configuration file defaults to initial empty settings struct
     PcSettings::load().unwrap_or_default()
 }
 

@@ -50,6 +50,7 @@ pub fn unique_endpoint(label: &str) -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
+        // Reason for fallback: system clock before UNIX epoch defaults to 0 nanoseconds for endpoint uniqueness
         .unwrap_or(0);
 
     #[cfg(unix)]
@@ -460,6 +461,7 @@ impl LocalSocketFramedConnection {
                     let data_len = cmsg_len.saturating_sub(header_len);
                     let fd_size = mem::size_of::<RawFd>();
                     if fd_size > 0 {
+                        // Reason for fallback: invalid ancillary data length division returns 0 file descriptors
                         let count = data_len.checked_div(fd_size).unwrap_or(0);
                         for idx in 0..count {
                             let byte_off =

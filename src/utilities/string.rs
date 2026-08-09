@@ -25,6 +25,7 @@ pub fn remove_line(s: &str, idx_to_remove: usize) -> String {
 ///
 /// Returns the original string slice if the suffix is not found.
 pub fn remove_suffix_unchecked<'a>(string: &'a str, suffix: &str) -> &'a str {
+    // Reason for fallback: per docblock
     string.strip_suffix(suffix).unwrap_or(string)
 }
 
@@ -75,6 +76,16 @@ pub fn strip_ansi_codes(s: &str) -> String {
                 .expect("Valid ANSI regex pattern")
         });
     ANSI_RE.replace_all(s, "").into_owned()
+}
+
+/// Checks if `haystack` contains `needle`, ignoring ASCII case.
+pub fn contains_ignore_ascii_case(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    haystack
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle))
 }
 
 /// Checks if the given string matches a pattern containing a custom wildcard
@@ -237,8 +248,13 @@ fn split_escaped_internal(
                 break;
             }
             // Replace trailing '\' with separator
-            let sub =
-                segment.get(..segment.len().saturating_sub(1)).unwrap_or("");
+            #[allow(
+                clippy::expect_used,
+                reason = "segment ends with ASCII backslash '\\' so segment.len() - 1 is an infallible UTF-8 character boundary"
+            )]
+            let sub = segment
+                .get(..segment.len().saturating_sub(1))
+                .expect("segment ends with ASCII backslash '\\' so segment.len() - 1 is in bounds");
             let mut prefix = sub.to_string();
             prefix.push_str(separator);
             // Append next segment
@@ -430,6 +446,16 @@ mod tests {
             "anything",
             "[WILDCARD]"
         ));
+    }
+
+    #[crate::ctb_test]
+    fn test_contains_ignore_ascii_case() {
+        assert!(contains_ignore_ascii_case(b"gzip, deflate", b"GZIP"));
+        assert!(contains_ignore_ascii_case(b"gzip, deflate", b"DEFLATE"));
+        assert!(contains_ignore_ascii_case(b"gzip, deflate", b"gzip"));
+        assert!(contains_ignore_ascii_case(b"hello world", b""));
+        assert!(!contains_ignore_ascii_case(b"gzip, deflate", b"brotli"));
+        assert!(!contains_ignore_ascii_case(b"short", b"very long needle"));
     }
 }
 

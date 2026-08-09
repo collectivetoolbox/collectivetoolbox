@@ -11,6 +11,7 @@ pub const UP_SQL: Option<&str> = Some("ALTER TABLE nodes ADD COLUMN timestamp BL
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
+        // Reason for fallback: system clock time prior to UNIX epoch defaults duration to 0 duration
         .unwrap_or_default()
         .as_micros();
     let now_blob = now.to_be_bytes().to_vec();

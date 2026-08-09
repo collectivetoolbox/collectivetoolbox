@@ -23,6 +23,7 @@ fn log_panic(info: &std::panic::PanicHookInfo, backtrace: Backtrace) {
     error!(format!("Paniced, trying to get backtrace...",));
 
     let thread = std::thread::current();
+    // Reason for fallback: thread spawned without explicit name string defaults to "<unnamed>" label in panic log
     let thread = thread.name().unwrap_or("<unnamed>");
 
     let msg = match info.payload().downcast_ref::<&'static str>() {

@@ -34,6 +34,7 @@ pub async fn get_index(
     let user_agent = headers
         .get(axum::http::header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
+        // Reason for fallback: User-Agent header missing defaults string to empty string
         .unwrap_or("");
 
     let os = ctb_formats_useragent::detect_os(user_agent);
@@ -76,9 +77,11 @@ pub async fn get_index(
         }
     }
 
+    // Reason for fallback: release public key setting unconfigured defaults to empty string
     let release_public_key =
         get_str_setting(PcSettingStrKey::ReleasePublicKey).unwrap_or_default();
     let server_url = get_str_setting(PcSettingStrKey::ServerUrl)
+        // Reason for fallback: server URL setting unconfigured defaults to DEFAULT_SERVER_URL constant
         .unwrap_or_else(|| {
             crate::utilities::pc_settings::DEFAULT_SERVER_URL.to_string()
         });
@@ -161,6 +164,7 @@ pub async fn subscribe_account(
     let user_id = u.local_id();
     let username = u.name();
 
+    // Reason for fallback: system clock time prior to UNIX epoch defaults timestamp to 0 seconds
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -170,6 +174,7 @@ pub async fn subscribe_account(
         .get_user_by_id_b(user_id)
         .ok()
         .flatten()
+        // Reason for fallback: user DTO lookup failure constructs fallback UserDto struct with empty defaults
         .unwrap_or_else(|| UserDto {
             id: user_id,
             username: username.clone(),
@@ -184,11 +189,14 @@ pub async fn subscribe_account(
             token_quota: None,
             remote_status: None,
         });
+    // Reason for fallback: user DTO missing subscription_expiry defaults expiry to 0 timestamp
     let expiry = dto.subscription_expiry.unwrap_or(0);
+    // Reason for fallback: user DTO missing token_quota defaults quota to 0
     let quota = dto.token_quota.unwrap_or(0);
     let is_subscribed = expiry > now;
 
     let expiry_formatted = if is_subscribed {
+        // Reason for fallback: subscription expiry timestamp i64 conversion overflow defaults to 0 timestamp
         chrono::DateTime::from_timestamp(i64::try_from(expiry).unwrap_or(0), 0)
             .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
     } else {
@@ -229,6 +237,7 @@ pub async fn post_subscribe_account(
     let u = user.user.lock().await;
     let user_id = u.local_id();
 
+    // Reason for fallback: system clock time prior to UNIX epoch defaults timestamp to 0 seconds
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()

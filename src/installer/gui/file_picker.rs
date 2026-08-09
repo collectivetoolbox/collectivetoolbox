@@ -84,6 +84,7 @@ impl DirEntry {
         let name = path.file_name()?.to_string_lossy().to_string();
         let metadata = path.metadata().ok();
         let is_dir = metadata.as_ref().is_some_and(std::fs::Metadata::is_dir);
+        // Reason for fallback: file metadata read error defaults entry size to 0 bytes
         let size = metadata.as_ref().map_or(0, std::fs::Metadata::len);
 
         #[cfg(unix)]
@@ -257,12 +258,14 @@ impl FilePicker {
     #[must_use]
     pub fn new(gui_state: &GuiState) -> Self {
         let sidebar_locations = get_sidebar_locations();
+        // Reason for fallback: home directory resolution failure falls back to root directory "/"
         let initial_path =
             dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
 
         let sidebar_focus_index = sidebar_locations
             .iter()
             .position(|l| l.path == initial_path)
+            // Reason for fallback: initial path not found in sidebar locations defaults focus index to 0
             .unwrap_or(0);
 
         let mut picker = Self {
@@ -361,6 +364,7 @@ impl FilePicker {
             .sidebar_locations
             .iter()
             .position(|l| self.current_path().is_some_and(|p| *p == l.path))
+            // Reason for fallback: current path not found in sidebar locations retains existing sidebar focus index
             .unwrap_or(self.sidebar_focus_index);
 
         self.active_column_idx = self.columns.len().saturating_sub(1);
@@ -499,6 +503,7 @@ impl FilePicker {
         self.columns
             .get(col_idx)
             .map(|col| col.entries.as_slice())
+            // Reason for fallback: out of bounds column index defaults entry slice to empty
             .unwrap_or(&[])
             .iter()
             .enumerate()
@@ -549,6 +554,7 @@ impl FilePicker {
             (Some(pos), _) => pos,
         };
 
+        // Reason for fallback: target position out of bounds in selectable list defaults entry index to 0
         let target_idx = selectable.get(target_pos).copied().unwrap_or(0);
         self.handle_entry_click(col_idx, target_idx);
         self.active_column_idx =
@@ -1312,6 +1318,7 @@ impl FilePicker {
                 ui.set_max_height(height);
 
                 // Column header (directory name)
+                // Reason for fallback: path without file_name component formats header using full path display string
                 let dir_name = path.file_name().map_or_else(
                     || path.display().to_string(),
                     |n| n.to_string_lossy().to_string(),

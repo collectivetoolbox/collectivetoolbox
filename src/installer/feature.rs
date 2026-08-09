@@ -201,6 +201,7 @@ pub fn features_from_manifest(
             .entry(file.feature_id.clone())
             .or_insert_with(|| FeatureBuilder {
                 id: file.feature_id.clone(),
+                // Reason for fallback: localized feature display name missing in requested language defaults display name to feature ID
                 name: file
                     .get_feature_name(lang_code)
                     .unwrap_or(&file.feature_id)

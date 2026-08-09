@@ -321,6 +321,7 @@ impl<W: Workspace> WorkspaceRunner<W> {
         let process_service =
             Arc::new(ShutdownChannelProcessService::new(shutdown_tx));
 
+        // Reason for fallback: unconfigured IPC router builder defaults to empty router configuration
         let router = router
             .unwrap_or_default()
             .with_parent_messenger(parent_messenger)

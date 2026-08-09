@@ -147,7 +147,9 @@ impl Default for AppState {
     fn default() -> Self {
         Self {
             config: InstallConfig::new(
+                // Reason for fallback: system default directory resolution failure falls back to standard system paths /opt/ctoolbox and /var/lib/ctoolbox
                 default_user_install_dir().unwrap_or_else(|_| PathBuf::from("/opt/ctoolbox")),
+                // Reason for fallback: system default directory resolution failure falls back to standard system paths /opt/ctoolbox and /var/lib/ctoolbox
                 default_storage_dir().unwrap_or_else(|_| PathBuf::from("/var/lib/ctoolbox")),
             ),
             features: placeholder_feature_tree(),
@@ -269,6 +271,7 @@ impl InstallerApp {
             .map(|v| {
                 !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false")
             })
+            // Reason for fallback: missing environment variable CTB_INSTALLER_SIMULATE_LAG evaluates lag simulation as disabled
             .unwrap_or(false)
         {
             let start = Instant::now();
@@ -504,6 +507,7 @@ impl InstallerApp {
 
                     // Language dropdown
                     ui.label(t(msg::LANGUAGE));
+                    // Reason for fallback: empty supported languages array falls back to English (US) display name
                     let fallback_language = SUPPORTED_LANGUAGES
                         .first()
                         .map_or("English (US)", Locale::display_name);
@@ -516,6 +520,7 @@ impl InstallerApp {
                                         &self.state.config.language,
                                     )
                                 })
+                                // Reason for fallback: unrecognized locale code in config falls back to primary fallback language name
                                 .map_or(
                                     fallback_language,
                                     Locale::display_name,
@@ -558,6 +563,7 @@ impl InstallerApp {
                 // Expanding spacer to push buttons to the right
                 let spacer_id = egui::Id::new("intro_buttons_spacer");
                 let init_max_width = ui.max_rect().width();
+                // Reason for fallback: uninitialized egui temp data for spacer width falls back to container max width
                 let last_others_width = ui.data(|d| d.get_temp(spacer_id).unwrap_or(init_max_width));
                 let spacer_target_width = init_max_width - last_others_width;
                 ui.allocate_space(egui::Vec2::new(spacer_target_width, 0.0));
@@ -821,6 +827,7 @@ impl InstallerApp {
         mut node: Feature,
         depth: usize,
     ) -> Feature {
+        // Reason for fallback: feature tree depth usize to u16 conversion overflow saturates to u16::MAX
         let depth_u16 = u16::try_from(depth).unwrap_or(u16::MAX);
         let indent = f32::from(depth_u16) * 20.0;
 

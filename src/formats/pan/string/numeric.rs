@@ -633,7 +633,7 @@ fn format_number_in_base(radix: RadixSpec, n: i128) -> Result<String> {
             .context("remainder by base failed")?)
             .try_into()
             .context("remainder out of range")?;
-        digits.push(digit_char(rem));
+        digits.push(digit_char(rem)?);
         value = value
             .checked_div(base_i128)
             .context("division by base failed")?;
@@ -677,18 +677,22 @@ fn format_bytes_in_base(radix: RadixSpec, bytes: &[u8]) -> Result<String> {
     }
 }
 
-fn digit_char(d: u8) -> char {
+fn digit_char(d: u8) -> Result<char> {
     match d {
         0..=9 => {
-            let s = d.to_string();
-            s.chars().next().unwrap_or('0')
+            let ch_code = u32::from(b'0').saturating_add(u32::from(d));
+            std::char::from_u32(ch_code).ok_or_else(|| {
+                anyhow::anyhow!("Invalid ASCII digit codepoint {ch_code}")
+            })
         }
         10..=35 => {
             let idx = u32::from(d.saturating_sub(10));
-            std::char::from_u32(u32::from('A').saturating_add(idx))
-                .unwrap_or('A')
+            let ch_code = u32::from(b'A').saturating_add(idx);
+            std::char::from_u32(ch_code).ok_or_else(|| {
+                anyhow::anyhow!("Invalid ASCII letter codepoint {ch_code}")
+            })
         }
-        _ => '0',
+        _ => bail!("Digit value {d} is outside supported base range 0..35"),
     }
 }
 

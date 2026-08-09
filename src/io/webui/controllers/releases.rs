@@ -246,8 +246,16 @@ fn assemble_release_file_bytes(
 /// Format: `{chunks_dir}/{first-2-chars}/{next-2-chars}/{full-hash}.br`
 fn compressed_chunk_file_path(chunks_dir: &StdPath, hash: &str) -> PathBuf {
     if hash.len() >= 4 {
-        let prefix1 = hash.get(0..2).unwrap_or("");
-        let prefix2 = hash.get(2..4).unwrap_or("");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
+        #[allow(
+            clippy::expect_used,
+            reason = "hash.len() >= 4 checked in if condition"
+        )]
+        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         chunks_dir
             .join(prefix1)
             .join(prefix2)
@@ -465,6 +473,7 @@ pub async fn get_chunk_json(
     let response = ChunkResponse {
         hash: hash.to_string(),
         data: data_b64,
+        // Reason for fallback: data buffer length u64 conversion overflow defaults length to 0
         length: u64::try_from(data.len()).unwrap_or(0),
     };
 
@@ -947,6 +956,7 @@ async fn serve_json_file(
             req,
             format!(
                 "Manifest '{}' not found",
+                // Reason for fallback: file path without file_name component formats name as "unknown"
                 path.file_name().map_or_else(
                     || "unknown".to_string(),
                     |s| s.to_string_lossy().into_owned()
@@ -984,6 +994,7 @@ async fn serve_sig_file(
             req,
             format!(
                 "Signature '{}' not found",
+                // Reason for fallback: file path without file_name component formats name as "unknown"
                 path.file_name().map_or_else(
                     || "unknown".to_string(),
                     |s| s.to_string_lossy().into_owned()
@@ -1249,6 +1260,7 @@ pub async fn calculate_download_sizes(
         sizes
     })
     .await
+    // Reason for fallback: tokio spawn_blocking join error defaults sizes map to empty HashMap
     .unwrap_or_default()
 }
 

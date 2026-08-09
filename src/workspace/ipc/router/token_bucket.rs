@@ -52,6 +52,7 @@ impl TokenBucket {
     pub(super) fn try_take(&mut self, amount: u64, now: Instant) -> bool {
         let elapsed = now.duration_since(self.last_refill);
         let elapsed_ns = elapsed.as_nanos();
+        // Reason for fallback: token refill division calculation overflow adds 0 tokens to bucket capacity
         let added_tokens = elapsed_ns
             .saturating_mul(u128::from(self.rate_bytes_per_sec))
             .checked_div(1_000_000_000)

@@ -468,6 +468,7 @@ impl ChildIpcContext for PeerChildIpcContext {
             .map_err(|e| anyhow::anyhow!("IPC call_raw failed: {e}"))?;
 
         crate::ensure_response_ok(&resp, "IPC call_raw")?;
+        // Reason for fallback: successful IPC response with null result defaults to serde_json::Value::Null
         Ok(resp.result.unwrap_or_default())
     }
 }
