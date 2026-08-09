@@ -580,7 +580,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_manifest_filesizes() {
+    fn test_manifest_filesizes() -> Result<()> {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
@@ -626,5 +626,6 @@ mod tests {
             manifest.estimate_gzipped_file_size("bin/ctoolbox")?,
             5_860_000
         );
+        Ok(())
     }
 }
