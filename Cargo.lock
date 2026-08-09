@@ -3342,6 +3342,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-unwrap-or-lint"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "ctb-utilities"
 version = "0.0.0"
 dependencies = [
@@ -3580,6 +3587,7 @@ dependencies = [
  "ctb-storage-asset-bundle-locator",
  "ctb-storage-minimal",
  "ctb-test-macro",
+ "ctb-unwrap-or-lint",
  "ctb-utilities",
  "ctb-v86-posix-init",
  "ctb-workspace",

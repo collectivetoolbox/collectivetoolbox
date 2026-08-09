@@ -1,0 +1,10 @@
+[package]
+name = "ctb-unwrap-or-lint"
+edition = "2024"
+
+[[bin]]
+name = "lint-unwrap-or-bin"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.100"
