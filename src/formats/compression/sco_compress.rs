@@ -189,17 +189,30 @@ fn make_table(
         *s = 0;
     }
     for i in 1..=16 {
-        let count_i = u32::from(count.get(i).copied().unwrap_or(0));
+        let count_i = u32::from(
+            *count
+                .get(i)
+                .ok_or_else(|| anyhow::anyhow!("count index {i} out of bounds"))?,
+        );
         let shift = 16u32.saturating_sub(u32::try_from(i)?);
-        let prev_start = u32::from(start.get(i).copied().unwrap_or(0));
+        let prev_start = u32::from(
+            *start
+                .get(i)
+                .ok_or_else(|| anyhow::anyhow!("start index {i} out of bounds"))?,
+        );
         let next_start = prev_start.wrapping_add(count_i << shift);
         let next_i = i.saturating_add(1);
         if let Some(s) = start.get_mut(next_i) {
-            *s = u16::try_from(next_start & 0xFFFF).unwrap_or(0);
+            let s_val = u16::try_from(next_start & 0xFFFF)
+                .context("next_start low 16 bits fit in u16")?;
+            *s = s_val;
         }
     }
 
-    if (u32::from(start.get(17).copied().unwrap_or(0)) & 0xFFFF) != 0 {
+    let start_17 = *start
+        .get(17)
+        .ok_or_else(|| anyhow::anyhow!("start index 17 out of bounds"))?;
+    if (u32::from(start_17) & 0xFFFF) != 0 {
         bail!("Bad table: sum of code weights invalid");
     }
 
@@ -224,8 +237,12 @@ fn make_table(
     }
 
     let next_tablebits = tablebits.saturating_add(1);
-    let start_tbl =
-        usize::from(start.get(next_tablebits).copied().unwrap_or(0) >> jutbits);
+    let start_tbl = usize::from(
+        *start
+            .get(next_tablebits)
+            .ok_or_else(|| anyhow::anyhow!("start index {next_tablebits} out of bounds"))?
+            >> jutbits,
+    );
     if start_tbl != 0 {
         let k = 1usize << tablebits;
         let mut idx = start_tbl;
@@ -242,13 +259,21 @@ fn make_table(
     let mask = 1u16 << mask_shift;
 
     for ch in 0..nchar {
-        let len = usize::from(bitlen.get(ch).copied().unwrap_or(0));
+        let len = usize::from(
+            *bitlen
+                .get(ch)
+                .ok_or_else(|| anyhow::anyhow!("bitlen index {ch} out of bounds"))?,
+        );
         if len == 0 {
             continue;
         }
         let ch_u16 = u16::try_from(ch)?;
-        let curr_start = start.get(len).copied().unwrap_or(0);
-        let curr_weight = weight.get(len).copied().unwrap_or(0);
+        let curr_start = *start
+            .get(len)
+            .ok_or_else(|| anyhow::anyhow!("start index {len} out of bounds"))?;
+        let curr_weight = *weight
+            .get(len)
+            .ok_or_else(|| anyhow::anyhow!("weight index {len} out of bounds"))?;
         let nextcode = curr_start.wrapping_add(curr_weight);
 
         if len <= tablebits {
@@ -268,13 +293,15 @@ fn make_table(
 
             while tree_depth != 0 {
                 let curr_val = match loc {
-                    TableLoc::Table(idx) => {
-                        table.get(idx).copied().unwrap_or(0)
-                    }
-                    TableLoc::Left(idx) => left.get(idx).copied().unwrap_or(0),
-                    TableLoc::Right(idx) => {
-                        right.get(idx).copied().unwrap_or(0)
-                    }
+                    TableLoc::Table(idx) => *table
+                        .get(idx)
+                        .ok_or_else(|| anyhow::anyhow!("table index {idx} out of bounds"))?,
+                    TableLoc::Left(idx) => *left
+                        .get(idx)
+                        .ok_or_else(|| anyhow::anyhow!("left tree index {idx} out of bounds"))?,
+                    TableLoc::Right(idx) => *right
+                        .get(idx)
+                        .ok_or_else(|| anyhow::anyhow!("right tree index {idx} out of bounds"))?,
                 };
 
                 let node_val = if curr_val == 0 {
@@ -435,20 +462,35 @@ fn read_c_len<R: Read>(
         let mut i = 0usize;
         while i < n {
             let peek_idx = br.peekbits8();
-            let mut c =
-                usize::from(pt_table.get(peek_idx).copied().unwrap_or(0));
+            let mut c = usize::from(
+                *pt_table
+                    .get(peek_idx)
+                    .ok_or_else(|| anyhow::anyhow!("pt_table index {peek_idx} out of bounds"))?,
+            );
             if c >= NT {
                 let mut mask = 0x80u16;
                 while c >= NT {
                     if (br.bitbuf & mask) != 0 {
-                        c = usize::from(right.get(c).copied().unwrap_or(0));
+                        c = usize::from(
+                            *right
+                                .get(c)
+                                .ok_or_else(|| anyhow::anyhow!("right tree index {c} out of bounds"))?,
+                        );
                     } else {
-                        c = usize::from(left.get(c).copied().unwrap_or(0));
+                        c = usize::from(
+                            *left
+                                .get(c)
+                                .ok_or_else(|| anyhow::anyhow!("left tree index {c} out of bounds"))?,
+                        );
                     }
                     mask >>= 1;
                 }
             }
-            let pt_bits = u32::from(pt_len.get(c).copied().unwrap_or(0));
+            let pt_bits = u32::from(
+                *pt_len
+                    .get(c)
+                    .ok_or_else(|| anyhow::anyhow!("pt_len index {c} out of bounds"))?,
+            );
             br.dropbits(pt_bits)?;
 
             if c <= 2 {
@@ -524,19 +566,35 @@ fn decode_c<R: Read>(
     *blocksize = blocksize.saturating_sub(1);
 
     let peek_idx = br.peekbits12();
-    let mut j = usize::from(c_table.get(peek_idx).copied().unwrap_or(0));
+    let mut j = usize::from(
+        *c_table
+            .get(peek_idx)
+            .ok_or_else(|| anyhow::anyhow!("c_table index {peek_idx} out of bounds"))?,
+    );
     if j >= NC {
         let mut mask = 0x8u16;
         while j >= NC {
             if (br.bitbuf & mask) != 0 {
-                j = usize::from(right.get(j).copied().unwrap_or(0));
+                j = usize::from(
+                    *right
+                        .get(j)
+                        .ok_or_else(|| anyhow::anyhow!("right tree index {j} out of bounds"))?,
+                );
             } else {
-                j = usize::from(left.get(j).copied().unwrap_or(0));
+                j = usize::from(
+                    *left
+                        .get(j)
+                        .ok_or_else(|| anyhow::anyhow!("left tree index {j} out of bounds"))?,
+                );
             }
             mask >>= 1;
         }
     }
-    let bits = u32::from(c_len.get(j).copied().unwrap_or(0));
+    let bits = u32::from(
+        *c_len
+            .get(j)
+            .ok_or_else(|| anyhow::anyhow!("c_len index {j} out of bounds"))?,
+    );
     br.dropbits(bits)?;
     Ok(j)
 }
@@ -549,19 +607,35 @@ fn decode_p<R: Read>(
     right: &[u16],
 ) -> Result<usize> {
     let peek_idx = br.peekbits8();
-    let mut j = usize::from(pt_table.get(peek_idx).copied().unwrap_or(0));
+    let mut j = usize::from(
+        *pt_table
+            .get(peek_idx)
+            .ok_or_else(|| anyhow::anyhow!("pt_table index {peek_idx} out of bounds"))?,
+    );
     if j >= NP {
         let mut mask = 0x80u16;
         while j >= NP {
             if (br.bitbuf & mask) != 0 {
-                j = usize::from(right.get(j).copied().unwrap_or(0));
+                j = usize::from(
+                    *right
+                        .get(j)
+                        .ok_or_else(|| anyhow::anyhow!("right tree index {j} out of bounds"))?,
+                );
             } else {
-                j = usize::from(left.get(j).copied().unwrap_or(0));
+                j = usize::from(
+                    *left
+                        .get(j)
+                        .ok_or_else(|| anyhow::anyhow!("left tree index {j} out of bounds"))?,
+                );
             }
             mask >>= 1;
         }
     }
-    let bits = u32::from(pt_len.get(j).copied().unwrap_or(0));
+    let bits = u32::from(
+        *pt_len
+            .get(j)
+            .ok_or_else(|| anyhow::anyhow!("pt_len index {j} out of bounds"))?,
+    );
     br.dropbits(bits)?;
 
     if j != 0 {
@@ -634,7 +708,9 @@ pub fn decompress_stream(
                 & (DICSIZ.saturating_sub(1));
 
             for _ in 0..match_len {
-                let byte = window.get(src_idx).copied().unwrap_or(0);
+                let byte = *window
+                    .get(src_idx)
+                    .ok_or_else(|| anyhow::anyhow!("window index {src_idx} out of bounds"))?;
                 writer.write_all(&[byte])?;
                 if let Some(w_byte) = window.get_mut(r) {
                     *w_byte = byte;
@@ -780,7 +856,7 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) {
     }
 }
 
-fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) {
+fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) -> Result<()> {
     for code in codes.iter_mut() {
         *code = 0;
     }
@@ -800,13 +876,23 @@ fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) {
         *s = 0;
     }
     for i in 1..=16 {
-        let count_i = u32::from(count.get(i).copied().unwrap_or(0));
-        let shift = 16u32.saturating_sub(u32::try_from(i).unwrap_or(0));
-        let prev_start = u32::from(start.get(i).copied().unwrap_or(0));
+        let count_i = u32::from(
+            *count
+                .get(i)
+                .ok_or_else(|| anyhow::anyhow!("count index {i} out of bounds"))?,
+        );
+        let shift = 16u32.saturating_sub(u32::try_from(i)?);
+        let prev_start = u32::from(
+            *start
+                .get(i)
+                .ok_or_else(|| anyhow::anyhow!("start index {i} out of bounds"))?,
+        );
         let next_start = prev_start.wrapping_add(count_i << shift);
         let next_i = i.saturating_add(1);
         if let Some(s) = start.get_mut(next_i) {
-            *s = u16::try_from(next_start & 0xFFFF).unwrap_or(0);
+            let s_val = u16::try_from(next_start & 0xFFFF)
+                .context("next_start low 16 bits fit in u16")?;
+            *s = s_val;
         }
     }
 
@@ -815,7 +901,9 @@ fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) {
         if l == 0 {
             continue;
         }
-        let curr_start = start.get(l).copied().unwrap_or(0);
+        let curr_start = *start
+            .get(l)
+            .ok_or_else(|| anyhow::anyhow!("start index {l} out of bounds"))?;
         let code_shift = 16usize.saturating_sub(l);
         let code = curr_start >> code_shift;
         if let Some(c) = codes.get_mut(ch) {
@@ -826,6 +914,7 @@ fn build_canonical_codes(bitlen: &[u8], codes: &mut [u16]) {
             *s = s.wrapping_add(1u16 << add_shift);
         }
     }
+    Ok(())
 }
 
 fn write_pt_len<W: Write>(
@@ -852,8 +941,11 @@ fn write_pt_len<W: Write>(
     }
 
     if count_non_zero == 1 {
-        let single_sym =
-            pt_len.iter().take(nn).position(|&l| l > 0).unwrap_or(0);
+        let single_sym = pt_len
+            .iter()
+            .take(nn)
+            .position(|&l| l > 0)
+            .ok_or_else(|| anyhow::anyhow!("count_non_zero == 1 guarantees non-zero symbol exists"))?;
         bw.putbits(nbit, 0)?;
         bw.putbits(nbit, u32::try_from(single_sym)?)?;
         if let Some(l) = pt_len.get_mut(single_sym) {
@@ -866,7 +958,9 @@ fn write_pt_len<W: Write>(
 
     let mut i = 0usize;
     while i < max_non_zero {
-        let c = pt_len.get(i).copied().unwrap_or(0);
+        let c = *pt_len
+            .get(i)
+            .ok_or_else(|| anyhow::anyhow!("pt_len index {i} out of bounds"))?;
         if c < 7 {
             bw.putbits(3, u32::from(c))?;
         } else {
@@ -961,7 +1055,9 @@ fn compress_block<W: Write>(
     }
 
     while i < max_c_idx {
-        let l = c_len.get(i).copied().unwrap_or(0);
+        let l = *c_len
+            .get(i)
+            .ok_or_else(|| anyhow::anyhow!("c_len index {i} out of bounds"))?;
         if l == 0 {
             let mut run = 0u32;
             while i < max_c_idx && c_len.get(i).copied() == Some(0) {
@@ -1009,13 +1105,13 @@ fn compress_block<W: Write>(
     build_huffman_lengths(&pt_freqs, 7, &mut pt_len);
 
     let mut pt_codes = vec![0u16; NT];
-    build_canonical_codes(&pt_len, &mut pt_codes);
+    build_canonical_codes(&pt_len, &mut pt_codes)?;
 
     let mut c_codes = vec![0u16; NC];
-    build_canonical_codes(&c_len, &mut c_codes);
+    build_canonical_codes(&c_len, &mut c_codes)?;
 
     let mut p_codes = vec![0u16; NP];
-    build_canonical_codes(&p_len, &mut p_codes);
+    build_canonical_codes(&p_len, &mut p_codes)?;
 
     // 1. Write blocksize
     bw.putbits(16, u32::from(blocksize))?;
@@ -1034,21 +1130,43 @@ fn compress_block<W: Write>(
             match entry {
                 PtEntry::Len(s) => {
                     let sym_idx = usize::from(s);
-                    let len =
-                        u32::from(pt_len.get(sym_idx).copied().unwrap_or(0));
-                    let code =
-                        u32::from(pt_codes.get(sym_idx).copied().unwrap_or(0));
+                    let len = u32::from(
+                        *pt_len
+                            .get(sym_idx)
+                            .ok_or_else(|| anyhow::anyhow!("pt_len index {sym_idx} out of bounds"))?,
+                    );
+                    let code = u32::from(
+                        *pt_codes
+                            .get(sym_idx)
+                            .ok_or_else(|| anyhow::anyhow!("pt_codes index {sym_idx} out of bounds"))?,
+                    );
                     bw.putbits(len, code)?;
                 }
                 PtEntry::ZeroRun4(val) => {
-                    let len = u32::from(pt_len.get(1).copied().unwrap_or(0));
-                    let code = u32::from(pt_codes.get(1).copied().unwrap_or(0));
+                    let len = u32::from(
+                        *pt_len
+                            .get(1)
+                            .ok_or_else(|| anyhow::anyhow!("pt_len index 1 out of bounds"))?,
+                    );
+                    let code = u32::from(
+                        *pt_codes
+                            .get(1)
+                            .ok_or_else(|| anyhow::anyhow!("pt_codes index 1 out of bounds"))?,
+                    );
                     bw.putbits(len, code)?;
                     bw.putbits(4, val)?;
                 }
                 PtEntry::ZeroRunCbit(val) => {
-                    let len = u32::from(pt_len.get(2).copied().unwrap_or(0));
-                    let code = u32::from(pt_codes.get(2).copied().unwrap_or(0));
+                    let len = u32::from(
+                        *pt_len
+                            .get(2)
+                            .ok_or_else(|| anyhow::anyhow!("pt_len index 2 out of bounds"))?,
+                    );
+                    let code = u32::from(
+                        *pt_codes
+                            .get(2)
+                            .ok_or_else(|| anyhow::anyhow!("pt_codes index 2 out of bounds"))?,
+                    );
                     bw.putbits(len, code)?;
                     bw.putbits(cbit_u32, val)?;
                 }
@@ -1064,17 +1182,31 @@ fn compress_block<W: Write>(
         match sym {
             LzhSymbol::Literal(b) => {
                 let idx = usize::from(b);
-                let len = u32::from(c_len.get(idx).copied().unwrap_or(0));
-                let code = u32::from(c_codes.get(idx).copied().unwrap_or(0));
+                let len = u32::from(
+                    *c_len
+                        .get(idx)
+                        .ok_or_else(|| anyhow::anyhow!("c_len index {idx} out of bounds"))?,
+                );
+                let code = u32::from(
+                    *c_codes
+                        .get(idx)
+                        .ok_or_else(|| anyhow::anyhow!("c_codes index {idx} out of bounds"))?,
+                );
                 bw.putbits(len, code)?;
             }
             LzhSymbol::Match { length, distance } => {
                 let c_sym =
                     length.saturating_sub(THRESHOLD).saturating_add(256);
-                let c_len_bits =
-                    u32::from(c_len.get(c_sym).copied().unwrap_or(0));
-                let c_code =
-                    u32::from(c_codes.get(c_sym).copied().unwrap_or(0));
+                let c_len_bits = u32::from(
+                    *c_len
+                        .get(c_sym)
+                        .ok_or_else(|| anyhow::anyhow!("c_len index {c_sym} out of bounds"))?,
+                );
+                let c_code = u32::from(
+                    *c_codes
+                        .get(c_sym)
+                        .ok_or_else(|| anyhow::anyhow!("c_codes index {c_sym} out of bounds"))?,
+                );
                 bw.putbits(c_len_bits, c_code)?;
 
                 let (p_sym, extra_bits, extra_val) = if distance == 0 {
@@ -1088,10 +1220,16 @@ fn compress_block<W: Write>(
                     (p, eb, ev)
                 };
 
-                let p_len_bits =
-                    u32::from(p_len.get(p_sym).copied().unwrap_or(0));
-                let p_code =
-                    u32::from(p_codes.get(p_sym).copied().unwrap_or(0));
+                let p_len_bits = u32::from(
+                    *p_len
+                        .get(p_sym)
+                        .ok_or_else(|| anyhow::anyhow!("p_len index {p_sym} out of bounds"))?,
+                );
+                let p_code = u32::from(
+                    *p_codes
+                        .get(p_sym)
+                        .ok_or_else(|| anyhow::anyhow!("p_codes index {p_sym} out of bounds"))?,
+                );
                 bw.putbits(p_len_bits, p_code)?;
 
                 if extra_bits > 0 {
@@ -1131,12 +1269,20 @@ pub fn compress_stream(
         let mut best_dist = 0usize;
 
         if pos.saturating_add(THRESHOLD) <= len {
-            let b0 = usize::from(input_data.get(pos).copied().unwrap_or(0));
+            let b0 = usize::from(
+                *input_data
+                    .get(pos)
+                    .ok_or_else(|| anyhow::anyhow!("input_data index {pos} out of bounds"))?,
+            );
             let b1 = usize::from(
-                input_data.get(pos.saturating_add(1)).copied().unwrap_or(0),
+                *input_data
+                    .get(pos.saturating_add(1))
+                    .ok_or_else(|| anyhow::anyhow!("input_data index out of bounds"))?,
             );
             let b2 = usize::from(
-                input_data.get(pos.saturating_add(2)).copied().unwrap_or(0),
+                *input_data
+                    .get(pos.saturating_add(2))
+                    .ok_or_else(|| anyhow::anyhow!("input_data index out of bounds"))?,
             );
             let h = (b0 << 8) ^ (b1 << 4) ^ b2;
 
@@ -1192,19 +1338,20 @@ pub fn compress_stream(
             for offset in 1..best_len {
                 let p = pos.saturating_add(offset);
                 if p.saturating_add(THRESHOLD) <= len {
-                    let b0 =
-                        usize::from(input_data.get(p).copied().unwrap_or(0));
+                    let b0 = usize::from(
+                        *input_data
+                            .get(p)
+                            .ok_or_else(|| anyhow::anyhow!("input_data index {p} out of bounds"))?,
+                    );
                     let b1 = usize::from(
-                        input_data
+                        *input_data
                             .get(p.saturating_add(1))
-                            .copied()
-                            .unwrap_or(0),
+                            .ok_or_else(|| anyhow::anyhow!("input_data index out of bounds"))?,
                     );
                     let b2 = usize::from(
-                        input_data
+                        *input_data
                             .get(p.saturating_add(2))
-                            .copied()
-                            .unwrap_or(0),
+                            .ok_or_else(|| anyhow::anyhow!("input_data index out of bounds"))?,
                     );
                     let h = (b0 << 8) ^ (b1 << 4) ^ b2;
 
@@ -1221,7 +1368,9 @@ pub fn compress_stream(
 
             pos = pos.saturating_add(best_len);
         } else {
-            let b = input_data.get(pos).copied().unwrap_or(0);
+            let b = *input_data
+                .get(pos)
+                .ok_or_else(|| anyhow::anyhow!("input_data index {pos} out of bounds"))?;
             symbols.push(LzhSymbol::Literal(b));
             pos = pos.saturating_add(1);
         }

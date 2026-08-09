@@ -268,10 +268,13 @@ pub fn compress_lzw_stream(
         FIRST_FREE_NONBLOCK
     };
     let mut n_bits = INIT_BITS;
-    // Reason for fallback: maxbits is bounded <= 16, so 1u32 << maxbits never overflows 32 bits.
-    let maxmaxcode = 1u32.checked_shl(maxbits).unwrap_or(0);
-    // Reason for fallback: n_bits is bounded <= maxbits <= 16, so 1u32 << n_bits never overflows 32 bits.
-    let mut maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+    let maxmaxcode = 1u32
+        .checked_shl(maxbits)
+        .ok_or_else(|| anyhow::anyhow!("maxbits {maxbits} exceeds 31 bits"))?;
+    let mut maxcode = (1u32
+        .checked_shl(n_bits)
+        .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+        .saturating_sub(1);
 
     let mut input_bytes = Vec::new();
     let total_in = reader
@@ -304,8 +307,9 @@ pub fn compress_lzw_stream(
                 if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
                     bit_writer.align_block(n_bits)?;
                     n_bits = n_bits.saturating_add(1);
-                    // Reason for fallback: n_bits is bounded <= maxbits <= 16, so 1u32 << n_bits never overflows 32 bits.
-                    maxcode = (1u32.checked_shl(n_bits).unwrap_or(0))
+                    maxcode = (1u32
+                        .checked_shl(n_bits)
+                        .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
                         .saturating_sub(1);
                 }
             } else if block_mode {
@@ -314,9 +318,10 @@ pub fn compress_lzw_stream(
                 dict.clear();
                 free_ent = FIRST_FREE_BLOCK;
                 n_bits = INIT_BITS;
-                // Reason for fallback: n_bits is INIT_BITS (9), so 1u32 << 9 never overflows 32 bits.
-                maxcode =
-                    (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+                maxcode = (1u32
+                    .checked_shl(n_bits)
+                    .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+                    .saturating_sub(1);
             }
 
             ent = u32::from(byte);
@@ -411,8 +416,13 @@ pub fn decompress_lzw_stream(
         FIRST_FREE_NONBLOCK
     };
     let mut n_bits = INIT_BITS;
-    let maxmaxcode = 1u32.checked_shl(maxbits).unwrap_or(0);
-    let mut maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+    let maxmaxcode = 1u32
+        .checked_shl(maxbits)
+        .ok_or_else(|| anyhow::anyhow!("maxbits {maxbits} exceeds 31 bits"))?;
+    let mut maxcode = (1u32
+        .checked_shl(n_bits)
+        .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+        .saturating_sub(1);
 
     let mut oldcode: i32 = -1;
     let mut finchar: u8 = 0;
@@ -447,7 +457,10 @@ pub fn decompress_lzw_stream(
             free_ent = FIRST_FREE_BLOCK;
             bit_reader.align_block(n_bits)?;
             n_bits = INIT_BITS;
-            maxcode = (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+            maxcode = (1u32
+                .checked_shl(n_bits)
+                .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+                .saturating_sub(1);
             oldcode = -1;
             continue;
         }
@@ -519,8 +532,10 @@ pub fn decompress_lzw_stream(
             if free_ent > maxcode && n_bits < maxbits {
                 bit_reader.align_block(n_bits)?;
                 n_bits = n_bits.saturating_add(1);
-                maxcode =
-                    (1u32.checked_shl(n_bits).unwrap_or(0)).saturating_sub(1);
+                maxcode = (1u32
+                    .checked_shl(n_bits)
+                    .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+                    .saturating_sub(1);
             }
         }
 
