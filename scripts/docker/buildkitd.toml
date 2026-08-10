@@ -7,4 +7,3 @@ nameservers = ["1.1.1.1", "8.8.8.8"]
 
 [worker.oci]
   enabled = true
-  seccompProfile = "/etc/buildkit/seccomp-ptrace.json"

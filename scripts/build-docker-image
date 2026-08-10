@@ -37,14 +37,9 @@ else
   docker buildx create --use --name buildkit \
     --config "$script_dir/docker/buildkitd.toml" \
     --driver-opt network=host \
-    --buildkitd-flags '--allow-insecure-entitlement network.host' \
+    --buildkitd-flags '--allow-insecure-entitlement network.host --allow-insecure-entitlement security.insecure' \
     --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=-1 \
     --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
-
-  container_name="$(docker ps -a --filter "name=buildkit" --format "{{.Names}}" | head -n 1)"
-  if [ -n "$container_name" ]; then
-    docker cp "$script_dir/docker/seccomp-ptrace.json" "$container_name:/etc/buildkit/seccomp-ptrace.json"
-  fi
 
   docker buildx inspect --bootstrap buildkit
 fi
@@ -53,5 +48,6 @@ fi
 docker buildx build -f scripts/docker/Dockerfile . \
   --network=host \
   --allow network.host \
+  --allow security.insecure \
   --load \
   --progress plain

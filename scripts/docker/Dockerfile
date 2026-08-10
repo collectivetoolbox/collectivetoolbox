@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 ENV HOME=/root
@@ -75,10 +76,10 @@ COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
 
 # Pre-compile cross-built Icecat in a separate Docker step for layer caching
-RUN set -eux; \
+RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
 
-RUN set -eux; \
+RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \
     rm -rf /tmp/scripts /tmp/src
 
