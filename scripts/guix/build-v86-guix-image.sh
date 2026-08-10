@@ -47,6 +47,9 @@ export GUIX_LOCPATH="${GUIX_LOCPATH:-/var/guix/profiles/per-user/root/current-pr
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 
+# Configure default Guix build options: maximum 60 seconds of silent stalling before timing out substitute downloads and falling back
+export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=60 --timeout=3600}"
+
 daemon_pid=""
 tmp_build_dir=""
 
@@ -74,7 +77,7 @@ start_guix_daemon() {
 
     # Note to LLM tools: Never add --disable-chroot on the Guix daemon.
     # It breaks build reproducibility.
-    guix-daemon >/tmp/guix-daemon.log 2>&1 &
+    guix-daemon --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
