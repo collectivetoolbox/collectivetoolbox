@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 ENV HOME=/root
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV GUIX_LOCPATH=/var/guix/profiles/per-user/root/current-profile/lib/locale:/root/.guix-profile/lib/locale
 ENV PATH=/root/.cargo/bin:/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/current-profile/bin:${PATH}
 ENV PLAYWRIGHT_CHROMIUM_ARGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu"
 ENV CHROMIUM_FLAGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu"
@@ -20,6 +23,7 @@ RUN set -eux; \
         curl \
         file \
         git \
+        locales \
         musl-tools \
         nodejs \
         npm \
@@ -29,6 +33,7 @@ RUN set -eux; \
         tar \
         xz-utils \
         xxd; \
+    locale-gen en_US.UTF-8; \
     npm install -g typescript playwright; \
     npx playwright install-deps chromium; \
     npx playwright install chromium; \

@@ -42,6 +42,11 @@ out_fs_json="$out_dir/guix-fs.json"
 
 export PATH="/var/guix/profiles/per-user/root/current-profile/bin:/root/.config/guix/current/bin:$PATH"
 
+# Ensure UTF-8 locale environment variables are set to prevent Guile string encoding errors during nar restoration
+export GUIX_LOCPATH="${GUIX_LOCPATH:-/var/guix/profiles/per-user/root/current-profile/lib/locale:/root/.guix-profile/lib/locale}"
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+
 daemon_pid=""
 tmp_build_dir=""
 
