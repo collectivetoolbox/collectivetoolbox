@@ -54,11 +54,22 @@
                      (string-append libclc "/share/pkgconfig")))
                   (when llvm
                     (let* ((llvm-overlay (string-append (getcwd) "/ctb-llvm-overlay"))
+                        (llvm-bin (string-append llvm "/bin"))
                            (llvm-lib (string-append llvm "/lib"))
+                        (overlay-bin (string-append llvm-overlay "/bin"))
                            (overlay-lib (string-append llvm-overlay "/lib"))
                            (overlay-cmake (string-append overlay-lib "/cmake"))
                            (overlay-llvm-cmake (string-append overlay-cmake "/llvm")))
+                      (mkdir-p overlay-bin)
                       (mkdir-p overlay-lib)
+                      (invoke
+                       "sh"
+                       "-c"
+                       (string-append
+                        "for entry in " llvm-bin "/*; do "
+                        "name=${entry##*/}; "
+                        "ln -s \"$entry\" \"" overlay-bin "/$name\"; "
+                        "done"))
                       (invoke
                        "sh"
                        "-c"

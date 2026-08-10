@@ -35,6 +35,10 @@ case "${1:-}" in
         exit 1
         ;;
 esac
+keep_failed=
+if [[ "$2" == "--keep-failed" ]]; then
+    keep_failed=--keep-failed
+fi
 
 out_dir="$workspace_root/vendor/v86_images/guix"
 out_flat_dir="$out_dir/guix-rootfs-flat"
@@ -127,7 +131,7 @@ case "$mode" in
     build-dillo-native)
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."
-        guix_run_with_retries build --no-substitutes --fallback -L "$script_dir" --system=i686-linux \
+        guix_run_with_retries build $keep_failed --no-substitutes --fallback -L "$script_dir" --system=i686-linux \
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))'
         echo "Native Dillo build complete."
         stop_guix_daemon
@@ -136,7 +140,7 @@ case "$mode" in
     cross-dillo)
         start_guix_daemon
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
-        dillo_store_path="$(guix_run_with_retries build --no-substitutes --fallback -L "$script_dir" \
+        dillo_store_path="$(guix_run_with_retries build $keep_failed --no-substitutes --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))')"
         echo "Cross-compiled Dillo at: $dillo_store_path"
@@ -146,7 +150,7 @@ case "$mode" in
     cross-icecat)
         start_guix_daemon
         echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-        icecat_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
+        icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
         echo "Cross-compiled Icecat at: $icecat_store_path"
@@ -156,7 +160,7 @@ case "$mode" in
     prebuild-tarball)
         start_guix_daemon
         echo "Building Guix i686 system tarball image..."
-        tarball_img="$(guix_run_with_retries system image --fallback -L "$script_dir" \
+        tarball_img="$(guix_run_with_retries system image $keep_failed --fallback -L "$script_dir" \
             --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
         echo "Guix image built at: $tarball_img"
         stop_guix_daemon
@@ -207,7 +211,7 @@ case "$mode" in
 
         if [ "$guix_available" -eq 1 ]; then
             echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-            icecat_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
+            icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
                 --system=x86_64-linux --target=i686-linux-gnu \
                 -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true)"
             if [ -n "$icecat_store_path" ]; then
