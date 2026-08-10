@@ -71,13 +71,23 @@ RUN set -eux; \
         fi; \
     done
 
-# Pre-build Guix i686 system image tarball in Docker image to avoid re-building on every CI run
+# Pre-build Guix packages and system image in Docker for layer caching.
+# Each step is a separate layer so failures don't re-run earlier steps.
 COPY scripts/guix /tmp/scripts/guix
 
-# Pre-compile cross-built Icecat in a separate Docker step for layer caching
+# Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native
+
+# Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
+
+# Layer 3: Cross-compile GNU Icecat x86_64→i686
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
 
+# Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \
     rm -rf /tmp/scripts
