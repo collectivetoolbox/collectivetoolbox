@@ -27,21 +27,40 @@
      (substitute-keyword-arguments (package-arguments mesa)
        ((#:phases phases)
         #~(modify-phases #$phases
-            (add-before 'configure 'expose-libclc-pkg-config
-              (lambda* (#:key native-inputs #:allow-other-keys)
-                (let ((libclc (assoc-ref native-inputs "libclc")))
+            (add-before 'configure 'expose-cross-discovery-metadata
+              (lambda* (#:key inputs native-inputs #:allow-other-keys)
+                (define (prepend-env-path variable entry)
+                  (when (and entry (file-exists? entry))
+                    (let ((current (or (getenv variable) "")))
+                      (setenv variable
+                              (if (string=? current "")
+                                  entry
+                                  (string-append entry ":" current))))))
+
+                (define (input-ref name)
+                  (or (assoc-ref inputs name)
+                      (assoc-ref native-inputs name)))
+
+                (let ((libclc (input-ref "libclc"))
+                      (llvm (input-ref "llvm-for-mesa"))
+                      (spirv-tools (input-ref "spirv-tools"))
+                      (llvm-spirv (input-ref "spirv-llvm-translator")))
+                  ;; Cross dependency discovery for Mesa currently misses some
+                  ;; Guix-provided metadata unless we expose the relevant build
+                  ;; prefixes explicitly.
                   (when libclc
-                    (let ((pkgconfig-dir
-                           (string-append libclc "/share/pkgconfig"))
-                          (current-path
-                           (or (getenv "PKG_CONFIG_PATH") "")))
-                      ;; Cross pkg-config only sees target inputs by default,
-                      ;; but Mesa resolves libclc as a dependency during the
-                      ;; configure phase.
-                      (setenv "PKG_CONFIG_PATH"
-                              (if (string-null? current-path)
-                                  pkgconfig-dir
-                                  (string-append
-                                   pkgconfig-dir
-                                   ":"
-                                   current-path))))))))))))))
+                    (prepend-env-path
+                     "PKG_CONFIG_PATH"
+                     (string-append libclc "/share/pkgconfig")))
+                  (when llvm
+                    (prepend-env-path "CMAKE_PREFIX_PATH" llvm)
+                    (prepend-env-path "PATH" (string-append llvm "/bin")))
+                  (when spirv-tools
+                    (prepend-env-path "CMAKE_PREFIX_PATH" spirv-tools)
+                    (prepend-env-path
+                     "PKG_CONFIG_PATH"
+                     (string-append spirv-tools "/lib/pkgconfig")))
+                  (when llvm-spirv
+                    (prepend-env-path
+                     "PKG_CONFIG_PATH"
+                     (string-append llvm-spirv "/lib/pkgconfig"))))))))))))

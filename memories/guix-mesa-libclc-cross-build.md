@@ -1,4 +1,4 @@
 - Guix Mesa 25.2.3 cross builds for i686 can fail with `Dependency "libclc" not found` even though Mesa lists `libclc` in native-inputs.
 - Root cause: Mesa's Meson checks `dependency('libclc')`, and `libclc.pc` lives in the native input's `share/pkgconfig`, which the cross pkg-config wrapper does not see by default.
-- Local fix in `scripts/guix/patches/mesa.scm`: prepend native `libclc`'s `share/pkgconfig` to `PKG_CONFIG_PATH` before Mesa's configure phase.
+- Local fix in `scripts/guix/patches/mesa.scm`: prepend the relevant build prefixes before Mesa's configure phase so cross Meson/CMake discovery can see existing Guix metadata: `libclc` via `PKG_CONFIG_PATH`, `llvm-for-mesa` via `CMAKE_PREFIX_PATH` and `PATH`, plus `spirv-tools` and `spirv-llvm-translator` pkg-config/CMake metadata.
 - `scripts/guix/build-v86-guix-image.sh` now applies the local Guix overlay to Dillo builds and uses `--no-substitutes` for the Dillo smoke-test modes to avoid repeat failures on corrupt substitute nar downloads.
