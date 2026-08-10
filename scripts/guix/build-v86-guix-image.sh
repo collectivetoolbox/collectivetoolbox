@@ -104,11 +104,30 @@ stop_guix_daemon() {
     fi
 }
 
+# Helper to run guix build/system commands with up to 3 retries for transient network/substitute failures
+guix_run_with_retries() {
+    local max_attempts=3
+    local attempt=1
+    while [ "$attempt" -le "$max_attempts" ]; do
+        if guix "$@"; then
+            return 0
+        fi
+        echo "Warning: guix command failed (attempt $attempt of $max_attempts)." >&2
+        attempt=$((attempt + 1))
+        if [ "$attempt" -le "$max_attempts" ]; then
+            echo "Retrying guix command in 3 seconds..." >&2
+            sleep 3
+        fi
+    done
+    echo "Error: guix command failed after $max_attempts attempts." >&2
+    return 1
+}
+
 case "$mode" in
     build-dillo-native)
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."
-        guix build --fallback -L "$script_dir" --system=i686-linux \
+        guix_run_with_retries build --fallback -L "$script_dir" --system=i686-linux \
             -e '(@ (gnu packages web-browsers) dillo)'
         echo "Native Dillo build complete."
         stop_guix_daemon
@@ -117,7 +136,7 @@ case "$mode" in
     cross-dillo)
         start_guix_daemon
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
-        dillo_store_path="$(guix build --fallback -L "$script_dir" \
+        dillo_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '(@ (gnu packages web-browsers) dillo)')"
         echo "Cross-compiled Dillo at: $dillo_store_path"
@@ -127,7 +146,7 @@ case "$mode" in
     cross-icecat)
         start_guix_daemon
         echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-        icecat_store_path="$(guix build --fallback -L "$script_dir" \
+        icecat_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
         echo "Cross-compiled Icecat at: $icecat_store_path"
@@ -137,7 +156,7 @@ case "$mode" in
     prebuild-tarball)
         start_guix_daemon
         echo "Building Guix i686 system tarball image..."
-        tarball_img="$(guix system image --fallback -L "$script_dir" \
+        tarball_img="$(guix_run_with_retries system image --fallback -L "$script_dir" \
             --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
         echo "Guix image built at: $tarball_img"
         stop_guix_daemon
@@ -179,7 +198,7 @@ case "$mode" in
             tarball_img="$prebuilt_tarball"
         elif [ "$guix_available" -eq 1 ]; then
             echo "Building Guix i686 system tarball image..."
-            tarball_img="$(guix system image --fallback -L "$script_dir" \
+            tarball_img="$(guix_run_with_retries system image --fallback -L "$script_dir" \
                 --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
         else
             echo "Error: No prebuilt tarball found and 'guix' is not available." >&2
@@ -188,7 +207,7 @@ case "$mode" in
 
         if [ "$guix_available" -eq 1 ]; then
             echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-            icecat_store_path="$(guix build --fallback -L "$script_dir" \
+            icecat_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
                 --system=x86_64-linux --target=i686-linux-gnu \
                 -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true)"
             if [ -n "$icecat_store_path" ]; then
