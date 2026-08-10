@@ -52,43 +52,35 @@ else
         exit 1
     fi
 
-    echo "Building ctb-nopersonality shared object in Rust..."
     tmp_build_dir="$(mktemp -d)"
-    nopersonality_dir="/var/guix/nopersonality"
-    nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
-    mkdir -p "$nopersonality_dir" /var/log/guix/drvs /var/guix
-    if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
-        nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
-    else
-        nopersonality_rs="$(cd "$script_dir/../../src/nopersonality" 2>/dev/null && pwd)/nopersonality.rs"
-    fi
-    rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
+    mkdir -p /var/log/guix/drvs /var/guix
 
-    chmod 755 "$tmp_build_dir" "$nopersonality_dir" "$nopersonality_so"
+    chmod 755 "$tmp_build_dir"
 
     chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
     chmod -R 1777 /var/log/guix 2>/dev/null || true
     chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
-    echo "Starting guix-daemon with nopersonality shim..."
+    echo "Starting guix-daemon..."
     mkdir -p /var/tmp/proot_tmp
     export PROOT_TMP_DIR=/var/tmp/proot_tmp
-    daemon_extra_args=()
     if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
         echo "Note: unshare/clone (mount namespaces) blocked by container environment. Allow in the configuration to continue; unfortunately it doesn't seem possible to use Guix sandboxing otherwise."
         exit 1
-    else
-        daemon_extra_args+=(--chroot-directory="$tmp_build_dir" --chroot-directory="$nopersonality_dir")
     fi
+    # Full namespace capabilities available; guix-daemon can sandbox
+    # normally. The personality() syscall also succeeds with full
+    # capabilities, so the nopersonality LD_PRELOAD shim is not needed.
 
-    LD_PRELOAD="$nopersonality_so" guix-daemon "${daemon_extra_args[@]}" >/tmp/guix-daemon.log 2>&1 &
+    guix-daemon >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
-        echo "Error: guix-daemon failed to start with nopersonality shim." >&2
+        echo "Error: guix-daemon failed to start." >&2
         cat /tmp/guix-daemon.log >&2 || true
         exit 1
     fi
+
 
     if [ "$fetch_sources_mode" -eq 1 ]; then
         echo "Pre-fetching all transitive sources for Guix system image..."

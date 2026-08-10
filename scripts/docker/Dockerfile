@@ -73,7 +73,6 @@ RUN set -eux; \
 
 # Pre-build Guix i686 system image tarball in Docker image to avoid re-building on every CI run
 COPY scripts/guix /tmp/scripts/guix
-COPY src/nopersonality /tmp/src/nopersonality
 
 # Pre-compile cross-built Icecat in a separate Docker step for layer caching
 RUN --security=insecure set -eux; \
@@ -81,7 +80,7 @@ RUN --security=insecure set -eux; \
 
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \
-    rm -rf /tmp/scripts /tmp/src
+    rm -rf /tmp/scripts
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
 #ENV NOCACHEJULYTHIRTY=2
