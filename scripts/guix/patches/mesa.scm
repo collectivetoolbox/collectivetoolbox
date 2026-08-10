@@ -53,8 +53,32 @@
                      "PKG_CONFIG_PATH"
                      (string-append libclc "/share/pkgconfig")))
                   (when llvm
-                    (prepend-env-path "CMAKE_PREFIX_PATH" llvm)
-                    (prepend-env-path "PATH" (string-append llvm "/bin")))
+                    (let* ((llvm-overlay (string-append (getcwd) "/ctb-llvm-overlay"))
+                           (llvm-lib (string-append llvm "/lib"))
+                           (overlay-lib (string-append llvm-overlay "/lib"))
+                           (overlay-cmake (string-append overlay-lib "/cmake"))
+                           (overlay-llvm-cmake (string-append overlay-cmake "/llvm")))
+                      (mkdir-p overlay-lib)
+                      (invoke
+                       "sh"
+                       "-c"
+                       (string-append
+                        "for entry in " llvm-lib "/*; do "
+                        "name=${entry##*/}; "
+                        "if [ \"$name\" != cmake ]; then "
+                        "ln -s \"$entry\" \"" overlay-lib "/$name\"; "
+                        "fi; "
+                        "done"))
+                      (copy-recursively (string-append llvm-lib "/cmake") overlay-cmake)
+                      (invoke
+                       "sed"
+                       "-E"
+                       "-i"
+                       "s@IMPORTED_LOCATION_RELEASE \"([^\"]+)\"@IMPORTED_LOCATION_RELEASE \"\\1\"\\n  IMPORTED_LOCATION \"\\1\"@g"
+                       (string-append overlay-llvm-cmake "/LLVMExports-release.cmake"))
+                      (setenv "LLVM_DIR" overlay-llvm-cmake)
+                      (prepend-env-path "CMAKE_PREFIX_PATH" llvm-overlay)
+                      (prepend-env-path "PATH" (string-append llvm "/bin"))))
                   (when spirv-tools
                     (prepend-env-path "CMAKE_PREFIX_PATH" spirv-tools)
                     (prepend-env-path
@@ -63,4 +87,9 @@
                   (when llvm-spirv
                     (prepend-env-path
                      "PKG_CONFIG_PATH"
-                     (string-append llvm-spirv "/lib/pkgconfig"))))))))))))
+                     (string-append llvm-spirv "/lib/pkgconfig"))))))
+            (add-after 'expose-cross-discovery-metadata 'force-cmake-llvm-discovery
+              (lambda _
+                (substitute* "meson.build"
+                  (("method : host_machine\\.system\\(\\) == 'windows' \\? 'auto' : 'config-tool',")
+                   "method : 'cmake',"))))))))))
