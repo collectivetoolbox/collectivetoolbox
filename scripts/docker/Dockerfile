@@ -58,6 +58,9 @@ RUN set -eux; \
     rustup target add wasm32-unknown-unknown; \
     cargo install --locked cargo-deny
 
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+
 # `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
 RUN set -eux; \
     curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh -o /tmp/guix-install.sh; \

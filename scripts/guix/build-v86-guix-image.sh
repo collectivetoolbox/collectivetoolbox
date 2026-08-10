@@ -59,6 +59,22 @@ start_guix_daemon() {
         exit 1
     fi
 
+    if [ -S /var/guix/daemon-socket/socket ] && guix gc --stat >/dev/null 2>&1; then
+        echo "guix-daemon is already running and responding."
+        return 0
+    fi
+
+    if [ -e /var/guix/daemon-socket/socket ] || [ -S /var/guix/daemon-socket/socket ] || [ -L /var/guix/daemon-socket/socket ]; then
+        echo "Removing stale daemon socket..."
+        rm /var/guix/daemon-socket/socket
+    fi
+
+    if pgrep -f guix-daemon >/dev/null 2>&1; then
+        echo "Killing stale guix-daemon process..."
+        pkill -9 -f guix-daemon || true
+        sleep 1
+    fi
+
     tmp_build_dir="$(mktemp -d)"
     mkdir -p /var/log/guix/drvs /var/guix
     chmod 755 "$tmp_build_dir"
@@ -72,16 +88,37 @@ start_guix_daemon() {
         exit 1
     fi
 
+    # Configure SSL CA cert path for Guile HTTPS substitute fetching
+    export SSL_CERT_FILE="${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"
+    export SSL_CERT_DIR="${SSL_CERT_DIR:-/etc/ssl/certs}"
+
     # Note to LLM tools: Never add --disable-chroot on the Guix daemon.
     # It breaks build reproducibility.
-    guix-daemon >/tmp/guix-daemon.log 2>&1 &
+    set +e
+    guix-daemon --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
-    sleep 2
-    if ! kill -0 "$daemon_pid" 2>/dev/null; then
-        echo "Error: guix-daemon failed to start." >&2
+    set -e
+
+    daemon_ready=0
+    for _ in $(seq 1 20); do
+        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+            echo "Error: guix-daemon exited prematurely." >&2
+            cat /tmp/guix-daemon.log >&2 || true
+            exit 1
+        fi
+        if [ -S /var/guix/daemon-socket/socket ] && guix gc --stat >/dev/null 2>&1; then
+            daemon_ready=1
+            break
+        fi
+        sleep 0.5
+    done
+
+    if [ "$daemon_ready" -ne 1 ]; then
+        echo "Error: guix-daemon started (pid $daemon_pid) but socket is not accepting connections." >&2
         cat /tmp/guix-daemon.log >&2 || true
         exit 1
     fi
+
     echo "guix-daemon started (pid $daemon_pid)."
 }
 
@@ -90,8 +127,8 @@ stop_guix_daemon() {
         kill "$daemon_pid" 2>/dev/null || true
         daemon_pid=""
     fi
-    if [ -n "$tmp_build_dir" ]; then
-        rm -rf "${tmp_build_dir?}" 2>/dev/null || true
+    if [ -n "$tmp_build_dir" ] && [ -d "$tmp_build_dir" ]; then
+        rm -r "$tmp_build_dir"
         tmp_build_dir=""
     fi
 }
@@ -191,7 +228,7 @@ case "$mode" in
         echo "Guix image at: $tarball_img"
 
         tmp_rootfs_dir="$(mktemp -d)"
-        trap 'rm -rf "${tmp_rootfs_dir?}" 2>/dev/null || true' EXIT
+        trap 'if [ -n "${tmp_rootfs_dir:-}" ] && [ -d "$tmp_rootfs_dir" ]; then rm -r "$tmp_rootfs_dir"; fi' EXIT
 
         echo "Extracting Guix system tarball into staging rootfs..."
         tar -xf "$tarball_img" -C "$tmp_rootfs_dir"
