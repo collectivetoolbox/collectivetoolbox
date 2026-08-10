@@ -16,12 +16,14 @@
 (define-module (patches)
   #:use-module (guix packages)
   #:use-module (patches gst-plugins-good)
+  #:use-module (patches mesa)
   #:use-module (patches spice-gtk)
   #:use-module (patches icecat)
   #:export (apply-patches))
 
 (define package-patches
   `(("gst-plugins-good" . ,(const gst-plugins-good-no-tests))
+    ("mesa" . ,(const mesa-libclc-pkg-config-fixed))
     ("spice-gtk" . ,(const spice-gtk-fixed))
     ("icecat" . ,(const icecat-patched))))
 

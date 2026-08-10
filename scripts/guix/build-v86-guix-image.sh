@@ -127,8 +127,8 @@ case "$mode" in
     build-dillo-native)
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."
-        guix_run_with_retries build --fallback -L "$script_dir" --system=i686-linux \
-            -e '(@ (gnu packages web-browsers) dillo)'
+        guix_run_with_retries build --no-substitutes --fallback -L "$script_dir" --system=i686-linux \
+            -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))'
         echo "Native Dillo build complete."
         stop_guix_daemon
         ;;
@@ -136,9 +136,9 @@ case "$mode" in
     cross-dillo)
         start_guix_daemon
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
-        dillo_store_path="$(guix_run_with_retries build --fallback -L "$script_dir" \
+        dillo_store_path="$(guix_run_with_retries build --no-substitutes --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
-            -e '(@ (gnu packages web-browsers) dillo)')"
+            -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))')"
         echo "Cross-compiled Dillo at: $dillo_store_path"
         stop_guix_daemon
         ;;
