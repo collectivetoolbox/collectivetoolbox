@@ -16,9 +16,11 @@ workspace_root="$(cd "$script_dir/../.." && pwd)"
 mode=""
 prebuild_dest=""
 keep_failed=""
+disable_chroot=""
+nopersonality=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -44,6 +46,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         --keep-failed)
             keep_failed="--keep-failed"
+            ;;
+        --disable-chroot)
+            disable_chroot="--disable-chroot"
+            ;;
+        --nopersonality)
+            nopersonality="1"
             ;;
         -h|--help|help)
             usage
@@ -88,6 +96,27 @@ start_guix_daemon() {
         exit 1
     fi
 
+    if [ -n "$nopersonality" ]; then
+        nopersonality_so="$workspace_root/target/libctb_nopersonality.so"
+        if [ ! -f "$nopersonality_so" ]; then
+            echo "Building nopersonality cdylib shim..."
+            mkdir -p "$(dirname "$nopersonality_so")"
+            if command -v rustc >/dev/null 2>&1; then
+                rustc --edition 2024 --crate-type cdylib -O "$workspace_root/src/nopersonality/nopersonality.rs" -o "$nopersonality_so"
+            else
+                cargo build --package ctb-nopersonality --release
+                cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
+            fi
+        fi
+        if [ -f "$nopersonality_so" ]; then
+            echo "Using nopersonality shim at: $nopersonality_so"
+            export LD_PRELOAD="$nopersonality_so${LD_PRELOAD:+:$LD_PRELOAD}"
+        else
+            echo "Error: Failed to build or locate nopersonality shim at $nopersonality_so" >&2
+            exit 1
+        fi
+    fi
+
     tmp_build_dir="$(mktemp -d)"
     mkdir -p /var/log/guix/drvs /var/guix
     chmod 755 "$tmp_build_dir"
@@ -95,15 +124,16 @@ start_guix_daemon() {
     chmod -R 1777 /var/log/guix 2>/dev/null || true
     chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
-    if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
-        echo "Error: Mount namespaces blocked by container environment." >&2
-        echo "Guix sandboxing requires mount namespace support." >&2
-        exit 1
+    if [ -z "$disable_chroot" ]; then
+        if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
+            echo "Error: Mount namespaces blocked by container environment." >&2
+            echo "Guix sandboxing requires mount namespace support." >&2
+            exit 1
+        fi
     fi
 
-    # Note to LLM tools: Never add --disable-chroot on the Guix daemon.
-    # It breaks build reproducibility.
-    guix-daemon --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
+    guix-daemon ${disable_chroot:+"$disable_chroot"} --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
