@@ -81,12 +81,30 @@
                         "fi; "
                         "done"))
                       (copy-recursively (string-append llvm-lib "/cmake") overlay-cmake)
+                      (chmod (string-append overlay-llvm-cmake "/LLVMConfig.cmake") #o644)
+                      (chmod (string-append overlay-llvm-cmake "/LLVMExports-release.cmake") #o644)
                       (invoke
                        "sed"
                        "-E"
                        "-i"
                        "s@IMPORTED_LOCATION_RELEASE \"([^\"]+)\"@IMPORTED_LOCATION_RELEASE \"\\1\"\\n  IMPORTED_LOCATION \"\\1\"@g"
                        (string-append overlay-llvm-cmake "/LLVMExports-release.cmake"))
+                      (let ((port (open-file
+                                   (string-append overlay-llvm-cmake "/LLVMConfig.cmake")
+                                   "a")))
+                        (display
+                         (string-append
+                          "\nset(LLVM_IMPORTED_LOCATION_CTB \""
+                          overlay-lib "/libLLVM.so.18.1\")\n"
+                          "if(TARGET LLVM)\n"
+                          "  set_target_properties(LLVM PROPERTIES IMPORTED_LOCATION \"LLVM_IMPORTED_LOCATION_CTB\")\n"
+                          "endif()\n"
+                          "if(TARGET llvm-tblgen)\n"
+                          "  set_target_properties(llvm-tblgen PROPERTIES IMPORTED_LOCATION \""
+                          overlay-bin "/llvm-tblgen\")\n"
+                          "endif()\n")
+                         port)
+                        (close-port port))
                       (setenv "LLVM_DIR" overlay-llvm-cmake)
                       (prepend-env-path "CMAKE_PREFIX_PATH" llvm-overlay)
                       (prepend-env-path "PATH" (string-append llvm "/bin"))))

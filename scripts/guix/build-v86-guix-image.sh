@@ -15,29 +15,51 @@ workspace_root="$(cd "$script_dir/../.." && pwd)"
 
 mode=""
 prebuild_dest=""
+keep_failed=""
 
-case "${1:-}" in
-    --build-dillo-native) mode="build-dillo-native" ;;
-    --cross-dillo)        mode="cross-dillo" ;;
-    --cross-icecat)       mode="cross-icecat" ;;
-    --prebuild-tarball)
-        mode="prebuild-tarball"
-        if [ -z "${2:-}" ]; then
-            echo "Error: --prebuild-tarball requires an output path argument." >&2
+usage() {
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed]" >&2
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --build-dillo-native)
+            mode="build-dillo-native"
+            ;;
+        --cross-dillo)
+            mode="cross-dillo"
+            ;;
+        --cross-icecat)
+            mode="cross-icecat"
+            ;;
+        --prebuild-tarball)
+            mode="prebuild-tarball"
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Error: --prebuild-tarball requires an output path argument." >&2
+                usage
+                exit 1
+            fi
+            prebuild_dest="$1"
+            ;;
+        --keep-failed)
+            keep_failed="--keep-failed"
+            ;;
+        -h|--help|help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option: $1" >&2
+            usage
             exit 1
-        fi
-        prebuild_dest="$2"
-        ;;
-    "")  mode="full" ;;
-    *)
-        echo "Error: Unknown option: $1" >&2
-        echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH]" >&2
-        exit 1
-        ;;
-esac
-keep_failed=
-if [[ "$2" == "--keep-failed" ]]; then
-    keep_failed=--keep-failed
+            ;;
+    esac
+    shift
+done
+
+if [[ -z "$mode" ]]; then
+    mode="full"
 fi
 
 out_dir="$workspace_root/vendor/v86_images/guix"
