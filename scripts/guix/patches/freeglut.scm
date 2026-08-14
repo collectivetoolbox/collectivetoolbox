@@ -34,10 +34,24 @@
           (package-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags #~'())
-        #~(cons* "-DOpenGL_GL_PREFERENCE=LEGACY"
-                 "-DCMAKE_POLICY_DEFAULT_CMP0072=OLD"
-                 #$flags))))))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'unpack 'patch-opengl-lookup
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let* ((mesa (assoc-ref inputs "mesa"))
+                       (mesa-lib (and mesa
+                                      (or (and (file-exists? (string-append mesa "/lib/libGL.so"))
+                                               (string-append mesa "/lib/libGL.so"))
+                                          (and (file-exists? (string-append mesa "/lib64/libGL.so"))
+                                               (string-append mesa "/lib64/libGL.so"))
+                                          (string-append mesa "/lib/libGL.so")))))
+                  (substitute* "CMakeLists.txt"
+                    (("FIND_PACKAGE\\(OpenGL REQUIRED\\)")
+                     (if mesa-lib
+                         (string-append "set(OPENGL_gl_LIBRARY \"" mesa-lib "\")\n"
+                                        "set(OPENGL_INCLUDE_DIR \"" mesa "/include\")\n"
+                                        "set(OPENGL_FOUND TRUE)")
+                         "find_library(OPENGL_gl_LIBRARY GL)\nfind_path(OPENGL_INCLUDE_DIR GL/gl.h)\nset(OPENGL_FOUND TRUE)"))))))))))))
 
 (define freeglut-fixed
   (freeglut-fixed-proc freeglut))

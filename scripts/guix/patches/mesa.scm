@@ -211,7 +211,17 @@
                 (let ((overlay-bin (string-append (getcwd) "/ctb-llvm-overlay/bin")))
                   (when (file-exists? overlay-bin)
                     (let ((current (or (getenv "PATH") "")))
-                      (setenv "PATH" (string-append overlay-bin ":" current)))))))))))))
+                      (setenv "PATH" (string-append overlay-bin ":" current)))))))
+            (add-after 'install 'symlink-lib-and-lib64
+              (lambda* (#:key outputs #:allow-other-keys)
+                (let ((out (assoc-ref outputs "out")))
+                  (when out
+                    (let ((lib (string-append out "/lib"))
+                          (lib64 (string-append out "/lib64")))
+                      (when (and (file-exists? lib64) (not (file-exists? lib)))
+                        (symlink "lib64" lib))
+                      (when (and (file-exists? lib) (not (file-exists? lib64)))
+                        (symlink "lib" lib64)))))))))))))
 
 (define-public mesa-libclc-pkg-config-fixed
   (mesa-libclc-pkg-config-fixed-proc mesa))
