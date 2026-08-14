@@ -54,17 +54,34 @@
                                   entry
                                   (string-append entry ":" current))))))
 
+                (define (entry->path entry)
+                  (cond
+                   ((not (pair? entry)) #f)
+                   ((string? (cdr entry)) (cdr entry))
+                   ((and (pair? (cdr entry)) (string? (cadr entry))) (cadr entry))
+                   (else #f)))
+
                 (define (input-ref name)
-                  (or (assoc-ref inputs name)
-                      (assoc-ref native-inputs name)))
+                  (let ((extract (lambda (val)
+                                   (cond
+                                    ((string? val) val)
+                                    ((and (pair? val) (string? (car val))) (car val))
+                                    ((and (pair? val) (string? (cdr val))) (cdr val))
+                                    ((and (pair? val) (pair? (cdr val)) (string? (cadr val))) (cadr val))
+                                    (else #f)))))
+                    (or (and (list? inputs) (and=> (assoc-ref inputs name) extract))
+                        (and (list? native-inputs) (and=> (assoc-ref native-inputs name) extract)))))
 
                 (define (find-input-by-prefix prefix)
                   (let ((match (lambda (lst)
-                                 (find (lambda (pair)
-                                         (string-prefix? prefix (car pair)))
-                                       lst))))
-                    (or (and=> (match inputs) cdr)
-                        (and=> (match native-inputs) cdr))))
+                                 (and (list? lst)
+                                      (find (lambda (entry)
+                                              (and (pair? entry)
+                                                   (string? (car entry))
+                                                   (string-prefix? prefix (car entry))))
+                                            lst)))))
+                    (or (and=> (match inputs) entry->path)
+                        (and=> (match native-inputs) entry->path))))
 
                 (define (symlink-dir-contents src dest)
                   (when (and src (file-exists? src))

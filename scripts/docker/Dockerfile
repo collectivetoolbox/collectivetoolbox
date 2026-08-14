@@ -91,9 +91,9 @@ COPY src/nopersonality /tmp/src/nopersonality
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native
 
-# # Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
-# RUN --security=insecure set -eux; \
-#     /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
+# Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
 
 # # Layer 3: Cross-compile GNU Icecat x86_64→i686
 # RUN --security=insecure set -eux; \

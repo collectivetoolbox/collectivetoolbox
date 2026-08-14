@@ -111,6 +111,7 @@ start_guix_daemon() {
     fi
 
     daemon_extra_args=()
+    daemon_env=()
     nopersonality_rs=""
     if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
         nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
@@ -136,7 +137,7 @@ start_guix_daemon() {
         if [ -f "$nopersonality_so" ]; then
             chmod 755 "$nopersonality_dir" "$nopersonality_so"
             echo "Using nopersonality shim at: $nopersonality_so"
-            export LD_PRELOAD="$nopersonality_so${LD_PRELOAD:+:$LD_PRELOAD}"
+            daemon_env=(env "LD_PRELOAD=$nopersonality_so")
             daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
         fi
     fi
@@ -161,7 +162,7 @@ start_guix_daemon() {
     fi
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
@@ -220,7 +221,7 @@ case "$mode" in
     build-dillo-native)
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."
-        guix_run_with_retries build $keep_failed --no-substitutes --fallback -L "$script_dir" --system=i686-linux \
+        guix_run_with_retries build $keep_failed --fallback -L "$script_dir" --system=i686-linux \
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))'
         echo "Native Dillo build complete."
         stop_guix_daemon
@@ -229,7 +230,7 @@ case "$mode" in
     cross-dillo)
         start_guix_daemon
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
-        dillo_store_path="$(guix_run_with_retries build $keep_failed --no-substitutes --fallback -L "$script_dir" \
+        dillo_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))')"
         echo "Cross-compiled Dillo at: $dillo_store_path"
