@@ -31,15 +31,15 @@
        ((#:configure-flags flags #~'())
         #~(cons*
            "-Damd-use-llvm=false"
-           "-Dllvm=disabled"
+           "-Dllvm=enabled"
            (map (lambda (flag)
                   (cond
                    ((string-prefix? "-Dgallium-drivers=" flag)
-                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,softpipe,zink")
+                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
                    ((string-prefix? "-Dvulkan-drivers=" flag)
-                    "-Dvulkan-drivers=intel_hasvk,virtio")
+                    "-Dvulkan-drivers=swrast,intel_hasvk,virtio")
                    ((string-prefix? "-Dllvm=" flag)
-                    "-Dllvm=disabled")
+                    "-Dllvm=enabled")
                    (else flag)))
                 #$flags)))
        ((#:phases phases)
@@ -110,8 +110,7 @@
                            (overlay-bin (string-append llvm-overlay "/bin"))
                            (overlay-lib (string-append llvm-overlay "/lib"))
                            (overlay-include (string-append llvm-overlay "/include"))
-                           (overlay-cmake (string-append overlay-lib "/cmake"))
-                           (overlay-llvm-cmake (string-append overlay-cmake "/llvm")))
+                           (wrapper-script (string-append overlay-bin "/llvm-config")))
                       (mkdir-p overlay-bin)
                       (mkdir-p overlay-lib)
                       (mkdir-p overlay-include)
@@ -120,43 +119,38 @@
                         (symlink-dir-contents (string-append cross-gcc "/bin") overlay-bin))
                       (when cross-binutils
                         (symlink-dir-contents (string-append cross-binutils "/bin") overlay-bin))
-                      (when (file-exists? llvm-lib)
-                        (for-each
-                         (lambda (entry)
-                           (unless (or (member entry '("." "..")) (string=? entry "cmake"))
-                             (let ((src-path (string-append llvm-lib "/" entry))
-                                   (dest-path (string-append overlay-lib "/" entry)))
-                               (unless (file-exists? dest-path)
-                                 (symlink src-path dest-path)))))
-                         (or ((@ (ice-9 ftw) scandir) llvm-lib) '())))
+                      (symlink-dir-contents llvm-lib overlay-lib)
                       (symlink-dir-contents (string-append llvm "/include") overlay-include)
-                      (copy-recursively (string-append llvm-lib "/cmake") overlay-cmake)
-                      (chmod (string-append overlay-llvm-cmake "/LLVMConfig.cmake") #o644)
-                      (chmod (string-append overlay-llvm-cmake "/LLVMExports-release.cmake") #o644)
-                      (substitute* (string-append overlay-llvm-cmake "/LLVMExports-release.cmake")
-                        (("IMPORTED_LOCATION_RELEASE \"([^\"]+)\"" _ path)
-                         (string-append "IMPORTED_LOCATION_RELEASE \"" path "\"\n  IMPORTED_LOCATION \"" path "\"")))
-                      (let ((port (open-file
-                                   (string-append overlay-llvm-cmake "/LLVMConfig.cmake")
-                                   "a")))
-                        (display
-                          (string-append
-                           "\nset(LLVM_TARGETS_TO_BUILD \"${LLVM_ALL_TARGETS}\")\n"
-                           "set(LLVM_LIBRARY_DIR \"" llvm-lib "\")\n"
-                           "set(LLVM_LIBRARY_DIRS \"" llvm-lib "\")\n"
-                           "set(LLVM_IMPORTED_LOCATION_CTB \""
-                           llvm-lib "/libLLVM.so.18.1\")\n"
-                           "if(TARGET LLVM)\n"
-                           "  set_target_properties(LLVM PROPERTIES IMPORTED_LOCATION \"${LLVM_IMPORTED_LOCATION_CTB}\")\n"
-                           "endif()\n"
-                           "if(TARGET llvm-tblgen)\n"
-                           "  set_target_properties(llvm-tblgen PROPERTIES IMPORTED_LOCATION \""
-                           overlay-bin "/llvm-tblgen\")\n"
-                           "endif()\n")
-                          port)
-                        (close-port port))
-                      (setenv "LLVM_DIR" overlay-llvm-cmake)
-                      (prepend-env-path "CMAKE_PREFIX_PATH" llvm-overlay)
+                      ;; Create shell-based llvm-config wrapper for cross host
+                      (call-with-output-file wrapper-script
+                        (lambda (p)
+                          (format p "#!/bin/sh~%")
+                          (format p "llvm_dir=~s~%" llvm)
+                          (format p "res=\"\"~%")
+                          (format p "for arg in \"$@\"; do~%")
+                          (format p "  case \"$arg\" in~%")
+                          (format p "    --version) res=\"$res 18.1.8\" ;;~%")
+                          (format p "    --prefix) res=\"$res $llvm_dir\" ;;~%")
+                          (format p "    --bindir) res=\"$res $llvm_dir/bin\" ;;~%")
+                          (format p "    --includedir) res=\"$res $llvm_dir/include\" ;;~%")
+                          (format p "    --libdir) res=\"$res $llvm_dir/lib\" ;;~%")
+                          (format p "    --cppflags|--cflags|--cxxflags) res=\"$res -I$llvm_dir/include -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS\" ;;~%")
+                          (format p "    --ldflags) res=\"$res -L$llvm_dir/lib -Wl,-rpath,$llvm_dir/lib\" ;;~%")
+                          (format p "    --libs|--libfiles|--libnames) res=\"$res -L$llvm_dir/lib -lLLVM-18\" ;;~%")
+                          (format p "    --system-libs) res=\"$res -lz -lzstd -lm\" ;;~%")
+                          (format p "    --shared-mode) res=\"$res shared\" ;;~%")
+                          (format p "    --has-rtti) res=\"$res YES\" ;;~%")
+                          (format p "    --targets-built) res=\"$res X86\" ;;~%")
+                          (format p "    --host-target) res=\"$res i686-unknown-linux-gnu\" ;;~%")
+                          (format p "    --build-mode) res=\"$res Release\" ;;~%")
+                          (format p "    --assertion-mode) res=\"$res OFF\" ;;~%")
+                          (format p "    --components) res=\"$res all all-targets engine executionengine mc mcjit native orcjit target x86 x86asmparser x86codegen x86desc x86disassembler x86info\" ;;~%")
+                          (format p "  esac~%")
+                          (format p "done~%")
+                          (format p "if [ -n \"$res\" ]; then echo \"$res\" | sed 's/^ //'; fi~%")))
+                      (chmod wrapper-script #o755)
+                      (symlink wrapper-script (string-append overlay-bin "/i686-linux-gnu-llvm-config"))
+                      (symlink wrapper-script (string-append overlay-bin "/llvm-config-18"))
                       (prepend-env-path "PATH" overlay-bin)))
                   (when spirv-tools
                     (prepend-env-path "CMAKE_PREFIX_PATH" spirv-tools)
