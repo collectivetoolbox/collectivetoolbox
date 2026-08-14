@@ -796,7 +796,8 @@ pub fn mangle_v86_build_scripts(v86_tmp: &Path) -> Result<()> {
         let content = fs::read_to_string(&makefile_path)?;
         let mangled = content
             .replace("java -jar", "echo 'ERROR: java is not permitted in build' && false # java_disabled")
-            .replace("./gen/generate_", "echo 'ERROR: node is not permitted in build' && false # node_disabled_");
+            .replace("./gen/generate_", "echo 'ERROR: node is not permitted in build' && false # node_disabled_")
+            .replace("perl ", "echo 'ERROR: perl is not permitted in build' && false # perl_disabled ");
         fs::write(&makefile_path, mangled)?;
     }
 
@@ -1006,7 +1007,7 @@ mod tests {
         let makefile = temp.join("Makefile");
         fs::write(
             &makefile,
-            "default:\n\tjava -jar closure.jar\n\t./gen/generate_jit.js\n",
+            "default:\n\tjava -jar closure.jar\n\t./gen/generate_jit.js\n\tperl script.pl\n",
         )
         .unwrap();
 
@@ -1020,8 +1021,12 @@ mod tests {
         let mangled_makefile = fs::read_to_string(&makefile).unwrap();
         assert!(!mangled_makefile.contains("java -jar"));
         assert!(!mangled_makefile.contains("./gen/generate_"));
+        assert!(!mangled_makefile.contains("perl script.pl"));
         assert!(
             mangled_makefile.contains("ERROR: java is not permitted in build")
+        );
+        assert!(
+            mangled_makefile.contains("ERROR: perl is not permitted in build")
         );
 
         let mangled_js = fs::read_to_string(&js_script).unwrap();

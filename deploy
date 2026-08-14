@@ -92,7 +92,13 @@ fi
 cd "$repository" || exit 1
 
 # Increase patch version number. The line in Cargo.toml looks like `version = "0.1.1"`
-perl -0777 -pe 's/^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"/"version = \"${1}.${2}." . ($3+1) . "\""/me' -i Cargo.toml
+current_pkg_version="$(grep -m1 -E '^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')"
+if [[ -n "$current_pkg_version" ]]; then
+	IFS='.' read -r v_major v_minor v_patch <<< "$current_pkg_version"
+	v_patch=$((v_patch + 1))
+	next_pkg_version="${v_major}.${v_minor}.${v_patch}"
+	sed -i "0,/^version\s*=\s*\"[^\"]*\"/s/^version\s*=\s*\"[^\"]*\"/version = \"${next_pkg_version}\"/" Cargo.toml
+fi
 
 # Trigger cargo to update Cargo.lock with the new version.
 cargo metadata --format-version=1 --no-deps >/dev/null
