@@ -90,7 +90,6 @@ export PATH="/var/guix/profiles/per-user/root/current-profile/bin:/root/.config/
 export GUIX_LOCPATH="${GUIX_LOCPATH:-/var/guix/profiles/per-user/root/current-profile/lib/locale:/root/.guix-profile/lib/locale}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
-
 # Configure default Guix build options: maximum 60 seconds of silent stalling before timing out substitute downloads and falling back
 export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=60 --timeout=3600}"
 
@@ -149,9 +148,9 @@ start_guix_daemon() {
         fi
     fi
 
-    chmod -R u+w /gnu/store 2>/dev/null || true
-    find /gnu/store -name "perform-download.scm" -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
-    find /gnu/store -name "perform-download.go" -delete 2>/dev/null || true
+    find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
+    find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
+    python3 "$script_dir/patch-guix-substitute.py" 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
     mkdir -p /var/log/guix/drvs /var/guix
@@ -187,12 +186,29 @@ start_guix_daemon() {
 
 stop_guix_daemon() {
     if [ -n "$daemon_pid" ]; then
+        echo "Stopping guix-daemon (pid $daemon_pid)..."
         kill "$daemon_pid" 2>/dev/null || true
         daemon_pid=""
     fi
     if [ -n "$tmp_build_dir" ]; then
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
         tmp_build_dir=""
+    fi
+}
+
+# Run guix inside a pseudo-terminal (PTY) to ensure live progress bars are emitted in non-interactive CI/Docker builds
+run_guix() {
+    export TERM="${TERM:-xterm-256color}"
+    export COLUMNS="${COLUMNS:-80}"
+    export LINES="${LINES:-24}"
+    if [ -t 1 ]; then
+        guix "$@"
+    elif command -v script >/dev/null 2>&1; then
+        script -q -e -c "$(printf "%q " guix "$@")" /dev/null
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import pty, sys; sys.exit(pty.spawn(["guix"] + sys.argv[1:]))' "$@"
+    else
+        guix "$@"
     fi
 }
 
@@ -204,7 +220,7 @@ guix_run_with_retries() {
     fi
     local attempt=1
     while [ "$attempt" -le "$max_attempts" ]; do
-        if guix "$@"; then
+        if run_guix "$@"; then
             return 0
         fi
         if [ "$max_attempts" -gt 1 ]; then
@@ -237,9 +253,10 @@ case "$mode" in
     cross-dillo)
         start_guix_daemon
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
-        dillo_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
+        dillo_output="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))')"
+        dillo_store_path="$(echo "$dillo_output" | grep -o '/gnu/store/[^[:space:]]*dillo-[0-9.]*' | tail -n 1)"
         echo "Cross-compiled Dillo at: $dillo_store_path"
         stop_guix_daemon
         ;;
@@ -247,9 +264,10 @@ case "$mode" in
     cross-icecat)
         start_guix_daemon
         echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-        icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
+        icecat_output="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
             --system=x86_64-linux --target=i686-linux-gnu \
             -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
+        icecat_store_path="$(echo "$icecat_output" | grep -o '/gnu/store/[^[:space:]]*icecat-[0-9.]*' | tail -n 1)"
         echo "Cross-compiled Icecat at: $icecat_store_path"
         stop_guix_daemon
         ;;
@@ -257,8 +275,9 @@ case "$mode" in
     prebuild-tarball)
         start_guix_daemon
         echo "Building Guix i686 system tarball image..."
-        tarball_img="$(guix_run_with_retries system image $keep_failed --fallback -L "$script_dir" \
+        tarball_output="$(guix_run_with_retries system image $keep_failed --fallback -L "$script_dir" \
             --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
+        tarball_img="$(echo "$tarball_output" | grep -o '/gnu/store/[^[:space:]]*\.tar\.gz' | tail -n 1)"
         echo "Guix image built at: $tarball_img"
         stop_guix_daemon
         mkdir -p "$(dirname "$prebuild_dest")"
