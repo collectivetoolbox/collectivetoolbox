@@ -10,7 +10,17 @@ set -euxo pipefail
 #   --prebuild-tarball PATH Build Guix i686 system image tarball, save to PATH
 #   (no args)               Full build: system image + Icecat + v86 packing
 
-# When using dev container, `scripts/guix/build-v86-guix-image.sh --cross-dillo --keep-failed --disable-chroot --nopersonality` seems necessary
+# Safety guard: ensure this script is only executed inside a container environment.
+is_container() {
+    [ -f /.dockerenv ] || [ -f /run/.containerenv ] || \
+    grep -qa -E 'docker|containerd|kubepods|lxc|podman' /proc/1/cgroup 2>/dev/null || \
+    grep -qa -E 'container=' /proc/1/environ 2>/dev/null
+}
+
+if [ -z "${ALLOW_UNSAFE_HOST_GUIX_BUILD:-}" ] && ! is_container; then
+    echo "Error: build-v86-guix-image.sh modifies system store and permissions (/gnu/store, /var/guix) and must only be run inside a Docker container." >&2
+    exit 1
+fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="$(cd "$script_dir/../.." && pwd)"
@@ -118,21 +128,7 @@ start_guix_daemon() {
         nopersonality_rs="$script_dir/../../src/nopersonality/nopersonality.rs"
     fi
 
-    # Check if personality(PER_LINUX32) syscall is blocked (returns < 0)
-    needs_nopersonality=0
-    if command -v setarch >/dev/null 2>&1; then
-        if ! setarch linux32 true 2>/dev/null; then
-            needs_nopersonality=1
-        fi
-    elif command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; then
-        probe_cc="${CC:-$(command -v cc || command -v gcc)}"
-        if ! printf '#include <sys/personality.h>\nint main(){return personality(PER_LINUX32)<0?1:0;}\n' | "$probe_cc" -x c - -o /tmp/personality_probe 2>/dev/null && /tmp/personality_probe 2>/dev/null; then
-            needs_nopersonality=1
-        fi
-        rm -f /tmp/personality_probe 2>/dev/null || true
-    fi
-
-    if [ "$needs_nopersonality" -eq 1 ] && [ -n "$nopersonality_rs" ]; then
+    if [ -n "$nopersonality_rs" ]; then
         nopersonality_dir="/var/guix/nopersonality"
         nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
         mkdir -p "$nopersonality_dir"

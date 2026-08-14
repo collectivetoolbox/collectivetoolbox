@@ -35,14 +35,13 @@ apt-get update && apt-get install -y \
     musl-tools \
     binutils \
     patch \
-    perl \
     pkg-config \
     ca-certificates \
     file \
     xz-utils
 
-apt-get remove -y nodejs npm python3 python3-minimal python2 java-common default-jre default-jdk 2>/dev/null || true
-apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true
+apt-get remove -y nodejs npm python3 python3-minimal python2 perl perl-base java-common default-jre default-jdk 2>/dev/null || true
+apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" perl perl-base "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true
 apt-get autoremove --purge -y 2>/dev/null || true
 
 if [[ -d /usr/local/share/nvm ]]; then
@@ -64,6 +63,7 @@ SKIP_BINS=(
   python python3 python2
   java javac
   pip pip3 pipx
+  perl
 )
 
 for bin_name in "${SKIP_BINS[@]}"; do
