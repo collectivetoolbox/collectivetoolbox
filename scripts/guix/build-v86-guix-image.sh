@@ -19,12 +19,11 @@ mode=""
 prebuild_dest=""
 keep_failed=""
 disable_chroot=""
-nopersonality=""
 disable_cross=""
 no_retries=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality] [--disable-cross] [--no-retries]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--no-retries]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -53,9 +52,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --disable-chroot)
             disable_chroot="--disable-chroot"
-            ;;
-        --nopersonality)
-            nopersonality="1"
             ;;
         --disable-cross)
             disable_cross="1"
@@ -121,11 +117,17 @@ start_guix_daemon() {
         nopersonality_rs="$script_dir/../../src/nopersonality/nopersonality.rs"
     fi
 
-    nopersonality_dir="/var/guix/nopersonality"
-    nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
-    if [ -n "$nopersonality_rs" ] || [ -f "$nopersonality_so" ]; then
+    # Check if personality(PER_LINUX32) syscall is blocked (returns < 0)
+    needs_nopersonality=0
+    if ! python3 -c "import ctypes; res = ctypes.CDLL(None).personality(8); exit(0 if res >= 0 else 1)" 2>/dev/null; then
+        needs_nopersonality=1
+    fi
+
+    if [ "$needs_nopersonality" -eq 1 ] && [ -n "$nopersonality_rs" ]; then
+        nopersonality_dir="/var/guix/nopersonality"
+        nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
         mkdir -p "$nopersonality_dir"
-        if [ ! -f "$nopersonality_so" ] && [ -n "$nopersonality_rs" ]; then
+        if [ ! -f "$nopersonality_so" ]; then
             echo "Building nopersonality cdylib shim..."
             if command -v rustc >/dev/null 2>&1; then
                 rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
@@ -136,6 +138,11 @@ start_guix_daemon() {
         fi
         if [ -f "$nopersonality_so" ]; then
             chmod 755 "$nopersonality_dir" "$nopersonality_so"
+            # Also copy to /lib or /usr/lib so child chroots can resolve it if LD_PRELOAD is present
+            if [ -d /usr/lib ] && [ -w /usr/lib ]; then
+                cp "$nopersonality_so" /usr/lib/libctb_nopersonality.so 2>/dev/null || true
+                chmod 755 /usr/lib/libctb_nopersonality.so 2>/dev/null || true
+            fi
             echo "Using nopersonality shim at: $nopersonality_so"
             daemon_env=(env "LD_PRELOAD=$nopersonality_so")
             daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
