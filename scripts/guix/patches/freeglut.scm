@@ -34,24 +34,40 @@
           (package-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:configure-flags flags #~'())
+        #~(cons* "-DFREEGLUT_BUILD_DEMOS=OFF"
+                 "-DFREEGLUT_BUILD_STATIC_LIBS=OFF"
+                 #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (add-after 'unpack 'patch-opengl-lookup
               (lambda* (#:key inputs #:allow-other-keys)
                 (let* ((mesa (assoc-ref inputs "mesa"))
+                       (glu (assoc-ref inputs "glu"))
                        (mesa-lib (and mesa
                                       (or (and (file-exists? (string-append mesa "/lib/libGL.so"))
                                                (string-append mesa "/lib/libGL.so"))
                                           (and (file-exists? (string-append mesa "/lib64/libGL.so"))
                                                (string-append mesa "/lib64/libGL.so"))
-                                          (string-append mesa "/lib/libGL.so")))))
+                                          (string-append mesa "/lib/libGL.so"))))
+                       (glu-lib (and glu
+                                     (or (and (file-exists? (string-append glu "/lib/libGLU.so"))
+                                              (string-append glu "/lib/libGLU.so"))
+                                         (and (file-exists? (string-append glu "/lib64/libGLU.so"))
+                                              (string-append glu "/lib64/libGLU.so"))
+                                         (string-append glu "/lib/libGLU.so")))))
                   (substitute* "CMakeLists.txt"
                     (("FIND_PACKAGE\\(OpenGL REQUIRED\\)")
-                     (if mesa-lib
-                         (string-append "set(OPENGL_gl_LIBRARY \"" mesa-lib "\")\n"
-                                        "set(OPENGL_INCLUDE_DIR \"" mesa "/include\")\n"
-                                        "set(OPENGL_FOUND TRUE)")
-                         "find_library(OPENGL_gl_LIBRARY GL)\nfind_path(OPENGL_INCLUDE_DIR GL/gl.h)\nset(OPENGL_FOUND TRUE)"))))))))))))
+                     (string-append
+                      (if mesa-lib
+                          (string-append "set(OPENGL_gl_LIBRARY \"" mesa-lib "\")\n"
+                                         "set(OPENGL_INCLUDE_DIR \"" mesa "/include\")\n")
+                          "find_library(OPENGL_gl_LIBRARY GL)\nfind_path(OPENGL_INCLUDE_DIR GL/gl.h)\n")
+                      (if glu-lib
+                          (string-append "set(OPENGL_glu_LIBRARY \"" glu-lib "\")\n")
+                          "find_library(OPENGL_glu_LIBRARY GLU)\n")
+                      "set(OPENGL_FOUND TRUE)\n"
+                      "set(OPENGL_GLU_FOUND TRUE)"))))))))))))
 
 (define freeglut-fixed
   (freeglut-fixed-proc freeglut))
