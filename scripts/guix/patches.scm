@@ -15,6 +15,8 @@
 
 (define-module (patches)
   #:use-module (guix packages)
+  #:use-module (patches dillo)
+  #:use-module (patches fltk)
   #:use-module (patches gst-plugins-good)
   #:use-module (patches mesa)
   #:use-module (patches spice-gtk)
@@ -22,8 +24,10 @@
   #:export (apply-patches))
 
 (define package-patches
-  `(("gst-plugins-good" . ,(const gst-plugins-good-no-tests))
-    ("mesa" . ,(const mesa-libclc-pkg-config-fixed))
+  `(("dillo" . ,dillo-fixed-proc)
+    ("fltk" . ,fltk-fixed-proc)
+    ("gst-plugins-good" . ,(const gst-plugins-good-no-tests))
+    ("mesa" . ,mesa-libclc-pkg-config-fixed-proc)
     ("spice-gtk" . ,(const spice-gtk-fixed))
     ("icecat" . ,(const icecat-patched))))
 

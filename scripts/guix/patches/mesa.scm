@@ -19,23 +19,27 @@
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (ice-9 ftw)
-  #:export (mesa-libclc-pkg-config-fixed))
+  #:export (mesa-libclc-pkg-config-fixed-proc
+            mesa-libclc-pkg-config-fixed))
 
-(define-public mesa-libclc-pkg-config-fixed
+(define-public (mesa-libclc-pkg-config-fixed-proc pkg)
   (package
-    (inherit mesa)
+    (inherit pkg)
     (arguments
-     (substitute-keyword-arguments (package-arguments mesa)
+     (substitute-keyword-arguments (package-arguments pkg)
        ((#:validate-runpath? _ #t) #f)
        ((#:configure-flags flags #~'())
         #~(cons*
            "-Damd-use-llvm=false"
+           "-Dllvm=disabled"
            (map (lambda (flag)
                   (cond
                    ((string-prefix? "-Dgallium-drivers=" flag)
-                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
+                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,softpipe,zink")
                    ((string-prefix? "-Dvulkan-drivers=" flag)
-                    "-Dvulkan-drivers=swrast,intel_hasvk,virtio")
+                    "-Dvulkan-drivers=intel_hasvk,virtio")
+                   ((string-prefix? "-Dllvm=" flag)
+                    "-Dllvm=disabled")
                    (else flag)))
                 #$flags)))
        ((#:phases phases)
@@ -73,10 +77,17 @@
                              (symlink src-path dest-path)))))
                      (or ((@ (ice-9 ftw) scandir) src) '()))))
 
-                (let ((libclc (input-ref "libclc"))
-                      (llvm (input-ref "llvm-for-mesa"))
-                      (spirv-tools (input-ref "spirv-tools"))
-                      (llvm-spirv (input-ref "spirv-llvm-translator"))
+                (let ((libclc (or (input-ref "libclc")
+                                  (find-input-by-prefix "libclc")))
+                      (llvm (or (input-ref "llvm-for-mesa")
+                                (input-ref "llvm")
+                                (find-input-by-prefix "llvm")))
+                      (spirv-tools (or (input-ref "spirv-tools")
+                                       (find-input-by-prefix "spirv-tools")))
+                      (llvm-spirv (or (input-ref "spirv-llvm-translator")
+                                      (input-ref "llvm-spirv")
+                                      (find-input-by-prefix "spirv-llvm-translator")
+                                      (find-input-by-prefix "llvm-spirv")))
                       (cross-gcc (or (input-ref "cross-gcc")
                                      (input-ref "gcc-cross")
                                      (find-input-by-prefix "cross-gcc")
@@ -88,7 +99,10 @@
                   (when libclc
                     (prepend-env-path
                      "PKG_CONFIG_PATH"
-                     (string-append libclc "/share/pkgconfig")))
+                     (string-append libclc "/share/pkgconfig"))
+                    (prepend-env-path
+                     "PKG_CONFIG_PATH"
+                     (string-append libclc "/lib/pkgconfig")))
                   (when llvm
                     (let* ((llvm-overlay (string-append (getcwd) "/ctb-llvm-overlay"))
                            (llvm-bin (string-append llvm "/bin"))
@@ -170,6 +184,8 @@
                    "method : 'cmake',")
                   (("with_driver_using_cl = \\[")
                    "with_driver_using_cl = false\n_unused_driver_cl = [")
+                  (("dep_clc = dependency\\('libclc'\\)")
+                   "dep_clc = dependency('libclc', native : true, required : false)")
                   (("dep_spirv_tools = dependency\\(")
                    "_unused_spirv_tools = dependency(")
                   (("required : with_clc,")
@@ -187,3 +203,6 @@
                   (when (file-exists? overlay-bin)
                     (let ((current (or (getenv "PATH") "")))
                       (setenv "PATH" (string-append overlay-bin ":" current)))))))))))))
+
+(define-public mesa-libclc-pkg-config-fixed
+  (mesa-libclc-pkg-config-fixed-proc mesa))

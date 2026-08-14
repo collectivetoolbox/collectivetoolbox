@@ -21,7 +21,9 @@
   #:export (icecat-patched))
 
 (define patch-dir
-  (string-append (dirname (current-filename)) "/icecat/bugzilla1360870"))
+  (string-append (or (and=> (current-filename) dirname)
+                     (string-append (getcwd) "/scripts/guix/patches"))
+                 "/icecat/bugzilla1360870"))
 
 (define bugzilla1360870-patches
   (list (local-file (string-append patch-dir "/6695a4a7a649") "icecat-bug1360870-1.patch")
