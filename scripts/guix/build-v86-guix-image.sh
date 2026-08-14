@@ -152,7 +152,6 @@ start_guix_daemon() {
 
     find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
     find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
-    python3 "$script_dir/patch-guix-substitute.py" 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
     mkdir -p /var/log/guix/drvs /var/guix
@@ -198,22 +197,6 @@ stop_guix_daemon() {
     fi
 }
 
-# Run guix inside a pseudo-terminal (PTY) to ensure live progress bars are emitted in non-interactive CI/Docker builds
-run_guix() {
-    export TERM="${TERM:-xterm-256color}"
-    export COLUMNS="${COLUMNS:-80}"
-    export LINES="${LINES:-24}"
-    if [ -t 1 ]; then
-        guix "$@"
-    elif command -v script >/dev/null 2>&1; then
-        script -q -e -c "$(printf "%q " guix "$@")" /dev/null
-    elif command -v python3 >/dev/null 2>&1; then
-        python3 -c 'import pty, sys; sys.exit(pty.spawn(["guix"] + sys.argv[1:]))' "$@"
-    else
-        guix "$@"
-    fi
-}
-
 # Helper to run guix build/system commands with up to 3 retries for transient network/substitute failures
 guix_run_with_retries() {
     local max_attempts=3
@@ -222,7 +205,7 @@ guix_run_with_retries() {
     fi
     local attempt=1
     while [ "$attempt" -le "$max_attempts" ]; do
-        if run_guix "$@"; then
+        if guix "$@"; then
             return 0
         fi
         if [ "$max_attempts" -gt 1 ]; then
