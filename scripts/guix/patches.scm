@@ -17,6 +17,7 @@
   #:use-module (guix packages)
   #:use-module (patches dillo)
   #:use-module (patches fltk)
+  #:use-module (patches freeglut)
   #:use-module (patches gst-plugins-good)
   #:use-module (patches mesa)
   #:use-module (patches spice-gtk)
@@ -26,6 +27,7 @@
 (define package-patches
   `(("dillo" . ,dillo-fixed-proc)
     ("fltk" . ,fltk-fixed-proc)
+    ("freeglut" . ,freeglut-fixed-proc)
     ("gst-plugins-good" . ,(const gst-plugins-good-no-tests))
     ("mesa" . ,mesa-libclc-pkg-config-fixed-proc)
     ("spice-gtk" . ,(const spice-gtk-fixed))
