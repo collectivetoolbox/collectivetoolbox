@@ -51,7 +51,7 @@ base64 = "0.22.1"
 futures = "0.3"
 futures-core = { version = "0.3", default-features = false }
 cfg-if = "1.0"
-webbrowser = "1.0.6"
+webbrowser = { version = "1.2.4", features = ["hardened"] }
 # Blocked on https://github.com/servo/servo/issues/18343
 # libservo = { git = "https://github.com/servo/servo", rev = "454d6052b4a3b396573e93f190413a4877daa902" }
 arc-swap = { version = "1" }

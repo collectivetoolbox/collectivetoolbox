@@ -27,6 +27,13 @@ pub enum FormatId {
     Pack,
     OldPack,
     Compact,
+    Lz4,
+    Lzma,
+    Lzma2,
+    Lzip,
+    Xz,
+    Zstd,
+    Lzo,
 
     // Binary Data Encodings
     BaseString,
@@ -320,9 +327,17 @@ impl FormatId {
             | Self::CompressLzw
             | Self::CompressLzw2
             | Self::CompressLzw1
+            | Self::CompressLzw16
             | Self::Pack
             | Self::OldPack
-            | Self::Compact => FormatCategory::Compression,
+            | Self::Compact
+            | Self::Lz4
+            | Self::Lzma
+            | Self::Lzma2
+            | Self::Lzip
+            | Self::Xz
+            | Self::Zstd
+            | Self::Lzo => FormatCategory::Compression,
 
             Self::Tar | Self::Zip => FormatCategory::Archive,
 

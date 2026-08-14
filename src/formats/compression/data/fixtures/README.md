@@ -24,6 +24,13 @@ NOTE: old/unix-tools is not included in this repository except temporarily to ge
 | [`example2 with lemurs.pan.old.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.old.z) | Early Unix `pack` | `0x1F 0x1F` | Steve Zucker ~1977 PDP-11 binary tree dictionary | 1,404 B | `3aef34365c10...` |
 | [`example2 with lemurs.pan.sco`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.sco) | SCO `compress -H` | `0x1F 0xA0` | LZSS sliding window dictionary + static Huffman | 954 B |
 | [`example2 with lemurs.pan.C`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.C) | `compact` (Adaptive Huffman) | `0x1F 0xFF` / `0xFF 0x1F` | McMaster's 1979 Online Adaptive Huffman Coder | 998 B |
+| [`example2 with lemurs.pan.lz4`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lz4) | LZ4 | `0x04 0x22 0x4D 0x18` | LZ4 Frame compression | 1,120 B | `fdb6efe2bf69...` |
+| [`example2 with lemurs.pan.lzma`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzma) | LZMA | `0x5D 0x00 0x00` | LZMA stream format | 803 B | `928c2ce1e927...` |
+| [`example2 with lemurs.pan.lzma2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzma2) | LZMA2 | None (Stream) | LZMA2 raw stream format | 792 B | `e62c27b9e47b...` |
+| [`example2 with lemurs.pan.lz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lz) | Lzip | `0x4C 0x5A 0x49 0x50` | Lzip format (LZMA-based) | 816 B | `30c1ca95f9e8...` |
+| [`example2 with lemurs.pan.xz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.xz) | XZ | `0xFD 0x37 0x7A 0x58 0x5A 0x00` | XZ container format (LZMA2) | 848 B | `3222a582ace1...` |
+| [`example2 with lemurs.pan.zst`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.zst) | Zstandard | `0x28 0xB5 0x2F 0xFD` | Zstandard compressed frame | 879 B | `f236221b3e8a...` |
+| [`example2 with lemurs.pan.lzo`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzo) | LZO | None (Stream) | LZO byte stream | 948 B | `7f60cad50c72...` |
 ---
 
 ## Hexdump Header Comparison of LZW Formats
@@ -60,4 +67,35 @@ To re-compile all historical tools and re-generate all fixtures, run:
 ./src/formats/compression/data/fixtures/generate-compression-fixtures
 # or:
 ./scripts/generate-compression-fixtures
+```
+
+### Note
+
+Some additional fixtures were generated as follows:
+
+```rust
+    #[crate::ctb_test]
+    fn generate_new_fixtures() {
+        use std::path::{Path, PathBuf};
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let raw_path = manifest_dir.join("data/fixtures/example2 with lemurs.pan");
+        let raw_data = std::fs::read(&raw_path)
+            .unwrap_or_else(|e| panic!("Failed to read {}: {e:?}", raw_path.display()));
+
+        let new_formats: [(CompressionFormat, PathBuf); 7] = [
+            (CompressionFormat::Lz4, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lz4")),
+            (CompressionFormat::Lzma, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzma")),
+            (CompressionFormat::Lzma2, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzma2")),
+            (CompressionFormat::Lzip, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lz")),
+            (CompressionFormat::Xz, manifest_dir.join("data/fixtures/example2 with lemurs.pan.xz")),
+            (CompressionFormat::Zstd, manifest_dir.join("data/fixtures/example2 with lemurs.pan.zst")),
+            (CompressionFormat::Lzo, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzo")),
+        ];
+
+        for (fmt, out_path) in new_formats {
+            let compressed = compress(&raw_data, fmt).expect("Failed to compress fixture");
+            std::fs::write(&out_path, &compressed)
+                .unwrap_or_else(|e| panic!("Failed to write {}: {e:?}", out_path.display()));
+        }
+    }
 ```

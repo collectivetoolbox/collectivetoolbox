@@ -55,6 +55,20 @@ pub enum CompressionFormat {
     OldPack,
     /// `McMaster` Adaptive Huffman compact (.C)
     Compact,
+    /// LZ4 compressed stream (.lz4)
+    Lz4,
+    /// LZMA stream (.lzma)
+    Lzma,
+    /// LZMA2 stream (.lzma2)
+    Lzma2,
+    /// Lzip compressed stream (.lz)
+    Lzip,
+    /// XZ compressed stream (.xz)
+    Xz,
+    /// Zstandard compressed stream (.zst, .zstd)
+    Zstd,
+    /// LZO compressed stream (.lzo)
+    Lzo,
 }
 
 /// Declarative metadata for a compression format variant.
@@ -183,6 +197,41 @@ impl CompressionFormat {
             display_name: "`compact` (McMaster Adaptive Huffman)",
             aliases: &["compact", "uncompact"],
         },
+        CompressionFormatInfo {
+            format: Self::Lz4,
+            display_name: "LZ4 compression",
+            aliases: &["lz4"],
+        },
+        CompressionFormatInfo {
+            format: Self::Lzma,
+            display_name: "LZMA compression",
+            aliases: &["lzma"],
+        },
+        CompressionFormatInfo {
+            format: Self::Lzma2,
+            display_name: "LZMA2 compression",
+            aliases: &["lzma2"],
+        },
+        CompressionFormatInfo {
+            format: Self::Lzip,
+            display_name: "Lzip compression",
+            aliases: &["lzip", "lz"],
+        },
+        CompressionFormatInfo {
+            format: Self::Xz,
+            display_name: "XZ compression",
+            aliases: &["xz", "xzip"],
+        },
+        CompressionFormatInfo {
+            format: Self::Zstd,
+            display_name: "Zstandard compression",
+            aliases: &["zstd", "zst"],
+        },
+        CompressionFormatInfo {
+            format: Self::Lzo,
+            display_name: "LZO compression",
+            aliases: &["lzo"],
+        },
     ];
 
     /// Maps this compression format variant to the global `FormatId`.
@@ -201,6 +250,13 @@ impl CompressionFormat {
             Self::Pack => FormatId::Pack,
             Self::OldPack => FormatId::OldPack,
             Self::Compact => FormatId::Compact,
+            Self::Lz4 => FormatId::Lz4,
+            Self::Lzma => FormatId::Lzma,
+            Self::Lzma2 => FormatId::Lzma2,
+            Self::Lzip => FormatId::Lzip,
+            Self::Xz => FormatId::Xz,
+            Self::Zstd => FormatId::Zstd,
+            Self::Lzo => FormatId::Lzo,
         }
     }
 
@@ -220,6 +276,13 @@ impl CompressionFormat {
             FormatId::Pack => Some(Self::Pack),
             FormatId::OldPack => Some(Self::OldPack),
             FormatId::Compact => Some(Self::Compact),
+            FormatId::Lz4 => Some(Self::Lz4),
+            FormatId::Lzma => Some(Self::Lzma),
+            FormatId::Lzma2 => Some(Self::Lzma2),
+            FormatId::Lzip => Some(Self::Lzip),
+            FormatId::Xz => Some(Self::Xz),
+            FormatId::Zstd => Some(Self::Zstd),
+            FormatId::Lzo => Some(Self::Lzo),
             _ => None,
         }
     }
@@ -239,6 +302,13 @@ impl CompressionFormat {
             | Self::CompressLzw16 => "Z",
             Self::Pack | Self::OldPack => "z",
             Self::Compact => "C",
+            Self::Lz4 => "lz4",
+            Self::Lzma => "lzma",
+            Self::Lzma2 => "lzma2",
+            Self::Lzip => "lz",
+            Self::Xz => "xz",
+            Self::Zstd => "zst",
+            Self::Lzo => "lzo",
         }
     }
 
@@ -371,6 +441,63 @@ pub fn compress_stream(
         CompressionFormat::Compact => {
             compact::compress_compact_stream(reader, writer)
         }
+        CompressionFormat::Lz4 => {
+            let mut encoder = lz4_flex::frame::FrameEncoder::new(writer);
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to LZ4 encoder")?;
+            encoder.finish().context("Failed to finish LZ4 encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Xz => {
+            let mut encoder = lzma_rust2::XzWriter::new(writer, lzma_rust2::XzOptions::default())
+                .context("Failed to create XZ encoder")?;
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to XZ encoder")?;
+            encoder.finish().context("Failed to finish XZ encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzip => {
+            let mut encoder = lzma_rust2::LzipWriter::new(writer, lzma_rust2::LzipOptions::default());
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to Lzip encoder")?;
+            encoder.finish().context("Failed to finish Lzip encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzma => {
+            let options = lzma_rust2::LzmaOptions::default();
+            let mut encoder = lzma_rust2::LzmaWriter::new(writer, &options, true, true, None)
+                .context("Failed to create LZMA encoder")?;
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to LZMA encoder")?;
+            encoder.finish().context("Failed to finish LZMA encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzma2 => {
+            let mut encoder = lzma_rust2::Lzma2Writer::new(writer, lzma_rust2::Lzma2Options::default());
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to LZMA2 encoder")?;
+            encoder.finish().context("Failed to finish LZMA2 encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Zstd => {
+            let mut encoder = zstd::stream::write::Encoder::new(writer, 0)
+                .context("Failed to initialize Zstd encoder")?;
+            let bytes_written = std::io::copy(reader, &mut encoder)
+                .context("Failed to write to Zstd encoder")?;
+            encoder.finish().context("Failed to finish Zstd encoder")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzo => {
+            let mut input = Vec::new();
+            reader.read_to_end(&mut input).context("Failed to read input for LZO compression")?;
+            if input.is_empty() {
+                return Ok(0);
+            }
+            let compressed = lzokay_native::compress(&input)
+                .map_err(|e| anyhow::anyhow!("LZO compression failed: {e:?}"))?;
+            writer.write_all(&compressed).context("Failed to write LZO compressed data")?;
+            Ok(u64::try_from(input.len())?)
+        }
     }
 }
 
@@ -426,6 +553,60 @@ pub fn decompress_stream(
         }
         CompressionFormat::Compact => {
             compact::decompress_compact_stream(reader, writer)
+        }
+        CompressionFormat::Lz4 => {
+            let mut decoder = lz4_flex::frame::FrameDecoder::new(reader);
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress LZ4 stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Xz => {
+            let mut decoder = lzma_rust2::XzReader::new(reader, true);
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress XZ stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzip => {
+            let mut decoder = lzma_rust2::LzipReader::new(reader);
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress Lzip stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzma => {
+            let mut decoder = lzma_rust2::LzmaReader::new_mem_limit(reader, u32::MAX, None)
+                .context("Failed to create LZMA decoder")?;
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress LZMA stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzma2 => {
+            let mut decoder = lzma_rust2::Lzma2Reader::new(
+                reader,
+                lzma_rust2::Lzma2Options::default().lzma_options.dict_size,
+                None,
+            );
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress LZMA2 stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Zstd => {
+            let mut decoder = zstd::stream::read::Decoder::new(reader)
+                .context("Failed to initialize Zstd decoder")?;
+            let bytes_written = std::io::copy(&mut decoder, writer)
+                .context("Failed to decompress Zstd stream")?;
+            Ok(bytes_written)
+        }
+        CompressionFormat::Lzo => {
+            let mut input = Vec::new();
+            reader.read_to_end(&mut input).context("Failed to read input for LZO decompression")?;
+            if input.is_empty() {
+                return Ok(0);
+            }
+            let mut cursor = std::io::Cursor::new(input);
+            let decompressed = lzokay_native::decompress(&mut cursor, None)
+                .map_err(|e| anyhow::anyhow!("LZO decompression failed: {e:?}"))?;
+            writer.write_all(&decompressed).context("Failed to write LZO decompressed data")?;
+            Ok(u64::try_from(decompressed.len())?)
         }
     }
 }
@@ -525,6 +706,34 @@ mod tests {
             CompressionFormat::try_from("compact").unwrap(),
             CompressionFormat::Compact
         );
+        assert_eq!(
+            CompressionFormat::try_from("lz4").unwrap(),
+            CompressionFormat::Lz4
+        );
+        assert_eq!(
+            CompressionFormat::try_from("lzma").unwrap(),
+            CompressionFormat::Lzma
+        );
+        assert_eq!(
+            CompressionFormat::try_from("lzma2").unwrap(),
+            CompressionFormat::Lzma2
+        );
+        assert_eq!(
+            CompressionFormat::try_from("lzip").unwrap(),
+            CompressionFormat::Lzip
+        );
+        assert_eq!(
+            CompressionFormat::try_from("xz").unwrap(),
+            CompressionFormat::Xz
+        );
+        assert_eq!(
+            CompressionFormat::try_from("zstd").unwrap(),
+            CompressionFormat::Zstd
+        );
+        assert_eq!(
+            CompressionFormat::try_from("lzo").unwrap(),
+            CompressionFormat::Lzo
+        );
 
         assert_eq!(CompressionFormat::Brotli.extension(), "br");
         assert_eq!(CompressionFormat::Gzip.extension(), "gz");
@@ -534,6 +743,13 @@ mod tests {
         assert_eq!(CompressionFormat::ScoCompress.extension(), "Z");
         assert_eq!(CompressionFormat::Pack.extension(), "z");
         assert_eq!(CompressionFormat::Compact.extension(), "C");
+        assert_eq!(CompressionFormat::Lz4.extension(), "lz4");
+        assert_eq!(CompressionFormat::Lzma.extension(), "lzma");
+        assert_eq!(CompressionFormat::Lzma2.extension(), "lzma2");
+        assert_eq!(CompressionFormat::Lzip.extension(), "lz");
+        assert_eq!(CompressionFormat::Xz.extension(), "xz");
+        assert_eq!(CompressionFormat::Zstd.extension(), "zst");
+        assert_eq!(CompressionFormat::Lzo.extension(), "lzo");
     }
 
     #[crate::ctb_test]
@@ -586,6 +802,30 @@ mod tests {
             CompressionFormat::from_magic_bytes(&[0xFF, 0x1F]),
             Some(CompressionFormat::Compact)
         );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0x04, 0x22, 0x4D, 0x18]),
+            Some(CompressionFormat::Lz4)
+        );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[
+                0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00
+            ]),
+            Some(CompressionFormat::Xz)
+        );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0x4C, 0x5A, 0x49, 0x50]),
+            Some(CompressionFormat::Lzip)
+        );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0x28, 0xB5, 0x2F, 0xFD]),
+            Some(CompressionFormat::Zstd)
+        );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[
+                0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A
+            ]),
+            Some(CompressionFormat::Lzo)
+        );
     }
 
     fn run_format_test_suite(format: CompressionFormat) {
@@ -626,6 +866,27 @@ mod tests {
             }
             CompressionFormat::Compact => {
                 &["fixtures/example2 with lemurs.pan.C"]
+            }
+            CompressionFormat::Lz4 => {
+                &["fixtures/example2 with lemurs.pan.lz4"]
+            }
+            CompressionFormat::Lzma => {
+                &["fixtures/example2 with lemurs.pan.lzma"]
+            }
+            CompressionFormat::Lzma2 => {
+                &["fixtures/example2 with lemurs.pan.lzma2"]
+            }
+            CompressionFormat::Lzip => {
+                &["fixtures/example2 with lemurs.pan.lz"]
+            }
+            CompressionFormat::Xz => {
+                &["fixtures/example2 with lemurs.pan.xz"]
+            }
+            CompressionFormat::Zstd => {
+                &["fixtures/example2 with lemurs.pan.zst"]
+            }
+            CompressionFormat::Lzo => {
+                &["fixtures/example2 with lemurs.pan.lzo"]
             }
         };
 
@@ -754,5 +1015,40 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_compact() {
         run_format_test_suite(CompressionFormat::Compact);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_lz4() {
+        run_format_test_suite(CompressionFormat::Lz4);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_lzma() {
+        run_format_test_suite(CompressionFormat::Lzma);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_lzma2() {
+        run_format_test_suite(CompressionFormat::Lzma2);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_lzip() {
+        run_format_test_suite(CompressionFormat::Lzip);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_xz() {
+        run_format_test_suite(CompressionFormat::Xz);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_zstd() {
+        run_format_test_suite(CompressionFormat::Zstd);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_lzo() {
+        run_format_test_suite(CompressionFormat::Lzo);
     }
 }

@@ -24,6 +24,16 @@ static EXT_ZZ: ExtensionRule = ExtensionRule::insensitive("zz");
 static EXT_ZL: ExtensionRule = ExtensionRule::insensitive("zl");
 static EXT_BZ2: ExtensionRule = ExtensionRule::insensitive("bz2");
 static EXT_BZIP2: ExtensionRule = ExtensionRule::insensitive("bzip2");
+static EXT_LZ4: ExtensionRule = ExtensionRule::insensitive("lz4");
+static EXT_LZMA: ExtensionRule = ExtensionRule::insensitive("lzma");
+static EXT_LZMA2: ExtensionRule = ExtensionRule::insensitive("lzma2");
+static EXT_LZ: ExtensionRule = ExtensionRule::insensitive("lz");
+static EXT_LZIP: ExtensionRule = ExtensionRule::insensitive("lzip");
+static EXT_XZ: ExtensionRule = ExtensionRule::insensitive("xz");
+static EXT_XZIP: ExtensionRule = ExtensionRule::insensitive("xzip");
+static EXT_ZST: ExtensionRule = ExtensionRule::insensitive("zst");
+static EXT_ZSTD: ExtensionRule = ExtensionRule::insensitive("zstd");
+static EXT_LZO: ExtensionRule = ExtensionRule::insensitive("lzo");
 
 static EXT_UPPER_Z: ExtensionRule = ExtensionRule::sensitive("Z");
 static EXT_LOWER_Z: ExtensionRule = ExtensionRule::sensitive("z");
@@ -89,6 +99,50 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Compact,
         rule: EXT_UPPER_C,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lz4,
+        rule: EXT_LZ4,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzma,
+        rule: EXT_LZMA,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzma2,
+        rule: EXT_LZMA,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzma2,
+        rule: EXT_LZMA2,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzip,
+        rule: EXT_LZ,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzip,
+        rule: EXT_LZIP,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Xz,
+        rule: EXT_XZ,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Xz,
+        rule: EXT_XZIP,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Zstd,
+        rule: EXT_ZST,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Zstd,
+        rule: EXT_ZSTD,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Lzo,
+        rule: EXT_LZO,
     },
     ExtensionEntry {
         format_id: FormatId::Html,

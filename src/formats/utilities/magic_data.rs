@@ -29,6 +29,16 @@ static COMPACT_MAGIC_LE: MagicPattern = MagicPattern::exact(&[0xFF, 0x1F]);
 static COMPACT_MAGIC_BE: MagicPattern = MagicPattern::exact(&[0x1F, 0xFF]);
 static ZLIB_MAGIC: MagicPattern =
     MagicPattern::masked(&[0x78, 0x00], &[0xFF, 0x00], 80);
+static XZ_MAGIC: MagicPattern =
+    MagicPattern::exact(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]);
+static LZIP_MAGIC: MagicPattern = MagicPattern::exact(&[0x4C, 0x5A, 0x49, 0x50]);
+static ZSTD_MAGIC: MagicPattern =
+    MagicPattern::exact(&[0x28, 0xB5, 0x2F, 0xFD]);
+static LZ4_MAGIC: MagicPattern =
+    MagicPattern::exact(&[0x04, 0x22, 0x4D, 0x18]);
+static LZO_MAGIC: MagicPattern = MagicPattern::exact(&[
+    0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A,
+]);
 
 /// Global static table of all magic header signatures.
 pub static MAGIC_REGISTRY: &[MagicEntry] = &[
@@ -71,5 +81,25 @@ pub static MAGIC_REGISTRY: &[MagicEntry] = &[
     MagicEntry {
         format_id: FormatId::Zlib,
         pattern: ZLIB_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Xz,
+        pattern: XZ_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Lzip,
+        pattern: LZIP_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Zstd,
+        pattern: ZSTD_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Lz4,
+        pattern: LZ4_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Lzo,
+        pattern: LZO_MAGIC,
     },
 ];

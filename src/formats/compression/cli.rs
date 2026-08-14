@@ -51,22 +51,22 @@ pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
     let filename_str = input_path.to_string_lossy();
     let known_exts = [
         ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2",
-        ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl", ".Z", ".z", ".C",
+        ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl", ".lz4", ".lzma2",
+        ".lzma", ".lzip", ".lz", ".xzip", ".xz", ".zstd", ".zst", ".lzo",
+        ".Z", ".z", ".C",
     ];
-    for ext in known_exts {
-        let matches = if ext.eq_ignore_ascii_case(".gz")
-            || ext.eq_ignore_ascii_case(".gzip")
-            || ext.eq_ignore_ascii_case(".br")
-            || ext.eq_ignore_ascii_case(".bz2")
-            || ext.eq_ignore_ascii_case(".bzip2")
-            || ext.eq_ignore_ascii_case(".bz")
-            || ext.eq_ignore_ascii_case(".deflate")
-            || ext.eq_ignore_ascii_case(".zz")
-            || ext.eq_ignore_ascii_case(".zl")
-        {
-            filename_str.to_ascii_lowercase().ends_with(ext)
-        } else {
+    for &ext in &known_exts {
+        let is_case_sensitive = ext == ".Z"
+            || ext == ".z"
+            || ext == ".C"
+            || ext == ".old.z"
+            || ext == ".Z1.0"
+            || ext == ".Z2.0";
+
+        let matches = if is_case_sensitive {
             filename_str.ends_with(ext)
+        } else {
+            filename_str.to_ascii_lowercase().ends_with(ext)
         };
 
         if matches {
@@ -219,6 +219,42 @@ mod tests {
         assert_eq!(
             infer_decompressed_filename(Path::new("document.C")),
             PathBuf::from("document")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lz4")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lzma")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lzma2")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lz")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lzip")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.xz")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.zst")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.zstd")),
+            PathBuf::from("data.tar")
+        );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.lzo")),
+            PathBuf::from("data.tar")
         );
         assert_eq!(
             infer_decompressed_filename(Path::new("unknown.bin")),
