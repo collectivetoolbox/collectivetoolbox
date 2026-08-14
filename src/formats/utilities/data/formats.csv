@@ -335,4 +335,5 @@ Import/export/tests support columns meaning:
 318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,,,.ctbn,,,,,CtbNode,,,,,,
 319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,,,.ctbn,,,,,CtbNode,,,,,,
 320,Lzma,LZMA (Lempel–Ziv–Markov chain algorithm),compression,,,.lzma,,,,lzma,,,,,,,
-321,Lzma2,LZMA container format,compression,,,".lzma, .lzma2",,,,lzma2,,Lzma,,,,,,
+321,Lzma2,LZMA container format,compression,,,".lzma, .lzma2",,,,lzma2,,Lzma,,,,,
+322,TarLzo,"TAR, LZO",container,,,".tar.lzo, .tzo",,,,,Tar & Lzo,,,,,,
