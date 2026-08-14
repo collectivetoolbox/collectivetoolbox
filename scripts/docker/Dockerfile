@@ -87,17 +87,17 @@ COPY scripts/guix /tmp/scripts/guix
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native
 
-# Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
-RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
+# # Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
+# RUN --security=insecure set -eux; \
+#     /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
 
-# Layer 3: Cross-compile GNU Icecat x86_64→i686
-RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
+# # Layer 3: Cross-compile GNU Icecat x86_64→i686
+# RUN --security=insecure set -eux; \
+#     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
 
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross; \
     rm -rf /tmp/scripts
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run

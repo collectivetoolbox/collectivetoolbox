@@ -18,9 +18,10 @@ prebuild_dest=""
 keep_failed=""
 disable_chroot=""
 nopersonality=""
+disable_cross=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality] [--disable-cross]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -53,6 +54,9 @@ while [[ $# -gt 0 ]]; do
         --nopersonality)
             nopersonality="1"
             ;;
+        --disable-cross)
+            disable_cross="1"
+            ;;
         -h|--help|help)
             usage
             exit 0
@@ -65,6 +69,10 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+if [[ -n "$disable_cross" ]]; then
+    export DISABLE_CROSS=1
+fi
 
 if [[ -z "$mode" ]]; then
     mode="full"
@@ -262,12 +270,16 @@ case "$mode" in
         fi
 
         if [ "$guix_available" -eq 1 ]; then
-            echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-            icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
-                --system=x86_64-linux --target=i686-linux-gnu \
-                -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true)"
-            if [ -n "$icecat_store_path" ]; then
-                echo "Cross-compiled Icecat at: $icecat_store_path"
+            if [ -n "${DISABLE_CROSS:-}" ] && [ "$DISABLE_CROSS" = "1" ]; then
+                echo "Skipping GNU Icecat cross-compilation (DISABLE_CROSS set)."
+            else
+                echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
+                icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
+                    --system=x86_64-linux --target=i686-linux-gnu \
+                    -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true)"
+                if [ -n "$icecat_store_path" ]; then
+                    echo "Cross-compiled Icecat at: $icecat_store_path"
+                fi
             fi
         fi
 

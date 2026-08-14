@@ -31,6 +31,13 @@
 
 (define qemu-patched (apply-patches qemu))
 
+(define disable-cross?
+  (let ((val (or (getenv "DISABLE_CROSS")
+                 (getenv "CTB_DISABLE_CROSS"))))
+    (and val
+         (not (string=? val "0"))
+         (not (string=? val "false")))))
+
 (operating-system
   (host-name "ctoolbox-v86")
   (timezone "UTC")
@@ -51,16 +58,18 @@
   (initrd-modules (append '("virtio" "virtio_pci" "9p" "9pnet" "9pnet_virtio")
                           %base-initrd-modules))
 
-  (packages (cons* xorg-server
-                   xf86-video-vesa
-                   xf86-video-fbdev
-                   openbox
-                   xterm
-                   bash
-                   dillo
-                   tmux
-                   qemu-patched
-                   %base-packages))
+  (packages (append (list xorg-server
+                          xf86-video-vesa
+                          xf86-video-fbdev
+                          openbox
+                          xterm
+                          bash
+                          tmux
+                          qemu-patched)
+                    (if disable-cross?
+                        '()
+                        (list dillo))
+                    %base-packages))
 
   (services (cons* (service static-networking-service-type '())
                    (simple-service 'v86-session-environment
