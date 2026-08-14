@@ -18,6 +18,7 @@
   #:use-module (guix gexp)
   #:use-module (guix packages)
   #:use-module (guix utils)
+  #:use-module (ice-9 ftw)
   #:export (mesa-libclc-pkg-config-fixed))
 
 (define-public mesa-libclc-pkg-config-fixed
@@ -25,6 +26,18 @@
     (inherit mesa)
     (arguments
      (substitute-keyword-arguments (package-arguments mesa)
+       ((#:validate-runpath? _ #t) #f)
+       ((#:configure-flags flags #~'())
+        #~(cons*
+           "-Damd-use-llvm=false"
+           (map (lambda (flag)
+                  (cond
+                   ((string-prefix? "-Dgallium-drivers=" flag)
+                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
+                   ((string-prefix? "-Dvulkan-drivers=" flag)
+                    "-Dvulkan-drivers=swrast,intel_hasvk,virtio")
+                   (else flag)))
+                #$flags)))
        ((#:phases phases)
         #~(modify-phases #$phases
             (add-before 'configure 'expose-cross-discovery-metadata
@@ -49,10 +62,19 @@
                     (or (and=> (match inputs) cdr)
                         (and=> (match native-inputs) cdr))))
 
+                (define (symlink-dir-contents src dest)
+                  (when (and src (file-exists? src))
+                    (for-each
+                     (lambda (entry)
+                       (unless (member entry '("." ".."))
+                         (let ((src-path (string-append src "/" entry))
+                               (dest-path (string-append dest "/" entry)))
+                           (unless (file-exists? dest-path)
+                             (symlink src-path dest-path)))))
+                     (or ((@ (ice-9 ftw) scandir) src) '()))))
+
                 (let ((libclc (input-ref "libclc"))
                       (llvm (input-ref "llvm-for-mesa"))
-                      (clang (or (input-ref "clang")
-                                 (input-ref "clang-18")))
                       (spirv-tools (input-ref "spirv-tools"))
                       (llvm-spirv (input-ref "spirv-llvm-translator"))
                       (cross-gcc (or (input-ref "cross-gcc")
@@ -69,9 +91,9 @@
                      (string-append libclc "/share/pkgconfig")))
                   (when llvm
                     (let* ((llvm-overlay (string-append (getcwd) "/ctb-llvm-overlay"))
-                        (llvm-bin (string-append llvm "/bin"))
+                           (llvm-bin (string-append llvm "/bin"))
                            (llvm-lib (string-append llvm "/lib"))
-                        (overlay-bin (string-append llvm-overlay "/bin"))
+                           (overlay-bin (string-append llvm-overlay "/bin"))
                            (overlay-lib (string-append llvm-overlay "/lib"))
                            (overlay-include (string-append llvm-overlay "/include"))
                            (overlay-cmake (string-append overlay-lib "/cmake"))
@@ -79,106 +101,45 @@
                       (mkdir-p overlay-bin)
                       (mkdir-p overlay-lib)
                       (mkdir-p overlay-include)
-                      (invoke
-                       "sh"
-                       "-c"
-                       (string-append
-                        "for entry in " llvm-bin "/*; do "
-                        "name=${entry##*/}; "
-                        "ln -s \"$entry\" \"" overlay-bin "/$name\"; "
-                        "done"))
+                      (symlink-dir-contents llvm-bin overlay-bin)
                       (when cross-gcc
-                        (let ((gcc-bin (string-append cross-gcc "/bin")))
-                          (invoke
-                           "sh"
-                           "-c"
-                           (string-append
-                            "for entry in " gcc-bin "/*; do "
-                            "name=${entry##*/}; "
-                            "if [ ! -e \"" overlay-bin "/$name\" ]; then "
-                            "ln -s \"$entry\" \"" overlay-bin "/$name\"; "
-                            "fi; "
-                            "done"))))
+                        (symlink-dir-contents (string-append cross-gcc "/bin") overlay-bin))
                       (when cross-binutils
-                        (let ((cross-bin (string-append cross-binutils "/bin")))
-                          (invoke
-                           "sh"
-                           "-c"
-                           (string-append
-                            "for entry in " cross-bin "/*; do "
-                            "name=${entry##*/}; "
-                            "if [ ! -e \"" overlay-bin "/$name\" ]; then "
-                            "ln -s \"$entry\" \"" overlay-bin "/$name\"; "
-                            "fi; "
-                            "done"))))
-                      (invoke
-                       "sh"
-                       "-c"
-                       (string-append
-                        "for entry in " llvm-lib "/*; do "
-                        "name=${entry##*/}; "
-                        "if [ \"$name\" != cmake ]; then "
-                        "ln -s \"$entry\" \"" overlay-lib "/$name\"; "
-                        "fi; "
-                        "done"))
-                      (invoke
-                       "sh"
-                       "-c"
-                       (string-append
-                        "for entry in " llvm "/include/*; do "
-                        "name=${entry##*/}; "
-                        "ln -s \"$entry\" \"" overlay-include "/$name\"; "
-                        "done"))
-                      (when clang
-                        (let ((clang-lib (string-append clang "/lib"))
-                              (clang-inc (string-append clang "/include")))
-                          (invoke
-                           "sh"
-                           "-c"
-                           (string-append
-                            "for entry in " clang-lib "/*; do "
-                            "name=${entry##*/}; "
-                            "if [ \"$name\" != cmake ] && [ ! -e \"" overlay-lib "/$name\" ]; then "
-                            "ln -s \"$entry\" \"" overlay-lib "/$name\"; "
-                            "fi; "
-                            "done"))
-                          (invoke
-                           "sh"
-                           "-c"
-                           (string-append
-                            "for entry in " clang-inc "/*; do "
-                            "name=${entry##*/}; "
-                            "if [ ! -e \"" overlay-include "/$name\" ]; then "
-                            "ln -s \"$entry\" \"" overlay-include "/$name\"; "
-                            "fi; "
-                            "done"))))
+                        (symlink-dir-contents (string-append cross-binutils "/bin") overlay-bin))
+                      (when (file-exists? llvm-lib)
+                        (for-each
+                         (lambda (entry)
+                           (unless (or (member entry '("." "..")) (string=? entry "cmake"))
+                             (let ((src-path (string-append llvm-lib "/" entry))
+                                   (dest-path (string-append overlay-lib "/" entry)))
+                               (unless (file-exists? dest-path)
+                                 (symlink src-path dest-path)))))
+                         (or ((@ (ice-9 ftw) scandir) llvm-lib) '())))
+                      (symlink-dir-contents (string-append llvm "/include") overlay-include)
                       (copy-recursively (string-append llvm-lib "/cmake") overlay-cmake)
                       (chmod (string-append overlay-llvm-cmake "/LLVMConfig.cmake") #o644)
                       (chmod (string-append overlay-llvm-cmake "/LLVMExports-release.cmake") #o644)
-                      (invoke
-                       "sed"
-                       "-E"
-                       "-i"
-                       "s@IMPORTED_LOCATION_RELEASE \"([^\"]+)\"@IMPORTED_LOCATION_RELEASE \"\\1\"\\n  IMPORTED_LOCATION \"\\1\"@g"
-                       (string-append overlay-llvm-cmake "/LLVMExports-release.cmake"))
+                      (substitute* (string-append overlay-llvm-cmake "/LLVMExports-release.cmake")
+                        (("IMPORTED_LOCATION_RELEASE \"([^\"]+)\"" _ path)
+                         (string-append "IMPORTED_LOCATION_RELEASE \"" path "\"\n  IMPORTED_LOCATION \"" path "\"")))
                       (let ((port (open-file
                                    (string-append overlay-llvm-cmake "/LLVMConfig.cmake")
                                    "a")))
                         (display
-                         (string-append
-                          "\nset(LLVM_TARGETS_TO_BUILD \"${LLVM_ALL_TARGETS}\")\n"
-                          "set(LLVM_LIBRARY_DIR \"" overlay-lib "\")\n"
-                          "set(LLVM_LIBRARY_DIRS \"" overlay-lib "\")\n"
-                          "set(LLVM_IMPORTED_LOCATION_CTB \""
-                          overlay-lib "/libLLVM.so.18.1\")\n"
-                          "if(TARGET LLVM)\n"
-                          "  set_target_properties(LLVM PROPERTIES IMPORTED_LOCATION \"${LLVM_IMPORTED_LOCATION_CTB}\")\n"
-                          "endif()\n"
-                          "if(TARGET llvm-tblgen)\n"
-                          "  set_target_properties(llvm-tblgen PROPERTIES IMPORTED_LOCATION \""
-                          overlay-bin "/llvm-tblgen\")\n"
-                          "endif()\n")
-                         port)
+                          (string-append
+                           "\nset(LLVM_TARGETS_TO_BUILD \"${LLVM_ALL_TARGETS}\")\n"
+                           "set(LLVM_LIBRARY_DIR \"" llvm-lib "\")\n"
+                           "set(LLVM_LIBRARY_DIRS \"" llvm-lib "\")\n"
+                           "set(LLVM_IMPORTED_LOCATION_CTB \""
+                           llvm-lib "/libLLVM.so.18.1\")\n"
+                           "if(TARGET LLVM)\n"
+                           "  set_target_properties(LLVM PROPERTIES IMPORTED_LOCATION \"${LLVM_IMPORTED_LOCATION_CTB}\")\n"
+                           "endif()\n"
+                           "if(TARGET llvm-tblgen)\n"
+                           "  set_target_properties(llvm-tblgen PROPERTIES IMPORTED_LOCATION \""
+                           overlay-bin "/llvm-tblgen\")\n"
+                           "endif()\n")
+                          port)
                         (close-port port))
                       (setenv "LLVM_DIR" overlay-llvm-cmake)
                       (prepend-env-path "CMAKE_PREFIX_PATH" llvm-overlay)
@@ -207,6 +168,8 @@
                 (substitute* "meson.build"
                   (("method : host_machine\\.system\\(\\) == 'windows' \\? 'auto' : 'config-tool',")
                    "method : 'cmake',")
+                  (("with_driver_using_cl = \\[")
+                   "with_driver_using_cl = false\n_unused_driver_cl = [")
                   (("dep_spirv_tools = dependency\\(")
                    "_unused_spirv_tools = dependency(")
                   (("required : with_clc,")

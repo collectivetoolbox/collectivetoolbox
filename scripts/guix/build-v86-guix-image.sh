@@ -10,6 +10,8 @@ set -euxo pipefail
 #   --prebuild-tarball PATH Build Guix i686 system image tarball, save to PATH
 #   (no args)               Full build: system image + Icecat + v86 packing
 
+# When using dev container, `scripts/guix/build-v86-guix-image.sh --cross-dillo --keep-failed --disable-chroot --nopersonality` seems necessary
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="$(cd "$script_dir/../.." && pwd)"
 
@@ -19,9 +21,10 @@ keep_failed=""
 disable_chroot=""
 nopersonality=""
 disable_cross=""
+no_retries=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality] [--disable-cross]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--nopersonality] [--disable-cross] [--no-retries]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -56,6 +59,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --disable-cross)
             disable_cross="1"
+            ;;
+        --no-retries)
+            no_retries="1"
             ;;
         -h|--help|help)
             usage
@@ -104,26 +110,40 @@ start_guix_daemon() {
         exit 1
     fi
 
-    if [ -n "$nopersonality" ]; then
-        nopersonality_so="$workspace_root/target/libctb_nopersonality.so"
-        if [ ! -f "$nopersonality_so" ]; then
+    daemon_extra_args=()
+    nopersonality_rs=""
+    if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
+        nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
+    elif [ -f "/tmp/src/nopersonality/nopersonality.rs" ]; then
+        nopersonality_rs="/tmp/src/nopersonality/nopersonality.rs"
+    elif [ -f "$script_dir/../../src/nopersonality/nopersonality.rs" ]; then
+        nopersonality_rs="$script_dir/../../src/nopersonality/nopersonality.rs"
+    fi
+
+    nopersonality_dir="/var/guix/nopersonality"
+    nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
+    if [ -n "$nopersonality_rs" ] || [ -f "$nopersonality_so" ]; then
+        mkdir -p "$nopersonality_dir"
+        if [ ! -f "$nopersonality_so" ] && [ -n "$nopersonality_rs" ]; then
             echo "Building nopersonality cdylib shim..."
-            mkdir -p "$(dirname "$nopersonality_so")"
             if command -v rustc >/dev/null 2>&1; then
-                rustc --edition 2024 --crate-type cdylib -O "$workspace_root/src/nopersonality/nopersonality.rs" -o "$nopersonality_so"
-            else
+                rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
+            elif command -v cargo >/dev/null 2>&1; then
                 cargo build --package ctb-nopersonality --release
                 cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
             fi
         fi
         if [ -f "$nopersonality_so" ]; then
+            chmod 755 "$nopersonality_dir" "$nopersonality_so"
             echo "Using nopersonality shim at: $nopersonality_so"
             export LD_PRELOAD="$nopersonality_so${LD_PRELOAD:+:$LD_PRELOAD}"
-        else
-            echo "Error: Failed to build or locate nopersonality shim at $nopersonality_so" >&2
-            exit 1
+            daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
         fi
     fi
+
+    chmod -R u+w /gnu/store 2>/dev/null || true
+    find /gnu/store -name "perform-download.scm" -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
+    find /gnu/store -name "perform-download.go" -delete 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
     mkdir -p /var/log/guix/drvs /var/guix
@@ -141,7 +161,7 @@ start_guix_daemon() {
     fi
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    guix-daemon ${disable_chroot:+"$disable_chroot"} --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
@@ -171,19 +191,28 @@ stop_guix_daemon() {
 # Helper to run guix build/system commands with up to 3 retries for transient network/substitute failures
 guix_run_with_retries() {
     local max_attempts=3
+    if [ -n "$no_retries" ]; then
+        max_attempts=1
+    fi
     local attempt=1
     while [ "$attempt" -le "$max_attempts" ]; do
         if guix "$@"; then
             return 0
         fi
-        echo "Warning: guix command failed (attempt $attempt of $max_attempts)." >&2
+        if [ "$max_attempts" -gt 1 ]; then
+            echo "Warning: guix command failed (attempt $attempt of $max_attempts)." >&2
+        fi
         attempt=$((attempt + 1))
         if [ "$attempt" -le "$max_attempts" ]; then
             echo "Retrying guix command in 3 seconds..." >&2
             sleep 3
         fi
     done
-    echo "Error: guix command failed after $max_attempts attempts." >&2
+    if [ "$max_attempts" -gt 1 ]; then
+        echo "Error: guix command failed after $max_attempts attempts." >&2
+    else
+        echo "Error: guix command failed." >&2
+    fi
     return 1
 }
 

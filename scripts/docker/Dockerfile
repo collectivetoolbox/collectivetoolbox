@@ -77,11 +77,15 @@ RUN set -eux; \
         if [ -f "$key" ]; then \
             guix archive --authorize < "$key" || true; \
         fi; \
-    done
+    done; \
+    chmod -R u+w /gnu/store; \
+    find /gnu/store -name "perform-download.scm" -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} +; \
+    find /gnu/store -name "perform-download.go" -delete
 
 # Pre-build Guix packages and system image in Docker for layer caching.
 # Each step is a separate layer so failures don't re-run earlier steps.
 COPY scripts/guix /tmp/scripts/guix
+COPY src/nopersonality /tmp/src/nopersonality
 
 # Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
 RUN --security=insecure set -eux; \
@@ -98,7 +102,7 @@ RUN --security=insecure set -eux; \
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross; \
-    rm -rf /tmp/scripts
+    rm -rf /tmp/scripts /tmp/src
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
 #ENV NOCACHEJULYTHIRTY=2
