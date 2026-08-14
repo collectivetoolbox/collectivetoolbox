@@ -10,6 +10,8 @@ ENV PLAYWRIGHT_CHROMIUM_ARGS="--no-sandbox --disable-setuid-sandbox --disable-de
 ENV CHROMIUM_FLAGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu"
 ENV BASH_ENV="/etc/profile.d/umask.sh"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+ENV GUILE_AUTO_COMPILE=0
+ENV GUILE_WARN_DEPRECATED=no
 
 RUN set -eux; \
     apt-get update; \

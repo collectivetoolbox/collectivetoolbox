@@ -90,6 +90,8 @@ export PATH="/var/guix/profiles/per-user/root/current-profile/bin:/root/.config/
 export GUIX_LOCPATH="${GUIX_LOCPATH:-/var/guix/profiles/per-user/root/current-profile/lib/locale:/root/.guix-profile/lib/locale}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export GUILE_AUTO_COMPILE=0
+export GUILE_WARN_DEPRECATED=no
 # Configure default Guix build options: maximum 60 seconds of silent stalling before timing out substitute downloads and falling back
 export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=60 --timeout=3600}"
 
