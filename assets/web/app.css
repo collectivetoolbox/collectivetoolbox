@@ -4,6 +4,9 @@
 @import url('web/js/components/base/button-theme-resets.css');
 @import url('web/js/components/base/dropdown.css');
 @import url('web/js/components/base/menu.css');
+@import url('web/js/components/base/menubar.css');
+@import url('web/js/components/base/tab-group.css');
+@import url('web/js/components/base/layout.css');
 @import url('web/js/components/themes/glass/common.css');
 @import url('web/js/components/themes/glass/button.css');
 @import url('web/js/components/themes/glass/menu.css');

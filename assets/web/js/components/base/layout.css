@@ -1,0 +1,11 @@
+/* ctb-layout component styling */
+ctb-layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+ctb-layout[hidden] {
+    display: none;
+}

@@ -1,0 +1,19 @@
+/* ctb-tab-group component styling */
+ctb-tab-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+}
+
+ctb-tab-group > ctb-segmented-control {
+    width: 100%;
+}
+
+ctb-tab-group > ctb-layout {
+    width: 100%;
+}
+
+ctb-tab-group > ctb-layout[hidden] {
+    display: none;
+}

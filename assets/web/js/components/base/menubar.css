@@ -1,0 +1,36 @@
+/* ctb-menubar component styling */
+ctb-menubar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+ctb-menubar ctb-dropdown {
+    display: inline-flex;
+}
+
+ctb-menubar ctb-button {
+    --ctb-btn-height: 1.85rem;
+    --ctb-btn-padding: 0 0.65rem;
+    --ctb-btn-font-size: 0.875rem;
+}
+
+ctb-menubar ctb-dropdown > ctb-button,
+ctb-menubar > ctb-button {
+    display: inline-flex;
+}
+
+/* Align dropdown menu directly under menubar item */
+ctb-menubar ctb-dropdown ctb-menu,
+ctb-menubar ctb-dropdown .ctb-dropdown-menu {
+    left: 0;
+    right: auto;
+    top: 100%;
+    margin-top: 0.125rem;
+}

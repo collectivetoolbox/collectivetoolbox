@@ -80,3 +80,99 @@ The custom component behavior, resets, and theme styling are split across the fo
 - Example for the Glass theme: `js/components/themes/glass/common.css`, `js/components/themes/glass/button.js`, and `js/components/themes/glass/button.css`: Theme-specific styling and logic.
 
 When no theme is applied (e.g. data-ctb-ui-theme is empty/absent), the custom component skips loading the resets and theme links, allowing the slotted element to inherit standard browser user-agent styles.
+
+---
+
+## 5. Menu Bar (`<ctb-menubar>`)
+
+A desktop-style application menu bar component for hosting top-level actions and dropdown menus.
+
+### Features
+- **Desktop Hover Activation**: When a menu dropdown is clicked open, hovering over sibling top-level menus automatically opens them.
+- **Keyboard Navigation**:
+  - `ArrowLeft` / `ArrowRight`: Navigate between top-level items (switches open dropdowns if active).
+  - `ArrowDown`: Opens the dropdown and focuses its first menu item.
+  - `Escape`: Closes open dropdown and returns focus to the menu trigger.
+- **Theming**: Child `<ctb-button>` and `<ctb-dropdown>` components automatically inherit and respond to global theme changes.
+
+### Authoring Example
+```html
+<ctb-menubar>
+    <ctb-dropdown>
+        <button type="button" class="btn">File</button>
+        <ctb-menu>
+            <button type="button">New</button>
+            <button type="button">Open...</button>
+            <button type="button">Exit</button>
+        </ctb-menu>
+    </ctb-dropdown>
+    <ctb-dropdown>
+        <button type="button" class="btn">Help</button>
+        <ctb-menu>
+            <button type="button">Documentation</button>
+            <button type="button">About</button>
+        </ctb-menu>
+    </ctb-dropdown>
+</ctb-menubar>
+```
+
+---
+
+## 6. Tab Group (`<ctb-tab-group>`)
+
+A flexible tab container connecting a `<ctb-segmented-control>` tablist to `<ctb-layout>` tab panels.
+
+### Features
+- **Clean Component Structure**: Uses `<ctb-segmented-control>` for tab buttons and `<ctb-layout>` for tab content panes.
+- **Button or Radio Input Support**: Supports simple `<button>` elements (or upgraded `<ctb-button>`s) or `<input type="radio">` options in the segmented control.
+- **Automatic Accessibility (WAI-ARIA)**:
+  - Inside a tab group, `<ctb-segmented-control>` automatically receives `role="tablist"`, and button items receive `role="tab"`, `aria-selected`, `aria-controls`, and roving `tabindex="0"|"-1"`.
+  - In a standalone segmented control with buttons, it receives `role="radiogroup"` with items having `role="radio"`, `aria-checked`, and roving `tabindex`.
+  - Panes (`<ctb-layout>`) automatically receive `role="tabpanel"`, `tabindex="0"`, and `aria-labelledby`.
+- **Nested Tab Groups**: Safely isolates child tab groups (e.g. sub-tabs in an assistance pane).
+- **Keyboard Navigation**: `ArrowLeft`, `ArrowRight`, `Home`, and `End` keys switch active tabs and panes with roving focus.
+- **State Synchronization**: Automatically marks active tab button with `[selected]` and toggles `hidden` on non-active `<ctb-layout>` panes.
+
+### Authoring Example (Simple Buttons)
+```html
+<ctb-tab-group>
+    <ctb-segmented-control>
+        <button type="button" selected>Make</button>
+        <button type="button">Prime verification</button>
+        <button type="button">Random Numbers</button>
+    </ctb-segmented-control>
+    <ctb-layout id="tab-make">
+        <!-- Content for Make tab -->
+    </ctb-layout>
+    <ctb-layout id="tab-prime" hidden>
+        <!-- Content for Prime tab -->
+    </ctb-layout>
+    <ctb-layout id="tab-rand" hidden>
+        <!-- Content for Random Numbers tab -->
+    </ctb-layout>
+</ctb-tab-group>
+```
+
+### Authoring Example (Radio-based)
+```html
+<ctb-tab-group>
+    <ctb-segmented-control>
+        <fieldset name="calc-tabs">
+            <ctb-button>
+                <input type="radio" id="tab-calc" name="calc-tabs" value="pane-calc" checked />
+                <label for="tab-calc">Calculator</label>
+            </ctb-button>
+            <ctb-button>
+                <input type="radio" id="tab-help" name="calc-tabs" value="pane-help" />
+                <label for="tab-help">Help</label>
+            </ctb-button>
+        </fieldset>
+    </ctb-segmented-control>
+    <ctb-layout id="pane-calc">
+        <!-- Calculator pane content -->
+    </ctb-layout>
+    <ctb-layout id="pane-help" hidden>
+        <!-- Help pane content -->
+    </ctb-layout>
+</ctb-tab-group>
+```

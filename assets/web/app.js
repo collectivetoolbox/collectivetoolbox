@@ -47,6 +47,9 @@ import { CtbSegmentedControl as _CtbSegmentedControl } from './js/components/bas
 import { CtbFileInput as _CtbFileInput } from './js/components/base/file-input.js';
 import { CtbDropdown as _CtbDropdown } from './js/components/base/dropdown.js';
 import { CtbMenu as _CtbMenu } from './js/components/base/menu.js';
+import { CtbMenubar as _CtbMenubar } from './js/components/base/menubar.js';
+import { CtbTabGroup as _CtbTabGroup } from './js/components/base/tab-group.js';
+import { CtbLayout as _CtbLayout } from './js/components/base/layout.js';
 CtbButton.defaultTheme = "glass";
 
 const CLIENT_SETTINGS_KEY = "ctb-client-side-settings";
