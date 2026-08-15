@@ -158,6 +158,9 @@ start_guix_daemon() {
     find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
+    if [ -d /homeless-shelter ]; then
+        rm -r /homeless-shelter 2>/dev/null || true
+    fi
     mkdir -p /var/log/guix/drvs /var/guix
     chmod 755 "$tmp_build_dir"
     chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
@@ -209,6 +212,9 @@ guix_run_with_retries() {
     fi
     local attempt=1
     while [ "$attempt" -le "$max_attempts" ]; do
+        if [ -d /homeless-shelter ]; then
+            rm -r /homeless-shelter 2>/dev/null || true
+        fi
         if guix "$@"; then
             return 0
         fi
