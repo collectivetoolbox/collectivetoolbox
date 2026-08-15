@@ -1,4 +1,4 @@
-;;; Patch for ORBit2 to supply cross-compilation alignment values.
+;;; Patch for libdbusmenu to disable introspection/vala/gtk-doc and fix pkg-config during autogen.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,17 +13,20 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches orbit2)
+(define-module (patches libdbusmenu)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gtk)
   #:use-module (ice-9 match)
-  #:export (orbit2-fixed-proc orbit2-fixed))
+  #:export (libdbusmenu-fixed-proc libdbusmenu-fixed))
 
-(define (orbit2-fixed-proc pkg)
+(define (libdbusmenu-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (inputs
      (map (match-lambda
             (((? string? name) (? package? p))
@@ -36,33 +39,24 @@
              ((@ (patches) apply-patches) p))
             (other other))
           (package-inputs pkg)))
-    (propagated-inputs
-     (map (match-lambda
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             ((@ (patches) apply-patches) p))
-            (other other))
-          (package-propagated-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(append #$flags '("ac_cv_alignof_CORBA_octet=1"
-                            "ac_cv_alignof_CORBA_boolean=1"
-                            "ac_cv_alignof_CORBA_char=1"
-                            "ac_cv_alignof_CORBA_wchar=2"
-                            "ac_cv_alignof_CORBA_short=2"
-                            "ac_cv_alignof_CORBA_long=4"
-                            "ac_cv_alignof_CORBA_long_long=4"
-                            "ac_cv_alignof_CORBA_float=4"
-                            "ac_cv_alignof_CORBA_double=4"
-                            "ac_cv_alignof_CORBA_long_double=4"
-                            "ac_cv_alignof_CORBA_struct=1"
-                            "ac_cv_alignof_CORBA_pointer=4")))))))
+        #~(append #$flags
+                  '("--enable-introspection=no"
+                    "--disable-vala"
+                    "--disable-gtk-doc")))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-before 'bootstrap 'symlink-pkg-config
+              (lambda* (#:key target #:allow-other-keys)
+                (when target
+                  (let ((cross-pc (which (string-append target "-pkg-config"))))
+                    (when cross-pc
+                      (let ((bin (string-append (getcwd) "/bin-wrapper")))
+                        (mkdir-p bin)
+                        (symlink cross-pc (string-append bin "/pkg-config"))
+                        (setenv "PATH" (string-append bin ":" (getenv "PATH")))))))))))))))
 
-(define orbit2-fixed #f)
+(define libdbusmenu-fixed #f)

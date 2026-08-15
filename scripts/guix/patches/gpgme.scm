@@ -60,5 +60,4 @@
                     (setenv "LIBASSUAN_CONFIG" (string-append libassuan "/bin/libassuan-config")))
                   (setenv "GPGRT_CONFIG" "no"))))))))))
 
-(define gpgme-fixed
-  (gpgme-fixed-proc gpgme))
+(define gpgme-fixed #f)

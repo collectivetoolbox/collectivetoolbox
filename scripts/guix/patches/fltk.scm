@@ -26,10 +26,14 @@
     (inherit pkg)
     (inputs
      (map (match-lambda
-            ((name (? package? p))
+            (((? string? name) (? package? p))
              (list name ((@ (patches) apply-patches) p)))
-            ((name (? package? p) output)
+            (((? string? name) (? package? p) (? string? output))
              (list name ((@ (patches) apply-patches) p) output))
+            (((? package? p) (? string? output))
+             (list ((@ (patches) apply-patches) p) output))
+            ((? package? p)
+             ((@ (patches) apply-patches) p))
             (other other))
           (package-inputs pkg)))
     (arguments
@@ -53,10 +57,5 @@
                       (symlink pkg-config (string-append bin-dir "/pkg-config"))
                       (setenv "PATH" (string-append bin-dir ":" (getenv "PATH"))))))))))))))
 
-(define fltk-1.3-fixed
-  (fltk-fixed-proc fltk-1.3))
-
-(define fltk-fixed
-  (fltk-fixed-proc fltk))
-
-
+(define fltk-fixed #f)
+(define fltk-1.3-fixed #f)

@@ -1,4 +1,4 @@
-;;; Patch for ORBit2 to supply cross-compilation alignment values.
+;;; Patch for libgnome to set GCONFTOOL and disable schema installation when cross-compiling.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,17 +13,19 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches orbit2)
+(define-module (patches libgnome)
   #:use-module (guix packages)
   #:use-module (guix utils)
-  #:use-module (guix gexp)
   #:use-module (gnu packages gnome)
   #:use-module (ice-9 match)
-  #:export (orbit2-fixed-proc orbit2-fixed))
+  #:export (libgnome-fixed-proc libgnome-fixed))
 
-(define (orbit2-fixed-proc pkg)
+(define (libgnome-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (append ((@ (patches) apply-patches) gconf))))
     (inputs
      (map (match-lambda
             (((? string? name) (? package? p))
@@ -50,19 +52,10 @@
           (package-propagated-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(append #$flags '("ac_cv_alignof_CORBA_octet=1"
-                            "ac_cv_alignof_CORBA_boolean=1"
-                            "ac_cv_alignof_CORBA_char=1"
-                            "ac_cv_alignof_CORBA_wchar=2"
-                            "ac_cv_alignof_CORBA_short=2"
-                            "ac_cv_alignof_CORBA_long=4"
-                            "ac_cv_alignof_CORBA_long_long=4"
-                            "ac_cv_alignof_CORBA_float=4"
-                            "ac_cv_alignof_CORBA_double=4"
-                            "ac_cv_alignof_CORBA_long_double=4"
-                            "ac_cv_alignof_CORBA_struct=1"
-                            "ac_cv_alignof_CORBA_pointer=4")))))))
+       ((#:configure-flags flags ''())
+        `(append ,flags
+                 '("ac_cv_path_GCONFTOOL=true"
+                   "--disable-schemas-install"
+                   "--with-gconf-source=xml::/etc/gconf/gconf.xml.defaults")))))))
 
-(define orbit2-fixed #f)
+(define libgnome-fixed #f)

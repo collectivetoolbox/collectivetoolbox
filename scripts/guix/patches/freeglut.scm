@@ -26,10 +26,14 @@
     (inherit pkg)
     (inputs
      (map (match-lambda
-            ((name (? package? p))
+            (((? string? name) (? package? p))
              (list name ((@ (patches) apply-patches) p)))
-            ((name (? package? p) output)
+            (((? string? name) (? package? p) (? string? output))
              (list name ((@ (patches) apply-patches) p) output))
+            (((? package? p) (? string? output))
+             (list ((@ (patches) apply-patches) p) output))
+            ((? package? p)
+             ((@ (patches) apply-patches) p))
             (other other))
           (package-inputs pkg)))
     (arguments
@@ -69,5 +73,4 @@
                       "set(OPENGL_FOUND TRUE)\n"
                       "set(OPENGL_GLU_FOUND TRUE)"))))))))))))
 
-(define freeglut-fixed
-  (freeglut-fixed-proc freeglut))
+(define freeglut-fixed #f)

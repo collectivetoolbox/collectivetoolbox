@@ -19,22 +19,86 @@
   #:use-module (guix gexp)
   #:use-module (gnu packages freedesktop)
   #:use-module (gnu packages gtk)
-  #:export (gtk+-fixed-proc gtk+-fixed))
+  #:use-module (ice-9 match)
+  #:export (gtk+-fixed-proc gtk+-fixed
+            gtk-fixed-proc gtk-fixed))
+
+(define (map-input-list inputs)
+  (map (match-lambda
+         (((? string? name) (? package? p))
+          (list name ((@ (patches) apply-patches) p)))
+         (((? string? name) (? package? p) (? string? output))
+          (list name ((@ (patches) apply-patches) p) output))
+         (((? package? p) (? string? output))
+          (list ((@ (patches) apply-patches) p) output))
+         ((? package? p)
+          ((@ (patches) apply-patches) p))
+         (other other))
+       inputs))
+
+(define (gtk-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (inputs
+     (map-input-list (package-inputs pkg)))
+    (propagated-inputs
+     (map-input-list (package-propagated-inputs pkg)))
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")
+       (append wayland)))
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
+       ((#:configure-flags flags #~'())
+        #~(append (delete "-Ddocumentation=true"
+                          (delete "-Dman-pages=true" #$flags))
+                  '("-Dlibdir=lib"
+                    "-Dintrospection=disabled"
+                    "-Ddocumentation=false"
+                    "-Dman-pages=false"
+                    "-Dbuild-tests=false"
+                    "-Dbuild-testsuite=false")))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-before 'configure 'disable-cross-introspection
+              (lambda* (#:key target #:allow-other-keys)
+                (when target
+                  (substitute* "meson_options.txt"
+                    (("option\\('introspection', type: 'feature', value: 'auto'")
+                     "option('introspection', type: 'feature', value: 'disabled'"))
+                  (substitute* "meson.build"
+                    (("build_gir = .*")
+                     "build_gir = false\n")))))))))))
+
+(define gtk-fixed #f)
 
 (define (gtk+-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (map-input-list (package-inputs pkg)))
+    (propagated-inputs
+     (map-input-list (package-propagated-inputs pkg)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
-       (append `(,wayland "bin")
-               wayland)))
+       (append wayland)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(append #$flags
-                  '("-Dlibdir=lib"
-                    "-Dintrospection=false")))))))
+                  '("-Dlibdir=lib")))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-before 'configure 'disable-cross-introspection
+              (lambda* (#:key target #:allow-other-keys)
+                (when target
+                  (substitute* "meson_options.txt"
+                    (("option\\('introspection', type: 'boolean', value: 'true'")
+                     "option('introspection', type: 'boolean', value: 'false'"))
+                  (substitute* "meson.build"
+                    (("build_gir = .*")
+                     "build_gir = false\n")))))))))))
 
-(define gtk+-fixed
-  (gtk+-fixed-proc gtk+))
+(define gtk+-fixed #f)

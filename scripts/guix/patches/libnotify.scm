@@ -1,4 +1,4 @@
-;;; Patch for ORBit2 to supply cross-compilation alignment values.
+;;; Patch for libnotify to disable introspection and doc generation when cross-compiling, and install into lib/.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,15 +13,15 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches orbit2)
+(define-module (patches libnotify)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (gnu packages gnome)
   #:use-module (ice-9 match)
-  #:export (orbit2-fixed-proc orbit2-fixed))
+  #:export (libnotify-fixed-proc libnotify-fixed))
 
-(define (orbit2-fixed-proc pkg)
+(define (libnotify-fixed-proc pkg)
   (package
     (inherit pkg)
     (inputs
@@ -36,33 +36,29 @@
              ((@ (patches) apply-patches) p))
             (other other))
           (package-inputs pkg)))
-    (propagated-inputs
-     (map (match-lambda
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             ((@ (patches) apply-patches) p))
-            (other other))
-          (package-propagated-inputs pkg)))
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(append #$flags '("ac_cv_alignof_CORBA_octet=1"
-                            "ac_cv_alignof_CORBA_boolean=1"
-                            "ac_cv_alignof_CORBA_char=1"
-                            "ac_cv_alignof_CORBA_wchar=2"
-                            "ac_cv_alignof_CORBA_short=2"
-                            "ac_cv_alignof_CORBA_long=4"
-                            "ac_cv_alignof_CORBA_long_long=4"
-                            "ac_cv_alignof_CORBA_float=4"
-                            "ac_cv_alignof_CORBA_double=4"
-                            "ac_cv_alignof_CORBA_long_double=4"
-                            "ac_cv_alignof_CORBA_struct=1"
-                            "ac_cv_alignof_CORBA_pointer=4")))))))
+        #~(append #$flags
+                  '("-Dlibdir=lib"
+                    "-Dintrospection=disabled"
+                    "-Dgtk_doc=false"
+                    "-Dtests=false"
+                    "-Dman=false"
+                    "-Ddocbook_docs=disabled")))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (replace 'move-doc
+              (lambda* (#:key outputs #:allow-other-keys)
+                (let* ((out (assoc-ref outputs "out"))
+                       (doc (assoc-ref outputs "doc"))
+                       (old (string-append out "/share/doc"))
+                       (new (and doc (string-append doc "/share/doc"))))
+                  (when (and doc (file-exists? old))
+                    (mkdir-p (dirname new))
+                    (rename-file old new)))))))))))
 
-(define orbit2-fixed #f)
+(define libnotify-fixed #f)

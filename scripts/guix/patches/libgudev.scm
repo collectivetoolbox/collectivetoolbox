@@ -23,19 +23,17 @@
 (define (libgudev-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags #~'())
-        #~(append #$flags '("-Dlibdir=lib"
-                            "-Dintrospection=disabled"
-                            "-Dtests=disabled"
-                            "-Dvapi=disabled")))
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (add-after 'unpack 'disable-gir
-              (lambda _
-                (substitute* "gudev/meson.build"
-                  (("if gir_dep.found\\(\\)") "if false"))))))))))
+       ((#:configure-flags flags ''())
+        `(append ,flags
+                 '("-Dlibdir=lib"
+                   "-Dintrospection=disabled"
+                   "-Dtests=disabled"
+                   "-Dvapi=disabled")))))))
 
 (define libgudev-fixed
   (libgudev-fixed-proc libgudev))

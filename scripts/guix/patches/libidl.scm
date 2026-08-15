@@ -15,8 +15,6 @@
 
 (define-module (patches libidl)
   #:use-module (guix packages)
-  #:use-module (guix utils)
-  #:use-module (guix gexp)
   #:use-module (gnu packages gnome)
   #:export (libidl-fixed-proc libidl-fixed))
 
@@ -24,15 +22,16 @@
   (package
     (inherit pkg)
     (arguments
-     (substitute-keyword-arguments (package-arguments pkg)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (add-before 'configure 'fix-cross-compilation
-              (lambda _
-                (substitute* "configure"
-                  (("if test \"\\$cross_compiling\" = yes; then" all)
-                   "if false; then"))
-                (setenv "libIDL_cv_long_long_format" "ll")))))))))
+     `(#:configure-flags
+       '("libIDL_cv_long_long_format=ll")
+       #:phases
+       (modify-phases %standard-phases
+         (add-before 'configure 'fix-cross-compilation
+           (lambda _
+             (substitute* "configure"
+               (("test \"\\$cross_compiling\" = yes")
+                "false"))
+             #t)))))))
 
 (define libidl-fixed
   (libidl-fixed-proc libidl))

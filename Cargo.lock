@@ -2938,6 +2938,7 @@ version = "0.0.0"
 dependencies = [
  "ctb-formats-utilities",
  "ctb-utilities",
+ "malachite",
 ]
 
 [[package]]

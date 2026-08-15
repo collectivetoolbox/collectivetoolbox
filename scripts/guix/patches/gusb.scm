@@ -23,13 +23,17 @@
 (define (gusb-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags #~'())
-        #~(append #$flags '("-Dlibdir=lib"
-                            "-Dintrospection=false"
-                            "-Dtests=false"
-                            "-Dvapi=false")))))))
+       ((#:configure-flags flags ''())
+        `(append ,flags
+                 '("-Dlibdir=lib"
+                   "-Dintrospection=false"
+                   "-Dtests=false"
+                   "-Dvapi=false")))))))
 
 (define gusb-minimal-fixed
   (gusb-fixed-proc gusb-minimal))

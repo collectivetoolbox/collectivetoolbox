@@ -223,5 +223,4 @@
                       (when (and (file-exists? lib) (not (file-exists? lib64)))
                         (symlink "lib" lib64)))))))))))))
 
-(define-public mesa-libclc-pkg-config-fixed
-  (mesa-libclc-pkg-config-fixed-proc mesa))
+(define-public mesa-libclc-pkg-config-fixed #f)

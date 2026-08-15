@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
+malachite = "0.9.0"
 
 [lints]
 workspace = true

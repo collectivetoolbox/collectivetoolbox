@@ -1,4 +1,4 @@
-;;; Patch for gnupg cross-compilation npth detection.
+;;; Patch for gtkmm to disable display tests in container environments and set -Dlibdir=lib.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,30 +13,20 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches gnupg)
+(define-module (patches gtkmm)
   #:use-module (guix packages)
   #:use-module (guix utils)
-  #:use-module (guix gexp)
-  #:use-module (gnu packages gnupg)
-  #:export (gnupg-fixed-proc gnupg-fixed))
+  #:use-module (gnu packages gtk)
+  #:export (gtkmm-fixed-proc gtkmm-fixed))
 
-(define (gnupg-fixed-proc pkg)
+(define (gtkmm-fixed-proc pkg)
   (package
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (add-before 'configure 'fix-npth-check
-              (lambda* (#:key inputs #:allow-other-keys)
-                (let ((npth (assoc-ref inputs "npth")))
-                  (substitute* "configure"
-                    (("have_npth=no")
-                     "have_npth=yes")
-                    (("NPTH_CFLAGS=\"\"")
-                     (format #f "NPTH_CFLAGS=\"-I~a/include\"" npth))
-                    (("NPTH_LIBS=\"\"")
-                     (format #f "NPTH_LIBS=\"-L~a/lib -lnpth\"" npth))))))))))))
+       ((#:configure-flags flags ''())
+        `(append ,flags '("-Dlibdir=lib")))))))
 
-(define gnupg-fixed #f)
+(define gtkmm-fixed
+  (gtkmm-fixed-proc gtkmm))

@@ -38,6 +38,45 @@
         (local-file (string-append patch-dir "/61e88493ad15") "icecat-bug1360870-4.patch")
         (local-file (string-append patch-dir "/be5b6a995776") "icecat-bug1360870-5.patch")))
 
+(define (map-input-list inputs)
+  (map (match-lambda
+         (((? string? name) (? package? p))
+          (list name ((@ (patches) apply-patches) p)))
+         (((? string? name) (? package? p) (? string? output))
+          (list name ((@ (patches) apply-patches) p) output))
+         (((? package? p) (? string? output))
+          (list ((@ (patches) apply-patches) p) output))
+         ((? package? p)
+          ((@ (patches) apply-patches) p))
+         (other other))
+       inputs))
+
+(define (make-rust-sysroot target)
+  (package
+    (name (string-append "rust-sysroot-for-" target))
+    (version (package-version rust))
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list
+      #:modules '((guix build utils))
+      #:builder
+      #~(let* ((out #$output)
+               (rust-target "i686-unknown-linux-gnu")
+               (rust-lib (string-append #$rust "/lib/rustlib/" rust-target "/lib"))
+               (target-lib (string-append #$rust:cargo "/lib/rustlib/" rust-target "/lib"))
+               (lib-src (if (file-exists? rust-lib) rust-lib target-lib))
+               (dest (string-append out "/lib/rustlib/" rust-target)))
+          (mkdir out)
+          (mkdir (string-append out "/lib"))
+          (mkdir (string-append out "/lib/rustlib"))
+          (mkdir dest)
+          (symlink lib-src (string-append dest "/lib")))))
+    (home-page "https://www.rust-lang.org")
+    (synopsis "Rust target sysroot")
+    (description "Rust target sysroot for cross-compiling.")
+    (license (package-license rust))))
+
 (define (icecat-minimal-fixed-proc pkg)
   (package
     (inherit pkg)
@@ -47,16 +86,10 @@
         (patches (append bugzilla1360870-patches
                          (origin-patches (package-source pkg))))))
     (inputs
-     (map (match-lambda
-            ((name (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            ((name (? package? p) output)
-             (list name ((@ (patches) apply-patches) p) output))
-            (other other))
-          (package-inputs pkg)))
+     (map-input-list (package-inputs pkg)))
     (native-inputs
      (cons (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
-           (package-native-inputs pkg)))
+           (map-input-list (package-native-inputs pkg))))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:phases _)
@@ -99,13 +132,13 @@
                 (let* ((whitelist
                         (map (cut string-append <> "/")
                              (delete-duplicates
-                              `(,(string-append (assoc-ref inputs "shared-mime-info")
-                                                "/share/mime")
-                                ,(string-append (assoc-ref inputs "font-dejavu")
-                                                "/share/fonts")
-                                "/run/current-system/profile/share/fonts"
-                                ,@(append-map runpaths-of-input
-                                              '("mesa" "ffmpeg"))))))
+                               `(,(string-append (assoc-ref inputs "shared-mime-info")
+                                                 "/share/mime")
+                                 ,(string-append (assoc-ref inputs "font-dejavu")
+                                                 "/share/fonts")
+                                 "/run/current-system/profile/share/fonts"
+                                 ,@(append-map runpaths-of-input
+                                               '("mesa" "ffmpeg"))))))
                        (whitelist-string (string-join whitelist ","))
                        (port (open-file "browser/app/profile/icecat.js" "a")))
                   (format #t "setting 'security.sandbox.content.read_path_whitelist' to '~a'~%"
@@ -150,27 +183,63 @@
                   (("cargo_build_flags \\+= --frozen") ""))))
             (delete 'bootstrap)
             (replace 'configure
-              (lambda* (#:key outputs configure-flags inputs native-inputs #:allow-other-keys)
+              (lambda* (#:key outputs configure-flags inputs native-inputs target #:allow-other-keys)
                 (let* ((bash (which "bash"))
                        (abs-srcdir (getcwd))
                        (flags `(,(string-append "--prefix=" #$output)
                                 ,(string-append "--with-l10n-base="
                                                 abs-srcdir "/l10n")
-                                ,@configure-flags)))
+                                ,@configure-flags))
+                       (build-inputs (or native-inputs inputs))
+                       (rust-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (cxx-inc (false-if-exception (search-input-directory build-inputs "include/c++")))
+                       (target-cxx-inc (and cxx-inc (string-append cxx-inc "/" (or target "i686-linux-gnu"))))
+                       (cxx-backward (and cxx-inc (string-append cxx-inc "/backward")))
+                       (stubs-file (false-if-exception (search-input-file inputs "include/gnu/stubs-32.h")))
+                       (libc-inc (and stubs-file (dirname (dirname stubs-file))))
+                       (linux-ver-file (false-if-exception (search-input-file inputs "include/linux/version.h")))
+                       (kernel-inc (and linux-ver-file (dirname (dirname linux-ver-file))))
+                       (extra-cxx-flags (string-append
+                                         (if (and cxx-inc (file-exists? cxx-inc))
+                                             (string-append "-isystem " cxx-inc " ")
+                                             "")
+                                         (if (and target-cxx-inc (file-exists? target-cxx-inc))
+                                             (string-append "-isystem " target-cxx-inc " ")
+                                             "")
+                                         (if (and cxx-backward (file-exists? cxx-backward))
+                                             (string-append "-isystem " cxx-backward " ")
+                                             "")
+                                         (if (and libc-inc (file-exists? libc-inc))
+                                             (string-append "-isystem " libc-inc " ")
+                                             "")
+                                         (if (and kernel-inc (file-exists? kernel-inc))
+                                             (string-append "-isystem " kernel-inc " ")
+                                             "")))
+                       (extra-c-flags (string-append
+                                       (if (and libc-inc (file-exists? libc-inc))
+                                           (string-append "-isystem " libc-inc " ")
+                                           "")
+                                       (if (and kernel-inc (file-exists? kernel-inc))
+                                           (string-append "-isystem " kernel-inc " ")
+                                           ""))))
                   (setenv "SHELL" bash)
                   (setenv "CONFIG_SHELL" bash)
 
                   (setenv "AR" "llvm-ar")
                   (setenv "NM" "llvm-nm")
-                  (setenv "CC" "clang")
-                  (setenv "CXX" "clang++")
+                  (setenv "CC" (string-append "clang " extra-c-flags))
+                  (setenv "CXX" (string-append "clang++ " extra-cxx-flags))
                   (setenv "LDFLAGS" (string-append "-Wl,-rpath="
                                                    #$output "/lib/icecat"))
 
                   (setenv "MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE" "system")
                   (setenv "MOZ_BUILD_DATE" "20260101000000")
-
                   (setenv "MOZ_APP_REMOTINGNAME" "Icecat")
+
+                  (when (and target-cxx-inc (file-exists? target-cxx-inc))
+                    (setenv "BINDGEN_CFLAGS" (string-append "--target=" (or target "i686-linux-gnu") " " extra-cxx-flags)))
+                  (when rust-sysroot
+                    (setenv "RUSTFLAGS" (string-append (or (getenv "RUSTFLAGS") "") " --sysroot " rust-sysroot)))
 
                   (let ((obj-dir (or (false-if-exception
                                       (first (scandir "." (cut string-prefix? "obj-" <>))))
@@ -182,17 +251,20 @@
                   (setenv "MOZBUILD_STATE_PATH"
                           (string-append (getcwd) "/.mozbuild"))
 
-                  (let ((rust-sysroot (assoc-ref (or native-inputs inputs) "rust-sysroot-for-i686-linux-gnu")))
-                    (when rust-sysroot
-                      (setenv "RUSTFLAGS"
-                              (string-append (or (getenv "RUSTFLAGS") "")
-                                             " --sysroot " rust-sysroot))))
-
                   (format #t "build directory: ~s~%" (getcwd))
                   (format #t "configure flags: ~s~%" flags)
 
                   (call-with-output-file "mozconfig"
                     (lambda (port)
+                      (format port "export CC=\"clang ~a\"\n" extra-c-flags)
+                      (format port "export CXX=\"clang++ ~a\"\n" extra-cxx-flags)
+                      (format port "export AR=\"llvm-ar\"\n")
+                      (format port "export NM=\"llvm-nm\"\n")
+                      (when (and target-cxx-inc (file-exists? target-cxx-inc))
+                        (format port "export BINDGEN_CFLAGS=\"--target=~a ~a\"\n"
+                                (or target "i686-linux-gnu") extra-cxx-flags))
+                      (when rust-sysroot
+                        (format port "export RUSTFLAGS=\"--sysroot ~a\"\n" rust-sysroot))
                       (for-each (lambda (flag)
                                   (format port "ac_add_options ~a\n" flag))
                                 flags)))
@@ -255,9 +327,9 @@
                                         "eudev"
                                         "pulseaudio"
                                         "libnotify")))))
-                  (wrap-program (car (find-files lib "^icecat$"))
-                    `("XDG_DATA_DIRS" prefix (,gtk-share))
-                    `("LD_LIBRARY_PATH" prefix ,ld-libs)))))
+                   (wrap-program (car (find-files lib "^icecat$"))
+                     `("XDG_DATA_DIRS" prefix (,gtk-share))
+                     `("LD_LIBRARY_PATH" prefix ,ld-libs)))))
             (add-after 'wrap-program 'install-desktop-entry
               (lambda _
                 (let* ((desktop-file (string-append "toolkit/mozapps/installer"
@@ -281,27 +353,27 @@
                   (guix build utils))
        #:builder
        (begin
-         (use-modules (guix build union)
-                      (guix build utils))
-         (let* ((base (assoc-ref %build-inputs "icecat-minimal"))
-                (l10n (assoc-ref %build-inputs "icecat-l10n"))
-                (out (assoc-ref %outputs "out"))
-                (name "icecat")
-                (wrapper (string-append "lib/" name "/" name))
-                (real-binary (string-append "lib/" name "/." name "-real"))
-                (desktop-file (string-append "share/applications/" name ".desktop")))
-           (union-build out (list base l10n)
-                        #:create-all-directories? #t)
-           (delete-file (string-append out "/" wrapper))
-           (copy-file (string-append base "/" wrapper) (string-append out "/" wrapper))
-           (delete-file (string-append out "/bin/" name))
-           (symlink (string-append out "/" wrapper)
-                    (string-append out "/bin/" name))
-           (delete-file (string-append out "/" real-binary))
-           (copy-file (string-append base "/" real-binary) (string-append out "/" real-binary))
-           (delete-file (string-append out "/" desktop-file))
-           (copy-file (string-append base "/" desktop-file) (string-append out "/" desktop-file))
-           (substitute* (list (string-append out "/" desktop-file)
-                              (string-append out "/" wrapper))
-             ((base) out))
-           #t))))))
+          (use-modules (guix build union)
+                       (guix build utils))
+          (let* ((base (assoc-ref %build-inputs "icecat-minimal"))
+                 (l10n (assoc-ref %build-inputs "icecat-l10n"))
+                 (out (assoc-ref %outputs "out"))
+                 (name "icecat")
+                 (wrapper (string-append "lib/" name "/" name))
+                 (real-binary (string-append "lib/" name "/." name "-real"))
+                 (desktop-file (string-append "share/applications/" name ".desktop")))
+            (union-build out (list base l10n)
+                         #:create-all-directories? #t)
+            (delete-file (string-append out "/" wrapper))
+            (copy-file (string-append base "/" wrapper) (string-append out "/" wrapper))
+            (delete-file (string-append out "/bin/" name))
+            (symlink (string-append out "/" wrapper)
+                     (string-append out "/bin/" name))
+            (delete-file (string-append out "/" real-binary))
+            (copy-file (string-append base "/" real-binary) (string-append out "/" real-binary))
+            (delete-file (string-append out "/" desktop-file))
+            (copy-file (string-append base "/" desktop-file) (string-append out "/" desktop-file))
+            (substitute* (list (string-append out "/" desktop-file)
+                               (string-append out "/" wrapper))
+              ((base) out))
+            #t))))))

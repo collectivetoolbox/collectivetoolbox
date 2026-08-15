@@ -1,4 +1,4 @@
-;;; Patch for gstreamer to handle optional doc cache generator and disable tests during cross-compilation.
+;;; Patch for pulseaudio to disable tests, doxygen, and man when cross-compiling, and install into lib/.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,38 +13,37 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches gstreamer)
+(define-module (patches pulseaudio)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages pulseaudio)
   #:use-module (ice-9 match)
-  #:export (gstreamer-fixed-proc gstreamer-fixed))
+  #:export (pulseaudio-fixed-proc pulseaudio-fixed))
 
-(define (gstreamer-fixed-proc pkg)
+(define (pulseaudio-fixed-proc pkg)
   (package
     (inherit pkg)
     (inputs
      (map (match-lambda
-            ((name (? package? p))
+            (((? string? name) (? package? p))
              (list name ((@ (patches) apply-patches) p)))
-            ((name (? package? p) output)
+            (((? string? name) (? package? p) (? string? output))
              (list name ((@ (patches) apply-patches) p) output))
+            (((? package? p) (? string? output))
+             (list ((@ (patches) apply-patches) p) output))
+            ((? package? p)
+             ((@ (patches) apply-patches) p))
             (other other))
           (package-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases %standard-phases
-            (add-after 'patch-shebangs 'do-not-capture-python
-              (lambda _
-                (let ((script (string-append
-                               #$output "/libexec/gstreamer-1.0/"
-                               "gst-plugins-doc-cache-generator")))
-                  (when (file-exists? script)
-                    (substitute* script
-                      (((which "python3"))
-                       "/usr/bin/env python3"))))))))))))
+       ((#:configure-flags flags #~'())
+        #~(append #$flags
+                  '("-Dlibdir=lib"
+                    "-Dtests=false"
+                    "-Ddoxygen=false"
+                    "-Dman=false")))))))
 
-(define gstreamer-fixed #f)
+(define pulseaudio-fixed #f)

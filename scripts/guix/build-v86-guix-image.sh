@@ -97,6 +97,12 @@ export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 export GUILE_AUTO_COMPILE=0
 export GUILE_WARN_DEPRECATED=no
+if [ -d /root/.cache/guile ]; then
+    rm -r /root/.cache/guile 2>/dev/null || true
+fi
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.cache/guile" ]; then
+    rm -r "$HOME/.cache/guile" 2>/dev/null || true
+fi
 # Configure default Guix build options: maximum 60 seconds of silent stalling before timing out substitute downloads and falling back
 export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=60 --timeout=3600}"
 
@@ -161,6 +167,8 @@ start_guix_daemon() {
 
         find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
         find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
+        find /gnu/store -maxdepth 5 -name "cargo.scm" -path "*/build-system/*" -exec chmod u+w {} + -exec sed -i 's/(default-guile-json)/(cargo-guile-json)/g' {} + 2>/dev/null || true
+        find /gnu/store -maxdepth 5 -name "cargo.go" -path "*/build-system/*" -delete 2>/dev/null || true
 
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true

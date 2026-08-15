@@ -1,4 +1,4 @@
-;;; Patch for gnupg cross-compilation npth detection.
+;;; Patch for libical to disable introspection when cross-compiling.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,30 +13,28 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches gnupg)
+(define-module (patches libical)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gnupg)
-  #:export (gnupg-fixed-proc gnupg-fixed))
+  #:use-module (gnu packages calendar)
+  #:export (libical-fixed-proc libical-fixed))
 
-(define (gnupg-fixed-proc pkg)
+(define (libical-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (add-before 'configure 'fix-npth-check
-              (lambda* (#:key inputs #:allow-other-keys)
-                (let ((npth (assoc-ref inputs "npth")))
-                  (substitute* "configure"
-                    (("have_npth=no")
-                     "have_npth=yes")
-                    (("NPTH_CFLAGS=\"\"")
-                     (format #f "NPTH_CFLAGS=\"-I~a/include\"" npth))
-                    (("NPTH_LIBS=\"\"")
-                     (format #f "NPTH_LIBS=\"-L~a/lib -lnpth\"" npth))))))))))))
+       ((#:configure-flags flags #~'())
+        #~(list "-DSHARED_ONLY=true"
+                "-DICAL_GLIB=false"
+                "-DGOBJECT_INTROSPECTION=false"
+                "-DICAL_GLIB_VAPI=false"
+                "-DICAL_BUILD_DOCS=false"))))))
 
-(define gnupg-fixed #f)
+(define libical-fixed
+  (libical-fixed-proc libical))

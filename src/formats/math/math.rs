@@ -1,13 +1,15 @@
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod base;
 pub mod calculator_classic;
 pub mod center_of_gravity;
+pub mod range_generator;
 
 #[cfg(test)]
 #[allow(
