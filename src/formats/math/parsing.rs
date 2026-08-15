@@ -10,10 +10,324 @@ use crate::utilities::*;
 use anyhow::{Result, ensure};
 use malachite::base::num::arithmetic::traits::UnsignedAbs;
 use malachite::base::num::basic::traits::Zero;
-use malachite::{Integer, Natural};
+use malachite::base::num::conversion::traits::RoundingFrom;
+use malachite::base::rounding_modes::RoundingMode;
+use malachite::{Integer, Natural, Rational};
 
 use crate::base::{Base, format_natural, parse_natural};
 use crate::calculator_classic::{CONST_E, CONST_PI, divide, power};
+
+/// Returns the numerator and denominator for Unicode vulgar fraction characters.
+#[must_use]
+pub fn unicode_vulgar_fraction(c: char) -> Option<(u64, u64)> {
+    match c {
+        '↉' => Some((0, 3)),
+        '½' => Some((1, 2)),
+        '⅓' => Some((1, 3)),
+        '⅔' => Some((2, 3)),
+        '¼' => Some((1, 4)),
+        '¾' => Some((3, 4)),
+        '⅕' => Some((1, 5)),
+        '⅖' => Some((2, 5)),
+        '⅗' => Some((3, 5)),
+        '⅘' => Some((4, 5)),
+        '⅙' => Some((1, 6)),
+        '⅚' => Some((5, 6)),
+        '⅛' => Some((1, 8)),
+        '⅜' => Some((3, 8)),
+        '⅝' => Some((5, 8)),
+        '⅞' => Some((7, 8)),
+        '⅐' => Some((1, 7)),
+        '⅑' => Some((1, 9)),
+        '⅒' => Some((1, 10)),
+        _ => None,
+    }
+}
+
+/// The semantic value of a parsed number or mathematical constant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NumberValue {
+    /// Exact rational value.
+    Rational(Rational),
+    /// Named constant $\pi$.
+    Pi,
+    /// Named constant $e$ (Euler's number).
+    E,
+    /// Imaginary unit $i$.
+    ImaginaryI,
+}
+
+impl NumberValue {
+    /// Converts this number value to an `f64`.
+    #[must_use]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            Self::Rational(r) => {
+                f64::rounding_from(r, RoundingMode::Nearest).0
+            }
+            Self::Pi => CONST_PI,
+            Self::E => CONST_E,
+            Self::ImaginaryI => f64::NAN,
+        }
+    }
+}
+
+/// Represents a parsed numerical value with formatting metadata and optional units.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedNumber {
+    /// Numerical value or named symbolic constant.
+    pub value: NumberValue,
+    /// Number base in which the number was parsed.
+    pub base: Base,
+    /// Indicates whether the input had an explicit negative sign.
+    pub is_negative: bool,
+    /// Width of the integer digits in the original input string.
+    pub int_width: usize,
+    /// Number of fractional digits after decimal point in the original input string.
+    pub frac_len: usize,
+    /// Indicates whether a decimal point was explicitly present in the input.
+    pub has_decimal: bool,
+    /// Optional unit suffix (e.g. "lb", "g", "oz"), if present.
+    pub unit_suffix: Option<String>,
+}
+
+impl ParsedNumber {
+    /// Parses a string into a [`ParsedNumber`], supporting integers, fixed-point decimals,
+    /// mixed numbers, Unicode vulgar fractions (`½`, `¾`), ASCII fractions (`3 1/2`),
+    /// named constants (`pi`, `e`, `i`), and optional unit suffixes.
+    #[expect(
+        clippy::arithmetic_side_effects,
+        reason = "Natural, Integer, and Rational are arbitrary-precision"
+    )]
+    pub fn parse(s: &str, base: Base) -> Result<Self> {
+        let trimmed = s.trim();
+        ensure!(!trimmed.is_empty(), "Cannot parse empty number string");
+
+        let (is_negative, s_no_sign) =
+            if let Some(stripped) = trimmed.strip_prefix('-') {
+                (true, stripped.trim_start())
+            } else if let Some(stripped) = trimmed.strip_prefix('+') {
+                (false, stripped.trim_start())
+            } else {
+                (false, trimmed)
+            };
+
+        ensure!(!s_no_sign.is_empty(), "Cannot parse empty number string after sign");
+
+        if s_no_sign.eq_ignore_ascii_case("pi") {
+            return Ok(Self {
+                value: NumberValue::Pi,
+                base,
+                is_negative,
+                int_width: 0,
+                frac_len: 0,
+                has_decimal: false,
+                unit_suffix: None,
+            });
+        }
+        if s_no_sign.eq_ignore_ascii_case("e") {
+            return Ok(Self {
+                value: NumberValue::E,
+                base,
+                is_negative,
+                int_width: 0,
+                frac_len: 0,
+                has_decimal: false,
+                unit_suffix: None,
+            });
+        }
+        if s_no_sign.eq_ignore_ascii_case("i") {
+            return Ok(Self {
+                value: NumberValue::ImaginaryI,
+                base,
+                is_negative,
+                int_width: 0,
+                frac_len: 0,
+                has_decimal: false,
+                unit_suffix: None,
+            });
+        }
+
+        // Separate attached or whitespace-delimited unit suffixes if present
+        let (num_part, unit_suffix) = separate_unit_suffix(s_no_sign, base);
+
+        let int_width;
+        let mut frac_len = 0usize;
+        let mut has_decimal = false;
+
+        // Check for Unicode vulgar fraction (e.g. "3½", "½")
+        let mut vulgar_frac = None;
+        for (i, c) in num_part.char_indices() {
+            if let Some(frac) = unicode_vulgar_fraction(c) {
+                vulgar_frac = Some((i, frac));
+                break;
+            }
+        }
+
+        let rational_mag: Rational = if let Some((idx, (num, den))) = vulgar_frac {
+            let prefix = num_part.get(..idx).unwrap_or("").trim();
+            let frac_rat = Rational::from_naturals(Natural::from(num), Natural::from(den));
+            if prefix.is_empty() {
+                int_width = 0;
+                frac_rat
+            } else {
+                let int_nat = parse_natural(prefix, base)?;
+                int_width = prefix.len();
+                Rational::from(int_nat) + frac_rat
+            }
+        } else if base != Base::Base64
+            && num_part.contains('/')
+            && let Some((num_str, den_str)) = num_part.split_once('/')
+            && !num_str.trim().is_empty()
+            && !den_str.trim().is_empty()
+        {
+            // ASCII fraction (e.g. "1/2" or "3 1/2" or "3-1/2")
+            let den_nat = parse_natural(den_str.trim(), base)?;
+            ensure!(den_nat > Natural::ZERO, "Fraction denominator cannot be zero");
+
+            let trimmed_num = num_str.trim();
+            if let Some((int_str, frac_num_str)) = trimmed_num.rsplit_once([' ', '-']) {
+                let int_nat = parse_natural(int_str.trim(), base)?;
+                let f_num_nat = parse_natural(frac_num_str.trim(), base)?;
+                int_width = int_str.trim().len();
+                Rational::from(int_nat) + Rational::from_naturals(f_num_nat, den_nat)
+            } else {
+                let f_num_nat = parse_natural(trimmed_num, base)?;
+                int_width = 0;
+                Rational::from_naturals(f_num_nat, den_nat)
+            }
+        } else if let Some((int_part, frac_part)) = num_part.split_once('.') {
+            // Fixed-point decimal
+            has_decimal = true;
+            int_width = int_part.len();
+            frac_len = frac_part.len();
+
+            let int_nat = if int_part.is_empty() {
+                Natural::ZERO
+            } else {
+                parse_natural(int_part, base)?
+            };
+
+            let frac_nat = if frac_part.is_empty() {
+                Natural::ZERO
+            } else {
+                parse_natural(frac_part, base)?
+            };
+
+            let radix_nat = Natural::from(base.radix());
+            let mut scale_pow = Natural::from(1u8);
+            for _ in 0..frac_len {
+                scale_pow *= &radix_nat;
+            }
+
+            let frac_rat = Rational::from_naturals(frac_nat, scale_pow);
+            Rational::from(int_nat) + frac_rat
+        } else {
+            // Pure integer
+            int_width = num_part.len();
+            let int_nat = parse_natural(num_part, base)?;
+            Rational::from(int_nat)
+        };
+
+        let final_rat = if is_negative {
+            -rational_mag
+        } else {
+            rational_mag
+        };
+
+        Ok(Self {
+            value: NumberValue::Rational(final_rat),
+            base,
+            is_negative,
+            int_width,
+            frac_len,
+            has_decimal,
+            unit_suffix,
+        })
+    }
+
+    /// Converts this parsed number to an `f64`.
+    #[must_use]
+    pub fn to_f64(&self) -> f64 {
+        self.value.to_f64()
+    }
+
+    /// Scales the number value by $base^{dec\_places}$ and returns the resulting exact signed [`Integer`].
+    #[expect(
+        clippy::arithmetic_side_effects,
+        reason = "Natural, Integer, and Rational are arbitrary-precision"
+    )]
+    pub fn to_scaled_integer(&self, dec_places: usize) -> Result<Integer> {
+        match &self.value {
+            NumberValue::Rational(rat) => {
+                let radix_nat = Natural::from(self.base.radix());
+                let mut scale_pow = Natural::from(1u8);
+                for _ in 0..dec_places {
+                    scale_pow *= &radix_nat;
+                }
+                let is_neg = rat < &Rational::ZERO;
+                let abs_rat = if is_neg { -rat.clone() } else { rat.clone() };
+                let scaled = abs_rat * Rational::from(scale_pow);
+                let (num, den) = scaled.into_numerator_and_denominator();
+                let int_nat = &num / &den;
+                let int_val = Integer::from(int_nat);
+                if is_neg {
+                    Ok(-int_val)
+                } else {
+                    Ok(int_val)
+                }
+            }
+            NumberValue::Pi | NumberValue::E | NumberValue::ImaginaryI => {
+                bail!("Cannot convert symbolic constant to scaled integer")
+            }
+        }
+    }
+
+    /// Returns a reference to the exact rational value, if not a symbolic constant.
+    #[must_use]
+    pub fn to_rational(&self) -> Option<&Rational> {
+        match &self.value {
+            NumberValue::Rational(r) => Some(r),
+            _ => None,
+        }
+    }
+}
+
+/// Helper function to separate trailing unit identifiers from a numeric substring.
+fn separate_unit_suffix<'a>(s: &'a str, base: Base) -> (&'a str, Option<String>) {
+    if let Some((num, unit)) = s.rsplit_once(' ') {
+        let trimmed_unit = unit.trim();
+        if !trimmed_unit.is_empty()
+            && !trimmed_unit.chars().all(|c| c.is_ascii_digit() || c == '/' || c == '.')
+        {
+            return (num.trim(), Some(trimmed_unit.to_owned()));
+        }
+    }
+
+    // Attached unit letters for Base10
+    if base == Base::Base10 {
+        let mut split_idx = s.len();
+        for (i, c) in s.char_indices().rev() {
+            if c.is_ascii_alphabetic() {
+                split_idx = i;
+            } else {
+                break;
+            }
+        }
+        if split_idx > 0 && split_idx < s.len() {
+            let (num, unit) = s.split_at(split_idx);
+            return (num.trim(), Some(unit.to_owned()));
+        }
+    }
+
+    (s, None)
+}
+
+/// Backward-compatible wrapper parsing a numeric string to `f64`.
+pub fn parse_number(s: &str) -> Result<f64> {
+    let parsed = ParsedNumber::parse(s, Base::Base10)?;
+    Ok(parsed.to_f64())
+}
 
 /// Metadata regarding a parsed numeric input string.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,77 +342,40 @@ pub struct ParsedInput {
     pub frac_len: usize,
 }
 
-/// Analyzes a numeric input string to extract layout and precision details.
+/// Backward-compatible wrapper analyzing layout of a numeric string.
 #[must_use]
 pub fn analyze_input(s: &str) -> ParsedInput {
-    let s_clean =
-        s.strip_prefix('+').or_else(|| s.strip_prefix('-')).unwrap_or(s);
-    if let Some((int_part, frac_part)) = s_clean.split_once('.') {
+    if let Ok(num) = ParsedNumber::parse(s, Base::Base10) {
         ParsedInput {
-            int_width: int_part.len(),
-            frac_width: frac_part.len(),
-            has_decimal: true,
-            frac_len: frac_part.len(),
+            int_width: num.int_width,
+            frac_width: num.frac_len,
+            has_decimal: num.has_decimal,
+            frac_len: num.frac_len,
         }
     } else {
-        ParsedInput {
-            int_width: s_clean.len(),
-            frac_width: 0,
-            has_decimal: false,
-            frac_len: 0,
+        let s_clean = s.strip_prefix('+').or_else(|| s.strip_prefix('-')).unwrap_or(s);
+        if let Some((int_part, frac_part)) = s_clean.split_once('.') {
+            ParsedInput {
+                int_width: int_part.len(),
+                frac_width: frac_part.len(),
+                has_decimal: true,
+                frac_len: frac_part.len(),
+            }
+        } else {
+            ParsedInput {
+                int_width: s_clean.len(),
+                frac_width: 0,
+                has_decimal: false,
+                frac_len: 0,
+            }
         }
     }
 }
 
-/// Parses a signed, potentially fractional numeric string in a given base,
-/// scaling the result by $base^{dec\_places}$ to return an exact signed [`Integer`].
-#[expect(
-    clippy::arithmetic_side_effects,
-    reason = "Natural is arbitrary-precision and cannot overflow"
-)]
+/// Backward-compatible wrapper parsing a scaled number.
 pub fn parse_scaled(s: &str, base: Base, dec_places: usize) -> Result<Integer> {
-    let is_negative = s.starts_with('-');
-    let s_clean =
-        s.strip_prefix('+').or_else(|| s.strip_prefix('-')).unwrap_or(s);
-    ensure!(!s_clean.is_empty(), "Cannot parse empty number string");
-
-    let (int_str, frac_str) = if let Some((i, f)) = s_clean.split_once('.') {
-        (i, f)
-    } else {
-        (s_clean, "")
-    };
-
-    let int_nat = if int_str.is_empty() {
-        Natural::ZERO
-    } else {
-        parse_natural(int_str, base)?
-    };
-
-    let frac_nat = if frac_str.is_empty() {
-        Natural::ZERO
-    } else {
-        parse_natural(frac_str, base)?
-    };
-
-    let radix_nat = Natural::from(base.radix());
-    let mut scale_pow = Natural::from(1u8);
-    for _ in 0..dec_places {
-        scale_pow *= &radix_nat;
-    }
-
-    let mut shift_pow = Natural::from(1u8);
-    let shift = dec_places.saturating_sub(frac_str.len());
-    for _ in 0..shift {
-        shift_pow *= &radix_nat;
-    }
-
-    let scaled = int_nat * scale_pow + frac_nat * shift_pow;
-    let int_val = Integer::from(scaled);
-    if is_negative {
-        Ok(-int_val)
-    } else {
-        Ok(int_val)
-    }
+    let num = ParsedNumber::parse(s, base)?;
+    num.to_scaled_integer(dec_places)
 }
 
 /// Formats a scaled [`Integer`] back into a string in the given base, respecting
@@ -146,8 +423,8 @@ pub fn format_scaled(
 /// Token representation in a mathematical expression.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathToken {
-    /// Floating-point numeric literal or constant.
-    Number(f64),
+    /// Parsed numeric literal or constant.
+    Number(ParsedNumber),
     /// Addition operator `+`.
     Plus,
     /// Subtraction operator `-`.
@@ -168,20 +445,6 @@ pub enum MathToken {
     RParen,
 }
 
-/// Parses a string into a number ($f64$), handling numbers and named constants (`pi`, `e`).
-pub fn parse_number(s: &str) -> Result<f64> {
-    let trimmed = s.trim();
-    if trimmed.eq_ignore_ascii_case("pi") {
-        Ok(CONST_PI)
-    } else if trimmed.eq_ignore_ascii_case("e") {
-        Ok(CONST_E)
-    } else {
-        trimmed
-            .parse::<f64>()
-            .with_context(|| format!("Invalid number: '{s}'"))
-    }
-}
-
 /// Tokenizes a mathematical expression string into a sequence of [`MathToken`]s.
 pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
     let mut tokens = Vec::new();
@@ -191,18 +454,18 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             chars.next();
             continue;
         }
-        if c.is_ascii_digit() || c == '.' {
+        if c.is_ascii_digit() || c == '.' || unicode_vulgar_fraction(c).is_some() {
             let mut num_str = String::new();
             while let Some(&nc) = chars.peek() {
-                if nc.is_ascii_digit() || nc == '.' {
+                if nc.is_ascii_digit() || nc == '.' || unicode_vulgar_fraction(nc).is_some() {
                     num_str.push(nc);
                     chars.next();
                 } else {
                     break;
                 }
             }
-            let val = parse_number(&num_str)?;
-            tokens.push(MathToken::Number(val));
+            let parsed = ParsedNumber::parse(&num_str, Base::Base10)?;
+            tokens.push(MathToken::Number(parsed));
             continue;
         }
         if c.is_ascii_alphabetic() {
@@ -217,8 +480,8 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             }
             if word.eq_ignore_ascii_case("mod") {
                 tokens.push(MathToken::Modulo);
-            } else if let Ok(val) = parse_number(&word) {
-                tokens.push(MathToken::Number(val));
+            } else if let Ok(parsed) = ParsedNumber::parse(&word, Base::Base10) {
+                tokens.push(MathToken::Number(parsed));
             } else {
                 bail!("Unknown identifier in expression: {word}");
             }
@@ -365,7 +628,7 @@ pub fn parse_primary(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
     match tok {
         MathToken::Number(n) => {
             *pos = pos.saturating_add(1);
-            Ok(*n)
+            Ok(n.to_f64())
         }
         MathToken::LParen => {
             *pos = pos.saturating_add(1);
@@ -417,6 +680,50 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_parsed_number_fractions_and_units() {
+        let p1 = ParsedNumber::parse("3½", Base::Base10).unwrap();
+        assert_eq!(p1.to_f64(), 3.5);
+        assert_eq!(
+            p1.to_rational().unwrap(),
+            &Rational::from_naturals(Natural::from(7u8), Natural::from(2u8))
+        );
+
+        let p2 = ParsedNumber::parse("3 1/2 oz", Base::Base10).unwrap();
+        assert_eq!(p2.to_f64(), 3.5);
+        assert_eq!(p2.unit_suffix.as_deref(), Some("oz"));
+
+        let p2 = ParsedNumber::parse("3 1⁄2\"", Base::Base10).unwrap();
+        assert_eq!(p2.to_f64(), 3.5);
+        assert_eq!(p2.unit_suffix.as_deref(), Some("\""));
+
+        let p2 = ParsedNumber::parse("⅟2 mm2", Base::Base10).unwrap();
+        assert_eq!(p2.to_f64, 0.5);
+        assert_eq!(p2.unit_suffix.as_deref(), Some("mm2"));
+
+        let p3 = ParsedNumber::parse("3lb", Base::Base10).unwrap();
+        assert_eq!(p3.to_f64(), 3.0);
+        assert_eq!(p3.unit_suffix.as_deref(), Some("lb"));
+
+        let p4 = ParsedNumber::parse("3½ g", Base::Base10).unwrap();
+        assert_eq!(p4.to_f64(), 3.5);
+        assert_eq!(p4.unit_suffix.as_deref(), Some("g"));
+    }
+
+    #[crate::ctb_test]
+    fn test_symbolic_constants_preserved() {
+        let pi = ParsedNumber::parse("PI", Base::Base10).unwrap();
+        assert_eq!(pi.value, NumberValue::Pi);
+        assert_eq!(pi.to_f64(), CONST_PI);
+
+        let e = ParsedNumber::parse("e", Base::Base10).unwrap();
+        assert_eq!(e.value, NumberValue::E);
+        assert_eq!(e.to_f64(), CONST_E);
+
+        let i = ParsedNumber::parse("i", Base::Base10).unwrap();
+        assert_eq!(i.value, NumberValue::ImaginaryI);
+    }
+
+    #[crate::ctb_test]
     fn test_analyze_and_scaled() {
         let info = analyze_input("-0.010");
         assert_eq!(info.int_width, 1);
@@ -442,6 +749,7 @@ mod tests {
         assert_eq!(evaluate_expression("10 % 3").unwrap(), 1.0);
         assert_eq!(evaluate_expression("-5 + 10").unwrap(), 5.0);
         assert_eq!(evaluate_expression("pi * 2").unwrap(), CONST_PI * 2.0);
+        assert_eq!(evaluate_expression("3½ / 5").unwrap(), 0.7);
         evaluate_expression("10 / 0").unwrap_err();
         evaluate_expression("2 + (3 *").unwrap_err();
         evaluate_expression("2 + +").unwrap_err();

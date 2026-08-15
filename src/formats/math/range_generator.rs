@@ -13,7 +13,7 @@ use malachite::base::num::basic::traits::Zero;
 use malachite::{Integer, Natural};
 
 use crate::base::Base;
-use crate::parsing::{analyze_input, format_scaled, parse_scaled};
+use crate::parsing::{ParsedNumber, format_scaled};
 
 /// Generates a vector of strings representing numbers in the given base from
 /// `start` to `end` (inclusive) stepping by `step`. The width of the start
@@ -28,27 +28,27 @@ pub fn range(
     end: &str,
     step: &str,
 ) -> Result<Vec<String>> {
-    let start_info = analyze_input(start);
-    let end_info = analyze_input(end);
+    let start_num = ParsedNumber::parse(start, base)?;
+    let end_num = ParsedNumber::parse(end, base)?;
     let step_str = if step.is_empty() { "1" } else { step };
-    let step_info = analyze_input(step_str);
-
-    let dec_places = start_info
-        .frac_len
-        .max(end_info.frac_len)
-        .max(step_info.frac_len);
-
-    let has_decimal =
-        start_info.has_decimal || end_info.has_decimal || step_info.has_decimal;
-
     let step_base = if base == Base::Base64 {
         Base::Base10
     } else {
         base
     };
-    let start_val = parse_scaled(start, base, dec_places)?;
-    let end_val = parse_scaled(end, base, dec_places)?;
-    let step_raw = parse_scaled(step_str, step_base, dec_places)?;
+    let step_num = ParsedNumber::parse(step_str, step_base)?;
+
+    let dec_places = start_num
+        .frac_len
+        .max(end_num.frac_len)
+        .max(step_num.frac_len);
+
+    let has_decimal =
+        start_num.has_decimal || end_num.has_decimal || step_num.has_decimal;
+
+    let start_val = start_num.to_scaled_integer(dec_places)?;
+    let end_val = end_num.to_scaled_integer(dec_places)?;
+    let step_raw = step_num.to_scaled_integer(dec_places)?;
     let step_val = step_raw.unsigned_abs();
     ensure!(step_val > Natural::ZERO, "Step cannot be zero");
     let step_int = Integer::from(step_val);
@@ -62,8 +62,8 @@ pub fn range(
                 &curr,
                 base,
                 dec_places,
-                start_info.int_width,
-                start_info.frac_width,
+                start_num.int_width,
+                start_num.frac_len,
                 has_decimal,
             )?);
             curr += &step_int;
@@ -75,8 +75,8 @@ pub fn range(
                 &curr,
                 base,
                 dec_places,
-                start_info.int_width,
-                start_info.frac_width,
+                start_num.int_width,
+                start_num.frac_len,
                 has_decimal,
             )?);
             curr -= &step_int;
