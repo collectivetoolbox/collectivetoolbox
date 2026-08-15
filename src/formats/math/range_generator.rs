@@ -111,6 +111,38 @@ pub fn range_trailing(range: &[String], separator: &str) -> String {
     range_format_trailing(range, separator)
 }
 
+/// Arguments for the `range_gen` CLI command.
+#[derive(clap::Args, Debug, Clone)]
+pub struct RangeGenArgs {
+    /// Starting value of the range
+    pub start: String,
+    /// Ending value of the range
+    pub end: String,
+    /// Step size (defaults to "1")
+    #[arg(short, long, default_value = "1")]
+    pub step: String,
+    /// Number base (e.g. "10", "16", "2", "64", "hex", "bin", "oct")
+    #[arg(short, long, default_value = "10")]
+    pub base: String,
+    /// Separator between output items (defaults to newline)
+    #[arg(short, long, default_value = "\n")]
+    pub separator: String,
+    /// Append a trailing separator to the output
+    #[arg(short, long)]
+    pub trailing: bool,
+}
+
+/// CLI tool handler for range generation.
+pub fn range_cli_handler(args: &RangeGenArgs) -> Result<String> {
+    let base = Base::from_str_or_name(&args.base)?;
+    let items = range(base, &args.start, &args.end, &args.step)?;
+    if args.trailing {
+        Ok(range_format_trailing(&items, &args.separator))
+    } else {
+        Ok(range_format(&items, &args.separator))
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

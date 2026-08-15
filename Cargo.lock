@@ -2605,6 +2605,7 @@ dependencies = [
  "ctb-formats-hexdump",
  "ctb-formats-internetarchive",
  "ctb-formats-javascript",
+ "ctb-formats-math",
  "ctb-formats-pan",
  "ctb-formats-pdf",
  "ctb-formats-stagel",
@@ -2936,6 +2937,7 @@ dependencies = [
 name = "ctb-formats-math"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "ctb-formats-utilities",
  "ctb-utilities",
  "malachite",

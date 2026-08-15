@@ -19,6 +19,7 @@
   #:use-module (guix gexp)
   #:use-module (guix build-system trivial)
   #:use-module (gnu packages)
+  #:use-module (gnu packages cross-base)
   #:use-module (gnu packages gnuzilla)
   #:use-module (gnu packages rust)
   #:use-module (ice-9 match)
@@ -51,32 +52,6 @@
          (other other))
        inputs))
 
-(define (make-rust-sysroot target)
-  (package
-    (name (string-append "rust-sysroot-for-" target))
-    (version (package-version rust))
-    (source #f)
-    (build-system trivial-build-system)
-    (arguments
-     (list
-      #:modules '((guix build utils))
-      #:builder
-      #~(let* ((out #$output)
-               (rust-target "i686-unknown-linux-gnu")
-               (rust-lib (string-append #$rust "/lib/rustlib/" rust-target "/lib"))
-               (target-lib (string-append #$rust:cargo "/lib/rustlib/" rust-target "/lib"))
-               (lib-src (if (file-exists? rust-lib) rust-lib target-lib))
-               (dest (string-append out "/lib/rustlib/" rust-target)))
-          (mkdir out)
-          (mkdir (string-append out "/lib"))
-          (mkdir (string-append out "/lib/rustlib"))
-          (mkdir dest)
-          (symlink lib-src (string-append dest "/lib")))))
-    (home-page "https://www.rust-lang.org")
-    (synopsis "Rust target sysroot")
-    (description "Rust target sysroot for cross-compiling.")
-    (license (package-license rust))))
-
 (define (icecat-minimal-fixed-proc pkg)
   (package
     (inherit pkg)
@@ -88,8 +63,9 @@
     (inputs
      (map-input-list (package-inputs pkg)))
     (native-inputs
-     (cons (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
-           (map-input-list (package-native-inputs pkg))))
+     (cons* (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
+            (list "gcc-cross-lib" (cross-gcc "i686-linux-gnu" #:libc (cross-libc "i686-linux-gnu")) "lib")
+            (map-input-list (package-native-inputs pkg))))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:phases _)
@@ -181,6 +157,20 @@
                   (("args.append\\(\"--frozen\"\\)") "pass"))
                 (substitute* "config/makefiles/rust.mk"
                   (("cargo_build_flags \\+= --frozen") ""))))
+            (add-after 'remove-cargo-frozen-flag 'wrap-rustc
+              (lambda* (#:key inputs native-inputs #:allow-other-keys)
+                (let* ((build-inputs (or native-inputs inputs))
+                       (rust-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (real-rustc (search-input-file build-inputs "bin/rustc"))
+                       (bin-dir (string-append (getcwd) "/rustc-wrapper/bin")))
+                  (when rust-sysroot
+                    (mkdir-p bin-dir)
+                    (call-with-output-file (string-append bin-dir "/rustc")
+                      (lambda (port)
+                        (format port "#!~a\nexec ~a --sysroot ~a \"$@\"\n"
+                                (which "sh") real-rustc rust-sysroot)))
+                    (chmod (string-append bin-dir "/rustc") #o755)
+                    (setenv "PATH" (string-append bin-dir ":" (getenv "PATH")))))))
             (delete 'bootstrap)
             (replace 'configure
               (lambda* (#:key outputs configure-flags inputs native-inputs target #:allow-other-keys)
@@ -192,6 +182,7 @@
                                 ,@configure-flags))
                        (build-inputs (or native-inputs inputs))
                        (rust-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (gcc-lib (assoc-ref build-inputs "gcc-cross-lib"))
                        (cxx-inc (false-if-exception (search-input-directory build-inputs "include/c++")))
                        (target-cxx-inc (and cxx-inc (string-append cxx-inc "/" (or target "i686-linux-gnu"))))
                        (cxx-backward (and cxx-inc (string-append cxx-inc "/backward")))
@@ -201,14 +192,12 @@
                        (kernel-inc (and linux-ver-file (dirname (dirname linux-ver-file))))
                        (libc-so-file (false-if-exception (search-input-file inputs "lib/libc.so")))
                        (libc-lib (and libc-so-file (dirname libc-so-file)))
-                       (crtbegin-dir (and=> (search-input-directory build-inputs "lib/gcc")
-                                            (lambda (d)
-                                              (let ((files (find-files d "^crtbeginS\\.o$")))
-                                                (and (not (null? files)) (dirname (car files)))))))
-                       (libgcc-s-dir (and=> (search-input-directory build-inputs "i686-linux-gnu/lib")
-                                            (lambda (d)
-                                              (let ((files (find-files d "^libgcc_s\\.so$")))
-                                                (and (not (null? files)) (dirname (car files)))))))
+                       (crtbegin-dir (and gcc-lib
+                                          (let ((files (find-files gcc-lib "^crtbeginS\\.o$")))
+                                            (and (not (null? files)) (dirname (car files))))))
+                       (libgcc-s-dir (and gcc-lib
+                                          (let ((files (find-files gcc-lib "^libgcc_s\\.so$")))
+                                            (and (not (null? files)) (dirname (car files))))))
                        (extra-link-flags (string-append
                                           (if (and crtbegin-dir (file-exists? crtbegin-dir))
                                               (string-append "-B" crtbegin-dir " -L" crtbegin-dir " ")
@@ -285,11 +274,12 @@
                       (format port "export NM=\"llvm-nm\"\n")
                       (format port "export LDFLAGS=\"-Wl,-rpath=~a/lib/icecat ~a\"\n"
                               #$output extra-link-flags)
+                      (when rust-sysroot
+                        (format port "export RUSTC=\"~a/rustc-wrapper/bin/rustc\"\n" abs-srcdir)
+                        (format port "export RUSTFLAGS=\"--sysroot ~a\"\n" rust-sysroot))
                       (when (and target-cxx-inc (file-exists? target-cxx-inc))
                         (format port "export BINDGEN_CFLAGS=\"--target=~a ~a\"\n"
                                 (or target "i686-linux-gnu") extra-cxx-flags))
-                      (when rust-sysroot
-                        (format port "export RUSTFLAGS=\"--sysroot ~a\"\n" rust-sysroot))
                       (for-each (lambda (flag)
                                   (format port "ac_add_options ~a\n" flag))
                                 flags)))

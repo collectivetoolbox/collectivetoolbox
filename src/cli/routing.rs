@@ -62,6 +62,8 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "json-escape"
             | "dceutils_php_to_csv"
             | "x86-instruction-sets"
+            | "range_gen"
+            | "range-gen"
     )
 }
 
@@ -257,6 +259,9 @@ pub enum Command {
         /// Data to convert. If not provided, reads from stdin.
         value: Option<String>,
     },
+    /// Generate a range of numbers in various bases
+    #[command(name = "range_gen", alias = "range-gen")]
+    RangeGen(ctb_formats_math::range_generator::RangeGenArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
@@ -758,6 +763,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             };
             let encoded = ctb_formats_hexdump::bin2hex(&input_bytes);
             Ok(ToolResult::immediate_ok(encoded.into_bytes()))
+        }
+        Command::RangeGen(args) => {
+            let output = ctb_formats_math::range_generator::range_cli_handler(args)?;
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::GdbInstructionsGenerate {} => {
             // FIXME: Use a streaming ToolResult here

@@ -171,6 +171,24 @@ impl Base {
             _ => bail!("Unsupported base radix: {radix}"),
         }
     }
+
+    /// Parses a base from a string representation, including numeric radices ("2".."36", "64")
+    /// and standard names/aliases ("bin", "binary", "oct", "octal", "dec", "decimal",
+    /// "hex", "hexadecimal", "base64", etc.).
+    pub fn from_str_or_name(s: &str) -> Result<Self> {
+        let trimmed = s.trim();
+        if let Ok(radix) = trimmed.parse::<u8>() {
+            return Self::from_radix(radix);
+        }
+        match trimmed.to_ascii_lowercase().as_str() {
+            "bin" | "binary" => Ok(Self::Base2),
+            "oct" | "octal" => Ok(Self::Base8),
+            "dec" | "decimal" => Ok(Self::Base10),
+            "hex" | "hexadecimal" | "hexcadecimal" => Ok(Self::Base16),
+            "base64" | "b64" => Ok(Self::Base64),
+            _ => bail!("Unknown or unsupported base: '{s}'"),
+        }
+    }
 }
 
 impl TryFrom<u8> for Base {

@@ -45,7 +45,7 @@ pub fn unicode_vulgar_fraction(c: char) -> Option<(u64, u64)> {
 }
 
 /// The semantic value of a parsed number or mathematical constant.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum NumberValue {
     /// Exact rational value.
     Rational(Rational),
@@ -53,8 +53,79 @@ pub enum NumberValue {
     Pi,
     /// Named constant $e$ (Euler's number).
     E,
-    /// Imaginary unit $i$.
+    /// Imaginary unit with rational coefficient: $k \cdot i$.
+    Imaginary(Rational),
+    /// Imaginary unit constant $i$.
     ImaginaryI,
+    /// Positive infinity $\infty$.
+    Infinity,
+    /// Negative infinity $-\infty$.
+    NegativeInfinity,
+}
+
+impl PartialEq for NumberValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Rational(a), Self::Rational(b)) => a == b,
+            (Self::Pi, Self::Pi) | (Self::E, Self::E) => true,
+            (Self::Infinity, Self::Infinity) | (Self::NegativeInfinity, Self::NegativeInfinity) => true,
+            (Self::ImaginaryI, Self::ImaginaryI) => true,
+            (Self::Imaginary(a), Self::Imaginary(b)) => a == b,
+            (Self::ImaginaryI, Self::Imaginary(b)) | (Self::Imaginary(b), Self::ImaginaryI) => {
+                b == &Rational::from(1u8)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl std::ops::Mul<i64> for NumberValue {
+    type Output = Self;
+
+    #[expect(
+        clippy::arithmetic_side_effects,
+        reason = "Rational is arbitrary-precision"
+    )]
+    fn mul(self, rhs: i64) -> Self {
+        match self {
+            Self::ImaginaryI => {
+                if rhs == 1 {
+                    Self::ImaginaryI
+                } else {
+                    Self::Imaginary(Rational::from(rhs))
+                }
+            }
+            Self::Imaginary(r) => Self::Imaginary(r * Rational::from(rhs)),
+            Self::Infinity => {
+                if rhs < 0 {
+                    Self::NegativeInfinity
+                } else {
+                    Self::Infinity
+                }
+            }
+            Self::NegativeInfinity => {
+                if rhs < 0 {
+                    Self::Infinity
+                } else {
+                    Self::NegativeInfinity
+                }
+            }
+            Self::Rational(r) => Self::Rational(r * Rational::from(rhs)),
+            Self::Pi | Self::E => self,
+        }
+    }
+}
+
+impl std::ops::Mul<i32> for NumberValue {
+    type Output = Self;
+
+    #[expect(
+        clippy::arithmetic_side_effects,
+        reason = "Rational is arbitrary-precision"
+    )]
+    fn mul(self, rhs: i32) -> Self {
+        self * i64::from(rhs)
+    }
 }
 
 impl NumberValue {
@@ -67,7 +138,9 @@ impl NumberValue {
             }
             Self::Pi => CONST_PI,
             Self::E => CONST_E,
-            Self::ImaginaryI => f64::NAN,
+            Self::Infinity => f64::INFINITY,
+            Self::NegativeInfinity => f64::NEG_INFINITY,
+            Self::ImaginaryI | Self::Imaginary(_) => f64::NAN,
         }
     }
 }
@@ -114,7 +187,7 @@ impl ParsedNumber {
 
         ensure!(!s_no_sign.is_empty(), "Cannot parse empty number string after sign");
 
-        if s_no_sign.eq_ignore_ascii_case("pi") {
+        if s_no_sign.eq_ignore_ascii_case("pi") || s_no_sign == "π" {
             return Ok(Self {
                 value: NumberValue::Pi,
                 base,
@@ -136,9 +209,14 @@ impl ParsedNumber {
                 unit_suffix: None,
             });
         }
-        if s_no_sign.eq_ignore_ascii_case("i") {
+        if s_no_sign == "∞" || s_no_sign.eq_ignore_ascii_case("inf") || s_no_sign.eq_ignore_ascii_case("infinity") {
+            let val = if is_negative {
+                NumberValue::NegativeInfinity
+            } else {
+                NumberValue::Infinity
+            };
             return Ok(Self {
-                value: NumberValue::ImaginaryI,
+                value: val,
                 base,
                 is_negative,
                 int_width: 0,
@@ -146,6 +224,44 @@ impl ParsedNumber {
                 has_decimal: false,
                 unit_suffix: None,
             });
+        }
+        if s_no_sign.eq_ignore_ascii_case("i") {
+            let val = if is_negative {
+                NumberValue::Imaginary(Rational::from(-1i8))
+            } else {
+                NumberValue::ImaginaryI
+            };
+            return Ok(Self {
+                value: val,
+                base,
+                is_negative,
+                int_width: 0,
+                frac_len: 0,
+                has_decimal: false,
+                unit_suffix: None,
+            });
+        }
+
+        // Check for imaginary number with coefficient like "5i", "-5i"
+        if base == Base::Base10
+            && let Some(coeff_str) = s_no_sign.strip_suffix(['i', 'I'])
+        {
+            let trimmed_coeff = coeff_str.trim();
+            if !trimmed_coeff.is_empty() {
+                let parsed_coeff = Self::parse(trimmed_coeff, base)?;
+                if let Some(r) = parsed_coeff.to_rational() {
+                    let signed_r = if is_negative { -r.clone() } else { r.clone() };
+                    return Ok(Self {
+                        value: NumberValue::Imaginary(signed_r),
+                        base,
+                        is_negative,
+                        int_width: parsed_coeff.int_width,
+                        frac_len: parsed_coeff.frac_len,
+                        has_decimal: parsed_coeff.has_decimal,
+                        unit_suffix: None,
+                    });
+                }
+            }
         }
 
         // Separate attached or whitespace-delimited unit suffixes if present
@@ -175,13 +291,31 @@ impl ParsedNumber {
                 int_width = prefix.len();
                 Rational::from(int_nat) + frac_rat
             }
+        } else if let Some((prefix, den_str)) = num_part.split_once('⅟') {
+            // Fraction numerator one ⅟ (e.g. "⅟2" or "3 ⅟2")
+            let den_nat = parse_natural(den_str.trim(), base)?;
+            ensure!(den_nat > Natural::ZERO, "Fraction denominator cannot be zero");
+            let frac_rat = Rational::from_naturals(Natural::from(1u8), den_nat);
+            let trimmed_prefix = prefix.trim();
+            if trimmed_prefix.is_empty() {
+                int_width = 0;
+                frac_rat
+            } else {
+                let int_nat = parse_natural(trimmed_prefix, base)?;
+                int_width = trimmed_prefix.len();
+                Rational::from(int_nat) + frac_rat
+            }
         } else if base != Base::Base64
-            && num_part.contains('/')
-            && let Some((num_str, den_str)) = num_part.split_once('/')
-            && !num_str.trim().is_empty()
-            && !den_str.trim().is_empty()
+            && (num_part.contains('/') || num_part.contains('⁄'))
         {
-            // ASCII fraction (e.g. "1/2" or "3 1/2" or "3-1/2")
+            let (num_str, den_str) = if let Some(parts) = num_part.split_once('⁄') {
+                parts
+            } else if let Some(parts) = num_part.split_once('/') {
+                parts
+            } else {
+                unreachable!("contains verified");
+            };
+
             let den_nat = parse_natural(den_str.trim(), base)?;
             ensure!(den_nat > Natural::ZERO, "Fraction denominator cannot be zero");
 
@@ -220,8 +354,8 @@ impl ParsedNumber {
                 scale_pow *= &radix_nat;
             }
 
-            let frac_rat = Rational::from_naturals(frac_nat, scale_pow);
-            Rational::from(int_nat) + frac_rat
+            let fraction_rational = Rational::from_naturals(frac_nat, scale_pow);
+            Rational::from(int_nat) + fraction_rational
         } else {
             // Pure integer
             int_width = num_part.len();
@@ -277,7 +411,7 @@ impl ParsedNumber {
                     Ok(int_val)
                 }
             }
-            NumberValue::Pi | NumberValue::E | NumberValue::ImaginaryI => {
+            _ => {
                 bail!("Cannot convert symbolic constant to scaled integer")
             }
         }
@@ -294,29 +428,41 @@ impl ParsedNumber {
 }
 
 /// Helper function to separate trailing unit identifiers from a numeric substring.
-fn separate_unit_suffix<'a>(s: &'a str, base: Base) -> (&'a str, Option<String>) {
+fn separate_unit_suffix(s: &str, base: Base) -> (&str, Option<String>) {
     if let Some((num, unit)) = s.rsplit_once(' ') {
         let trimmed_unit = unit.trim();
-        if !trimmed_unit.is_empty()
-            && !trimmed_unit.chars().all(|c| c.is_ascii_digit() || c == '/' || c == '.')
-        {
+        let is_fraction_part = trimmed_unit.contains('/')
+            || trimmed_unit.contains('⁄')
+            || trimmed_unit.starts_with('⅟')
+            || trimmed_unit.chars().all(|c| c.is_ascii_digit() || unicode_vulgar_fraction(c).is_some());
+        if !trimmed_unit.is_empty() && !is_fraction_part {
             return (num.trim(), Some(trimmed_unit.to_owned()));
         }
+    }
+
+    if let Some(stripped) = s.strip_suffix('"') {
+        return (stripped.trim_end(), Some("\"".to_owned()));
     }
 
     // Attached unit letters for Base10
     if base == Base::Base10 {
         let mut split_idx = s.len();
         for (i, c) in s.char_indices().rev() {
-            if c.is_ascii_alphabetic() {
-                split_idx = i;
+            if c.is_alphabetic() || c.is_ascii_digit() {
+                // Check if starting a unit like "mm2" or "lb"
+                if c.is_alphabetic() {
+                    split_idx = i;
+                }
             } else {
                 break;
             }
         }
         if split_idx > 0 && split_idx < s.len() {
             let (num, unit) = s.split_at(split_idx);
-            return (num.trim(), Some(unit.to_owned()));
+            // Don't split if it's purely digits or imaginary
+            if !num.is_empty() && unit != "i" && unit != "I" {
+                return (num.trim(), Some(unit.to_owned()));
+            }
         }
     }
 
@@ -454,10 +600,10 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             chars.next();
             continue;
         }
-        if c.is_ascii_digit() || c == '.' || unicode_vulgar_fraction(c).is_some() {
+        if c.is_ascii_digit() || c == '.' || unicode_vulgar_fraction(c).is_some() || c == '⅟' {
             let mut num_str = String::new();
             while let Some(&nc) = chars.peek() {
-                if nc.is_ascii_digit() || nc == '.' || unicode_vulgar_fraction(nc).is_some() {
+                if nc.is_ascii_digit() || nc == '.' || unicode_vulgar_fraction(nc).is_some() || nc == '⅟' {
                     num_str.push(nc);
                     chars.next();
                 } else {
@@ -468,10 +614,10 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             tokens.push(MathToken::Number(parsed));
             continue;
         }
-        if c.is_ascii_alphabetic() {
+        if c.is_alphabetic() || c == 'π' || c == '∞' {
             let mut word = String::new();
             while let Some(&wc) = chars.peek() {
-                if wc.is_ascii_alphabetic() {
+                if wc.is_alphabetic() || wc == 'π' || wc == '∞' {
                     word.push(wc);
                     chars.next();
                 } else {
@@ -697,7 +843,7 @@ mod tests {
         assert_eq!(p2.unit_suffix.as_deref(), Some("\""));
 
         let p2 = ParsedNumber::parse("⅟2 mm2", Base::Base10).unwrap();
-        assert_eq!(p2.to_f64, 0.5);
+        assert_eq!(p2.to_f64(), 0.5);
         assert_eq!(p2.unit_suffix.as_deref(), Some("mm2"));
 
         let p3 = ParsedNumber::parse("3lb", Base::Base10).unwrap();
@@ -707,6 +853,10 @@ mod tests {
         let p4 = ParsedNumber::parse("3½ g", Base::Base10).unwrap();
         assert_eq!(p4.to_f64(), 3.5);
         assert_eq!(p4.unit_suffix.as_deref(), Some("g"));
+
+        let p4 = ParsedNumber::parse("↉ g", Base::Base10).unwrap();
+        assert_eq!(p4.to_f64(), 0.0);
+        assert_eq!(p4.unit_suffix.as_deref(), Some("g"));
     }
 
     #[crate::ctb_test]
@@ -714,6 +864,8 @@ mod tests {
         let pi = ParsedNumber::parse("PI", Base::Base10).unwrap();
         assert_eq!(pi.value, NumberValue::Pi);
         assert_eq!(pi.to_f64(), CONST_PI);
+        let pi = ParsedNumber::parse("π", Base::Base10).unwrap();
+        assert_eq!(pi.value, NumberValue::Pi);
 
         let e = ParsedNumber::parse("e", Base::Base10).unwrap();
         assert_eq!(e.value, NumberValue::E);
@@ -721,6 +873,17 @@ mod tests {
 
         let i = ParsedNumber::parse("i", Base::Base10).unwrap();
         assert_eq!(i.value, NumberValue::ImaginaryI);
+
+        let i = ParsedNumber::parse("5i", Base::Base10).unwrap();
+        assert_eq!(i.value, NumberValue::ImaginaryI * 5);
+
+        let i = ParsedNumber::parse("-i", Base::Base10).unwrap();
+        assert_eq!(i.value, NumberValue::ImaginaryI * -1);
+
+        let i = ParsedNumber::parse("∞", Base::Base10).unwrap();
+        assert_eq!(i.value, NumberValue::Infinity);
+        let i = ParsedNumber::parse("-∞", Base::Base10).unwrap();
+        assert_eq!(i.value, NumberValue::Infinity * -1);
     }
 
     #[crate::ctb_test]
