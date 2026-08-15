@@ -1,0 +1,48 @@
+<h1>Center of Gravity Calculator</h1>
+
+<label>Empty Weight <input type="text" id="EmptyWt"></label>
+<br>
+<label>Empty CG <input type="text" id="EmptyCg"></label>
+<br>
+<br><br>
+<label>Front Pilot Weight <input type="text" id="FrontPilotWt"></label>
+<br>
+<label>Front Pilot Arm (or provide datum and distance in front of datum) <input type="text" id="FrontPilotArm"></label>
+<br>
+<label>Front Pilot Distance in Front of Datum (optional) <input type="text" id="FrontPilotDistanceInFrontOfDatum"></label>
+<br>
+<br><br>
+<label>Rear Pilot Weight <input type="text" id="RearPilotWt"></label>
+<br>
+<label>Rear Pilot Arm (or provide datum and distance behind datum) <input type="text" id="RearPilotArm"></label>
+<br>
+<label>Rear Pilot Distance in Rear of Datum (optional) <input type="text" id="RearPilotDistanceBehindDatum"></label>
+<br>
+<br><br>
+<label>Datum (optional) <input type="text" id="Datum"></label>
+<br>
+<br><br>
+<label>Ballast Weight <input type="text" id="BallastWt"></label>
+<br>
+<label>Ballast Arm <input type="text" id="BallastArm"></label>
+<br><br>
+The following fields are readonly and will be calculated automatically:
+<br>
+<label>Empty Moment <input type="text" id="EmptyMoment" readonly> (EmptyWt x EmptyCg)</label>
+<br>
+<label>Front Pilot Moment <input type="text" id="FrontPilotMoment" readonly> (FrontPilotWt x FrontPilotArm)</label>
+<br>
+<label>Rear Pilot Moment <input type="text" id="RearPilotMoment" readonly> (RearPilotWt x RearPilotArm)</label>
+<br>
+<label>Ballast Moment <input type="text" id="BallastMoment" readonly> (BallastWt x BallastArm)</label>
+<br>
+<label>Total Moment <input type="text" id="TotalMoment" readonly> (FrontPilotMoment+RearPilotMoment+BallastMoment+EmptyMoment)</label>
+<br>
+<label>Total Weight <input type="text" id="TotalWt" readonly> (FrontPilotWt+RearPilotWt+BallastWt+EmptyWt)</label>
+<br>
+<label>Loaded Center of Gravity <input type="text" id="LoadedCg" readonly> (TotalMoment/TotalWt)</label>
+<br>
+<br><br>
+<input type="submit" id="Calculate" value="Calculate">
+<br><br>
+<input type="submit" id="Reset" value="Reset">
