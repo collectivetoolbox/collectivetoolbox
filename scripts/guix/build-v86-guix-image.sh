@@ -10,17 +10,12 @@ set -euxo pipefail
 #   --prebuild-tarball PATH Build Guix i686 system image tarball, save to PATH
 #   (no args)               Full build: system image + Icecat + v86 packing
 
-# Safety guard: ensure this script is only executed inside a container environment.
+# Container detection helper
 is_container() {
     [ -f /.dockerenv ] || [ -f /run/.containerenv ] || \
     grep -qa -E 'docker|containerd|kubepods|lxc|podman' /proc/1/cgroup 2>/dev/null || \
     grep -qa -E 'container=' /proc/1/environ 2>/dev/null
 }
-
-if [ -z "${ALLOW_UNSAFE_HOST_GUIX_BUILD:-}" ] && ! is_container; then
-    echo "Error: build-v86-guix-image.sh modifies system store and permissions (/gnu/store, /var/guix) and must only be run inside a Docker container." >&2
-    exit 1
-fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="$(cd "$script_dir/../.." && pwd)"
@@ -117,55 +112,67 @@ start_guix_daemon() {
         exit 1
     fi
 
+    # Check if a system guix-daemon is already running and responding
+    if [ -e /var/guix/daemon-socket/socket ] && guix build --dry-run -e '(string-append)' >/dev/null 2>&1; then
+        echo "Using existing active guix-daemon."
+        daemon_pid=""
+        return 0
+    fi
+
     daemon_extra_args=()
     daemon_env=()
-    nopersonality_rs=""
-    if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
-        nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
-    elif [ -f "/tmp/src/nopersonality/nopersonality.rs" ]; then
-        nopersonality_rs="/tmp/src/nopersonality/nopersonality.rs"
-    elif [ -f "$script_dir/../../src/nopersonality/nopersonality.rs" ]; then
-        nopersonality_rs="$script_dir/../../src/nopersonality/nopersonality.rs"
-    fi
 
-    if [ -n "$nopersonality_rs" ]; then
-        nopersonality_dir="/var/guix/nopersonality"
-        nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
-        mkdir -p "$nopersonality_dir"
-        if [ ! -f "$nopersonality_so" ]; then
-            echo "Building nopersonality cdylib shim..."
-            if command -v rustc >/dev/null 2>&1; then
-                rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
-            elif command -v cargo >/dev/null 2>&1; then
-                cargo build --package ctb-nopersonality --release
-                cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
+    # Container-specific workarounds (UID 0 perform-download patch, nopersonality shim, permissions)
+    if is_container; then
+        nopersonality_rs=""
+        if [ -f "$workspace_root/src/nopersonality/nopersonality.rs" ]; then
+            nopersonality_rs="$workspace_root/src/nopersonality/nopersonality.rs"
+        elif [ -f "/tmp/src/nopersonality/nopersonality.rs" ]; then
+            nopersonality_rs="/tmp/src/nopersonality/nopersonality.rs"
+        elif [ -f "$script_dir/../../src/nopersonality/nopersonality.rs" ]; then
+            nopersonality_rs="$script_dir/../../src/nopersonality/nopersonality.rs"
+        fi
+
+        if [ -n "$nopersonality_rs" ]; then
+            nopersonality_dir="/var/guix/nopersonality"
+            nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
+            mkdir -p "$nopersonality_dir"
+            if [ ! -f "$nopersonality_so" ]; then
+                echo "Building nopersonality cdylib shim..."
+                if command -v rustc >/dev/null 2>&1; then
+                    rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
+                elif command -v cargo >/dev/null 2>&1; then
+                    cargo build --package ctb-nopersonality --release
+                    cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
+                fi
+            fi
+            if [ -f "$nopersonality_so" ]; then
+                chmod 755 "$nopersonality_dir" "$nopersonality_so"
+                # Also copy to /lib or /usr/lib so child chroots can resolve it if LD_PRELOAD is present
+                if [ -d /usr/lib ] && [ -w /usr/lib ]; then
+                    cp "$nopersonality_so" /usr/lib/libctb_nopersonality.so 2>/dev/null || true
+                    chmod 755 /usr/lib/libctb_nopersonality.so 2>/dev/null || true
+                fi
+                echo "Using nopersonality shim at: $nopersonality_so"
+                daemon_env=(env "LD_PRELOAD=$nopersonality_so")
+                daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
             fi
         fi
-        if [ -f "$nopersonality_so" ]; then
-            chmod 755 "$nopersonality_dir" "$nopersonality_so"
-            # Also copy to /lib or /usr/lib so child chroots can resolve it if LD_PRELOAD is present
-            if [ -d /usr/lib ] && [ -w /usr/lib ]; then
-                cp "$nopersonality_so" /usr/lib/libctb_nopersonality.so 2>/dev/null || true
-                chmod 755 /usr/lib/libctb_nopersonality.so 2>/dev/null || true
-            fi
-            echo "Using nopersonality shim at: $nopersonality_so"
-            daemon_env=(env "LD_PRELOAD=$nopersonality_so")
-            daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
-        fi
-    fi
 
-    find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
-    find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
+        find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
+        find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
+
+        if [ -d /homeless-shelter ]; then
+            rm -r /homeless-shelter 2>/dev/null || true
+        fi
+        mkdir -p /var/log/guix/drvs /var/guix
+        chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
+        chmod -R 1777 /var/log/guix 2>/dev/null || true
+        chmod 1775 /gnu/store /var/guix 2>/dev/null || true
+    fi
 
     tmp_build_dir="$(mktemp -d)"
-    if [ -d /homeless-shelter ]; then
-        rm -r /homeless-shelter 2>/dev/null || true
-    fi
-    mkdir -p /var/log/guix/drvs /var/guix
     chmod 755 "$tmp_build_dir"
-    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
-    chmod -R 1777 /var/log/guix 2>/dev/null || true
-    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     if [ -z "$disable_chroot" ]; then
         if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then

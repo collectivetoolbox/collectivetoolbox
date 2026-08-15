@@ -266,6 +266,8 @@ winit = { path = "vendor/winit" }
 # FIXME: Temporary patches to wayland-scanner and zbus-xml to update quick-xml past vulnerable version. Once these dependencies support quick-xml 0.41, remove these.
 wayland-scanner = { path = "vendor/wayland-scanner" }
 zbus_xml = { path = "vendor/zbus_xml" }
+# FIXME: Temporary patch to tantivy to get `lru` past vulnerable version. Once this supports `lru` 0.18.2, remove this.
+tantivy = { path = "vendor/tantivy" }
 
 # Remove hard dependency on io_uring feature which ftbfs
 turso_sdk_kit = { path = "vendor/turso_sdk_kit" }
