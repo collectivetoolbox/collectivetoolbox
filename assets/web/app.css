@@ -20,7 +20,6 @@
 @import url('web/css/notifications.css');
 @import url('web/css/modals.css');
 @import url('web/css/tools/eite-edit-tool.css');
-@import url('web/css/tools/calculator.css');
 :root {
     --sans-serif: 'Noto Sans', sans-serif;
     --serif: 'EB Garamond', serif;

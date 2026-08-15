@@ -263,8 +263,7 @@ smithay-clipboard = { path = "vendor/smithay-clipboard" }
 softbuffer = { path = "vendor/softbuffer" }
 winit = { path = "vendor/winit" }
 
-# FIXME: Temporary patches to wayland-scanner and zbus-xml to update quick-xml past vulnerable version. Once these dependencies support quick-xml 0.41, remove these.
-wayland-scanner = { path = "vendor/wayland-scanner" }
+# FIXME: Temporary patch to zbus-xml to update quick-xml past vulnerable version. Once this dependency supports quick-xml 0.41, remove this.
 zbus_xml = { path = "vendor/zbus_xml" }
 # FIXME: Temporary patch to tantivy to get `lru` past vulnerable version. Once this supports `lru` 0.18.2, remove this.
 tantivy = { path = "vendor/tantivy" }

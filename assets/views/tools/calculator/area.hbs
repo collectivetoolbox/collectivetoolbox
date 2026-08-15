@@ -1,32 +1,32 @@
-<div class="calculator-pane calculator-area-pane">
-    <div class="calculator-area-subsections">
-        <fieldset class="calculator-area-section">
+<div class="flex flex-col gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset class="flex flex-col gap-4 p-4">
             <legend>Circle Area</legend>
-            <div class="calculator-input-row">
+            <div class="flex flex-col gap-2">
                 <label for="txtRadiusValue">Radius:</label>
                 <input type="text" id="txtRadiusValue" placeholder="e.g. 5" autocomplete="off" />
-                <button type="button" id="btnArea" class="btn btn-primary">Get area</button>
+                <button type="button" id="btnArea">Get area</button>
             </div>
-            <div class="calculator-answer-box">
-                <span class="calculator-answer-label">Circle Area (&pi;&times;r&sup2;):</span>
-                <span id="lblCircleAreaAnswer" class="calculator-answer-display">{ }</span>
+            <div class="flex items-center gap-2">
+                <strong>Circle Area (&pi;&times;r&sup2;):</strong>
+                <code><output id="lblCircleAreaAnswer"></output></code>
             </div>
         </fieldset>
 
-        <fieldset class="calculator-area-section">
+        <fieldset class="flex flex-col gap-4 p-4">
             <legend>Rectangle Area</legend>
-            <div class="calculator-input-row">
+            <div class="flex flex-col gap-2">
                 <label for="txtBase">Base:</label>
                 <input type="text" id="txtBase" placeholder="e.g. 4" autocomplete="off" />
 
                 <label for="txtHeighth">Height:</label>
                 <input type="text" id="txtHeighth" placeholder="e.g. 6" autocomplete="off" />
 
-                <button type="button" id="btnRectArea" class="btn btn-primary">Get area</button>
+                <button type="button" id="btnRectArea">Get area</button>
             </div>
-            <div class="calculator-answer-box">
-                <span class="calculator-answer-label">Rectangle Area (b&times;h):</span>
-                <span id="lblRectAreaAnswer" class="calculator-answer-display">{ }</span>
+            <div class="flex items-center gap-2">
+                <strong>Rectangle Area (b&times;h):</strong>
+                <code><output id="lblRectAreaAnswer"></output></code>
             </div>
         </fieldset>
     </div>

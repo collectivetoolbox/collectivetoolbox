@@ -1,12 +1,12 @@
-<div class="calculator-pane calculator-sqrt-pane">
-    <div class="calculator-input-row">
+<div class="flex flex-col gap-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <label for="txtSqRt">Enter number (supports negative inputs):</label>
         <input type="text" id="txtSqRt" placeholder="e.g. 16 or -4" autocomplete="off" />
-        <button type="button" id="btnSqRt" class="btn btn-primary">Find Square Root</button>
+        <button type="button" id="btnSqRt">Find Square Root</button>
     </div>
 
-    <div class="calculator-answer-box">
-        <span class="calculator-answer-label">Result:</span>
-        <span id="lblSqRtAnswer" class="calculator-answer-display">{ }</span>
+    <div class="flex items-center gap-2 max-w-md">
+        <strong>Result:</strong>
+        <code><output id="lblSqRtAnswer"></output></code>
     </div>
 </div>

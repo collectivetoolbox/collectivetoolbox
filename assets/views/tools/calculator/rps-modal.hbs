@@ -1,35 +1,33 @@
-<dialog id="diaRps" class="calculator-modal">
-    <div class="calculator-modal-content">
-        <header class="calculator-modal-header">
-            <h3>Rock, Paper, and Scissor</h3>
-            <button type="button" class="btn btn-close-modal" data-close-modal="diaRps">&times;</button>
-        </header>
+<div id="diaRps" class="hidden modal-box">
+    <div class="modal-header">
+        <h3 class="modal-title">Rock, Paper, and Scissor</h3>
+        <button type="button" class="modal-close-btn" aria-label="Close" data-modal-close>&times;</button>
+    </div>
 
-        <div class="calculator-modal-body">
-            <fieldset class="calculator-rps-choices">
-                <legend>Choose Your Play:</legend>
-                <div class="calculator-rps-buttons">
-                    <button type="button" class="btn btn-rps-choice" data-choice="1">Rock</button>
-                    <button type="button" class="btn btn-rps-choice" data-choice="2">Paper</button>
-                    <button type="button" class="btn btn-rps-choice" data-choice="3">Scissors</button>
-                </div>
-            </fieldset>
-
-            <div class="calculator-rps-status">
-                <div id="lblRpsDecision" class="calculator-status-message">Select a play to challenge the computer.</div>
-                <div id="lblRpsOutcome" class="calculator-rps-outcome"></div>
+    <div class="modal-body flex flex-col gap-4">
+        <fieldset class="flex flex-col gap-2 p-4">
+            <legend>Choose Your Play:</legend>
+            <div class="flex items-center gap-2">
+                <button type="button" data-choice="1">Rock</button>
+                <button type="button" data-choice="2">Paper</button>
+                <button type="button" data-choice="3">Scissors</button>
             </div>
+        </fieldset>
 
-            <div class="calculator-rps-scores">
-                <span id="lblRpsWins">0 Wins</span> |
-                <span id="lblRpsDraws">0 Draws</span> |
-                <span id="lblRpsLosses">0 Losses</span>
-            </div>
+        <div class="flex flex-col gap-2">
+            <div id="lblRpsDecision">Select a play to challenge the computer.</div>
+            <div><strong><output id="lblRpsOutcome"></output></strong></div>
         </div>
 
-        <footer class="calculator-modal-footer">
-            <button type="button" id="btnRpsNewSession" class="btn">New Session</button>
-            <button type="button" class="btn btn-secondary" data-close-modal="diaRps">Close</button>
-        </footer>
+        <div class="flex items-center gap-4">
+            <span id="lblRpsWins">0 Wins</span> |
+            <span id="lblRpsDraws">0 Draws</span> |
+            <span id="lblRpsLosses">0 Losses</span>
+        </div>
     </div>
-</dialog>
+
+    <div class="modal-footer">
+        <button type="button" id="btnRpsNewSession">New Session</button>
+        <button type="button" data-modal-close>Close</button>
+    </div>
+</div>

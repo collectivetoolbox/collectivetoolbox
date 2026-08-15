@@ -3,15 +3,44 @@ ctb-tab-group {
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 0.5rem;
+    gap: 0;
+    position: relative;
 }
 
 ctb-tab-group > ctb-segmented-control {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0.25rem;
     width: 100%;
+    margin-bottom: -2px;
+    z-index: 1;
+    padding-inline-start: 0.75rem;
+    box-sizing: border-box;
+}
+
+ctb-tab-group > ctb-segmented-control ctb-button,
+ctb-tab-group > ctb-segmented-control button {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border: 2px groove light-dark(#d0d0d0, #404040);
+    margin-bottom: 0;
+    position: relative;
+}
+
+ctb-tab-group > ctb-segmented-control ctb-button[selected],
+ctb-tab-group > ctb-segmented-control button[selected] {
+    border-bottom-color: transparent;
+    z-index: 2;
 }
 
 ctb-tab-group > ctb-layout {
     width: 100%;
+    border: 2px groove light-dark(#d0d0d0, #404040);
+    border-radius: 0;
+    padding: 0.75rem;
+    box-sizing: border-box;
 }
 
 ctb-tab-group > ctb-layout[hidden] {

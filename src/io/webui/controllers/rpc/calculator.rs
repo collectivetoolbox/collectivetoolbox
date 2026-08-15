@@ -17,6 +17,22 @@ pub async fn handle_calculator_call(
     use ctb_formats_math::calculator_classic::*;
 
     match func {
+        "evaluateExpression" => {
+            let expr = args
+                .first()
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("Missing arg 0: expression"))?;
+            let res = evaluate_expression(expr)?;
+            Ok(serde_json::to_value(res)?)
+        }
+        "getRandomScaleTable" => {
+            let raw = args.first().and_then(Value::as_f64).unwrap_or_else(|| {
+                use rand::Rng;
+                rand::rng().random_range(0.0..1.0)
+            });
+            let table = generate_scaled_random_table(raw);
+            Ok(serde_json::to_value(table)?)
+        }
         "evaluateBasicOp" => {
             let op = args
                 .first()

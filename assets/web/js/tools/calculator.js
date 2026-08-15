@@ -1,6 +1,7 @@
 // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0
 
 import { rpcCall } from "./rpc.js";
+import { openModal } from "../modals.js";
 
 /**
  * Executes a call to the Calculator JSON-RPC API.
@@ -15,6 +16,7 @@ async function calcCall(funcName, args = []) {
 
 // State variables
 let isLocked = false;
+let currentOp = "+";
 let rpsScores = { wins: 0, draws: 0, losses: 0 };
 let sixR2Iterations = 0;
 
@@ -33,7 +35,6 @@ export function initCalculator() {
     setupAreaTab();
     setupRpsModal();
     setupSixR2Modal();
-    setupModalCloseButtons();
 }
 
 /**
@@ -73,25 +74,21 @@ function setupMenubar() {
     });
 
     document.getElementById("menuSidecarRps")?.addEventListener("click", () => {
-        const modal = /** @type {HTMLDialogElement | null} */ (document.getElementById("diaRps"));
-        if (modal && typeof modal.showModal === "function") {
-            modal.showModal();
+        const modalEl = document.getElementById("diaRps");
+        if (modalEl) {
+            openModal(modalEl);
         }
     });
 
     document.getElementById("menuSidecar6r2")?.addEventListener("click", () => {
-        const modal = /** @type {HTMLDialogElement | null} */ (document.getElementById("diaSixR2"));
-        if (modal && typeof modal.showModal === "function") {
-            modal.showModal();
+        const modalEl = document.getElementById("diaSixR2");
+        if (modalEl) {
+            openModal(modalEl);
         }
     });
 
     document.getElementById("menuHelpAssistance")?.addEventListener("click", () => {
         switchTab("tab-assistance");
-    });
-
-    document.getElementById("menuHelpAbout")?.addEventListener("click", () => {
-        switchTab("tab-about");
     });
 }
 
@@ -116,54 +113,100 @@ function switchTab(tabId) {
 function setupMakeTab() {
     const txtN1 = /** @type {HTMLInputElement | null} */ (document.getElementById("txtN1"));
     const txtN2 = /** @type {HTMLInputElement | null} */ (document.getElementById("txtN2"));
-    const txtFn = /** @type {HTMLInputElement | null} */ (document.getElementById("txtFn"));
+    const txtFormula = /** @type {HTMLInputElement | null} */ (document.getElementById("txtFormula"));
     const lblAnswer = document.getElementById("lblYourAnswer");
-    const btnEvaluate = document.getElementById("btnEuqals");
+    const btnEvaluate = document.getElementById("btnEvaluate");
     const btnClearAll = document.getElementById("btnClearAll");
+    const btnQuit = document.getElementById("btnQuit");
     const chkLock = /** @type {HTMLInputElement | null} */ (document.getElementById("chkLock"));
 
     chkLock?.addEventListener("change", () => {
         isLocked = chkLock.checked;
     });
 
-    // Operator buttons
-    const opButtons = document.querySelectorAll(".btn-operator");
+    btnQuit?.addEventListener("click", () => {
+        if (isLocked) {
+            alert("Session is locked.");
+            return;
+        }
+        window.location.href = "/";
+    });
+
+    // Operator buttons (auto-evaluates via RPC on click)
+    const opButtons = document.querySelectorAll("[data-op]");
     for (const btn of opButtons) {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
             const op = btn.getAttribute("data-op");
             if (op === "AC") {
                 if (txtN1) txtN1.value = "";
                 if (txtN2) txtN2.value = "";
-                if (txtFn) txtFn.value = "+";
-                if (lblAnswer) lblAnswer.textContent = "{ }";
-            } else if (op && txtFn) {
-                txtFn.value = op;
+                if (txtFormula) txtFormula.value = "";
+                if (lblAnswer) lblAnswer.textContent = "";
+                return;
+            }
+
+            if (!op) return;
+            currentOp = op;
+
+            const n1Str = txtN1?.value.trim() || "";
+            const n2Str = txtN2?.value.trim() || "";
+
+            if (n1Str !== "" && n2Str !== "") {
+                const n1 = parseFloat(n1Str);
+                const n2 = parseFloat(n2Str);
+                if (isNaN(n1) || isNaN(n2)) {
+                    if (lblAnswer) lblAnswer.textContent = "Error: Invalid Number";
+                    return;
+                }
+                try {
+                    const result = await calcCall("evaluateBasicOp", [op, n1, n2]);
+                    if (lblAnswer) {
+                        lblAnswer.textContent = String(result);
+                    }
+                } catch (err) {
+                    if (lblAnswer) {
+                        lblAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
+                    }
+                }
             }
         });
     }
 
-    // Evaluate button
+    // Evaluate button (evaluates formula via RPC)
     btnEvaluate?.addEventListener("click", async () => {
+        const formula = txtFormula?.value.trim() || "";
+        if (formula !== "") {
+            try {
+                const result = await calcCall("evaluateExpression", [formula]);
+                if (lblAnswer) {
+                    lblAnswer.textContent = String(result);
+                }
+            } catch (err) {
+                if (lblAnswer) {
+                    lblAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
+                }
+            }
+            return;
+        }
+
         const n1Str = txtN1?.value.trim() || "0";
         const n2Str = txtN2?.value.trim() || "0";
-        const op = txtFn?.value.trim() || "+";
-
         const n1 = parseFloat(n1Str);
         const n2 = parseFloat(n2Str);
 
         if (isNaN(n1) || isNaN(n2)) {
-            if (lblAnswer) lblAnswer.textContent = "{ Error: Invalid Number }";
+            if (lblAnswer) lblAnswer.textContent = "Error: Invalid Number";
             return;
         }
 
         try {
-            const result = await calcCall("evaluateBasicOp", [op, n1, n2]);
+            const result = await calcCall("evaluateBasicOp", [currentOp, n1, n2]);
             if (lblAnswer) {
-                lblAnswer.textContent = `{ ${result} }`;
+                lblAnswer.textContent = String(result);
             }
         } catch (err) {
             if (lblAnswer) {
-                lblAnswer.textContent = `{ Error: ${/** @type {Error} */ (err).message} }`;
+                lblAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
             }
         }
     });
@@ -181,17 +224,14 @@ function setupMakeTab() {
  * Resets all inputs in the application.
  */
 function clearAllInputs() {
-    const inputs = document.querySelectorAll(".calculator-pane input[type='text'], .calculator-pane textarea");
+    const inputs = document.querySelectorAll("input[type='text'], textarea");
     for (const input of inputs) {
         if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
             input.value = "";
         }
     }
-    const txtFn = /** @type {HTMLInputElement | null} */ (document.getElementById("txtFn"));
-    if (txtFn) txtFn.value = "+";
-
     const lblAnswer = document.getElementById("lblYourAnswer");
-    if (lblAnswer) lblAnswer.textContent = "{ }";
+    if (lblAnswer) lblAnswer.textContent = "";
 }
 
 /**
@@ -239,25 +279,20 @@ function setupRandomTab() {
     const btnRand = document.getElementById("btnRand");
 
     const refreshRandoms = async () => {
-        const baseRand = Math.random();
-        const scales = [1, 5, 10, 50, 100, 500, 1000, 5000];
-
-        for (let i = 0; i < scales.length; i++) {
-            const scale = scales[i];
-            const lbl = document.getElementById(`lblRan${i + 1}`);
-            if (lbl) {
-                try {
-                    const scaled = await calcCall("scaledRandom", [baseRand, scale]);
-                    lbl.textContent = typeof scaled === "number" ? scaled.toFixed(4) : String(scaled);
-                } catch {
-                    lbl.textContent = (baseRand * scale).toFixed(4);
+        try {
+            const numbers = await calcCall("getRandomScaleTable", []);
+            for (let i = 0; i < numbers.length; i++) {
+                const lbl = document.getElementById(`lblRan${i + 1}`);
+                if (lbl) {
+                    lbl.textContent = typeof numbers[i] === "number" ? numbers[i].toFixed(4) : String(numbers[i]);
                 }
             }
+        } catch (err) {
+            console.error("Failed to load random scale table:", err);
         }
     };
 
     btnRand?.addEventListener("click", refreshRandoms);
-    // Initial generation
     refreshRandoms();
 }
 
@@ -274,15 +309,15 @@ function setupSqrtTab() {
         const num = parseFloat(numStr);
 
         if (isNaN(num)) {
-            if (lblAnswer) lblAnswer.textContent = "{ Error: Invalid Number }";
+            if (lblAnswer) lblAnswer.textContent = "Error: Invalid Number";
             return;
         }
 
         try {
             const result = await calcCall("squareRoot", [num]);
-            if (lblAnswer) lblAnswer.textContent = `{ ${result} }`;
+            if (lblAnswer) lblAnswer.textContent = String(result);
         } catch (err) {
-            if (lblAnswer) lblAnswer.textContent = `{ Error: ${/** @type {Error} */ (err).message} }`;
+            if (lblAnswer) lblAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
         }
     });
 }
@@ -345,15 +380,15 @@ function setupPerimeterTab() {
         const h = parseFloat(txtHeight?.value.trim() || "0");
 
         if (isNaN(b) || isNaN(h)) {
-            if (lblAnswer) lblAnswer.textContent = "{ Error: Invalid Dimensions }";
+            if (lblAnswer) lblAnswer.textContent = "Error: Invalid Dimensions";
             return;
         }
 
         try {
             const res = await calcCall("rectanglePerimeter", [b, h]);
-            if (lblAnswer) lblAnswer.textContent = `{ ${res} }`;
+            if (lblAnswer) lblAnswer.textContent = String(res);
         } catch (err) {
-            if (lblAnswer) lblAnswer.textContent = `{ Error: ${/** @type {Error} */ (err).message} }`;
+            if (lblAnswer) lblAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
         }
     });
 }
@@ -362,7 +397,7 @@ function setupPerimeterTab() {
  * Sets up Tab 7: Constants.
  */
 function setupConstantsTab() {
-    const buttons = document.querySelectorAll(".calculator-constants-buttons button");
+    const buttons = document.querySelectorAll("button[data-const]");
     const lblStatus = document.getElementById("lblConstantStatus");
 
     for (const btn of buttons) {
@@ -375,12 +410,10 @@ function setupConstantsTab() {
                 else if (constKey === "e") val = constants.e;
                 else if (constKey === "radical13") val = constants.radical13;
 
-                // Copy to clipboard
                 if (navigator.clipboard) {
                     await navigator.clipboard.writeText(String(val));
                 }
 
-                // Insert into txtN1 if present
                 const txtN1 = /** @type {HTMLInputElement | null} */ (document.getElementById("txtN1"));
                 if (txtN1) {
                     txtN1.value = String(val);
@@ -409,14 +442,14 @@ function setupAreaTab() {
     btnCircleArea?.addEventListener("click", async () => {
         const r = parseFloat(txtRadius?.value.trim() || "0");
         if (isNaN(r)) {
-            if (lblCircleAnswer) lblCircleAnswer.textContent = "{ Error: Invalid Radius }";
+            if (lblCircleAnswer) lblCircleAnswer.textContent = "Error: Invalid Radius";
             return;
         }
         try {
             const res = await calcCall("circleArea", [r]);
-            if (lblCircleAnswer) lblCircleAnswer.textContent = `{ ${res.toFixed(4)} }`;
+            if (lblCircleAnswer) lblCircleAnswer.textContent = res.toFixed(4);
         } catch (err) {
-            if (lblCircleAnswer) lblCircleAnswer.textContent = `{ Error: ${/** @type {Error} */ (err).message} }`;
+            if (lblCircleAnswer) lblCircleAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
         }
     });
 
@@ -429,14 +462,14 @@ function setupAreaTab() {
         const b = parseFloat(txtBase?.value.trim() || "0");
         const h = parseFloat(txtHeight?.value.trim() || "0");
         if (isNaN(b) || isNaN(h)) {
-            if (lblRectAnswer) lblRectAnswer.textContent = "{ Error: Invalid Dimensions }";
+            if (lblRectAnswer) lblRectAnswer.textContent = "Error: Invalid Dimensions";
             return;
         }
         try {
             const res = await calcCall("rectangleArea", [b, h]);
-            if (lblRectAnswer) lblRectAnswer.textContent = `{ ${res.toFixed(4)} }`;
+            if (lblRectAnswer) lblRectAnswer.textContent = res.toFixed(4);
         } catch (err) {
-            if (lblRectAnswer) lblRectAnswer.textContent = `{ Error: ${/** @type {Error} */ (err).message} }`;
+            if (lblRectAnswer) lblRectAnswer.textContent = `Error: ${/** @type {Error} */ (err).message}`;
         }
     });
 }
@@ -445,7 +478,7 @@ function setupAreaTab() {
  * Sets up Rock-Paper-Scissors Sidecar modal.
  */
 function setupRpsModal() {
-    const choiceButtons = document.querySelectorAll(".btn-rps-choice");
+    const choiceButtons = document.querySelectorAll("button[data-choice]");
     const lblDecision = document.getElementById("lblRpsDecision");
     const lblOutcome = document.getElementById("lblRpsOutcome");
     const lblWins = document.getElementById("lblRpsWins");
@@ -520,24 +553,6 @@ function setupSixR2Modal() {
             alert(`Failed to generate unique random numbers: ${/** @type {Error} */ (err).message}`);
         }
     });
-}
-
-/**
- * Sets up modal close button triggers.
- */
-function setupModalCloseButtons() {
-    const closeButtons = document.querySelectorAll("[data-close-modal]");
-    for (const btn of closeButtons) {
-        btn.addEventListener("click", () => {
-            const modalId = btn.getAttribute("data-close-modal");
-            if (modalId) {
-                const modal = /** @type {HTMLDialogElement | null} */ (document.getElementById(modalId));
-                if (modal && typeof modal.close === "function") {
-                    modal.close();
-                }
-            }
-        });
-    }
 }
 
 // Auto-initialize when loaded

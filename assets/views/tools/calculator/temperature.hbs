@@ -1,15 +1,15 @@
-<div class="calculator-pane calculator-temperature-pane">
-    <div class="calculator-input-row">
+<div class="flex flex-col gap-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <label for="txtTemp">Enter temperature:</label>
         <input type="text" id="txtTemp" placeholder="e.g. 100" autocomplete="off" />
     </div>
 
-    <div class="calculator-action-row">
-        <button type="button" id="btnToFahrenheit" class="btn">Change to Fahrenheit</button>
-        <button type="button" id="btnToCelsius" class="btn">Change to Celsius</button>
+    <div class="flex items-center gap-4 flex-wrap">
+        <button type="button" id="btnToFahrenheit">Change to Fahrenheit</button>
+        <button type="button" id="btnToCelsius">Change to Celsius</button>
     </div>
 
-    <div class="calculator-answer-box">
-        <div id="lblTempResult" class="calculator-status-message">Enter a temperature above.</div>
+    <div class="flex items-center gap-2 px-4 py-2 border rounded max-w-md">
+        <div id="lblTempResult">Enter a temperature above.</div>
     </div>
 </div>

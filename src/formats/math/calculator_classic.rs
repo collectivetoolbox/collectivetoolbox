@@ -281,6 +281,242 @@ pub fn rps_choice_from_int(val: i32) -> Result<RpsChoice> {
     }
 }
 
+/// Standard scale multipliers for random table generation.
+pub const RANDOM_SCALES: [f64; 8] = [1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0];
+
+/// Generates a table of 8 scaled random numbers from a given base raw random value ($0 \dots 1$).
+pub fn generate_scaled_random_table(raw: f64) -> [f64; 8] {
+    [
+        scaled_random(raw, 1.0),
+        scaled_random(raw, 5.0),
+        scaled_random(raw, 10.0),
+        scaled_random(raw, 50.0),
+        scaled_random(raw, 100.0),
+        scaled_random(raw, 500.0),
+        scaled_random(raw, 1000.0),
+        scaled_random(raw, 5000.0),
+    ]
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum MathToken {
+    Number(f64),
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    IntDivide,
+    Power,
+    Modulo,
+    LParen,
+    RParen,
+}
+
+fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
+    let mut tokens = Vec::new();
+    let mut chars = expr.chars().peekable();
+    while let Some(&c) = chars.peek() {
+        if c.is_whitespace() {
+            chars.next();
+            continue;
+        }
+        if c.is_ascii_digit() || c == '.' {
+            let mut num_str = String::new();
+            while let Some(&nc) = chars.peek() {
+                if nc.is_ascii_digit() || nc == '.' {
+                    num_str.push(nc);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            let val = num_str.parse::<f64>().context("Invalid number in expression")?;
+            tokens.push(MathToken::Number(val));
+            continue;
+        }
+        if c.is_ascii_alphabetic() {
+            let mut word = String::new();
+            while let Some(&wc) = chars.peek() {
+                if wc.is_ascii_alphabetic() {
+                    word.push(wc);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            if word.eq_ignore_ascii_case("mod") {
+                tokens.push(MathToken::Modulo);
+            } else if word.eq_ignore_ascii_case("pi") {
+                tokens.push(MathToken::Number(CONST_PI));
+            } else if word.eq_ignore_ascii_case("e") {
+                tokens.push(MathToken::Number(CONST_E));
+            } else {
+                bail!("Unknown identifier in expression: {word}");
+            }
+            continue;
+        }
+        match c {
+            '+' => {
+                tokens.push(MathToken::Plus);
+                chars.next();
+            }
+            '-' => {
+                tokens.push(MathToken::Minus);
+                chars.next();
+            }
+            '*' => {
+                tokens.push(MathToken::Multiply);
+                chars.next();
+            }
+            '/' => {
+                tokens.push(MathToken::Divide);
+                chars.next();
+            }
+            '\\' => {
+                tokens.push(MathToken::IntDivide);
+                chars.next();
+            }
+            '^' => {
+                tokens.push(MathToken::Power);
+                chars.next();
+            }
+            '%' => {
+                tokens.push(MathToken::Modulo);
+                chars.next();
+            }
+            '(' => {
+                tokens.push(MathToken::LParen);
+                chars.next();
+            }
+            ')' => {
+                tokens.push(MathToken::RParen);
+                chars.next();
+            }
+            _ => bail!("Unexpected character in expression: {c}"),
+        }
+    }
+    Ok(tokens)
+}
+
+fn parse_expr(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
+    let mut left = parse_term(tokens, pos)?;
+    while let Some(tok) = tokens.get(*pos) {
+        match tok {
+            MathToken::Plus => {
+                *pos = pos.saturating_add(1);
+                let right = parse_term(tokens, pos)?;
+                left = left + right;
+            }
+            MathToken::Minus => {
+                *pos = pos.saturating_add(1);
+                let right = parse_term(tokens, pos)?;
+                left = left - right;
+            }
+            _ => break,
+        }
+    }
+    Ok(left)
+}
+
+fn parse_term(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
+    let mut left = parse_power(tokens, pos)?;
+    while let Some(tok) = tokens.get(*pos) {
+        match tok {
+            MathToken::Multiply => {
+                *pos = pos.saturating_add(1);
+                let right = parse_power(tokens, pos)?;
+                left = left * right;
+            }
+            MathToken::Divide => {
+                *pos = pos.saturating_add(1);
+                let right = parse_power(tokens, pos)?;
+                left = divide(left, right)?;
+            }
+            MathToken::IntDivide => {
+                *pos = pos.saturating_add(1);
+                let right = parse_power(tokens, pos)?;
+                if right == 0.0 {
+                    bail!("Division by zero");
+                }
+                left = (left / right).trunc();
+            }
+            MathToken::Modulo => {
+                *pos = pos.saturating_add(1);
+                let right = parse_power(tokens, pos)?;
+                if right == 0.0 {
+                    bail!("Modulo by zero");
+                }
+                left = left % right;
+            }
+            _ => break,
+        }
+    }
+    Ok(left)
+}
+
+fn parse_power(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
+    let left = parse_unary(tokens, pos)?;
+    if let Some(MathToken::Power) = tokens.get(*pos) {
+        *pos = pos.saturating_add(1);
+        let right = parse_power(tokens, pos)?;
+        Ok(power(left, right))
+    } else {
+        Ok(left)
+    }
+}
+
+fn parse_unary(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
+    if let Some(tok) = tokens.get(*pos) {
+        match tok {
+            MathToken::Plus => {
+                *pos = pos.saturating_add(1);
+                parse_unary(tokens, pos)
+            }
+            MathToken::Minus => {
+                *pos = pos.saturating_add(1);
+                let val = parse_unary(tokens, pos)?;
+                Ok(-val)
+            }
+            _ => parse_primary(tokens, pos),
+        }
+    } else {
+        bail!("Unexpected end of expression");
+    }
+}
+
+fn parse_primary(tokens: &[MathToken], pos: &mut usize) -> Result<f64> {
+    let Some(tok) = tokens.get(*pos) else {
+        bail!("Unexpected end of expression");
+    };
+    match tok {
+        MathToken::Number(n) => {
+            *pos = pos.saturating_add(1);
+            Ok(*n)
+        }
+        MathToken::LParen => {
+            *pos = pos.saturating_add(1);
+            let val = parse_expr(tokens, pos)?;
+            let Some(MathToken::RParen) = tokens.get(*pos) else {
+                bail!("Missing closing parenthesis");
+            };
+            *pos = pos.saturating_add(1);
+            Ok(val)
+        }
+        _ => bail!("Unexpected token in expression"),
+    }
+}
+
+/// Evaluates a math expression string with standard operator precedence.
+pub fn evaluate_expression(expr: &str) -> Result<f64> {
+    let tokens = tokenize_expression(expr)?;
+    let mut pos = 0usize;
+    let result = parse_expr(&tokens, &mut pos)?;
+    if pos < tokens.len() {
+        bail!("Unexpected trailing token in expression");
+    }
+    Ok(result)
+}
+
 #[cfg(test)]
 #[expect(
     clippy::panic,
@@ -406,5 +642,27 @@ mod tests {
         assert_eq!(rps_choice_from_int(2).unwrap(), RpsChoice::Paper);
         assert_eq!(rps_choice_from_int(3).unwrap(), RpsChoice::Scissors);
         rps_choice_from_int(4).unwrap_err();
+    }
+
+    #[crate::ctb_test]
+    fn test_evaluate_expression() {
+        assert_eq!(evaluate_expression("2 + 3 * 4").unwrap(), 14.0);
+        assert_eq!(evaluate_expression("(2 + 3) * 4").unwrap(), 20.0);
+        assert_eq!(evaluate_expression("10 - 4 - 2").unwrap(), 4.0);
+        assert_eq!(evaluate_expression("2 ^ 3").unwrap(), 8.0);
+        assert_eq!(evaluate_expression("10 \\ 3").unwrap(), 3.0);
+        assert_eq!(evaluate_expression("10 Mod 3").unwrap(), 1.0);
+        assert_eq!(evaluate_expression("-5 + 10").unwrap(), 5.0);
+        evaluate_expression("10 / 0").unwrap_err();
+        evaluate_expression("2 + (3 *").unwrap_err();
+    }
+
+    #[crate::ctb_test]
+    fn test_generate_scaled_random_table() {
+        let table = generate_scaled_random_table(0.1);
+        assert_eq!(table.len(), 8);
+        assert_eq!(table[0], 0.1);
+        assert_eq!(table[1], 0.5);
+        assert_eq!(table[2], 1.0);
     }
 }

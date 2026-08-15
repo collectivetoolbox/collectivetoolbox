@@ -1,43 +1,43 @@
-<div class="calculator-pane calculator-random-pane">
-    <fieldset class="calculator-random-fieldset">
+<div class="flex flex-col gap-4">
+    <fieldset class="flex flex-col gap-2 p-4">
         <legend>Random Numbers:</legend>
-        <div class="calculator-random-grid">
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">Base [0, 1):</span>
-                <span id="lblRan1" class="calculator-random-value">0.0000</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="flex flex-col p-2">
+                <span>Base [0, 1):</span>
+                <code><output id="lblRan1">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 5:</span>
-                <span id="lblRan2" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 5:</span>
+                <code><output id="lblRan2">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 10:</span>
-                <span id="lblRan3" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 10:</span>
+                <code><output id="lblRan3">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 50:</span>
-                <span id="lblRan4" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 50:</span>
+                <code><output id="lblRan4">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 100:</span>
-                <span id="lblRan5" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 100:</span>
+                <code><output id="lblRan5">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 500:</span>
-                <span id="lblRan6" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 500:</span>
+                <code><output id="lblRan6">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 1000:</span>
-                <span id="lblRan7" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 1000:</span>
+                <code><output id="lblRan7">0.0000</output></code>
             </div>
-            <div class="calculator-random-item">
-                <span class="calculator-random-scale">&times; 5000:</span>
-                <span id="lblRan8" class="calculator-random-value">0.0000</span>
+            <div class="flex flex-col p-2">
+                <span>&times; 5000:</span>
+                <code><output id="lblRan8">0.0000</output></code>
             </div>
         </div>
     </fieldset>
 
-    <div class="calculator-action-row">
-        <button type="button" id="btnRand" class="btn btn-primary">Refresh random numbers</button>
+    <div class="flex items-center gap-4">
+        <button type="button" id="btnRand">Refresh random numbers</button>
     </div>
 </div>

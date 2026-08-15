@@ -9,6 +9,8 @@ ctb-menubar {
     padding: 0.25rem 0.5rem;
     box-sizing: border-box;
     user-select: none;
+    border: 2px groove light-dark(#d0d0d0, #404040);
+    border-radius: 0;
 }
 
 ctb-menubar ctb-dropdown {

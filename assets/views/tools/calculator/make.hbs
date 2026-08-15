@@ -1,49 +1,31 @@
-<div class="calculator-pane calculator-make-pane">
-    <div class="calculator-section-row">
-        <div class="calculator-operands-group">
-            <label for="txtN1">Operand 1 (N1):</label>
-            <input type="text" id="txtN1" placeholder="Enter first number…" autocomplete="off" />
-
-            <label for="txtN2">Operand 2 (N2):</label>
-            <input type="text" id="txtN2" placeholder="Enter second number…" autocomplete="off" />
-
-            <label for="txtFn">Operator:</label>
-            <input type="text" id="txtFn" value="+" maxlength="5" autocomplete="off" />
+<div class="flex flex-col gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+        <div class="flex flex-col gap-4">
+            <input type="text" id="txtN1" placeholder="N1" autocomplete="off" />
+            <input type="text" id="txtN2" placeholder="N2" autocomplete="off" />
         </div>
 
-        <fieldset class="calculator-operator-fieldset" id="grpChooseOne">
+        <fieldset id="grpChooseOne" class="flex flex-col gap-2 p-2">
             <legend>Choose One:</legend>
-            <div class="calculator-operator-grid">
-                <button type="button" class="btn btn-operator" data-op="+">+</button>
-                <button type="button" class="btn btn-operator" data-op="-">-</button>
-                <button type="button" class="btn btn-operator" data-op="*">&times;</button>
-                <button type="button" class="btn btn-operator" data-op="/">/</button>
-                <button type="button" class="btn btn-operator" data-op="\">\</button>
-                <button type="button" class="btn btn-operator" data-op="Mod">Mod</button>
-                <button type="button" class="btn btn-operator" data-op="^">^</button>
-                <button type="button" class="btn btn-operator" data-op="AC">AC</button>
-            </div>
+            <ctb-segmented-control class="flex flex-col gap-1 w-full">
+                <div class="grid grid-cols-4 gap-1 w-full">
+                    <button type="button" selected data-op="+">+</button>
+                    <button type="button" data-op="-">-</button>
+                    <button type="button" data-op="*">&times;</button>
+                    <button type="button" data-op="/">/</button>
+                </div>
+                <div class="grid grid-cols-4 gap-1 w-full">
+                    <button type="button" data-op="\">\</button>
+                    <button type="button" data-op="^">^</button>
+                    <button type="button" data-op="Mod">Mod</button>
+                    <button type="button" data-op="AC">AC</button>
+                </div>
+            </ctb-segmented-control>
         </fieldset>
     </div>
 
-    <div class="calculator-action-row">
-        <button type="button" id="btnEuqals" class="btn btn-primary">Evaluate</button>
-        <div class="calculator-answer-box">
-            <span class="calculator-answer-label">Answer:</span>
-            <span id="lblYourAnswer" class="calculator-answer-display">{ }</span>
-        </div>
-    </div>
-
-    <div class="calculator-session-row">
-        <label class="calculator-checkbox-label">
-            <input type="checkbox" id="chkLock" />
-            <span>Lock Session</span>
-        </label>
-        <button type="button" id="btnClearAll" class="btn">Clear All</button>
-    </div>
-
-    <div class="calculator-scratchpad-row">
-        <label for="txtSP1">Scratch Pad:</label>
-        <textarea id="txtSP1" rows="3" placeholder="Enter notes or scratch work here…"></textarea>
+    <div class="flex items-center gap-4">
+        <input type="text" id="txtFormula" class="flex-grow" placeholder="Enter formula..." autocomplete="off" />
+        <button type="button" id="btnEvaluate">Evaluate</button>
     </div>
 </div>

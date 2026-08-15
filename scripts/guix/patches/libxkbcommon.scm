@@ -1,4 +1,4 @@
-;;; Patch for libxkbcommon cross-compilation with -Dlibdir=lib and directory creation for symlink-pc.
+;;; Patch for libxkbcommon cross-compilation with -Dlibdir=lib, disabled docs, and robust symlink-pc.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
                     "-Denable-docs=false")))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
+            (delete 'move-doc)
             (replace 'symlink-pc
               (lambda* (#:key inputs outputs #:allow-other-keys)
                 (let* ((out (assoc-ref outputs "out"))

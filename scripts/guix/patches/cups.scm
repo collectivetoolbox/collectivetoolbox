@@ -112,14 +112,16 @@
                 (let ((out (assoc-ref outputs "out"))
                       (filters #$cups-filters-fixed))
                   ;; Filters.
+                  (mkdir-p (string-append out "/lib/cups/filter"))
                   (for-each
                    (lambda (f)
-                     (symlink (string-append filters f)
+                     (symlink f
                               (string-append out "/lib/cups/filter/"
                                              (basename f))))
                    (find-files (string-append filters "/lib/cups/filter")))
 
                   ;; Backends.
+                  (mkdir-p (string-append out "/lib/cups/backend"))
                   (for-each
                    (lambda (f)
                      (symlink (string-append filters f)

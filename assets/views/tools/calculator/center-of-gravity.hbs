@@ -1,78 +1,119 @@
-<div class="calculator-app-container">
-    <header class="calculator-app-header">
-        <h2>Center of Gravity Calculator</h2>
+<div class="w-full max-w-3xl mx-auto flex flex-col gap-4 p-4">
+    <header>
+        <h1>Center of Gravity Calculator</h1>
     </header>
 
-    <div class="calculator-pane">
-        <fieldset class="calculator-area-section">
-            <legend>Aircraft &amp; Occupants</legend>
-            <div class="calculator-geometry-inputs">
-                <label for="EmptyWt">Empty Weight:</label>
-                <input type="text" id="EmptyWt" placeholder="e.g. 1000" autocomplete="off" />
-
-                <label for="EmptyCg">Empty CG:</label>
-                <input type="text" id="EmptyCg" placeholder="e.g. 80" autocomplete="off" />
-
-                <label for="Datum">Datum (optional):</label>
-                <input type="text" id="Datum" placeholder="e.g. 70" autocomplete="off" />
-
-                <label for="FrontPilotWt">Front Pilot Weight:</label>
-                <input type="text" id="FrontPilotWt" placeholder="e.g. 180" autocomplete="off" />
-
-                <label for="FrontPilotArm">Front Pilot Arm (or leave empty if using datum):</label>
-                <input type="text" id="FrontPilotArm" placeholder="e.g. 85" autocomplete="off" />
-
-                <label for="FrontPilotDistanceInFrontOfDatum">Front Pilot Distance in Front of Datum (optional):</label>
-                <input type="text" id="FrontPilotDistanceInFrontOfDatum" placeholder="e.g. 15" autocomplete="off" />
-
-                <label for="RearPilotWt">Rear Pilot Weight:</label>
-                <input type="text" id="RearPilotWt" placeholder="e.g. 170" autocomplete="off" />
-
-                <label for="RearPilotArm">Rear Pilot Arm (or leave empty if using datum):</label>
-                <input type="text" id="RearPilotArm" placeholder="e.g. 120" autocomplete="off" />
-
-                <label for="RearPilotDistanceBehindDatum">Rear Pilot Distance Behind Datum (optional):</label>
-                <input type="text" id="RearPilotDistanceBehindDatum" placeholder="e.g. 50" autocomplete="off" />
-
-                <label for="BallastWt">Ballast Weight:</label>
-                <input type="text" id="BallastWt" placeholder="e.g. 20" autocomplete="off" />
-
-                <label for="BallastArm">Ballast Arm:</label>
-                <input type="text" id="BallastArm" placeholder="e.g. 150" autocomplete="off" />
-            </div>
-        </fieldset>
-
-        <fieldset class="calculator-area-section">
-            <legend>Calculated Moments &amp; Center of Gravity</legend>
-            <div class="calculator-geometry-inputs">
-                <label for="EmptyMoment">Empty Moment (EmptyWt &times; EmptyCg):</label>
-                <input type="text" id="EmptyMoment" readonly />
-
-                <label for="FrontPilotMoment">Front Pilot Moment (FrontPilotWt &times; FrontPilotArm):</label>
-                <input type="text" id="FrontPilotMoment" readonly />
-
-                <label for="RearPilotMoment">Rear Pilot Moment (RearPilotWt &times; RearPilotArm):</label>
-                <input type="text" id="RearPilotMoment" readonly />
-
-                <label for="BallastMoment">Ballast Moment (BallastWt &times; BallastArm):</label>
-                <input type="text" id="BallastMoment" readonly />
-
-                <label for="TotalMoment">Total Moment:</label>
-                <input type="text" id="TotalMoment" readonly />
-
-                <label for="TotalWt">Total Weight:</label>
-                <input type="text" id="TotalWt" readonly />
-
-                <label for="LoadedCg">Loaded Center of Gravity (TotalMoment / TotalWt):</label>
-                <input type="text" id="LoadedCg" readonly />
-            </div>
-        </fieldset>
-
-        <div class="calculator-action-row">
-            <button type="button" id="Calculate" class="btn btn-primary">Calculate</button>
-            <button type="button" id="Reset" class="btn">Reset</button>
+    <form id="cgForm" class="flex flex-col gap-1">
+        <!-- Group 1: Empty Weight & CG -->
+        <div class="flex items-center gap-2">
+            <label for="EmptyWt" class="w-72">Empty Weight</label>
+            <input type="text" id="EmptyWt" autocomplete="off" />
         </div>
-    </div>
+        <div class="flex items-center gap-2">
+            <label for="EmptyCg" class="w-72">Empty CG</label>
+            <input type="text" id="EmptyCg" autocomplete="off" />
+        </div>
+
+        <div class="my-3"></div>
+
+        <!-- Group 2: Front Pilot -->
+        <div class="flex items-center gap-2">
+            <label for="FrontPilotWt" class="w-72">Front Pilot Weight</label>
+            <input type="text" id="FrontPilotWt" autocomplete="off" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="FrontPilotArm" class="w-72">Front Pilot Arm (or provide datum and distance in front of datum)</label>
+            <input type="text" id="FrontPilotArm" autocomplete="off" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="FrontPilotDistanceInFrontOfDatum" class="w-72">Front Pilot Distance in Front of Datum (optional)</label>
+            <input type="text" id="FrontPilotDistanceInFrontOfDatum" autocomplete="off" />
+        </div>
+
+        <div class="my-3"></div>
+
+        <!-- Group 3: Rear Pilot -->
+        <div class="flex items-center gap-2">
+            <label for="RearPilotWt" class="w-72">Rear Pilot Weight</label>
+            <input type="text" id="RearPilotWt" autocomplete="off" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="RearPilotArm" class="w-72">Rear Pilot Arm (or provide datum and distance behind datum)</label>
+            <input type="text" id="RearPilotArm" autocomplete="off" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="RearPilotDistanceBehindDatum" class="w-72">Rear Pilot Distance in Rear of Datum (optional)</label>
+            <input type="text" id="RearPilotDistanceBehindDatum" autocomplete="off" />
+        </div>
+
+        <div class="my-3"></div>
+
+        <!-- Group 4: Datum -->
+        <div class="flex items-center gap-2">
+            <label for="Datum" class="w-72">Datum (optional)</label>
+            <input type="text" id="Datum" autocomplete="off" />
+        </div>
+
+        <div class="my-3"></div>
+
+        <!-- Group 5: Ballast -->
+        <div class="flex items-center gap-2">
+            <label for="BallastWt" class="w-72">Ballast Weight</label>
+            <input type="text" id="BallastWt" autocomplete="off" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="BallastArm" class="w-72">Ballast Arm</label>
+            <input type="text" id="BallastArm" autocomplete="off" />
+        </div>
+
+        <div class="my-4"></div>
+
+        <!-- Group 6: Calculated Outputs -->
+        <p>The following fields are readonly and will be calculated automatically:</p>
+
+        <div class="flex items-center gap-2">
+            <label for="EmptyMoment" class="w-56">Empty Moment</label>
+            <input type="text" id="EmptyMoment" readonly />
+            <span>(EmptyWt x EmptyCg)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="FrontPilotMoment" class="w-56">Front Pilot Moment</label>
+            <input type="text" id="FrontPilotMoment" readonly />
+            <span>(FrontPilotWt x FrontPilotArm)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="RearPilotMoment" class="w-56">Rear Pilot Moment</label>
+            <input type="text" id="RearPilotMoment" readonly />
+            <span>(RearPilotWt x RearPilotArm)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="BallastMoment" class="w-56">Ballast Moment</label>
+            <input type="text" id="BallastMoment" readonly />
+            <span>(BallastWt x BallastArm)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="TotalMoment" class="w-56">Total Moment</label>
+            <input type="text" id="TotalMoment" readonly />
+            <span>(FrontPilotMoment+RearPilotMoment+BallastMoment+EmptyMoment)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="TotalWt" class="w-56">Total Weight</label>
+            <input type="text" id="TotalWt" readonly />
+            <span>(FrontPilotWt+RearPilotWt+BallastWt+EmptyWt)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="LoadedCg" class="w-56">Loaded Center of Gravity</label>
+            <input type="text" id="LoadedCg" readonly />
+            <span>(TotalMoment/TotalWt)</span>
+        </div>
+
+        <div class="my-4"></div>
+
+        <div class="flex flex-col items-start gap-2">
+            <button type="button" id="Calculate">Calculate</button>
+            <button type="button" id="Reset">Reset</button>
+        </div>
+    </form>
 </div>
 
 <script type="module" src="/js/tools/center-of-gravity.js"></script>
