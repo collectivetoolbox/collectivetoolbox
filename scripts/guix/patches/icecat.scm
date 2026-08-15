@@ -199,6 +199,26 @@
                        (libc-inc (and stubs-file (dirname (dirname stubs-file))))
                        (linux-ver-file (false-if-exception (search-input-file inputs "include/linux/version.h")))
                        (kernel-inc (and linux-ver-file (dirname (dirname linux-ver-file))))
+                       (libc-so-file (false-if-exception (search-input-file inputs "lib/libc.so")))
+                       (libc-lib (and libc-so-file (dirname libc-so-file)))
+                       (crtbegin-dir (and=> (search-input-directory build-inputs "lib/gcc")
+                                            (lambda (d)
+                                              (let ((files (find-files d "^crtbeginS\\.o$")))
+                                                (and (not (null? files)) (dirname (car files)))))))
+                       (libgcc-s-dir (and=> (search-input-directory build-inputs "i686-linux-gnu/lib")
+                                            (lambda (d)
+                                              (let ((files (find-files d "^libgcc_s\\.so$")))
+                                                (and (not (null? files)) (dirname (car files)))))))
+                       (extra-link-flags (string-append
+                                          (if (and crtbegin-dir (file-exists? crtbegin-dir))
+                                              (string-append "-B" crtbegin-dir " -L" crtbegin-dir " ")
+                                              "")
+                                          (if (and libc-lib (file-exists? libc-lib))
+                                              (string-append "-B" libc-lib " -L" libc-lib " ")
+                                              "")
+                                          (if (and libgcc-s-dir (file-exists? libgcc-s-dir))
+                                              (string-append "-L" libgcc-s-dir " ")
+                                              "")))
                        (extra-cxx-flags (string-append
                                          (if (and cxx-inc (file-exists? cxx-inc))
                                              (string-append "-isystem " cxx-inc " ")
@@ -214,14 +234,16 @@
                                              "")
                                          (if (and kernel-inc (file-exists? kernel-inc))
                                              (string-append "-isystem " kernel-inc " ")
-                                             "")))
+                                             "")
+                                         extra-link-flags))
                        (extra-c-flags (string-append
                                        (if (and libc-inc (file-exists? libc-inc))
                                            (string-append "-isystem " libc-inc " ")
                                            "")
                                        (if (and kernel-inc (file-exists? kernel-inc))
                                            (string-append "-isystem " kernel-inc " ")
-                                           ""))))
+                                           "")
+                                       extra-link-flags)))
                   (setenv "SHELL" bash)
                   (setenv "CONFIG_SHELL" bash)
 
@@ -230,7 +252,8 @@
                   (setenv "CC" (string-append "clang " extra-c-flags))
                   (setenv "CXX" (string-append "clang++ " extra-cxx-flags))
                   (setenv "LDFLAGS" (string-append "-Wl,-rpath="
-                                                   #$output "/lib/icecat"))
+                                                   #$output "/lib/icecat "
+                                                   extra-link-flags))
 
                   (setenv "MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE" "system")
                   (setenv "MOZ_BUILD_DATE" "20260101000000")
@@ -260,6 +283,8 @@
                       (format port "export CXX=\"clang++ ~a\"\n" extra-cxx-flags)
                       (format port "export AR=\"llvm-ar\"\n")
                       (format port "export NM=\"llvm-nm\"\n")
+                      (format port "export LDFLAGS=\"-Wl,-rpath=~a/lib/icecat ~a\"\n"
+                              #$output extra-link-flags)
                       (when (and target-cxx-inc (file-exists? target-cxx-inc))
                         (format port "export BINDGEN_CFLAGS=\"--target=~a ~a\"\n"
                                 (or target "i686-linux-gnu") extra-cxx-flags))

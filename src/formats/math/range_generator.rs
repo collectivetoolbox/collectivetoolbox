@@ -7,83 +7,108 @@
 )]
 use crate::utilities::*;
 
-use anyhow::Result;
-use malachite::Natural;
+use anyhow::{Result, ensure};
+use malachite::base::num::arithmetic::traits::UnsignedAbs;
+use malachite::base::num::basic::traits::Zero;
+use malachite::{Integer, Natural};
 
-use crate::base::{Base, format_natural, parse_natural};
+use crate::base::Base;
+use crate::parsing::{analyze_input, format_scaled, parse_scaled};
 
 /// Generates a vector of strings representing numbers in the given base from
-/// `start` to `end` (inclusive). The width of the start string sets the
-/// minimum output width for zero-padding.
+/// `start` to `end` (inclusive) stepping by `step`. The width of the start
+/// string sets the minimum output width for zero-padding.
 #[expect(
     clippy::arithmetic_side_effects,
-    reason = "Natural is arbitrary-precision and cannot overflow"
+    reason = "Natural and Integer are arbitrary-precision and cannot overflow"
 )]
-pub fn range(base: Base, start: &str, end: &str) -> Result<Vec<String>> {
-    let start_nat = parse_natural(start, base)?;
-    let end_nat = parse_natural(end, base)?;
-    let width = start.len();
+pub fn range(
+    base: Base,
+    start: &str,
+    end: &str,
+    step: &str,
+) -> Result<Vec<String>> {
+    let start_info = analyze_input(start);
+    let end_info = analyze_input(end);
+    let step_str = if step.is_empty() { "1" } else { step };
+    let step_info = analyze_input(step_str);
+
+    let dec_places = start_info
+        .frac_len
+        .max(end_info.frac_len)
+        .max(step_info.frac_len);
+
+    let has_decimal =
+        start_info.has_decimal || end_info.has_decimal || step_info.has_decimal;
+
+    let step_base = if base == Base::Base64 {
+        Base::Base10
+    } else {
+        base
+    };
+    let start_val = parse_scaled(start, base, dec_places)?;
+    let end_val = parse_scaled(end, base, dec_places)?;
+    let step_raw = parse_scaled(step_str, step_base, dec_places)?;
+    let step_val = step_raw.unsigned_abs();
+    ensure!(step_val > Natural::ZERO, "Step cannot be zero");
+    let step_int = Integer::from(step_val);
 
     let mut result = Vec::new();
-    let one = Natural::from(1u8);
 
-    if start_nat <= end_nat {
-        let mut curr = start_nat;
-        while curr <= end_nat {
-            result.push(format_natural(&curr, base, width)?);
-            curr += &one;
+    if start_val <= end_val {
+        let mut curr = start_val;
+        while curr <= end_val {
+            result.push(format_scaled(
+                &curr,
+                base,
+                dec_places,
+                start_info.int_width,
+                start_info.frac_width,
+                has_decimal,
+            )?);
+            curr += &step_int;
         }
     } else {
-        let mut curr = start_nat;
-        while curr >= end_nat {
-            result.push(format_natural(&curr, base, width)?);
-            if curr == end_nat {
-                break;
-            }
-            curr -= &one;
+        let mut curr = start_val;
+        while curr >= end_val {
+            result.push(format_scaled(
+                &curr,
+                base,
+                dec_places,
+                start_info.int_width,
+                start_info.frac_width,
+                has_decimal,
+            )?);
+            curr -= &step_int;
         }
     }
 
     Ok(result)
 }
 
-/// Generates a formatted string of numbers from `start` to `end` in `base`,
-/// joined by `separator` with no trailing separator.
-pub fn range_format(
-    base: Base,
-    start: &str,
-    end: &str,
-    separator: &str,
-) -> Result<String> {
-    let items = range(base, start, end)?;
-    Ok(items.join(separator))
+/// Generates a formatted string of numbers from `range`, joined by `separator`
+/// with no trailing separator.
+#[must_use]
+pub fn range_format(range: &[String], separator: &str) -> String {
+    range.join(separator)
 }
 
-/// Generates a formatted string of numbers from `start` to `end` in `base`,
-/// with `separator` appended to every item (including the trailing one).
-pub fn range_format_trailing(
-    base: Base,
-    start: &str,
-    end: &str,
-    separator: &str,
-) -> Result<String> {
-    let items = range(base, start, end)?;
+/// Generates a formatted string of numbers from `range`, with `separator`
+/// appended to every item (including the trailing one).
+#[must_use]
+pub fn range_format_trailing(range: &[String], separator: &str) -> String {
     let mut out = String::new();
-    for item in items {
-        out.push_str(&item);
+    for item in range {
+        out.push_str(item);
         out.push_str(separator);
     }
-    Ok(out)
+    out
 }
 
 /// Alias for [`range_format_trailing`].
-pub fn range_trailing(
-    base: Base,
-    start: &str,
-    end: &str,
-    separator: &str,
-) -> Result<String> {
-    range_format_trailing(base, start, end, separator)
+#[must_use]
+pub fn range_trailing(range: &[String], separator: &str) -> String {
+    range_format_trailing(range, separator)
 }
 
 #[cfg(test)]
@@ -102,42 +127,57 @@ mod tests {
     use crate::base;
 
     #[crate::ctb_test]
-    fn test_range_hex() {
-        let items = range(base::Base16, "0A", "12").unwrap();
+    fn test_range_hex() -> Result<()> {
+        let items = range(base::Base16, "0A", "12", "1")?;
         assert_eq!(
             items,
             vec!["0A", "0B", "0C", "0D", "0E", "0F", "10", "11", "12"]
         );
 
-        let formatted = range_format(base::Base16, "0A", "12", ", ").unwrap();
+        let formatted =
+            range_format(&range(base::Base16, "0A", "12", "1")?, ", ");
         assert_eq!(formatted, "0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12");
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_range_trailing_decimal() {
-        let formatted = range_trailing(base::Base10, "9", "12", "\n").unwrap();
+    fn test_range_trailing_decimal() -> Result<()> {
+        let formatted =
+            range_trailing(&range(base::Base10, "9", "12", "1")?, "\n");
         assert_eq!(formatted, "9\n10\n11\n12\n");
 
-        let formatted2 =
-            range_format_trailing(base::Base10, "9", "12", "\n").unwrap();
+        let formatted2 = range_format_trailing(
+            &range(base::Base10, "9", "12", "1")?,
+            "\n",
+        );
         assert_eq!(formatted2, "9\n10\n11\n12\n");
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_range_descending() {
-        let items = range(base::Base10, "05", "02").unwrap();
+    fn test_range_descending() -> Result<()> {
+        let items = range(base::Base10, "05", "02", "1")?;
         assert_eq!(items, vec!["05", "04", "03", "02"]);
+        let items = range(base::Base10, "02", "-2", "1")?;
+        assert_eq!(items, vec!["02", "01", "00", "-01", "-02"]);
+        let items = range(base::Base10, "0.010", "-0.010", "0.02")?;
+        assert_eq!(items, vec!["0.010", "-0.010"]);
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_range_single_value() {
-        let items = range(base::Decimal, "42", "42").unwrap();
+    fn test_range_single_value() -> Result<()> {
+        let items = range(base::Decimal, "42", "42", "1")?;
         assert_eq!(items, vec!["42"]);
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_range_base64() {
-        let items = range(base::Base64, "A", "D").unwrap();
+    fn test_range_base64() -> Result<()> {
+        let items = range(base::Base64, "A", "D", "1")?;
         assert_eq!(items, vec!["A", "B", "C", "D"]);
+        let items = range(base::Base64, "9", "/", "1")?;
+        assert_eq!(items, vec!["9", "+", "/"]);
+        Ok(())
     }
 }

@@ -9,6 +9,7 @@ pub(crate) use ctb_utilities::*;
 pub mod base;
 pub mod calculator_classic;
 pub mod center_of_gravity;
+pub mod parsing;
 pub mod range_generator;
 
 #[cfg(test)]
