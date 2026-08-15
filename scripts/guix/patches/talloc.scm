@@ -16,7 +16,6 @@
 (define-module (patches talloc)
   #:use-module (guix packages)
   #:use-module (guix utils)
-  #:use-module (guix gexp)
   #:use-module (gnu packages base)
   #:use-module (gnu packages python)
   #:use-module (gnu packages samba)
@@ -35,16 +34,16 @@
        (append python-wrapper which)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (replace 'configure
-              (lambda* (#:key outputs #:allow-other-keys)
-                (let ((out (assoc-ref outputs "out"))
-                      (py (or (which "python3") (which "python"))))
-                  (setenv "CONFIG_SHELL" (which "sh"))
-                  (setenv "PYTHON" py)
-                  (invoke "sh" "./configure"
-                          (string-append "--prefix=" out)))))))))))
+       ((#:phases phases)
+        `(modify-phases ,phases
+           (replace 'configure
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((out (assoc-ref outputs "out"))
+                     (py (or (which "python3") (which "python"))))
+                 (setenv "CONFIG_SHELL" (which "sh"))
+                 (setenv "PYTHON" py)
+                 (invoke "sh" "./configure"
+                         (string-append "--prefix=" out)))))))))))
 
 (define (tevent-fixed-proc pkg)
   (package
@@ -54,17 +53,17 @@
        (append python-wrapper which)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (replace 'configure
-              (lambda* (#:key outputs #:allow-other-keys)
-                (let ((out (assoc-ref outputs "out"))
-                      (py (or (which "python3") (which "python"))))
-                  (setenv "CONFIG_SHELL" (which "sh"))
-                  (setenv "PYTHON" py)
-                  (invoke "sh" "./configure"
-                          (string-append "--prefix=" out)
-                          "--bundled-libraries=NONE"))))))))))
+       ((#:phases phases)
+        `(modify-phases ,phases
+           (replace 'configure
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((out (assoc-ref outputs "out"))
+                     (py (or (which "python3") (which "python"))))
+                 (setenv "CONFIG_SHELL" (which "sh"))
+                 (setenv "PYTHON" py)
+                 (invoke "sh" "./configure"
+                         (string-append "--prefix=" out)
+                         "--bundled-libraries=NONE"))))))))))
 
 (define (ldb-fixed-proc pkg)
   (package
@@ -74,17 +73,17 @@
        (append python-wrapper which)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (replace 'configure
-              (lambda* (#:key outputs #:allow-other-keys)
-                (let ((out (assoc-ref outputs "out"))
-                      (py (or (which "python3") (which "python"))))
-                  (setenv "CONFIG_SHELL" (which "sh"))
-                  (setenv "PYTHON" py)
-                  (invoke "sh" "./configure"
-                          (string-append "--prefix=" out)
-                          "--bundled-libraries=NONE"))))))))))
+       ((#:phases phases)
+        `(modify-phases ,phases
+           (replace 'configure
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((out (assoc-ref outputs "out"))
+                     (py (or (which "python3") (which "python"))))
+                 (setenv "CONFIG_SHELL" (which "sh"))
+                 (setenv "PYTHON" py)
+                 (invoke "sh" "./configure"
+                         (string-append "--prefix=" out)
+                         "--bundled-libraries=NONE"))))))))))
 
 (define talloc-fixed
   (talloc-fixed-proc talloc))

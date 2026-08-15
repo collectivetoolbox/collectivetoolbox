@@ -1,4 +1,4 @@
-;;; Patch for libsoup and libsoup-minimal cross-compilation with -Dlibdir=lib.
+;;; Patch for libsoup and libsoup-minimal cross-compilation with -Dlibdir=lib, -Dtls_check=false, and no samba dependency.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -28,12 +28,18 @@
 (define (libsoup-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "samba")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(append #$flags
-                  '("-Dlibdir=lib")))))))
+                  '("-Dlibdir=lib"
+                    "-Dtls_check=false"
+                    "-Dtests=false"
+                    "-Dntlm=disabled")))))))
 
 (define libsoup-minimal-fixed-proc libsoup-fixed-proc)
 (define libsoup-minimal-2-fixed-proc libsoup-fixed-proc)

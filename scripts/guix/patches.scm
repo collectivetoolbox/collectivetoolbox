@@ -79,6 +79,7 @@
     ("mesa" . ,mesa-libclc-pkg-config-fixed-proc)
     ("orbit2" . ,orbit2-fixed-proc)
     ("qpdf" . ,qpdf-fixed-proc)
+    ("samba" . ,identity)
     ("shaderc" . ,shaderc-fixed-proc)
     ("spice-gtk" . ,(const spice-gtk-fixed))
     ("talloc" . ,talloc-fixed-proc)
