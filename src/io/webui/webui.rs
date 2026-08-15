@@ -43,6 +43,7 @@ pub mod controllers {
     pub mod app;
     pub mod auth;
     pub mod base;
+    pub mod calculator;
     pub mod crlite;
     pub mod debug;
     pub mod eite;
@@ -50,6 +51,7 @@ pub mod controllers {
     pub mod newsletter;
     pub mod pc_settings;
     pub mod releases;
+    pub mod rpc;
     pub mod search;
     pub mod sync;
     pub mod updates;

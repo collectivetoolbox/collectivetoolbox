@@ -3203,6 +3203,7 @@ dependencies = [
  "ctb-formats-html",
  "ctb-formats-ipaddr",
  "ctb-formats-markdown",
+ "ctb-formats-math",
  "ctb-formats-multipart",
  "ctb-formats-pem",
  "ctb-formats-syndication",

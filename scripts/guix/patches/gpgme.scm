@@ -1,4 +1,4 @@
-;;; Patch for gpgme cross-compilation with pkg-config and libgpg-error in native-inputs.
+;;; Patch for gpgme cross-compilation with target gpg-error-config and libassuan-config.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -25,9 +25,8 @@
   (package
     (inherit pkg)
     (native-inputs
-     (cons* `("pkg-config" ,pkg-config)
-            `("libgpg-error" ,libgpg-error)
-            (package-native-inputs pkg)))
+     (cons `("pkg-config" ,pkg-config)
+           (package-native-inputs pkg)))
     (inputs
      (map (lambda (input)
             (if (pair? input)
@@ -45,15 +44,21 @@
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(append #$flags
-                  (list (string-append "--with-libgpg-error-prefix="
-                                       #$(this-package-input "libgpg-error"))
-                        (string-append "--with-libassuan-prefix="
-                                       #$(this-package-input "libassuan")))))
+                  '("--disable-gpg-test"
+                    "--disable-gpgsm-test"
+                    "--disable-gpgconf-test"
+                    "--disable-g13-test")))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
-            (add-before 'configure 'set-gpgrt-config
-              (lambda _
-                (setenv "GPGRT_CONFIG" "gpgrt-config")))))))))
+            (add-before 'configure 'set-config-scripts
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let ((gpg-error (assoc-ref inputs "libgpg-error"))
+                      (libassuan (assoc-ref inputs "libassuan")))
+                  (when gpg-error
+                    (setenv "GPG_ERROR_CONFIG" (string-append gpg-error "/bin/gpg-error-config")))
+                  (when libassuan
+                    (setenv "LIBASSUAN_CONFIG" (string-append libassuan "/bin/libassuan-config")))
+                  (setenv "GPGRT_CONFIG" "no"))))))))))
 
 (define gpgme-fixed
   (gpgme-fixed-proc gpgme))

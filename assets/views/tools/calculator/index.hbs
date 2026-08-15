@@ -1,0 +1,96 @@
+<div class="calculator-app-container">
+    <header class="calculator-app-header">
+        <h2>Calculator</h2>
+    </header>
+
+    <!-- Desktop Menubar -->
+    <ctb-menubar class="calculator-menubar">
+        <ctb-dropdown>
+            <button type="button" class="btn">File</button>
+            <ctb-menu>
+                <button type="button" id="menuFileNew">New Session</button>
+                <button type="button" id="menuFileClearAll">Clear All</button>
+                <button type="button" id="menuFileLock">Toggle Lock Session</button>
+                <button type="button" id="menuFileQuit">Exit</button>
+            </ctb-menu>
+        </ctb-dropdown>
+
+        <ctb-dropdown>
+            <button type="button" class="btn">Sidecars</button>
+            <ctb-menu>
+                <button type="button" id="menuSidecarRps">Rock, Paper, and Scissor (R.P.S.)</button>
+                <button type="button" id="menuSidecar6r2">Unique Random Numbers (6r2)</button>
+            </ctb-menu>
+        </ctb-dropdown>
+
+        <ctb-dropdown>
+            <button type="button" class="btn">Help</button>
+            <ctb-menu>
+                <button type="button" id="menuHelpAssistance">Assistance &amp; Errors</button>
+                <button type="button" id="menuHelpAbout">About Calculator</button>
+            </ctb-menu>
+        </ctb-dropdown>
+    </ctb-menubar>
+
+    <!-- Main Tab Group -->
+    <ctb-tab-group class="calculator-tab-group" id="tctCalc">
+        <ctb-segmented-control>
+            <button type="button" selected data-tab="tab-make">Make</button>
+            <button type="button" data-tab="tab-prime">Prime verification</button>
+            <button type="button" data-tab="tab-rand">Random Numbers</button>
+            <button type="button" data-tab="tab-sqrt">Square Root</button>
+            <button type="button" data-tab="tab-temperature">Temperature</button>
+            <button type="button" data-tab="tab-perimeter">Perimeter</button>
+            <button type="button" data-tab="tab-constants">Constants</button>
+            <button type="button" data-tab="tab-area">Area</button>
+            <button type="button" data-tab="tab-assistance">Assistance</button>
+            <button type="button" data-tab="tab-about">About</button>
+        </ctb-segmented-control>
+
+        <ctb-layout id="tab-make">
+            {{> tools.calculator.make }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-prime" hidden>
+            {{> tools.calculator.prime }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-rand" hidden>
+            {{> tools.calculator.random }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-sqrt" hidden>
+            {{> tools.calculator.sqrt }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-temperature" hidden>
+            {{> tools.calculator.temperature }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-perimeter" hidden>
+            {{> tools.calculator.perimeter }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-constants" hidden>
+            {{> tools.calculator.constants }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-area" hidden>
+            {{> tools.calculator.area }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-assistance" hidden>
+            {{> tools.calculator.assistance }}
+        </ctb-layout>
+
+        <ctb-layout id="tab-about" hidden>
+            {{> tools.calculator.about }}
+        </ctb-layout>
+    </ctb-tab-group>
+
+    <!-- Sidecar Modals -->
+    {{> tools.calculator.rps-modal }}
+    {{> tools.calculator.sixr2-modal }}
+</div>
+
+<script type="module" src="/js/tools/calculator.js"></script>

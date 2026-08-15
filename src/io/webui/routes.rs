@@ -52,9 +52,15 @@ pub fn build_routes(state: AppState) -> Router {
         .route("/v86", get(v86::get_v86))
         .route("/v86/{profile}", get(v86::get_v86_profile))
         .route("/vendor/v86/v86.css", get(v86::get_v86_css))
-        // --- eite controller routes ---
+        // --- tool routes ---
         .route("/tools/eite-edit-tool", get(eite::get_edit_tool))
-        .route("/api/eite/call", post(eite::post_eite_call))
+        .route("/tools/calculator", get(calculator::get_calculator))
+        .route(
+            "/tools/center-of-gravity",
+            get(calculator::get_center_of_gravity),
+        )
+        // --- consolidated RPC controller route ---
+        .route("/api/rpc/{service}", post(rpc::post_rpc_call))
         // --- admin controller routes ---
         .route("/debug/db-tables", get(debug::get_db_tables))
         .route(

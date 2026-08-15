@@ -21,6 +21,7 @@ ctb-formats-syndication = { path = "../../formats/syndication" }
 ctb-formats-useragent = { path = "../../formats/useragent" }
 ctb-formats-dctext = { path = "../../formats/dctext" }
 ctb-formats-eite = { path = "../../formats/eite" }
+ctb-formats-math = { path = "../../formats/math" }
 
 axum = { version = "0.8.8", features = [ "multipart", "macros" ] }
 axum-server = { version = "0.8.0", features = [ "tls-rustls" ] }

@@ -1,0 +1,33 @@
+<div class="calculator-pane calculator-area-pane">
+    <div class="calculator-area-subsections">
+        <fieldset class="calculator-area-section">
+            <legend>Circle Area</legend>
+            <div class="calculator-input-row">
+                <label for="txtRadiusValue">Radius:</label>
+                <input type="text" id="txtRadiusValue" placeholder="e.g. 5" autocomplete="off" />
+                <button type="button" id="btnArea" class="btn btn-primary">Get area</button>
+            </div>
+            <div class="calculator-answer-box">
+                <span class="calculator-answer-label">Circle Area (&pi;&times;r&sup2;):</span>
+                <span id="lblCircleAreaAnswer" class="calculator-answer-display">{ }</span>
+            </div>
+        </fieldset>
+
+        <fieldset class="calculator-area-section">
+            <legend>Rectangle Area</legend>
+            <div class="calculator-input-row">
+                <label for="txtBase">Base:</label>
+                <input type="text" id="txtBase" placeholder="e.g. 4" autocomplete="off" />
+
+                <label for="txtHeighth">Height:</label>
+                <input type="text" id="txtHeighth" placeholder="e.g. 6" autocomplete="off" />
+
+                <button type="button" id="btnRectArea" class="btn btn-primary">Get area</button>
+            </div>
+            <div class="calculator-answer-box">
+                <span class="calculator-answer-label">Rectangle Area (b&times;h):</span>
+                <span id="lblRectAreaAnswer" class="calculator-answer-display">{ }</span>
+            </div>
+        </fieldset>
+    </div>
+</div>

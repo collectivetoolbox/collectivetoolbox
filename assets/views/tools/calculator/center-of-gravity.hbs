@@ -1,48 +1,78 @@
-<h1>Center of Gravity Calculator</h1>
+<div class="calculator-app-container">
+    <header class="calculator-app-header">
+        <h2>Center of Gravity Calculator</h2>
+    </header>
 
-<label>Empty Weight <input type="text" id="EmptyWt"></label>
-<br>
-<label>Empty CG <input type="text" id="EmptyCg"></label>
-<br>
-<br><br>
-<label>Front Pilot Weight <input type="text" id="FrontPilotWt"></label>
-<br>
-<label>Front Pilot Arm (or provide datum and distance in front of datum) <input type="text" id="FrontPilotArm"></label>
-<br>
-<label>Front Pilot Distance in Front of Datum (optional) <input type="text" id="FrontPilotDistanceInFrontOfDatum"></label>
-<br>
-<br><br>
-<label>Rear Pilot Weight <input type="text" id="RearPilotWt"></label>
-<br>
-<label>Rear Pilot Arm (or provide datum and distance behind datum) <input type="text" id="RearPilotArm"></label>
-<br>
-<label>Rear Pilot Distance in Rear of Datum (optional) <input type="text" id="RearPilotDistanceBehindDatum"></label>
-<br>
-<br><br>
-<label>Datum (optional) <input type="text" id="Datum"></label>
-<br>
-<br><br>
-<label>Ballast Weight <input type="text" id="BallastWt"></label>
-<br>
-<label>Ballast Arm <input type="text" id="BallastArm"></label>
-<br><br>
-The following fields are readonly and will be calculated automatically:
-<br>
-<label>Empty Moment <input type="text" id="EmptyMoment" readonly> (EmptyWt x EmptyCg)</label>
-<br>
-<label>Front Pilot Moment <input type="text" id="FrontPilotMoment" readonly> (FrontPilotWt x FrontPilotArm)</label>
-<br>
-<label>Rear Pilot Moment <input type="text" id="RearPilotMoment" readonly> (RearPilotWt x RearPilotArm)</label>
-<br>
-<label>Ballast Moment <input type="text" id="BallastMoment" readonly> (BallastWt x BallastArm)</label>
-<br>
-<label>Total Moment <input type="text" id="TotalMoment" readonly> (FrontPilotMoment+RearPilotMoment+BallastMoment+EmptyMoment)</label>
-<br>
-<label>Total Weight <input type="text" id="TotalWt" readonly> (FrontPilotWt+RearPilotWt+BallastWt+EmptyWt)</label>
-<br>
-<label>Loaded Center of Gravity <input type="text" id="LoadedCg" readonly> (TotalMoment/TotalWt)</label>
-<br>
-<br><br>
-<input type="submit" id="Calculate" value="Calculate">
-<br><br>
-<input type="submit" id="Reset" value="Reset">
+    <div class="calculator-pane">
+        <fieldset class="calculator-area-section">
+            <legend>Aircraft &amp; Occupants</legend>
+            <div class="calculator-geometry-inputs">
+                <label for="EmptyWt">Empty Weight:</label>
+                <input type="text" id="EmptyWt" placeholder="e.g. 1000" autocomplete="off" />
+
+                <label for="EmptyCg">Empty CG:</label>
+                <input type="text" id="EmptyCg" placeholder="e.g. 80" autocomplete="off" />
+
+                <label for="Datum">Datum (optional):</label>
+                <input type="text" id="Datum" placeholder="e.g. 70" autocomplete="off" />
+
+                <label for="FrontPilotWt">Front Pilot Weight:</label>
+                <input type="text" id="FrontPilotWt" placeholder="e.g. 180" autocomplete="off" />
+
+                <label for="FrontPilotArm">Front Pilot Arm (or leave empty if using datum):</label>
+                <input type="text" id="FrontPilotArm" placeholder="e.g. 85" autocomplete="off" />
+
+                <label for="FrontPilotDistanceInFrontOfDatum">Front Pilot Distance in Front of Datum (optional):</label>
+                <input type="text" id="FrontPilotDistanceInFrontOfDatum" placeholder="e.g. 15" autocomplete="off" />
+
+                <label for="RearPilotWt">Rear Pilot Weight:</label>
+                <input type="text" id="RearPilotWt" placeholder="e.g. 170" autocomplete="off" />
+
+                <label for="RearPilotArm">Rear Pilot Arm (or leave empty if using datum):</label>
+                <input type="text" id="RearPilotArm" placeholder="e.g. 120" autocomplete="off" />
+
+                <label for="RearPilotDistanceBehindDatum">Rear Pilot Distance Behind Datum (optional):</label>
+                <input type="text" id="RearPilotDistanceBehindDatum" placeholder="e.g. 50" autocomplete="off" />
+
+                <label for="BallastWt">Ballast Weight:</label>
+                <input type="text" id="BallastWt" placeholder="e.g. 20" autocomplete="off" />
+
+                <label for="BallastArm">Ballast Arm:</label>
+                <input type="text" id="BallastArm" placeholder="e.g. 150" autocomplete="off" />
+            </div>
+        </fieldset>
+
+        <fieldset class="calculator-area-section">
+            <legend>Calculated Moments &amp; Center of Gravity</legend>
+            <div class="calculator-geometry-inputs">
+                <label for="EmptyMoment">Empty Moment (EmptyWt &times; EmptyCg):</label>
+                <input type="text" id="EmptyMoment" readonly />
+
+                <label for="FrontPilotMoment">Front Pilot Moment (FrontPilotWt &times; FrontPilotArm):</label>
+                <input type="text" id="FrontPilotMoment" readonly />
+
+                <label for="RearPilotMoment">Rear Pilot Moment (RearPilotWt &times; RearPilotArm):</label>
+                <input type="text" id="RearPilotMoment" readonly />
+
+                <label for="BallastMoment">Ballast Moment (BallastWt &times; BallastArm):</label>
+                <input type="text" id="BallastMoment" readonly />
+
+                <label for="TotalMoment">Total Moment:</label>
+                <input type="text" id="TotalMoment" readonly />
+
+                <label for="TotalWt">Total Weight:</label>
+                <input type="text" id="TotalWt" readonly />
+
+                <label for="LoadedCg">Loaded Center of Gravity (TotalMoment / TotalWt):</label>
+                <input type="text" id="LoadedCg" readonly />
+            </div>
+        </fieldset>
+
+        <div class="calculator-action-row">
+            <button type="button" id="Calculate" class="btn btn-primary">Calculate</button>
+            <button type="button" id="Reset" class="btn">Reset</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="/js/tools/center-of-gravity.js"></script>

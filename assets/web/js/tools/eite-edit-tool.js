@@ -26,6 +26,8 @@ const globWin = /** @type {Window & typeof globalThis & GlobalWindow} */ (window
 globWin.dcNames = [];
 globWin.editFormatValue = "";
 
+import { rpcCall } from './rpc.js';
+
 /**
  * Call the backend EITE JSON RPC endpoint.
  *
@@ -34,33 +36,7 @@ globWin.editFormatValue = "";
  * @returns {Promise<any>} The result returned by the backend.
  */
 async function eiteCall(funcName, args = []) {
-    const serializedArgs = args.map(arg => {
-        if (arg instanceof Uint8Array) {
-            return Array.from(arg);
-        }
-        return arg;
-    });
-
-    const response = await fetch('/api/eite/call', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CollectiveToolbox-IsJsRequest': 'true'
-        },
-        body: JSON.stringify({
-            function: funcName,
-            args: serializedArgs
-        })
-    });
-
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`EITE RPC call failed: ${text}`);
-    }
-
-    const result = await response.json();
-    return result.value;
+    return await rpcCall('/api/rpc/eite', funcName, args);
 }
 
 /**

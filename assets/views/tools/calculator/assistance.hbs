@@ -1,0 +1,29 @@
+<div class="calculator-pane calculator-assistance-pane">
+    <ctb-tab-group>
+        <ctb-segmented-control>
+            <button type="button" selected>Errors</button>
+            <button type="button">Incorrect Answers</button>
+        </ctb-segmented-control>
+
+        <ctb-layout id="pane-help-errors">
+            <div class="calculator-help-box">
+                <h3>Errors Explanation</h3>
+                <p>If you encounter an unexpected error during arithmetic evaluation, division by zero, or integer overflow:</p>
+                <div class="calculator-notice-box">
+                    <strong>What To Do:</strong> Click 'Clear All' or restart the calculation and verify operand bounds.
+                </div>
+            </div>
+        </ctb-layout>
+
+        <ctb-layout id="pane-help-incorrect" hidden>
+            <div class="calculator-help-box">
+                <h3>Frequently Asked Questions & Troubleshooting</h3>
+                <ul class="calculator-faq-list">
+                    <li><strong>Modulo vs Integer Division:</strong> <code>\</code> returns the integer quotient without fractional parts, while <code>Mod</code> returns the remainder.</li>
+                    <li><strong>Floating-point Precision:</strong> Values are computed using standard IEEE-754 64-bit precision.</li>
+                    <li><strong>Complex Square Roots:</strong> When evaluating negative numbers in Square Root mode, the output displays an imaginary suffix <code>i</code>.</li>
+                </ul>
+            </div>
+        </ctb-layout>
+    </ctb-tab-group>
+</div>

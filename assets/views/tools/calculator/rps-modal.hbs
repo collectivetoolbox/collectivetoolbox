@@ -1,0 +1,35 @@
+<dialog id="diaRps" class="calculator-modal">
+    <div class="calculator-modal-content">
+        <header class="calculator-modal-header">
+            <h3>Rock, Paper, and Scissor</h3>
+            <button type="button" class="btn btn-close-modal" data-close-modal="diaRps">&times;</button>
+        </header>
+
+        <div class="calculator-modal-body">
+            <fieldset class="calculator-rps-choices">
+                <legend>Choose Your Play:</legend>
+                <div class="calculator-rps-buttons">
+                    <button type="button" class="btn btn-rps-choice" data-choice="1">Rock</button>
+                    <button type="button" class="btn btn-rps-choice" data-choice="2">Paper</button>
+                    <button type="button" class="btn btn-rps-choice" data-choice="3">Scissors</button>
+                </div>
+            </fieldset>
+
+            <div class="calculator-rps-status">
+                <div id="lblRpsDecision" class="calculator-status-message">Select a play to challenge the computer.</div>
+                <div id="lblRpsOutcome" class="calculator-rps-outcome"></div>
+            </div>
+
+            <div class="calculator-rps-scores">
+                <span id="lblRpsWins">0 Wins</span> |
+                <span id="lblRpsDraws">0 Draws</span> |
+                <span id="lblRpsLosses">0 Losses</span>
+            </div>
+        </div>
+
+        <footer class="calculator-modal-footer">
+            <button type="button" id="btnRpsNewSession" class="btn">New Session</button>
+            <button type="button" class="btn btn-secondary" data-close-modal="diaRps">Close</button>
+        </footer>
+    </div>
+</dialog>
