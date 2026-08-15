@@ -10,6 +10,8 @@
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod center_of_gravity;
+
 /// Constant for the radical of 13 ($\sqrt{13}$), matching legacy button feature.
 pub const RADICAL_13: f64 = 3.605_551_275_463_989;
 

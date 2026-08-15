@@ -59,6 +59,7 @@
   - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup), and never if a function returns a Result. Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
 - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
+- Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
