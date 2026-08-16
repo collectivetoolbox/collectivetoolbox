@@ -845,19 +845,41 @@ fn test_options_configurations() {
     assert!(tables_v15_1.is_cjk_unified_ideograph(0x4E00));
 }
 
+// #[crate::ctb_test]
+// fn test_full_file_regeneration_matches_fixture() {
+//     let manifest_dir = std::path::PathBuf::from(
+//         std::env::var("CARGO_MANIFEST_DIR")
+//             .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
+//     );
+//     // This test should pass, but I'm not including the fixture now that it's working.
+//     let fixture_path = manifest_dir
+//         .join("tests")
+//         .join("fixtures")
+//         .join("unicode_untrimmed_descriptions.txt");
+
+//     let expected = std::fs::read_to_string(&fixture_path)
+//         .expect("read unicode_untrimmed_descriptions.txt fixture");
+//     let wuc_opts = DescriptionOptions::wuc_compat();
+
+//     let mut generated = String::with_capacity(expected.len());
+//     for cp in 0..=0x10FFFF {
+//         let line = describe_codepoint_with_options(cp, wuc_opts);
+//         generated.push_str(&line);
+//         generated.push('\n');
+//     }
+
+//     assert_eq!(generated, expected);
+// }
+
 #[crate::ctb_test]
-fn test_full_file_regeneration_matches_fixture() {
+fn test_full_file_regeneration_matches_expected() {
     let manifest_dir = std::path::PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR")
             .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
     );
-    let fixture_path = manifest_dir
-        .join("tests")
-        .join("fixtures")
-        .join("unicode_untrimmed_descriptions.txt");
+    // This test should pass, but I'm not including the fixture now that it's working.
 
-    let expected = std::fs::read_to_string(&fixture_path)
-        .expect("read unicode_untrimmed_descriptions.txt fixture");
+    let expected = "2b1fc9126e2c9b2f7ee7398b96581db58d4f46bdc768264b198734d25d068be8";
     let wuc_opts = DescriptionOptions::wuc_compat();
 
     let mut generated = String::with_capacity(expected.len());
@@ -867,6 +889,6 @@ fn test_full_file_regeneration_matches_fixture() {
         generated.push('\n');
     }
 
-    assert_eq!(generated, expected);
+    assert_eq!(ctb_formats_checksum::hash(ctb_formats_checksum:Sha256, generated), expected);
 }
 }
