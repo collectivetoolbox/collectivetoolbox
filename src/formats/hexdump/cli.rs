@@ -11,37 +11,54 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 /// Execution arguments for the hex2bin CLI tool.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct CliHex2BinArgs {
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    name = "hex2bin",
+    after_help = "Examples:\n  $ ctoolbox hex2bin \"48656c6c6f\"\n  Hello\n\n  $ echo \"48 65 6c 6c 6f\" | ctoolbox hex2bin\n  Hello\n\n  $ ctoolbox hex2bin -f file.hex -o file.bin\n  $ ctoolbox hex2bin \"48656c6c6f\" > output.bin"
+)]
+pub struct Hex2BinArgs {
     /// Hexadecimal string. If not provided, reads from stdin or file.
     pub value: Option<String>,
     /// Input file path (or - for stdin)
+    #[arg(short = 'f', long = "file")]
     pub file: Option<PathBuf>,
     /// Output file path (or - for stdout)
+    #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
 }
 
 /// Execution arguments for the bin2hex CLI tool.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct CliBin2HexArgs {
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    name = "bin2hex",
+    after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\""
+)]
+pub struct Bin2HexArgs {
     /// Data to convert. If not provided, reads from stdin or file.
     pub value: Option<String>,
     /// Input file path (or - for stdin)
+    #[arg(short = 'f', long = "file")]
     pub file: Option<PathBuf>,
     /// Output file path (or - for stdout)
+    #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
     /// Output in classic hex dump format
+    #[arg(long = "hd", conflicts_with = "hf")]
     pub hd: bool,
     /// Output in fancy hex dump format
+    #[arg(long = "hf", conflicts_with = "hd")]
     pub hf: bool,
 }
+
+pub type CliHex2BinArgs = Hex2BinArgs;
+pub type CliBin2HexArgs = Bin2HexArgs;
 
 /// Executes hex2bin CLI command logic.
 ///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
 pub fn execute_cli_hex2bin<FRead>(
-    args: CliHex2BinArgs,
+    args: Hex2BinArgs,
     read_data: FRead,
 ) -> Result<Option<Vec<u8>>>
 where
@@ -81,7 +98,7 @@ where
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
 pub fn execute_cli_bin2hex<FRead>(
-    args: CliBin2HexArgs,
+    args: Bin2HexArgs,
     read_data: FRead,
 ) -> Result<Option<Vec<u8>>>
 where
@@ -133,10 +150,84 @@ where
 )]
 mod tests {
     use super::*;
+    use clap::{Args, Command, FromArgMatches};
+
+    #[crate::ctb_test]
+    fn test_hex2bin_cli_args_parsing() {
+        let cmd = Hex2BinArgs::augment_args(Command::new("hex2bin"));
+        let matches = cmd
+            .try_get_matches_from(["hex2bin", "48656c6c6f"])
+            .expect("Parse hex2bin value");
+        let parsed = Hex2BinArgs::from_arg_matches(&matches).unwrap();
+        assert_eq!(parsed.value, Some("48656c6c6f".to_string()));
+        assert_eq!(parsed.file, None);
+        assert_eq!(parsed.output, None);
+
+        let cmd2 = Hex2BinArgs::augment_args(Command::new("hex2bin"));
+        let matches2 = cmd2
+            .try_get_matches_from([
+                "hex2bin",
+                "-f",
+                "in.hex",
+                "-o",
+                "out.bin",
+            ])
+            .expect("Parse hex2bin with flags");
+        let parsed_flags = Hex2BinArgs::from_arg_matches(&matches2).unwrap();
+        assert_eq!(parsed_flags.file, Some(PathBuf::from("in.hex")));
+        assert_eq!(parsed_flags.output, Some(PathBuf::from("out.bin")));
+    }
+
+    #[crate::ctb_test]
+    fn test_bin2hex_cli_args_parsing() {
+        let cmd = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        let matches = cmd
+            .try_get_matches_from(["bin2hex", "Hello"])
+            .expect("Parse bin2hex value");
+        let parsed = Bin2HexArgs::from_arg_matches(&matches).unwrap();
+        assert_eq!(parsed.value, Some("Hello".to_string()));
+        assert_eq!(parsed.file, None);
+        assert_eq!(parsed.output, None);
+        assert!(!parsed.hd);
+        assert!(!parsed.hf);
+
+        let cmd_hd = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        let matches_hd = cmd_hd
+            .try_get_matches_from([
+                "bin2hex",
+                "-f",
+                "in.bin",
+                "-o",
+                "out.hex",
+                "--hd",
+            ])
+            .expect("Parse bin2hex with --hd");
+        let parsed_hd = Bin2HexArgs::from_arg_matches(&matches_hd).unwrap();
+        assert_eq!(parsed_hd.file, Some(PathBuf::from("in.bin")));
+        assert_eq!(parsed_hd.output, Some(PathBuf::from("out.hex")));
+        assert!(parsed_hd.hd);
+        assert!(!parsed_hd.hf);
+
+        let cmd_hf = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        let matches_hf = cmd_hf
+            .try_get_matches_from(["bin2hex", "--hf"])
+            .expect("Parse bin2hex with --hf");
+        let parsed_hf = Bin2HexArgs::from_arg_matches(&matches_hf).unwrap();
+        assert!(!parsed_hf.hd);
+        assert!(parsed_hf.hf);
+
+        // --hd and --hf should conflict
+        let cmd_conflict = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        assert!(
+            cmd_conflict
+                .try_get_matches_from(["bin2hex", "--hd", "--hf"])
+                .is_err()
+        );
+    }
 
     #[crate::ctb_test]
     fn test_execute_cli_hex2bin_direct() {
-        let args = CliHex2BinArgs {
+        let args = Hex2BinArgs {
             value: Some("48656c6c6f".to_string()),
             file: None,
             output: None,
@@ -153,7 +244,7 @@ mod tests {
 
         std::fs::write(&in_path, b"48656c6c6f").expect("Write input file");
 
-        let args = CliHex2BinArgs {
+        let args = Hex2BinArgs {
             value: None,
             file: Some(in_path.clone()),
             output: Some(out_path.clone()),
@@ -167,7 +258,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_execute_cli_bin2hex_direct() {
-        let args = CliBin2HexArgs {
+        let args = Bin2HexArgs {
             value: Some("Hello".to_string()),
             file: None,
             output: None,
@@ -188,7 +279,7 @@ mod tests {
         std::fs::write(&in_path, data).expect("Write input file");
 
         // Classic hex dump
-        let args_hd = CliBin2HexArgs {
+        let args_hd = Bin2HexArgs {
             value: None,
             file: Some(in_path.clone()),
             output: None,
@@ -200,7 +291,7 @@ mod tests {
         assert_eq!(out_hd, Some(crate::to_hex_dump(data).into_bytes()));
 
         // Fancy hex dump
-        let args_hf = CliBin2HexArgs {
+        let args_hf = Bin2HexArgs {
             value: None,
             file: Some(in_path.clone()),
             output: None,
@@ -212,7 +303,7 @@ mod tests {
         assert_eq!(out_hf, Some(crate::to_fancy_hex_dump(data).into_bytes()));
 
         // File output
-        let args_out = CliBin2HexArgs {
+        let args_out = Bin2HexArgs {
             value: None,
             file: Some(in_path.clone()),
             output: Some(out_path.clone()),
