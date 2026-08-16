@@ -7,16 +7,26 @@ use crate::utilities::*;
 
 use anyhow::anyhow;
 
+use ctb_formats_utilities::FormatLog;
+
 use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
-pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
+pub fn convert_legacy_cdce_to_dc(
+    data: &[u8],
+    strict: bool,
+    log: &mut FormatLog,
+) -> Result<String> {
     let utf32_bytes = ctb_formats_encoding::unicode::utf8_to_utf32be(data)
-        .map_err(|e| anyhow!("iconv conversion failed: {e}"))?;
+        .map_err(|e| {
+            log.error(&format!("iconv conversion failed: {e}"));
+            anyhow!("iconv conversion failed: {e}")
+        })?;
 
     let chunks = utf32_bytes.chunks_exact(4);
     if !chunks.remainder().is_empty() {
+        log.error("UTF-32BE payload length is not a multiple of 4");
         bail!("UTF-32BE payload length is not a multiple of 4");
     }
 
@@ -87,6 +97,9 @@ pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
 
                 if !matched_2char {
                     if strict {
+                        log.error(&format!(
+                            "CDCE decoding error: invalid escape sequence at codepoint index {i}"
+                        ));
                         // format txt like PHP did, then return decoding error
                         let mut cleaned = txt.trim_end_matches(',').to_string();
                         while cleaned.contains(",,") {
@@ -94,6 +107,9 @@ pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
                         }
                         return Ok(format!("{cleaned}… CDCE decoding error!"));
                     }
+                    log.warn(&format!(
+                        "Warning: Unicode recovery attempted for corrupted CDCE sequence at codepoint index {i}"
+                    ));
                     // Recover using Lossy Unicode map for '@' (0x40)
                     if let Some(val) = tables.dc_map_unicode_lossy.get("40") {
                         txt.push_str(&format!("{val},"));
@@ -115,7 +131,10 @@ pub fn convert_legacy_cdce_to_dc(data: &[u8], strict: bool) -> Result<String> {
     Ok(txt)
 }
 
-pub fn convert_dc_to_legacy_cdce_output(data: &str) -> Result<Vec<u8>> {
+pub fn convert_dc_to_legacy_cdce_output(
+    data: &str,
+    _log: &mut FormatLog,
+) -> Result<Vec<u8>> {
     let dc_array = explode_escaped(',', data);
     let tables = get_tables();
     let mut txt = String::new();

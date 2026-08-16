@@ -8,16 +8,25 @@ use crate::utilities::*;
 use anyhow::anyhow;
 use ctb_formats_hexdump::hex2bin;
 
+use ctb_formats_utilities::FormatLog;
+
 use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
-pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
+pub fn convert_3_01a_to_dc(
+    data: &[u8],
+    log: &mut FormatLog,
+) -> Result<String> {
     let hex = bin2hex(data);
     if !hex.starts_with("444345650201") {
+        log.error("This document is not stored using the specified format.");
         bail!("This document is not stored using the specified format.");
     }
     if hex.len() < 14 || hex.get(12..14) != Some("02") {
+        log.error(
+            "This document is not stored using the specified version of DCE.",
+        );
         bail!(
             "This document is not stored using the specified version of DCE."
         );
@@ -137,9 +146,13 @@ pub fn convert_3_01a_to_dc(data: &[u8]) -> Result<String> {
     Ok(txt)
 }
 
-pub fn convert_3_01a_raw_to_dc(data: &[u8]) -> Result<String> {
+pub fn convert_3_01a_raw_to_dc(
+    data: &[u8],
+    log: &mut FormatLog,
+) -> Result<String> {
     let hex = bin2hex(data);
     if !hex.starts_with("80") {
+        log.error("This document is not stored using the specified format.");
         bail!("This document is not stored using the specified format.");
     }
 
@@ -157,7 +170,10 @@ pub fn convert_3_01a_raw_to_dc(data: &[u8]) -> Result<String> {
 // instead of the function parameter `$data` (which was called `$dc` on the call to DcMapSendSimple).
 // Thus, DcMapSendSimple was always called with an empty string, returning an empty string.
 // We have corrected this to use the passed `data` parameter to correctly encode the output format.
-pub fn convert_dc_to_3_01a_output(data: &str) -> Result<Vec<u8>> {
+pub fn convert_dc_to_3_01a_output(
+    data: &str,
+    _log: &mut FormatLog,
+) -> Result<Vec<u8>> {
     let encoded = dc_map_send_simple(data);
     let hex_str = format!("44434565020102fd{encoded}fd03");
     let bytes = hex2bin(&hex_str)

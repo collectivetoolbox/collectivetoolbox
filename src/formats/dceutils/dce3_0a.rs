@@ -8,13 +8,16 @@ use crate::utilities::*;
 use anyhow::{Context, anyhow};
 use ctb_formats_hexdump::hex2bin;
 
+use ctb_formats_utilities::FormatLog;
+
 use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
-pub fn convert_3_0a_to_dc(data: &[u8]) -> Result<String> {
+pub fn convert_3_0a_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
     let hex = bin2hex(data);
     if hex.len() < 14 || hex.get(12..14) != Some("01") {
+        log.error("This document is not stored using the specified format.");
         bail!("This document is not stored using the specified format.");
     }
 
@@ -58,9 +61,13 @@ pub fn convert_3_0a_to_dc(data: &[u8]) -> Result<String> {
     Ok(txt)
 }
 
-pub fn convert_3_0a_raw_to_dc(data: &[u8]) -> Result<String> {
+pub fn convert_3_0a_raw_to_dc(
+    data: &[u8],
+    log: &mut FormatLog,
+) -> Result<String> {
     let hex = bin2hex(data);
     if hex.len() < 2 || hex.get(0..2) != Some("80") {
+        log.error("This document is not stored using the specified format.");
         bail!("This document is not stored using the specified format.");
     }
 
@@ -74,7 +81,10 @@ pub fn convert_3_0a_raw_to_dc(data: &[u8]) -> Result<String> {
         .map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
-pub fn convert_dc_to_3_0a_output(data: &str) -> Result<Vec<u8>> {
+pub fn convert_dc_to_3_0a_output(
+    data: &str,
+    _log: &mut FormatLog,
+) -> Result<Vec<u8>> {
     let dc_array = explode_escaped(',', data);
     let tables = get_tables();
     let mut hex_str = "44434565020101fd80".to_string();
@@ -92,7 +102,10 @@ pub fn convert_dc_to_3_0a_output(data: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-pub fn convert_dc_to_3_0a_raw_output(data: &str) -> Result<Vec<u8>> {
+pub fn convert_dc_to_3_0a_raw_output(
+    data: &str,
+    _log: &mut FormatLog,
+) -> Result<Vec<u8>> {
     let full = dce_convert(data.as_bytes(), "dc", "3_0a")?;
     if full.len() >= 12 {
         let sub = full
