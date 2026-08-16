@@ -42,9 +42,9 @@ fn get_ucd_file_for_version(version: UnicodeVersion, name: &str) -> Option<Strin
     }
 }
 
-/// Returns the string contents of a file in the dictionaries asset directory.
-fn get_dict_file(name: &str) -> Option<String> {
-    ctb_storage::get_asset_utf8(&format!("data/dictionaries/{name}")).ok()
+/// Returns the string contents of a file in the character_descriptions asset directory.
+fn get_character_descriptions_file(name: &str) -> Option<String> {
+    ctb_storage::get_asset_utf8(&format!("data/character_descriptions/{name}")).ok()
 }
 
 /// A parsed Unicode block range.
@@ -416,7 +416,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
         }
     }
 
-    if let Some(content) = get_dict_file("TangutMeanings.csv") {
+    if let Some(content) = get_character_descriptions_file("TangutMeanings.csv") {
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .flexible(true)
@@ -439,7 +439,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
         }
     }
 
-    if let Some(content) = get_dict_file("TangutSupplementMeanings.csv") {
+    if let Some(content) = get_character_descriptions_file("TangutSupplementMeanings.csv") {
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .flexible(true)
@@ -610,7 +610,7 @@ pub fn get_tables(version: UnicodeVersion) -> &'static UnicodeDataTables {
 
 /// Table of Khitan Small Script character meanings from KhitanMeanings.csv.
 pub static KHITAN_DATA: LazyLock<HashMap<u32, String>> = LazyLock::new(|| {
-    let Some(content) = get_dict_file("KhitanMeanings.csv") else {
+    let Some(content) = get_character_descriptions_file("KhitanMeanings.csv") else {
         return HashMap::new();
     };
     let mut map = HashMap::new();

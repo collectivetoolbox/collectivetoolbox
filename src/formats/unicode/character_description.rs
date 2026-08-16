@@ -571,6 +571,29 @@ mod tests {
         assert!(out.contains("U+17FFC : TANGUT IDEOGRAPH-17FFC (L2008-2262) {bird}"));
         assert!(out.contains("U+C120 : HANGUL SYLLABLE SEON"));
         assert!(out.contains("U+18B9D : KHITAN SMALL SCRIPT CHARACTER-18B9D {GOLD}"));
+
+        let input = "द्ध्र्य︘ꡀ𓉔A字😂\u{0004}𗿼선𘮝狀";
+        let expected = "U+0926 : DEVANAGARI LETTER DA
+U+094D : DEVANAGARI SIGN VIRAMA {halant (the preferred Hindi name)}
+U+0927 : DEVANAGARI LETTER DHA
+U+094D : DEVANAGARI SIGN VIRAMA {halant (the preferred Hindi name)}
+U+0930 : DEVANAGARI LETTER RA
+U+094D : DEVANAGARI SIGN VIRAMA {halant (the preferred Hindi name)}
+U+092F : DEVANAGARI LETTER YA
+U+FE18 : PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRAKCET (alias PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRACKET)
+U+A840 : PHAGS-PA LETTER KA
+U+13254 : EGYPTIAN HIEROGLYPH O004 {A plan of a courtyard or reed shelter}
+U+0041 : LATIN CAPITAL LETTER A
+U+5B57 : CJK UNIFIED IDEOGRAPH-5B57 {def: letter, character, word; Mandarin: zì; Cantonese: zi6; Japanese: ジ シ あざ あざな やしなう; Korean: 자:0E; Vietnamese: tự}
+U+1F602 : FACE WITH TEARS OF JOY
+U+0004 : <control> END OF TRANSMISSION [EOT]
+U+17FFC : TANGUT IDEOGRAPH-17FFC (L2008-2262) {bird}
+U+C120 : HANGUL SYLLABLE SEON
+U+18B9D : KHITAN SMALL SCRIPT CHARACTER-18B9D {GOLD}
+U+F9FA : CJK COMPATIBILITY IDEOGRAPH-F9FA = U+72C0 + VS1 {def: form; appearance; shape; official; Korean: 장:0}
+";
+        assert_eq!(describe(input), expected);
+
     }
 
     #[crate::ctb_test]
@@ -617,4 +640,233 @@ mod tests {
             "U+E000 : <private-use> (Private Use Area block)"
         );
     }
+
+    #[crate::ctb_test]
+    fn test_wuc_mode_descriptions() {
+        let wuc_opts = DescriptionOptions::wuc_compat();
+
+    // 1. Control characters in legacy NamesList format
+    assert_eq!(
+        describe_codepoint_with_options(0x0000, wuc_opts),
+        "U+0000 : <control> NULL [NUL]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0007, wuc_opts),
+        "U+0007 : <control> BELL [BEL]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0009, wuc_opts),
+        "U+0009 : <control> CHARACTER TABULATION [TAB] {horizontal tabulation (HT); tab}"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x000A, wuc_opts),
+        "U+000A : <control> LINE FEED [LF] {new line (NL); end of line (EOL)}"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0019, wuc_opts),
+        "U+0019 : <control> END OF MEDIUM [EOM]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0080, wuc_opts),
+        "U+0080 : <control>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0082, wuc_opts),
+        "U+0082 : <control> BREAK PERMITTED HERE [BPH]"
+    );
+
+    // 2. Graphic abbreviations
+    assert_eq!(
+        describe_codepoint_with_options(0x0020, wuc_opts),
+        "U+0020 : SPACE [SP]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x00A0, wuc_opts),
+        "U+00A0 : NO-BREAK SPACE [NBSP]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x00AD, wuc_opts),
+        "U+00AD : SOFT HYPHEN [SHY] {discretionary hyphen}"
+    );
+
+    // 3. Informative alias joining
+    assert_eq!(
+        describe_codepoint_with_options(0x0021, wuc_opts),
+        "U+0021 : EXCLAMATION MARK {factorial; bang}"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0023, wuc_opts),
+        "U+0023 : NUMBER SIGN {pound sign (weight); hashtag, hash; crosshatch, octothorpe}"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0027, wuc_opts),
+        "U+0027 : APOSTROPHE {single quote; APL quote}"
+    );
+
+    // 4. Surrogates, Noncharacters, Reserved, PUA in WUC compat mode
+    assert_eq!(
+        describe_codepoint_with_options(0xD800, wuc_opts),
+        "U+D800 : <surrogate>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0xDC00, wuc_opts),
+        "U+DC00 : <surrogate>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0xFDD0, wuc_opts),
+        "U+FDD0 : <noncharacter>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x0378, wuc_opts),
+        "U+0378 : <reserved>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0xE000, wuc_opts),
+        "U+E000 : <private-use>"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0xF0000, wuc_opts),
+        "U+F0000 : <private-use>"
+    );
+
+    // 5. CJK Compatibility Ideographs in WUC compat mode
+    assert_eq!(
+        describe_codepoint_with_options(0xFA0E, wuc_opts),
+        "U+FA0E : CJK COMPATIBILITY IDEOGRAPH-FA0E"
+    );
+}
+
+#[crate::ctb_test]
+fn test_standard_mode_descriptions() {
+    let std_opts = DescriptionOptions::standard();
+
+    // 1. Surrogates with high/low designation
+    assert_eq!(
+        describe_codepoint_with_options(0xD800, std_opts),
+        "U+D800 : <surrogate> (high surrogate)"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0xDC00, std_opts),
+        "U+DC00 : <surrogate> (low surrogate)"
+    );
+
+    // 2. Noncharacters
+    assert_eq!(
+        describe_codepoint_with_options(0xFDD0, std_opts),
+        "U+FDD0 : <noncharacter>"
+    );
+
+    // 3. Reserved with block name or unassigned region
+    assert_eq!(
+        describe_codepoint_with_options(0x0378, std_opts),
+        "U+0378 : <reserved> (Greek and Coptic block)"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x35000, std_opts),
+        "U+35000 : <reserved> (unassigned region)"
+    );
+
+    // 4. Private Use Area with block name
+    assert_eq!(
+        describe_codepoint_with_options(0xE000, std_opts),
+        "U+E000 : <private-use> (Private Use Area block)"
+    );
+
+    // 5. Official UCD control names
+    assert_eq!(
+        describe_codepoint_with_options(0x0007, std_opts),
+        "U+0007 : <control> ALERT [BEL]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x000A, std_opts),
+        "U+000A : <control> END OF LINE [EOL] {new line (NL); end of line (EOL)}"
+    );
+
+    // 6. CJK Unified Ideograph with Unihan readings
+    let desc_3400 = describe_codepoint_with_options(0x3400, std_opts);
+    assert!(desc_3400.starts_with("U+3400 : CJK UNIFIED IDEOGRAPH-3400"));
+    assert!(desc_3400.contains("def: (same as 丘) hillock or mound"));
+    assert!(desc_3400.contains("Mandarin: qiū"));
+    assert!(desc_3400.contains("Cantonese: jau1"));
+
+    // 7. CJK Unified Ideograph in compatibility range (U+FA0E)
+    let desc_fa0e = describe_codepoint_with_options(0xFA0E, std_opts);
+    assert!(desc_fa0e.starts_with("U+FA0E : CJK UNIFIED IDEOGRAPH-FA0E"));
+}
+
+#[crate::ctb_test]
+fn test_options_configurations() {
+    let mut custom_opts = DescriptionOptions::standard();
+    custom_opts.control_name_format = ControlNameFormat::NamesList;
+    custom_opts.include_unihan_readings = false;
+
+    assert_eq!(
+        describe_codepoint_with_options(0x0007, custom_opts),
+        "U+0007 : <control> BELL [BEL]"
+    );
+    assert_eq!(
+        describe_codepoint_with_options(0x3400, custom_opts),
+        "U+3400 : CJK UNIFIED IDEOGRAPH-3400"
+    );
+
+    let multiline = describe_with_options("\u{0007}A", custom_opts);
+    assert_eq!(
+        multiline,
+        "U+0007 : <control> BELL [BEL]\nU+0041 : LATIN CAPITAL LETTER A\n"
+    );
+
+    let default_multiline = describe("A");
+    assert_eq!(default_multiline, "U+0041 : LATIN CAPITAL LETTER A\n");
+
+    // Test UnicodeDataTables derived_age & block lookup & dynamic ideograph lookup
+    let tables_v17 = get_tables(UnicodeVersion::V17_0);
+    assert!(tables_v17.is_age("1.1", 0x0041));
+    assert!(tables_v17.is_age("16.0", 0x1FA89)); // HARP
+    assert!(tables_v17.is_v17_or_later(0x088F));
+    assert!(!tables_v17.is_v17_or_later(0x0041));
+    assert!(tables_v17.is_cjk_unified_ideograph(0x3400));
+    assert!(tables_v17.is_tangut_ideograph(0x17000));
+    assert!(tables_v17.is_khitan_character(0x18B00));
+
+    assert_eq!(
+        crate::find_block(0x0041),
+        Some("Basic Latin")
+    );
+
+    // Test V15.0 and V15.1 tables loading and data-derived ideographs
+    let tables_v15 = get_tables(UnicodeVersion::V15_0);
+    assert!(!tables_v15.blocks.is_empty());
+    assert!(tables_v15.is_cjk_unified_ideograph(0x4E00));
+    assert!(tables_v15.is_tangut_ideograph(0x17000));
+    assert!(tables_v15.is_khitan_character(0x18B00));
+
+    let tables_v15_1 = get_tables(UnicodeVersion::V15_1);
+    assert!(!tables_v15_1.blocks.is_empty());
+    assert!(tables_v15_1.is_cjk_unified_ideograph(0x4E00));
+}
+
+#[crate::ctb_test]
+fn test_full_file_regeneration_matches_fixture() {
+    let manifest_dir = std::path::PathBuf::from(
+        std::env::var("CARGO_MANIFEST_DIR")
+            .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
+    );
+    let fixture_path = manifest_dir
+        .join("tests")
+        .join("fixtures")
+        .join("unicode_untrimmed_descriptions.txt");
+
+    let expected = std::fs::read_to_string(&fixture_path)
+        .expect("read unicode_untrimmed_descriptions.txt fixture");
+    let wuc_opts = DescriptionOptions::wuc_compat();
+
+    let mut generated = String::with_capacity(expected.len());
+    for cp in 0..=0x10FFFF {
+        let line = describe_codepoint_with_options(cp, wuc_opts);
+        generated.push_str(&line);
+        generated.push('\n');
+    }
+
+    assert_eq!(generated, expected);
+}
 }
