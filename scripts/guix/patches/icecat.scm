@@ -19,11 +19,12 @@
   #:use-module (guix gexp)
   #:use-module (guix build-system trivial)
   #:use-module (gnu packages)
+  #:use-module (gnu packages compression)
   #:use-module (gnu packages cross-base)
   #:use-module (gnu packages gnuzilla)
   #:use-module (gnu packages rust)
   #:use-module (ice-9 match)
-  #:use-module (srfi srfi-1)
+  #:use-module ((srfi srfi-1) #:hide (zip))
   #:export (icecat-minimal-fixed-proc
             icecat-fixed-proc))
 
@@ -65,6 +66,8 @@
     (native-inputs
      (cons* (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
             (list "gcc-cross-lib" (cross-gcc "i686-linux-gnu" #:libc (cross-libc "i686-linux-gnu")) "lib")
+            (list "unzip" (@ (gnu packages compression) unzip))
+            (list "zip" (@ (gnu packages compression) zip))
             (map-input-list (package-native-inputs pkg))))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
@@ -176,8 +179,20 @@
                     (mkdir-p bin-dir)
                     (call-with-output-file (string-append bin-dir "/rustc")
                       (lambda (port)
-                        (format port "#!~a\nexec ~a --sysroot ~a \"$@\"\n"
-                                (which "sh") real-rustc combined-sysroot)))
+                        (format port "#!~a
+has_sysroot=0
+for arg in \"$@\"; do
+  case \"$arg\" in
+    --sysroot|--sysroot=*) has_sysroot=1 ;;
+  esac
+done
+if [ $has_sysroot -eq 1 ]; then
+  exec ~a \"$@\"
+else
+  exec ~a --sysroot ~a \"$@\"
+fi
+"
+                                (which "sh") real-rustc real-rustc combined-sysroot)))
                     (chmod (string-append bin-dir "/rustc") #o755)
                     (setenv "PATH" (string-append bin-dir ":" (getenv "PATH")))))))
             (delete 'bootstrap)
@@ -208,6 +223,16 @@
                        (libgcc-s-dir (and gcc-lib
                                           (let ((files (find-files gcc-lib "^libgcc_s\\.so$")))
                                             (and (not (null? files)) (dirname (car files))))))
+                       (input-lib-dirs (filter file-exists?
+                                              (map (match-lambda
+                                                     ((_ . dir) (string-append dir "/lib")))
+                                                   inputs)))
+                       (input-inc-dirs (filter file-exists?
+                                              (map (match-lambda
+                                                     ((_ . dir) (string-append dir "/include")))
+                                                   inputs)))
+                       (input-L-flags (string-join (map (lambda (d) (string-append "-L" d)) input-lib-dirs) " "))
+                       (input-I-flags (string-join (map (lambda (d) (string-append "-isystem " d)) input-inc-dirs) " "))
                        (extra-link-flags (string-append
                                           (if (and crtbegin-dir (file-exists? crtbegin-dir))
                                               (string-append "-B" crtbegin-dir " -L" crtbegin-dir " ")
@@ -217,7 +242,8 @@
                                               "")
                                           (if (and libgcc-s-dir (file-exists? libgcc-s-dir))
                                               (string-append "-L" libgcc-s-dir " ")
-                                              "")))
+                                              "")
+                                          input-L-flags " "))
                        (extra-cxx-flags (string-append
                                          (if (and cxx-inc (file-exists? cxx-inc))
                                              (string-append "-isystem " cxx-inc " ")
@@ -234,6 +260,7 @@
                                          (if (and kernel-inc (file-exists? kernel-inc))
                                              (string-append "-isystem " kernel-inc " ")
                                              "")
+                                         input-I-flags " "
                                          extra-link-flags))
                        (extra-c-flags (string-append
                                        (if (and libc-inc (file-exists? libc-inc))
@@ -242,6 +269,7 @@
                                        (if (and kernel-inc (file-exists? kernel-inc))
                                            (string-append "-isystem " kernel-inc " ")
                                            "")
+                                       input-I-flags " "
                                        extra-link-flags)))
                   (setenv "SHELL" bash)
                   (setenv "CONFIG_SHELL" bash)
@@ -253,6 +281,7 @@
                   (setenv "LDFLAGS" (string-append "-Wl,-rpath="
                                                    #$output "/lib/icecat "
                                                    extra-link-flags))
+                  (setenv "LIBRARY_PATH" (string-join input-lib-dirs ":"))
 
                   (setenv "MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE" "system")
                   (setenv "MOZ_BUILD_DATE" "20260101000000")

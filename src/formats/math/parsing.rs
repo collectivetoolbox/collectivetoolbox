@@ -265,7 +265,22 @@ impl ParsedNumber {
         }
 
         // Separate attached or whitespace-delimited unit suffixes if present
-        let (num_part, unit_suffix) = separate_unit_suffix(s_no_sign, base);
+        let (num_part_raw, unit_suffix) = separate_unit_suffix(s_no_sign, base);
+        let num_part = match base {
+            Base::Base16 => num_part_raw
+                .strip_prefix("0x")
+                .or_else(|| num_part_raw.strip_prefix("0X"))
+                .unwrap_or(num_part_raw),
+            Base::Base2 => num_part_raw
+                .strip_prefix("0b")
+                .or_else(|| num_part_raw.strip_prefix("0B"))
+                .unwrap_or(num_part_raw),
+            Base::Base8 => num_part_raw
+                .strip_prefix("0o")
+                .or_else(|| num_part_raw.strip_prefix("0O"))
+                .unwrap_or(num_part_raw),
+            _ => num_part_raw,
+        };
 
         let int_width;
         let mut frac_len = 0usize;

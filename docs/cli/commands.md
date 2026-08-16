@@ -108,6 +108,19 @@ Options:
   -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
   -q, --quiet                          Suppress warning messages
   -h, --help                           Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox base2base 10 16 "255 16 10"
+  ff 10 a
+
+  $ ctoolbox base2base 2 10 "1101 1010"
+  13 10
+
+  $ ctoolbox base2base 16 2 --prefix "0b" 1f 2a
+  0b11111 0b101010
+
+  $ ctoolbox base2base 10 16 --bytes 255 128
+  ff 80
 ```
 
 ### `ctoolbox bin2hex`
@@ -122,6 +135,16 @@ Arguments:
 
 Options:
   -h, --help  Print help
+
+Examples:
+  $ ctoolbox bin2hex "Hello"
+  48656c6c6f
+
+  $ echo -n "Hello" | ctoolbox bin2hex
+  48656c6c6f
+
+  $ cat file.exe | ctoolbox bin2hex
+  4d5a...
 ```
 
 ### `ctoolbox compress`
@@ -314,6 +337,16 @@ Options:
   -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
   -q, --quiet                          Suppress warning messages
   -h, --help                           Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox dec2hex "255 128 64"
+  ff 80 40
+
+  $ ctoolbox dec2hex --prefix "0x" "10 20 30"
+  0xa 0x14 0x1e
+
+  $ ctoolbox dec2hex --bytes "255 16"
+  ff 10
 ```
 
 ### `ctoolbox decompress`
@@ -378,6 +411,15 @@ Arguments:
 
 Options:
   -h, --help  Print help
+
+Examples:
+  $ ctoolbox hex2bin "48656c6c6f"
+  Hello
+
+  $ echo "48 65 6c 6c 6f" | ctoolbox hex2bin
+  Hello
+
+  $ ctoolbox hex2bin "48656c6c6f" > output.bin
 ```
 
 ### `ctoolbox hex2dec`
@@ -405,6 +447,16 @@ Options:
   -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
   -q, --quiet                          Suppress warning messages
   -h, --help                           Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox hex2dec "1A 2B 3C"
+  26 43 60
+
+  $ ctoolbox hex2dec "0x1A 0x2B"
+  26 43
+
+  $ ctoolbox hex2dec -s ", " "FF 80 00"
+  255, 128, 0
 ```
 
 ### `ctoolbox hexfmt`
@@ -432,6 +484,16 @@ Options:
   -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
   -q, --quiet                          Suppress warning messages
   -h, --help                           Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox hexfmt "1a2b3c4d"
+  1a2b3c4d
+
+  $ ctoolbox hexfmt -s " " "1a 2b 3c 4d"
+  1a 2b 3c 4d
+
+  $ ctoolbox hexfmt --prefix "0x" "de ad be ef"
+  0xde 0xad 0xbe 0xef
 ```
 
 ### `ctoolbox ia`
@@ -851,6 +913,48 @@ Options:
   -S, --separator <SEPARATOR>  Separator between output items (defaults to newline) [default: "\n"]
   -t, --trailing               Append a trailing separator to the output
   -h, --help                   Print help
+
+Examples:
+  $ ctoolbox range_gen 1 10
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+  10
+
+  $ ctoolbox range_gen -s 2 1 10
+  1
+  3
+  5
+  7
+  9
+
+  $ ctoolbox range_gen -b 16 -t -S, 18D0C 18D12
+  18D0C,18D0D,18D0E,18D0F,18D10,18D11,18D12,
+
+  $ ctoolbox range_gen -b hex 0x00 0x10
+  00
+  01
+  02
+  03
+  04
+  05
+  06
+  07
+  08
+  09
+  0A
+  0B
+  0C
+  0D
+  0E
+  0F
+  10
 ```
 
 ### `ctoolbox show-node`

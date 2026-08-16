@@ -293,6 +293,22 @@ pub fn char_to_digit(c: char, base: Base) -> Result<u8> {
 )]
 pub fn parse_natural(s: &str, base: Base) -> Result<Natural> {
     ensure!(!s.is_empty(), "Cannot parse empty string as number");
+    let s = match base {
+        Base::Base16 => s
+            .strip_prefix("0x")
+            .or_else(|| s.strip_prefix("0X"))
+            .unwrap_or(s),
+        Base::Base2 => s
+            .strip_prefix("0b")
+            .or_else(|| s.strip_prefix("0B"))
+            .unwrap_or(s),
+        Base::Base8 => s
+            .strip_prefix("0o")
+            .or_else(|| s.strip_prefix("0O"))
+            .unwrap_or(s),
+        _ => s,
+    };
+    ensure!(!s.is_empty(), "Cannot parse empty number string after prefix");
     let radix = base.radix();
     let mut acc = Natural::ZERO;
     let base_nat = Natural::from(radix);

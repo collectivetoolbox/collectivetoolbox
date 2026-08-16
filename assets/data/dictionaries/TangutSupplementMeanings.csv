@@ -1,0 +1,32 @@
+"Tangut readings and definitions for Tangut Supplement block. Data from Andrew West's https://babelstone.co.uk/Unicode/unicode.js, https://www.unicode.org/L2/L2023/23246-wg2-n5217r2.pdf, and https://www.unicode.org/wg2/docs/n5286_TwoTangutIdeographs.pdf",definition,reading,possible variant or error,notes,source
+18D00,foolish,,,,L2008-3489
+18D01,tail,,,,L2008-1667
+18D02,god,,,,L2008-3435
+18D03,a kind of bird,,,,L2008-2252
+18D04,a kind of bird,,,,L2008-3684
+18D05,to jump,,,,L2008-1318
+18D06,respectful,,,,L2008-1735
+18D07,swallow,,,,L2008-1106
+18D08,wild goose,,,,L2008-4456
+18D09,Tangut?,lhjwịj¹?,𘚜 lhjwịj¹,possibly error or variant of 𘚜 lhjwịj¹ ‘Tangut’,N5217-09
+18D0A,title?,lhjwịj¹?,𗿸 lhjwịj¹,possible variant of 𗿸 lhjwịj¹ ‘title’,N5217-10
+18D0B,amber,tśjwiw²,,,N5217-11
+18D0C,,"phji¹, phji², or phja²",,"possible reading phji¹ or phji², or possibly mistake for 𗃁 phja²",N5217-12
+18D0D,,lu¹ or lu²,,reading lu¹ or lu²,N5217-13
+18D0E,,,,?,N5217-14
+18D0F,,,𘀹 khja²,probably variant of 𘀹 khja²,N5217-15
+18D10,,,𗵆 śjɨj¹,probably variant of 𗵆 śjɨj¹,N5217-16
+18D11,,,𗱔 xã¹,probably variant of 𗱔 xã¹,N5217-17
+18D12,to tame?,,𗌻 ꞏjar²,possibly error or variant of 𗌻 ꞏjar² ‘to tame’,N5217-18
+18D13,used in the name of a kind of tree or bush,,,,N5217-19
+18D14,used in the name of a kind of plant,,,,N5217-20
+18D15,,,,?,N5217-21
+18D16,,tjwị¹?,,possible reading tjwị¹,N5217-22
+18D17,,,𗶑,possibly error for 𗶑,N5217-23
+18D18,,,𘁀,possibly error for 𘁀,N5217-24
+18D19,,,𗫣,possibly error or variant of 𗫣,N5217-25
+18D1A,,,,?,N5217-26
+18D1B,,,,?,N5217-27
+18D1C,hūṃ,xo,,hūṃ (reading: xo),N5217-28
+18D1D,small,,,,H2021-309801
+18D1E,,tjị?,,,H2021-834001

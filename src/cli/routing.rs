@@ -225,7 +225,10 @@ pub enum Command {
         port: u16,
     },
     /// Convert from one base to another (for base <= 36)
-    #[command(name = "base2base")]
+    #[command(
+        name = "base2base",
+        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80"
+    )]
     Base2Base {
         /// All positional arguments for custom parsing
         #[arg(required = true)]
@@ -234,7 +237,10 @@ pub enum Command {
         base_args: BaseArgs,
     },
     /// Convert from hexadecimal to decimal
-    #[command(name = "hex2dec")]
+    #[command(
+        name = "hex2dec",
+        after_help = "Examples:\n  $ ctoolbox hex2dec \"1A 2B 3C\"\n  26 43 60\n\n  $ ctoolbox hex2dec \"0x1A 0x2B\"\n  26 43\n\n  $ ctoolbox hex2dec -s \", \" \"FF 80 00\"\n  255, 128, 0"
+    )]
     Hex2Dec {
         #[command(flatten)]
         string_input: StringInput,
@@ -242,7 +248,10 @@ pub enum Command {
         base_args: BaseArgs,
     },
     /// Convert from decimal to hexadecimal
-    #[command(name = "dec2hex")]
+    #[command(
+        name = "dec2hex",
+        after_help = "Examples:\n  $ ctoolbox dec2hex \"255 128 64\"\n  ff 80 40\n\n  $ ctoolbox dec2hex --prefix \"0x\" \"10 20 30\"\n  0xa 0x14 0x1e\n\n  $ ctoolbox dec2hex --bytes \"255 16\"\n  ff 10"
+    )]
     Dec2Hex {
         #[command(flatten)]
         string_input: StringInput,
@@ -250,7 +259,10 @@ pub enum Command {
         base_args: BaseArgs,
     },
     /// Reformat hexdumps
-    #[command(name = "hexfmt")]
+    #[command(
+        name = "hexfmt",
+        after_help = "Examples:\n  $ ctoolbox hexfmt \"1a2b3c4d\"\n  1a2b3c4d\n\n  $ ctoolbox hexfmt -s \" \" \"1a 2b 3c 4d\"\n  1a 2b 3c 4d\n\n  $ ctoolbox hexfmt --prefix \"0x\" \"de ad be ef\"\n  0xde 0xad 0xbe 0xef"
+    )]
     Hexfmt {
         #[command(flatten)]
         string_input: StringInput,
@@ -258,19 +270,29 @@ pub enum Command {
         base_args: BaseArgs,
     },
     /// Convert a hexadecimal string to binary data
-    #[command(name = "hex2bin")]
+    #[command(
+        name = "hex2bin",
+        after_help = "Examples:\n  $ ctoolbox hex2bin \"48656c6c6f\"\n  Hello\n\n  $ echo \"48 65 6c 6c 6f\" | ctoolbox hex2bin\n  Hello\n\n  $ ctoolbox hex2bin \"48656c6c6f\" > output.bin"
+    )]
     Hex2Bin {
         /// Hexadecimal string. If not provided, reads from stdin.
         value: Option<String>,
     },
     /// Convert binary data to a hexadecimal string
-    #[command(name = "bin2hex")]
+    #[command(
+        name = "bin2hex",
+        after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a..."
+    )]
     Bin2Hex {
         /// Data to convert. If not provided, reads from stdin.
         value: Option<String>,
     },
     /// Generate a range of numbers in various bases
-    #[command(name = "range_gen", alias = "range-gen")]
+    #[command(
+        name = "range_gen",
+        alias = "range-gen",
+        after_help = "Examples:\n  $ ctoolbox range_gen 1 10\n  1\n  2\n  3\n  4\n  5\n  6\n  7\n  8\n  9\n  10\n\n  $ ctoolbox range_gen -s 2 1 10\n  1\n  3\n  5\n  7\n  9\n\n  $ ctoolbox range_gen -b 16 -t -S, 18D0C 18D12\n  18D0C,18D0D,18D0E,18D0F,18D10,18D11,18D12,\n\n  $ ctoolbox range_gen -b hex 0x00 0x10\n  00\n  01\n  02\n  03\n  04\n  05\n  06\n  07\n  08\n  09\n  0A\n  0B\n  0C\n  0D\n  0E\n  0F\n  10"
+    )]
     RangeGen(ctb_formats_math::range_generator::RangeGenArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
@@ -747,33 +769,28 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {
-            let (input, from_base, to_base) = match args.len() {
-                1 => (
-                    args.first().ok_or_else(|| anyhow!("Empty arguments"))?,
-                    None,
-                    None,
-                ),
-                3 => {
-                    let from_base = Some(
-                        args.first()
-                            .ok_or_else(|| anyhow!("Missing from_base"))?
-                            .parse::<u8>()?,
-                    );
-                    let to_base = Some(
-                        args.get(1)
-                            .ok_or_else(|| anyhow!("Missing to_base"))?
-                            .parse::<u8>()?,
-                    );
-                    let input =
-                        args.get(2).ok_or_else(|| anyhow!("Missing input"))?;
-                    (input, from_base, to_base)
-                }
-                _ => {
-                    eprintln!(
-                        "Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]"
-                    );
-                    std::process::exit(1);
-                }
+            let (input, from_base, to_base) = if args.len() >= 3
+                && let (Ok(from), Ok(to)) = (
+                    args.first()
+                        .ok_or_else(|| anyhow!("Missing from_base"))?
+                        .parse::<u8>(),
+                    args.get(1)
+                        .ok_or_else(|| anyhow!("Missing to_base"))?
+                        .parse::<u8>(),
+                )
+                && from >= 2
+                && from <= 36
+                && to >= 2
+                && to <= 36
+            {
+                let input =
+                    args.get(2..).map(|s| s.join(" ")).unwrap_or_default();
+                (input, Some(from), Some(to))
+            } else if args.is_empty() {
+                bail!("Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]");
+            } else {
+                let input = args.join(" ");
+                (input, None, None)
             };
 
             run_base_convert(
@@ -1397,6 +1414,45 @@ mod tests {
         assert!(!user.is_admin());
 
         user.delete()?;
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_base2base_positional_args() -> Result<()> {
+        let cmd = Command::Base2Base {
+            args: vec![
+                "16".to_string(),
+                "2".to_string(),
+                "1f".to_string(),
+                "2a".to_string(),
+            ],
+            base_args: BaseArgs {
+                bytes: false,
+                no_pad: false,
+                prefix: "0b".to_string(),
+                separator: " ".to_string(),
+                lowercase: true,
+                filter_chars: true,
+                collapse_filtered: false,
+                collapse_only: Vec::new(),
+                parse_prefixes: true,
+                limit: 0,
+                pad: false,
+                pad_l: 1,
+                quiet: false,
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout)?;
+                assert_eq!(output.trim(), "0b11111 0b101010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
         Ok(())
     }
 }

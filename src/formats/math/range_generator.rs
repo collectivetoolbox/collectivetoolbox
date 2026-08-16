@@ -113,6 +113,9 @@ pub fn range_trailing(range: &[String], separator: &str) -> String {
 
 /// Arguments for the `range_gen` CLI command.
 #[derive(clap::Args, Debug, Clone)]
+#[command(
+    after_help = "Examples:\n  $ ctoolbox range_gen 1 10\n  1\n  2\n  3\n  4\n  5\n  6\n  7\n  8\n  9\n  10\n\n  $ ctoolbox range_gen -s 2 1 10\n  1\n  3\n  5\n  7\n  9\n\n  $ ctoolbox range_gen -b 16 -t -S, 18D0C 18D12\n  18D0C,18D0D,18D0E,18D0F,18D10,18D11,18D12,\n\n  $ ctoolbox range_gen -b hex 0x00 0x10\n  00\n  01\n  02\n  03\n  04\n  05\n  06\n  07\n  08\n  09\n  0A\n  0B\n  0C\n  0D\n  0E\n  0F\n  10"
+)]
 pub struct RangeGenArgs {
     /// Starting value of the range
     pub start: String,
@@ -169,6 +172,15 @@ mod tests {
         let formatted =
             range_format(&range(base::Base16, "0A", "12", "1")?, ", ");
         assert_eq!(formatted, "0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_range_hex_prefix() -> Result<()> {
+        let items = range(base::Base16, "0x00", "0x10", "1")?;
+        assert_eq!(items.len(), 17);
+        assert_eq!(items.first().map(String::as_str), Some("00"));
+        assert_eq!(items.last().map(String::as_str), Some("10"));
         Ok(())
     }
 
