@@ -294,6 +294,33 @@ impl User {
         Ok(user)
     }
 
+    /// Register a new non-administrator local user.
+    ///
+    /// Checks that local account creation is allowed in PC settings, verifies that
+    /// the requested username is not an administrator username ("admin" or "global"),
+    /// and then creates the local user.
+    pub fn add_non_admin_user(name: &str, password: &Password) -> Result<Self> {
+        let allow = crate::utilities::pc_settings::get_bool_setting(
+            crate::utilities::pc_settings::PcSettingBoolKey::AllowLocalAccountCreation,
+        );
+        if !allow {
+            bail!("Local account creation is disallowed in PC settings");
+        }
+
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            bail!("Username cannot be empty");
+        }
+
+        if trimmed_name.eq_ignore_ascii_case("admin")
+            || trimmed_name.eq_ignore_ascii_case("global")
+        {
+            bail!("Cannot create administrator account via adduser");
+        }
+
+        Self::create(trimmed_name, password)
+    }
+
     /// Delete this user
     pub fn delete(&self) -> Result<()> {
         ensure_base_layout().context("Failed to ensure base layout")?;
@@ -537,6 +564,10 @@ fn get_user_id_by_name(name: &str) -> Option<u64> {
 
 pub fn user_exists(name: &str) -> bool {
     get_user_id_by_name(name).is_some()
+}
+
+pub fn add_non_admin_user(name: &str, password: &Password) -> Result<User> {
+    User::add_non_admin_user(name, password)
 }
 
 pub fn create_user_and_session(
@@ -910,6 +941,86 @@ mod tests {
             get_storage_dir()?.into_os_string()
         );
         user.delete()?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_add_non_admin_user_disallowed_by_default() -> Result<()> {
+        let name = function_name!();
+        User::delete_by_name(name).ok();
+        let password = Password::from_string(TEST_USER_PASS);
+
+        // By default, allow_local_account_creation is false
+        let mut settings =
+            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        settings.allow_local_account_creation =
+            ctb_utilities::json::maybe_value::MaybeValue::Value(false);
+        settings.save()?;
+
+        let res = add_non_admin_user(name, &password);
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(err_msg.contains("disallowed in PC settings"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_add_non_admin_user_allowed_when_enabled() -> Result<()> {
+        let name = function_name!();
+        User::delete_by_name(name).ok();
+        let password = Password::from_string(TEST_USER_PASS);
+
+        let mut settings =
+            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        settings.allow_local_account_creation =
+            ctb_utilities::json::maybe_value::MaybeValue::Value(true);
+        settings.save()?;
+
+        let user = add_non_admin_user(name, &password)?;
+        assert_eq!(user.name(), name);
+        assert!(!user.is_admin());
+
+        user.delete()?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_add_non_admin_user_rejects_admin_and_global() -> Result<()> {
+        let mut settings =
+            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        settings.allow_local_account_creation =
+            ctb_utilities::json::maybe_value::MaybeValue::Value(true);
+        settings.save()?;
+
+        let password = Password::from_string(TEST_USER_PASS);
+
+        let res_admin = add_non_admin_user("admin", &password);
+        assert!(res_admin.is_err());
+        assert!(
+            res_admin
+                .unwrap_err()
+                .to_string()
+                .contains("Cannot create administrator account")
+        );
+
+        let res_global = add_non_admin_user("global", &password);
+        assert!(res_global.is_err());
+        assert!(
+            res_global
+                .unwrap_err()
+                .to_string()
+                .contains("Cannot create administrator account")
+        );
+
+        let res_empty = add_non_admin_user("   ", &password);
+        assert!(res_empty.is_err());
+        assert!(
+            res_empty
+                .unwrap_err()
+                .to_string()
+                .contains("Username cannot be empty")
+        );
+
         Ok(())
     }
 }

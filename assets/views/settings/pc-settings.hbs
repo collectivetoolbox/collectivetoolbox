@@ -23,6 +23,24 @@
                         </label>
                     </td>
                 </tr>
+                <tr class="border-b-[1rem] border-b-transparent">
+                    <td>
+                        <label>Allow local account creation:</label>
+                    </td>
+                    <td>
+                        <input type="radio" name="allow_local_account_creation" id="allow_local_account_creation_true" class="w-full ml-2" value="true"
+                            {{#if allow_local_account_creation }} checked {{/if}}>
+                        <label for="allow_local_account_creation_true">Yes</label>
+                        <input type="radio" name="allow_local_account_creation" id="allow_local_account_creation_false" class="w-full ml-2" value="false"
+                            {{#unless allow_local_account_creation }} checked {{/unless}}>
+                        <label for="allow_local_account_creation_false">No</label>
+                        <label class="ml-2">
+                            <input type="checkbox" name="allow_local_account_creation_default" class="form-default-adjacent"
+                                {{#if allow_local_account_creation_default }} checked {{/if}}>
+                            Default
+                        </label>
+                    </td>
+                </tr>
             </tbody>
         </table>
         <details>

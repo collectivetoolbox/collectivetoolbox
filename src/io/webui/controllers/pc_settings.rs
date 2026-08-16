@@ -82,6 +82,8 @@ pub async fn get_public_pc_settings(
         &json_value! ({
             "show_users" => bool_or_default(&current_settings.show_users, pc_settings::DEFAULT_SHOW_USERS),
             "show_users_default" => is_default_key("show_users"),
+            "allow_local_account_creation" => bool_or_default(&current_settings.allow_local_account_creation, pc_settings::DEFAULT_ALLOW_LOCAL_ACCOUNT_CREATION),
+            "allow_local_account_creation_default" => is_default_key("allow_local_account_creation"),
             "bind_to_ip" => str_or_default(&current_settings.bind_to_ip, pc_settings::DEFAULT_BIND_TO_IP),
             "bind_to_ip_default" => is_default_key("bind_to_ip"),
             "bind_to_ip_regex" => get_regex_ipv4_ipv6_exact(),
@@ -157,6 +159,8 @@ pub async fn get_public_pc_settings(
 pub struct PcSettingsForm {
     show_users: Option<bool>,
     show_users_default: Option<bool>,
+    allow_local_account_creation: Option<bool>,
+    allow_local_account_creation_default: Option<bool>,
     bind_to_ip: Option<String>,
     bind_to_ip_default: Option<bool>,
     server_url: Option<String>,
@@ -213,6 +217,8 @@ pub async fn post_public_pc_settings(
     let PcSettingsForm {
         show_users,
         show_users_default,
+        allow_local_account_creation,
+        allow_local_account_creation_default,
         bind_to_ip,
         bind_to_ip_default,
         server_url,
@@ -338,6 +344,11 @@ pub async fn post_public_pc_settings(
 
     let show_users =
         bool_to_patch(checkbox_is_checked(show_users_default), show_users);
+
+    let allow_local_account_creation = bool_to_patch(
+        checkbox_is_checked(allow_local_account_creation_default),
+        allow_local_account_creation,
+    );
 
     let http_redirect = bool_to_patch(
         checkbox_is_checked(http_redirect_default),
@@ -545,6 +556,7 @@ pub async fn post_public_pc_settings(
         admin_password_hash,
         serve_public_web_site_only,
         log_stack_file,
+        allow_local_account_creation,
         feature_login,
         feature_registration,
         access_log_mode,

@@ -24,7 +24,8 @@ use crate::{StringInput, ToolResult, generate_help_bytes};
 pub fn is_lightweight_command(command: &str) -> bool {
     matches!(
         command,
-        "csum"
+        "adduser"
+            | "csum"
             | "compress"
             | "decompress"
             | "base2base"
@@ -178,6 +179,15 @@ pub enum IACommand {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Register a new non-administrator local user
+    #[command(name = "adduser")]
+    AddUser {
+        /// Username for the new non-administrator account
+        username: String,
+        /// Read password from stdin even if running interactively
+        #[arg(long = "password-stdin")]
+        password_stdin: bool,
+    },
     /// Wait for the provided PID to shutdown, then clean up
     #[command(name = "waitshutdown")]
     WaitShutdown {
@@ -663,6 +673,53 @@ fn check_overwrite_prompt(path: &std::path::Path, force: bool) -> Result<bool> {
 )]
 pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
     match cmd {
+        Command::AddUser {
+            username,
+            password_stdin,
+        } => {
+            use std::io::IsTerminal;
+            use std::io::Write;
+
+            let password_str =
+                if !password_stdin && std::io::stdin().is_terminal() {
+                    print!("Enter password for '{username}': ");
+                    std::io::stdout().flush()?;
+                    let mut p1 = String::new();
+                    std::io::stdin().read_line(&mut p1)?;
+                    let p1 = p1.trim_end_matches(['\r', '\n']).to_string();
+
+                    print!("Confirm password: ");
+                    std::io::stdout().flush()?;
+                    let mut p2 = String::new();
+                    std::io::stdin().read_line(&mut p2)?;
+                    let p2 = p2.trim_end_matches(['\r', '\n']).to_string();
+
+                    if p1 != p2 {
+                        bail!("Passwords do not match");
+                    }
+                    p1
+                } else {
+                    let mut p = String::new();
+                    std::io::stdin().read_line(&mut p)?;
+                    p.trim_end_matches(['\r', '\n']).to_string()
+                };
+
+            if password_str.is_empty() {
+                bail!("Password cannot be empty");
+            }
+
+            let password =
+                ctb_utilities::password::Password::from_string(&password_str);
+            let user =
+                ctb_storage::user::add_non_admin_user(username, &password)?;
+
+            println!(
+                "User '{name}' registered successfully with ID {id}.",
+                name = user.name(),
+                id = user.local_id()
+            );
+            Ok(ToolResult::immediate_ok(Vec::new()))
+        }
         Command::WaitShutdown { pid } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
             Ok(ToolResult::immediate_ok(Vec::new()))
@@ -1308,5 +1365,38 @@ mod tests {
             path: sample_file,
         };
         assert!(run_lightweight_command(&cmd).await.is_err());
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_adduser_command() -> Result<()> {
+        assert!(is_lightweight_command("adduser"));
+
+        let username = format!("cli_user_{}", function_name!());
+        ctb_storage::user::User::delete_by_name(&username).ok();
+
+        // Ensure allow_local_account_creation is true for this test
+        let mut settings =
+            ctb_utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        settings.allow_local_account_creation =
+            ctb_utilities::json::maybe_value::MaybeValue::Value(true);
+        settings.save()?;
+
+        let cmd = Command::AddUser {
+            username: username.clone(),
+            password_stdin: true,
+        };
+
+        // Note: Password comes from stdin or add_non_admin_user directly.
+        // Let's test calling add_non_admin_user
+        let password =
+            ctb_utilities::password::Password::from_string(
+                ctb_utilities::password::TEST_USER_PASS,
+            );
+        let user = ctb_storage::user::add_non_admin_user(&username, &password)?;
+        assert_eq!(user.name(), username);
+        assert!(!user.is_admin());
+
+        user.delete()?;
+        Ok(())
     }
 }

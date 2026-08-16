@@ -58,6 +58,7 @@ pub enum PcSettingBoolKey {
     ServePublicWebSiteOnly,
     LogStackFile,
     UseOsCaCertificates,
+    AllowLocalAccountCreation,
 }
 
 pub enum FeatureFlag {
@@ -181,6 +182,12 @@ pub struct PcSettings {
         default = "MaybeValue::missing",
         skip_serializing_if = "MaybeValue::is_missing"
     )]
+    pub allow_local_account_creation: MaybeValue<bool>,
+
+    #[serde(
+        default = "MaybeValue::missing",
+        skip_serializing_if = "MaybeValue::is_missing"
+    )]
     pub access_log_mode: MaybeValue<AccessLogMode>,
 
     #[serde(
@@ -255,6 +262,7 @@ pub static DEFAULT_REDIRECT_WWW_TO_NON_WWW: bool = false;
 pub static DEFAULT_SERVE_PUBLIC_WEB_SITE_ONLY: bool = false;
 pub static DEFAULT_LOG_STACK_FILE: bool = false;
 pub static DEFAULT_USE_OS_CA_CERTIFICATES: bool = true;
+pub static DEFAULT_ALLOW_LOCAL_ACCOUNT_CREATION: bool = false;
 pub static DEFAULT_FEATURE_LOGIN: bool = true;
 pub static DEFAULT_FEATURE_REGISTRATION: bool = true;
 
@@ -343,6 +351,12 @@ impl PcSettings {
             PcSettingBoolKey::UseOsCaCertificates => {
                 match &self.use_os_ca_certificates {
                     MaybeValue::Missing => DEFAULT_USE_OS_CA_CERTIFICATES,
+                    MaybeValue::Value(b) => *b,
+                }
+            }
+            PcSettingBoolKey::AllowLocalAccountCreation => {
+                match &self.allow_local_account_creation {
+                    MaybeValue::Missing => DEFAULT_ALLOW_LOCAL_ACCOUNT_CREATION,
                     MaybeValue::Value(b) => *b,
                 }
             }
@@ -521,6 +535,7 @@ impl PcSettings {
             serve_public_web_site_only,
             log_stack_file,
             use_os_ca_certificates,
+            allow_local_account_creation,
             feature_login,
             feature_registration,
             dev_signing_private_key,
@@ -559,6 +574,11 @@ impl PcSettings {
         );
         apply_bool(&mut map, "log_stack_file", &log_stack_file);
         apply_bool(&mut map, "use_os_ca_certificates", &use_os_ca_certificates);
+        apply_bool(
+            &mut map,
+            "allow_local_account_creation",
+            &allow_local_account_creation,
+        );
         apply_bool(&mut map, "feature_login", &feature_login);
         apply_bool(&mut map, "feature_registration", &feature_registration);
         apply_string(
