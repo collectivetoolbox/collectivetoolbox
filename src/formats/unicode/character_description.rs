@@ -1,3 +1,5 @@
+// SPDX-License-Identifier for parts derived from Unicode data: Unicode-3.0 (see license text below)
+
 //! Independent reimplementation of Andrew West's "What Unicode Character is This" tool.
 
 #[allow(
