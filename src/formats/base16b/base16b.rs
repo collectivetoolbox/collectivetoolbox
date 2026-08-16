@@ -50,7 +50,10 @@ pub(crate) use ctb_utilities::*;
 use anyhow::{Result, bail};
 
 use crate::bail_if_none;
-use ctb_formats_unicode::{js_like_slice_utf16, string_to_scalars, ucs2encode};
+use ctb_utilities::circular_dep_unicode::{
+    js_like_slice_utf16, string_to_scalars, ucs2encode,
+};
+
 
 #[derive(Debug, Clone, Copy)]
 struct CpValue {
@@ -398,7 +401,7 @@ pub fn true_length(input_str: &str) -> Result<usize> {
     */
     let str_bytes = ucs2encode(&string_to_scalars(input_str))?.len();
     let mut str_length: usize = 0;
-    let mut tally_bytes = 0;
+    let mut tally_bytes: usize = 0;
     while tally_bytes < str_bytes {
         let slice_end = if tally_bytes.saturating_add(2) > input_str.len() {
             input_str.len()

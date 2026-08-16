@@ -1,4 +1,4 @@
-Tangut definitions for Tangut block. Data from Andrew West's https://babelstone.co.uk/Unicode/unicode.js and https://www.unicode.org/L2/L2023/23246-wg2-n5217r2.pdf,definition,reading,possible variant or error,notes,source
+"Tangut definitions for Tangut block. Data from Andrew West's https://babelstone.co.uk/Unicode/unicode.js, https://www.unicode.org/wg2/docs/n4724-FiveAdditionalTangut.pdf, https://www.unicode.org/wg2/docs/n4851-TangutAdditions.pdf, and https://www.unicode.org/L2/L2023/23246-wg2-n5217r2.pdf",definition,reading,possible variant or error,notes,source
 17000,poison,,,,
 17001,to suck,,,,
 17002,strong,,,,

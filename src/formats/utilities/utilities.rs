@@ -5,6 +5,7 @@ pub mod format_id;
 pub mod magic;
 pub mod magic_data;
 
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

@@ -86,9 +86,10 @@ pub fn get_help_for_tty(width: u16) -> Result<Vec<u8>> {
     html2text_with_width(get_help_html()?, width)
 }
 
-fn get_asset_utf8(key: &str) -> Result<String> {
+pub fn get_asset_utf8(key: &str) -> Result<String> {
     resource_bundle::get_asset_utf8(key)
 }
+
 
 fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
     fn normalize_path(p: &Path) -> PathBuf {

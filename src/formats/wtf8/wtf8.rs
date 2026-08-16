@@ -45,7 +45,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
-use ctb_formats_unicode::{
+use ctb_utilities::circular_dep_unicode::{
     ucs2decode, ucs2encode, unpaired_surrogates_to_scalars,
 };
 
@@ -280,7 +280,9 @@ pub fn is_unpackable_wtf8(byte_array_input: &[u8]) -> bool {
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use ctb_formats_unicode::{UNICODE_HISTORIC_MAX, UNICODE_MAX};
+    use ctb_utilities::circular_dep_unicode::{
+        UNICODE_HISTORIC_MAX, UNICODE_MAX,
+    };
 
     use super::*;
 
