@@ -56,11 +56,11 @@
 (define (icecat-minimal-fixed-proc pkg)
   (package
     (inherit pkg)
-    (source
-      (origin
-        (inherit (package-source pkg))
-        (patches (append bugzilla1360870-patches
-                         (origin-patches (package-source pkg))))))
+    ;; (source
+    ;;   (origin
+    ;;     (inherit (package-source pkg))
+    ;;     (patches (append bugzilla1360870-patches
+    ;;                      (origin-patches (package-source pkg))))))
     (inputs
      (map-input-list (package-inputs pkg)))
     (native-inputs
