@@ -2810,6 +2810,7 @@ dependencies = [
  "ctb-formats-encoding",
  "ctb-formats-utilities",
  "ctb-utilities",
+ "tempfile",
 ]
 
 [[package]]

@@ -5,8 +5,7 @@
 )]
 use crate::utilities::*;
 
-use anyhow::Result;
-use futures::StreamExt;
+use anyhow::{Result, anyhow};
 
 use crate::{StringInput, ToolResult};
 use ctb_formats_eite::encoding::base::{
@@ -209,3 +208,42 @@ pub fn run_base_convert(
         }
     }
 }
+
+/// Executes base2base CLI command logic.
+pub fn run_base2base(
+    args: &[String],
+    base_args: &BaseArgs,
+) -> Result<ToolResult> {
+    let (input, from_base, to_base) = if args.len() >= 3
+        && let (Ok(from), Ok(to)) = (
+            args.first()
+                .ok_or_else(|| anyhow!("Missing from_base"))?
+                .parse::<u8>(),
+            args.get(1)
+                .ok_or_else(|| anyhow!("Missing to_base"))?
+                .parse::<u8>(),
+        )
+        && (2..=36).contains(&from)
+        && (2..=36).contains(&to)
+    {
+        let input = args.get(2..).map(|s| s.join(" ")).unwrap_or_default();
+        (input, Some(from), Some(to))
+    } else if args.is_empty() {
+        anyhow::bail!(
+            "Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]"
+        );
+    } else {
+        let input = args.join(" ");
+        (input, None, None)
+    };
+
+    run_base_convert(
+        &from_base,
+        &to_base,
+        &StringInput {
+            input: input.clone(),
+        },
+        base_args,
+    )
+}
+

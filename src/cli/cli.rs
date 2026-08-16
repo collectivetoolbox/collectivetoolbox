@@ -504,4 +504,173 @@ $my_test_array = array('a' => '1', 'b' => '2');
         let _ = std::fs::remove_file(expected_csv_path);
     }
 
+    #[crate::ctb_test("tokio")]
+    async fn test_hex2bin_and_bin2hex_commands() {
+        let temp_dir = tempfile::tempdir().expect("Create temp dir");
+        let hex_path = temp_dir.path().join("test.hex");
+        let bin_path = temp_dir.path().join("test.bin");
+        let out_hex_path = temp_dir.path().join("out.hex");
+
+        let data = b"Hello, World!\x00\x01\xff";
+        let hex_data = ctb_formats_hexdump::bin2hex(data);
+
+        // Test hex2bin direct value
+        let cmd_hex2bin = Command::Hex2Bin {
+            value: Some(hex_data.clone()),
+            file: None,
+            output: None,
+        };
+        let res1 = run_lightweight_command(&cmd_hex2bin)
+            .await
+            .expect("Run hex2bin");
+        match res1 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(stdout, data);
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test hex2bin -f and -o
+        std::fs::write(&hex_path, &hex_data).expect("Write hex file");
+        let cmd_hex2bin_file = Command::Hex2Bin {
+            value: None,
+            file: Some(hex_path.clone()),
+            output: Some(bin_path.clone()),
+        };
+        let res2 = run_lightweight_command(&cmd_hex2bin_file)
+            .await
+            .expect("Run hex2bin file");
+        match res2 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert!(stdout.is_empty());
+                let read_bin = std::fs::read(&bin_path).expect("Read bin");
+                assert_eq!(read_bin, data);
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test bin2hex direct value
+        let cmd_bin2hex = Command::Bin2Hex {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            hd: false,
+            hf: false,
+        };
+        let res3 = run_lightweight_command(&cmd_bin2hex)
+            .await
+            .expect("Run bin2hex");
+        match res3 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(stdout, b"48656c6c6f");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test bin2hex -f and -o
+        let cmd_bin2hex_file = Command::Bin2Hex {
+            value: None,
+            file: Some(bin_path.clone()),
+            output: Some(out_hex_path.clone()),
+            hd: false,
+            hf: false,
+        };
+        let res4 = run_lightweight_command(&cmd_bin2hex_file)
+            .await
+            .expect("Run bin2hex file");
+        match res4 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert!(stdout.is_empty());
+                let read_hex =
+                    std::fs::read_to_string(&out_hex_path).expect("Read hex");
+                assert_eq!(read_hex, hex_data);
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test bin2hex --hd
+        let cmd_bin2hex_hd = Command::Bin2Hex {
+            value: None,
+            file: Some(bin_path.clone()),
+            output: None,
+            hd: true,
+            hf: false,
+        };
+        let res5 = run_lightweight_command(&cmd_bin2hex_hd)
+            .await
+            .expect("Run bin2hex --hd");
+        match res5 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8 stdout"),
+                    ctb_formats_hexdump::to_hex_dump(data)
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test bin2hex --hf
+        let cmd_bin2hex_hf = Command::Bin2Hex {
+            value: None,
+            file: Some(bin_path.clone()),
+            output: None,
+            hd: false,
+            hf: true,
+        };
+        let res6 = run_lightweight_command(&cmd_bin2hex_hf)
+            .await
+            .expect("Run bin2hex --hf");
+        match res6 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8 stdout"),
+                    ctb_formats_hexdump::to_fancy_hex_dump(data)
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Test CLI parsing for hex2bin and bin2hex
+        let parsed_h2b = parse_invocation(Some(vec![
+            "ctoolbox".to_string(),
+            "hex2bin".to_string(),
+            "-f".to_string(),
+            hex_path.to_str().expect("valid path").to_string(),
+            "-o".to_string(),
+            bin_path.to_str().expect("valid path").to_string(),
+        ]))
+        .expect("Parse hex2bin invocation");
+
+        if let Invocation::User(cli) = parsed_h2b {
+            if let Some(Command::Hex2Bin { file, output, .. }) = cli.command {
+                assert_eq!(file, Some(hex_path));
+                assert_eq!(output, Some(bin_path.clone()));
+            } else {
+                panic!("Expected Command::Hex2Bin");
+            }
+        } else {
+            panic!("Expected Invocation::User");
+        }
+
+        let parsed_b2h = parse_invocation(Some(vec![
+            "ctoolbox".to_string(),
+            "bin2hex".to_string(),
+            "-f".to_string(),
+            bin_path.to_str().expect("valid path").to_string(),
+            "--hd".to_string(),
+        ]))
+        .expect("Parse bin2hex invocation");
+
+        if let Invocation::User(cli) = parsed_b2h {
+            if let Some(Command::Bin2Hex { file, hd, hf, .. }) = cli.command {
+                assert_eq!(file, Some(bin_path));
+                assert!(hd);
+                assert!(!hf);
+            } else {
+                panic!("Expected Command::Bin2Hex");
+            }
+        } else {
+            panic!("Expected Invocation::User");
+        }
+    }
 }

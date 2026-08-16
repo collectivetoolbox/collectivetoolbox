@@ -13,7 +13,7 @@ use ctb_formats_stagel::convert::run_stagel_bootstrap_convert;
 use ctb_utilities::json::maybe_value::MaybeOption;
 use std::path::PathBuf;
 
-use crate::base_conversion::{BaseArgs, run_base_convert};
+use crate::base_conversion::{BaseArgs, run_base2base, run_base_convert};
 use crate::utilities::{
     fork, get_this_executable, upgrade_in_place,
     wait_for_ctoolbox_exit_and_clean_up,
@@ -272,11 +272,17 @@ pub enum Command {
     /// Convert a hexadecimal string to binary data
     #[command(
         name = "hex2bin",
-        after_help = "Examples:\n  $ ctoolbox hex2bin \"48656c6c6f\"\n  Hello\n\n  $ echo \"48 65 6c 6c 6f\" | ctoolbox hex2bin\n  Hello\n\n  $ ctoolbox hex2bin \"48656c6c6f\" > output.bin"
+        after_help = "Examples:\n  $ ctoolbox hex2bin \"48656c6c6f\"\n  Hello\n\n  $ echo \"48 65 6c 6c 6f\" | ctoolbox hex2bin\n  Hello\n\n  $ ctoolbox hex2bin -f file.hex -o file.bin\n  $ ctoolbox hex2bin \"48656c6c6f\" > output.bin"
     )]
     Hex2Bin {
-        /// Hexadecimal string. If not provided, reads from stdin.
+        /// Hexadecimal string. If not provided, reads from stdin or file.
         value: Option<String>,
+        /// Input file path (or - for stdin)
+        #[arg(short = 'f', long = "file")]
+        file: Option<PathBuf>,
+        /// Output file path (or - for stdout)
+        #[arg(short = 'o', long = "output")]
+        output: Option<PathBuf>,
     },
     /// Convert binary data to a hexadecimal string or hex dump
     #[command(
@@ -781,7 +787,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {
-                hexdump::cli::base2base()
+            run_base2base(args, base_args)
         }
         Command::Hex2Dec {
             string_input,
@@ -795,9 +801,20 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             string_input,
             base_args,
         } => run_base_convert(&Some(16), &Some(16), string_input, base_args),
-        Command::Hex2Bin { value } => {
-             hexdump::cli::hex2bin()
-
+        Command::Hex2Bin {
+            value,
+            file,
+            output,
+        } => {
+            let out = ctb_formats_hexdump::cli::execute_cli_hex2bin(
+                ctb_formats_hexdump::cli::CliHex2BinArgs {
+                    value: value.clone(),
+                    file: file.clone(),
+                    output: output.clone(),
+                },
+                read_file_or_stdin,
+            )?;
+            Ok(ToolResult::immediate_ok(out.unwrap_or_default()))
         }
         Command::Bin2Hex {
             value,
@@ -806,7 +823,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             hd,
             hf,
         } => {
-            hexdump::cli::bin2hex()
+            let out = ctb_formats_hexdump::cli::execute_cli_bin2hex(
+                ctb_formats_hexdump::cli::CliBin2HexArgs {
+                    value: value.clone(),
+                    file: file.clone(),
+                    output: output.clone(),
+                    hd: *hd,
+                    hf: *hf,
+                },
+                read_file_or_stdin,
+            )?;
+            Ok(ToolResult::immediate_ok(out.unwrap_or_default()))
         }
         Command::RangeGen(args) => {
             let output = ctb_formats_math::range_generator::range_cli_handler(args)?;

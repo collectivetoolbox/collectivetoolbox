@@ -412,13 +412,15 @@ Options:
 ```text
 Convert a hexadecimal string to binary data
 
-Usage: ctoolbox hex2bin [VALUE]
+Usage: ctoolbox hex2bin [OPTIONS] [VALUE]
 
 Arguments:
-  [VALUE]  Hexadecimal string. If not provided, reads from stdin
+  [VALUE]  Hexadecimal string. If not provided, reads from stdin or file
 
 Options:
-  -h, --help  Print help
+  -f, --file <FILE>      Input file path (or - for stdin)
+  -o, --output <OUTPUT>  Output file path (or - for stdout)
+  -h, --help             Print help
 
 Examples:
   $ ctoolbox hex2bin "48656c6c6f"
@@ -427,6 +429,7 @@ Examples:
   $ echo "48 65 6c 6c 6f" | ctoolbox hex2bin
   Hello
 
+  $ ctoolbox hex2bin -f file.hex -o file.bin
   $ ctoolbox hex2bin "48656c6c6f" > output.bin
 ```
 

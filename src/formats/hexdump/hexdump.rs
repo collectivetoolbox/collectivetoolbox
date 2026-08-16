@@ -7,6 +7,8 @@ use ctb_utilities::string::to_char;
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod cli;
+
 use anyhow::{Result, anyhow};
 
 pub fn to_hex_dump(data: &[u8]) -> String {

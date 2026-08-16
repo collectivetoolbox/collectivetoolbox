@@ -1,231 +1,229 @@
-use ctb_utilities::string::to_char;
+//! CLI execution helpers for hex2bin and bin2hex.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
-/// Implements the CLI base2base helper
-pub fn base2base {
-    let (input, from_base, to_base) = if args.len() >= 3
-                && let (Ok(from), Ok(to)) = (
-                    args.first()
-                        .ok_or_else(|| anyhow!("Missing from_base"))?
-                        .parse::<u8>(),
-                    args.get(1)
-                        .ok_or_else(|| anyhow!("Missing to_base"))?
-                        .parse::<u8>(),
+use anyhow::{Context, Result};
+use std::path::{Path, PathBuf};
+
+/// Execution arguments for the hex2bin CLI tool.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CliHex2BinArgs {
+    /// Hexadecimal string. If not provided, reads from stdin or file.
+    pub value: Option<String>,
+    /// Input file path (or - for stdin)
+    pub file: Option<PathBuf>,
+    /// Output file path (or - for stdout)
+    pub output: Option<PathBuf>,
+}
+
+/// Execution arguments for the bin2hex CLI tool.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CliBin2HexArgs {
+    /// Data to convert. If not provided, reads from stdin or file.
+    pub value: Option<String>,
+    /// Input file path (or - for stdin)
+    pub file: Option<PathBuf>,
+    /// Output file path (or - for stdout)
+    pub output: Option<PathBuf>,
+    /// Output in classic hex dump format
+    pub hd: bool,
+    /// Output in fancy hex dump format
+    pub hf: bool,
+}
+
+/// Executes hex2bin CLI command logic.
+///
+/// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
+/// `Ok(None)` if output was written to a destination file.
+pub fn execute_cli_hex2bin<FRead>(
+    args: CliHex2BinArgs,
+    read_data: FRead,
+) -> Result<Option<Vec<u8>>>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+{
+    let input_bytes = if let Some(ref file_path) = args.file {
+        read_data(file_path)?
+    } else if let Some(ref val) = args.value {
+        val.as_bytes().to_vec()
+    } else {
+        read_data(Path::new("-"))?
+    };
+
+    let input_str =
+        String::from_utf8(input_bytes).context("Input is not valid UTF-8")?;
+    let decoded = crate::hex2bin(&input_str)?;
+
+    if let Some(ref out_path) = args.output {
+        if out_path.as_path() == Path::new("-") {
+            Ok(Some(decoded))
+        } else {
+            std::fs::write(out_path, &decoded).with_context(|| {
+                format!(
+                    "Failed to write output file: {path_display}",
+                    path_display = out_path.display()
                 )
-                && from >= 2
-                && from <= 36
-                && to >= 2
-                && to <= 36
-            {
-                let input =
-                    args.get(2..).map(|s| s.join(" ")).unwrap_or_default();
-                (input, Some(from), Some(to))
-            } else if args.is_empty() {
-                bail!("Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]");
-            } else {
-                let input = args.join(" ");
-                (input, None, None)
-            };
-
-            run_base_convert(
-                &from_base,
-                &to_base,
-                &StringInput {
-                    input: input.clone(),
-                },
-                base_args,
-            )
+            })?;
+            Ok(None)
+        }
+    } else {
+        Ok(Some(decoded))
+    }
 }
 
-/// Implements the CLI hex2bin helper
-pub fn hex2bin {
-                let input_str = if let Some(val) = value {
-                val.clone()
-            } else {
-                use std::io::Read;
-                let mut buf = Vec::new();
-                std::io::stdin().read_to_end(&mut buf)?;
-                String::from_utf8(buf).context("Input is not valid UTF-8")?
-            };
-            let decoded = ctb_formats_hexdump::hex2bin(&input_str)?;
-            Ok(ToolResult::immediate_ok(decoded))
-}
+/// Executes bin2hex CLI command logic.
+///
+/// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
+/// `Ok(None)` if output was written to a destination file.
+pub fn execute_cli_bin2hex<FRead>(
+    args: CliBin2HexArgs,
+    read_data: FRead,
+) -> Result<Option<Vec<u8>>>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+{
+    let input_bytes = if let Some(ref file_path) = args.file {
+        read_data(file_path)?
+    } else if let Some(ref val) = args.value {
+        val.as_bytes().to_vec()
+    } else {
+        read_data(Path::new("-"))?
+    };
 
-/// Implements the CLI bin2hex helper
-pub fn bin2hex {
-    let input_bytes = if let Some(file_path) = file {
-                read_file_or_stdin(file_path.as_path())?
-            } else if let Some(val) = value {
-                val.as_bytes().to_vec()
-            } else {
-                read_file_or_stdin(std::path::Path::new("-"))?
-            };
-            let encoded = if *hd {
-                ctb_formats_hexdump::to_hex_dump(&input_bytes)
-            } else if *hf {
-                ctb_formats_hexdump::to_fancy_hex_dump(&input_bytes)
-            } else {
-                ctb_formats_hexdump::bin2hex(&input_bytes)
-            };
-            if let Some(out_path) = output {
-                if out_path.as_path() == std::path::Path::new("-") {
-                    Ok(ToolResult::immediate_ok(encoded.into_bytes()))
-                } else {
-                    std::fs::write(out_path, encoded.as_bytes()).with_context(
-                        || {
-                            format!(
-                                "Failed to write output file: {path_display}",
-                                path_display = out_path.display()
-                            )
-                        },
-                    )?;
-                    Ok(ToolResult::immediate_ok(Vec::new()))
-                }
-            } else {
-                Ok(ToolResult::immediate_ok(encoded.into_bytes()))
-            }
+    let encoded = if args.hd {
+        crate::to_hex_dump(&input_bytes)
+    } else if args.hf {
+        crate::to_fancy_hex_dump(&input_bytes)
+    } else {
+        crate::bin2hex(&input_bytes)
+    };
+
+    if let Some(ref out_path) = args.output {
+        if out_path.as_path() == Path::new("-") {
+            Ok(Some(encoded.into_bytes()))
+        } else {
+            std::fs::write(out_path, encoded.as_bytes()).with_context(|| {
+                format!(
+                    "Failed to write output file: {path_display}",
+                    path_display = out_path.display()
+                )
+            })?;
+            Ok(None)
+        }
+    } else {
+        Ok(Some(encoded.into_bytes()))
+    }
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
-
-    #[crate::ctb_test("tokio")]
-    async fn test_hex2bin_and_bin2hex_commands() {
-        let cmd = Command::Hex2Bin {
+    #[crate::ctb_test]
+    fn test_execute_cli_hex2bin_direct() {
+        let args = CliHex2BinArgs {
             value: Some("48656c6c6f".to_string()),
+            file: None,
+            output: None,
         };
-        let result = run_lightweight_command(&cmd).await.expect("Run hex2bin");
-        match result {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"Hello");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let out = execute_cli_hex2bin(args, |_| Ok(Vec::new())).unwrap();
+        assert_eq!(out, Some(b"Hello".to_vec()));
+    }
 
-        let cmd2 = Command::Bin2Hex {
+    #[crate::ctb_test]
+    fn test_execute_cli_hex2bin_file_io() {
+        let temp_dir = tempfile::tempdir().expect("Create temp dir");
+        let in_path = temp_dir.path().join("in.hex");
+        let out_path = temp_dir.path().join("out.bin");
+
+        std::fs::write(&in_path, b"48656c6c6f").expect("Write input file");
+
+        let args = CliHex2BinArgs {
+            value: None,
+            file: Some(in_path.clone()),
+            output: Some(out_path.clone()),
+        };
+        let out = execute_cli_hex2bin(args, |p| Ok(std::fs::read(p)?)).unwrap();
+        assert_eq!(out, None);
+
+        let written = std::fs::read(out_path).expect("Read output file");
+        assert_eq!(written, b"Hello");
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_bin2hex_direct() {
+        let args = CliBin2HexArgs {
             value: Some("Hello".to_string()),
             file: None,
             output: None,
             hd: false,
             hf: false,
         };
-        let result2 =
-            run_lightweight_command(&cmd2).await.expect("Run bin2hex");
-        match result2 {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"48656c6c6f");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let out = execute_cli_bin2hex(args, |_| Ok(Vec::new())).unwrap();
+        assert_eq!(out, Some(b"48656c6c6f".to_vec()));
     }
 
-    #[crate::ctb_test("tokio")]
-    async fn test_bin2hex_options() {
+    #[crate::ctb_test]
+    fn test_execute_cli_bin2hex_hd_hf_and_file_io() {
         let temp_dir = tempfile::tempdir().expect("Create temp dir");
-        let in_path = temp_dir.path().join("test_in.bin");
-        let out_path = temp_dir.path().join("test_out.hex");
+        let in_path = temp_dir.path().join("in.bin");
+        let out_path = temp_dir.path().join("out.hex");
 
         let data = b"Hello, World!\x00\x01\xff";
-        std::fs::write(&in_path, data).expect("Write temp in file");
+        std::fs::write(&in_path, data).expect("Write input file");
 
-        // Test -f and -o with default format
-        let cmd_file = Command::Bin2Hex {
-            value: None,
-            file: Some(in_path.clone()),
-            output: Some(out_path.clone()),
-            hd: false,
-            hf: false,
-        };
-        let res_file = run_lightweight_command(&cmd_file)
-            .await
-            .expect("Run bin2hex with -f and -o");
-        match res_file {
-            ToolResult::Immediate { stdout, .. } => {
-                assert!(stdout.is_empty());
-                let written =
-                    std::fs::read_to_string(&out_path).expect("Read output file");
-                assert_eq!(written, ctb_formats_hexdump::bin2hex(data));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-        // Test --hd (classic hex dump format)
-        let cmd_hd = Command::Bin2Hex {
+        // Classic hex dump
+        let args_hd = CliBin2HexArgs {
             value: None,
             file: Some(in_path.clone()),
             output: None,
             hd: true,
             hf: false,
         };
-        let res_hd = run_lightweight_command(&cmd_hd)
-            .await
-            .expect("Run bin2hex with --hd");
-        match res_hd {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8 stdout"),
-                    ctb_formats_hexdump::to_hex_dump(data)
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let out_hd =
+            execute_cli_bin2hex(args_hd, |p| Ok(std::fs::read(p)?)).unwrap();
+        assert_eq!(out_hd, Some(crate::to_hex_dump(data).into_bytes()));
 
-        // Test --hf (fancy hex dump format)
-        let cmd_hf = Command::Bin2Hex {
+        // Fancy hex dump
+        let args_hf = CliBin2HexArgs {
             value: None,
             file: Some(in_path.clone()),
             output: None,
             hd: false,
             hf: true,
         };
-        let res_hf = run_lightweight_command(&cmd_hf)
-            .await
-            .expect("Run bin2hex with --hf");
-        match res_hf {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8 stdout"),
-                    ctb_formats_hexdump::to_fancy_hex_dump(data)
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let out_hf =
+            execute_cli_bin2hex(args_hf, |p| Ok(std::fs::read(p)?)).unwrap();
+        assert_eq!(out_hf, Some(crate::to_fancy_hex_dump(data).into_bytes()));
 
-        // Test CLI parsing
-        let parsed = parse_invocation(Some(vec![
-            "ctoolbox".to_string(),
-            "bin2hex".to_string(),
-            "-f".to_string(),
-            in_path.to_str().expect("Valid path").to_string(),
-            "-o".to_string(),
-            out_path.to_str().expect("Valid path").to_string(),
-            "--hd".to_string(),
-        ]))
-        .expect("Parse CLI invocation");
-
-        if let Invocation::User(cli) = parsed {
-            if let Some(Command::Bin2Hex {
-                file,
-                output,
-                hd,
-                hf,
-                ..
-            }) = cli.command
-            {
-                assert_eq!(file, Some(in_path));
-                assert_eq!(output, Some(out_path));
-                assert!(hd);
-                assert!(!hf);
-            } else {
-                panic!("Expected Command::Bin2Hex");
-            }
-        } else {
-            panic!("Expected Invocation::User");
-        }
+        // File output
+        let args_out = CliBin2HexArgs {
+            value: None,
+            file: Some(in_path.clone()),
+            output: Some(out_path.clone()),
+            hd: false,
+            hf: false,
+        };
+        let out_res =
+            execute_cli_bin2hex(args_out, |p| Ok(std::fs::read(p)?)).unwrap();
+        assert_eq!(out_res, None);
+        let written =
+            std::fs::read_to_string(out_path).expect("Read output hex");
+        assert_eq!(written, crate::bin2hex(data));
     }
 }
