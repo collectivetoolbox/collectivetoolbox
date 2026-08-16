@@ -8,6 +8,7 @@ crate-type = ["lib"]
 
 [dependencies]
 anyhow = "1.0.100"
+include_dir = { version = "0.7.4", features = ["glob"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
 sha2 = "0.10.9"

@@ -58,6 +58,7 @@
 //! UUID.
 
 use anyhow::{Context, Result, bail, ensure};
+use include_dir::{Dir, include_dir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -67,6 +68,19 @@ use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
+
+static CTB_ASSET_BUNDLE_DATA_DIR: Dir =
+    include_dir!("$CARGO_MANIFEST_DIR/data");
+
+pub fn get_embedded_asset(dir: &Dir, key: &str) -> Option<Vec<u8>> {
+    let key = key.strip_prefix('/').unwrap_or(key);
+    let file = dir.get_file(key);
+    Some(file?.contents().to_vec())
+}
+
+pub fn get_ctb_asset_bundle_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&CTB_ASSET_BUNDLE_DATA_DIR, key)
+}
 
 pub const RESOURCE_BUNDLE_MAGIC: &[u8; 8] = b"CTBRSRC\0";
 pub const RESOURCE_BUNDLE_MAGIC_LEN: usize = 8;
@@ -146,19 +160,78 @@ pub fn compute_asset_bundle_content_sha256(
     hash_normalized_entries(&entries)
 }
 
-pub fn build_asset_bundle(
+pub fn compute_v2_resource_bundle_uuid(
     entries: &[AssetBundleSourceEntry],
+) -> Result<Uuid> {
+    let entries = normalized_source_entries(entries)?;
+    let mut hasher = Sha256::new();
+    for entry in &entries {
+        let path_len = u64::try_from(entry.path.len())
+            .context("resource bundle path length overflow")?;
+        hasher.update(path_len.to_le_bytes());
+        hasher.update(entry.path.as_bytes());
+
+        let contents_len = u64::try_from(entry.contents.len())
+            .context("resource bundle contents length overflow")?;
+        hasher.update(contents_len.to_le_bytes());
+        hasher.update(&entry.contents);
+    }
+
+    let digest = hasher.finalize();
+    let mut uuid_bytes = [0_u8; RESOURCE_BUNDLE_UUID_SIZE];
+    for (dst, src) in uuid_bytes.iter_mut().zip(digest.iter()) {
+        *dst = *src;
+    }
+
+    // Mark this as an RFC 4122 variant UUID with a custom-content version.
+    let byte6 = uuid_bytes.get_mut(6).context("uuid byte 6 missing")?;
+    *byte6 = (*byte6 & 0x0f) | 0x80;
+    let byte8 = uuid_bytes.get_mut(8).context("uuid byte 8 missing")?;
+    *byte8 = (*byte8 & 0x3f) | 0x80;
+
+    Ok(Uuid::from_bytes(uuid_bytes))
+}
+
+fn build_asset_bundle_internal(
+    entries: &[AssetBundleSourceEntry],
+    version: u32,
+    custom_uuid: Option<Uuid>,
+    custom_created_at: Option<u64>,
 ) -> Result<(Vec<u8>, AssetBundleHeader)> {
     let entries = normalized_source_entries(entries)?;
     let content_sha256 = hash_normalized_entries(&entries)?;
-    let bundle_uuid = Uuid::new_v4();
-    let created_at_unix_secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .context("System clock is before UNIX_EPOCH")?
-        .as_secs();
-
     let entry_count = u32::try_from(entries.len())
         .context("Too many resource bundle entries")?;
+
+    let header_size = match version {
+        RESOURCE_BUNDLE_VERSION_V1 => RESOURCE_BUNDLE_V1_HEADER_SIZE,
+        RESOURCE_BUNDLE_VERSION_V2 => RESOURCE_BUNDLE_V2_HEADER_SIZE,
+        RESOURCE_BUNDLE_VERSION => RESOURCE_BUNDLE_HEADER_SIZE,
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
+    let bundle_uuid = match version {
+        RESOURCE_BUNDLE_VERSION_V1 => Uuid::nil(),
+        RESOURCE_BUNDLE_VERSION_V2 => match custom_uuid {
+            Some(uuid) => uuid,
+            None => compute_v2_resource_bundle_uuid(&entries)?,
+        },
+        RESOURCE_BUNDLE_VERSION => custom_uuid.unwrap_or_else(Uuid::new_v4),
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
+    let created_at_unix_secs = match version {
+        RESOURCE_BUNDLE_VERSION_V1 | RESOURCE_BUNDLE_VERSION_V2 => 0,
+        RESOURCE_BUNDLE_VERSION => match custom_created_at {
+            Some(ts) => ts,
+            None => SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .context("System clock is before UNIX_EPOCH")?
+                .as_secs(),
+        },
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
     let index_bytes = RESOURCE_ENTRY_SIZE
         .checked_mul(usize::try_from(entry_count).context("entry count")?)
         .context("Resource bundle index too large")?;
@@ -181,7 +254,7 @@ pub fn build_asset_bundle(
         data_bytes.extend_from_slice(&entry.contents);
     }
 
-    let paths_start = u64::try_from(RESOURCE_BUNDLE_HEADER_SIZE)
+    let paths_start = u64::try_from(header_size)
         .context("header size overflow")?
         .checked_add(u64::try_from(index_bytes).context("index size overflow")?)
         .context("paths start overflow")?;
@@ -216,13 +289,14 @@ pub fn build_asset_bundle(
         );
     }
 
-    let total_capacity = RESOURCE_BUNDLE_HEADER_SIZE
+    let total_capacity = header_size
         .checked_add(index.len())
         .and_then(|size| size.checked_add(path_bytes.len()))
         .and_then(|size| size.checked_add(data_bytes.len()))
         .context("Resource bundle too large")?;
+
     let header = AssetBundleHeader {
-        version: RESOURCE_BUNDLE_VERSION,
+        version,
         entry_count,
         bundle_uuid,
         content_sha256,
@@ -233,14 +307,86 @@ pub fn build_asset_bundle(
     bundle.extend_from_slice(RESOURCE_BUNDLE_MAGIC);
     append_u32(&mut bundle, header.version);
     append_u32(&mut bundle, header.entry_count);
-    bundle.extend_from_slice(header.bundle_uuid.as_bytes());
-    bundle.extend_from_slice(&header.content_sha256);
-    append_u64(&mut bundle, header.created_at_unix_secs);
+
+    if version >= RESOURCE_BUNDLE_VERSION_V2 {
+        bundle.extend_from_slice(header.bundle_uuid.as_bytes());
+    }
+    if version >= RESOURCE_BUNDLE_VERSION {
+        bundle.extend_from_slice(&header.content_sha256);
+        append_u64(&mut bundle, header.created_at_unix_secs);
+    }
+
     bundle.extend_from_slice(&index);
     bundle.extend_from_slice(&path_bytes);
     bundle.extend_from_slice(&data_bytes);
 
     Ok((bundle, header))
+}
+
+pub fn build_asset_bundle(
+    entries: &[AssetBundleSourceEntry],
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle_internal(entries, RESOURCE_BUNDLE_VERSION, None, None)
+}
+
+pub fn build_asset_bundle_v1(
+    entries: &[AssetBundleSourceEntry],
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle_internal(entries, RESOURCE_BUNDLE_VERSION_V1, None, None)
+}
+
+pub fn build_asset_bundle_v2(
+    entries: &[AssetBundleSourceEntry],
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle_internal(entries, RESOURCE_BUNDLE_VERSION_V2, None, None)
+}
+
+pub fn build_asset_bundle_v2_with_uuid(
+    entries: &[AssetBundleSourceEntry],
+    bundle_uuid: Uuid,
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle_internal(
+        entries,
+        RESOURCE_BUNDLE_VERSION_V2,
+        Some(bundle_uuid),
+        None,
+    )
+}
+
+pub fn build_asset_bundle_v3(
+    entries: &[AssetBundleSourceEntry],
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle(entries)
+}
+
+pub fn build_asset_bundle_v3_with_details(
+    entries: &[AssetBundleSourceEntry],
+    bundle_uuid: Uuid,
+    created_at_unix_secs: u64,
+) -> Result<(Vec<u8>, AssetBundleHeader)> {
+    build_asset_bundle_internal(
+        entries,
+        RESOURCE_BUNDLE_VERSION,
+        Some(bundle_uuid),
+        Some(created_at_unix_secs),
+    )
+}
+
+pub fn create_test_fixture_entries(
+    pan_file: &[u8],
+    lzma2_file: &[u8],
+) -> Vec<AssetBundleSourceEntry> {
+    vec![
+        AssetBundleSourceEntry {
+            path: "example2 with lemurs.pan".to_string(),
+            contents: pan_file.to_vec(),
+        },
+        AssetBundleSourceEntry {
+            path: "test directory/test directory 2/example2 with lemurs.pan.lzma2"
+                .to_string(),
+            contents: lzma2_file.to_vec(),
+        },
+    ]
 }
 
 pub fn parse_asset_bundle_header(bytes: &[u8]) -> Result<AssetBundleHeader> {
@@ -612,4 +758,249 @@ fn read_fixed_bytes<const N: usize>(
         .try_into()
         .map_err(|_err| anyhow::anyhow!("{label} size mismatch"))?;
     Ok(array)
+}
+
+#[cfg(test)]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    fn raw_test_files() -> (Vec<u8>, Vec<u8>) {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let compression_fixtures = manifest_dir
+            .join("../compression/data/fixtures");
+        let pan_path = compression_fixtures.join("example2 with lemurs.pan");
+        let lzma2_path =
+            compression_fixtures.join("example2 with lemurs.pan.lzma2");
+        let pan_bytes = fs::read(&pan_path)
+            .unwrap_or_else(|_| panic!("Failed to read {}", pan_path.display()));
+        let lzma2_bytes = fs::read(&lzma2_path).unwrap_or_else(|_| {
+            panic!("Failed to read {}", lzma2_path.display())
+        });
+        (pan_bytes, lzma2_bytes)
+    }
+
+    #[test]
+    fn test_embedded_fixtures_exist() {
+        assert!(get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc").is_some());
+        assert!(get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc").is_some());
+        assert!(get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc").is_some());
+    }
+
+    #[test]
+    fn test_unpack_v1_bundle() -> Result<()> {
+        let (raw_pan, raw_lzma2) = raw_test_files();
+        let bundle_bytes =
+            get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc")
+                .context("bundle_v1.rsrc missing from embedded assets")?;
+
+        let parsed = parse_asset_bundle(&bundle_bytes)?;
+        assert_eq!(parsed.header.version, RESOURCE_BUNDLE_VERSION_V1);
+        assert_eq!(parsed.header.entry_count, 2);
+        assert_eq!(parsed.header.bundle_uuid, Uuid::nil());
+        assert_eq!(parsed.header.content_sha256, [0_u8; 32]);
+        assert_eq!(parsed.header.created_at_unix_secs, 0);
+
+        assert_eq!(parsed.entries.len(), 2);
+        assert_eq!(parsed.entries[0].path, "example2 with lemurs.pan");
+        assert_eq!(
+            &bundle_bytes[parsed.entries[0].data_range.clone()],
+            &raw_pan[..]
+        );
+        assert_eq!(
+            parsed.entries[1].path,
+            "test directory/test directory 2/example2 with lemurs.pan.lzma2"
+        );
+        assert_eq!(
+            &bundle_bytes[parsed.entries[1].data_range.clone()],
+            &raw_lzma2[..]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_unpack_v2_bundle() -> Result<()> {
+        let (raw_pan, raw_lzma2) = raw_test_files();
+        let bundle_bytes =
+            get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc")
+                .context("bundle_v2.rsrc missing from embedded assets")?;
+
+        let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
+        let expected_uuid = compute_v2_resource_bundle_uuid(&entries)?;
+
+        let parsed = parse_asset_bundle(&bundle_bytes)?;
+        assert_eq!(parsed.header.version, RESOURCE_BUNDLE_VERSION_V2);
+        assert_eq!(parsed.header.entry_count, 2);
+        assert_eq!(parsed.header.bundle_uuid, expected_uuid);
+        assert_eq!(parsed.header.content_sha256, [0_u8; 32]);
+        assert_eq!(parsed.header.created_at_unix_secs, 0);
+
+        assert_eq!(parsed.entries.len(), 2);
+        assert_eq!(parsed.entries[0].path, "example2 with lemurs.pan");
+        assert_eq!(
+            &bundle_bytes[parsed.entries[0].data_range.clone()],
+            &raw_pan[..]
+        );
+        assert_eq!(
+            parsed.entries[1].path,
+            "test directory/test directory 2/example2 with lemurs.pan.lzma2"
+        );
+        assert_eq!(
+            &bundle_bytes[parsed.entries[1].data_range.clone()],
+            &raw_lzma2[..]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_unpack_v3_bundle() -> Result<()> {
+        let (raw_pan, raw_lzma2) = raw_test_files();
+        let bundle_bytes =
+            get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc")
+                .context("bundle_v3.rsrc missing from embedded assets")?;
+
+        let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
+        let expected_sha = compute_asset_bundle_content_sha256(&entries)?;
+
+        let parsed = parse_asset_bundle(&bundle_bytes)?;
+        assert_eq!(parsed.header.version, RESOURCE_BUNDLE_VERSION);
+        assert_eq!(parsed.header.entry_count, 2);
+        assert_ne!(parsed.header.bundle_uuid, Uuid::nil());
+        assert_eq!(parsed.header.content_sha256, expected_sha);
+        assert!(parsed.header.created_at_unix_secs > 0);
+
+        assert_eq!(parsed.entries.len(), 2);
+        assert_eq!(parsed.entries[0].path, "example2 with lemurs.pan");
+        assert_eq!(
+            &bundle_bytes[parsed.entries[0].data_range.clone()],
+            &raw_pan[..]
+        );
+        assert_eq!(
+            parsed.entries[1].path,
+            "test directory/test directory 2/example2 with lemurs.pan.lzma2"
+        );
+        assert_eq!(
+            &bundle_bytes[parsed.entries[1].data_range.clone()],
+            &raw_lzma2[..]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_asset_bundle_all_versions() -> Result<()> {
+        let (raw_pan, raw_lzma2) = raw_test_files();
+        let tmp_root = std::env::temp_dir().join(format!(
+            "ctb_asset_bundle_test_{}",
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&tmp_root)?;
+
+        let versions = [
+            ("bundle_v1.rsrc", RESOURCE_BUNDLE_VERSION_V1),
+            ("bundle_v2.rsrc", RESOURCE_BUNDLE_VERSION_V2),
+            ("bundle_v3.rsrc", RESOURCE_BUNDLE_VERSION),
+        ];
+
+        for (fixture_name, version) in versions {
+            let bundle_bytes = get_ctb_asset_bundle_data(&format!(
+                "fixtures/{fixture_name}"
+            ))
+            .context("fixture missing")?;
+            let bundle_path = tmp_root.join(fixture_name);
+            fs::write(&bundle_path, &bundle_bytes)?;
+
+            let extracted_dir =
+                extract_asset_bundle(&bundle_path, &tmp_root)?;
+            let assets_dir = extracted_dir.join("assets");
+            let pan_extracted =
+                fs::read(assets_dir.join("example2 with lemurs.pan"))?;
+            assert_eq!(pan_extracted, raw_pan);
+
+            let lzma2_extracted = fs::read(assets_dir.join(
+                "test directory/test directory 2/example2 with lemurs.pan.lzma2",
+            ))?;
+            assert_eq!(lzma2_extracted, raw_lzma2);
+
+            let metadata_bytes =
+                fs::read(extracted_dir.join("metadata.json"))?;
+            let metadata: serde_json::Value =
+                serde_json::from_slice(&metadata_bytes)?;
+            assert_eq!(metadata["version"], version);
+            assert_eq!(metadata["entry_count"], 2);
+
+            if version >= RESOURCE_BUNDLE_VERSION_V2 {
+                assert!(metadata["bundle_uuid"].is_string());
+            } else {
+                assert!(metadata["bundle_uuid"].is_null());
+            }
+
+            if version >= RESOURCE_BUNDLE_VERSION {
+                assert!(metadata["content_sha256"].is_string());
+                assert!(metadata["created_at_unix_secs"].is_number());
+            } else {
+                assert!(metadata["content_sha256"].is_null());
+                assert!(metadata["created_at_unix_secs"].is_null());
+            }
+        }
+
+        let _ = fs::remove_dir_all(&tmp_root);
+        Ok(())
+    }
+
+    /// Generator code used to produce the fixtures in `data/fixtures`.
+    /// This is preserved so that fixture creation can be verified or re-run.
+    #[test]
+    fn test_generate_and_verify_fixture_generation() -> Result<()> {
+        let (raw_pan, raw_lzma2) = raw_test_files();
+        let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
+
+        let (v1_bytes, v1_header) = build_asset_bundle_v1(&entries)?;
+        assert_eq!(v1_header.version, 1);
+        let parsed_v1 = parse_asset_bundle(&v1_bytes)?;
+        assert_eq!(parsed_v1.entries.len(), 2);
+
+        let (v2_bytes, v2_header) = build_asset_bundle_v2(&entries)?;
+        assert_eq!(v2_header.version, 2);
+        let parsed_v2 = parse_asset_bundle(&v2_bytes)?;
+        assert_eq!(parsed_v2.entries.len(), 2);
+
+        let fixed_v3_uuid =
+            Uuid::parse_str("3c059cbb-98f6-4ef1-a4b7-db80efd12345")?;
+        let fixed_v3_ts = 1_700_000_000_u64;
+        let (v3_bytes, v3_header) = build_asset_bundle_v3_with_details(
+            &entries,
+            fixed_v3_uuid,
+            fixed_v3_ts,
+        )?;
+        assert_eq!(v3_header.version, 3);
+        let parsed_v3 = parse_asset_bundle(&v3_bytes)?;
+        assert_eq!(parsed_v3.entries.len(), 2);
+
+        // Verify that the static fixtures match what our builder produces
+        let fixture_v1 =
+            get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc").unwrap();
+        assert_eq!(v1_bytes, fixture_v1);
+
+        let fixture_v2 =
+            get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc").unwrap();
+        assert_eq!(v2_bytes, fixture_v2);
+
+        let fixture_v3 =
+            get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc").unwrap();
+        assert_eq!(v3_bytes, fixture_v3);
+
+        Ok(())
+    }
 }

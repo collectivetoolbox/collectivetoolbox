@@ -378,7 +378,7 @@ pub enum Command {
     CtbAssetBundleExtract {
         /// Path to the `.rsrc` asset bundle.
         bundle_path: PathBuf,
-        /// Output directory for the extracted assets.
+        /// Output directory for the extracted assets. Defaults to the current directory. The bundle name will be appended as a subdirectory, such as extracting to a folder `test` will place the extracted files within `test/bundle_v3-extracted/`.
         output_dir: Option<PathBuf>,
     },
     /// Lint JavaScript and TypeScript sources.

@@ -2734,6 +2734,7 @@ name = "ctb-formats-ctb-asset-bundle"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "include_dir",
  "serde",
  "serde_json",
  "sha2 0.10.9",
