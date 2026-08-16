@@ -154,9 +154,19 @@ impl QValue {
                     if factor < 1 {
                         return None;
                     }
-                    let n_u16 = u16::try_from(n).ok()?;
-                    let zero_u16 = 0_u16;
-                    let digit = n_u16.saturating_sub(zero_u16);
+                    let digit = match n {
+                        '0' => 0_u16,
+                        '1' => 1,
+                        '2' => 2,
+                        '3' => 3,
+                        '4' => 4,
+                        '5' => 5,
+                        '6' => 6,
+                        '7' => 7,
+                        '8' => 8,
+                        '9' => 9,
+                        _ => return None,
+                    };
                     let product = factor.saturating_mul(digit);
                     value = value.saturating_add(product);
                 }

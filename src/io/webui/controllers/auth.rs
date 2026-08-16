@@ -996,10 +996,19 @@ mod auth_controller_tests {
             .unwrap()
             .to_string();
 
-        // Wait a short time for background task to execute
-        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-
-        let user_info = UserPublicInfo::get_by_name(name)?
+        // Wait for background task to execute
+        let mut user_info = None;
+        for _ in 0..100 {
+            if let Ok(Some(info)) = UserPublicInfo::get_by_name(name) {
+                if info.remote_status() == "Conflict" {
+                    user_info = Some(info);
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        let user_info = user_info
+            .or_else(|| UserPublicInfo::get_by_name(name).ok().flatten())
             .expect("Failed to get user info");
         assert_eq!(user_info.remote_status(), "Conflict");
 
