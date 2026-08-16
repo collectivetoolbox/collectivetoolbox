@@ -160,15 +160,24 @@
             (add-after 'remove-cargo-frozen-flag 'wrap-rustc
               (lambda* (#:key inputs native-inputs #:allow-other-keys)
                 (let* ((build-inputs (or native-inputs inputs))
-                       (rust-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (rust-target-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (rust-host (assoc-ref build-inputs "rust"))
                        (real-rustc (search-input-file build-inputs "bin/rustc"))
+                       (combined-sysroot (string-append (getcwd) "/combined-rust-sysroot"))
                        (bin-dir (string-append (getcwd) "/rustc-wrapper/bin")))
-                  (when rust-sysroot
+                  (when rust-target-sysroot
+                    (mkdir-p (string-append combined-sysroot "/lib/rustlib"))
+                    (when (file-exists? (string-append rust-host "/lib/rustlib/x86_64-unknown-linux-gnu"))
+                      (symlink (string-append rust-host "/lib/rustlib/x86_64-unknown-linux-gnu")
+                               (string-append combined-sysroot "/lib/rustlib/x86_64-unknown-linux-gnu")))
+                    (when (file-exists? (string-append rust-target-sysroot "/lib/rustlib/i686-unknown-linux-gnu"))
+                      (symlink (string-append rust-target-sysroot "/lib/rustlib/i686-unknown-linux-gnu")
+                               (string-append combined-sysroot "/lib/rustlib/i686-unknown-linux-gnu")))
                     (mkdir-p bin-dir)
                     (call-with-output-file (string-append bin-dir "/rustc")
                       (lambda (port)
                         (format port "#!~a\nexec ~a --sysroot ~a \"$@\"\n"
-                                (which "sh") real-rustc rust-sysroot)))
+                                (which "sh") real-rustc combined-sysroot)))
                     (chmod (string-append bin-dir "/rustc") #o755)
                     (setenv "PATH" (string-append bin-dir ":" (getenv "PATH")))))))
             (delete 'bootstrap)
@@ -181,7 +190,8 @@
                                                 abs-srcdir "/l10n")
                                 ,@configure-flags))
                        (build-inputs (or native-inputs inputs))
-                       (rust-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (rust-target-sysroot (assoc-ref build-inputs "rust-sysroot-for-i686-linux-gnu"))
+                       (combined-sysroot (string-append abs-srcdir "/combined-rust-sysroot"))
                        (gcc-lib (assoc-ref build-inputs "gcc-cross-lib"))
                        (cxx-inc (false-if-exception (search-input-directory build-inputs "include/c++")))
                        (target-cxx-inc (and cxx-inc (string-append cxx-inc "/" (or target "i686-linux-gnu"))))
@@ -250,8 +260,8 @@
 
                   (when (and target-cxx-inc (file-exists? target-cxx-inc))
                     (setenv "BINDGEN_CFLAGS" (string-append "--target=" (or target "i686-linux-gnu") " " extra-cxx-flags)))
-                  (when rust-sysroot
-                    (setenv "RUSTFLAGS" (string-append (or (getenv "RUSTFLAGS") "") " --sysroot " rust-sysroot)))
+                  (when rust-target-sysroot
+                    (setenv "RUSTFLAGS" (string-append (or (getenv "RUSTFLAGS") "") " --sysroot " combined-sysroot)))
 
                   (let ((obj-dir (or (false-if-exception
                                       (first (scandir "." (cut string-prefix? "obj-" <>))))
@@ -274,9 +284,9 @@
                       (format port "export NM=\"llvm-nm\"\n")
                       (format port "export LDFLAGS=\"-Wl,-rpath=~a/lib/icecat ~a\"\n"
                               #$output extra-link-flags)
-                      (when rust-sysroot
+                      (when rust-target-sysroot
                         (format port "export RUSTC=\"~a/rustc-wrapper/bin/rustc\"\n" abs-srcdir)
-                        (format port "export RUSTFLAGS=\"--sysroot ~a\"\n" rust-sysroot))
+                        (format port "export RUSTFLAGS=\"--sysroot ~a\"\n" combined-sysroot))
                       (when (and target-cxx-inc (file-exists? target-cxx-inc))
                         (format port "export BINDGEN_CFLAGS=\"--target=~a ~a\"\n"
                                 (or target "i686-linux-gnu") extra-cxx-flags))

@@ -1,0 +1,7 @@
+From:
+
+https://www.unicode.org/Public/UCD/latest/ucd/UCD.zip
+
+(with PDFs removed as they are not covered by the Unicode License, as I understand it), and
+
+https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip

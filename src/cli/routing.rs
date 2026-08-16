@@ -1381,7 +1381,7 @@ mod tests {
             ctb_utilities::json::maybe_value::MaybeValue::Value(true);
         settings.save()?;
 
-        let cmd = Command::AddUser {
+        let _cmd = Command::AddUser {
             username: username.clone(),
             password_stdin: true,
         };

@@ -71,7 +71,7 @@ pub struct BaseArgs {
     /// hex with 0x prefixes to another base. If you also ask it to add
     /// prefixes, you'll get three prefixes for each number! (Because it will
     /// take 0 as a number, then pass through x, then take the actual number.)
-    #[arg(short, long, default_value_t = true)]
+    #[arg(long, default_value_t = true)]
     pub parse_prefixes: bool,
 
     /// Limit width for each number. Input numbers will be split up if longer
@@ -95,7 +95,7 @@ pub struct BaseArgs {
 
     /// Zero-pad the left of each number to at least this many digits. Set to 0
     /// or 1 to turn off.
-    #[arg(short, long, default_value_t = 1, conflicts_with("pad"))]
+    #[arg(short = 'P', long, default_value_t = 1, conflicts_with("pad"))]
     pub pad_l: u32,
 
     /// Suppress warning messages

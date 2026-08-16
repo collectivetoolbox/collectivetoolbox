@@ -6,7 +6,7 @@
 pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use ctb_utilities::ipc::{ChildKind, format_child_kind};
 use futures::{Stream, StreamExt};
 use std::env;
@@ -275,6 +275,64 @@ pub fn get_width() -> u16 {
     termsize::get().map_or(80, |s| s.cols)
 }
 
+/// Generate comprehensive markdown documentation for the ctoolbox CLI and all its subcommands.
+pub fn generate_cli_markdown_docs() -> String {
+    use std::fmt::Write as _;
+
+    let mut doc = String::new();
+    let _ = writeln!(doc, "# Collective Toolbox CLI Reference\n");
+    let _ = writeln!(
+        doc,
+        "This document is automatically generated from the `ctoolbox` CLI command definitions.\n"
+    );
+
+    let mut root_cmd = Cli::command();
+    root_cmd.build();
+
+    let mut root_help = Vec::new();
+    let _ = root_cmd.write_help(&mut root_help);
+    let root_help_str = String::from_utf8_lossy(&root_help);
+
+    let _ = writeln!(doc, "## Overview\n");
+    let _ = writeln!(doc, "```text\n{}\n```\n", root_help_str.trim());
+
+    let _ = writeln!(doc, "## Subcommands\n");
+
+    fn render_subcommands(
+        doc: &mut String,
+        cmd: &clap::Command,
+        parent_path: &str,
+    ) {
+        use std::fmt::Write as _;
+        let mut subcommands: Vec<_> = cmd.get_subcommands().collect();
+        subcommands.sort_by_key(|s| s.get_name());
+
+        for sub in subcommands {
+            let name = sub.get_name();
+            if name == "help" {
+                continue;
+            }
+            let full_name = format!("{parent_path} {name}");
+            let _ = writeln!(doc, "### `{full_name}`\n");
+
+            let mut sub_clone = sub.clone();
+            sub_clone.build();
+            let mut help_buf = Vec::new();
+            let _ = sub_clone.write_help(&mut help_buf);
+            let help_str = String::from_utf8_lossy(&help_buf);
+
+            let _ = writeln!(doc, "```text\n{}\n```\n", help_str.trim());
+
+            if sub.has_subcommands() {
+                render_subcommands(doc, sub, &full_name);
+            }
+        }
+    }
+
+    render_subcommands(&mut doc, &root_cmd, "ctoolbox");
+    doc
+}
+
 #[cfg(test)]
 #[expect(
     clippy::panic,
@@ -293,6 +351,27 @@ mod tests {
     fn test_get_help_bytes() {
         let help_bytes = generate_help_bytes();
         assert!(String::from_utf8_lossy(&help_bytes).contains("## Synopsis"));
+    }
+
+    #[crate::ctb_test]
+    fn test_all_cli_commands_help_and_generate_docs() {
+        // Assert that all clap options, subcommands, and flags are valid without panics
+        Cli::command().debug_assert();
+
+        let docs = generate_cli_markdown_docs();
+        assert!(docs.contains("ctoolbox adduser"));
+        assert!(docs.contains("ctoolbox base2base"));
+        assert!(docs.contains("ctoolbox range_gen"));
+        assert!(docs.contains("ctoolbox ia"));
+
+        // If running in repository workspace, ensure docs/cli/commands.md is written / up to date
+        if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+            let path = std::path::Path::new(&manifest_dir).join("../../docs/cli/commands.md");
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&path, &docs);
+        }
     }
 
     #[crate::ctb_test("tokio")]

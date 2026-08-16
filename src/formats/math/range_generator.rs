@@ -125,7 +125,7 @@ pub struct RangeGenArgs {
     #[arg(short, long, default_value = "10")]
     pub base: String,
     /// Separator between output items (defaults to newline)
-    #[arg(short, long, default_value = "\n")]
+    #[arg(short = 'S', long, default_value = "\n")]
     pub separator: String,
     /// Append a trailing separator to the output
     #[arg(short, long)]
