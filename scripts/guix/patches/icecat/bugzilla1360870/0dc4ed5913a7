@@ -21,55 +21,7 @@ index 563dc454e1..b106794d48 100644
          GET_LINE(entry->mRegistration.currentWorkerURL());
  
          nsAutoCString fetchFlag;
-@@ -727,6 +739,47 @@ nsresult ServiceWorkerRegistrar::ReadData() {
-           }
-         }
- 
-+        if (version >= 11) {
-+          nsAutoCString numberOfAttemptedActivationsStr;
-+          GET_LINE(numberOfAttemptedActivationsStr);
-+          int64_t numberOfAttemptedActivations =
-+              numberOfAttemptedActivationsStr.ToInteger64(&rv);
-+          if (NS_WARN_IF(NS_FAILED(rv))) {
-+            return rv;
-+          }
-+          entry->mRegistration.numberOfAttemptedActivations() =
-+              numberOfAttemptedActivations;
-+          nsAutoCString isRegistrationBrokenStr;
-+          GET_LINE(isRegistrationBrokenStr);
-+          int64_t isBroken = isRegistrationBrokenStr.ToInteger64(&rv);
-+          if (NS_WARN_IF(NS_FAILED(rv))) {
-+            return rv;
-+          }
-+          entry->mRegistration.isBroken() = (isBroken != 0);
-+          nsAutoCString cacheAPIIdStr;
-+          GET_LINE(cacheAPIIdStr);
-+          int64_t cacheAPIId = cacheAPIIdStr.ToInteger64(&rv);
-+          if (NS_WARN_IF(NS_FAILED(rv))) {
-+            return rv;
-+          }
-+          entry->mRegistration.cacheAPIId() = cacheAPIId;
-+        }
-+
-+        // if we are on latest version, get service worker type
-+        if (version == SERVICEWORKERREGISTRAR_VERSION) {
-+          nsAutoCString serviceWorkerTypeStr;
-+          GET_LINE(serviceWorkerTypeStr);
-+          uint32_t serviceWorkerType =
-+              serviceWorkerTypeStr.ToUnsignedInteger(&rv);
-+          if (NS_WARN_IF(NS_FAILED(rv))) {
-+            return rv;
-+          }
-+          if (serviceWorkerType > static_cast<uint32_t>(WorkerType::Module)) {
-+            return NS_ERROR_INVALID_ARG;
-+          }
-+          entry->mRegistration.type() =
-+              static_cast<WorkerType>(serviceWorkerType);
-+        }
-         break;
-       }
- 
-@@ -1416,6 +1469,9 @@ nsresult ServiceWorkerRegistrar::WriteData(
+@@ -1416,6 +1428,9 @@ nsresult ServiceWorkerRegistrar::WriteData(
      buffer.Append(data.mRegistration.scope());
      buffer.Append('\n');
  
@@ -77,26 +29,6 @@ index 563dc454e1..b106794d48 100644
 +    buffer.Append('\n');
 +
      buffer.Append(data.mRegistration.currentWorkerURL());
-     buffer.Append('\n');
- 
-@@ -1468,6 +1524,19 @@ nsresult ServiceWorkerRegistrar::WriteData(
-       buffer.Append('\n');
-     }
- 
-+    buffer.AppendInt(static_cast<int32_t>(
-+        data.mRegistration.numberOfAttemptedActivations()));
-+    buffer.Append('\n');
-+
-+    buffer.AppendInt(static_cast<int32_t>(data.mRegistration.isBroken()));
-+    buffer.Append('\n');
-+
-+    buffer.AppendInt(static_cast<int32_t>(data.mRegistration.cacheAPIId()));
-+    buffer.Append('\n');
-+
-+    buffer.AppendInt(static_cast<uint32_t>(data.mRegistration.type()));
-+    buffer.Append('\n');
-+
-     buffer.AppendLiteral(SERVICEWORKERREGISTRAR_TERMINATOR);
      buffer.Append('\n');
  
 diff --git a/dom/serviceworkers/ServiceWorkerRegistrar.h b/dom/serviceworkers/ServiceWorkerRegistrar.h
