@@ -12,6 +12,7 @@ ENV BASH_ENV="/etc/profile.d/umask.sh"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 ENV GUILE_AUTO_COMPILE=0
 ENV GUILE_WARN_DEPRECATED=no
+ENV container=docker
 
 RUN set -eux; \
     apt-get update; \
@@ -70,9 +71,10 @@ RUN set -eux; \
     sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh; \
     yes | /tmp/guix-install.sh; \
     rm -f /tmp/guix-install.sh; \
-    mkdir -p /etc/guix; \
-    chown -R root:guixbuild /var/guix /gnu/store; \
+    mkdir -p /etc/guix /var/log/guix/drvs; \
+    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store; \
     chmod 1775 /gnu/store /var/guix; \
+    chmod -R 1777 /var/log/guix; \
     for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
                /root/.config/guix/current/share/guix/*.pub \
                /usr/local/share/guix/*.pub; do \

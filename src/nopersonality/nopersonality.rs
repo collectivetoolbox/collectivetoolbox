@@ -3,7 +3,7 @@
 //! Ignores `EPERM` failure when setting personality in unprivileged
 //! build containers during Guix image builds.
 
-use std::ffi::{c_char, c_long, c_ulong, c_void};
+use std::ffi::{c_char, c_int, c_long, c_ulong, c_void};
 
 const RTLD_NEXT: *mut c_void =
     std::ptr::null_mut::<c_void>().wrapping_offset(-1);
@@ -14,7 +14,26 @@ const RTLD_NEXT: *mut c_void =
 )]
 unsafe extern "C" {
     fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+    fn unsetenv(name: *const c_char) -> c_int;
 }
+
+#[expect(
+    unsafe_code,
+    reason = "ELF .init_array constructor to clear LD_PRELOAD from process environment"
+)]
+#[unsafe(link_section = ".init_array")]
+#[used]
+static INIT: unsafe extern "C" fn() = {
+    unsafe extern "C" fn init() {
+        let name = c"LD_PRELOAD";
+        // SAFETY: Calling C library unsetenv with valid null-terminated string
+        // so that spawned child processes do not inherit LD_PRELOAD.
+        unsafe {
+            unsetenv(name.as_ptr());
+        }
+    }
+    init
+};
 
 type OrigPersonalityFn = unsafe extern "C" fn(c_ulong) -> c_long;
 

@@ -3051,7 +3051,6 @@ dependencies = [
  "ctb-formats-utilities",
  "ctb-storage",
  "ctb-utilities",
- "icu_properties",
  "tempfile",
  "ucd-parse",
 ]

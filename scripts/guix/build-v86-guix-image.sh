@@ -12,9 +12,13 @@ set -euxo pipefail
 
 # Container detection helper
 is_container() {
-    [ -f /.dockerenv ] || [ -f /run/.containerenv ] || \
-    grep -qa -E 'docker|containerd|kubepods|lxc|podman' /proc/1/cgroup 2>/dev/null || \
-    grep -qa -E 'container=' /proc/1/environ 2>/dev/null
+    [ -f /.dockerenv ] || [ -f /run/.containerenv ] || [ -f /etc/dockerenv ] || \
+    [ -n "${container:-}" ] || [ -n "${DOCKER_BUILD:-}" ] || \
+    grep -qa -E 'docker|containerd|kubepods|lxc|podman|buildkit' /proc/1/cgroup 2>/dev/null || \
+    grep -qa -E 'docker|containerd|kubepods|lxc|podman|buildkit' /proc/self/cgroup 2>/dev/null || \
+    grep -qa -E 'container=' /proc/1/environ 2>/dev/null || \
+    grep -qa -E 'container=' /proc/self/environ 2>/dev/null || \
+    [ -d /tmp/scripts/guix ]
 }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -143,7 +147,7 @@ start_guix_daemon() {
             nopersonality_dir="/var/guix/nopersonality"
             nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
             mkdir -p "$nopersonality_dir"
-            if [ ! -f "$nopersonality_so" ]; then
+            if [ ! -f "$nopersonality_so" ] || [ "$nopersonality_rs" -nt "$nopersonality_so" ]; then
                 echo "Building nopersonality cdylib shim..."
                 if command -v rustc >/dev/null 2>&1; then
                     rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
@@ -173,11 +177,15 @@ start_guix_daemon() {
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true
         fi
-        mkdir -p /var/log/guix/drvs /var/guix
-        chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
-        chmod -R 1777 /var/log/guix 2>/dev/null || true
-        chmod 1775 /gnu/store /var/guix 2>/dev/null || true
     fi
+
+    if [ -d /homeless-shelter ]; then
+        rm -r /homeless-shelter 2>/dev/null || true
+    fi
+    mkdir -p /var/log/guix/drvs /var/guix 2>/dev/null || true
+    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
+    chmod -R 1777 /var/log/guix 2>/dev/null || true
+    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
     chmod 755 "$tmp_build_dir"
@@ -229,6 +237,8 @@ guix_run_with_retries() {
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true
         fi
+        #mkdir -p /var/log/guix/drvs 2>/dev/null || true
+        #chmod 1777 /var/log/guix /var/log/guix/drvs 2>/dev/null || true
         if guix "$@"; then
             return 0
         fi
