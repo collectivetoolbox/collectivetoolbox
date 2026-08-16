@@ -873,12 +873,6 @@ fn test_options_configurations() {
 
 #[crate::ctb_test]
 fn test_full_file_regeneration_matches_expected() {
-    let manifest_dir = std::path::PathBuf::from(
-        std::env::var("CARGO_MANIFEST_DIR")
-            .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
-    );
-    // This test should pass, but I'm not including the fixture now that it's working.
-
     let expected = "2b1fc9126e2c9b2f7ee7398b96581db58d4f46bdc768264b198734d25d068be8";
     let wuc_opts = DescriptionOptions::wuc_compat();
 
@@ -889,6 +883,9 @@ fn test_full_file_regeneration_matches_expected() {
         generated.push('\n');
     }
 
-    assert_eq!(ctb_formats_checksum::hash(ctb_formats_checksum:Sha256, generated), expected);
+    assert_eq!(
+        ctb_formats_checksum::sha256_hex(&generated),
+        expected
+    );
 }
 }

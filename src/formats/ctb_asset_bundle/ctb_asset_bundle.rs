@@ -442,17 +442,22 @@ pub fn create_test_fixture_entries(
 pub fn create_test_fixture_entries_v4(
     pan_file: &[u8],
     lzma2_file: &[u8],
+    edited_bin_file: &[u8],
 ) -> Result<Vec<AssetBundleSourceEntry>> {
     let delta_payload = delta::encode_delta_payload(
         "example2 with lemurs.pan",
         pan_file,
-        lzma2_file,
+        edited_bin_file,
     )?;
     Ok(vec![
         AssetBundleSourceEntry::raw("example2 with lemurs.pan", pan_file.to_vec()),
         AssetBundleSourceEntry::delta(
-            "test directory/test directory 2/example2 with lemurs.pan.lzma2",
+            "example2 with lemurs-edited.bin",
             delta_payload,
+        ),
+        AssetBundleSourceEntry::raw(
+            "test directory/test directory 2/example2 with lemurs.pan.lzma2",
+            lzma2_file.to_vec(),
         ),
     ])
 }
@@ -865,22 +870,20 @@ fn read_fixed_bytes<const N: usize>(
 mod tests {
     use super::*;
 
-    fn raw_test_files() -> (Vec<u8>, Vec<u8>) {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let compression_fixtures = manifest_dir
-            .join("../compression/data/fixtures");
-        let pan_path = compression_fixtures.join("example2 with lemurs.pan");
-        let lzma2_path =
-            compression_fixtures.join("example2 with lemurs.pan.lzma2");
-        let pan_bytes = fs::read(&pan_path)
-            .unwrap_or_else(|_| panic!("Failed to read {}", pan_path.display()));
-        let lzma2_bytes = fs::read(&lzma2_path).unwrap_or_else(|_| {
-            panic!("Failed to read {}", lzma2_path.display())
-        });
-        (pan_bytes, lzma2_bytes)
+    fn raw_test_files() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        let pan_bytes =
+            get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan")
+                .expect("fixtures/example2 with lemurs.pan missing from embedded assets");
+        let lzma2_bytes = get_ctb_asset_bundle_data(
+            "fixtures/example2 with lemurs.pan.lzma2",
+        )
+        .expect("fixtures/example2 with lemurs.pan.lzma2 missing from embedded assets");
+        let edited_bytes = get_ctb_asset_bundle_data(
+            "fixtures/example2 with lemurs-edited.bin",
+        )
+        .expect("fixtures/example2 with lemurs-edited.bin missing from embedded assets");
+        (pan_bytes, lzma2_bytes, edited_bytes)
     }
-
-
 
     #[test]
     fn test_embedded_fixtures_exist() {
@@ -888,11 +891,14 @@ mod tests {
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc").is_some());
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc").is_some());
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc").is_some());
+        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan").is_some());
+        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan.lzma2").is_some());
+        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs-edited.bin").is_some());
     }
 
     #[test]
     fn test_unpack_v1_bundle() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, _) = raw_test_files();
         let bundle_bytes =
             get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc")
                 .context("bundle_v1.rsrc missing from embedded assets")?;
@@ -924,7 +930,7 @@ mod tests {
 
     #[test]
     fn test_unpack_v2_bundle() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, _) = raw_test_files();
         let bundle_bytes =
             get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc")
                 .context("bundle_v2.rsrc missing from embedded assets")?;
@@ -959,7 +965,7 @@ mod tests {
 
     #[test]
     fn test_unpack_v3_bundle() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, _) = raw_test_files();
         let bundle_bytes =
             get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc")
                 .context("bundle_v3.rsrc missing from embedded assets")?;
@@ -994,36 +1000,51 @@ mod tests {
 
     #[test]
     fn test_unpack_v4_bundle_with_delta() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, raw_edited) = raw_test_files();
         let bundle_bytes =
             get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc")
                 .context("bundle_v4.rsrc missing from embedded assets")?;
 
-        let entries = create_test_fixture_entries_v4(&raw_pan, &raw_lzma2)?;
+        let entries = create_test_fixture_entries_v4(
+            &raw_pan,
+            &raw_lzma2,
+            &raw_edited,
+        )?;
         let expected_sha = compute_asset_bundle_content_sha256(&entries)?;
 
         let parsed = parse_asset_bundle(&bundle_bytes)?;
         assert_eq!(parsed.header.version, RESOURCE_BUNDLE_VERSION_V4);
-        assert_eq!(parsed.header.entry_count, 2);
+        assert_eq!(parsed.header.entry_count, 3);
         assert_ne!(parsed.header.bundle_uuid, Uuid::nil());
         assert_eq!(parsed.header.content_sha256, expected_sha);
         assert!(parsed.header.created_at_unix_secs > 0);
 
-        assert_eq!(parsed.entries.len(), 2);
-        assert_eq!(parsed.entries[0].path, "example2 with lemurs.pan");
-        assert_eq!(parsed.entries[0].flags, ASSET_FLAG_RAW);
+        assert_eq!(parsed.entries.len(), 3);
+        assert_eq!(parsed.entries[0].path, "example2 with lemurs-edited.bin");
+        assert_eq!(parsed.entries[0].flags, ASSET_FLAG_DELTA);
+
+        assert_eq!(parsed.entries[1].path, "example2 with lemurs.pan");
+        assert_eq!(parsed.entries[1].flags, ASSET_FLAG_RAW);
 
         assert_eq!(
-            parsed.entries[1].path,
+            parsed.entries[2].path,
             "test directory/test directory 2/example2 with lemurs.pan.lzma2"
         );
-        assert_eq!(parsed.entries[1].flags, ASSET_FLAG_DELTA);
+        assert_eq!(parsed.entries[2].flags, ASSET_FLAG_RAW);
 
-        // Verify transparent retrieval of delta-encoded entry
+        // Verify transparent retrieval of delta-encoded and raw entries
         let extracted_pan =
             get_bundle_asset(&bundle_bytes, &parsed.entries, "example2 with lemurs.pan")
                 .context("get_bundle_asset failed for pan")?;
         assert_eq!(extracted_pan, raw_pan);
+
+        let extracted_edited = get_bundle_asset(
+            &bundle_bytes,
+            &parsed.entries,
+            "example2 with lemurs-edited.bin",
+        )
+        .context("get_bundle_asset failed for edited bin")?;
+        assert_eq!(extracted_edited, raw_edited);
 
         let extracted_lzma2 = get_bundle_asset(
             &bundle_bytes,
@@ -1038,7 +1059,7 @@ mod tests {
 
     #[test]
     fn test_extract_asset_bundle_all_versions() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, raw_edited) = raw_test_files();
         let tmp_root = std::env::temp_dir().join(format!(
             "ctb_asset_bundle_test_{}",
             Uuid::new_v4()
@@ -1072,12 +1093,21 @@ mod tests {
             ))?;
             assert_eq!(lzma2_extracted, raw_lzma2);
 
+            let expected_count = if version == RESOURCE_BUNDLE_VERSION_V4 {
+                let edited_extracted =
+                    fs::read(assets_dir.join("example2 with lemurs-edited.bin"))?;
+                assert_eq!(edited_extracted, raw_edited);
+                3
+            } else {
+                2
+            };
+
             let metadata_bytes =
                 fs::read(extracted_dir.join("metadata.json"))?;
             let metadata: serde_json::Value =
                 serde_json::from_slice(&metadata_bytes)?;
             assert_eq!(metadata["version"], version);
-            assert_eq!(metadata["entry_count"], 2);
+            assert_eq!(metadata["entry_count"], expected_count);
 
             if version >= RESOURCE_BUNDLE_VERSION_V2 {
                 assert!(metadata["bundle_uuid"].is_string());
@@ -1102,7 +1132,7 @@ mod tests {
     /// This is preserved so that fixture creation can be verified or re-run.
     #[test]
     fn test_generate_and_verify_fixture_generation() -> Result<()> {
-        let (raw_pan, raw_lzma2) = raw_test_files();
+        let (raw_pan, raw_lzma2, raw_edited) = raw_test_files();
         let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
 
         let (v1_bytes, v1_header) = build_asset_bundle_v1(&entries)?;
@@ -1130,7 +1160,11 @@ mod tests {
         let fixed_v4_uuid =
             Uuid::parse_str("4c059cbb-98f6-4ef1-a4b7-db80efd12345")?;
         let fixed_v4_ts = 1_700_000_000_u64;
-        let entries_v4 = create_test_fixture_entries_v4(&raw_pan, &raw_lzma2)?;
+        let entries_v4 = create_test_fixture_entries_v4(
+            &raw_pan,
+            &raw_lzma2,
+            &raw_edited,
+        )?;
         let (v4_bytes, v4_header) = build_asset_bundle_v4_with_details(
             &entries_v4,
             fixed_v4_uuid,
@@ -1138,7 +1172,7 @@ mod tests {
         )?;
         assert_eq!(v4_header.version, 4);
         let parsed_v4 = parse_asset_bundle(&v4_bytes)?;
-        assert_eq!(parsed_v4.entries.len(), 2);
+        assert_eq!(parsed_v4.entries.len(), 3);
 
         // Verify that the static fixtures match what our builder produces
         let fixture_v1 =

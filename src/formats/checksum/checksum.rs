@@ -1,4 +1,4 @@
-//! Provides xxHash, a fast, non-cryptographic hash.
+//! Provides hashing algorithms including xxHash and SHA-256.
 
 #[expect(
     unused_imports,
@@ -10,6 +10,7 @@ pub(crate) use ctb_utilities::*;
 pub mod xxhash;
 
 use ctb_utilities::string::{to_hex, to_hex_0x};
+use sha2::{Digest, Sha256 as Sha256Digest};
 
 /// Supported hash algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +23,12 @@ pub enum HashAlgorithm {
     XxHash3_64,
     /// xxHash3 128-bit algorithm, non-cryptographic
     XxHash3_128,
+    /// SHA-256 cryptographic hash algorithm
+    Sha256,
 }
+
+#[allow(non_upper_case_globals)]
+pub const Sha256: HashAlgorithm = HashAlgorithm::Sha256;
 
 impl TryFrom<&str> for HashAlgorithm {
     type Error = anyhow::Error;
@@ -36,6 +42,9 @@ impl TryFrom<&str> for HashAlgorithm {
             }
             "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => {
                 Ok(HashAlgorithm::XxHash3_128)
+            }
+            "sha256" | "sha-256" | "sha2_256" | "sha2-256" => {
+                Ok(HashAlgorithm::Sha256)
             }
             _ => anyhow::bail!("Unknown hash algorithm: {s}"),
         }
@@ -58,6 +67,20 @@ impl std::str::FromStr for HashAlgorithm {
     }
 }
 
+/// Computes the SHA-256 hash of `data`.
+pub fn sha256(data: impl AsRef<[u8]>) -> [u8; 32] {
+    let mut hasher = Sha256Digest::new();
+    hasher.update(data.as_ref());
+    let mut out = [0_u8; 32];
+    out.copy_from_slice(&hasher.finalize());
+    out
+}
+
+/// Computes the SHA-256 hash of `data` as a lowercase hex string.
+pub fn sha256_hex(data: impl AsRef<[u8]>) -> String {
+    to_hex(&sha256(data))
+}
+
 /// Computes the hash of the given data using the specified algorithm.
 pub fn hash(data: &[u8], algo: HashAlgorithm) -> Vec<u8> {
     match algo {
@@ -65,6 +88,7 @@ pub fn hash(data: &[u8], algo: HashAlgorithm) -> Vec<u8> {
         HashAlgorithm::XxHash64 => xxhash::xxhash64(data).to_vec(),
         HashAlgorithm::XxHash3_64 => xxhash::xxhash3_64(data).to_vec(),
         HashAlgorithm::XxHash3_128 => xxhash::xxhash3_128(data).to_vec(),
+        HashAlgorithm::Sha256 => sha256(data).to_vec(),
     }
 }
 
@@ -106,6 +130,15 @@ mod tests {
         assert_eq!(
             hash_hex(data, HashAlgorithm::XxHash64, true),
             "0x45ab6734b21e6968"
+        );
+
+        assert_eq!(
+            hash_hex(data, HashAlgorithm::Sha256, false),
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+        assert_eq!(
+            sha256_hex(data),
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
         );
     }
 }
