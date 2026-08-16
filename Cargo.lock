@@ -2609,6 +2609,7 @@ dependencies = [
  "ctb-formats-pan",
  "ctb-formats-pdf",
  "ctb-formats-stagel",
+ "ctb-formats-unicode",
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-x86",
@@ -3044,12 +3045,14 @@ dependencies = [
 name = "ctb-formats-unicode"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "csv",
  "ctb-formats-checksum",
  "ctb-formats-utilities",
  "ctb-storage",
  "ctb-utilities",
  "icu_properties",
+ "tempfile",
  "ucd-parse",
 ]
 

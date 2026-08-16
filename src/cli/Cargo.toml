@@ -22,6 +22,7 @@ ctb-formats-compression = { path = "../formats/compression" }
 ctb-formats-dceutils = { path = "../formats/dceutils" }
 ctb-formats-hexdump = { path = "../formats/hexdump" }
 ctb-formats-math = { path = "../formats/math" }
+ctb-formats-unicode = { path = "../formats/unicode" }
 ctb-formats-x86 = { path = "../formats/x86" }
 ctb-storage = { path = "../storage" }
 ctb-installer = { path = "../installer" }

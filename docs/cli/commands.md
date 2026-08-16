@@ -21,6 +21,7 @@ Commands:
   hex2bin                    Convert a hexadecimal string to binary data
   bin2hex                    Convert binary data to a hexadecimal string or hex dump
   range_gen                  Generate a range of numbers in various bases
+  character_description      Describe Unicode characters with annotations, aliases, and meanings
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
   ia                         Internet Archive utilities
@@ -153,6 +154,43 @@ Examples:
   $ ctoolbox bin2hex -f file.bin -o file.hex
   $ ctoolbox bin2hex --hd -f file.bin
   $ ctoolbox bin2hex --hf "Hello"
+```
+
+### `ctoolbox character_description`
+
+```text
+Describe Unicode characters with annotations, aliases, and meanings
+
+Usage: ctoolbox character_description [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input text containing characters to describe. If not provided, reads from stdin or file
+
+Options:
+  -f, --file <FILE>
+          Input file path (or - for stdin)
+  -o, --output <OUTPUT>
+          Output file path (or - for stdout)
+  -c, --codepoint <CODEPOINT>
+          Specific Unicode codepoint (e.g. U+0041, 0x41, 65)
+      --mode <MODE>
+          Description format mode (standard or wuc-compat) [default: standard] [possible values: standard, wuc-compat]
+      --wuc-compat
+          Shortcut flag for WUC compatibility mode
+      --control-names <CONTROL_NAME_FORMAT>
+          Control character name formatting style [default: name-aliases] [possible values: name-aliases, names-list, wuc]
+  -u, --unicode-version <UNICODE_VERSION>
+          Unicode version to use for character data (17.0, 16.0, 15.1, 15.0) [default: 17.0] [possible values: 17.0, 16.0, 15.1, 15.0]
+      --no-unihan-readings
+          Disable Unihan readings/meanings in standard description output
+  -h, --help
+          Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox character_description "Hello"
+  $ ctoolbox character_description -f input.txt -o output.txt
+  $ ctoolbox character_description --codepoint U+1F602
+  $ ctoolbox character_description --wuc-compat "Hello"
 ```
 
 ### `ctoolbox compress`

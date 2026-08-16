@@ -11,6 +11,7 @@
 pub(crate) use ctb_utilities::*;
 
 pub mod character_description;
+pub mod cli;
 pub(crate) mod data;
 
 pub use character_description::{

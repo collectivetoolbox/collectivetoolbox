@@ -367,6 +367,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_all_cli_commands_help_and_generate_docs() {
+        //bypass-tempdir-lint
         // Assert that all clap options, subcommands, and flags are valid without panics
         Cli::command().debug_assert();
 
@@ -531,6 +532,25 @@ $my_test_array = array('a' => '1', 'b' => '2');
         match result2 {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(stdout, b"48656c6c6f");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd3 = Command::CharacterDescription(
+            ctb_formats_unicode::cli::CharacterDescriptionArgs {
+                input: Some("A".to_string()),
+                ..Default::default()
+            },
+        );
+        let result3 = run_lightweight_command(&cmd3)
+            .await
+            .expect("Run character_description");
+        match result3 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8 stdout"),
+                    "U+0041 : LATIN CAPITAL LETTER A\n"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

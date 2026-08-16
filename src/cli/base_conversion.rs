@@ -226,7 +226,10 @@ pub fn run_base2base(
         && (2..=36).contains(&from)
         && (2..=36).contains(&to)
     {
-        let input = args.get(2..).map(|s| s.join(" ")).unwrap_or_default();
+        let input = match args.get(2..) {
+            Some(s) => s.join(" "),
+            None => String::new(),
+        };
         (input, Some(from), Some(to))
     } else if args.is_empty() {
         anyhow::bail!(
