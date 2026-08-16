@@ -19,6 +19,8 @@ use uuid::Uuid;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
+use std::sync::{Arc, RwLock};
+
 const EXPECTED_RESOURCE_BUNDLE_UUID: &str = env!("CTB_ASSET_PACK_UUID");
 const EXPECTED_RESOURCE_BUNDLE_SHA256: Option<&str> =
     option_env!("CTB_ASSET_PACK_SHA256");
@@ -34,6 +36,7 @@ static PROJECT_ASSETS: OnceLock<Result<ResourceBundle, String>> =
 #[derive(Debug)]
 struct ResourceBundleEntry {
     path: String,
+    flags: u32,
     mmap_index: usize,
     data_range: Range<usize>,
 }
@@ -43,10 +46,12 @@ struct ResourceBundle {
     entries: Vec<ResourceBundleEntry>,
     entry_by_path: HashMap<String, usize>,
     mmaps: Vec<Mmap>,
+    delta_cache: RwLock<HashMap<String, Arc<Vec<u8>>>>,
 }
 
 pub(crate) fn get_asset(key: &str) -> Option<Vec<u8>> {
-    project_assets().ok()?.get_bytes(key).map(ToOwned::to_owned)
+    let bundle = project_assets().ok()?;
+    bundle.get_asset_vec(key)
 }
 
 pub(crate) fn get_asset_utf8(key: &str) -> Result<String> {
@@ -161,6 +166,7 @@ impl ResourceBundle {
                             let entry_index = entries.len();
                             entries.push(ResourceBundleEntry {
                                 path: inner_entry.path.clone(),
+                                flags: inner_entry.flags,
                                 mmap_index: 0,
                                 data_range: abs_start..abs_end,
                             });
@@ -174,6 +180,7 @@ impl ResourceBundle {
             let entry_index = entries.len();
             entries.push(ResourceBundleEntry {
                 path: parsed_entry.path.clone(),
+                flags: parsed_entry.flags,
                 mmap_index: 0,
                 data_range: parsed_entry.data_range,
             });
@@ -212,6 +219,7 @@ impl ResourceBundle {
                 let entry_index = entries.len();
                 entries.push(ResourceBundleEntry {
                     path: parsed_entry.path.clone(),
+                    flags: parsed_entry.flags,
                     mmap_index: mmap_idx,
                     data_range: parsed_entry.data_range,
                 });
@@ -228,15 +236,38 @@ impl ResourceBundle {
             entries,
             entry_by_path,
             mmaps,
+            delta_cache: RwLock::new(HashMap::new()),
         })
     }
 
-    fn get_bytes(&self, key: &str) -> Option<&[u8]> {
+    fn get_asset_vec(&self, key: &str) -> Option<Vec<u8>> {
         let normalized = normalize_asset_key(key);
         let index = self.entry_by_path.get(normalized)?;
         let entry = self.entries.get(*index)?;
         let mmap = self.mmaps.get(entry.mmap_index)?;
-        mmap.get(entry.data_range.clone())
+        let raw_slice = mmap.get(entry.data_range.clone())?;
+
+        if entry.flags & asset_bundle_format::ASSET_FLAG_DELTA == 0 {
+            return Some(raw_slice.to_vec());
+        }
+
+        if let Ok(cache) = self.delta_cache.read() {
+            if let Some(cached) = cache.get(normalized) {
+                return Some((**cached).clone());
+            }
+        }
+
+        let (base_path, delta_bytes) =
+            asset_bundle_format::delta::decode_delta_payload(raw_slice).ok()?;
+        let base_bytes = self.get_asset_vec(base_path)?;
+        let target_bytes =
+            asset_bundle_format::delta::decode_delta(&base_bytes, delta_bytes).ok()?;
+
+        if let Ok(mut cache) = self.delta_cache.write() {
+            cache.insert(normalized.to_string(), Arc::new(target_bytes.clone()));
+        }
+
+        Some(target_bytes)
     }
 
     fn find_paths(&self, glob: &str) -> Result<Vec<String>> {

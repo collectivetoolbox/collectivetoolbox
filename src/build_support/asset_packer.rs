@@ -10,7 +10,8 @@ use ctb_formats_ctb_asset_bundle::{
     self as asset_bundle_format, AssetBundleHeader, AssetBundleSourceEntry,
 };
 use fs2::FileExt;
-use std::collections::HashSet;
+use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
@@ -240,10 +241,140 @@ fn collect_bundle_entries(
         let path_string = normalize_relative_path(relative)?;
         let contents = fs::read(&path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        entries.push(AssetBundleSourceEntry {
-            path: path_string,
-            contents,
-        });
+        entries.push(AssetBundleSourceEntry::raw(path_string, contents));
+    }
+
+    Ok(())
+}
+
+fn compute_sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    let digest = hasher.finalize();
+    let mut out = String::with_capacity(64);
+    let chars = b"0123456789abcdef";
+    for byte in digest {
+        let hi = usize::from(byte >> 4);
+        let lo = usize::from(byte & 0x0f);
+        if let (Some(&c1), Some(&c2)) = (chars.get(hi), chars.get(lo)) {
+            out.push(char::from(c1));
+            out.push(char::from(c2));
+        }
+    }
+    out
+}
+
+fn get_or_compute_delta(
+    base_path: &str,
+    base_contents: &[u8],
+    target_contents: &[u8],
+    cache_dir: &Path,
+) -> Result<Vec<u8>> {
+    let base_hash = compute_sha256_hex(base_contents);
+    let target_hash = compute_sha256_hex(target_contents);
+    let cache_file = cache_dir.join(format!("{base_hash}_{target_hash}.delta"));
+
+    if cache_file.is_file() {
+        if let Ok(cached) = fs::read(&cache_file) {
+            return Ok(cached);
+        }
+    }
+
+    let payload = asset_bundle_format::delta::encode_delta_payload(
+        base_path,
+        base_contents,
+        target_contents,
+    )?;
+
+    // Cache to disk
+    let _ = fs::create_dir_all(cache_dir);
+    let temp_file = cache_dir.join(format!(".{base_hash}_{target_hash}.tmp"));
+    if fs::write(&temp_file, &payload).is_ok() {
+        let _ = fs::rename(&temp_file, &cache_file);
+    }
+
+    Ok(payload)
+}
+
+fn optimize_unicode_deltas(
+    entries: &mut [AssetBundleSourceEntry],
+    cache_dir: &Path,
+) -> Result<()> {
+    let path_to_idx: HashMap<String, usize> = entries
+        .iter()
+        .enumerate()
+        .map(|(idx, e)| (e.path.clone(), idx))
+        .collect();
+
+    let versions = [
+        ("Unicode-15.0.0", "Unicode-15.1.0"),
+        ("Unicode-15.1.0", "Unicode-16.0.0"),
+        ("Unicode-16.0.0", "Unicode-17.0.0"),
+    ];
+
+    for (from_ver, to_ver) in versions {
+        let from_prefix = format!("data/Unicode/{from_ver}/");
+        let to_prefix = format!("data/Unicode/{to_ver}/");
+
+        for i in 0..entries.len() {
+            let path = match entries.get(i) {
+                Some(e) => e.path.clone(),
+                None => continue,
+            };
+            if !path.starts_with(&from_prefix) {
+                continue;
+            }
+
+            let subpath = path.strip_prefix(&from_prefix).unwrap_or("");
+            let direct_target = format!("{to_prefix}{subpath}");
+
+            let base_path = if path_to_idx.contains_key(&direct_target) {
+                Some(direct_target)
+            } else if subpath.starts_with("Unihan/") {
+                let unihan_nested = format!("{to_prefix}Unihan/{subpath}");
+                if path_to_idx.contains_key(&unihan_nested) {
+                    Some(unihan_nested)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let Some(base_path) = base_path else {
+                continue;
+            };
+
+            let Some(&base_idx) = path_to_idx.get(&base_path) else {
+                continue;
+            };
+
+            let base_contents = match entries.get(base_idx) {
+                Some(e) => e.contents.clone(),
+                None => continue,
+            };
+
+            let target_entry = match entries.get_mut(i) {
+                Some(e) => e,
+                None => continue,
+            };
+
+            let orig_len = target_entry.contents.len();
+            let delta_payload = get_or_compute_delta(
+                &base_path,
+                &base_contents,
+                &target_entry.contents,
+                cache_dir,
+            )?;
+
+            // Use delta if it achieves >= 5% savings (i.e. size < 95% of orig)
+            if delta_payload.len().saturating_mul(100)
+                < orig_len.saturating_mul(95)
+            {
+                target_entry.contents = delta_payload;
+                target_entry.flags = asset_bundle_format::ASSET_FLAG_DELTA;
+            }
+        }
     }
 
     Ok(())
@@ -284,6 +415,15 @@ fn write_resource_bundle(
 ) -> Result<(String, String)> {
     let mut entries = Vec::new();
     collect_bundle_entries(stage_dir, stage_dir, &mut entries)?;
+
+    let cache_dir = stage_dir
+        .ancestors()
+        .find(|p| p.file_name() == Some(std::ffi::OsStr::new("built")))
+        .unwrap_or_else(|| Path::new("built"))
+        .join("cache/asset_deltas");
+
+    optimize_unicode_deltas(&mut entries, &cache_dir)?;
+
     let content_sha256 =
         asset_bundle_format::compute_asset_bundle_content_sha256(&entries)?;
     let sha256_hex = asset_bundle_format::format_sha256_hex(&content_sha256);

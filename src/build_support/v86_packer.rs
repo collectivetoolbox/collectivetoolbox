@@ -308,10 +308,11 @@ fn collect_v86_entries(
         let bundle_path =
             format!("images/{}", rel_path.to_string_lossy().replace('\\', "/"));
         let contents = fs::read(&path)?;
-        entries.push(ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry {
-            path: bundle_path,
-            contents,
-        });
+        entries.push(
+            ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry::raw(
+                bundle_path, contents,
+            ),
+        );
     }
     Ok(())
 }
