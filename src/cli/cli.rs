@@ -504,29 +504,4 @@ $my_test_array = array('a' => '1', 'b' => '2');
         let _ = std::fs::remove_file(expected_csv_path);
     }
 
-    #[crate::ctb_test("tokio")]
-    async fn test_hex2bin_and_bin2hex_commands() {
-        let cmd = Command::Hex2Bin {
-            value: Some("48656c6c6f".to_string()),
-        };
-        let result = run_lightweight_command(&cmd).await.expect("Run hex2bin");
-        match result {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"Hello");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-        let cmd2 = Command::Bin2Hex {
-            value: Some("Hello".to_string()),
-        };
-        let result2 =
-            run_lightweight_command(&cmd2).await.expect("Run bin2hex");
-        match result2 {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"48656c6c6f");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-    }
 }

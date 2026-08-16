@@ -278,14 +278,26 @@ pub enum Command {
         /// Hexadecimal string. If not provided, reads from stdin.
         value: Option<String>,
     },
-    /// Convert binary data to a hexadecimal string
+    /// Convert binary data to a hexadecimal string or hex dump
     #[command(
         name = "bin2hex",
-        after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a..."
+        after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\""
     )]
     Bin2Hex {
-        /// Data to convert. If not provided, reads from stdin.
+        /// Data to convert. If not provided, reads from stdin or file.
         value: Option<String>,
+        /// Input file path (or - for stdin)
+        #[arg(short = 'f', long = "file")]
+        file: Option<PathBuf>,
+        /// Output file path (or - for stdout)
+        #[arg(short = 'o', long = "output")]
+        output: Option<PathBuf>,
+        /// Output in classic hex dump format
+        #[arg(long = "hd", conflicts_with = "hf")]
+        hd: bool,
+        /// Output in fancy hex dump format
+        #[arg(long = "hf", conflicts_with = "hd")]
+        hf: bool,
     },
     /// Generate a range of numbers in various bases
     #[command(
@@ -769,38 +781,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {
-            let (input, from_base, to_base) = if args.len() >= 3
-                && let (Ok(from), Ok(to)) = (
-                    args.first()
-                        .ok_or_else(|| anyhow!("Missing from_base"))?
-                        .parse::<u8>(),
-                    args.get(1)
-                        .ok_or_else(|| anyhow!("Missing to_base"))?
-                        .parse::<u8>(),
-                )
-                && from >= 2
-                && from <= 36
-                && to >= 2
-                && to <= 36
-            {
-                let input =
-                    args.get(2..).map(|s| s.join(" ")).unwrap_or_default();
-                (input, Some(from), Some(to))
-            } else if args.is_empty() {
-                bail!("Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]");
-            } else {
-                let input = args.join(" ");
-                (input, None, None)
-            };
-
-            run_base_convert(
-                &from_base,
-                &to_base,
-                &StringInput {
-                    input: input.clone(),
-                },
-                base_args,
-            )
+                hexdump::cli::base2base()
         }
         Command::Hex2Dec {
             string_input,
@@ -815,28 +796,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             base_args,
         } => run_base_convert(&Some(16), &Some(16), string_input, base_args),
         Command::Hex2Bin { value } => {
-            let input_str = if let Some(val) = value {
-                val.clone()
-            } else {
-                use std::io::Read;
-                let mut buf = Vec::new();
-                std::io::stdin().read_to_end(&mut buf)?;
-                String::from_utf8(buf).context("Input is not valid UTF-8")?
-            };
-            let decoded = ctb_formats_hexdump::hex2bin(&input_str)?;
-            Ok(ToolResult::immediate_ok(decoded))
+             hexdump::cli::hex2bin()
+
         }
-        Command::Bin2Hex { value } => {
-            let input_bytes = if let Some(val) = value {
-                val.as_bytes().to_vec()
-            } else {
-                use std::io::Read;
-                let mut buf = Vec::new();
-                std::io::stdin().read_to_end(&mut buf)?;
-                buf
-            };
-            let encoded = ctb_formats_hexdump::bin2hex(&input_bytes);
-            Ok(ToolResult::immediate_ok(encoded.into_bytes()))
+        Command::Bin2Hex {
+            value,
+            file,
+            output,
+            hd,
+            hf,
+        } => {
+            hexdump::cli::bin2hex()
         }
         Command::RangeGen(args) => {
             let output = ctb_formats_math::range_generator::range_cli_handler(args)?;

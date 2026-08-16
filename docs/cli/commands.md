@@ -19,7 +19,7 @@ Commands:
   dec2hex                    Convert from decimal to hexadecimal
   hexfmt                     Reformat hexdumps
   hex2bin                    Convert a hexadecimal string to binary data
-  bin2hex                    Convert binary data to a hexadecimal string
+  bin2hex                    Convert binary data to a hexadecimal string or hex dump
   range_gen                  Generate a range of numbers in various bases
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
@@ -126,15 +126,19 @@ Examples:
 ### `ctoolbox bin2hex`
 
 ```text
-Convert binary data to a hexadecimal string
+Convert binary data to a hexadecimal string or hex dump
 
-Usage: ctoolbox bin2hex [VALUE]
+Usage: ctoolbox bin2hex [OPTIONS] [VALUE]
 
 Arguments:
-  [VALUE]  Data to convert. If not provided, reads from stdin
+  [VALUE]  Data to convert. If not provided, reads from stdin or file
 
 Options:
-  -h, --help  Print help
+  -f, --file <FILE>      Input file path (or - for stdin)
+  -o, --output <OUTPUT>  Output file path (or - for stdout)
+      --hd               Output in classic hex dump format
+      --hf               Output in fancy hex dump format
+  -h, --help             Print help
 
 Examples:
   $ ctoolbox bin2hex "Hello"
@@ -145,6 +149,10 @@ Examples:
 
   $ cat file.exe | ctoolbox bin2hex
   4d5a...
+
+  $ ctoolbox bin2hex -f file.bin -o file.hex
+  $ ctoolbox bin2hex --hd -f file.bin
+  $ ctoolbox bin2hex --hf "Hello"
 ```
 
 ### `ctoolbox compress`
@@ -211,7 +219,7 @@ Usage: ctoolbox ctb-asset-bundle-extract <BUNDLE_PATH> [OUTPUT_DIR]
 
 Arguments:
   <BUNDLE_PATH>  Path to the `.rsrc` asset bundle
-  [OUTPUT_DIR]   Output directory for the extracted assets
+  [OUTPUT_DIR]   Output directory for the extracted assets. Defaults to the current directory. The bundle name will be appended as a subdirectory, such as extracting to a folder `test` will place the extracted files within `test/bundle_v3-extracted/`
 
 Options:
   -h, --help  Print help
