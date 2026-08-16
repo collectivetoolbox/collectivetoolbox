@@ -97,9 +97,9 @@ RUN --security=insecure set -eux; \
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
 
-# # Layer 3: Cross-compile GNU Icecat x86_64→i686
-# RUN --security=insecure set -eux; \
-#     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
+# Layer 3: Cross-compile GNU Icecat x86_64→i686
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
 
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
