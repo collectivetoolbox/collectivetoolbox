@@ -103,8 +103,8 @@ fi
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.cache/guile" ]; then
     rm -r "$HOME/.cache/guile" 2>/dev/null || true
 fi
-# Configure default Guix build options: maximum 60 seconds of silent stalling before timing out substitute downloads and falling back
-export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=60 --timeout=3600}"
+# Configure default Guix build options: allow long compilations without premature silent timeouts
+export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=3600 --timeout=86400}"
 
 daemon_pid=""
 tmp_build_dir=""
@@ -190,8 +190,7 @@ start_guix_daemon() {
         fi
     fi
 
-    # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=60 --timeout=3600 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
