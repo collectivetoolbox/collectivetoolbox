@@ -5,6 +5,7 @@
 
 use std::ffi::{c_char, c_int, c_long, c_ulong, c_void};
 
+const RTLD_DEFAULT: *mut c_void = std::ptr::null_mut::<c_void>();
 const RTLD_NEXT: *mut c_void =
     std::ptr::null_mut::<c_void>().wrapping_offset(-1);
 
@@ -26,10 +27,41 @@ unsafe extern "C" {
 static INIT: unsafe extern "C" fn() = {
     unsafe extern "C" fn init() {
         let name = c"LD_PRELOAD";
-        // SAFETY: Calling C library unsetenv with valid null-terminated string
-        // so that spawned child processes do not inherit LD_PRELOAD.
+        // SAFETY: Calling C library unsetenv with valid null-terminated string.
         unsafe {
             unsetenv(name.as_ptr());
+        }
+
+        // Also directly sanitize the host glibc's `environ` array if present,
+        // so that spawned child processes (substitutes, chroot processes)
+        // do not inherit LD_PRELOAD even across distinct glibc instances.
+        for sym_name in [c"environ", c"__environ"] {
+            // SAFETY: Looking up host process symbol table for environ.
+            let env_sym = unsafe { dlsym(RTLD_DEFAULT, sym_name.as_ptr()) };
+            let env_ptr = env_sym.cast::<*mut *mut c_char>();
+            if !env_ptr.is_null() && !unsafe { (*env_ptr).is_null() } {
+                unsafe {
+                    let mut p = *env_ptr;
+                    let mut write_p = *env_ptr;
+                    while !(*p).is_null() {
+                        let entry = *p;
+                        let mut len = 0;
+                        while *entry.add(len) != 0 {
+                            len += 1;
+                        }
+                        let bytes = std::slice::from_raw_parts(
+                            entry.cast::<u8>(),
+                            len,
+                        );
+                        if !bytes.starts_with(b"LD_PRELOAD=") {
+                            *write_p = entry;
+                            write_p = write_p.add(1);
+                        }
+                        p = p.add(1);
+                    }
+                    *write_p = std::ptr::null_mut();
+                }
+            }
         }
     }
     init

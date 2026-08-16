@@ -1,1 +1,5 @@
 The data in these tables is gathered from AlphaSync by tSoniq, and from NeoTools by Borys Lykah.
+
+https://github.com/tSoniq/alphasync/blob/c4fb31cacc098cdfc61d3a357abc582bb89b017e/AlphaSync/Driver/ASFile.cc#L43
+
+https://github.com/lykahb/neotools/tree/1f0c957cbac96664e55769ad6e2873038e3bc565/neotools/character_map

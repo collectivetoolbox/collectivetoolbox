@@ -158,7 +158,11 @@ start_guix_daemon() {
             fi
             if [ -f "$nopersonality_so" ]; then
                 chmod 755 "$nopersonality_dir" "$nopersonality_so"
-                # Also copy to /lib or /usr/lib so child chroots can resolve it if LD_PRELOAD is present
+                # Also copy to /usr/lib, /gnu/store, and other standard search paths so any chroot can resolve it
+                if [ -d /gnu/store ] && [ -w /gnu/store ]; then
+                    cp "$nopersonality_so" /gnu/store/libctb_nopersonality.so 2>/dev/null || true
+                    chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
+                fi
                 if [ -d /usr/lib ] && [ -w /usr/lib ]; then
                     cp "$nopersonality_so" /usr/lib/libctb_nopersonality.so 2>/dev/null || true
                     chmod 755 /usr/lib/libctb_nopersonality.so 2>/dev/null || true
@@ -173,6 +177,9 @@ start_guix_daemon() {
         find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
         find /gnu/store -maxdepth 5 -name "cargo.scm" -path "*/build-system/*" -exec chmod u+w {} + -exec sed -i 's/(default-guile-json)/(cargo-guile-json)/g' {} + 2>/dev/null || true
         find /gnu/store -maxdepth 5 -name "cargo.go" -path "*/build-system/*" -delete 2>/dev/null || true
+        if [ -f "$script_dir/patch-guix-substitute.py" ]; then
+            python3 "$script_dir/patch-guix-substitute.py" 2>/dev/null || true
+        fi
 
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true
@@ -192,9 +199,8 @@ start_guix_daemon() {
 
     if [ -z "$disable_chroot" ]; then
         if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
-            echo "Error: Mount namespaces blocked by container environment." >&2
-            echo "Guix sandboxing requires mount namespace support." >&2
-            exit 1
+            echo "Mount namespaces unavailable in this container environment. Automatically enabling --disable-chroot." >&2
+            disable_chroot="--disable-chroot"
         fi
     fi
 
