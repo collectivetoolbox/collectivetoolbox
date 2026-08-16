@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 warcat = { path = "../../../vendor/warcat", features = ["bin"] }
+clap = { version = "4.5.54", features = ["cargo", "derive"] }
 
 fancy-regex = "0.17.0"
 once_cell = "1.21.3"

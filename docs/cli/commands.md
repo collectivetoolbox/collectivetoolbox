@@ -983,12 +983,218 @@ Options:
 ### `ctoolbox warcat`
 
 ```text
-WARC archiving tool
+WARC archive tool
 
-Usage: ctoolbox warcat [ARGS]...
+Usage: warcat [OPTIONS] <COMMAND>
 
-Arguments:
-  [ARGS]...  Arguments passed to warcat
+Commands:
+  export   Decodes a WARC file to messages in a easier-to-process format such as JSON
+  import   Encodes a WARC file from messages in a format of the `export` subcommand
+  list     Provides a listing of the WARC records
+  get      Returns a single WARC record
+  extract  Extracts resources for casual viewing of the WARC contents
+  verify   Perform specification and integrity checks on WARC files
+  self     Self-installer and uninstaller
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -q, --quiet                  Disable any progress messages
+      --log-level <LOG_LEVEL>  Filter log messages by level [default: off] [possible values: trace, debug, info, warn, error, off]
+      --log-file <LOG_FILE>    Write log messages to the given file instead of standard error
+      --log-json               Write log messages as JSON sequences instead of a console logging format
+  -h, --help                   Print help (see more with '--help')
+  -V, --version                Print version
+```
+
+### `ctoolbox warcat export`
+
+```text
+Decodes a WARC file to messages in a easier-to-process format such as JSON
+
+Usage: warcat export [OPTIONS]
+
+Options:
+      --input <INPUT>              Path to a WARC file [default: -]
+      --compression <COMPRESSION>  Specify the compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --output <OUTPUT>            Path for the output messages [default: -]
+      --format <FORMAT>            Format for the output messages [default: json-seq] [possible values: json-seq, jsonl, cbor-seq]
+      --no-block                   Do not output block messages
+      --extract                    Output extract messages
+  -h, --help                       Print help (see more with '--help')
+```
+
+### `ctoolbox warcat extract`
+
+```text
+Extracts resources for casual viewing of the WARC contents
+
+Usage: warcat extract [OPTIONS]
+
+Options:
+      --input <INPUT>
+          Path to the WARC file [default: -]
+      --compression <COMPRESSION>
+          Compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --output <OUTPUT>
+          Path to the output directory [default: ./]
+      --continue-on-error
+          Whether to ignore errors
+      --include <INCLUDE>
+          Select only records with a field
+      --include-pattern <INCLUDE_PATTERN>
+          Select only records matching a regular expression
+      --exclude <EXCLUDE>
+          Do not select records with a field
+      --exclude-pattern <EXCLUDE_PATTERN>
+          Do not select records matching a regular expression
+  -h, --help
+          Print help (see more with '--help')
+```
+
+### `ctoolbox warcat get`
+
+```text
+Returns a single WARC record
+
+Usage: warcat get <COMMAND>
+
+Commands:
+  export   Output export messages
+  extract  Extract a resource
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+### `ctoolbox warcat get export`
+
+```text
+Output export messages
+
+Usage: warcat get export [OPTIONS] --position <POSITION>
+
+Options:
+      --input <INPUT>              Path of the WARC file [default: -]
+      --compression <COMPRESSION>  Compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --position <POSITION>        Position where the record is located in the input WARC file
+      --id <ID>                    The ID of the record to extract
+      --output <OUTPUT>            Path for the output messages [default: -]
+      --format <FORMAT>            Format for the output messages [default: json-seq] [possible values: json-seq, jsonl, cbor-seq]
+      --no-block                   Do not output block messages
+      --extract                    Output extract messages
+  -h, --help                       Print help (see more with '--help')
+```
+
+### `ctoolbox warcat get extract`
+
+```text
+Extract a resource
+
+Usage: warcat get extract [OPTIONS] --position <POSITION>
+
+Options:
+      --input <INPUT>              [default: -]
+      --compression <COMPRESSION>  Compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --position <POSITION>        Position where the record is located in the input WARC file
+      --id <ID>                    The ID of the record to extract
+      --output <OUTPUT>            Path for the output file [default: -]
+  -h, --help                       Print help (see more with '--help')
+```
+
+### `ctoolbox warcat import`
+
+```text
+Encodes a WARC file from messages in a format of the `export` subcommand
+
+Usage: warcat import [OPTIONS]
+
+Options:
+      --input <INPUT>
+          Path to the input messages [default: -]
+      --format <FORMAT>
+          Format for the input messages [default: json-seq] [possible values: json-seq, jsonl, cbor-seq]
+      --output <OUTPUT>
+          Path of the output WARC file [default: -]
+      --compression <COMPRESSION>
+          Compression format of the output WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --compression-level <COMPRESSION_LEVEL>
+          Level of compression for the output [default: high] [possible values: balanced, high, low]
+  -h, --help
+          Print help (see more with '--help')
+```
+
+### `ctoolbox warcat list`
+
+```text
+Provides a listing of the WARC records
+
+Usage: warcat list [OPTIONS]
+
+Options:
+      --input <INPUT>              Path of the WARC file [default: -]
+      --compression <COMPRESSION>  Compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --output <OUTPUT>            Path to output listings [default: -]
+      --format <FORMAT>            Format of the output [default: json-seq] [possible values: json-seq, jsonl, cbor-seq, csv]
+      --field <FIELD>              Fields to include in the listing [default: :position,WARC-Record-ID,WARC-Type,Content-Type,WARC-Target-URI]
+  -h, --help                       Print help (see more with '--help')
+```
+
+### `ctoolbox warcat self`
+
+```text
+Self-installer and uninstaller
+
+Usage: warcat self <COMMAND>
+
+Commands:
+  install    Launch the interactive self-installer
+  uninstall  Launch the interactive uninstaller
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+### `ctoolbox warcat self install`
+
+```text
+Launch the interactive self-installer
+
+Usage: warcat self install [OPTIONS]
+
+Options:
+      --quiet  Install automatically without user interaction
+  -h, --help   Print help
+```
+
+### `ctoolbox warcat self uninstall`
+
+```text
+Launch the interactive uninstaller
+
+Usage: warcat self uninstall [OPTIONS]
+
+Options:
+      --quiet  Uninstall automatically without user interaction
+  -h, --help   Print help
+```
+
+### `ctoolbox warcat verify`
+
+```text
+Perform specification and integrity checks on WARC files
+
+Usage: warcat verify [OPTIONS]
+
+Options:
+      --input <INPUT>                  Path to the WARC file [default: -]
+      --compression <COMPRESSION>      Compression format of the input WARC file [default: auto] [possible values: auto, none, gzip, zstandard]
+      --output <OUTPUT>                Path to output problems [default: -]
+      --format <FORMAT>                Format of the output [default: json-seq] [possible values: json-seq, jsonl, cbor-seq, csv]
+      --exclude-check <EXCLUDE_CHECK>  Do not perform check [possible values: mandatory-fields, known-record-type, content-type, concurrent-to, block-digest, payload-digest, ip-address, refers-to, refers-to-target-uri, refers-to-date, target-uri, truncated, warcinfo-id, filename, profile, segment, record-at-time-compression]
+      --database <DATABASE>            Database filename for storing temporary intermediate data
+  -h, --help                           Print help (see more with '--help')
 ```
 
 ### `ctoolbox wfparser`

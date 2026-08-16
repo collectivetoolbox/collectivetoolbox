@@ -309,22 +309,34 @@ pub fn generate_cli_markdown_docs() -> String {
 
         for sub in subcommands {
             let name = sub.get_name();
-            if name == "help" {
+            if name == "help" || sub.is_hide_set() {
                 continue;
             }
             let full_name = format!("{parent_path} {name}");
             let _ = writeln!(doc, "### `{full_name}`\n");
 
-            let mut sub_clone = sub.clone();
-            sub_clone.build();
-            let mut help_buf = Vec::new();
-            let _ = sub_clone.write_help(&mut help_buf);
-            let help_str = String::from_utf8_lossy(&help_buf);
+            if name == "warcat" {
+                let mut warcat_cmd = ctb_formats_warc::warcat_command();
+                warcat_cmd.build();
+                let mut warcat_help_buf = Vec::new();
+                let _ = warcat_cmd.write_help(&mut warcat_help_buf);
+                let warcat_help_str = String::from_utf8_lossy(&warcat_help_buf);
 
-            let _ = writeln!(doc, "```text\n{}\n```\n", help_str.trim());
+                let _ = writeln!(doc, "```text\n{}\n```\n", warcat_help_str.trim());
 
-            if sub.has_subcommands() {
-                render_subcommands(doc, sub, &full_name);
+                render_subcommands(doc, &warcat_cmd, &full_name);
+            } else {
+                let mut sub_clone = sub.clone();
+                sub_clone.build();
+                let mut help_buf = Vec::new();
+                let _ = sub_clone.write_help(&mut help_buf);
+                let help_str = String::from_utf8_lossy(&help_buf);
+
+                let _ = writeln!(doc, "```text\n{}\n```\n", help_str.trim());
+
+                if sub.has_subcommands() {
+                    render_subcommands(doc, sub, &full_name);
+                }
             }
         }
     }
@@ -363,6 +375,8 @@ mod tests {
         assert!(docs.contains("ctoolbox base2base"));
         assert!(docs.contains("ctoolbox range_gen"));
         assert!(docs.contains("ctoolbox ia"));
+        assert!(docs.contains("ctoolbox warcat"));
+        assert!(docs.contains("ctoolbox warcat export"));
 
         // If running in repository workspace, ensure docs/cli/commands.md is written / up to date
         if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {

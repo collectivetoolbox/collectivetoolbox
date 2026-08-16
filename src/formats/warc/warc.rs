@@ -5,6 +5,8 @@
 )]
 pub(crate) use ctb_utilities::*;
 
+use clap::CommandFactory;
+
 /// Programmatic wrapper around warcat tool
 pub fn run_warcat<I, T>(args: I) -> i32
 where
@@ -12,6 +14,11 @@ where
     T: Into<std::ffi::OsString> + Clone,
 {
     warcat::app::run_from(args)
+}
+
+/// Returns the clap Command representation for the warcat tool.
+pub fn warcat_command() -> clap::Command {
+    warcat::app::arg::Args::command().name("warcat")
 }
 
 #[cfg(test)]
