@@ -1,12 +1,11 @@
-//! `LD_PRELOAD` shared object intercepting `personality()` syscalls.
+//! `LD_PRELOAD` shared object intercepting `personality()` and `setuid()` syscalls.
 //!
-//! Ignores `EPERM` failure when setting personality in unprivileged
-//! build containers during Guix image builds, and prevents `LD_PRELOAD`
-//! from leaking into child processes spawned by `guix-daemon`.
+//! Ignores `EPERM` failures when setting personality, uid/gid, or chroot
+//! in unprivileged build containers during Guix image builds, and prevents
+//! `LD_PRELOAD` from leaking into child processes spawned by `guix-daemon`.
 
 use std::ffi::{c_char, c_int, c_long, c_uint, c_ulong, c_void};
 
-const RTLD_DEFAULT: *mut c_void = std::ptr::null_mut::<c_void>();
 const RTLD_NEXT: *mut c_void =
     std::ptr::null_mut::<c_void>().wrapping_offset(-1);
 
@@ -16,57 +15,7 @@ const RTLD_NEXT: *mut c_void =
 )]
 unsafe extern "C" {
     fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-    fn unsetenv(name: *const c_char) -> c_int;
 }
-
-#[expect(
-    unsafe_code,
-    reason = "ELF .init_array constructor to clear LD_PRELOAD from process environment"
-)]
-#[unsafe(link_section = ".init_array")]
-#[used]
-static INIT: unsafe extern "C" fn() = {
-    unsafe extern "C" fn init() {
-        let name = c"LD_PRELOAD";
-        // SAFETY: Calling C library unsetenv with valid null-terminated string.
-        unsafe {
-            unsetenv(name.as_ptr());
-        }
-
-        // Also directly sanitize the host glibc's `environ` array if present,
-        // so that spawned child processes (substitutes, chroot processes)
-        // do not inherit LD_PRELOAD even across distinct glibc instances.
-        for sym_name in [c"environ", c"__environ"] {
-            // SAFETY: Looking up host process symbol table for environ.
-            let env_sym = unsafe { dlsym(RTLD_DEFAULT, sym_name.as_ptr()) };
-            let env_ptr = env_sym.cast::<*mut *mut c_char>();
-            if !env_ptr.is_null() && !unsafe { (*env_ptr).is_null() } {
-                unsafe {
-                    let mut p = *env_ptr;
-                    let mut write_p = *env_ptr;
-                    while !(*p).is_null() {
-                        let entry = *p;
-                        let mut len = 0;
-                        while *entry.add(len) != 0 {
-                            len += 1;
-                        }
-                        let bytes = std::slice::from_raw_parts(
-                            entry.cast::<u8>(),
-                            len,
-                        );
-                        if !bytes.starts_with(b"LD_PRELOAD=") {
-                            *write_p = entry;
-                            write_p = write_p.add(1);
-                        }
-                        p = p.add(1);
-                    }
-                    *write_p = std::ptr::null_mut();
-                }
-            }
-        }
-    }
-    init
-};
 
 type OrigPersonalityFn = unsafe extern "C" fn(c_ulong) -> c_long;
 
@@ -97,72 +46,10 @@ pub unsafe extern "C" fn personality(persona: c_ulong) -> c_long {
     0
 }
 
-type OrigExecveFn = unsafe extern "C" fn(
-    *const c_char,
-    *const *const c_char,
-    *const *const c_char,
-) -> c_int;
-
-/// Intercept `execve` to strip `LD_PRELOAD` from child environment.
-///
-/// # Safety
-///
-/// Calls `dlsym` to resolve `execve` in `RTLD_NEXT` and invokes it.
-#[unsafe(no_mangle)]
-#[expect(
-    unsafe_code,
-    reason = "LD_PRELOAD shared library export overriding execve syscall"
-)]
-pub unsafe extern "C" fn execve(
-    filename: *const c_char,
-    argv: *const *const c_char,
-    envp: *const *const c_char,
-) -> c_int {
-    let symbol_name = c"execve";
-    // SAFETY: Resolving execve symbol from RTLD_NEXT via dlsym.
-    let orig_ptr = unsafe { dlsym(RTLD_NEXT, symbol_name.as_ptr()) };
-    if orig_ptr.is_null() {
-        return -1;
-    }
-    // SAFETY: dlsym returned a non-null pointer matching OrigExecveFn.
-    let orig: OrigExecveFn = unsafe { std::mem::transmute(orig_ptr) };
-
-    if envp.is_null() {
-        // SAFETY: Invoking original execve with null envp.
-        return unsafe { orig(filename, argv, envp) };
-    }
-
-    let mut count = 0;
-    // SAFETY: Iterating null-terminated array of string pointers.
-    while !unsafe { (*envp.add(count)).is_null() } {
-        count += 1;
-    }
-
-    let mut filtered: Vec<*const c_char> = Vec::with_capacity(count + 1);
-    for i in 0..count {
-        // SAFETY: Dereferencing element within valid count bounds.
-        let entry = unsafe { *envp.add(i) };
-        let mut len = 0;
-        // SAFETY: Finding null terminator of entry string.
-        while unsafe { *entry.add(len) } != 0 {
-            len += 1;
-        }
-        // SAFETY: Creating slice of entry bytes.
-        let bytes =
-            unsafe { std::slice::from_raw_parts(entry.cast::<u8>(), len) };
-        if !bytes.starts_with(b"LD_PRELOAD=") {
-            filtered.push(entry);
-        }
-    }
-    filtered.push(std::ptr::null());
-
-    // SAFETY: Invoking original execve with sanitized environment vector.
-    unsafe { orig(filename, argv, filtered.as_ptr()) }
-}
-
 type OrigUidGidFn = unsafe extern "C" fn(c_uint) -> c_int;
 type OrigResUidGidFn =
     unsafe extern "C" fn(c_uint, c_uint, c_uint) -> c_int;
+type OrigSetgroupsFn = unsafe extern "C" fn(usize, *const c_uint) -> c_int;
 
 #[unsafe(no_mangle)]
 #[expect(
@@ -284,4 +171,87 @@ pub unsafe extern "C" fn setresgid(
         return res;
     }
     0
+}
+
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding setgroups syscall"
+)]
+pub unsafe extern "C" fn setgroups(size: usize, list: *const c_uint) -> c_int {
+    let symbol_name = c"setgroups";
+    let orig_ptr = unsafe { dlsym(RTLD_NEXT, symbol_name.as_ptr()) };
+    if !orig_ptr.is_null() {
+        let orig: OrigSetgroupsFn = unsafe { std::mem::transmute(orig_ptr) };
+        let res = unsafe { orig(size, list) };
+        if res < 0 {
+            return 0;
+        }
+        return res;
+    }
+    0
+}
+
+type OrigExecveFn = unsafe extern "C" fn(
+    *const c_char,
+    *const *const c_char,
+    *const *const c_char,
+) -> c_int;
+
+/// Intercept `execve` to strip `LD_PRELOAD` from child environments so that
+/// 32-bit target binaries or chroots do not attempt to preload a 64-bit shim.
+///
+/// # Safety
+///
+/// Calls `dlsym` to resolve `execve` in `RTLD_NEXT` and invokes it.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding execve syscall"
+)]
+pub unsafe extern "C" fn execve(
+    filename: *const c_char,
+    argv: *const *const c_char,
+    envp: *const *const c_char,
+) -> c_int {
+    let symbol_name = c"execve";
+    // SAFETY: Resolving execve symbol from RTLD_NEXT via dlsym.
+    let orig_ptr = unsafe { dlsym(RTLD_NEXT, symbol_name.as_ptr()) };
+    if orig_ptr.is_null() {
+        return -1;
+    }
+    // SAFETY: dlsym returned a non-null pointer matching OrigExecveFn.
+    let orig: OrigExecveFn = unsafe { std::mem::transmute(orig_ptr) };
+
+    if envp.is_null() {
+        // SAFETY: Invoking original execve with null envp.
+        return unsafe { orig(filename, argv, envp) };
+    }
+
+    let mut count = 0;
+    // SAFETY: Iterating null-terminated array of string pointers.
+    while !unsafe { (*envp.add(count)).is_null() } {
+        count += 1;
+    }
+
+    let mut filtered: Vec<*const c_char> = Vec::with_capacity(count + 1);
+    for i in 0..count {
+        // SAFETY: Dereferencing element within valid count bounds.
+        let entry = unsafe { *envp.add(i) };
+        let mut len = 0;
+        // SAFETY: Finding null terminator of entry string.
+        while unsafe { *entry.add(len) } != 0 {
+            len += 1;
+        }
+        // SAFETY: Creating slice of entry bytes.
+        let bytes =
+            unsafe { std::slice::from_raw_parts(entry.cast::<u8>(), len) };
+        if !bytes.starts_with(b"LD_PRELOAD=") {
+            filtered.push(entry);
+        }
+    }
+    filtered.push(std::ptr::null());
+
+    // SAFETY: Invoking original execve with sanitized environment vector.
+    unsafe { orig(filename, argv, filtered.as_ptr()) }
 }

@@ -236,6 +236,28 @@ def patch_serialization_file(path: str):
     print(f"Successfully patched {path}")
     compile_or_touch_scm(path)
 
+def patch_gnu_build_system_file(path: str):
+    print(f"Checking gnu-build-system {path}...")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    old_unpack = """        ;; Attempt to change into child directory.
+        (and=> (first-subdirectory ".") chdir))))"""
+
+    new_unpack = """        ;; Attempt to change into child directory.
+        (and=> (first-subdirectory ".") chdir)
+        (for-each (lambda (f)
+                    (false-if-exception (make-file-writable f)))
+                  (find-files "." #:directories? #t)))))"""
+
+    if old_unpack in content and new_unpack not in content:
+        content = content.replace(old_unpack, new_unpack)
+        os.chmod(path, 0o644)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"Successfully patched {path}")
+        compile_or_touch_scm(path)
+
 def main():
     for p in glob.glob("/gnu/store/*-guix-*/share/guile/site/3.0/guix/scripts/substitute.scm"):
         patch_substitute_file(p)
@@ -248,6 +270,9 @@ def main():
 
     for p in glob.glob("/gnu/store/*-guix-*/share/guile/site/3.0/guix/serialization.scm"):
         patch_serialization_file(p)
+
+    for p in glob.glob("/gnu/store/*-guix-*/share/guile/site/3.0/guix/build/gnu-build-system.scm"):
+        patch_gnu_build_system_file(p)
 
 if __name__ == "__main__":
     main()
