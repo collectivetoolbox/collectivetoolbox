@@ -342,6 +342,28 @@ impl CompressionFormat {
         )
         .and_then(Self::from_format_id)
     }
+    /// Returns true if this compression format is implemented natively in this repository,
+    /// rather than being provided by an external crate.
+    pub fn is_implemented_in_repo(&self) -> bool {
+        matches!(
+            self,
+            Self::ScoCompress
+                | Self::CompressLzw
+                | Self::CompressLzw2
+                | Self::CompressLzw1
+                | Self::CompressLzw16
+                | Self::Pack
+                | Self::OldPack
+                | Self::Compact
+        )
+    }
+
+    /// Returns the default verification setting for this format when compressing.
+    /// In-tree implementations default to verifying output, while external crate
+    /// implementations default to not verifying.
+    pub fn default_verify(&self) -> bool {
+        self.is_implemented_in_repo()
+    }
 }
 
 impl TryFrom<&str> for CompressionFormat {
@@ -368,8 +390,8 @@ impl TryFrom<String> for CompressionFormat {
     }
 }
 
-/// Compresses a stream from `reader` into `writer` using the specified algorithm format.
-pub fn compress_stream(
+/// Compresses a stream from `reader` directly into `writer` without verification.
+pub fn compress_stream_direct(
     reader: &mut impl Read,
     writer: &mut impl Write,
     format: CompressionFormat,
@@ -501,6 +523,60 @@ pub fn compress_stream(
     }
 }
 
+/// Compresses a stream from `reader` into `writer` using the specified algorithm format and verification option.
+pub fn compress_stream_with_verify(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    format: CompressionFormat,
+    verify: bool,
+) -> Result<u64> {
+    if !verify {
+        return compress_stream_direct(reader, writer, format);
+    }
+
+    let mut input_data = Vec::new();
+    reader
+        .read_to_end(&mut input_data)
+        .context("Failed to read input stream for verified compression")?;
+
+    let mut compressed_buf = Vec::new();
+    compress_stream_direct(
+        &mut input_data.as_slice(),
+        &mut compressed_buf,
+        format,
+    )?;
+
+    let mut decompressed_buf = Vec::new();
+    decompress_stream(
+        &mut compressed_buf.as_slice(),
+        &mut decompressed_buf,
+        format,
+    )
+    .context("Verification failed: unable to decompress compressed stream")?;
+
+    if decompressed_buf != input_data {
+        bail!(
+            "Verification failed: decompressed data does not match input for format {format:?}"
+        );
+    }
+
+    writer
+        .write_all(&compressed_buf)
+        .context("Failed to write verified compressed stream")?;
+
+    Ok(u64::try_from(input_data.len())?)
+}
+
+/// Compresses a stream from `reader` into `writer` using the specified algorithm format.
+/// Uses the format's default verification setting (verify for in-repo formats, no-verify for crates).
+pub fn compress_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    format: CompressionFormat,
+) -> Result<u64> {
+    compress_stream_with_verify(reader, writer, format, format.default_verify())
+}
+
 /// Decompresses a stream from `reader` into `writer` using the specified algorithm format.
 pub fn decompress_stream(
     reader: &mut impl Read,
@@ -611,12 +687,22 @@ pub fn decompress_stream(
     }
 }
 
-/// Compresses in-memory byte slice using the specified compression format.
-pub fn compress(data: &[u8], format: CompressionFormat) -> Result<Vec<u8>> {
+/// Compresses in-memory byte slice using the specified compression format and verification option.
+pub fn compress_with_verify(
+    data: &[u8],
+    format: CompressionFormat,
+    verify: bool,
+) -> Result<Vec<u8>> {
     let mut input = data;
     let mut output = Vec::new();
-    compress_stream(&mut input, &mut output, format)?;
+    compress_stream_with_verify(&mut input, &mut output, format, verify)?;
     Ok(output)
+}
+
+/// Compresses in-memory byte slice using the specified compression format.
+/// Uses the format's default verification setting (verify for in-repo formats, no-verify for crates).
+pub fn compress(data: &[u8], format: CompressionFormat) -> Result<Vec<u8>> {
+    compress_with_verify(data, format, format.default_verify())
 }
 
 /// Decompresses in-memory byte slice using the specified compression format.
@@ -662,6 +748,81 @@ mod tests {
         assert!(table.contains("  br, brotli: Brotli compressed stream"));
         assert!(table.contains("  gz, gzip: GNU gzip format"));
         assert!(table.contains("  sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
+    }
+
+    #[crate::ctb_test]
+    fn test_default_verify_and_in_repo() {
+        let repo_formats = [
+            CompressionFormat::ScoCompress,
+            CompressionFormat::CompressLzw,
+            CompressionFormat::CompressLzw2,
+            CompressionFormat::CompressLzw1,
+            CompressionFormat::CompressLzw16,
+            CompressionFormat::Pack,
+            CompressionFormat::OldPack,
+            CompressionFormat::Compact,
+        ];
+        let crate_formats = [
+            CompressionFormat::Brotli,
+            CompressionFormat::Gzip,
+            CompressionFormat::Deflate,
+            CompressionFormat::Zlib,
+            CompressionFormat::Bzip2,
+            CompressionFormat::Lz4,
+            CompressionFormat::Lzma,
+            CompressionFormat::Lzma2,
+            CompressionFormat::Lzip,
+            CompressionFormat::Xz,
+            CompressionFormat::Zstd,
+            CompressionFormat::Lzo,
+        ];
+
+        for fmt in repo_formats {
+            assert!(
+                fmt.is_implemented_in_repo(),
+                "Expected {fmt:?} to be marked as in-repo"
+            );
+            assert!(
+                fmt.default_verify(),
+                "Expected {fmt:?} to default verify to true"
+            );
+        }
+
+        for fmt in crate_formats {
+            assert!(
+                !fmt.is_implemented_in_repo(),
+                "Expected {fmt:?} to be marked as crate"
+            );
+            assert!(
+                !fmt.default_verify(),
+                "Expected {fmt:?} to default verify to false"
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_compress_stream_with_verify_toggle() {
+        let data = b"The quick brown fox jumps over the lazy dog. 1234567890!";
+        for info in CompressionFormat::ALL_FORMATS {
+            let fmt = info.format;
+            // Test with verify = false
+            let compressed_unverified =
+                compress_with_verify(data, fmt, false).unwrap();
+            let decompressed = decompress(&compressed_unverified, fmt).unwrap();
+            assert_eq!(
+                decompressed, data,
+                "Failed roundtrip with verify=false for format {fmt:?}"
+            );
+
+            // Test with verify = true
+            let compressed_verified =
+                compress_with_verify(data, fmt, true).unwrap();
+            let decompressed = decompress(&compressed_verified, fmt).unwrap();
+            assert_eq!(
+                decompressed, data,
+                "Failed roundtrip with verify=true for format {fmt:?}"
+            );
+        }
     }
 
     #[crate::ctb_test]

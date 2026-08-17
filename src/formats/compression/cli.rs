@@ -10,16 +10,43 @@ use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 
 /// Execution options for compressing a file via the CLI.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 pub struct CliCompressArgs {
-    /// Format identifier string passed on the CLI.
+    /// Compression format (e.g. `br`, `gz`, `deflate`, `zlib`). See table below for allowed values.
     pub format: String,
-    /// Path to input file or "-" for stdin.
-    pub input_path: PathBuf,
-    /// Optional output file path or "-" for stdout.
-    pub output_path: Option<PathBuf>,
+    /// Input file path (or - for stdin)
+    #[arg(default_value = "-")]
+    pub file: PathBuf,
+    /// Output file path or - for stdout
+    #[arg(
+        short = 'o',
+        long = "output",
+        alias = "file",
+        value_name = "OUTPUT"
+    )]
+    pub output: Option<PathBuf>,
     /// Force overwrite existing destination file without confirmation.
+    #[arg(long = "force")]
     pub force: bool,
+    /// Verify compressed output by decompressing it
+    #[arg(long = "verify", conflicts_with = "no_verify")]
+    pub verify: bool,
+    /// Skip verification of compressed output
+    #[arg(long = "no-verify", conflicts_with = "verify")]
+    pub no_verify: bool,
+}
+
+impl CliCompressArgs {
+    /// Returns whether verification should be enabled for this invocation.
+    pub fn verify_enabled(&self, format: crate::CompressionFormat) -> bool {
+        if self.verify {
+            true
+        } else if self.no_verify {
+            false
+        } else {
+            format.default_verify()
+        }
+    }
 }
 
 /// Execution options for decompressing a file via the CLI.
@@ -91,18 +118,20 @@ where
 {
     let compression_format =
         crate::CompressionFormat::try_from(args.format.as_str())?;
-    let data = read_data(args.input_path.as_path())?;
-    let compressed = crate::compress(&data, compression_format)?;
+    let data = read_data(args.file.as_path())?;
+    let verify = args.verify_enabled(compression_format);
+    let compressed =
+        crate::compress_with_verify(&data, compression_format, verify)?;
 
-    let target_path = match args.output_path {
+    let target_path = match args.output {
         Some(out_path) => out_path,
         None => {
-            if args.input_path.as_path() == Path::new("-") {
+            if args.file.as_path() == Path::new("-") {
                 PathBuf::from("-")
             } else {
                 PathBuf::from(format!(
                     "{}.{}",
-                    args.input_path.display(),
+                    args.file.display(),
                     compression_format.extension()
                 ))
             }
@@ -261,4 +290,98 @@ mod tests {
             PathBuf::from("unknown.bin.decompressed")
         );
     }
+
+    #[ctb_test]
+    fn test_cli_compress_verify_flags() {
+        let in_repo_fmt = crate::CompressionFormat::CompressLzw;
+        let crate_fmt = crate::CompressionFormat::Gzip;
+
+        let default_args = CliCompressArgs {
+            format: "compress".to_string(),
+            file: PathBuf::from("-"),
+            output: None,
+            force: false,
+            verify: false,
+            no_verify: false,
+        };
+        assert!(default_args.verify_enabled(in_repo_fmt));
+        assert!(!default_args.verify_enabled(crate_fmt));
+
+        let verify_args = CliCompressArgs {
+            format: "gzip".to_string(),
+            file: PathBuf::from("-"),
+            output: None,
+            force: false,
+            verify: true,
+            no_verify: false,
+        };
+        assert!(verify_args.verify_enabled(in_repo_fmt));
+        assert!(verify_args.verify_enabled(crate_fmt));
+
+        let no_verify_args = CliCompressArgs {
+            format: "compress".to_string(),
+            file: PathBuf::from("-"),
+            output: None,
+            force: false,
+            verify: false,
+            no_verify: true,
+        };
+        assert!(!no_verify_args.verify_enabled(in_repo_fmt));
+        assert!(!no_verify_args.verify_enabled(crate_fmt));
+    }
+
+    #[ctb_test]
+    fn test_cli_compress_execution() {
+        let sample_data = b"Hello, world! This is a test for CLI compression."
+            .to_vec();
+        let read_mock = |_path: &Path| Ok(sample_data.clone());
+        let overwrite_mock = |_path: &Path, _force: bool| Ok(true);
+
+        // Compress with --no-verify
+        let args = CliCompressArgs {
+            format: "compress".to_string(),
+            file: PathBuf::from("-"),
+            output: Some(PathBuf::from("-")),
+            force: false,
+            verify: false,
+            no_verify: true,
+        };
+        let out =
+            execute_cli_compress(args, read_mock, overwrite_mock).unwrap();
+        match out {
+            CliCompressionOutput::Stdout(compressed) => {
+                let decompressed = crate::decompress(
+                    &compressed,
+                    crate::CompressionFormat::CompressLzw,
+                )
+                .unwrap();
+                assert_eq!(decompressed, sample_data);
+            }
+            _ => panic!("Expected Stdout output"),
+        }
+
+        // Compress with --verify
+        let args = CliCompressArgs {
+            format: "gzip".to_string(),
+            file: PathBuf::from("-"),
+            output: Some(PathBuf::from("-")),
+            force: false,
+            verify: true,
+            no_verify: false,
+        };
+        let out =
+            execute_cli_compress(args, read_mock, overwrite_mock).unwrap();
+        match out {
+            CliCompressionOutput::Stdout(compressed) => {
+                let decompressed = crate::decompress(
+                    &compressed,
+                    crate::CompressionFormat::Gzip,
+                )
+                .unwrap();
+                assert_eq!(decompressed, sample_data);
+            }
+            _ => panic!("Expected Stdout output"),
+        }
+    }
 }
+

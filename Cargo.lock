@@ -2721,6 +2721,7 @@ version = "0.0.0"
 dependencies = [
  "brotli",
  "bzip2",
+ "clap",
  "ctb-formats-utilities",
  "ctb-utilities",
  "flate2",

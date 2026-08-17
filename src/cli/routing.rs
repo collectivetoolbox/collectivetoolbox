@@ -420,24 +420,7 @@ pub enum Command {
     },
     /// Compress a file or stdin using single-stream compression format
     #[command(name = "compress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
-    Compress {
-        /// Compression format (e.g. `br`, `gz`, `deflate`, `zlib`). See table below for allowed values.
-        format: String,
-        /// Input file path (or - for stdin)
-        #[arg(default_value = "-")]
-        file: PathBuf,
-        /// Output file path or - for stdout
-        #[arg(
-            short = 'o',
-            long = "output",
-            alias = "file",
-            value_name = "OUTPUT"
-        )]
-        output: Option<PathBuf>,
-        /// Force overwrite without prompting
-        #[arg(long = "force")]
-        force: bool,
-    },
+    Compress(ctb_formats_compression::cli::CliCompressArgs),
     /// Decompress a compressed file or stdin
     #[command(name = "decompress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
     Decompress {
@@ -1048,20 +1031,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             );
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
-        Command::Compress {
-            format,
-            file,
-            output,
-            force,
-        } => {
+        Command::Compress(args) => {
             let cli_output =
                 ctb_formats_compression::cli::execute_cli_compress(
-                    ctb_formats_compression::cli::CliCompressArgs {
-                        format: format.clone(),
-                        input_path: file.clone(),
-                        output_path: output.clone(),
-                        force: *force,
-                    },
+                    args.clone(),
                     read_file_or_stdin,
                     check_overwrite_prompt,
                 )?;

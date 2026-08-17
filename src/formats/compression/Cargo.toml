@@ -18,6 +18,7 @@ lz4_flex = "0.14.0"
 lzma-rust2 = "0.18.1"
 lzokay-native = "0.1.0"
 zstd = "0.13.3"
+clap = { version = "4.5.54", features = ["derive"] }
 
 [lints]
 workspace = true

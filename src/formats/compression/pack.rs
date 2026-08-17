@@ -513,19 +513,17 @@ pub fn compress_pack_stream(
         }
     }
 
-    let mut compressed_buf = Vec::new();
-
     // Write header
-    compressed_buf
+    writer
         .write_all(&PACK_MAGIC)
         .context("Failed to write Pack magic")?;
     let orig_be = orig_size_u32.to_be_bytes();
-    compressed_buf
+    writer
         .write_all(&orig_be)
         .context("Failed to write orig_size")?;
 
     let max_len_u8 = u8::try_from(max_len)?;
-    compressed_buf
+    writer
         .write_all(&[max_len_u8])
         .context("Failed to write maxlev")?;
 
@@ -538,7 +536,7 @@ pub fn compress_pack_stream(
             count
         };
         let val_u8 = u8::try_from(store_val)?;
-        compressed_buf
+        writer
             .write_all(&[val_u8])
             .context("Failed to write level count")?;
     }
@@ -551,7 +549,7 @@ pub fn compress_pack_stream(
         for &sym in syms {
             if sym != END_SYMBOL {
                 let byte = u8::try_from(sym)?;
-                compressed_buf
+                writer
                     .write_all(&[byte])
                     .context("Failed to write symbol byte")?;
             }
@@ -559,7 +557,7 @@ pub fn compress_pack_stream(
     }
 
     // Write MSB-to-LSB bitstream
-    let mut bw = BitWriter::new(&mut compressed_buf);
+    let mut bw = BitWriter::new(writer);
     for &b in &input_bytes {
         let sym = usize::from(b);
         let &(code, bits) =
@@ -572,19 +570,6 @@ pub fn compress_pack_stream(
         .context("EOB missing from code map")?;
     bw.write_bits(eob_code, eob_bits)?;
     bw.flush_bits()?;
-
-    // Self-verification
-    let mut decompressed = Vec::new();
-    let mut verify_reader = std::io::Cursor::new(&compressed_buf);
-    decompress_pack_stream(&mut verify_reader, &mut decompressed)
-        .context("Self-verification failed: unable to decompress Pack output")?;
-    if decompressed != input_bytes {
-        bail!("Self-verification failed: decompressed Pack data does not match input");
-    }
-
-    writer
-        .write_all(&compressed_buf)
-        .context("Failed to write compressed Pack stream")?;
 
     Ok(u64::try_from(orig_size)?)
 }
@@ -731,16 +716,12 @@ pub fn compress_old_pack_stream(
 
     let orig_size = input_bytes.len();
     if input_bytes.is_empty() {
-        let mut compressed_buf = Vec::new();
-        compressed_buf
+        writer
             .write_all(&OLD_PACK_MAGIC)
             .context("Failed to write OldPack magic")?;
-        compressed_buf
+        writer
             .write_all(&[0, 0, 0, 0])
             .context("Failed to write OldPack origsize")?;
-        writer
-            .write_all(&compressed_buf)
-            .context("Failed to write compressed OldPack stream")?;
         return Ok(0);
     }
 
@@ -876,23 +857,21 @@ pub fn compress_old_pack_stream(
     }
     build_paths(&root, 0, 0, &mut symbol_bits);
 
-    let mut compressed_buf = Vec::new();
-
     // Write header
-    compressed_buf
+    writer
         .write_all(&OLD_PACK_MAGIC)
         .context("Failed to write OldPack magic")?;
 
     let hi = u16::try_from((orig_size_u32 >> 16) & 0xFFFF)?;
     let lo = u16::try_from(orig_size_u32 & 0xFFFF)?;
-    compressed_buf
+    writer
         .write_all(&hi.to_le_bytes())
         .context("Failed to write origsize hi")?;
-    compressed_buf
+    writer
         .write_all(&lo.to_le_bytes())
         .context("Failed to write origsize lo")?;
 
-    compressed_buf
+    writer
         .write_all(&keysize.to_le_bytes())
         .context("Failed to write keysize")?;
 
@@ -900,14 +879,14 @@ pub fn compress_old_pack_stream(
     for &w in &tree_words {
         if w < 0xFF {
             let byte = u8::try_from(w)?;
-            compressed_buf
+            writer
                 .write_all(&[byte])
                 .context("Failed to write dictionary byte")?;
         } else {
-            compressed_buf
+            writer
                 .write_all(&[0xFF])
                 .context("Failed to write 0xFF escape")?;
-            compressed_buf
+            writer
                 .write_all(&w.to_le_bytes())
                 .context("Failed to write dictionary word")?;
         }
@@ -940,7 +919,7 @@ pub fn compress_old_pack_stream(
             rem_bits = shift;
 
             if valid_bits == 16 {
-                compressed_buf
+                writer
                     .write_all(&word_buf.to_le_bytes())
                     .context("Failed to write bitstream word")?;
                 word_buf = 0;
@@ -952,23 +931,10 @@ pub fn compress_old_pack_stream(
     if valid_bits > 0 {
         let shift = 16u32.saturating_sub(valid_bits);
         word_buf = word_buf.checked_shl(shift).unwrap_or(0);
-        compressed_buf
+        writer
             .write_all(&word_buf.to_le_bytes())
             .context("Failed to flush bitstream word")?;
     }
-
-    // Self-verification
-    let mut decompressed = Vec::new();
-    let mut verify_reader = std::io::Cursor::new(&compressed_buf);
-    decompress_old_pack_stream(&mut verify_reader, &mut decompressed)
-        .context("Self-verification failed: unable to decompress OldPack output")?;
-    if decompressed != input_bytes {
-        bail!("Self-verification failed: decompressed OldPack data does not match input");
-    }
-
-    writer
-        .write_all(&compressed_buf)
-        .context("Failed to write compressed OldPack stream")?;
 
     Ok(u64::try_from(orig_size)?)
 }
