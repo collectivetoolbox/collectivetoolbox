@@ -833,30 +833,65 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) -> Resu
         heap.push((w1.saturating_add(w2), parent_idx));
     }
 
-    fn walk(
+    fn walk_raw(
         nodes: &[Node],
         idx: usize,
         depth: u8,
-        bitlen: &mut [u8],
-        max_bits: u8,
+        raw_depths: &mut Vec<(usize, u8)>,
     ) {
-        let d = depth.min(max_bits);
         match nodes.get(idx) {
             Some(Node::Leaf(sym)) => {
-                if let Some(l) = bitlen.get_mut(*sym) {
-                    *l = d.max(1);
-                }
+                raw_depths.push((*sym, depth.max(1)));
             }
             Some(Node::Internal(left, right)) => {
-                walk(nodes, *left, depth.saturating_add(1), bitlen, max_bits);
-                walk(nodes, *right, depth.saturating_add(1), bitlen, max_bits);
+                walk_raw(nodes, *left, depth.saturating_add(1), raw_depths);
+                walk_raw(nodes, *right, depth.saturating_add(1), raw_depths);
             }
             None => {}
         }
     }
 
     if let Some(&(_, root)) = heap.first() {
-        walk(&nodes, root, 0, bitlen, max_bits);
+        let mut raw_depths = Vec::new();
+        walk_raw(&nodes, root, 0, &mut raw_depths);
+
+        raw_depths.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+
+        while raw_depths.last().map_or(false, |&(_, d)| d > max_bits) {
+            let last_idx = raw_depths.len().saturating_sub(1);
+            let second_last_idx = raw_depths.len().saturating_sub(2);
+            let max_d = raw_depths.get(last_idx).map_or(0, |&(_, d)| d);
+
+            let mut s_idx = None;
+            for i in (0..raw_depths.len()).rev() {
+                if raw_depths.get(i).map_or(false, |&(_, d)| d < max_d.saturating_sub(1)) {
+                    s_idx = Some(i);
+                    break;
+                }
+            }
+
+            let Some(s) = s_idx else {
+                break;
+            };
+
+            if let Some((_, d)) = raw_depths.get_mut(s) {
+                *d = d.saturating_add(1);
+            }
+            if let Some((_, d)) = raw_depths.get_mut(last_idx) {
+                *d = d.saturating_sub(1);
+            }
+            if let Some((_, d)) = raw_depths.get_mut(second_last_idx) {
+                *d = d.saturating_sub(1);
+            }
+
+            raw_depths.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+        }
+
+        for &(sym, d) in &raw_depths {
+            if let Some(l) = bitlen.get_mut(sym) {
+                *l = d.min(max_bits);
+            }
+        }
     }
     Ok(())
 }
@@ -1036,6 +1071,27 @@ fn compress_block<W: Write>(
         }
     }
 
+    let count_distinct_c = c_freqs.iter().filter(|&&f| f > 0).count();
+    if count_distinct_c == 1 {
+        let single_c = c_freqs.iter().position(|&f| f > 0).unwrap_or(0);
+        // 1. Write blocksize
+        bw.putbits(16, u32::from(blocksize))?;
+        // 2. Write empty PT tree
+        let tbit_u32 = u32::try_from(TBIT)?;
+        bw.putbits(tbit_u32, 0)?;
+        bw.putbits(tbit_u32, 0)?;
+        // 3. Write single C symbol
+        let cbit_u32 = u32::try_from(CBIT)?;
+        bw.putbits(cbit_u32, 0)?;
+        bw.putbits(cbit_u32, u32::try_from(single_c)?)?;
+        // 4. Write empty P tree
+        let pbit_u32 = u32::try_from(PBIT)?;
+        bw.putbits(pbit_u32, 0)?;
+        bw.putbits(pbit_u32, 0)?;
+        // 5. Single symbol consumes 0 bits
+        return Ok(());
+    }
+
     let mut c_len = vec![0u8; NC];
     build_huffman_lengths(&c_freqs, 16, &mut c_len)?;
 
@@ -1127,8 +1183,9 @@ fn compress_block<W: Write>(
     // 3. Write C-tree bit lengths
     let cbit_u32 = u32::try_from(CBIT)?;
     if max_c_idx == 0 {
+        let single_c = c_freqs.iter().position(|&f| f > 0).unwrap_or(0);
         bw.putbits(cbit_u32, 0)?;
-        bw.putbits(cbit_u32, 0)?;
+        bw.putbits(cbit_u32, u32::try_from(single_c)?)?;
     } else {
         bw.putbits(cbit_u32, u32::try_from(max_c_idx)?)?;
         for entry in pt_entries {
