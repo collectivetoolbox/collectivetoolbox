@@ -67,7 +67,7 @@ def patch_substitute_file(path: str):
                                            dump-file))))
           (lambda (key . args)
             (format (current-error-port) "[substitute-error] restore-file failed for ~a: key=~a args=~s\\n" destination key args)
-            (display-backtrace (make-stack #t) (current-error-port))
+            (display-backtrace (make-stack #t) (current-error-port) 0 30)
             (apply throw key args))))
       (format (current-error-port) "[substitute-debug] Unpack complete for ~a.\\n" destination)"""
 
@@ -134,7 +134,7 @@ def patch_substitute_file(path: str):
                       #:print-build-trace? print-build-trace?)))
     (lambda (key . args)
       (format (current-error-port) "[substitute-fatal] Unhandled error during substitution of ~a: key=~a args=~s\\n" store-item key args)
-      (display-backtrace (make-stack #t) (current-error-port))
+      (display-backtrace (make-stack #t) (current-error-port) 0 30)
       (apply throw key args))))"""
 
     if old_proc_sub in content:
@@ -187,7 +187,7 @@ def patch_ui_file(path: str):
               (let ((file (nar-error-file c))
                     (port (nar-error-port c)))
                 (format (current-error-port) "[ui-debug] &nar-error intercepted: file=~s port=~s (closed: ~s)\\n" file port (and (port? port) (port-closed? port)))
-                (display-backtrace (make-stack #t) (current-error-port))"""
+                (display-backtrace (make-stack #t) (current-error-port) 0 30)"""
 
     if old_nar_error in content and new_nar_error not in content:
         content = content.replace(old_nar_error, new_nar_error)
@@ -208,7 +208,7 @@ def patch_serialization_file(path: str):
     new_sig = """    (let ((signature (read-string port)))
       (unless (equal? signature %archive-version-1)
         (format (current-error-port) "[serialization-debug] Nar signature mismatch on port ~s: got ~s, expected ~s\\n" port signature %archive-version-1)
-        (display-backtrace (make-stack #t) (current-error-port))"""
+        (display-backtrace (make-stack #t) (current-error-port) 0 30)"""
 
     if old_sig in content and new_sig not in content:
         content = content.replace(old_sig, new_sig)
@@ -224,7 +224,7 @@ def patch_serialization_file(path: str):
     (when (or (eof-object? bv)
               (< (bytevector-length bv) count))
       (format (current-error-port) "[serialization-debug] short read on port ~s: expected ~a bytes, got ~s\\n" port count bv)
-      (display-backtrace (make-stack #t) (current-error-port))
+      (display-backtrace (make-stack #t) (current-error-port) 0 30)
       (raise (condition (&nar-error"""
 
     if old_short in content and new_short not in content:

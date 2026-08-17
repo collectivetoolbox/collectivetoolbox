@@ -158,7 +158,7 @@ start_guix_daemon() {
             fi
             if [ -f "$nopersonality_so" ]; then
                 chmod 755 "$nopersonality_dir" "$nopersonality_so"
-                # Also copy to /usr/lib, /gnu/store, and other standard search paths so any chroot can resolve it
+                chmod -R 777 "$nopersonality_dir" 2>/dev/null || true
                 if [ -d /gnu/store ] && [ -w /gnu/store ]; then
                     cp "$nopersonality_so" /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                     chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
@@ -197,11 +197,17 @@ start_guix_daemon() {
     tmp_build_dir="$(mktemp -d)"
     chmod 755 "$tmp_build_dir"
 
-    if [ -z "$disable_chroot" ]; then
+    if is_container; then
+        disable_chroot="--disable-chroot"
+    elif [ -z "$disable_chroot" ]; then
         if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
             echo "Mount namespaces unavailable in this container environment. Automatically enabling --disable-chroot." >&2
             disable_chroot="--disable-chroot"
         fi
+    fi
+
+    if [ -z "$disable_chroot" ] && getent group guixbuild >/dev/null 2>&1; then
+        daemon_extra_args+=(--build-users-group=guixbuild)
     fi
 
     ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
@@ -261,6 +267,10 @@ guix_run_with_retries() {
         echo "Error: guix command failed after $max_attempts attempts." >&2
     else
         echo "Error: guix command failed." >&2
+    fi
+    if [ -f /tmp/guix-daemon.log ]; then
+        echo "=== /tmp/guix-daemon.log (last 100 lines) ===" >&2
+        tail -n 100 /tmp/guix-daemon.log >&2 || true
     fi
     return 1
 }
