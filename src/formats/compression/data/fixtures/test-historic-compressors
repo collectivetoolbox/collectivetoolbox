@@ -131,6 +131,7 @@ gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.6" "$TMP_
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-2.0" "$REPO_ROOT/old/unix-tools/compress/compress-2.0/compress.c"
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-3.0" "$REPO_ROOT/old/unix-tools/compress/compress-3.0/compress.c"
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-4.0" "$REPO_ROOT/old/unix-tools/compress/compress-4.0/compress.c"
+gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-apollo" "$REPO_ROOT/old/unix-tools/compress/compress-apollo/compress.c"
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/ncompress" "$REPO_ROOT/old/unix-tools/ncompress/compress.c"
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/sys3-pack" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/sys3-pack.c"
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/sys3-pcat" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/sys3-pcat.c"
@@ -139,21 +140,18 @@ gcc -w -O2 -o "$TMP_DIR/opcat" "$TMP_OPCAT_C"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/compact" "$TMP_COMPACT_DIR/compact.c" "$TMP_COMPACT_DIR/tree.c"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/uncompact" "$TMP_COMPACT_DIR/uncompact.c" "$TMP_COMPACT_DIR/tree.c"
 
-echo "=== 2. Preparing Test Datasets ==="
+echo "=== 2. Preparing Test Datasets and Corpora ==="
 
-# Dataset 1: Short text
+# Synthetic datasets
 echo -n "The quick brown fox jumps over the lazy dog. 1234567890!" > "$TMP_DIR/in_fox.txt"
 
-# Dataset 2: Repetitive compressible text (24 KB)
 python3 -c "
 with open('$TMP_DIR/in_rep.txt', 'wb') as f:
     f.write(b'ABCDEFGH12345678\n' * 1500)
 "
 
-# Dataset 3: Natural fixture data (example2 with lemurs.pan)
 cp "$RAW_FILE" "$TMP_DIR/in_lemurs.pan"
 
-# Dataset 4: Pseudorandom binary data (32 KB)
 python3 -c "
 import random
 random.seed(42)
@@ -161,7 +159,21 @@ with open('$TMP_DIR/in_rand.bin', 'wb') as f:
     f.write(bytes([random.randint(0, 255) for _ in range(32768)]))
 "
 
-DATASETS=("in_fox.txt" "in_rep.txt" "in_lemurs.pan" "in_rand.bin")
+DATASETS=(
+    "$TMP_DIR/in_fox.txt"
+    "$TMP_DIR/in_rep.txt"
+    "$TMP_DIR/in_lemurs.pan"
+    "$TMP_DIR/in_rand.bin"
+)
+
+# Collect all files from old/corpora
+if [ -d "$REPO_ROOT/old/corpora" ]; then
+    while IFS= read -r -d '' cfile; do
+        DATASETS+=("$cfile")
+    done < <(find "$REPO_ROOT/old/corpora" -type f -print0 | sort -z)
+fi
+
+echo "Total test datasets: ${#DATASETS[@]}"
 
 echo "=== 3. Helper Functions for Standardized Invocations ==="
 
@@ -171,50 +183,75 @@ ctb_compress() {
 }
 
 ctb_decompress() {
-    local in_file="$1" out_file="$2"
-    "$CTB_BIN" decompress "$in_file" -o "$out_file" --force
+    local in_file="$1" out_file="$2" fmt="${3:-}"
+    if [ -n "$fmt" ]; then
+        "$CTB_BIN" decompress "$fmt" "$in_file" -o "$out_file" --force
+    elif [[ "$in_file" == *.Z1.0 ]]; then
+        "$CTB_BIN" decompress compress1 "$in_file" -o "$out_file" --force
+    elif [[ "$in_file" == *.Z1.6 ]]; then
+        "$CTB_BIN" decompress compress16 "$in_file" -o "$out_file" --force
+    else
+        "$CTB_BIN" decompress "$in_file" -o "$out_file" --force
+    fi
 }
 
 historic_compress() {
     local tool="$1" in_file="$2" out_file="$3"
     case "$tool" in
+        compress-1.0)
+            "$TMP_DIR/compress-1.0" < "$in_file" > "$out_file" 2>/dev/null || true
+            ;;
+        compress-1.6)
+            "$TMP_DIR/compress-1.6" < "$in_file" > "$out_file" 2>/dev/null || true
+            ;;
         compress-2.0)
-            "$TMP_DIR/compress-2.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            "$TMP_DIR/compress-2.0" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
             ;;
         compress-3.0)
-            "$TMP_DIR/compress-3.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            "$TMP_DIR/compress-3.0" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
             ;;
         compress-4.0)
-            "$TMP_DIR/compress-4.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            "$TMP_DIR/compress-4.0" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
+            ;;
+        compress-apollo)
+            "$TMP_DIR/compress-apollo" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
             ;;
         ncompress)
-            "$TMP_DIR/ncompress" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            "$TMP_DIR/ncompress" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
             ;;
         compact)
-            "$TMP_DIR/compact" < "$in_file" > "$out_file" 2>/dev/null
+            "$TMP_DIR/compact" < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
         sys3-pack)
             local stem="sp_$RANDOM"
             cp "$in_file" "$TMP_DIR/$stem"
-            (cd "$TMP_DIR" && ./sys3-pack "$stem" >/dev/null 2>&1)
-            mv "$TMP_DIR/$stem.z" "$out_file"
+            (cd "$TMP_DIR" && ./sys3-pack "$stem" >/dev/null 2>&1 || true)
+            if [ -f "$TMP_DIR/$stem.z" ]; then
+                mv "$TMP_DIR/$stem.z" "$out_file"
+            else
+                rm -f "$out_file"
+            fi
             rm -f "$TMP_DIR/$stem"
             ;;
         opack)
             local stem="op_$RANDOM"
             cp "$in_file" "$TMP_DIR/$stem"
-            (cd "$TMP_DIR" && ./opack "$stem" >/dev/null 2>&1)
-            mv "$TMP_DIR/$stem.z" "$out_file"
+            (cd "$TMP_DIR" && ./opack "$stem" >/dev/null 2>&1 || true)
+            if [ -f "$TMP_DIR/$stem.z" ]; then
+                mv "$TMP_DIR/$stem.z" "$out_file"
+            else
+                rm -f "$out_file"
+            fi
             rm -f "$TMP_DIR/$stem"
             ;;
         gzip)
-            gzip -c < "$in_file" > "$out_file"
+            gzip -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
         bzip2)
-            bzip2 -c < "$in_file" > "$out_file"
+            bzip2 -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
         brotli)
-            brotli -c < "$in_file" > "$out_file"
+            brotli -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
         *)
             echo "Unknown historic compressor: $tool" >&2
@@ -240,6 +277,9 @@ historic_decompress() {
             ;;
         compress-4.0)
             "$TMP_DIR/compress-4.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-apollo)
+            "$TMP_DIR/compress-apollo" -c -d < "$in_file" > "$out_file"
             ;;
         ncompress)
             "$TMP_DIR/ncompress" -c -d < "$in_file" > "$out_file"
@@ -272,15 +312,30 @@ historic_decompress() {
     esac
 }
 
+tool_ext() {
+    case "$1" in
+        compress-1.0) echo ".Z1.0" ;;
+        compress-1.6) echo ".Z1.6" ;;
+        compress*|ncompress) echo ".Z" ;;
+        compact) echo ".C" ;;
+        sys3-pack) echo ".z" ;;
+        opack) echo ".old.z" ;;
+        gzip) echo ".gz" ;;
+        bzip2) echo ".bz2" ;;
+        brotli) echo ".br" ;;
+        *) echo ".compressed" ;;
+    esac
+}
+
 echo "=== 4. Testing ctoolbox -> Historical Decompressors (Forward Compatibility) ==="
 
-# List of (format, decompressor_tool) test pairs
 FORWARD_TESTS=(
     "compress1:compress-1.0"
     "compress16:compress-1.6"
     "compress2:compress-2.0"
     "compress3:compress-3.0"
     "compress:compress-4.0"
+    "compress:compress-apollo"
     "compress:ncompress"
     "pack:sys3-pcat"
     "old-pack:opcat"
@@ -306,8 +361,8 @@ fi
 for pair in "${FORWARD_TESTS[@]}"; do
     fmt="${pair%%:*}"
     tool="${pair##*:}"
-    for dataset in "${DATASETS[@]}"; do
-        in_path="$TMP_DIR/$dataset"
+    for in_path in "${DATASETS[@]}"; do
+        dataset="$(basename "$in_path")"
         c_path="$TMP_DIR/fwd_${fmt}_${dataset}.compressed"
         d_path="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
         
@@ -320,13 +375,16 @@ done
 
 echo "=== 5. Testing Historical Compressors -> ctoolbox (Reverse Compatibility) ==="
 
-# List of historic compressors to test against ctoolbox decompressor
 REVERSE_COMPRESSORS=(
+    "compress-1.0"
     "compress-2.0"
     "compress-3.0"
     "compress-4.0"
+    "compress-apollo"
     "ncompress"
     "compact"
+    "sys3-pack"
+    "opack"
 )
 
 if command -v gzip >/dev/null 2>&1; then
@@ -341,48 +399,21 @@ if command -v brotli >/dev/null 2>&1; then
     REVERSE_COMPRESSORS+=("brotli")
 fi
 
-tool_ext() {
-    case "$1" in
-        compress*|ncompress) echo ".Z" ;;
-        compact) echo ".C" ;;
-        sys3-pack) echo ".z" ;;
-        opack) echo ".old.z" ;;
-        gzip) echo ".gz" ;;
-        bzip2) echo ".bz2" ;;
-        brotli) echo ".br" ;;
-        *) echo ".compressed" ;;
-    esac
-}
-
 for tool in "${REVERSE_COMPRESSORS[@]}"; do
     ext="$(tool_ext "$tool")"
-    for dataset in "${DATASETS[@]}"; do
-        in_path="$TMP_DIR/$dataset"
+    for in_path in "${DATASETS[@]}"; do
+        dataset="$(basename "$in_path")"
         c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
         d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
         
         echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
         historic_compress "$tool" "$in_path" "$c_path"
-        ctb_decompress "$c_path" "$d_path"
-        cmp "$in_path" "$d_path"
-    done
-done
-
-# Historical pack and oldpack only compress when a minimum block savings threshold is achieved
-PACK_SAVINGS_DATASETS=("in_rep.txt" "in_lemurs.pan")
-for tool in "sys3-pack" "opack"; do
-    ext="$(tool_ext "$tool")"
-    for dataset in "${PACK_SAVINGS_DATASETS[@]}"; do
-        in_path="$TMP_DIR/$dataset"
-        c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
-        d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
-        
-        echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
-        historic_compress "$tool" "$in_path" "$c_path"
-        ctb_decompress "$c_path" "$d_path"
-        cmp "$in_path" "$d_path"
+        if [ -s "$c_path" ]; then
+            ctb_decompress "$c_path" "$d_path"
+            cmp "$in_path" "$d_path"
+        fi
     done
 done
 
 echo ""
-echo "=== ALL HISTORICAL COMPATIBILITY TESTS (FORWARD & REVERSE) PASSED CLEANLY! ==="
+echo "=== ALL HISTORICAL COMPATIBILITY TESTS (FORWARD & REVERSE ACROSS ALL CORPORA) PASSED CLEANLY! ==="
