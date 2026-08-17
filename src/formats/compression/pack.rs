@@ -435,6 +435,20 @@ pub fn compress_pack_stream(
         );
     }
 
+    // Ensure END_SYMBOL (256) is at maximum depth (max_len)
+    if let Some(end_depth) = depths.get_mut(END_SYMBOL) {
+        if *end_depth < max_len {
+            for s in 0..256 {
+                if let Some(&d) = depths.get(s) {
+                    if d == max_len {
+                        depths.swap(s, END_SYMBOL);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Count leaves per level
     let mut leaf_counts = vec![0usize; max_len.saturating_add(1)];
     for &d in &depths {
@@ -473,39 +487,29 @@ pub fn compress_pack_stream(
         }
     }
 
-    // Calculate canonical parents count per level
-    let mut parents = vec![0i32; max_len.saturating_add(1)];
-    let p_max = parents
-        .get_mut(max_len)
-        .context("Invalid parents max_len")?;
-    *p_max = 0;
-    for len in (1..max_len).rev() {
-        let p_next = *parents
-            .get(len.saturating_add(1))
-            .context("Invalid parent next")?;
-        let l_next = i32::try_from(
-            *leaf_counts
-                .get(len.saturating_add(1))
-                .context("Invalid leaf next")?,
-        )?;
-        let p_curr = parents.get_mut(len).context("Invalid parent curr")?;
-        *p_curr = p_next.saturating_add(l_next) / 2;
-    }
-
-    // Assign codes to symbols
+    // Assign codes to symbols bottom-up (max_len down to 1) using Szymanski's bit mask stepping
     let mut code_map = [(0u32, 0u32); 257];
-    for len in 1..=max_len {
-        let base_code =
-            u32::try_from(*parents.get(len).context("Invalid parents len")?)?;
+    let mut cursor = 0u32;
+    for len in (1..=max_len).rev() {
+        let step_shift = u32::try_from(max_len.saturating_sub(len))?;
+        let step = 1u32
+            .checked_shl(step_shift)
+            .context("Bit shift overflow for level step")?;
+        if len < max_len {
+            // Snap/align cursor up to the next parent grid boundary
+            let mask = step.saturating_sub(1);
+            cursor = (cursor.saturating_add(mask)) & (!mask);
+        }
         let syms = level_symbols
             .get(len)
             .context("Invalid level_symbols len")?;
-        for (idx, &sym) in syms.iter().enumerate() {
-            let sym_code = base_code.saturating_add(u32::try_from(idx)?);
-            let len_u32 = u32::try_from(len)?;
+        let len_u32 = u32::try_from(len)?;
+        for &sym in syms {
+            let sym_code = cursor >> step_shift;
             let map_slot =
                 code_map.get_mut(sym).context("Invalid code_map slot")?;
             *map_slot = (sym_code, len_u32);
+            cursor = cursor.saturating_add(step);
         }
     }
 
