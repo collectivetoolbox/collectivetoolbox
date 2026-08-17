@@ -3,6 +3,9 @@
 //!
 //! Specification reference: `data/docs/pack.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unpack.c`
+//!
+//! This supports packing small inputs that would be rejected by original pack
+//! implementations.
 
 // SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
 

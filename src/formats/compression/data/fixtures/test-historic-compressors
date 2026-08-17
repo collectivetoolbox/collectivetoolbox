@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Script to build historical unix decompressors and verify that files
-# compressed by ctoolbox can be decompressed using historical unix decompressors.
-
-# The compressors themselves aren't included in this repository.
+# Script to build historical unix compressors/decompressors and verify bidirectional
+# roundtrip compatibility between ctoolbox and historical implementations.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
@@ -14,7 +12,12 @@ done
 
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
 TMP_DIR="$REPO_ROOT/built/tmp_test_decompression"
-CARGO_CMD="cargo run -q -p ctoolbox --bin ctoolbox --"
+
+if [ ! -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
+    echo "Building ctoolbox binary..."
+    cargo build -q -p ctoolbox --bin ctoolbox
+fi
+CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
 
 mkdir -p "$TMP_DIR"
 
@@ -23,43 +26,36 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== 1. Preparing and Compiling Historical Decompressors in Temporary Directory ==="
+echo "=== 1. Preparing and Compiling Historical Tools in Temporary Directory ==="
 
-# 1. Prepare compress 1.0 (July 1984, Spencer W. Thomas)
+# 1a. Prepare compress 1.0 (July 1984, Spencer W. Thomas)
 TMP_C1="$TMP_DIR/compress-1.0.c"
 python3 - "$REPO_ROOT" "$TMP_C1" << 'EOF'
 import sys, os
-
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/compress/compress-1.0/compress.c")
-
 with open(src_file, "r") as f:
     code = f.read()
-
 masks = """
 static char buf[BITS];
 static unsigned char lmask[9] = {0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x00};
 static unsigned char rmask[9] = {0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
 """
-
 vax_insv = """#ifndef vax\nYou lose\n#endif\nasm( "insv 4(ap),r11,r10,(r9)" );"""
 c_insv = """bp += (r_off >> 3); r_off &= 7; *bp = (*bp & rmask[r_off]) | ((code << r_off) & lmask[r_off]); bp++; bits -= (8 - r_off); code >>= 8 - r_off; if ( bits >= 8 ) { *bp = code; bp++; bits -= 8; code >>= 8; } if ( bits > 0 ) *bp = code;"""
 vax_extv = """#ifndef vax\nYou lose\n#endif\nasm( "extzv r10,r9,(r8),r11" );"""
 c_extv = """bp += (r_off >> 3); code = ((unsigned char)bp[0] | ((unsigned char)bp[1] << 8) | ((unsigned char)bp[2] << 16)) >> (r_off & 7); code &= (1 << n_bits) - 1;"""
-
 getopt_code = """
 int ch_opt;
 while ((ch_opt = getopt(argc, argv, "d")) != -1) {
     if (ch_opt == 'd') decompress_flg = 1;
 }
 """
-
 code = code.replace("static char buf[BITS];", masks)
 code = code.replace(vax_insv, c_insv)
 code = code.replace(vax_extv, c_extv)
 code = code.replace("compress( infile );\nelse if", "{ compress( infile ); exit(0); }\nelse if")
 code = code.replace("#endif\n\nif ( maxbits > BITS )", getopt_code + "\n#endif\n\nif ( maxbits > BITS )")
-
 with open(out_file, "w") as f:
     f.write(code)
 EOF
@@ -77,24 +73,24 @@ with open(out_file, "w") as f:
     f.write(code)
 EOF
 
-# 2b. Prepare uncompact (4.1cBSD McMaster 1979 compact decompressor)
-TMP_UNCOMPACT_DIR="$TMP_DIR/uncompact_src"
-mkdir -p "$TMP_UNCOMPACT_DIR"
-python3 - "$REPO_ROOT" "$TMP_UNCOMPACT_DIR" << 'EOF'
+# 1c. Prepare compact & uncompact (4.1cBSD McMaster 1979)
+TMP_COMPACT_DIR="$TMP_DIR/compact_src"
+mkdir -p "$TMP_COMPACT_DIR"
+python3 - "$REPO_ROOT" "$TMP_COMPACT_DIR" << 'EOF'
 import sys, os
 repo_root, out_dir = sys.argv[1], sys.argv[2]
 hdr_src = os.path.join(repo_root, "old/unix-tools/compact-uncompact/4.1cBSD-compact.h")
+cmp_src = os.path.join(repo_root, "old/unix-tools/compact-uncompact/4.1cBSD-compact.c")
 unc_src = os.path.join(repo_root, "old/unix-tools/compact-uncompact/4.1cBSD-uncompact.c")
 tree_src = os.path.join(repo_root, "old/unix-tools/compact-uncompact/4.1cBSD-tree.c")
 
-with open(hdr_src, "r") as f:
-    hdr_code = f.read()
-with open(unc_src, "r") as f:
-    unc_code = f.read()
-with open(tree_src, "r") as f:
-    tree_code = f.read()
+with open(hdr_src, "r") as f: hdr_code = f.read()
+with open(cmp_src, "r") as f: cmp_code = f.read()
+with open(unc_src, "r") as f: unc_code = f.read()
+with open(tree_src, "r") as f: tree_code = f.read()
 
 hdr_code = hdr_code.replace("int ch;", "long ch;").replace("typedef int longint;", "typedef long longint;")
+cmp_code = cmp_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
 unc_code = unc_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
 unc_code = unc_code.replace("if (d . integ == EF) break;", "if (d . integ == EF) goto closeboth;")
 
@@ -102,155 +98,291 @@ old_copy = """			q . ch = t -> sp [ts] . ch;	/*  {					*/
 			s . ch = r -> sp [rs] . ch;	/*  {					*/
 			t -> sp [ts] . ch = s . ch;	/*  { change code when Cory gets v. 7	*/
 			r -> sp [rs] . ch = q . ch;	/*  {					*/"""
-
 new_copy = """			q = t -> sp [ts];
 			s = r -> sp [rs];
 			t -> sp [ts] = s;
 			r -> sp [rs] = q;"""
-
 tree_code = tree_code.replace(old_copy, new_copy)
 tree_code = tree_code.replace("exch (t, ts, q . ch, r, rs);", "exch (t, ts, q, r, rs);")
 tree_code = tree_code.replace("exch (r, rs, s . ch, t, ts);", "exch (r, rs, s, t, ts);")
 
-with open(os.path.join(out_dir, "compact.h"), "w") as f:
-    f.write(hdr_code)
-with open(os.path.join(out_dir, "uncompact.c"), "w") as f:
-    f.write(unc_code)
-with open(os.path.join(out_dir, "tree.c"), "w") as f:
-    f.write(tree_code)
+with open(os.path.join(out_dir, "compact.h"), "w") as f: f.write(hdr_code)
+with open(os.path.join(out_dir, "compact.c"), "w") as f: f.write(cmp_code)
+with open(os.path.join(out_dir, "uncompact.c"), "w") as f: f.write(unc_code)
+with open(os.path.join(out_dir, "tree.c"), "w") as f: f.write(tree_code)
 EOF
 
-# 2c. Prepare opcat (PDP-11 oldpack decompressor)
+# 1d. Prepare opcat & opack (PDP-11 oldpack Zucker ~1977 / modernized port)
 TMP_OPCAT_C="$TMP_DIR/opcat.c"
 python3 - "$REPO_ROOT" "$TMP_OPCAT_C" << 'EOF'
 import sys, os
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/pack-unpack-pcat/pts-opack-port/pcat.c")
-with open(src_file, "r") as f:
-    code = f.read()
+with open(src_file, "r") as f: code = f.read()
 code = code.replace("*a++rgv", "*++argv")
-with open(out_file, "w") as f:
-    f.write(code)
+code = code.replace("short keysize, hi, lo;", "unsigned short keysize, hi, lo;")
+with open(out_file, "w") as f: f.write(code)
 EOF
 
-# Compile historical decompressors
-echo "Compiling compress 1.0..."
+# Compile historical tools
+echo "Compiling historical tools..."
 gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.0" "$TMP_C1"
-
-echo "Compiling compress 1.6..."
 gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.6" "$TMP_C16"
-
-echo "Compiling compress 2.0..."
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-2.0" "$REPO_ROOT/old/unix-tools/compress/compress-2.0/compress.c"
-
-echo "Compiling compress 3.0..."
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-3.0" "$REPO_ROOT/old/unix-tools/compress/compress-3.0/compress.c"
-
-echo "Compiling compress 4.0..."
 gcc -w -std=gnu89 -fcommon -O2 -o "$TMP_DIR/compress-4.0" "$REPO_ROOT/old/unix-tools/compress/compress-4.0/compress.c"
-
-echo "Compiling ncompress..."
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/ncompress" "$REPO_ROOT/old/unix-tools/ncompress/compress.c"
-
-echo "Compiling sys3-pcat..."
+gcc -w -std=gnu89 -O2 -o "$TMP_DIR/sys3-pack" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/sys3-pack.c"
 gcc -w -std=gnu89 -O2 -o "$TMP_DIR/sys3-pcat" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/sys3-pcat.c"
-
-echo "Compiling opcat..."
+gcc -w -O2 -o "$TMP_DIR/opack" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/pts-opack-port/pack.c"
 gcc -w -O2 -o "$TMP_DIR/opcat" "$TMP_OPCAT_C"
+gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/compact" "$TMP_COMPACT_DIR/compact.c" "$TMP_COMPACT_DIR/tree.c"
+gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/uncompact" "$TMP_COMPACT_DIR/uncompact.c" "$TMP_COMPACT_DIR/tree.c"
 
-echo "Compiling uncompact..."
-gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_UNCOMPACT_DIR" -o "$TMP_DIR/uncompact" "$TMP_UNCOMPACT_DIR/uncompact.c" "$TMP_UNCOMPACT_DIR/tree.c"
+echo "=== 2. Preparing Test Datasets ==="
 
-echo "=== 2. Compressing Raw Fixture Using ctoolbox CLI ==="
+# Dataset 1: Short text
+echo -n "The quick brown fox jumps over the lazy dog. 1234567890!" > "$TMP_DIR/in_fox.txt"
 
-$CARGO_CMD compress compress1 "$RAW_FILE" -o "$TMP_DIR/ctb.Z1.0" --force
-$CARGO_CMD compress compress16 "$RAW_FILE" -o "$TMP_DIR/ctb.Z1.6" --force
-$CARGO_CMD compress compress2 "$RAW_FILE" -o "$TMP_DIR/ctb.Z2.0" --force
-$CARGO_CMD compress compress3 "$RAW_FILE" -o "$TMP_DIR/ctb.Z3.0" --force
-$CARGO_CMD compress compress "$RAW_FILE" -o "$TMP_DIR/ctb.Z" --force
-$CARGO_CMD compress pack "$RAW_FILE" -o "$TMP_DIR/ctb.z" --force
-$CARGO_CMD compress old-pack "$RAW_FILE" -o "$TMP_DIR/ctb.old.z" --force
-$CARGO_CMD compress compact "$RAW_FILE" -o "$TMP_DIR/ctb.C" --force
-$CARGO_CMD compress gzip "$RAW_FILE" -o "$TMP_DIR/ctb.gz" --force
-$CARGO_CMD compress sco-compress "$RAW_FILE" -o "$TMP_DIR/ctb.sco" --force
+# Dataset 2: Repetitive compressible text (24 KB)
+python3 -c "
+with open('$TMP_DIR/in_rep.txt', 'wb') as f:
+    f.write(b'ABCDEFGH12345678\n' * 1500)
+"
 
-if command -v bzip2 >/dev/null 2>&1; then
-    $CARGO_CMD compress bzip2 "$RAW_FILE" -o "$TMP_DIR/ctb.bz2" --force
-fi
+# Dataset 3: Natural fixture data (example2 with lemurs.pan)
+cp "$RAW_FILE" "$TMP_DIR/in_lemurs.pan"
 
-if command -v brotli >/dev/null 2>&1; then
-    $CARGO_CMD compress brotli "$RAW_FILE" -o "$TMP_DIR/ctb.br" --force
-fi
+# Dataset 4: Pseudorandom binary data (32 KB)
+python3 -c "
+import random
+random.seed(42)
+with open('$TMP_DIR/in_rand.bin', 'wb') as f:
+    f.write(bytes([random.randint(0, 255) for _ in range(32768)]))
+"
 
-echo "=== 3. Testing Decompression of ctoolbox Outputs via Historical Decompressors ==="
+DATASETS=("in_fox.txt" "in_rep.txt" "in_lemurs.pan" "in_rand.bin")
 
-echo "Testing compress1 (compress-1.0 -d)..."
-"$TMP_DIR/compress-1.0" -d < "$TMP_DIR/ctb.Z1.0" > "$TMP_DIR/d1.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d1.pan"
+echo "=== 3. Helper Functions for Standardized Invocations ==="
 
-echo "Testing compress1 (compress-2.0 -c -d -n)..."
-"$TMP_DIR/compress-2.0" -c -d -n < "$TMP_DIR/ctb.Z1.0" > "$TMP_DIR/d1_2.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d1_2.pan"
+ctb_compress() {
+    local fmt="$1" in_file="$2" out_file="$3"
+    "$CTB_BIN" compress "$fmt" "$in_file" -o "$out_file" --force
+}
 
-echo "Testing compress16 (compress-2.0 -c -d -n)..."
-"$TMP_DIR/compress-2.0" -c -d -n < "$TMP_DIR/ctb.Z1.6" > "$TMP_DIR/d1_6.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d1_6.pan"
+ctb_decompress() {
+    local in_file="$1" out_file="$2"
+    "$CTB_BIN" decompress "$in_file" -o "$out_file" --force
+}
 
-echo "Testing compress2 (compress-2.0 -c -d)..."
-"$TMP_DIR/compress-2.0" -c -d < "$TMP_DIR/ctb.Z2.0" > "$TMP_DIR/d2.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d2.pan"
+historic_compress() {
+    local tool="$1" in_file="$2" out_file="$3"
+    case "$tool" in
+        compress-2.0)
+            "$TMP_DIR/compress-2.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compress-3.0)
+            "$TMP_DIR/compress-3.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compress-4.0)
+            "$TMP_DIR/compress-4.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        ncompress)
+            "$TMP_DIR/ncompress" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compact)
+            "$TMP_DIR/compact" < "$in_file" > "$out_file" 2>/dev/null
+            ;;
+        sys3-pack)
+            local stem="sp_$RANDOM"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./sys3-pack "$stem" >/dev/null 2>&1)
+            mv "$TMP_DIR/$stem.z" "$out_file"
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        opack)
+            local stem="op_$RANDOM"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./opack "$stem" >/dev/null 2>&1)
+            mv "$TMP_DIR/$stem.z" "$out_file"
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        gzip)
+            gzip -c < "$in_file" > "$out_file"
+            ;;
+        bzip2)
+            bzip2 -c < "$in_file" > "$out_file"
+            ;;
+        brotli)
+            brotli -c < "$in_file" > "$out_file"
+            ;;
+        *)
+            echo "Unknown historic compressor: $tool" >&2
+            return 1
+            ;;
+    esac
+}
 
-echo "Testing compress3 (compress-3.0 -c -d)..."
-"$TMP_DIR/compress-3.0" -c -d < "$TMP_DIR/ctb.Z3.0" > "$TMP_DIR/d3.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d3.pan"
+historic_decompress() {
+    local tool="$1" in_file="$2" out_file="$3"
+    case "$tool" in
+        compress-1.0)
+            "$TMP_DIR/compress-1.0" -d < "$in_file" > "$out_file"
+            ;;
+        compress-1.6)
+            "$TMP_DIR/compress-2.0" -c -d -n < "$in_file" > "$out_file"
+            ;;
+        compress-2.0)
+            "$TMP_DIR/compress-2.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-3.0)
+            "$TMP_DIR/compress-3.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-4.0)
+            "$TMP_DIR/compress-4.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        ncompress)
+            "$TMP_DIR/ncompress" -c -d < "$in_file" > "$out_file"
+            ;;
+        sys3-pcat)
+            local stem="pc_$RANDOM.z"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./sys3-pcat "$stem" > "$out_file")
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        opcat)
+            "$TMP_DIR/opcat" "$in_file" > "$out_file"
+            ;;
+        uncompact)
+            "$TMP_DIR/uncompact" < "$in_file" > "$out_file" 2>/dev/null
+            ;;
+        gunzip)
+            gunzip -c < "$in_file" > "$out_file"
+            ;;
+        bzip2)
+            bzip2 -d -c < "$in_file" > "$out_file"
+            ;;
+        brotli)
+            brotli -d -c < "$in_file" > "$out_file"
+            ;;
+        *)
+            echo "Unknown historic decompressor: $tool" >&2
+            return 1
+            ;;
+    esac
+}
 
-echo "Testing compress (compress-4.0 -c -d)..."
-"$TMP_DIR/compress-4.0" -c -d < "$TMP_DIR/ctb.Z" > "$TMP_DIR/d4.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d4.pan"
+echo "=== 4. Testing ctoolbox -> Historical Decompressors (Forward Compatibility) ==="
 
-echo "Testing compress (ncompress -c -d)..."
-"$TMP_DIR/ncompress" -c -d < "$TMP_DIR/ctb.Z" > "$TMP_DIR/d5.pan"
-cmp "$RAW_FILE" "$TMP_DIR/d5.pan"
-
-echo "Testing pack (sys3-pcat)..."
-"$TMP_DIR/sys3-pcat" "$TMP_DIR/ctb.z" > "$TMP_DIR/dpack.pan"
-cmp "$RAW_FILE" "$TMP_DIR/dpack.pan"
-
-echo "Testing old-pack (opcat)..."
-"$TMP_DIR/opcat" "$TMP_DIR/ctb.old.z" > "$TMP_DIR/doldpack.pan"
-cmp "$RAW_FILE" "$TMP_DIR/doldpack.pan"
-
-echo "Testing compact (uncompact)..."
-"$TMP_DIR/uncompact" < "$TMP_DIR/ctb.C" > "$TMP_DIR/dcompact.pan" 2>/dev/null
-cmp "$RAW_FILE" "$TMP_DIR/dcompact.pan"
+# List of (format, decompressor_tool) test pairs
+FORWARD_TESTS=(
+    "compress1:compress-1.0"
+    "compress16:compress-1.6"
+    "compress2:compress-2.0"
+    "compress3:compress-3.0"
+    "compress:compress-4.0"
+    "compress:ncompress"
+    "pack:sys3-pcat"
+    "old-pack:opcat"
+    "compact:uncompact"
+)
 
 if command -v gunzip >/dev/null 2>&1; then
-    echo "Testing gzip (gunzip -c)..."
-    gunzip -c < "$TMP_DIR/ctb.gz" > "$TMP_DIR/dgzip.pan"
-    cmp "$RAW_FILE" "$TMP_DIR/dgzip.pan"
-
-    echo "Testing sco-compress (gunzip -c)..."
-    gunzip -c < "$TMP_DIR/ctb.sco" > "$TMP_DIR/dsco.pan"
-    cmp "$RAW_FILE" "$TMP_DIR/dsco.pan"
-
-    echo "Testing pack via gunzip (gunzip -c)..."
-    gunzip -c < "$TMP_DIR/ctb.z" > "$TMP_DIR/dpack_gzip.pan"
-    cmp "$RAW_FILE" "$TMP_DIR/dpack_gzip.pan"
+    FORWARD_TESTS+=(
+        "gzip:gunzip"
+        "sco-compress:gunzip"
+        "pack:gunzip"
+    )
 fi
 
 if command -v bzip2 >/dev/null 2>&1; then
-    echo "Testing bzip2 (bzip2 -d -c)..."
-    bzip2 -d -c < "$TMP_DIR/ctb.bz2" > "$TMP_DIR/dbz2.pan"
-    cmp "$RAW_FILE" "$TMP_DIR/dbz2.pan"
+    FORWARD_TESTS+=("bzip2:bzip2")
 fi
 
 if command -v brotli >/dev/null 2>&1; then
-    echo "Testing brotli (brotli -d -c)..."
-    brotli -d -c < "$TMP_DIR/ctb.br" > "$TMP_DIR/dbr.pan"
-    cmp "$RAW_FILE" "$TMP_DIR/dbr.pan"
+    FORWARD_TESTS+=("brotli:brotli")
 fi
 
-echo "=== ALL HISTORICAL DECOMPRESSION TESTS PASSED CLEANLY! ==="
+for pair in "${FORWARD_TESTS[@]}"; do
+    fmt="${pair%%:*}"
+    tool="${pair##*:}"
+    for dataset in "${DATASETS[@]}"; do
+        in_path="$TMP_DIR/$dataset"
+        c_path="$TMP_DIR/fwd_${fmt}_${dataset}.compressed"
+        d_path="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
+        
+        echo "Testing Forward: format '$fmt' -> tool '$tool' on '$dataset'..."
+        ctb_compress "$fmt" "$in_path" "$c_path"
+        historic_decompress "$tool" "$c_path" "$d_path"
+        cmp "$in_path" "$d_path"
+    done
+done
 
+echo "=== 5. Testing Historical Compressors -> ctoolbox (Reverse Compatibility) ==="
 
-echo "All historical decompressor compatibility tests passed successfully!"
+# List of historic compressors to test against ctoolbox decompressor
+REVERSE_COMPRESSORS=(
+    "compress-2.0"
+    "compress-3.0"
+    "compress-4.0"
+    "ncompress"
+    "compact"
+)
+
+if command -v gzip >/dev/null 2>&1; then
+    REVERSE_COMPRESSORS+=("gzip")
+fi
+
+if command -v bzip2 >/dev/null 2>&1; then
+    REVERSE_COMPRESSORS+=("bzip2")
+fi
+
+if command -v brotli >/dev/null 2>&1; then
+    REVERSE_COMPRESSORS+=("brotli")
+fi
+
+tool_ext() {
+    case "$1" in
+        compress*|ncompress) echo ".Z" ;;
+        compact) echo ".C" ;;
+        sys3-pack) echo ".z" ;;
+        opack) echo ".old.z" ;;
+        gzip) echo ".gz" ;;
+        bzip2) echo ".bz2" ;;
+        brotli) echo ".br" ;;
+        *) echo ".compressed" ;;
+    esac
+}
+
+for tool in "${REVERSE_COMPRESSORS[@]}"; do
+    ext="$(tool_ext "$tool")"
+    for dataset in "${DATASETS[@]}"; do
+        in_path="$TMP_DIR/$dataset"
+        c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
+        d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
+        
+        echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
+        historic_compress "$tool" "$in_path" "$c_path"
+        ctb_decompress "$c_path" "$d_path"
+        cmp "$in_path" "$d_path"
+    done
+done
+
+# Historical pack and oldpack only compress when a minimum block savings threshold is achieved
+PACK_SAVINGS_DATASETS=("in_rep.txt" "in_lemurs.pan")
+for tool in "sys3-pack" "opack"; do
+    ext="$(tool_ext "$tool")"
+    for dataset in "${PACK_SAVINGS_DATASETS[@]}"; do
+        in_path="$TMP_DIR/$dataset"
+        c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
+        d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
+        
+        echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
+        historic_compress "$tool" "$in_path" "$c_path"
+        ctb_decompress "$c_path" "$d_path"
+        cmp "$in_path" "$d_path"
+    done
+done
+
+echo ""
+echo "=== ALL HISTORICAL COMPATIBILITY TESTS (FORWARD & REVERSE) PASSED CLEANLY! ==="

@@ -60,6 +60,7 @@
   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
 - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
 - Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
+- If you make changes in troubleshooting that don't work, remove them later.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

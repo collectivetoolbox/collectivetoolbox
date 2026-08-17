@@ -214,7 +214,7 @@ start_guix_daemon() {
     fi
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" ---max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
