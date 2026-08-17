@@ -242,6 +242,13 @@ pub fn compress_lzw_stream(
         _ => bail!("Unsupported format for LZW compress: {format:?}"),
     };
 
+    let mut input_bytes = Vec::new();
+    let total_in = reader
+        .read_to_end(&mut input_bytes)
+        .context("Failed to read input data")?;
+
+    let mut compressed_buf = Vec::new();
+
     // 1. Header writing
     if format != crate::CompressionFormat::CompressLzw1
         && format != crate::CompressionFormat::CompressLzw16
@@ -251,12 +258,12 @@ pub fn compress_lzw_stream(
         } else {
             u8::try_from(maxbits)?
         };
-        writer
+        compressed_buf
             .write_all(&[LZW_MAGIC[0], LZW_MAGIC[1], mode_byte])
             .context("Failed to write compress header")?;
     }
 
-    let mut bit_writer = LzwBitWriter::new(writer);
+    let mut bit_writer = LzwBitWriter::new(&mut compressed_buf);
     let mut dict: HashMap<(u32, u8), u32> = HashMap::with_capacity(4096);
 
     let mut free_ent = if block_mode {
@@ -273,60 +280,66 @@ pub fn compress_lzw_stream(
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
         .saturating_sub(1);
 
-    let mut input_bytes = Vec::new();
-    let total_in = reader
-        .read_to_end(&mut input_bytes)
-        .context("Failed to read input data")?;
+    if !input_bytes.is_empty() {
+        let first_byte = match input_bytes.first() {
+            Some(&b) => b,
+            None => bail!("Empty input buffer"),
+        };
 
-    if input_bytes.is_empty() {
-        bit_writer.finish()?;
-        return Ok(u64::try_from(total_in)?);
-    }
+        let mut ent = u32::from(first_byte);
 
-    let first_byte = match input_bytes.first() {
-        Some(&b) => b,
-        None => bail!("Empty input buffer"),
-    };
+        for &byte in input_bytes.iter().skip(1) {
+            let key = (ent, byte);
+            if let Some(&code) = dict.get(&key) {
+                ent = code;
+            } else {
+                bit_writer.write_code(ent, n_bits)?;
 
-    let mut ent = u32::from(first_byte);
+                if free_ent < maxmaxcode {
+                    dict.insert(key, free_ent);
+                    free_ent = free_ent.saturating_add(1);
 
-    for &byte in input_bytes.iter().skip(1) {
-        let key = (ent, byte);
-        if let Some(&code) = dict.get(&key) {
-            ent = code;
-        } else {
-            bit_writer.write_code(ent, n_bits)?;
-
-            if free_ent < maxmaxcode {
-                dict.insert(key, free_ent);
-                free_ent = free_ent.saturating_add(1);
-
-                if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
+                    if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
+                        bit_writer.align_block(n_bits)?;
+                        n_bits = n_bits.saturating_add(1);
+                        maxcode = (1u32
+                            .checked_shl(n_bits)
+                            .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
+                            .saturating_sub(1);
+                    }
+                } else if block_mode {
+                    bit_writer.write_code(CLEAR_CODE, n_bits)?;
                     bit_writer.align_block(n_bits)?;
-                    n_bits = n_bits.saturating_add(1);
+                    dict.clear();
+                    free_ent = FIRST_FREE_BLOCK;
+                    n_bits = INIT_BITS;
                     maxcode = (1u32
                         .checked_shl(n_bits)
                         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
                         .saturating_sub(1);
                 }
-            } else if block_mode {
-                bit_writer.write_code(CLEAR_CODE, n_bits)?;
-                bit_writer.align_block(n_bits)?;
-                dict.clear();
-                free_ent = FIRST_FREE_BLOCK;
-                n_bits = INIT_BITS;
-                maxcode = (1u32
-                    .checked_shl(n_bits)
-                    .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-                    .saturating_sub(1);
-            }
 
-            ent = u32::from(byte);
+                ent = u32::from(byte);
+            }
         }
+
+        bit_writer.write_code(ent, n_bits)?;
     }
 
-    bit_writer.write_code(ent, n_bits)?;
     bit_writer.finish()?;
+
+    // Self-verification: confirm decompressing compressed_buf reproduces input_bytes
+    let mut decompressed = Vec::new();
+    let mut verify_reader = std::io::Cursor::new(&compressed_buf);
+    decompress_lzw_stream(&mut verify_reader, &mut decompressed, format)
+        .context("Self-verification failed: unable to decompress LZW output")?;
+    if decompressed != input_bytes {
+        bail!("Self-verification failed: decompressed LZW data does not match input");
+    }
+
+    writer
+        .write_all(&compressed_buf)
+        .context("Failed to write compressed LZW stream")?;
 
     Ok(u64::try_from(total_in)?)
 }

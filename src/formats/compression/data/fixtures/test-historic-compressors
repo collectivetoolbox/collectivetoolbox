@@ -4,6 +4,8 @@ set -euo pipefail
 # Script to build historical unix decompressors and verify that files
 # compressed by ctoolbox can be decompressed using historical unix decompressors.
 
+# The compressors themselves aren't included in this repository.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do

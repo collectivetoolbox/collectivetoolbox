@@ -144,9 +144,13 @@ start_guix_daemon() {
         fi
 
         if [ -n "$nopersonality_rs" ]; then
-            nopersonality_dir="/var/guix/nopersonality"
+            nopersonality_dir="/usr/lib"
             nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
-            mkdir -p "$nopersonality_dir"
+            if [ ! -w "$nopersonality_dir" ]; then
+                nopersonality_dir="/var/guix/nopersonality"
+                nopersonality_so="$nopersonality_dir/libctb_nopersonality.so"
+                mkdir -p "$nopersonality_dir"
+            fi
             if [ ! -f "$nopersonality_so" ] || [ "$nopersonality_rs" -nt "$nopersonality_so" ]; then
                 echo "Building nopersonality cdylib shim..."
                 if command -v rustc >/dev/null 2>&1; then
@@ -157,19 +161,19 @@ start_guix_daemon() {
                 fi
             fi
             if [ -f "$nopersonality_so" ]; then
-                chmod 755 "$nopersonality_dir" "$nopersonality_so"
-                # Also copy to /usr/lib, /gnu/store, and other standard search paths so any chroot can resolve it
+                chmod 755 "$nopersonality_so"
+                mkdir -p /var/guix/nopersonality 2>/dev/null || true
+                cp "$nopersonality_so" /var/guix/nopersonality/libctb_nopersonality.so 2>/dev/null || true
+                chmod 755 /var/guix/nopersonality/libctb_nopersonality.so 2>/dev/null || true
                 if [ -d /gnu/store ] && [ -w /gnu/store ]; then
                     cp "$nopersonality_so" /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                     chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                 fi
-                if [ -d /usr/lib ] && [ -w /usr/lib ]; then
-                    cp "$nopersonality_so" /usr/lib/libctb_nopersonality.so 2>/dev/null || true
-                    chmod 755 /usr/lib/libctb_nopersonality.so 2>/dev/null || true
-                fi
                 echo "Using nopersonality shim at: $nopersonality_so"
                 daemon_env=(env "LD_PRELOAD=$nopersonality_so")
-                daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
+                if [ "$nopersonality_dir" != "/usr/lib" ]; then
+                    daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
+                fi
             fi
         fi
 

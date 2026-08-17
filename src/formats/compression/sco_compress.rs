@@ -1252,15 +1252,16 @@ pub fn compress_stream(
     reader: &mut impl Read,
     writer: &mut impl Write,
 ) -> Result<u64> {
-    writer
-        .write_all(&MAGIC_BYTES)
-        .context("Failed to write SCO compress magic header")?;
-
     let mut input_data = Vec::new();
     reader.read_to_end(&mut input_data)?;
     let total_uncompressed_bytes = u64::try_from(input_data.len())?;
 
-    let mut bw = BitWriter::new(writer);
+    let mut compressed_buf = Vec::new();
+    compressed_buf
+        .write_all(&MAGIC_BYTES)
+        .context("Failed to write SCO compress magic header")?;
+
+    let mut bw = BitWriter::new(&mut compressed_buf);
     let mut symbols = Vec::new();
 
     let len = input_data.len();
@@ -1392,6 +1393,19 @@ pub fn compress_stream(
 
     bw.putbits(16, 0)?;
     bw.flush()?;
+
+    // Self-verification
+    let mut decompressed = Vec::new();
+    let mut verify_reader = std::io::Cursor::new(&compressed_buf);
+    decompress_stream(&mut verify_reader, &mut decompressed)
+        .context("Self-verification failed: unable to decompress SCO compress output")?;
+    if decompressed != input_data {
+        bail!("Self-verification failed: decompressed SCO compress data does not match input");
+    }
+
+    writer
+        .write_all(&compressed_buf)
+        .context("Failed to write compressed SCO compress stream")?;
 
     Ok(total_uncompressed_bytes)
 }

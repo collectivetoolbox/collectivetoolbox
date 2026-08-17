@@ -919,13 +919,16 @@ mod tests {
         ];
 
         for (case_name, data) in test_cases {
-            let Ok(compressed) = compress(data, format) else {
-                if data.is_empty() {
-                    continue;
+            let compressed = match compress(data, format) {
+                Ok(c) => c,
+                Err(e) => {
+                    if data.is_empty() {
+                        continue;
+                    }
+                    panic!(
+                        "Compression failed for case '{case_name}', format {format:?}: {e:?}"
+                    );
                 }
-                panic!(
-                    "Compression failed for case '{case_name}', format {format:?}"
-                );
             };
             let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
                 panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");

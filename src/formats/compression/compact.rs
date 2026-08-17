@@ -521,18 +521,21 @@ pub fn compress_compact_stream<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<u64> {
-    let mut initial_byte_buf = [0u8; 1];
-    let n = reader
-        .read(&mut initial_byte_buf)
-        .context("Failed to read initial byte for compact compression")?;
-    if n == 0 {
+    let mut input_data = Vec::new();
+    reader
+        .read_to_end(&mut input_data)
+        .context("Failed to read input data for compact compression")?;
+    if input_data.is_empty() {
         bail!(
             "Input stream is empty; compact format requires at least 1 raw seed byte"
         );
     }
 
-    let first_byte = initial_byte_buf[0];
-    let mut word_writer = WordWriter::new(writer);
+    let first_byte = *input_data
+        .first()
+        .context("Missing first byte for compact compression")?;
+    let mut compressed_buf = Vec::new();
+    let mut word_writer = WordWriter::new(&mut compressed_buf);
 
     // Write Magic Header 0xFF 0x1F and First Literal Byte C0
     word_writer
@@ -549,43 +552,29 @@ pub fn compress_compact_stream<R: Read, W: Write>(
 
     let mut tree = CompactTree::new(first_byte);
 
-    let mut buf = [0u8; 4096];
-    loop {
-        let bytes_read = reader
-            .read(&mut buf)
-            .context("Failed to read block from input stream")?;
-        if bytes_read == 0 {
-            break;
-        }
+    let rest = input_data
+        .get(1..)
+        .context("Missing remaining slice for compact compression")?;
+    for &byte in rest {
+        let byte_u16 = u16::from(byte);
+        let byte_usize = usize::from(byte);
 
-        #[allow(
-            clippy::expect_used,
-            reason = "bytes_read <= buf.len() guaranteed by std::io::Read"
-        )]
-        let slice = buf
-            .get(..bytes_read)
-            .expect("bytes_read <= buf.len() guaranteed by std::io::Read");
-        for &byte in slice {
-            let byte_u16 = u16::from(byte);
-            let byte_usize = usize::from(byte);
-
-            if tree
-                .leaf_info
-                .get(byte_usize)
-                .and_then(|info| info.fp)
-                .is_some()
-            {
-                // Symbol already seen
-                tree.encode_symbol(&mut word_writer, byte_u16)?;
-                tree.uptree(byte_u16);
-            } else {
-                // Unseen symbol -> send NC escape, uptree(NC), insert(c), write_bits(c, 8), uptree(ch)
-                tree.encode_symbol(&mut word_writer, SYMBOL_NC)?;
-                tree.uptree(SYMBOL_NC);
-                tree.insert(byte)?;
-                word_writer.write_bits(u32::from(byte), 8)?;
-                tree.uptree(byte_u16);
-            }
+        if tree
+            .leaf_info
+            .get(byte_usize)
+            .and_then(|info| info.fp)
+            .is_some()
+        {
+            // Symbol already seen
+            tree.encode_symbol(&mut word_writer, byte_u16)?;
+            tree.uptree(byte_u16);
+        } else {
+            // Unseen symbol -> send NC escape, uptree(NC), insert(c), write_bits(c, 8), uptree(ch)
+            tree.encode_symbol(&mut word_writer, SYMBOL_NC)?;
+            tree.uptree(SYMBOL_NC);
+            tree.insert(byte)?;
+            word_writer.write_bits(u32::from(byte), 8)?;
+            tree.uptree(byte_u16);
         }
     }
 
@@ -593,7 +582,19 @@ pub fn compress_compact_stream<R: Read, W: Write>(
     tree.encode_symbol(&mut word_writer, SYMBOL_EF)?;
     word_writer.flush_padding()?;
 
-    Ok(word_writer.bytes_written)
+    // Self-verification: confirm decompressed data matches input
+    let mut decompressed = Vec::new();
+    let mut verify_reader = std::io::Cursor::new(&compressed_buf);
+    decompress_compact_stream(&mut verify_reader, &mut decompressed)
+        .context("Self-verification failed: unable to decompress compact output")?;
+    if decompressed != input_data {
+        bail!("Self-verification failed: decompressed compact data does not match input");
+    }
+
+    writer
+        .write_all(&compressed_buf)
+        .context("Failed to write compressed compact stream")?;
+    Ok(u64::try_from(compressed_buf.len())?)
 }
 
 /// Decompresses `compact` compressed binary data from `reader` into `writer`.
