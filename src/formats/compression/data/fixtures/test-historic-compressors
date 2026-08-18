@@ -124,6 +124,21 @@ code = code.replace("short keysize, hi, lo;", "unsigned short keysize, hi, lo;")
 with open(out_file, "w") as f: f.write(code)
 EOF
 
+# 1e. Prepare bzip 0.21 (August 1996, Julian Seward)
+TMP_BZIP_C="$TMP_DIR/bzip-0.21.c"
+python3 - "$REPO_ROOT" "$TMP_BZIP_C" << 'EOF'
+import sys, os
+repo_root, out_file = sys.argv[1], sys.argv[2]
+src_file = os.path.join(repo_root, "old/unix-tools/bzip-0.21-ami/bzip.c")
+with open(src_file, "r") as f:
+    code = f.read()
+code = code.replace("#define MY_S_IFREG  S_IFREG", "#define MY_S_IFREG(x)  S_ISREG(x)")
+code = code.replace("void mySignalCatcher ( IntNative *n )", "void mySignalCatcher ( IntNative n )")
+code = code.replace("void mySIGSEGVorSIGBUScatcher ( IntNative *n )", "void mySIGSEGVorSIGBUScatcher ( IntNative n )")
+with open(out_file, "w") as f:
+    f.write(code)
+EOF
+
 # Compile historical tools
 echo "Compiling historical tools..."
 gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$TMP_DIR/compress-1.0" "$TMP_C1"
@@ -139,6 +154,7 @@ gcc -w -O2 -o "$TMP_DIR/opack" "$REPO_ROOT/old/unix-tools/pack-unpack-pcat/pts-o
 gcc -w -O2 -o "$TMP_DIR/opcat" "$TMP_OPCAT_C"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/compact" "$TMP_COMPACT_DIR/compact.c" "$TMP_COMPACT_DIR/tree.c"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/uncompact" "$TMP_COMPACT_DIR/uncompact.c" "$TMP_COMPACT_DIR/tree.c"
+gcc -w -O2 -o "$TMP_DIR/bzip-0.21" "$TMP_BZIP_C"
 
 echo "=== 2. Preparing Test Datasets and Corpora ==="
 
@@ -156,7 +172,7 @@ python3 -c "
 import random
 random.seed(42)
 with open('$TMP_DIR/in_rand.bin', 'wb') as f:
-    f.write(bytes([random.randint(0, 255) for _ in range(32768)]))
+    f.write(bytes([random.randint(0, 255) for _ in range(3276800)]))
 "
 
 DATASETS=(
@@ -247,6 +263,9 @@ historic_compress() {
         gzip)
             gzip -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
+        bzip-0.21)
+            "$TMP_DIR/bzip-0.21" < "$in_file" > "$out_file" 2>/dev/null || true
+            ;;
         bzip2)
             bzip2 -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
@@ -296,6 +315,9 @@ historic_decompress() {
         uncompact)
             "$TMP_DIR/uncompact" < "$in_file" > "$out_file" 2>/dev/null
             ;;
+        bzip-0.21)
+            "$TMP_DIR/bzip-0.21" -d < "$in_file" > "$out_file" 2>/dev/null
+            ;;
         gunzip)
             gunzip -c < "$in_file" > "$out_file"
             ;;
@@ -320,6 +342,7 @@ tool_ext() {
         compact) echo ".C" ;;
         sys3-pack) echo ".z" ;;
         opack) echo ".old.z" ;;
+        bzip-0.21) echo ".bz" ;;
         gzip) echo ".gz" ;;
         bzip2) echo ".bz2" ;;
         brotli) echo ".br" ;;
@@ -340,6 +363,7 @@ FORWARD_TESTS=(
     "pack:sys3-pcat"
     "old-pack:opcat"
     "compact:uncompact"
+    "bzip:bzip-0.21"
 )
 
 if command -v gunzip >/dev/null 2>&1; then
@@ -365,7 +389,7 @@ for pair in "${FORWARD_TESTS[@]}"; do
         dataset="$(basename "$in_path")"
         c_path="$TMP_DIR/fwd_${fmt}_${dataset}.compressed"
         d_path="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
-        
+
         echo "Testing Forward: format '$fmt' -> tool '$tool' on '$dataset'..."
         ctb_compress "$fmt" "$in_path" "$c_path"
         historic_decompress "$tool" "$c_path" "$d_path"
@@ -385,6 +409,7 @@ REVERSE_COMPRESSORS=(
     "compact"
     "sys3-pack"
     "opack"
+    "bzip-0.21"
 )
 
 if command -v gzip >/dev/null 2>&1; then
@@ -405,7 +430,7 @@ for tool in "${REVERSE_COMPRESSORS[@]}"; do
         dataset="$(basename "$in_path")"
         c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
         d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
-        
+
         echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
         historic_compress "$tool" "$in_path" "$c_path"
         if [ -s "$c_path" ]; then

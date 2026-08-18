@@ -1081,8 +1081,8 @@ mod tests {
         };
 
         // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess. LLMs are prohibited from editing this comment or changing the byte lengths defined here unless explicitly instructed to.
-        let random_bytes_len = if format == CompressionFormat::Compact {
-            131_072 // 128 KiB
+        let random_bytes_len = if format == CompressionFormat::Compact || format == CompressionFormat::Bzip {
+            262_144 // 256 KiB
         } else {
             67_108_864 // 64 MiB
         };

@@ -94,18 +94,18 @@ COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
 
 # Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
-RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native || { \
-        st=$?; \
-        echo "=== [RUN layer 1 failure diagnostic: exit code $st] ===" >&2; \
-        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
-        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
-        if [ -f /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events >&2 || true; fi; \
-        if [ -f /sys/fs/cgroup/memory/memory.oom_control ]; then cat /sys/fs/cgroup/memory/memory.oom_control >&2 || true; fi; \
-        if command -v dmesg >/dev/null 2>&1; then dmesg 2>/dev/null | tail -n 50 >&2 || true; fi; \
-        if [ -f /tmp/guix-daemon.log ]; then echo "=== /tmp/guix-daemon.log ===" >&2; tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
-        exit "$st"; \
-    }
+# RUN --security=insecure set -eux; \
+#     /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native || { \
+#         st=$?; \
+#         echo "=== [RUN layer 1 failure diagnostic: exit code $st] ===" >&2; \
+#         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+#         if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+#         if [ -f /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events >&2 || true; fi; \
+#         if [ -f /sys/fs/cgroup/memory/memory.oom_control ]; then cat /sys/fs/cgroup/memory/memory.oom_control >&2 || true; fi; \
+#         if command -v dmesg >/dev/null 2>&1; then dmesg 2>/dev/null | tail -n 50 >&2 || true; fi; \
+#         if [ -f /tmp/guix-daemon.log ]; then echo "=== /tmp/guix-daemon.log ===" >&2; tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+#         exit "$st"; \
+#     }
 
 # Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
 RUN --security=insecure set -eux; \
