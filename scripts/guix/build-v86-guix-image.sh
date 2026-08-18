@@ -248,7 +248,7 @@ on_script_exit() {
 trap on_script_exit EXIT ERR INT TERM HUP QUIT ABRT
 
 print_system_diagnostics
-start_resource_monitor
+# start_resource_monitor
 
 # Start guix-daemon, verifying mount namespace support.
 # Sets daemon_pid and tmp_build_dir.
@@ -441,7 +441,7 @@ case "$mode" in
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."
         guix_run_with_retries build $keep_failed --fallback -L "$script_dir" --system=i686-linux \
-            -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))'
+            -e '(@ (gnu packages web-browsers) dillo)'
         echo "Native Dillo build complete."
         stop_guix_daemon
         ;;

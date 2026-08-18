@@ -13,6 +13,7 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
+pub mod bzip;
 pub mod cli;
 pub mod compact;
 pub mod compress;
@@ -39,6 +40,8 @@ pub enum CompressionFormat {
     Zlib,
     /// Bzip2 compressed stream (.bz2)
     Bzip2,
+    /// Original bzip 0.21 compressed stream (.bz)
+    Bzip,
     /// SCO compress -H compressed stream (.Z)
     ScoCompress,
     /// Modern standard LZW / compress 4.0 / ncompress (.Z)
@@ -138,7 +141,12 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::Bzip2,
             display_name: "Bzip2 compressed stream",
-            aliases: &["bzip2", "bz2", "bz"],
+            aliases: &["bzip2", "bz2"],
+        },
+        CompressionFormatInfo {
+            format: Self::Bzip,
+            display_name: "Original bzip 0.21 format",
+            aliases: &["bzip", "bz", "bzip0", "bzip-0.21"],
         },
         CompressionFormatInfo {
             format: Self::CompressLzw,
@@ -242,6 +250,7 @@ impl CompressionFormat {
             Self::Deflate => FormatId::Deflate,
             Self::Zlib => FormatId::Zlib,
             Self::Bzip2 => FormatId::Bzip2,
+            Self::Bzip => FormatId::Bzip,
             Self::ScoCompress => FormatId::ScoCompress,
             Self::CompressLzw => FormatId::CompressLzw,
             Self::CompressLzw2 => FormatId::CompressLzw2,
@@ -268,6 +277,7 @@ impl CompressionFormat {
             FormatId::Deflate => Some(Self::Deflate),
             FormatId::Zlib => Some(Self::Zlib),
             FormatId::Bzip2 => Some(Self::Bzip2),
+            FormatId::Bzip => Some(Self::Bzip),
             FormatId::ScoCompress => Some(Self::ScoCompress),
             FormatId::CompressLzw => Some(Self::CompressLzw),
             FormatId::CompressLzw2 => Some(Self::CompressLzw2),
@@ -295,6 +305,7 @@ impl CompressionFormat {
             Self::Deflate => "deflate",
             Self::Zlib => "zz",
             Self::Bzip2 => "bz2",
+            Self::Bzip => "bz",
             Self::ScoCompress
             | Self::CompressLzw
             | Self::CompressLzw2
@@ -347,7 +358,8 @@ impl CompressionFormat {
     pub fn is_implemented_in_repo(&self) -> bool {
         matches!(
             self,
-            Self::ScoCompress
+            Self::Bzip
+                | Self::ScoCompress
                 | Self::CompressLzw
                 | Self::CompressLzw2
                 | Self::CompressLzw1
@@ -447,6 +459,7 @@ pub fn compress_stream_direct(
             encoder.finish().context("Failed to finish Bzip2 encoder")?;
             Ok(bytes_written)
         }
+        CompressionFormat::Bzip => bzip::compress_stream(reader, writer),
         CompressionFormat::ScoCompress => {
             sco_compress::compress_stream(reader, writer)
         }
@@ -614,6 +627,7 @@ pub fn decompress_stream(
                 .context("Failed to decompress Bzip2 stream")?;
             Ok(bytes_written)
         }
+        CompressionFormat::Bzip => bzip::decompress_stream(reader, writer),
         CompressionFormat::ScoCompress => {
             sco_compress::decompress_stream(reader, writer)
         }
@@ -753,6 +767,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_default_verify_and_in_repo() {
         let repo_formats = [
+            CompressionFormat::Bzip,
             CompressionFormat::ScoCompress,
             CompressionFormat::CompressLzw,
             CompressionFormat::CompressLzw2,
@@ -852,6 +867,14 @@ mod tests {
             CompressionFormat::Bzip2
         );
         assert_eq!(
+            CompressionFormat::try_from("bzip").unwrap(),
+            CompressionFormat::Bzip
+        );
+        assert_eq!(
+            CompressionFormat::try_from("bz").unwrap(),
+            CompressionFormat::Bzip
+        );
+        assert_eq!(
             CompressionFormat::try_from("compress2").unwrap(),
             CompressionFormat::CompressLzw2
         );
@@ -901,6 +924,7 @@ mod tests {
         assert_eq!(CompressionFormat::Deflate.extension(), "deflate");
         assert_eq!(CompressionFormat::Zlib.extension(), "zz");
         assert_eq!(CompressionFormat::Bzip2.extension(), "bz2");
+        assert_eq!(CompressionFormat::Bzip.extension(), "bz");
         assert_eq!(CompressionFormat::ScoCompress.extension(), "Z");
         assert_eq!(CompressionFormat::Pack.extension(), "z");
         assert_eq!(CompressionFormat::Compact.extension(), "C");
@@ -942,6 +966,10 @@ mod tests {
         assert_eq!(
             CompressionFormat::from_magic_bytes(&[0x42, 0x5A, 0x68]),
             Some(CompressionFormat::Bzip2)
+        );
+        assert_eq!(
+            CompressionFormat::from_magic_bytes(&[0x42, 0x5A, 0x30]),
+            Some(CompressionFormat::Bzip)
         );
         assert_eq!(
             CompressionFormat::from_magic_bytes(&[0x1F, 0x1E]),
@@ -1006,6 +1034,7 @@ mod tests {
             CompressionFormat::Bzip2 => {
                 &["fixtures/example2 with lemurs.pan.bz2"]
             }
+            CompressionFormat::Bzip => &[],
             CompressionFormat::ScoCompress => {
                 &["fixtures/example2 with lemurs.pan.sco"]
             }
@@ -1139,6 +1168,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_bzip2() {
         run_format_test_suite(CompressionFormat::Bzip2);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_bzip() {
+        run_format_test_suite(CompressionFormat::Bzip);
     }
 
     #[crate::ctb_test]

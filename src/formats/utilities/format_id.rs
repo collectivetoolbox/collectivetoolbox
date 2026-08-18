@@ -19,6 +19,7 @@ pub enum FormatId {
     Deflate,
     Zlib,
     Bzip2,
+    Bzip,
     ScoCompress,
     CompressLzw,
     CompressLzw2,
@@ -323,6 +324,7 @@ impl FormatId {
             | Self::Deflate
             | Self::Zlib
             | Self::Bzip2
+            | Self::Bzip
             | Self::ScoCompress
             | Self::CompressLzw
             | Self::CompressLzw2

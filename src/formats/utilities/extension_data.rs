@@ -24,6 +24,8 @@ static EXT_ZZ: ExtensionRule = ExtensionRule::insensitive("zz");
 static EXT_ZL: ExtensionRule = ExtensionRule::insensitive("zl");
 static EXT_BZ2: ExtensionRule = ExtensionRule::insensitive("bz2");
 static EXT_BZIP2: ExtensionRule = ExtensionRule::insensitive("bzip2");
+static EXT_BZ: ExtensionRule = ExtensionRule::insensitive("bz");
+static EXT_BZIP: ExtensionRule = ExtensionRule::insensitive("bzip");
 static EXT_LZ4: ExtensionRule = ExtensionRule::insensitive("lz4");
 static EXT_LZMA: ExtensionRule = ExtensionRule::insensitive("lzma");
 static EXT_LZMA2: ExtensionRule = ExtensionRule::insensitive("lzma2");
@@ -79,6 +81,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Bzip2,
         rule: EXT_BZIP2,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Bzip,
+        rule: EXT_BZ,
+    },
+    ExtensionEntry {
+        format_id: FormatId::Bzip,
+        rule: EXT_BZIP,
     },
     ExtensionEntry {
         format_id: FormatId::ScoCompress,

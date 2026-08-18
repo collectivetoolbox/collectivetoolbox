@@ -18,6 +18,7 @@ pub struct MagicEntry {
 
 static GZIP_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0x8B]);
 static BZIP2_MAGIC: MagicPattern = MagicPattern::exact(&[0x42, 0x5A, 0x68]);
+static BZIP_MAGIC: MagicPattern = MagicPattern::exact(&[0x42, 0x5A, 0x30]);
 static SCO_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0xA0]);
 static LZW_MAGIC: MagicPattern =
     MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
@@ -49,6 +50,10 @@ pub static MAGIC_REGISTRY: &[MagicEntry] = &[
     MagicEntry {
         format_id: FormatId::Bzip2,
         pattern: BZIP2_MAGIC,
+    },
+    MagicEntry {
+        format_id: FormatId::Bzip,
+        pattern: BZIP_MAGIC,
     },
     MagicEntry {
         format_id: FormatId::ScoCompress,
