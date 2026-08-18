@@ -39,6 +39,9 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --pull)
+            mode="pull"
+            ;;
         --build-dillo-native)
             mode="build-dillo-native"
             ;;
@@ -439,6 +442,21 @@ guix_run_with_retries() {
 }
 
 case "$mode" in
+    pull)
+        start_guix_daemon
+        echo "Updating Guix channels to latest..."
+        guix_run_with_retries pull --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
+                   /root/.config/guix/current/share/guix/*.pub \
+                   /usr/local/share/guix/*.pub; do
+            if [ -f "$key" ]; then
+                guix archive --authorize < "$key" || true
+            fi
+        done
+        echo "Guix pull complete."
+        stop_guix_daemon
+        ;;
+
     build-dillo-native)
         start_guix_daemon
         echo "Building Dillo natively for i686-linux..."

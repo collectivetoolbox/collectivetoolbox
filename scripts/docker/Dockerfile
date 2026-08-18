@@ -84,7 +84,6 @@ RUN set -eux; \
             guix archive --authorize < "$key" || true; \
         fi; \
     done; \
-    guix pull --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"; \
     chmod -R u+w /gnu/store; \
     find /gnu/store -name "perform-download.scm" -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} +; \
     find /gnu/store -name "perform-download.go" -delete
@@ -93,6 +92,10 @@ RUN set -eux; \
 # Each step is a separate layer so failures don't re-run earlier steps.
 COPY scripts/guix /tmp/scripts/guix
 COPY src/nopersonality /tmp/src/nopersonality
+
+# Layer 0: Update Guix channels with substitute support
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --pull
 
 # Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
 RUN --security=insecure set -eux; \

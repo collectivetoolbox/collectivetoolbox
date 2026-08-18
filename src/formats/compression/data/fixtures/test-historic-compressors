@@ -196,19 +196,19 @@ echo "=== 3. Helper Functions for Standardized Invocations ==="
 
 ctb_compress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    "$CTB_BIN" compress "$fmt" "$in_file" -o "$out_file" --force
+    $CTB_BIN compress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 ctb_decompress() {
     local in_file="$1" out_file="$2" fmt="${3:-}"
     if [ -n "$fmt" ]; then
-        "$CTB_BIN" decompress "$fmt" "$in_file" -o "$out_file" --force
+        $CTB_BIN decompress "$fmt" "$in_file" -o "$out_file" --force
     elif [[ "$in_file" == *.Z1.0 ]]; then
-        "$CTB_BIN" decompress compress1 "$in_file" -o "$out_file" --force
+        $CTB_BIN decompress compress1 "$in_file" -o "$out_file" --force
     elif [[ "$in_file" == *.Z1.6 ]]; then
-        "$CTB_BIN" decompress compress16 "$in_file" -o "$out_file" --force
+        $CTB_BIN decompress compress16 "$in_file" -o "$out_file" --force
     else
-        "$CTB_BIN" decompress "$in_file" -o "$out_file" --force
+        $CTB_BIN decompress "$in_file" -o "$out_file" --force
     fi
 }
 
