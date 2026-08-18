@@ -10,6 +10,8 @@ set -euxo pipefail
 #   --prebuild-tarball PATH Build Guix i686 system image tarball, save to PATH
 #   (no args)               Full build: system image + Icecat + v86 packing
 
+# To invoke from within Dev Container: `scripts/guix/build-v86-guix-image.sh --cross-icecat --disable-chroot`
+
 # Container detection helper
 is_container() {
     [ -f /.dockerenv ] || [ -f /run/.containerenv ] || [ -f /etc/dockerenv ] || \
