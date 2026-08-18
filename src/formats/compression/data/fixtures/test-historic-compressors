@@ -13,11 +13,12 @@ done
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
 TMP_DIR="$REPO_ROOT/built/tmp_test_decompression"
 
-if [ ! -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
-    echo "Building ctoolbox binary..."
-    cargo build -q -p ctoolbox --bin ctoolbox
-fi
-CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
+# if [ ! -f "$REPO_ROOT/target/release/ctoolbox" ]; then
+#     echo "Building ctoolbox binary..."
+#     cargo build --release -q -p ctoolbox --bin ctoolbox
+# fi
+# CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
+CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
 
 mkdir -p "$TMP_DIR"
 
