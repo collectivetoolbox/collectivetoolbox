@@ -112,6 +112,143 @@ export GUIX_BUILD_OPTIONS="${GUIX_BUILD_OPTIONS:---max-silent-time=3600 --timeou
 
 daemon_pid=""
 tmp_build_dir=""
+monitor_pid=""
+daemon_tail_pid=""
+
+export CTB_NOPERSONALITY_DEBUG=1
+
+# Print comprehensive system and environment diagnostics
+print_system_diagnostics() {
+    echo "=== [diagnostic] Build Host Diagnostics ($(date -u '+%Y-%m-%d %H:%M:%S UTC')) ==="
+    echo "[diagnostic] Kernel: $(uname -a)"
+    echo "[diagnostic] User: $(id)"
+    echo "[diagnostic] CPUs: $(nproc 2>/dev/null || echo '?')"
+    if [ -f /proc/loadavg ]; then
+        echo "[diagnostic] Load avg: $(cat /proc/loadavg)"
+    fi
+    if [ -f /proc/meminfo ]; then
+        echo "[diagnostic] Memory Info:"
+        grep -E '^(MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree|Cached|Buffers):' /proc/meminfo | sed 's/^/[diagnostic]   /'
+    fi
+    if [ -f /sys/fs/cgroup/memory.max ]; then
+        echo "[diagnostic] cgroup v2 memory: max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null), current=$(cat /sys/fs/cgroup/memory.current 2>/dev/null)"
+    elif [ -f /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+        echo "[diagnostic] cgroup v1 memory: limit=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null), usage=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null)"
+    fi
+    echo "[diagnostic] Limits:"
+    ulimit -a | sed 's/^/[diagnostic]   /'
+    echo "============================================================"
+}
+
+start_resource_monitor() {
+    (
+        while true; do
+            sleep 2
+            local mem_info=""
+            if [ -f /proc/meminfo ]; then
+                local mem_avail mem_free swap_free
+                mem_avail="$(grep -i MemAvailable /proc/meminfo | awk '{print $2, $3}' || true)"
+                mem_free="$(grep -i MemFree /proc/meminfo | awk '{print $2, $3}' || true)"
+                swap_free="$(grep -i SwapFree /proc/meminfo | awk '{print $2, $3}' || true)"
+                mem_info="MemAvail: ${mem_avail:-?}, MemFree: ${mem_free:-?}, SwapFree: ${swap_free:-?}"
+            fi
+            local cgroup_info=""
+            if [ -f /sys/fs/cgroup/memory.current ]; then
+                local cur max
+                cur="$(cat /sys/fs/cgroup/memory.current 2>/dev/null || true)"
+                max="$(cat /sys/fs/cgroup/memory.max 2>/dev/null || true)"
+                cgroup_info="cgroup_mem: $cur/$max"
+            elif [ -f /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then
+                local cur max
+                cur="$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || true)"
+                max="$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || true)"
+                cgroup_info="cgroup_mem: $cur/$max"
+            fi
+            local oom_info=""
+            if [ -f /proc/vmstat ]; then
+                local oom_cnt
+                oom_cnt="$(grep -i oom_kill /proc/vmstat 2>/dev/null | awk '{print $2}' || true)"
+                if [ -n "$oom_cnt" ] && [ "$oom_cnt" -gt 0 ]; then
+                    oom_info=" [OOM_KILL_COUNT: $oom_cnt]"
+                fi
+            fi
+            local top_proc=""
+            if command -v ps >/dev/null 2>&1; then
+                top_proc="$(ps -eo comm,rss --sort=-rss 2>/dev/null | sed -n '2p' | awk '{print "top:" $1 "(" $2 "KB)"}' || true)"
+            fi
+            local guix_procs
+            guix_procs="$(pgrep -c -f 'guix' 2>/dev/null || echo 0)"
+            echo "[monitor $(date +%T)] $mem_info | $cgroup_info | guix procs: $guix_procs | $top_proc$oom_info" >&2
+        done
+    ) &
+    monitor_pid=$!
+}
+
+stop_resource_monitor() {
+    if [ -n "$monitor_pid" ]; then
+        kill "$monitor_pid" 2>/dev/null || true
+        wait "$monitor_pid" 2>/dev/null || true
+        monitor_pid=""
+    fi
+}
+
+start_daemon_tail() {
+    touch /tmp/guix-daemon.log
+    tail -n 0 -F /tmp/guix-daemon.log 2>/dev/null | while read -r line; do
+        echo "[guix-daemon] $line" >&2
+    done &
+    daemon_tail_pid=$!
+}
+
+stop_daemon_tail() {
+    if [ -n "$daemon_tail_pid" ]; then
+        kill "$daemon_tail_pid" 2>/dev/null || true
+        wait "$daemon_tail_pid" 2>/dev/null || true
+        daemon_tail_pid=""
+    fi
+}
+
+on_script_exit() {
+    local exit_code=$?
+    trap - EXIT ERR INT TERM HUP QUIT ABRT
+    stop_resource_monitor
+    stop_daemon_tail
+    stop_guix_daemon
+    if [ "$exit_code" -ne 0 ]; then
+        echo "=== [diagnostic] Build script failed/terminated with exit code $exit_code ===" >&2
+        if [ -f /proc/meminfo ]; then
+            echo "=== [diagnostic] /proc/meminfo at failure ===" >&2
+            cat /proc/meminfo 2>/dev/null | head -n 15 >&2 || true
+        fi
+        if [ -f /proc/vmstat ]; then
+            echo "=== [diagnostic] /proc/vmstat oom ===" >&2
+            grep -i oom /proc/vmstat 2>/dev/null >&2 || true
+        fi
+        if [ -f /sys/fs/cgroup/memory.events ]; then
+            echo "=== [diagnostic] cgroup v2 memory events ===" >&2
+            cat /sys/fs/cgroup/memory.events >&2 || true
+        fi
+        if [ -f /sys/fs/cgroup/memory/memory.oom_control ]; then
+            echo "=== [diagnostic] cgroup v1 oom control ===" >&2
+            cat /sys/fs/cgroup/memory/memory.oom_control >&2 || true
+        fi
+        if command -v dmesg >/dev/null 2>&1; then
+            echo "=== [diagnostic] dmesg (last 30 lines) ===" >&2
+            dmesg 2>/dev/null | tail -n 30 >&2 || true
+        fi
+        if [ -f /tmp/guix-daemon.log ]; then
+            echo "=== [diagnostic] /tmp/guix-daemon.log (last 100 lines) ===" >&2
+            tail -n 100 /tmp/guix-daemon.log >&2 || true
+        fi
+        echo "=== [diagnostic] Process snapshot ===" >&2
+        ps aux 2>/dev/null | head -n 30 >&2 || true
+    fi
+    exit "$exit_code"
+}
+trap on_script_exit EXIT ERR INT TERM HUP QUIT ABRT
+
+print_system_diagnostics
+start_resource_monitor
 
 # Start guix-daemon, verifying mount namespace support.
 # Sets daemon_pid and tmp_build_dir.
@@ -169,7 +306,6 @@ start_guix_daemon() {
                     cp "$nopersonality_so" /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                     chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                 fi
-                echo "Using nopersonality shim at: $nopersonality_so"
                 daemon_env=(env "LD_PRELOAD=$nopersonality_so")
                 if [ "$nopersonality_dir" != "/usr/lib" ]; then
                     daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
@@ -213,9 +349,21 @@ start_guix_daemon() {
         fi
     fi
 
+    local daemon_bin
+    daemon_bin="$(type -p guix-daemon)"
+    if is_container; then
+        mkdir -p /var/guix/bin
+        local real_daemon
+        real_daemon="$(readlink -f "$daemon_bin")"
+        cp -f "$real_daemon" /var/guix/bin/guix-daemon-unconfined
+        chmod 755 /var/guix/bin/guix-daemon-unconfined
+        daemon_bin="/var/guix/bin/guix-daemon-unconfined"
+    fi
+
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    ${daemon_env[@]+"${daemon_env[@]}"} guix-daemon ${disable_chroot:+"$disable_chroot"} "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    ${daemon_env[@]+"${daemon_env[@]}"} "$daemon_bin" ${disable_chroot:+"$disable_chroot"} --debug "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
+    start_daemon_tail
     sleep 2
     if ! kill -0 "$daemon_pid" 2>/dev/null; then
         if grep -qi -E "Address already in use" /tmp/guix-daemon.log 2>/dev/null; then
@@ -231,6 +379,7 @@ start_guix_daemon() {
 }
 
 stop_guix_daemon() {
+    stop_daemon_tail
     if [ -n "$daemon_pid" ]; then
         echo "Stopping guix-daemon (pid $daemon_pid)..."
         kill "$daemon_pid" 2>/dev/null || true
@@ -253,11 +402,19 @@ guix_run_with_retries() {
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true
         fi
-        #mkdir -p /var/log/guix/drvs 2>/dev/null || true
-        #chmod 1777 /var/log/guix /var/log/guix/drvs 2>/dev/null || true
+        echo "[$(date +%T)] Starting guix command (attempt $attempt of $max_attempts): guix $*" >&2
+        local start_ts
+        start_ts="$(date +%s)"
         if guix "$@"; then
+            local end_ts
+            end_ts="$(date +%s)"
+            echo "[$(date +%T)] guix command succeeded in $((end_ts - start_ts))s." >&2
             return 0
         fi
+        local exit_st=$?
+        local end_ts
+        end_ts="$(date +%s)"
+        echo "[$(date +%T)] guix command failed with exit status $exit_st after $((end_ts - start_ts))s." >&2
         if [ "$max_attempts" -gt 1 ]; then
             echo "Warning: guix command failed (attempt $attempt of $max_attempts)." >&2
         fi

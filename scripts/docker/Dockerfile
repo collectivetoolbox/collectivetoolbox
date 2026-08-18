@@ -69,8 +69,10 @@ RUN set -eux; \
     curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh -o /tmp/guix-install.sh; \
     chmod +x /tmp/guix-install.sh; \
     sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh; \
+    sed -i 's/sys_maybe_setup_apparmor/true/g' /tmp/guix-install.sh; \
     yes | /tmp/guix-install.sh; \
     rm -f /tmp/guix-install.sh; \
+    rm -rf /etc/apparmor.d/guix* /etc/apparmor.d/tunables/guix* 2>/dev/null || true; \
     mkdir -p /etc/guix /var/log/guix/drvs; \
     chown -R root:guixbuild /var/guix /var/log/guix /gnu/store; \
     chmod 1775 /gnu/store /var/guix; \
@@ -93,19 +95,50 @@ COPY src/nopersonality /tmp/src/nopersonality
 
 # Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native
+    /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native || { \
+        st=$?; \
+        echo "=== [RUN layer 1 failure diagnostic: exit code $st] ===" >&2; \
+        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+        if [ -f /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events >&2 || true; fi; \
+        if [ -f /sys/fs/cgroup/memory/memory.oom_control ]; then cat /sys/fs/cgroup/memory/memory.oom_control >&2 || true; fi; \
+        if command -v dmesg >/dev/null 2>&1; then dmesg 2>/dev/null | tail -n 50 >&2 || true; fi; \
+        if [ -f /tmp/guix-daemon.log ]; then echo "=== /tmp/guix-daemon.log ===" >&2; tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+        exit "$st"; \
+    }
 
 # Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo || { \
+        st=$?; \
+        echo "=== [RUN layer 2 failure diagnostic: exit code $st] ===" >&2; \
+        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+        if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+        exit "$st"; \
+    }
 
 # Layer 3: Cross-compile GNU Icecat x86_64→i686
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat || { \
+        st=$?; \
+        echo "=== [RUN layer 3 failure diagnostic: exit code $st] ===" >&2; \
+        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+        if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+        exit "$st"; \
+    }
 
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross || { \
+        st=$?; \
+        echo "=== [RUN layer 4 failure diagnostic: exit code $st] ===" >&2; \
+        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+        if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+        exit "$st"; \
+    }; \
     rm -rf /tmp/scripts /tmp/src
 
 # Pre-build TypeScript compiler tarball in Docker image to avoid re-building on every CI run
