@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -47,7 +48,7 @@ pub trait StorageClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
 ///  Get raw columns and row values for a table, formatted specifically for display
 ///  in the Web UI (e.g. converting node IDs/checksums to string, handling blobs,
 ///  and truncation).
-/// 
+///
 ///  This is used by the Web UI.
     async fn get_formatted_table_data(&self, session_token: & str, db_name: & str, table_name: & str, page: u32) -> Result<:: ctb_utilities :: ipc :: service_traits :: storage :: TableRow>;
 

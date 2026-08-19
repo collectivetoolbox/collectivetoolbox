@@ -9,6 +9,7 @@ use anyhow::{Context, Result, bail};
 /// Default AGPL-3.0-or-later header.
 const DEFAULT_AGPL_HEADER: &str = r#"// SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -28,6 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 /// PAN format MIT header for files under `src/formats/pan/`.
 const PAN_MIT_HEADER: &str = r#"/* SPDX-License-Identifier: MIT */
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -52,6 +54,7 @@ SOFTWARE.
 
 /// The standard copyright block comment for Collective Toolbox AGPL.
 const AGPL_COPYRIGHT_BLOCK: &str = r#"/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 

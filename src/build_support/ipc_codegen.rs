@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -42,7 +43,8 @@ const GENERATED_SERVICES: &[&str] =
 fn push_generated(out: &mut String) {
     out.push_str("// SPDX-License-Identifier: AGPL-3.0-or-later\n");
     out.push_str("/*\n");
-    out.push_str("Copyright (C) 2026 Collective Toolbox Developers\n");
+    out.push_str("This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers\n");
     out.push_str("Contact: info@collectivetoolbox.com\n\n");
     out.push_str("This program is free software: you can redistribute it and/or modify it under\n");
     out.push_str("the terms of the GNU Affero General Public License as published by the Free\n");

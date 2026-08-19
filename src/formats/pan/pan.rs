@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 

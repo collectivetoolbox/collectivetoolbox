@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -24,20 +25,20 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[async_trait]
 pub trait RuntimeClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + std::fmt::Debug {
 ///  Start a document runtime with the provided document data.
-/// 
+///
 ///  This initializes the runtime environment for document processing,
 ///  setting up the event loop and IPC orchestration infrastructure.
     async fn start(&self, #[ipc(shm)] document: Vec < u8 >) -> Result<i32>;
 
 ///  Test method: prepend a string to the document.
-/// 
+///
 ///  This is a test helper for IPC routing verification during example
 ///  development.
     async fn test_prepend(&self, document: & str, prepend: & str) -> Result<String>;
 
 ///  Test function demonstrating nested document runtime spawning via
 ///  dependency-injected IPC.
-/// 
+///
 ///  In real use, the document runtime would send a request to the workspace to
 ///  spawn a sub-document process and pass the workspace the node ID to render
 ///  in a single `start_document()` (or something like that) call. The workspace
@@ -45,14 +46,14 @@ pub trait RuntimeClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
 ///  render of multiple documents composed together), because the runtime for one
 ///  document shouldn't have access to the runtimes for nested documents data or
 ///  state beyond the initial node ID or passed through secure message passing.
-/// 
+///
 ///  # Arguments
-/// 
+///
 ///  * `document` - The document content to process
 ///  * `ipc` - The IPC context for communicating with the workspace
-/// 
+///
 ///  # Returns
-/// 
+///
 ///  A formatted string combining the original document with the subprocess
 ///  response.
     async fn test_simple_nested_document(&self, #[ipc(shm)] document: & str, settings: RenderSettings) -> Result<i32>;

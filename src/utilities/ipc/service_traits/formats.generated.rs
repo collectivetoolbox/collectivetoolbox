@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -25,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[expect(non_snake_case, reason = "generated trait methods matching formats naming conventions")]
 pub trait FormatsClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + std::fmt::Debug {
 ///  Decode bytes using the `utf_8e_128` format.
-/// 
+///
 ///  Returns `(value, used_len)` on success, or `None` if the bytes are not a
 ///  valid prefix for the encoding.
     async fn decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
@@ -34,7 +35,7 @@ pub trait FormatsClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
     async fn encode(&self, codepoint: u128) -> Result<Vec < u8 >>;
 
 ///  Decode bytes using the `utf_8e_128` format.
-/// 
+///
 ///  Returns `(value, used_len)` on success, or `None` if the bytes are not a
 ///  valid prefix for the encoding.
     async fn utf_8e_128__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;

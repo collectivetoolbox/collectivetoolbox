@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
 
@@ -21,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Do not edit by hand.
 
 ///  Render mode for the renderer service.
-/// 
+///
 ///  This type is marked as an IPC DTO source so `ctb-utilities` can generate a
 ///  dependency-free mirror for IPC service traits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
@@ -33,7 +34,7 @@ pub enum RenderMode {
 }
 
 ///  Render settings for the renderer service.
-/// 
+///
 ///  This is marked as an IPC DTO source so `ctb-utilities` can generate a
 ///  dependency-free mirror for IPC service traits.
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
@@ -45,7 +46,7 @@ pub struct RenderSettings {
 }
 
 ///  Render target for the renderer service.
-/// 
+///
 ///  This is marked as an IPC DTO source so `ctb-utilities` can generate a
 ///  dependency-free mirror for IPC service traits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
