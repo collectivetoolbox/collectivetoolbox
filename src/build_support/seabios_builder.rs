@@ -17,16 +17,6 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Native Rust implementation of SeaBIOS build tools.
-//!
-//! Replaces python scripts:
-//! - buildversion.py
-//! - vgafixup.py
-//! - buildrom.py
-//! - checkrom.py
-//! - layoutrom.py
-//! - ldnoexec.py
-
 // From Makefile:
 // Copyright (C) 2008-2012  Kevin O'Connor <kevin@koconnor.net>
 //
@@ -61,6 +51,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Copyright (C) 2020  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+
+//! Native Rust implementation of SeaBIOS build tools.
+//!
+//! Replaces python scripts:
+//! - buildversion.py
+//! - vgafixup.py
+//! - buildrom.py
+//! - checkrom.py
+//! - layoutrom.py
+//! - ldnoexec.py
 
 use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, HashMap, HashSet};

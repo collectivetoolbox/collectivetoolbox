@@ -90,6 +90,24 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */"#;
 
+/// The copyright block comment for AGPL-3.0-only SeaBIOS-derived files.
+const AGPL_3_0_ONLY_COPYRIGHT_BLOCK: &str = r#"/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of version 3 of the GNU Affero General Public License as published by
+the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/"#;
+
 #[derive(Debug)]
 struct Violation {
     file: PathBuf,
@@ -126,6 +144,14 @@ fn is_pan_file(file_path: &Path) -> bool {
         .components()
         .any(|c| c.as_os_str() == "pan" || c.as_os_str() == "pan.rs")
         && file_path.to_string_lossy().contains("formats/pan")
+}
+
+/// Determine whether a file is permitted to use an `AGPL-3.0-only` header.
+/// Only `seabios_builder.rs` and `seabios_tool.rs` are permitted.
+fn is_allowed_agpl_only_file(file_path: &Path) -> bool {
+    let lossy = file_path.to_string_lossy();
+    lossy.ends_with("src/build_support/seabios_builder.rs")
+        || lossy.ends_with("src/build_support/bin/seabios_tool.rs")
 }
 
 /// Check if a word boundary match for target exists in text (case-insensitive).
@@ -296,13 +322,20 @@ fn parse_license_header(content: &str, file_path: &Path) -> Result<ParsedHeader,
     }
 
     // Case 3: Derived Third-Party Header
-    // First line must start with `// SPDX-License-Identifier: AGPL-3.0-or-later AND `
+    // First line must start with `// SPDX-License-Identifier: AGPL-3.0-or-later AND ` or `// SPDX-License-Identifier: AGPL-3.0-only AND `
     let lines: Vec<&str> = normalized.lines().collect();
     let Some(first_line) = lines.first() else {
         return Err("File is empty".to_string());
     };
 
-    if first_line.starts_with("// SPDX-License-Identifier: AGPL-3.0-or-later AND ") {
+    let is_agpl_or_later = first_line.starts_with("// SPDX-License-Identifier: AGPL-3.0-or-later AND ");
+    let is_agpl_only = first_line.starts_with("// SPDX-License-Identifier: AGPL-3.0-only AND ");
+
+    if is_agpl_only && !is_allowed_agpl_only_file(file_path) {
+        return Err("AGPL-3.0-only is not allowed in this file; use AGPL-3.0-or-later".to_string());
+    }
+
+    if is_agpl_or_later || is_agpl_only {
         let mut idx = 1;
         let mut found_derived_clause = false;
 
@@ -322,12 +355,25 @@ fn parse_license_header(content: &str, file_path: &Path) -> Result<ParsedHeader,
 
         // Must be followed by the Collective Toolbox Developers AGPL copyright block
         let remaining_from_block = lines.get(idx..).map(|s| s.join("\n")).unwrap_or_default();
-        if !remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
+        let (matched_block_lines, block_ok) = if is_agpl_only {
+            if remaining_from_block.starts_with(AGPL_3_0_ONLY_COPYRIGHT_BLOCK) {
+                (AGPL_3_0_ONLY_COPYRIGHT_BLOCK.lines().count(), true)
+            } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
+                (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
+            } else {
+                (0, false)
+            }
+        } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
+            (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
+        } else {
+            (0, false)
+        };
+
+        if !block_ok {
             return Err("Derived header missing standard Collective Toolbox AGPL copyright block after derived clauses".to_string());
         }
 
-        let block_lines = AGPL_COPYRIGHT_BLOCK.lines().count();
-        idx = idx.saturating_add(block_lines);
+        idx = idx.saturating_add(matched_block_lines);
 
         return Ok(ParsedHeader {
             kind: HeaderKind::DerivedThirdParty,
