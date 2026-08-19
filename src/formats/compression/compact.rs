@@ -1,5 +1,7 @@
-//! Implementation of Colin L. `McMaster`'s 1979 Online Adaptive Huffman
-//! Coding format (`compact` / `uncompact`, `.C` file format).
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Colin L. `McMaster`'s 1979 Online Adaptive Huffman Coding format
+//! (`compact` / `uncompact`, `.C` file format).
 //!
 //! Specification reference: `data/docs/compact.md`
 

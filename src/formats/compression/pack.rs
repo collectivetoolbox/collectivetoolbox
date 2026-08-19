@@ -1,5 +1,8 @@
-//! Implementation of System III/V `pack` (`0x1F 0x1E`) and Early Unix `old_pack`
-//! (`0x1F 0x1F`) compression and decompression formats.
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
+// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+
+//! System III/V `pack` (`0x1F 0x1E`) and Early Unix `old_pack` (`0x1F 0x1F`)
+//! compression and decompression formats.
 //!
 //! Specification reference: `data/docs/pack.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unpack.c`
@@ -7,7 +10,6 @@
 //! This supports packing small inputs that would be rejected by original pack
 //! implementations.
 
-// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
 
 // Header comment from original unpack.c:
 /* unpack.c -- decompress files in pack format.

@@ -1,4 +1,7 @@
-//! Implementation of Unix `compress` LZW formats:
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
+// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+
+//! Unix `compress` LZW formats:
 //! - `CompressLzw` (compress 3.0+ / 4.0 / ncompress, magic `0x1F 0x9D`, block mode)
 //! - `CompressLzw2` (compress 2.0, magic `0x1F 0x9D`, non-block mode)
 //! - `CompressLzw1` (compress 1.0, headerless stream)
@@ -6,7 +9,6 @@
 //! Specification reference: `data/docs/compress-ncompress.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
 
-// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
 
 // Header comment from original unlzh.c:
 /* unlzh.c -- decompress files in SCO compress -H (LZH) format.

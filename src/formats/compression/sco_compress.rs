@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
+// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+
 //! SCO `compress -H` (LZH / `-lh1-`) compression and decompression format.
 //!
 //! Specification reference: `data/docs/compress-sco.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzh.c`
-
-// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
 
 // Header comment from original unlzh.c:
 /* unlzh.c -- decompress files in SCO compress -H (LZH) format.

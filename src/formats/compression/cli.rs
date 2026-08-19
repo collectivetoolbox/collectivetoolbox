@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! CLI execution helpers for compression and decompression.
 
 #[expect(

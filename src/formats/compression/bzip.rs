@@ -1,5 +1,6 @@
-//! Independent implementation of the original `bzip` 0.21 compression format
-//! (Julian Seward, 1996).
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! The original `bzip` 0.21 compression format (Julian Seward, 1996).
 //!
 //! Specification reference: `data/docs/bzip.md`
 
