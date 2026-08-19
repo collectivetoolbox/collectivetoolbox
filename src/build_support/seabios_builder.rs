@@ -1,4 +1,21 @@
+// SPDX-License-Identifier: AGPL-3.0-only AND GPL-3.0-only AND LGPL-3.0-only
 // SPDX-License-Identifier for parts derived from SeaBIOS: GPL-3.0-only AND LGPL-3.0-only
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of version 3 of the GNU Affero General Public License as published by
+the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 //! Native Rust implementation of SeaBIOS build tools.
 //!
