@@ -1,9 +1,32 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later AND MIT AND Artistic-2.0
 // SPDX-License-Identifier for parts derived from mac_alias: MIT
+// SPDX-License-Identifier for parts derived from Mac-Alias: Artistic-2.0
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// See additional licensing details at end of file.
+
+// Parts derived from mac_alias:
 // Copyright (c) 2014 Alastair Houghton
 // Copyright (c) 2022 Russell Keith-Magee
 // From https://github.com/dmgbuild/mac_alias
 
-// SPDX-License-Identifier for parts derived from Mac-Alias: Artistic-2.0
+// Parts derived from Mac-Alias:
 // Author: "Arne Johannessen <ajnn@cpan.org>"
 // From https://www.cpan.org/authors/id/A/AJ/AJNN/Mac-Alias-1.01.tar.gz
 
