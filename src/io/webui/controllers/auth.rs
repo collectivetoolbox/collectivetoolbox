@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Authentication and session management HTTP route handlers.
+
 use axum::debug_handler;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};

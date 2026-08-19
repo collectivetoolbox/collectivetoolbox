@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Lint tool to verify that vendor patch crates are actively utilized in Cargo.toml manifests.
+
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;

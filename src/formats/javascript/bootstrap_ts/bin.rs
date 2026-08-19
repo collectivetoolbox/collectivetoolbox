@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! CLI entry point for bootstrapping the standalone TypeScript compiler.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

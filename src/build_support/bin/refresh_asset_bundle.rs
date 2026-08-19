@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! CLI tool to refresh and stage static asset bundles for the ctoolbox build process.
+
 use std::env;
 use std::path::{Path, PathBuf};
 

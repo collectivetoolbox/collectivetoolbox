@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Shared request context and breadcrumb state extractors.
+
 use axum::extract::FromRequestParts;
 use http::StatusCode;
 use serde::Serialize;

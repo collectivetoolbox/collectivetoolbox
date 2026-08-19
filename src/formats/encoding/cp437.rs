@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // More-or-less independent implementation; used the test data and docs to create this alternative which is a bit easier to read for me but likely slower.
 
+//! Code Page 437 (DOS Latin US) character encoding and decoding utilities.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! HTTP/HTTPS web application server and router initialization.
+
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 

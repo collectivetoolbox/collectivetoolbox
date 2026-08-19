@@ -20,6 +20,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details below.
 
+//! WebRTC peer-to-peer communication and signaling implementation.
+
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 

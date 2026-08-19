@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! JavaScript string manipulation, escaping, and regex helper functions.
+
 use boa_engine::Context as BoaContext;
 use boa_engine::property::PropertyKey;
 use ctb_utilities::Context;

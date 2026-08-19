@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Lint tool to check for unsafe filesystem writes in tests without temporary directories.
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};

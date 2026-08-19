@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! UTF-8 character encoding, validation, and stream parsing utilities.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

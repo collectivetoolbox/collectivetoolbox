@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Installation package manager, bundle extractor, and system setup tools.
+
 #[allow(
     unused_imports,
     clippy::wildcard_imports,

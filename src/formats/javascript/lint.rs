@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Linter driver and source code analysis for JavaScript modules.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

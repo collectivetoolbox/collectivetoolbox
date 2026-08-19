@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Shared path and binary parsing helpers for macOS Alias and Bookmark records.
+
 #[allow(
     unused_imports,
     clippy::wildcard_imports,

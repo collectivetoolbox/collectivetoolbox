@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Web ARChive (WARC) file processing and warcat utility wrapper.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

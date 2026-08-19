@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! JSDoc comment parser and documentation extraction utilities.
+
 use deno_ast::ParsedSource;
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;

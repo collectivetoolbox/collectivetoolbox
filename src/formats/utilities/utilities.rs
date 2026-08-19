@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! File format detection, magic number lookup, and extension mapping tools.
+
 pub mod detection;
 pub mod extension;
 pub mod extension_data;

@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Lint rule definitions and configuration registry for JavaScript linting.
+
 use deno_lint::rules::get_all_rules;
 use deno_lint::tags;
 use serde::Serialize;

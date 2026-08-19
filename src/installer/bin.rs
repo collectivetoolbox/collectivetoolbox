@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Standalone installer application binary for Collective Toolbox.
+
 #![deny(unused_must_use)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::as_conversions)]

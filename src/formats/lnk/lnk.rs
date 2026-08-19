@@ -23,6 +23,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Windows Shell Link (.lnk) binary file format parsing utilities.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

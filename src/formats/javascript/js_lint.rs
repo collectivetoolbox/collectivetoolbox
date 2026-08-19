@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! JavaScript and TypeScript code linter engine and execution pipeline.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

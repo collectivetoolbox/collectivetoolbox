@@ -30,6 +30,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Author: "Arne Johannessen <ajnn@cpan.org>"
 // From https://www.cpan.org/authors/id/A/AJ/AJNN/Mac-Alias-1.01.tar.gz
 
+//! macOS Bookmark format parsing and path resolution.
+
 #[allow(
     unused_imports,
     clippy::wildcard_imports,

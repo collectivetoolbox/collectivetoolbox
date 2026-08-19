@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Internet Archive file format, item metadata, and checksum parsing utilities.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
