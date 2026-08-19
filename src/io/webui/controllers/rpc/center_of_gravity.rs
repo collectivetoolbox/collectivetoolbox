@@ -22,15 +22,18 @@ pub async fn handle_center_of_gravity_call(
                 .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: input"))?;
 
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let empty_weight = input_val
                 .get("empty_weight")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0);
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let empty_cg = input_val
                 .get("empty_cg")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0);
             let datum = input_val.get("datum").and_then(Value::as_f64);
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let front_pilot_weight = input_val
                 .get("front_pilot_weight")
                 .and_then(Value::as_f64)
@@ -40,6 +43,7 @@ pub async fn handle_center_of_gravity_call(
             let front_pilot_distance_in_front_of_datum = input_val
                 .get("front_pilot_distance_in_front_of_datum")
                 .and_then(Value::as_f64);
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let rear_pilot_weight = input_val
                 .get("rear_pilot_weight")
                 .and_then(Value::as_f64)
@@ -49,10 +53,12 @@ pub async fn handle_center_of_gravity_call(
             let rear_pilot_distance_behind_datum = input_val
                 .get("rear_pilot_distance_behind_datum")
                 .and_then(Value::as_f64);
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let ballast_weight = input_val
                 .get("ballast_weight")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0);
+            // Reason for fallback: optional weight, arm, and CG inputs default to 0.0 when omitted from payload.
             let ballast_arm = input_val
                 .get("ballast_arm")
                 .and_then(Value::as_f64)

@@ -1258,7 +1258,7 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                         if matches!(bytes.get(j), Some(b']')) {
                             #[allow(
                                 clippy::expect_used,
-                                reason = "i + 1 <= j < bytes.len() verified by bracket scan"
+                                reason = "i + 1 <= j < bytes.len() established by bracket scan"
                             )]
                             let token_bytes = bytes
                                 .get(i.saturating_add(1)..j)

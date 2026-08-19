@@ -26,6 +26,7 @@ pub async fn handle_calculator_call(
             Ok(serde_json::to_value(res)?)
         }
         "getRandomScaleTable" => {
+            // Reason for fallback: default to uniform random scale in 0.0..1.0 if raw argument omitted.
             let raw = args.first().and_then(Value::as_f64).unwrap_or_else(|| {
                 use rand::Rng;
                 rand::rng().random_range(0.0..1.0)

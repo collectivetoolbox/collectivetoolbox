@@ -267,14 +267,17 @@ impl ParsedNumber {
         // Separate attached or whitespace-delimited unit suffixes if present
         let (num_part_raw, unit_suffix) = separate_unit_suffix(s_no_sign, base);
         let num_part = match base {
+            // Reason for fallback: numbers without base prefix retain original string representation.
             Base::Base16 => num_part_raw
                 .strip_prefix("0x")
                 .or_else(|| num_part_raw.strip_prefix("0X"))
                 .unwrap_or(num_part_raw),
+            // Reason for fallback: numbers without base prefix retain original string representation.
             Base::Base2 => num_part_raw
                 .strip_prefix("0b")
                 .or_else(|| num_part_raw.strip_prefix("0B"))
                 .unwrap_or(num_part_raw),
+            // Reason for fallback: numbers without base prefix retain original string representation.
             Base::Base8 => num_part_raw
                 .strip_prefix("0o")
                 .or_else(|| num_part_raw.strip_prefix("0O"))
@@ -296,6 +299,7 @@ impl ParsedNumber {
         }
 
         let rational_mag: Rational = if let Some((idx, (num, den))) = vulgar_frac {
+            // Reason for fallback: vulgar fraction starting at index 0 has empty integer prefix.
             let prefix = num_part.get(..idx).unwrap_or("").trim();
             let frac_rat = Rational::from_naturals(Natural::from(num), Natural::from(den));
             if prefix.is_empty() {
@@ -514,6 +518,7 @@ pub fn analyze_input(s: &str) -> ParsedInput {
             frac_len: num.frac_len,
         }
     } else {
+        // Reason for fallback: unsigned numeric strings retain original representation.
         let s_clean = s.strip_prefix('+').or_else(|| s.strip_prefix('-')).unwrap_or(s);
         if let Some((int_part, frac_part)) = s_clean.split_once('.') {
             ParsedInput {

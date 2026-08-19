@@ -71,7 +71,7 @@ pub fn get_format_uuids<'a>() -> HashMap<Vec<u8>, Vec<u8>> {
 #[expect(
     clippy::expect_used,
     clippy::unwrap_in_result,
-    reason = "Slice bounds are verified by preceding len checks"
+    reason = "Slice bounds are guaranteed by preceding len checks"
 )]
 pub fn get_format_from_uuid(document: Vec<u8>) -> Option<Vec<u8>> {
     let head = if document.len() < 36 {
@@ -89,7 +89,7 @@ pub fn get_format_from_uuid(document: Vec<u8>) -> Option<Vec<u8>> {
 #[expect(
     clippy::expect_used,
     clippy::unwrap_in_result,
-    reason = "Slice bounds for 16-byte binary UUID are verified by preceding len >= 16 check"
+    reason = "Slice bounds for 16-byte binary UUID are guaranteed by preceding len >= 16 check"
 )]
 pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
     if document.len() < 16 {

@@ -73,6 +73,7 @@ static CTB_ASSET_BUNDLE_DATA_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub fn get_embedded_asset(dir: &Dir, key: &str) -> Option<Vec<u8>> {
+    // Reason for fallback: keys without leading slash are looked up directly.
     let key = key.strip_prefix('/').unwrap_or(key);
     let file = dir.get_file(key);
     Some(file?.contents().to_vec())
@@ -248,6 +249,7 @@ fn build_asset_bundle_internal(
             None => compute_v2_resource_bundle_uuid(&entries)?,
         },
         RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
+            // Reason for fallback: when custom UUID is not provided for v3/v4 bundle, generate a random UUID.
             custom_uuid.unwrap_or_else(Uuid::new_v4)
         }
         _ => bail!("Unsupported resource bundle version {version}"),
@@ -616,6 +618,7 @@ pub fn get_bundle_asset(
     entries: &[AssetBundleEntry],
     key: &str,
 ) -> Option<Vec<u8>> {
+    // Reason for fallback: keys without leading slash are looked up directly.
     let normalized = key.strip_prefix('/').unwrap_or(key);
     let entry = entries.iter().find(|e| e.path == normalized)?;
     let raw_slice = bytes.get(entry.data_range.clone())?;

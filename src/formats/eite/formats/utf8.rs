@@ -233,7 +233,7 @@ pub fn dca_to_utf8(
                 let inner = if j > i.saturating_add(1) {
                     #[allow(
                         clippy::expect_used,
-                        reason = "i < j < len verified by marker search loop"
+                        reason = "i < j < len established by marker search loop"
                     )]
                     dc_array
                         .get(i.saturating_add(1)..j)
@@ -271,11 +271,11 @@ pub fn dca_to_utf8(
                         // Fallback: reprocess entire sequence (including markers) with embedding disabled.
                         #[allow(
                             clippy::expect_used,
-                            reason = "markers i and j verified in bounds (i <= j < len) by marker search loop"
+                            reason = "markers i and j established in range (i <= j < len) by marker search loop"
                         )]
                         let subseq = dc_array
                             .get(i..=j)
-                            .expect("markers i and j verified in bounds");
+                            .expect("markers i and j established in range");
                         log.warn(&format!(
                             "Failed to decode encapsulated UTF-8 sequence {:?} at {}..{}: {} (fallback to plain processing)",
                             subseq, i, j, e

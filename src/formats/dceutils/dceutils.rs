@@ -371,12 +371,14 @@ pub fn convert_dc_to_dc_output(data: &str, log: &mut FormatLog) -> String {
     // I don't think that was an intended behavior of the PHP version, and it should be logged as an error in FormatLog if it can't be casted to a digit, but to allow the old test suite to run it has to mimic this.
     let first_char = data.chars().next();
     let last_char = data.chars().last();
+    // Reason for fallback: empty or non-digit first character evaluates to 0 to mirror PHP casting.
     let first_val = first_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
         if let Some(c) = first_char {
             log.error(&format!("Non-digit character '{c}' in Dc payload"));
         }
         0
     });
+    // Reason for fallback: empty or non-digit last character evaluates to 0 to mirror PHP casting.
     let last_val = last_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
         if let Some(c) = last_char {
             log.error(&format!("Non-digit character '{c}' in Dc payload"));

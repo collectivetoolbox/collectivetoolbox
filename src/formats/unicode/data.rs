@@ -478,6 +478,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let Some((range_part, rest)) = trimmed.split_once(';') else {
                 continue;
             };
+            // Reason for fallback: line with no comment delimiter uses entire rest segment as age string.
             let age_val = rest.split('#').next().unwrap_or("").trim();
             if !age_val.is_empty() {
                 let set = derived_age.entry(age_val.to_string()).or_default();
@@ -508,6 +509,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let Some((range_part, rest)) = trimmed.split_once(';') else {
                 continue;
             };
+            // Reason for fallback: line with no comment delimiter uses entire rest segment as property name.
             let prop = rest.split('#').next().unwrap_or("").trim();
             if prop == "Unified_Ideograph" {
                 if let Some((start_hex, end_hex)) = range_part.trim().split_once("..") {
@@ -538,6 +540,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let Some((range_part, rest)) = trimmed.split_once(';') else {
                 continue;
             };
+            // Reason for fallback: line with no comment delimiter has no comment part, using entire rest as script.
             let (script_part, comment) = rest.split_once('#').unwrap_or((rest, ""));
             let script = script_part.trim();
             let comment_trimmed = comment.trim();

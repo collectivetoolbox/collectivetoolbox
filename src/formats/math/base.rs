@@ -294,14 +294,17 @@ pub fn char_to_digit(c: char, base: Base) -> Result<u8> {
 pub fn parse_natural(s: &str, base: Base) -> Result<Natural> {
     ensure!(!s.is_empty(), "Cannot parse empty string as number");
     let s = match base {
+        // Reason for fallback: numbers without base prefix retain original string representation.
         Base::Base16 => s
             .strip_prefix("0x")
             .or_else(|| s.strip_prefix("0X"))
             .unwrap_or(s),
+        // Reason for fallback: numbers without base prefix retain original string representation.
         Base::Base2 => s
             .strip_prefix("0b")
             .or_else(|| s.strip_prefix("0B"))
             .unwrap_or(s),
+        // Reason for fallback: numbers without base prefix retain original string representation.
         Base::Base8 => s
             .strip_prefix("0o")
             .or_else(|| s.strip_prefix("0O"))

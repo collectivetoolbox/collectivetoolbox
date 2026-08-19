@@ -27,7 +27,10 @@ pub enum HashAlgorithm {
     Sha256,
 }
 
-#[allow(non_upper_case_globals)]
+#[allow(
+    non_upper_case_globals,
+    reason = "Alias constant matches enum variant naming"
+)]
 pub const Sha256: HashAlgorithm = HashAlgorithm::Sha256;
 
 impl TryFrom<&str> for HashAlgorithm {

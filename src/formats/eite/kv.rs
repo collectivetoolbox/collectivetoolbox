@@ -33,13 +33,19 @@ pub fn kv_has_value(data: &[String], key: &str) -> bool {
 }
 
 /// Returns value or empty string if not found (matching original forgiving behavior).
+#[expect(
+    clippy::expect_used,
+    reason = "Loop condition ensures index i + 1 exists"
+)]
 pub fn kv_get_value(data: &[String], key: &str) -> String {
     assert!(is_kv_array(data), "kv_get_value: invalid kv array length");
     let mut i: usize = 0;
     while i.saturating_add(1) < data.len() {
         if data.get(i).is_some_and(|k| k == key) {
-            // Reason for fallback: loop condition while i + 1 < data.len() on line 39 guarantees index i + 1 is within bounds of data array.
-            return data.get(i.saturating_add(1)).cloned().unwrap_or_default();
+            return data
+                .get(i.saturating_add(1))
+                .cloned()
+                .expect("i + 1 < data.len() guaranteed by loop condition");
         }
         i = i.saturating_add(2);
     }

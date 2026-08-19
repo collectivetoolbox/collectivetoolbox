@@ -915,7 +915,7 @@ pub fn compress_old_pack_stream(
             .saturating_sub(1);
             let val = u16::try_from((code >> shift) & mask)?;
 
-            // If take == 16, all previous bits are shifted out (or valid_bits was 0), so fallback to 0
+            // Reason for fallback: shifting by >= 16 bits on u16 shifts out all bits, defaulting to 0.
             word_buf = word_buf.checked_shl(take).unwrap_or(0) | val;
             valid_bits = valid_bits.saturating_add(take);
             rem_bits = shift;
@@ -932,6 +932,7 @@ pub fn compress_old_pack_stream(
 
     if valid_bits > 0 {
         let shift = 16u32.saturating_sub(valid_bits);
+        // Reason for fallback: shifting by >= 16 bits on u16 shifts out all bits, defaulting to 0.
         word_buf = word_buf.checked_shl(shift).unwrap_or(0);
         writer
             .write_all(&word_buf.to_le_bytes())
