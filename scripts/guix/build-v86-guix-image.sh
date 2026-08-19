@@ -474,6 +474,9 @@ case "$mode" in
             -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))')"
         dillo_store_path="$(echo "$dillo_output" | grep -o '/gnu/store/[^[:space:]]*dillo-[0-9.]*' | tail -n 1)"
         echo "Cross-compiled Dillo at: $dillo_store_path"
+        echo "Fetching and realizing Dillo source closure..."
+        guix_run_with_retries build --sources=transitive -L "$script_dir" \
+            -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))' || true
         stop_guix_daemon
         ;;
 
@@ -485,6 +488,9 @@ case "$mode" in
             -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
         icecat_store_path="$(echo "$icecat_output" | grep -o '/gnu/store/[^[:space:]]*icecat-[0-9.]*' | tail -n 1)"
         echo "Cross-compiled Icecat at: $icecat_store_path"
+        echo "Fetching and realizing Icecat source closure..."
+        guix_run_with_retries build --sources=transitive -L "$script_dir" \
+            -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true
         stop_guix_daemon
         ;;
 
@@ -520,6 +526,7 @@ case "$mode" in
 
         tarball_img=""
         icecat_store_path=""
+        dillo_store_path=""
 
         # Start daemon if Guix is available — needed for system image build,
         # Icecat cross-compilation, and store closure queries.
@@ -543,7 +550,7 @@ case "$mode" in
 
         if [ "$guix_available" -eq 1 ]; then
             if [ -n "${DISABLE_CROSS:-}" ] && [ "$DISABLE_CROSS" = "1" ]; then
-                echo "Skipping GNU Icecat cross-compilation (DISABLE_CROSS set)."
+                echo "Skipping browser cross-compilation (DISABLE_CROSS set)."
             else
                 echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
                 icecat_store_path="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
@@ -562,6 +569,37 @@ case "$mode" in
 
         echo "Extracting Guix system tarball into staging rootfs..."
         tar -xf "$tarball_img" -C "$tmp_rootfs_dir"
+
+        if [ -n "${dillo_store_path:-}" ] && [ -d "$dillo_store_path" ]; then
+            echo "Merging cross-compiled Dillo closure ($dillo_store_path) into rootfs..."
+            dillo_closure="$(guix gc -R "$dillo_store_path")"
+            mkdir -p "$tmp_rootfs_dir/gnu/store"
+            for store_item in $dillo_closure; do
+                if [ -e "$store_item" ]; then
+                    cp -a "$store_item" "$tmp_rootfs_dir/gnu/store/"
+                fi
+            done
+
+            echo "Fetching and merging Dillo source closure into rootfs..."
+            dillo_sources="$(guix_run_with_retries build --sources=transitive -L "$script_dir" \
+                -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))' || true)"
+            for src_item in $dillo_sources; do
+                if [ -n "$src_item" ] && [ -e "$src_item" ]; then
+                    src_closure="$(guix gc -R "$src_item")"
+                    for item in $src_closure; do
+                        cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                    done
+                fi
+            done
+
+            sys_profile="$(find "$tmp_rootfs_dir/gnu/store" -maxdepth 1 -name "*-profile" | head -n 1 || true)"
+            if [ -n "$sys_profile" ] && [ -d "$sys_profile/bin" ]; then
+                ln -sf "$dillo_store_path/bin/dillo" "$sys_profile/bin/dillo"
+            fi
+            mkdir -p "$tmp_rootfs_dir/usr/local/bin"
+            ln -sf "$dillo_store_path/bin/dillo" "$tmp_rootfs_dir/usr/local/bin/dillo"
+            echo "Successfully merged Dillo into Guix rootfs!"
+        fi
 
         if [ -n "${icecat_store_path:-}" ] && [ -d "$icecat_store_path" ]; then
             echo "Merging cross-compiled Icecat closure ($icecat_store_path) into rootfs..."
