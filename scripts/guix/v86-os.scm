@@ -27,6 +27,9 @@
              (gnu services desktop)
              (gnu services xorg)
              (gnu services networking)
+             (guix packages)
+             (guix gexp)
+             (srfi srfi-1)
              (patches))
 
 (define qemu-patched (apply-patches qemu))
@@ -37,6 +40,44 @@
     (and val
          (not (string=? val "0"))
          (not (string=? val "false")))))
+
+(define os-packages
+  (append (list xorg-server
+                xf86-video-vesa
+                xf86-video-fbdev
+                openbox
+                xterm
+                bash
+                tmux
+                qemu-patched)
+          (if disable-cross?
+              '()
+              (list dillo))
+          %base-packages))
+
+(define (all-transitive-sources packages)
+  "Return a list of all source origins for PACKAGES and their transitive closure."
+  (let* ((closure (package-closure (filter package? packages)))
+         (sources (filter-map package-source closure)))
+    (delete-duplicates
+     (filter origin? sources)
+     (lambda (a b)
+       (equal? (origin-uri a) (origin-uri b))))))
+
+(define (system-sources-service packages)
+  "Create an etc-service entry exposing all source tarballs under /etc/sources,
+ensuring all source origins are fetched and retained in the system store closure."
+  (simple-service 'system-sources
+                  etc-service-type
+                  `(("sources"
+                     ,(file-union
+                       "system-sources"
+                       (map (lambda (src)
+                              (list (or (origin-actual-file-name src)
+                                        (origin-file-name src)
+                                        "source-tarball")
+                                    src))
+                            (all-transitive-sources packages)))))))
 
 (operating-system
   (host-name "ctoolbox-v86")
@@ -58,23 +99,15 @@
   (initrd-modules (append '("virtio" "virtio_pci" "9p" "9pnet" "9pnet_virtio")
                           %base-initrd-modules))
 
-  (packages (append (list xorg-server
-                          xf86-video-vesa
-                          xf86-video-fbdev
-                          openbox
-                          xterm
-                          bash
-                          tmux
-                          qemu-patched)
-                    (if disable-cross?
-                        '()
-                        (list dillo))
-                    %base-packages))
+  (packages os-packages)
 
   (services (cons* (service static-networking-service-type '())
+                   (service provenance-service-type)
+                   (system-sources-service os-packages)
                    (simple-service 'v86-session-environment
                                    session-environment-service-type
                                    '(("GALLIUM_DRIVER" . "llvmpipe")
                                      ("MOZ_WEBRENDER" . "1")))
                    %base-services)))
+
 
