@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
 // SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+/*
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
 
-//! System III/V `pack` (`0x1F 0x1E`) and Early Unix `old_pack` (`0x1F 0x1F`)
-//! compression and decompression formats.
-//!
-//! Specification reference: `data/docs/pack.md`
-//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unpack.c`
-//!
-//! This supports packing small inputs that would be rejected by original pack
-//! implementations.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // Header comment from original unpack.c:
 /* unpack.c -- decompress files in pack format.
@@ -34,6 +40,15 @@
 // AUTHORS file for gzip overall:
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
+
+//! System III/V `pack` (`0x1F 0x1E`) and Early Unix `old_pack` (`0x1F 0x1F`)
+//! compression and decompression formats.
+//!
+//! Specification reference: `data/docs/pack.md`
+//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unpack.c`
+//!
+//! This supports packing small inputs that would be rejected by original pack
+//! implementations.
 
 #[expect(
     unused_imports,

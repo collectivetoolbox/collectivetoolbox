@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
 // SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+/*
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
 
-//! Unix `compress` LZW formats:
-//! - `CompressLzw` (compress 3.0+ / 4.0 / ncompress, magic `0x1F 0x9D`, block mode)
-//! - `CompressLzw2` (compress 2.0, magic `0x1F 0x9D`, non-block mode)
-//! - `CompressLzw1` (compress 1.0, headerless stream)
-//!
-//! Specification reference: `data/docs/compress-ncompress.md`
-//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // Header comment from original unlzh.c:
 /* unlzh.c -- decompress files in SCO compress -H (LZH) format.
@@ -39,6 +46,14 @@
 // AUTHORS file for gzip overall:
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
+
+//! Unix `compress` LZW formats:
+//! - `CompressLzw` (compress 3.0+ / 4.0 / ncompress, magic `0x1F 0x9D`, block mode)
+//! - `CompressLzw2` (compress 2.0, magic `0x1F 0x9D`, non-block mode)
+//! - `CompressLzw1` (compress 1.0, headerless stream)
+//!
+//! Specification reference: `data/docs/compress-ncompress.md`
+//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
 
 #[expect(
     unused_imports,
