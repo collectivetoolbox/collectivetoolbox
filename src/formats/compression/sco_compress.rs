@@ -781,6 +781,12 @@ enum LzhSymbol {
     Match { length: usize, distance: usize },
 }
 
+#[derive(Clone)]
+struct PackageItem {
+    weight: u64,
+    leaves: Vec<usize>,
+}
+
 fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) -> Result<()> {
     for len in bitlen.iter_mut() {
         *len = 0;
@@ -793,10 +799,11 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) -> Resu
         .map(|(i, &f)| (i, f))
         .collect();
 
-    if active.is_empty() {
+    let num_active = active.len();
+    if num_active == 0 {
         return Ok(());
     }
-    if active.len() == 1 {
+    if num_active == 1 {
         if let Some(&(sym, _)) = active.first() {
             if let Some(l) = bitlen.get_mut(sym) {
                 *l = 1;
@@ -805,94 +812,85 @@ fn build_huffman_lengths(freqs: &[u32], max_bits: u8, bitlen: &mut [u8]) -> Resu
         return Ok(());
     }
 
-    #[derive(Clone)]
-    enum Node {
-        Leaf(usize),
-        Internal(usize, usize),
+    let num_levels = usize::from(max_bits);
+    if num_levels == 0 {
+        bail!("max_bits must be greater than 0");
     }
 
-    let mut nodes: Vec<Node> = Vec::new();
-    let mut heap: Vec<(u32, usize)> = Vec::new();
+    let mut current_level: Vec<PackageItem> = active
+        .iter()
+        .map(|&(sym, weight)| PackageItem {
+            weight: u64::from(weight),
+            leaves: vec![sym],
+        })
+        .collect();
 
-    for &(sym, weight) in &active {
-        let idx = nodes.len();
-        nodes.push(Node::Leaf(sym));
-        heap.push((weight, idx));
-    }
+    current_level.sort_by(|a, b| a.weight.cmp(&b.weight));
 
-    while heap.len() > 1 {
-        heap.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
-        let (w1, i1) = heap
-            .pop()
-            .ok_or_else(|| anyhow::anyhow!("Huffman heap underflow on first pop"))?;
-        let (w2, i2) = heap
-            .pop()
-            .ok_or_else(|| anyhow::anyhow!("Huffman heap underflow on second pop"))?;
-        let parent_idx = nodes.len();
-        nodes.push(Node::Internal(i1, i2));
-        heap.push((w1.saturating_add(w2), parent_idx));
-    }
+    for _ in 1..num_levels {
+        let mut packages = Vec::new();
+        let mut idx = 0usize;
+        while idx.saturating_add(1) < current_level.len() {
+            let item1 = current_level
+                .get(idx)
+                .ok_or_else(|| anyhow::anyhow!("Package-Merge level index {idx} out of bounds"))?;
+            let next_idx = idx.saturating_add(1);
+            let item2 = current_level
+                .get(next_idx)
+                .ok_or_else(|| anyhow::anyhow!("Package-Merge level index {next_idx} out of bounds"))?;
 
-    fn walk_raw(
-        nodes: &[Node],
-        idx: usize,
-        depth: u8,
-        raw_depths: &mut Vec<(usize, u8)>,
-    ) {
-        match nodes.get(idx) {
-            Some(Node::Leaf(sym)) => {
-                raw_depths.push((*sym, depth.max(1)));
-            }
-            Some(Node::Internal(left, right)) => {
-                walk_raw(nodes, *left, depth.saturating_add(1), raw_depths);
-                walk_raw(nodes, *right, depth.saturating_add(1), raw_depths);
-            }
-            None => {}
-        }
-    }
+            let mut leaves = Vec::with_capacity(
+                item1.leaves.len().saturating_add(item2.leaves.len()),
+            );
+            leaves.extend_from_slice(&item1.leaves);
+            leaves.extend_from_slice(&item2.leaves);
 
-    if let Some(&(_, root)) = heap.first() {
-        let mut raw_depths = Vec::new();
-        walk_raw(&nodes, root, 0, &mut raw_depths);
-
-        raw_depths.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
-
-        while raw_depths.last().map_or(false, |&(_, d)| d > max_bits) {
-            let last_idx = raw_depths.len().saturating_sub(1);
-            let second_last_idx = raw_depths.len().saturating_sub(2);
-            let max_d = raw_depths.get(last_idx).map_or(0, |&(_, d)| d);
-
-            let mut s_idx = None;
-            for i in (0..raw_depths.len()).rev() {
-                if raw_depths.get(i).map_or(false, |&(_, d)| d < max_d.saturating_sub(1)) {
-                    s_idx = Some(i);
-                    break;
-                }
-            }
-
-            let Some(s) = s_idx else {
-                break;
-            };
-
-            if let Some((_, d)) = raw_depths.get_mut(s) {
-                *d = d.saturating_add(1);
-            }
-            if let Some((_, d)) = raw_depths.get_mut(last_idx) {
-                *d = d.saturating_sub(1);
-            }
-            if let Some((_, d)) = raw_depths.get_mut(second_last_idx) {
-                *d = d.saturating_sub(1);
-            }
-
-            raw_depths.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+            packages.push(PackageItem {
+                weight: item1.weight.saturating_add(item2.weight),
+                leaves,
+            });
+            idx = idx.saturating_add(2);
         }
 
-        for &(sym, d) in &raw_depths {
+        let mut next_level: Vec<PackageItem> = active
+            .iter()
+            .map(|&(sym, weight)| PackageItem {
+                weight: u64::from(weight),
+                leaves: vec![sym],
+            })
+            .collect();
+        next_level.extend(packages);
+        next_level.sort_by(|a, b| a.weight.cmp(&b.weight));
+        current_level = next_level;
+    }
+
+    let target_items = num_active.saturating_mul(2).saturating_sub(2);
+
+    if current_level.len() < target_items {
+        bail!(
+            "Package-Merge: insufficient items ({}) to satisfy target ({target_items}) at max_bits {max_bits}",
+            current_level.len()
+        );
+    }
+
+    for item in current_level.iter().take(target_items) {
+        for &sym in &item.leaves {
             if let Some(l) = bitlen.get_mut(sym) {
-                *l = d.min(max_bits);
+                *l = (*l).saturating_add(1);
             }
         }
     }
+
+    for &(sym, _) in &active {
+        let len = bitlen
+            .get(sym)
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("bitlen symbol index {sym} out of bounds"))?;
+        if len == 0 || len > max_bits {
+            bail!("Package-Merge produced invalid length {len} for symbol {sym} (max {max_bits})");
+        }
+    }
+
     Ok(())
 }
 
@@ -1512,6 +1510,28 @@ mod tests {
             raw.len()
         );
         assert_eq!(decompressed, raw);
+    }
+
+    #[crate::ctb_test]
+    fn test_package_merge_kraft_equality() {
+        // Test various frequency distributions to ensure Kraft equality is strictly preserved
+        let mut freqs = vec![0u32; 510];
+        for (i, f) in freqs.iter_mut().enumerate() {
+            *f = u32::try_from(i.saturating_mul(13).saturating_add(7)).unwrap_or(1);
+        }
+
+        let mut bitlen = vec![0u8; 510];
+        build_huffman_lengths(&freqs, 16, &mut bitlen).unwrap();
+
+        let mut kraft_sum = 0u32;
+        for &len in &bitlen {
+            if len > 0 {
+                assert!(len <= 16, "Length {len} exceeded max_bits 16");
+                let shift = 16u32.saturating_sub(u32::from(len));
+                kraft_sum = kraft_sum.saturating_add(1u32 << shift);
+            }
+        }
+        assert_eq!(kraft_sum, 65536, "Kraft equality violated: sum * 2^16 = {kraft_sum} != 65536");
     }
 }
 

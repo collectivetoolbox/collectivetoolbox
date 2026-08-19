@@ -19,6 +19,7 @@ TEST_FILE="$TMP_DIR/sample.txt"
 echo "The quick brown fox jumps over the lazy dog! 1234567890" > "$TEST_FILE"
 
 # Build ctoolbox binary if needed or use cargo run
+export RUSTFLAGS="-Awarnings"
 CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
 
 # 1. Test gzip compression & decompression via stdout streams

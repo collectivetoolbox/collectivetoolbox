@@ -1080,6 +1080,7 @@ pub fn compress_stream_with_block_size(
         .context("Failed to write bzip header")?;
 
     let block_limit = usize::from(block_size_100k).saturating_mul(100_000);
+    let allowable_block_size = block_limit.saturating_sub(19);
 
     let mut uncompressed_data = Vec::new();
     reader
@@ -1090,70 +1091,91 @@ pub fn compress_stream_with_block_size(
     global_crc.update(&uncompressed_data);
     let final_crc = global_crc.finish();
 
-    // RLE1 preprocessing
-    let rle_data = rle1_encode(&uncompressed_data);
-
     let mut encoder = ArithEncoder::new(writer);
     let mut bogus_model = Model::new_bogus();
 
-    if rle_data.is_empty() {
-        // Empty stream: single last block containing only the sentinel byte
-        let mut block = vec![SENTINEL_BYTE];
-        apply_spotting_compression(&mut block);
-        let (l_col, orig_ptr) = forward_bwt(&block)?;
+    fn encode_block<W: Write>(
+        block: &mut Vec<u8>,
+        is_final: bool,
+        encoder: &mut ArithEncoder<W>,
+        bogus_model: &mut Model,
+    ) -> Result<()> {
+        if is_final {
+            block.push(SENTINEL_BYTE);
+        }
+        apply_spotting_compression(block);
+        let (l_col, orig_ptr) = forward_bwt(block)?;
 
-        // Last block: V = -(origPtr + 1)
         let orig_i32 = i32::try_from(orig_ptr).context("origPtr conversion overflow")?;
-        let v = -(orig_i32.saturating_add(1));
+        let v = if is_final {
+            -(orig_i32.saturating_add(1))
+        } else {
+            orig_i32.saturating_add(1)
+        };
         let v_u32 = u32::from_ne_bytes(v.to_ne_bytes());
-        encoder.encode_u32(v_u32, &mut bogus_model)?;
+        encoder.encode_u32(v_u32, bogus_model)?;
 
         let mut models = MtfModelSuite::new()?;
-        encode_mtf_block(&mut encoder, &mut models, &l_col)?;
-    } else {
-        let total_rle = rle_data.len();
-        let mut offset = 0usize;
-
-        while offset < total_rle {
-            // Reserve 1 byte for sentinel on the last block
-            let remaining = total_rle.saturating_sub(offset);
-            let is_last = remaining.saturating_add(1) <= block_limit;
-            let take = if is_last {
-                remaining
-            } else {
-                block_limit.min(remaining)
-            };
-
-            let slice_end = offset.saturating_add(take);
-            let block_slice = match rle_data.get(offset..slice_end) {
-                Some(s) => s,
-                None => &[],
-            };
-            let mut block = block_slice.to_vec();
-            offset = offset.saturating_add(take);
-
-            let is_final_block = offset >= total_rle;
-            if is_final_block {
-                block.push(SENTINEL_BYTE);
-            }
-
-            apply_spotting_compression(&mut block);
-            let (l_col, orig_ptr) = forward_bwt(&block)?;
-
-            let orig_i32 =
-                i32::try_from(orig_ptr).context("origPtr conversion overflow")?;
-            let v = if is_final_block {
-                -(orig_i32.saturating_add(1))
-            } else {
-                orig_i32.saturating_add(1)
-            };
-            let v_u32 = u32::from_ne_bytes(v.to_ne_bytes());
-            encoder.encode_u32(v_u32, &mut bogus_model)?;
-
-            let mut models = MtfModelSuite::new()?;
-            encode_mtf_block(&mut encoder, &mut models, &l_col)?;
-        }
+        encode_mtf_block(encoder, &mut models, &l_col)?;
+        Ok(())
     }
+
+    let mut current_block = Vec::new();
+    let n = uncompressed_data.len();
+    let mut i = 0usize;
+
+    while i < n {
+        // Reason for fallback: i < n verified by loop condition.
+        let b = uncompressed_data.get(i).copied().unwrap_or(0);
+        let mut run_len = 1usize;
+        while i.saturating_add(run_len) < n
+            && uncompressed_data.get(i.saturating_add(run_len)).copied() == Some(b)
+            && run_len < 255
+        {
+            run_len = run_len.saturating_add(1);
+        }
+
+        let run_bytes = if run_len < 4 {
+            run_len
+        } else {
+            5
+        };
+
+        if !current_block.is_empty()
+            && current_block.len().saturating_add(run_bytes) > allowable_block_size
+        {
+            encode_block(
+                &mut current_block,
+                false,
+                &mut encoder,
+                &mut bogus_model,
+            )?;
+            current_block.clear();
+        }
+
+        if run_len < 4 {
+            for _ in 0..run_len {
+                current_block.push(b);
+            }
+        } else {
+            current_block.push(b);
+            current_block.push(b);
+            current_block.push(b);
+            current_block.push(b);
+            // Reason for fallback: run_len is in 4..=255, fits in u8.
+            let count_byte = u8::try_from(run_len.saturating_sub(4)).unwrap_or(0);
+            current_block.push(count_byte);
+        }
+
+        i = i.saturating_add(run_len);
+    }
+
+    encode_block(
+        &mut current_block,
+        true,
+        &mut encoder,
+        &mut bogus_model,
+    )?;
 
     // Stream CRC-32 written via bogusModel
     encoder.encode_u32(final_crc, &mut bogus_model)?;
@@ -1373,6 +1395,31 @@ mod tests {
             1,
         )
         .unwrap();
+        let mut decompressed = Vec::new();
+        decompress_stream(&mut compressed.as_slice(), &mut decompressed).unwrap();
+        assert_eq!(decompressed, data);
+    }
+
+    #[crate::ctb_test]
+    fn test_roundtrip_rle_at_block_boundary() {
+        // Construct an input where repeated sequences hit near allowable_block_size
+        // (99,981 bytes) for block size 1, testing runs of >= 4 bytes spanning the boundary.
+        let mut data = Vec::new();
+        // Pad data to just before the block boundary
+        data.resize(99_975, b'X');
+        // Add a run of 10 'Y's which would straddle the boundary if sliced naively
+        data.extend(vec![b'Y'; 10]);
+        // Add another 50,000 bytes
+        data.extend(vec![b'Z'; 50_000]);
+
+        let mut compressed = Vec::new();
+        compress_stream_with_block_size(
+            &mut data.as_slice(),
+            &mut compressed,
+            1,
+        )
+        .unwrap();
+
         let mut decompressed = Vec::new();
         decompress_stream(&mut compressed.as_slice(), &mut decompressed).unwrap();
         assert_eq!(decompressed, data);

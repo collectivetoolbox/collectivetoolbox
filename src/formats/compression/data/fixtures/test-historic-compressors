@@ -13,12 +13,58 @@ done
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
 TMP_DIR="$REPO_ROOT/built/tmp_test_decompression"
 
-# if [ ! -f "$REPO_ROOT/target/release/ctoolbox" ]; then
-#     echo "Building ctoolbox binary..."
-#     cargo build --release -q -p ctoolbox --bin ctoolbox
-# fi
-# CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
-CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+FILTER="${FILTER:-}"
+DATASET_FILTER="${DATASET_FILTER:-}"
+FAST_MODE="${FAST:-${QUICK:-0}}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            echo "Usage: $0 [options] [format_or_tool_filter] [dataset_filter]"
+            echo ""
+            echo "Options:"
+            echo "  -f, --filter FILTER     Filter test format or tool (e.g. 'compact', 'compress1', 'bzip')"
+            echo "  -d, --dataset PATTERN   Filter datasets by filename substring (e.g. 'fox', 'mozilla')"
+            echo "  -q, --quick, --fast     Only run synthetic datasets (skip full corpora)"
+            echo "  -h, --help              Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 compact                  # Run only compact/uncompact tests"
+            echo "  $0 compact:uncompact        # Run only ctoolbox -> uncompact"
+            echo "  $0 compact mozilla          # Run compact on mozilla dataset only"
+            echo "  $0 --fast                   # Run all compressors on quick synthetic datasets"
+            echo "  $0 --fast compact           # Run compact on quick synthetic datasets"
+            exit 0
+            ;;
+        -q|--quick|--fast)
+            FAST_MODE=1
+            shift
+            ;;
+        -f|--filter)
+            FILTER="$2"
+            shift 2
+            ;;
+        -d|--dataset)
+            DATASET_FILTER="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$FILTER" ]; then
+                FILTER="$1"
+            elif [ -z "$DATASET_FILTER" ]; then
+                DATASET_FILTER="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
+    CTB_BIN="$REPO_ROOT/target/release/ctoolbox"
+else
+    export RUSTFLAGS="-Awarnings"
+    CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+fi
 
 mkdir -p "$TMP_DIR"
 
@@ -91,9 +137,12 @@ with open(unc_src, "r") as f: unc_code = f.read()
 with open(tree_src, "r") as f: tree_code = f.read()
 
 hdr_code = hdr_code.replace("int ch;", "long ch;").replace("typedef int longint;", "typedef long longint;")
+hdr_code = hdr_code.replace("dir [514]", "dir [1024]")
 cmp_code = cmp_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
+cmp_code = cmp_code.replace("dir [513] . next = NULL;", "dir [1023] . next = NULL;").replace("(j = 513)", "(j = 1023)")
 unc_code = unc_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
-unc_code = unc_code.replace("if (d . integ == EF) break;", "if (d . integ == EF) goto closeboth;")
+unc_code = unc_code.replace("dir [513] . next = NULL;", "dir [1023] . next = NULL;").replace("(j = 513)", "(j = 1023)")
+unc_code = unc_code.replace("if (d . integ == EF) break;", "if (d . integ == EF) { if (i >= argc) { fclose(cfp); fclose(uncfp); exit(0); } goto closeboth; }")
 
 old_copy = """			q . ch = t -> sp [ts] . ch;	/*  {					*/
 			s . ch = r -> sp [rs] . ch;	/*  {					*/
@@ -183,8 +232,8 @@ DATASETS=(
     "$TMP_DIR/in_rand.bin"
 )
 
-# Collect all files from old/corpora
-if [ -d "$REPO_ROOT/old/corpora" ]; then
+# Collect all files from old/corpora unless in fast mode
+if [ "$FAST_MODE" -eq 0 ] && [ -d "$REPO_ROOT/old/corpora" ]; then
     while IFS= read -r -d '' cfile; do
         DATASETS+=("$cfile")
     done < <(find "$REPO_ROOT/old/corpora" -type f -print0 | sort -z)
@@ -351,6 +400,24 @@ tool_ext() {
     esac
 }
 
+tool_fmt() {
+    case "$1" in
+        compress-1.0) echo "compress1" ;;
+        compress-1.6) echo "compress16" ;;
+        compress-2.0) echo "compress2" ;;
+        compress-3.0) echo "compress3" ;;
+        compress*|ncompress) echo "compress" ;;
+        compact) echo "compact" ;;
+        sys3-pack) echo "pack" ;;
+        opack) echo "old-pack" ;;
+        bzip-0.21) echo "bzip" ;;
+        gzip) echo "gzip" ;;
+        bzip2) echo "bzip2" ;;
+        brotli) echo "brotli" ;;
+        *) echo "" ;;
+    esac
+}
+
 echo "=== 4. Testing ctoolbox -> Historical Decompressors (Forward Compatibility) ==="
 
 FORWARD_TESTS=(
@@ -386,8 +453,18 @@ fi
 for pair in "${FORWARD_TESTS[@]}"; do
     fmt="${pair%%:*}"
     tool="${pair##*:}"
+    if [ -n "$FILTER" ]; then
+        if [[ "$fmt" != *"$FILTER"* && "$tool" != *"$FILTER"* && "$pair" != *"$FILTER"* ]]; then
+            continue
+        fi
+    fi
     for in_path in "${DATASETS[@]}"; do
         dataset="$(basename "$in_path")"
+        if [ -n "$DATASET_FILTER" ]; then
+            if [[ "$dataset" != *"$DATASET_FILTER"* ]]; then
+                continue
+            fi
+        fi
         c_path="$TMP_DIR/fwd_${fmt}_${dataset}.compressed"
         d_path="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
 
@@ -427,15 +504,26 @@ fi
 
 for tool in "${REVERSE_COMPRESSORS[@]}"; do
     ext="$(tool_ext "$tool")"
+    if [ -n "$FILTER" ]; then
+        if [[ "$tool" != *"$FILTER"* ]]; then
+            continue
+        fi
+    fi
     for in_path in "${DATASETS[@]}"; do
         dataset="$(basename "$in_path")"
+        if [ -n "$DATASET_FILTER" ]; then
+            if [[ "$dataset" != *"$DATASET_FILTER"* ]]; then
+                continue
+            fi
+        fi
         c_path="$TMP_DIR/rev_${tool}_${dataset}${ext}"
         d_path="$TMP_DIR/rev_${tool}_${dataset}.decompressed"
 
+        fmt="$(tool_fmt "$tool")"
         echo "Testing Reverse: tool '$tool' -> ctoolbox on '$dataset'..."
         historic_compress "$tool" "$in_path" "$c_path"
         if [ -s "$c_path" ]; then
-            ctb_decompress "$c_path" "$d_path"
+            ctb_decompress "$c_path" "$d_path" "$fmt"
             cmp "$in_path" "$d_path"
         fi
     done
