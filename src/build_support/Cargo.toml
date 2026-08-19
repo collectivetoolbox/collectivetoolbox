@@ -24,6 +24,10 @@ name = "lint-vendor-versions"
 path = "bin/lint_vendor_versions.rs"
 
 [[bin]]
+name = "lint-headers"
+path = "bin/lint_headers.rs"
+
+[[bin]]
 name = "seabios-tool"
 path = "bin/seabios_tool.rs"
 

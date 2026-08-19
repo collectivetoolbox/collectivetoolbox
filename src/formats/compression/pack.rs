@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later
-// SPDX-License-Identifier for parts derived from from gzip: GPL-3.0-or-later
+// SPDX-License-Identifier for parts derived from gzip: GPL-3.0-or-later
 /*
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com

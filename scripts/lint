@@ -50,6 +50,9 @@ fi
 echo "=== Checking for unsafe file writes in tests ==="
 ./scripts/lint-helper || exit 1
 
+echo "=== Checking file headers and module docblocks ==="
+./scripts/lint-headers || exit 1
+
 echo "=== Checking for idiosyncratic styling ==="
 ./scripts/lint-encrecss || exit 1
 
