@@ -1,7 +1,20 @@
+// SPDX-License-Identifier: AGPL-3.0-only AND GPL-3.0-only AND LGPL-3.0-only
 // SPDX-License-Identifier for parts derived from SeaBIOS: GPL-3.0-only AND LGPL-3.0-only
+/*
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
 
-//! CLI binary entry point for `seabios-tool`.
-//! Replaces python script calls in SeaBIOS `Makefile`.
+This program is free software: you can redistribute it and/or modify it under
+the terms of version 3 of the GNU Affero General Public License as published by
+the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 // From Makefile:
 // Copyright (C) 2008-2012  Kevin O'Connor <kevin@koconnor.net>
@@ -32,6 +45,9 @@
 // Copyright (C) 2009  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+
+//! CLI binary entry point for `seabios-tool`.
+//! Replaces python script calls in SeaBIOS `Makefile`.
 
 use anyhow::{Result, bail};
 use std::env;
