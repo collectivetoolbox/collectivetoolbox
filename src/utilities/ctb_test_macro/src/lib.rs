@@ -1,8 +1,38 @@
-// Copyright (C) 2019-2025 Daniel Mueller <deso@posteo.net>
-// Copyright (c) 2019 Daniel Henry-Mantilla
-// Copyright (C) 2020-2023 Threema GmbH, Danilo Bargen
+// SPDX-License-Identifier: AGPL-3.0-or-later AND MIT AND (Apache-2.0 OR MIT)
 // SPDX-License-Identifier for parts derived from test-log and tracing-test: (Apache-2.0 OR MIT)
-// Parts derived from rust-function_name: MIT
+// SPDX-License-Identifier for parts derived from rust-function_name: MIT
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// Parts derived from test-log:
+
+// Copyright (C) 2019-2025 Daniel Mueller <deso@posteo.net>
+
+// Parts derived from rust-function-name:
+
+// Copyright (c) 2019 Daniel Henry-Mantilla
+
+// Parts derived from tracing-test:
+
+// Copyright (C) 2020-2023 Threema GmbH, Danilo Bargen
+
+// See additional licensing details at end of file.
+
 /**
  * `ctb_test` procedural macro for running code before tests.
  * Based on <https://github.com/d-e-s-o/test-log>

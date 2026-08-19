@@ -1,16 +1,24 @@
-/* SPDX-License-Identifier: MIT */
-/* Copyright © Mathias Bynens <https://mathiasbynens.be/> */
+// SPDX-License-Identifier: AGPL-3.0-or-later AND MIT
+// SPDX-License-Identifier for parts derived from mathiasbynens/wtf-8: MIT
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
 
-//! Utilities for WTF-8 encoding and decoding.
-//! Reference: <https://simonsapin.github.io/wtf-8>/
-//! See also the standard library version:
-//! <https://doc.rust-lang.org/src/std/sys_common/wtf8.rs.html>
-//!
-//! TODO?: This could have some more optional features added for other uses:
-//! - Allow encoding of values above U+10FFFF (up to U+7FFFFFFF) as 6-byte
-//!   sequences.
-//! - Allow retaining surrogates unpaired when encoding, in which case it would
-//!   be CESU-8 implementation.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+/* Copyright © Mathias Bynens <https://mathiasbynens.be/> */
 
 // Based on <https://web.archive.org/web/20190305073920/https://github.com/mathiasbynens/wtf-8/blob/58c6b976c6678144d180b2307bee5615457e2cc7/wtf-8.js>
 // This code for wtf8 is included under the following license (from https://web.archive.org/web/20190305074047/https://github.com/mathiasbynens/wtf-8/blob/58c6b976c6678144d180b2307bee5615457e2cc7/LICENSE-MIT.txt):
@@ -36,6 +44,17 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+//! Utilities for WTF-8 encoding and decoding.
+//! Reference: <https://simonsapin.github.io/wtf-8>/
+//! See also the standard library version:
+//! <https://doc.rust-lang.org/src/std/sys_common/wtf8.rs.html>
+//!
+//! TODO?: This could have some more optional features added for other uses:
+//! - Allow encoding of values above U+10FFFF (up to U+7FFFFFFF) as 6-byte
+//!   sequences.
+//! - Allow retaining surrogates unpaired when encoding, in which case it would
+//!   be CESU-8 implementation.
 
 #[expect(
     unused_imports,

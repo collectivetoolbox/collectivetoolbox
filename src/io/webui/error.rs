@@ -1,6 +1,25 @@
-//! Anyhow error handling support for Axum.
-//! Based on:
-//! <https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs>
+// SPDX-License-Identifier: AGPL-3.0-or-later AND MIT
+// SPDX-License-Identifier for parts derived from tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs: MIT
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// Based on:
+// <https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs>
 /* MIT License
 
 Copyright (c) 2019–2025 axum Contributors
@@ -28,6 +47,8 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.*/
+
+//! Anyhow error handling support for Axum.
 
 #[expect(
     unused_imports,
