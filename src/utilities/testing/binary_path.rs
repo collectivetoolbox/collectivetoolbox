@@ -22,6 +22,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Test runner helper locating compiled target binary paths.
+
 use crate::anyhow::bail;
 use crate::is_in_test;
 

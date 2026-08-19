@@ -25,6 +25,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! String manipulation, line slicing, and text transformation helpers.
+
 use anyhow::{Result, anyhow, bail};
 
 use crate::bail_if_none;

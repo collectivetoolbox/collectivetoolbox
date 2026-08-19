@@ -17,13 +17,13 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#![cfg(windows)]
-
 //! Windows-specific ProcessManager implementation using Job Objects.
 //!
 //! - Each child is assigned to a Job Object configured with
 //!   JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE.
 //! - Tree termination uses TerminateJobObject.
+
+#![cfg(windows)]
 
 use std::collections::HashMap;
 use std::sync::Arc;

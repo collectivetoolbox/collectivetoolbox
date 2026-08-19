@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Form data to JSON patch conversion traits and implementations.
+
 use serde_json::{Map, Value};
 
 use crate::json::maybe_value::{MaybeField, MaybeOption, MaybeValue};

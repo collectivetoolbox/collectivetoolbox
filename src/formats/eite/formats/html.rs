@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! HTML representation formatter and output encoder for EITE.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

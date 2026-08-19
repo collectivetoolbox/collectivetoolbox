@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Prelude and global context accessors for child process IPC services.
+
 use crate::ipc::ChildKind;
 use crate::ipc::service_traits::ChildIpcContext;
 use anyhow::Result;

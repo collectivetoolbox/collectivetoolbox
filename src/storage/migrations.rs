@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Database migration registry and version tracking for relational schemas.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

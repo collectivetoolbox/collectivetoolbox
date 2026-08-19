@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Atomic and locked JSON file reading and writing utilities.
+
 use anyhow::{Context, Result};
 use fs2::FileExt;
 use serde::Serialize;

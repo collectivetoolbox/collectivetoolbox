@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Database migration consolidating user roles and credential tables.
+
 use crate::migrations::DbSchemaType;
 use crate::utilities::Result;
 use turso::{Connection, Value};

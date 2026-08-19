@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Tracing subscriber capturing test log output into in-memory buffers.
+
 use std::{
     io,
     sync::{Mutex, MutexGuard},

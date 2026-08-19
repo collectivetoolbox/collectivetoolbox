@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! POSIX shared memory (`memfd_create` and `mmap`) blob allocator.
+
 #[expect(
     unused_imports,
     reason = "wildcard utilities import may include unused items"

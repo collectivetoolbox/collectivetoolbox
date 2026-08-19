@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Egui integration backend for the X11 client window.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Tri-state option types for partial updates and PATCH operations.
+
 use serde::{Deserialize, Serialize};
 
 /// Represents an input value that may be missing, explicitly cleared, or set.

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! X11 client protocol implementation for display and input.
+
 #[expect(
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

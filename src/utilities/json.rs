@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! JSON querying, jq-compatible filtering, and serialization utilities.
+
 use crate::log;
 use core::fmt::{Display, Formatter};
 use hifijson::token::Lex;

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Resource and asset bundle directory discovery and path location helpers.
+
 use std::{
     fs,
     path::{Path, PathBuf},

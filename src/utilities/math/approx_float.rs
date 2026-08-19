@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Fallible approximate floating-point and integer numerical conversions.
+
 use anyhow::{Context, Result, anyhow, bail};
 
 #[expect(clippy::arithmetic_side_effects, reason = "clearer this way")]

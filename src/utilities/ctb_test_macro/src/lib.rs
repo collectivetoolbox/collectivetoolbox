@@ -19,11 +19,11 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Parts derived from test-log:
+// Parts derived from test-log (https://github.com/d-e-s-o/test-log):
 
 // Copyright (C) 2019-2025 Daniel Mueller <deso@posteo.net>
 
-// Parts derived from rust-function-name:
+// Parts derived from rust-function-name (https://github.com/danielhenrymantilla/rust-function_name):
 
 // Copyright (c) 2019 Daniel Henry-Mantilla
 
@@ -33,13 +33,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
-/**
- * `ctb_test` procedural macro for running code before tests.
- * Based on <https://github.com/d-e-s-o/test-log>
- * and <https://github.com/danielhenrymantilla/rust-function_name>
- * with some additional modifications.
- * See licenses at end of file.
- */
+//! Procedural macro providing the `ctb_test` test attribute harness for running code before tests.
+
 use std::borrow::Cow;
 use std::sync::{Mutex, OnceLock};
 

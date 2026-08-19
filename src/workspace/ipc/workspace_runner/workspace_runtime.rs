@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Workspace runtime loop supervising child processes and IPC services.
+
 use crate::services::renderer::RendererClient;
 use crate::services::runtime::RuntimeClient;
 #[expect(

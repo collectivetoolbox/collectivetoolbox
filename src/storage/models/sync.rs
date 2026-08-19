@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Data structures and cryptographic models for client-to-server data backup.
+
 #[expect(unused_imports, reason = "imported module dependencies")]
 use crate::utilities::*;
 

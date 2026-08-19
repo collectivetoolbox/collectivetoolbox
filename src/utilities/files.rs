@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! File system helpers, safe path resolution, and symlink containment checks.
+
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 

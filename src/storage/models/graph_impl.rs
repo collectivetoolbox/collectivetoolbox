@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Database query implementation for graph structures and node relationships.
+
 use crate::db::{authorize_db_access, get_connection, validate_and_get_user};
 #[expect(
     unused_imports,

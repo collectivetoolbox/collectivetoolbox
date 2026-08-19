@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Human-readable byte size formatting using decimal and binary units.
+
 /// Formats a byte size as a human-readable string using decimal units.
 pub fn format_bytes_decimal(bytes: u64) -> String {
     format_bytes(bytes.into(), 1000, &DECIMAL_SUFFIXES)

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Core utilities, error macros, and common foundation library for ctoolbox.
+
 use core::panic;
 
 // Allow proc-macro expansions to refer to this crate as `::ctb_utilities`.

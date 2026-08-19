@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Debugging tools and GDB instruction generators for crash analysis.
+
 use anyhow::{Context, Result};
 use std::io::{self, BufRead, Write};
 

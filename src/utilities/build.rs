@@ -24,6 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
+//! Build script emitting version metadata and git build information.
+
 use anyhow::{Result, bail};
 use cargo_metadata::MetadataCommand;
 use vergen_gix::{

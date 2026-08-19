@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Password hashing and verification utilities using the Argon2 algorithm.
+
 use anyhow::Result;
 use argon2::{
     Argon2,

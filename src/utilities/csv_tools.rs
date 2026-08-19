@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/// Tools for loading and querying CSV datasets.
+//! Tools for loading, indexing, and querying CSV datasets.
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! High-throughput IPC data plane and shared memory descriptor transfer.
+
 #[cfg(unix)]
 use crate::error::Error;
 #[cfg(unix)]

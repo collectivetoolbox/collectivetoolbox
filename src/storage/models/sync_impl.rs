@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Database query implementation for sync logs and remote replication state.
+
 use crate::db::get_connection;
 #[expect(
     unused_imports,

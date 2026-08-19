@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! IPC client wrapper and code generation stub for the renderer service.
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,

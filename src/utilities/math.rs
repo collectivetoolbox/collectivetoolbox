@@ -17,5 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Checked arithmetic and precision conversion mathematical helpers.
+
 pub mod approx_float;
 pub mod exact_float;
