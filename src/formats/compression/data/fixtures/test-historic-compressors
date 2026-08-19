@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Script to build historical unix compressors/decompressors and verify bidirectional
-# roundtrip compatibility between ctoolbox and historical implementations.
+# roundtrip compatibility between ctoolbox and other implementations.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
@@ -66,7 +66,8 @@ else
     CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
 fi
 
-mkdir -p "$TMP_DIR"
+mkdir -p "$REPO_ROOT/built"
+TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_test_decompression_XXXXXX")"
 
 cleanup() {
     rm -rf "$TMP_DIR"
@@ -439,15 +440,24 @@ if command -v gunzip >/dev/null 2>&1; then
         "gzip:gunzip"
         "sco-compress:gunzip"
         "pack:gunzip"
+        "compress:gunzip"
+        "compress2:gunzip"
+        "compress3:gunzip"
     )
+else
+    echo "gunzip not found!"
 fi
 
 if command -v bzip2 >/dev/null 2>&1; then
     FORWARD_TESTS+=("bzip2:bzip2")
+else
+    echo "bzip2 not found!"
 fi
 
 if command -v brotli >/dev/null 2>&1; then
     FORWARD_TESTS+=("brotli:brotli")
+else
+    echo "brotli not found!"
 fi
 
 for pair in "${FORWARD_TESTS[@]}"; do
@@ -475,7 +485,7 @@ for pair in "${FORWARD_TESTS[@]}"; do
     done
 done
 
-echo "=== 5. Testing Historical Compressors -> ctoolbox (Reverse Compatibility) ==="
+echo "=== 5. Testing Compressors -> ctoolbox (Reverse Compatibility) ==="
 
 REVERSE_COMPRESSORS=(
     "compress-1.0"
