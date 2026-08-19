@@ -1028,6 +1028,11 @@ fn write_pt_len<W: Write>(
     Ok(())
 }
 
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Non-empty block invariants guarantee at least one non-zero frequency symbol"
+)]
 fn compress_block<W: Write>(
     bw: &mut BitWriter<W>,
     symbols: &[LzhSymbol],
@@ -1072,7 +1077,10 @@ fn compress_block<W: Write>(
 
     let count_distinct_c = c_freqs.iter().filter(|&&f| f > 0).count();
     if count_distinct_c == 1 {
-        let single_c = c_freqs.iter().position(|&f| f > 0).unwrap_or(0);
+        let single_c = c_freqs
+            .iter()
+            .position(|&f| f > 0)
+            .expect("count_distinct_c == 1 guarantees non-zero frequency exists");
         // 1. Write blocksize
         bw.putbits(16, u32::from(blocksize))?;
         // 2. Write empty PT tree
@@ -1182,7 +1190,10 @@ fn compress_block<W: Write>(
     // 3. Write C-tree bit lengths
     let cbit_u32 = u32::try_from(CBIT)?;
     if max_c_idx == 0 {
-        let single_c = c_freqs.iter().position(|&f| f > 0).unwrap_or(0);
+        let single_c = c_freqs
+            .iter()
+            .position(|&f| f > 0)
+            .expect("non-empty block guarantees non-zero frequency exists");
         bw.putbits(cbit_u32, 0)?;
         bw.putbits(cbit_u32, u32::try_from(single_c)?)?;
     } else {

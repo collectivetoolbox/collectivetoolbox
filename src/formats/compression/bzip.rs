@@ -52,6 +52,12 @@ const VAL_128_255: usize = 10;
 const VAL_EOB: usize = 11;
 
 /// Precomputed IEEE 802.3 left-shifting CRC-32 table using polynomial `0x04C11DB7`.
+#[expect(
+    clippy::indexing_slicing,
+    clippy::as_conversions,
+    clippy::arithmetic_side_effects,
+    reason = "Constant table generation at compile-time"
+)]
 const CRC_TABLE: [u32; 256] = {
     let mut table = [0u32; 256];
     let mut i: u32 = 0;
@@ -89,12 +95,18 @@ impl BzipCrc {
     }
 
     /// Updates the CRC state with a single uncompressed byte.
+    #[expect(
+        clippy::expect_used,
+        reason = "Bitwise mask fits in u8 and XOR of u8 values is within CRC_TABLE bounds"
+    )]
     pub fn update_byte(&mut self, byte: u8) {
-        // Reason for fallback: masked with 0xFF, guaranteed to fit in u8.
-        let shift_val = u8::try_from((self.0 >> 24) & 0xFF).unwrap_or(0);
+        let shift_val =
+            u8::try_from((self.0 >> 24) & 0xFF).expect("masked byte fits in u8");
         let idx = usize::from(shift_val ^ byte);
-        // Reason for fallback: idx is bounded by 0..256 (u8 XOR u8), within CRC_TABLE bounds.
-        let entry = CRC_TABLE.get(idx).copied().unwrap_or(0);
+        let entry = CRC_TABLE
+            .get(idx)
+            .copied()
+            .expect("idx is bounded by 0..256, within CRC_TABLE bounds");
         self.0 = (self.0 << 8) ^ entry;
     }
 
@@ -287,9 +299,13 @@ impl<W: Write> BitWriter<W> {
     }
 
     /// Writes a single bit into the stream.
+    #[expect(
+        clippy::expect_used,
+        clippy::unwrap_in_result,
+        reason = "Bitwise mask guaranteed to fit in u8"
+    )]
     pub fn write_bit(&mut self, bit: u32) -> Result<()> {
-        // Reason for fallback: bit & 1 is 0 or 1, guaranteed to fit in u8.
-        let bit_u8 = u8::try_from(bit & 1).unwrap_or(0);
+        let bit_u8 = u8::try_from(bit & 1).expect("bit & 1 fits in u8");
         self.current_byte = (self.current_byte << 1) | bit_u8;
         self.bits_in_buf = self.bits_in_buf.saturating_add(1);
         if self.bits_in_buf == 8 {
@@ -340,24 +356,35 @@ impl<W: Write> ArithEncoder<W> {
     }
 
     /// Encodes a 1-based symbol index using the provided probability model.
+    #[expect(
+        clippy::expect_used,
+        clippy::unwrap_in_result,
+        reason = "Validated symbol index bounds and non-zero total frequency invariant"
+    )]
     pub fn encode_symbol(&mut self, model: &mut Model, symbol: usize) -> Result<()> {
         if symbol == 0 || symbol > model.num_symbols {
             bail!("Symbol index {symbol} out of range for model of size {}", model.num_symbols);
         }
 
         let (l_s, h_s) = if model.inc_value == 0 {
-            // Reason for fallback: symbol is bounded by num_symbols <= 256.
-            let l = u32::try_from(symbol.saturating_sub(1)).unwrap_or(0);
+            let l = u32::try_from(symbol.saturating_sub(1))
+                .expect("symbol bounded by num_symbols <= 256 fits in u32");
             (l, l.saturating_add(1))
         } else {
             let mut l = 0u32;
             for i in 1..symbol {
-                // Reason for fallback: i is within 1..symbol <= num_symbols bound of model.freq.
-                let f = model.freq.get(i).copied().unwrap_or(0);
+                let f = model
+                    .freq
+                    .get(i)
+                    .copied()
+                    .expect("i is within 1..symbol bound of model.freq");
                 l = l.saturating_add(f);
             }
-            // Reason for fallback: symbol is within 1..=num_symbols bound of model.freq.
-            let freq_s = model.freq.get(symbol).copied().unwrap_or(0);
+            let freq_s = model
+                .freq
+                .get(symbol)
+                .copied()
+                .expect("symbol is within 1..=num_symbols bound of model.freq");
             (l, l.saturating_add(freq_s))
         };
         let t = model.tot_freq;
@@ -365,8 +392,7 @@ impl<W: Write> ArithEncoder<W> {
             bail!("Arithmetic encoder total frequency is zero");
         }
 
-        // Reason for fallback: t is checked non-zero above.
-        let r = self.range.checked_div(t).unwrap_or(0);
+        let r = self.range.checked_div(t).expect("t is checked non-zero");
         if r == 0 {
             bail!("Arithmetic encoder range underflow");
         }
@@ -458,24 +484,29 @@ impl<R: Read> ArithDecoder<R> {
     }
 
     /// Decodes a 1-based symbol index using the provided probability model.
+    #[expect(
+        clippy::expect_used,
+        clippy::unwrap_in_result,
+        reason = "Non-zero divisors, target range bounds, and model frequency table invariants"
+    )]
     pub fn decode_symbol(&mut self, model: &mut Model) -> Result<usize> {
         let t = model.tot_freq;
         if t == 0 {
             bail!("Arithmetic decoder total frequency is zero");
         }
 
-        // Reason for fallback: t is checked non-zero above.
-        let r = self.range.checked_div(t).unwrap_or(0);
+        let r = self.range.checked_div(t).expect("t is checked non-zero");
         if r == 0 {
             bail!("Arithmetic decoder range underflow");
         }
 
-        // Reason for fallback: r is checked non-zero above.
-        let target = (self.code.checked_div(r).unwrap_or(0)).min(t.saturating_sub(1));
+        let target = (self.code.checked_div(r).expect("r is checked non-zero"))
+            .min(t.saturating_sub(1));
 
         let (symbol, l_s, h_s) = if model.inc_value == 0 {
-            // Reason for fallback: target is bounded by t <= 256, fits in usize.
-            let sym = usize::try_from(target).unwrap_or(0).saturating_add(1);
+            let sym = usize::try_from(target)
+                .expect("target bounded by t <= 256 fits in usize")
+                .saturating_add(1);
             let l = target;
             let h = target.saturating_add(1);
             (sym, l, h)
@@ -486,8 +517,11 @@ impl<R: Read> ArithDecoder<R> {
             let mut h = 0u32;
 
             for i in 1..=model.num_symbols {
-                // Reason for fallback: i is within 1..=num_symbols bound of model.freq.
-                let f = model.freq.get(i).copied().unwrap_or(0);
+                let f = model
+                    .freq
+                    .get(i)
+                    .copied()
+                    .expect("i is within 1..=num_symbols bound of model.freq");
                 let next_cum = cum.saturating_add(f);
                 if target < next_cum {
                     sym = i;
@@ -534,14 +568,21 @@ impl<R: Read> ArithDecoder<R> {
 }
 
 /// Applies forward Burrows-Wheeler transform on a byte slice via cyclic prefix-doubling sort.
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Non-empty block, modular arithmetic, and suffix array index bounds are provably valid"
+)]
 pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
     let n = block.len();
     if n == 0 {
         return Ok((Vec::new(), 0));
     }
     if n == 1 {
-        // Reason for fallback: block is non-empty (len == 1 verified above).
-        let b = block.first().copied().unwrap_or(0);
+        let b = block
+            .first()
+            .copied()
+            .expect("block is non-empty (len == 1 verified)");
         return Ok((vec![b], 0));
     }
 
@@ -553,19 +594,29 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
     let mut k = 1usize;
     while k < n {
         for i in 0..n {
-            // Reason for fallback: i is within 0..n bounds of rank vector.
-            let r1 = u64::from(rank.get(i).copied().unwrap_or(0));
-            // Reason for fallback: n >= 2 is non-zero.
-            let next_i = (i.saturating_add(k)).checked_rem(n).unwrap_or(0);
-            // Reason for fallback: next_i is within 0..n bounds of rank vector.
-            let r2 = u64::from(rank.get(next_i).copied().unwrap_or(0));
+            let r1 = u64::from(
+                rank.get(i)
+                    .copied()
+                    .expect("i is within 0..n bounds of rank vector"),
+            );
+            let next_i = (i.saturating_add(k))
+                .checked_rem(n)
+                .expect("n >= 2 is non-zero");
+            let r2 = u64::from(
+                rank.get(next_i)
+                    .copied()
+                    .expect("next_i is within 0..n bounds of rank vector"),
+            );
             if let Some(slot) = keys.get_mut(i) {
                 *slot = (r1 << 32) | r2;
             }
         }
 
-        // Reason for fallback: idx is an element of sa (0..n), within bounds of keys vector.
-        sa.sort_unstable_by_key(|&idx| keys.get(idx).copied().unwrap_or(0));
+        sa.sort_unstable_by_key(|&idx| {
+            keys.get(idx)
+                .copied()
+                .expect("idx is an element of sa (0..n), within bounds of keys vector")
+        });
 
         let mut cur_rank = 0u32;
         if let Some(&first_idx) = sa.first() {
@@ -574,23 +625,26 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
             }
         }
         for w in sa.windows(2) {
-            let prev = w[0];
-            let curr = w[1];
-            // Reason for fallback: prev is within bounds of keys vector.
-            let prev_key = keys.get(prev).copied().unwrap_or(0);
-            // Reason for fallback: curr is within bounds of keys vector.
-            let curr_key = keys.get(curr).copied().unwrap_or(0);
+            if let (Some(&prev), Some(&curr)) = (w.first(), w.get(1)) {
+                let prev_key = keys
+                    .get(prev)
+                    .copied()
+                    .expect("prev is within bounds of keys vector");
+                let curr_key = keys
+                    .get(curr)
+                    .copied()
+                    .expect("curr is within bounds of keys vector");
 
-            if prev_key != curr_key {
-                cur_rank = cur_rank.saturating_add(1);
-            }
-            if let Some(slot) = new_rank.get_mut(curr) {
-                *slot = cur_rank;
+                if prev_key != curr_key {
+                    cur_rank = cur_rank.saturating_add(1);
+                }
+                if let Some(slot) = new_rank.get_mut(curr) {
+                    *slot = cur_rank;
+                }
             }
         }
         rank.copy_from_slice(&new_rank);
-        // Reason for fallback: cur_rank <= n, fits in usize.
-        if usize::try_from(cur_rank).unwrap_or(0) == n.saturating_sub(1) {
+        if usize::try_from(cur_rank).expect("cur_rank <= n fits in usize") == n.saturating_sub(1) {
             break;
         }
         k = k.saturating_mul(2);
@@ -602,12 +656,13 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
         if start == 0 {
             orig_ptr = i;
         }
-        // Reason for fallback: n >= 2 is non-zero.
         let last_idx = (start.saturating_add(n).saturating_sub(1))
             .checked_rem(n)
-            .unwrap_or(0);
-        // Reason for fallback: last_idx is within bounds of block.
-        let b = block.get(last_idx).copied().unwrap_or(0);
+            .expect("n >= 2 is non-zero");
+        let b = block
+            .get(last_idx)
+            .copied()
+            .expect("last_idx is within bounds of block");
         if let Some(slot) = l_column.get_mut(i) {
             *slot = b;
         }
@@ -616,6 +671,10 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
 }
 
 /// Inverts the Burrows-Wheeler transform given $L$-column array and `origPtr`.
+#[expect(
+    clippy::expect_used,
+    reason = "ch is in 0..256 for fixed-size c array"
+)]
 pub fn inverse_bwt(l: &[u8], orig_ptr: usize) -> Result<Vec<u8>> {
     let n = l.len();
     if n == 0 {
@@ -636,8 +695,10 @@ pub fn inverse_bwt(l: &[u8], orig_ptr: usize) -> Result<Vec<u8>> {
     let mut cc = [0usize; 256];
     let mut sum = 0usize;
     for ch in 0..256 {
-        // Reason for fallback: ch is in 0..256, within bounds of c array.
-        let count = c.get(ch).copied().unwrap_or(0);
+        let count = c
+            .get(ch)
+            .copied()
+            .expect("ch is in 0..256, within bounds of c array");
         sum = sum.saturating_add(count);
         if let Some(slot) = cc.get_mut(ch) {
             *slot = sum.saturating_sub(count);
@@ -674,6 +735,10 @@ pub fn inverse_bwt(l: &[u8], orig_ptr: usize) -> Result<Vec<u8>> {
 }
 
 /// Applies forward deterministic block perturbation ("Spotting") for compression.
+#[expect(
+    clippy::expect_used,
+    reason = "step > 0 invariant ensures step fits in usize"
+)]
 pub fn apply_spotting_compression(block: &mut [u8]) {
     let n = block.len();
     if n <= 8001 {
@@ -702,14 +767,17 @@ pub fn apply_spotting_compression(block: &mut [u8]) {
         let step_usize = if step <= 0 {
             1usize
         } else {
-            // Reason for fallback: step > 0 verified above.
-            usize::try_from(step).unwrap_or(1)
+            usize::try_from(step).expect("step > 0 fits in usize")
         };
         pos = pos.saturating_add(step_usize);
     }
 }
 
 /// Inverts deterministic block perturbation ("Spotting") for decompression.
+#[expect(
+    clippy::expect_used,
+    reason = "step > 0 invariant ensures step fits in usize"
+)]
 pub fn apply_spotting_decompression(block: &mut [u8]) {
     let n = block.len();
     if n <= 8001 {
@@ -738,8 +806,7 @@ pub fn apply_spotting_decompression(block: &mut [u8]) {
         let step_usize = if step <= 0 {
             1usize
         } else {
-            // Reason for fallback: step > 0 verified above.
-            usize::try_from(step).unwrap_or(1)
+            usize::try_from(step).expect("step > 0 fits in usize")
         };
         pos = pos.saturating_add(step_usize);
     }
@@ -779,6 +846,11 @@ fn encode_zero_run<W: Write>(
 }
 
 /// Encodes an MTF transformed block into the arithmetic bitstream.
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "i is in 0..256, fits in u8"
+)]
 pub fn encode_mtf_block<W: Write>(
     encoder: &mut ArithEncoder<W>,
     models: &mut MtfModelSuite,
@@ -786,8 +858,7 @@ pub fn encode_mtf_block<W: Write>(
 ) -> Result<()> {
     let mut yy = [0u8; 256];
     for (i, slot) in yy.iter_mut().enumerate() {
-        // Reason for fallback: i is bounded by 0..256, fits in u8.
-        *slot = u8::try_from(i).unwrap_or(0);
+        *slot = u8::try_from(i).expect("i is bounded by 0..256, fits in u8");
     }
 
     let mut zero_run_count = 0usize;
@@ -866,6 +937,11 @@ pub fn encode_mtf_block<W: Write>(
 }
 
 /// Decodes an MTF transformed block from the arithmetic bitstream until `VAL_EOB`.
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "Index bounds in 0..256 and fixed-size array non-empty invariants"
+)]
 pub fn decode_mtf_block<R: Read>(
     decoder: &mut ArithDecoder<R>,
     models: &mut MtfModelSuite,
@@ -873,8 +949,7 @@ pub fn decode_mtf_block<R: Read>(
 ) -> Result<Vec<u8>> {
     let mut yy = [0u8; 256];
     for (i, slot) in yy.iter_mut().enumerate() {
-        // Reason for fallback: i is bounded by 0..256, fits in u8.
-        *slot = u8::try_from(i).unwrap_or(0);
+        *slot = u8::try_from(i).expect("i is bounded by 0..256, fits in u8");
     }
 
     let mut l_column = Vec::new();
@@ -895,8 +970,10 @@ pub fn decode_mtf_block<R: Read>(
                 if peek == VAL_RUNA || peek == VAL_RUNB {
                     token = peek;
                 } else {
-                    // Reason for fallback: yy is a fixed-size 256-byte array, first byte always exists.
-                    let head_byte = yy.first().copied().unwrap_or(0);
+                    let head_byte = yy
+                        .first()
+                        .copied()
+                        .expect("yy is a fixed-size 256-byte array, first byte always exists");
                     if l_column.len().saturating_add(n) > block_limit {
                         bail!("Decoded block size exceeded limit {block_limit}");
                     }
@@ -945,8 +1022,10 @@ pub fn decode_mtf_block<R: Read>(
             bail!("Decoded MTF rank {rank} exceeds 255");
         }
 
-        // Reason for fallback: rank is validated < 256 above, within bounds of yy.
-        let c = yy.get(rank).copied().unwrap_or(0);
+        let c = yy
+            .get(rank)
+            .copied()
+            .expect("rank is validated < 256 above, within bounds of yy");
         yy.copy_within(0..rank, 1);
         if let Some(first) = yy.first_mut() {
             *first = c;
@@ -964,13 +1043,19 @@ pub fn decode_mtf_block<R: Read>(
 }
 
 /// Applies RLE1 folding on raw uncompressed input bytes into RLE1 chunks.
+#[expect(
+    clippy::expect_used,
+    reason = "i < n loop condition and run_len bounded by 4..=255"
+)]
 pub fn rle1_encode(data: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut i = 0usize;
     let n = data.len();
     while i < n {
-        // Reason for fallback: i < n verified by loop condition.
-        let b = data.get(i).copied().unwrap_or(0);
+        let b = data
+            .get(i)
+            .copied()
+            .expect("i < n verified by loop condition");
         let mut run_len = 1usize;
         while i.saturating_add(run_len) < n
             && data.get(i.saturating_add(run_len)).copied() == Some(b)
@@ -988,8 +1073,8 @@ pub fn rle1_encode(data: &[u8]) -> Vec<u8> {
             out.push(b);
             out.push(b);
             out.push(b);
-            // Reason for fallback: run_len is bounded by 4..=255, so run_len - 4 fits in u8.
-            let count_byte = u8::try_from(run_len.saturating_sub(4)).unwrap_or(0);
+            let count_byte = u8::try_from(run_len.saturating_sub(4))
+                .expect("run_len is bounded by 4..=255, so run_len - 4 fits in u8");
             out.push(count_byte);
         }
         i = i.saturating_add(run_len);
@@ -998,6 +1083,11 @@ pub fn rle1_encode(data: &[u8]) -> Vec<u8> {
 }
 
 /// Inverts RLE1 decoding across un-spotted block data, emitting raw bytes and updating CRC.
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "non-empty last block and single-byte rep count fits in u64"
+)]
 pub fn rle1_decode(
     block: &[u8],
     is_last_block: bool,
@@ -1009,8 +1099,10 @@ pub fn rle1_decode(
         if n == 0 {
             bail!("Last block is unexpectedly empty");
         }
-        // Reason for fallback: n > 0 verified by empty check above.
-        let last_byte = block.get(n.saturating_sub(1)).copied().unwrap_or(0);
+        let last_byte = block
+            .get(n.saturating_sub(1))
+            .copied()
+            .expect("n > 0 verified by empty check above");
         if last_byte != SENTINEL_BYTE {
             bail!(
                 "Corrupted stream: expected sentinel byte 0x2A ('*'), got 0x{last_byte:02X}"
@@ -1061,9 +1153,8 @@ pub fn rle1_decode(
                         .write_all(&fill)
                         .context("Failed to write repeated bytes")?;
                     crc.update(&fill);
-                    // Reason for fallback: rep is at most 255 (single byte count), fits in u64.
-                    bytes_emitted =
-                        bytes_emitted.saturating_add(u64::try_from(rep).unwrap_or(0));
+                    bytes_emitted = bytes_emitted
+                        .saturating_add(u64::try_from(rep).expect("rep is at most 255, fits in u64"));
                 }
                 count = 0;
             }
@@ -1080,6 +1171,11 @@ pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Resul
 }
 
 /// Compresses a stream with a configurable block size indicator (1..=9).
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    reason = "i < n loop condition and run_len bounded by 4..=255"
+)]
 pub fn compress_stream_with_block_size(
     reader: &mut impl Read,
     writer: &mut impl Write,
@@ -1125,7 +1221,7 @@ pub fn compress_stream_with_block_size(
 
         let orig_i32 = i32::try_from(orig_ptr).context("origPtr conversion overflow")?;
         let v = if is_final {
-            -(orig_i32.saturating_add(1))
+            0i32.saturating_sub(orig_i32.saturating_add(1))
         } else {
             orig_i32.saturating_add(1)
         };
@@ -1142,8 +1238,10 @@ pub fn compress_stream_with_block_size(
     let mut i = 0usize;
 
     while i < n {
-        // Reason for fallback: i < n verified by loop condition.
-        let b = uncompressed_data.get(i).copied().unwrap_or(0);
+        let b = uncompressed_data
+            .get(i)
+            .copied()
+            .expect("i < n verified by loop condition");
         let mut run_len = 1usize;
         while i.saturating_add(run_len) < n
             && uncompressed_data.get(i.saturating_add(run_len)).copied() == Some(b)
@@ -1179,8 +1277,8 @@ pub fn compress_stream_with_block_size(
             current_block.push(b);
             current_block.push(b);
             current_block.push(b);
-            // Reason for fallback: run_len is in 4..=255, fits in u8.
-            let count_byte = u8::try_from(run_len.saturating_sub(4)).unwrap_or(0);
+            let count_byte = u8::try_from(run_len.saturating_sub(4))
+                .expect("run_len is in 4..=255, fits in u8");
             current_block.push(count_byte);
         }
 
