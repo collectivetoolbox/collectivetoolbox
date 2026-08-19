@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Execution state machine and environment state for EITE.
+
 use crate::anyhow::{Result, anyhow, ensure};
 use serde::Serialize;
 

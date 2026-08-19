@@ -115,24 +115,29 @@ struct Violation {
     message: String,
 }
 
-/// Recursively find all `.rs` files excluding target, vendor, old, built, and .git.
+/// Recursively find all `.rs` files excluding target, vendor, old, built, .git, and fixtures.
 fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str());
+        let lossy = path.to_string_lossy();
         if path.is_dir() {
             if name == Some("target")
                 || name == Some("vendor")
                 || name == Some(".git")
                 || name == Some("old")
                 || name == Some("built")
+                || lossy.ends_with("src/build_support/data/fixtures")
+                || lossy.contains("src/build_support/data/fixtures/")
             {
                 continue;
             }
             find_rs_files(&path, files)?;
         } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
-            files.push(path);
+            if !lossy.contains("src/build_support/data/fixtures") {
+                files.push(path);
+            }
         }
     }
     Ok(())
@@ -384,7 +389,7 @@ fn parse_license_header(content: &str, file_path: &Path) -> Result<ParsedHeader,
     Err("Missing or invalid license header at top of file".to_string())
 }
 
-/// Check that a module docblock (`//!`) exists following the header.
+/// Check that a module docblock (`//!` or `/*!`) exists following the header.
 fn check_module_docblock(
     content: &str,
     header_info: &ParsedHeader,
@@ -413,7 +418,7 @@ fn check_module_docblock(
                 continue;
             }
 
-            if trimmed.starts_with("//!") {
+            if trimmed.starts_with("//!") || trimmed.starts_with("/*!") {
                 break;
             }
 
@@ -443,9 +448,9 @@ fn check_module_docblock(
         }
     }
 
-    // Now inspect the next non-empty line: it must be a module docblock `//!` (or @generated comment for generated fragments)
+    // Now inspect the next non-empty line: it must be a module docblock `//!` or `/*!` (or @generated comment for generated fragments)
     let Some(first_code_line) = lines.get(idx) else {
-        return Err((idx.saturating_add(1), "Missing module docblock (`//!`)".to_string()));
+        return Err((idx.saturating_add(1), "Missing module docblock (`//!` or `/*!`)".to_string()));
     };
 
     let trimmed = first_code_line.trim_start();
@@ -453,11 +458,11 @@ fn check_module_docblock(
         return Ok(());
     }
 
-    if !trimmed.starts_with("//!") {
+    if !trimmed.starts_with("//!") && !trimmed.starts_with("/*!") {
         return Err((
             idx.saturating_add(1),
             format!(
-                "Expected module docblock (`//! ...`), found: `{}`",
+                "Expected module docblock (`//! ...` or `/*! ...`), found: `{}`",
                 first_code_line.trim()
             ),
         ));

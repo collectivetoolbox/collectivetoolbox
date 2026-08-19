@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Exception definitions and error code constants for the EITE engine.
+
 use crate::utilities::*;
 
 use anyhow::Result;

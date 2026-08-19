@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Terminal input and output handling for EITE documents.
+
 use crate::utilities::*;
 use crate::dc::data::dc_data_filter_by_value;
 use crate::formats::is_supported_output_format;

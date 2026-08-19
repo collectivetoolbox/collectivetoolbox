@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Integration and conformance test suite for DCE format codecs.
+
 // Translated from PHP by test_converter.py.
 #[expect(
     unused_imports,
