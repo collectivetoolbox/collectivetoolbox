@@ -29,6 +29,7 @@ use serde::Deserialize;
 
 use crate::extractors::request_state::RequestState;
 use crate::json_value;
+use crate::session_auth::AuthenticatedUser;
 use crate::{AppState, respond_page};
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +41,7 @@ pub async fn get_v86(
     State(state): State<AppState>,
     Query(query): Query<V86Query>,
     req: RequestState,
+    _user: AuthenticatedUser,
 ) -> Response {
     // Reason for fallback: query parameter profile missing defaults to "guix" profile
     let profile = query.profile.unwrap_or_else(|| "guix".to_string());
@@ -50,6 +52,7 @@ pub async fn get_v86_profile(
     State(state): State<AppState>,
     Path(profile): Path<String>,
     req: RequestState,
+    _user: AuthenticatedUser,
 ) -> Response {
     render_v86_profile(&state, req, &profile)
 }
@@ -155,13 +158,37 @@ fn render_v86_profile(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use crate::test_helpers::test_get_no_login;
+    use crate::test_helpers::{
+        assert_eq_or_print_body, test_get_no_login, test_get_with_login,
+    };
+
+    #[crate::ctb_test("tokio")]
+    async fn unauthenticated_v86_returns_401() {
+        let (status, body) = test_get_no_login("/v86").await;
+        assert_eq!(status, 401);
+        assert!(body.contains("401") || body.contains("Unauthorized"));
+    }
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_route_loads() {
-        let (status, body) = test_get_no_login("/v86").await;
-        assert_eq!(status, 200);
+        let Ok((status, body, _lock)) =
+            test_get_with_login("/v86", None, function_name!()).await
+        else {
+            panic!("Failed to perform test_get_with_login");
+        };
+        assert_eq_or_print_body(status, 200, &body);
         assert!(body.contains("v86") || body.contains("Guix"));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_v86_profile_route_loads() {
+        let Ok((status, body, _lock)) =
+            test_get_with_login("/v86/arch", None, function_name!()).await
+        else {
+            panic!("Failed to perform test_get_with_login");
+        };
+        assert_eq_or_print_body(status, 200, &body);
+        assert!(body.contains("Arch Linux"));
     }
 
     #[crate::ctb_test("tokio")]

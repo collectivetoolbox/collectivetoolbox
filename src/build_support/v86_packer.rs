@@ -311,6 +311,11 @@ fn collect_v86_entries(
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
+            // Temporarily disable/exclude Arch from v86_images.rsrc bundle.
+            // Comment out or remove the check below to re-enable Arch bundling:
+            if entry.file_name() == "arch" {
+                continue;
+            }
             collect_v86_entries(root_dir, &path, entries)?;
             continue;
         }
@@ -998,6 +1003,29 @@ mod tests {
         let mangled_js = fs::read_to_string(&js_script).unwrap();
         assert!(!mangled_js.contains("#!/usr/bin/env node"));
         assert!(mangled_js.contains("#!/usr/bin/env disabled_node"));
+
+        let _ = fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_collect_v86_entries_excludes_arch() {
+        let temp = std::env::temp_dir().join("ctb_test_v86_arch_exclude");
+        let _ = fs::create_dir_all(temp.join("arch"));
+        let _ = fs::create_dir_all(temp.join("guix"));
+        fs::write(temp.join("arch/chunk.bin"), b"arch_chunk").unwrap();
+        fs::write(temp.join("guix/guix-fs.json"), b"{}").unwrap();
+
+        let mut entries = Vec::new();
+        collect_v86_entries(&temp, &temp, &mut entries).expect("collect entries");
+
+        assert!(
+            !entries.iter().any(|e| e.path.contains("arch")),
+            "Arch files should be excluded from v86 entries"
+        );
+        assert!(
+            entries.iter().any(|e| e.path == "images/guix/guix-fs.json"),
+            "Guix files should be included in v86 entries"
+        );
 
         let _ = fs::remove_dir_all(&temp);
     }
