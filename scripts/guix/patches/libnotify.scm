@@ -24,18 +24,7 @@
 (define (libnotify-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (map (match-lambda
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             ((@ (patches) apply-patches) p))
-            (other other))
-          (package-inputs pkg)))
+
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection")))

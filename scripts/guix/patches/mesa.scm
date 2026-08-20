@@ -139,6 +139,8 @@
                       (symlink-dir-contents llvm-lib overlay-lib)
                       (symlink-dir-contents (string-append llvm "/include") overlay-include)
                       ;; Create shell-based llvm-config wrapper for cross host
+                      (when (file-exists? wrapper-script)
+                        (delete-file wrapper-script))
                       (call-with-output-file wrapper-script
                         (lambda (p)
                           (format p "#!/bin/sh~%")

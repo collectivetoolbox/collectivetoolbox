@@ -27,13 +27,7 @@
     (inherit pkg)
     (inputs
      (cons (list "bzip2" bzip2)
-           (map (match-lambda
-                  ((name (? package? p))
-                   (list name ((@ (patches) apply-patches) p)))
-                  ((name (? package? p) output)
-                   (list name ((@ (patches) apply-patches) p) output))
-                  (other other))
-                (package-inputs pkg))))
+           (package-inputs pkg)))
     (native-inputs
      (cons `("gconf" ,gconf)
            (package-native-inputs pkg)))

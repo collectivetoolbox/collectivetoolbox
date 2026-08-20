@@ -40,35 +40,15 @@
         (local-file (string-append patch-dir "/61e88493ad15") "icecat-bug1360870-4.patch")
         (local-file (string-append patch-dir "/be5b6a995776") "icecat-bug1360870-5.patch")))
 
-(define (map-input-list inputs)
-  (map (match-lambda
-         (((? string? name) (? package? p))
-          (list name ((@ (patches) apply-patches) p)))
-         (((? string? name) (? package? p) (? string? output))
-          (list name ((@ (patches) apply-patches) p) output))
-         (((? package? p) (? string? output))
-          (list ((@ (patches) apply-patches) p) output))
-         ((? package? p)
-          ((@ (patches) apply-patches) p))
-         (other other))
-       inputs))
-
 (define (icecat-minimal-fixed-proc pkg)
   (package
     (inherit pkg)
-    ;; (source
-    ;;   (origin
-    ;;     (inherit (package-source pkg))
-    ;;     (patches (append bugzilla1360870-patches
-    ;;                      (origin-patches (package-source pkg))))))
-    (inputs
-     (map-input-list (package-inputs pkg)))
     (native-inputs
      (cons* (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
             (list "gcc-cross-lib" (cross-gcc "i686-linux-gnu" #:libc (cross-libc "i686-linux-gnu")) "lib")
             (list "unzip" (@ (gnu packages compression) unzip))
             (list "zip" (@ (gnu packages compression) zip))
-            (map-input-list (package-native-inputs pkg))))
+            (package-native-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:phases _)
@@ -399,9 +379,10 @@ fi
   (package
     (inherit pkg)
     (build-system trivial-build-system)
+    (native-inputs
+     (list (list "icecat-l10n" icecat-l10n)))
     (inputs
-     (list (list "icecat-minimal" ((@ (patches) apply-patches) icecat-minimal))
-           (list "icecat-l10n" icecat-l10n)))
+     (list (list "icecat-minimal" (icecat-minimal-fixed-proc icecat-minimal))))
     (arguments
      `(#:modules ((guix build union)
                   (guix build utils))

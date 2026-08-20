@@ -57,12 +57,16 @@
   #:use-module (patches talloc)
   #:use-module (patches x265)
   #:use-module (patches icecat)
+  #:use-module (patches gsettings-desktop-schemas)
+  #:use-module (patches gobject-introspection)
   #:export (apply-patches))
 
 (define package-patches
   `(("abseil-cpp" . ,abseil-cpp-fixed-proc)
     ("colord-minimal" . ,colord-fixed-proc)
     ("colord" . ,colord-fixed-proc)
+    ("gobject-introspection" . ,gobject-introspection-fixed-proc)
+    ("gsettings-desktop-schemas" . ,gsettings-desktop-schemas-fixed-proc)
     ("cups-filters" . ,cups-filters-fixed-proc)
     ("cups-minimal" . ,cups-minimal-fixed-proc)
     ("cups" . ,cups-fixed-proc)
@@ -106,6 +110,7 @@
     ("pulseaudio" . ,pulseaudio-fixed-proc)
     ("qpdf" . ,qpdf-fixed-proc)
     ("rest" . ,rest-fixed-proc)
+    ("librest" . ,rest-fixed-proc)
     ("shaderc" . ,shaderc-fixed-proc)
     ("spice-gtk" . ,(const spice-gtk-fixed))
     ("talloc" . ,talloc-fixed-proc)
@@ -115,5 +120,25 @@
     ("icecat-minimal" . ,icecat-minimal-fixed-proc)
     ("icecat" . ,icecat-fixed-proc)))
 
-(define apply-patches
+(define %apply-patches
   (package-input-rewriting/spec package-patches #:replace-hidden? #t))
+
+(define (apply-patches pkg)
+  (let loop ((p (%apply-patches pkg))
+             (visited '()))
+    (if (or (not (package? p)) (member (package-name p) visited))
+        p
+        (let ((v (cons (package-name p) visited)))
+          (package/inherit p
+            (inputs
+             (map (lambda (inp)
+                    (if (and (pair? inp) (pair? (cdr inp)) (package? (cadr inp)))
+                        (cons* (car inp) (loop (%apply-patches (cadr inp)) v) (cddr inp))
+                        inp))
+                  (package-inputs p)))
+            (propagated-inputs
+             (map (lambda (inp)
+                    (if (and (pair? inp) (pair? (cdr inp)) (package? (cadr inp)))
+                        (cons* (car inp) (loop (%apply-patches (cadr inp)) v) (cddr inp))
+                        inp))
+                  (package-propagated-inputs p))))))))

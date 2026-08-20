@@ -22,31 +22,13 @@
   #:use-module (ice-9 match)
   #:export (ibus-fixed-proc ibus-fixed))
 
-(define (map-input-list inputs)
-  (map (match-lambda
-         (((? string? name) (? package? p))
-          (list name ((@ (patches) apply-patches) p)))
-         (((? string? name) (? package? p) (? string? output))
-          (list name ((@ (patches) apply-patches) p) output))
-         (((? package? p) (? string? output))
-          (list ((@ (patches) apply-patches) p) output))
-         ((? package? p)
-          ((@ (patches) apply-patches) p))
-         (other other))
-       inputs))
-
 (define (ibus-fixed-proc pkg)
   (package
     (inherit pkg)
     (native-inputs
-     (map-input-list
-      (modify-inputs (package-native-inputs pkg)
-        (delete "gobject-introspection")
-        (append glib))))
-    (inputs
-     (map-input-list (package-inputs pkg)))
-    (propagated-inputs
-     (map-input-list (package-propagated-inputs pkg)))
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")
+       (append glib)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)

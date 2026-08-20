@@ -27,17 +27,7 @@
     (inherit pkg)
     (inputs
      (cons (list "bash-minimal" bash-minimal)
-           (map (match-lambda
-                  (((? string? name) (? package? p))
-                   (list name ((@ (patches) apply-patches) p)))
-                  (((? string? name) (? package? p) (? string? output))
-                   (list name ((@ (patches) apply-patches) p) output))
-                  (((? package? p) (? string? output))
-                   (list ((@ (patches) apply-patches) p) output))
-                  ((? package? p)
-                   ((@ (patches) apply-patches) p))
-                  (other other))
-                (package-inputs pkg))))
+           (package-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)

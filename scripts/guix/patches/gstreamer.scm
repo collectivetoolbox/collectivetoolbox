@@ -24,14 +24,7 @@
 (define (gstreamer-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (map (match-lambda
-            ((name (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            ((name (? package? p) output)
-             (list name ((@ (patches) apply-patches) p) output))
-            (other other))
-          (package-inputs pkg)))
+
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)

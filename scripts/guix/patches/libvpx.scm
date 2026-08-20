@@ -21,26 +21,9 @@
   #:use-module (gnu packages video)
   #:export (libvpx-fixed-proc libvpx-fixed))
 
-(define (map-input-list inputs)
-  (map (match-lambda
-         (((? string? name) (? package? p))
-          (list name ((@ (patches) apply-patches) p)))
-         (((? string? name) (? package? p) (? string? output))
-          (list name ((@ (patches) apply-patches) p) output))
-         (((? package? p) (? string? output))
-          (list ((@ (patches) apply-patches) p) output))
-         ((? package? p)
-          ((@ (patches) apply-patches) p))
-         (other other))
-       inputs))
-
 (define (libvpx-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (map-input-list (package-inputs pkg)))
-    (native-inputs
-     (map-input-list (package-native-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:phases phases #~%standard-phases)

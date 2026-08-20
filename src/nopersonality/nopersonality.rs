@@ -107,7 +107,76 @@ unsafe fn syscall3(
     ret
 }
 
+#[expect(
+    unsafe_code,
+    clippy::missing_safety_doc,
+    reason = "Issuing direct syscall with inline assembly"
+)]
+#[inline(always)]
+unsafe fn syscall4(
+    num: c_long,
+    arg1: c_long,
+    arg2: c_long,
+    arg3: c_long,
+    arg4: c_long,
+) -> c_long {
+    let ret: c_long;
+    // SAFETY: Issuing 4-argument syscall with clobbered rcx and r11.
+    unsafe {
+        asm!(
+            "syscall",
+            inout("rax") num => ret,
+            in("rdi") arg1,
+            in("rsi") arg2,
+            in("rdx") arg3,
+            in("r10") arg4,
+            out("rcx") _,
+            out("r11") _,
+            options(nostack, preserves_flags)
+        );
+    }
+    ret
+}
+
+#[expect(
+    unsafe_code,
+    clippy::missing_safety_doc,
+    reason = "Issuing direct syscall with inline assembly"
+)]
+#[inline(always)]
+unsafe fn syscall5(
+    num: c_long,
+    arg1: c_long,
+    arg2: c_long,
+    arg3: c_long,
+    arg4: c_long,
+    arg5: c_long,
+) -> c_long {
+    let ret: c_long;
+    // SAFETY: Issuing 5-argument syscall with clobbered rcx and r11.
+    unsafe {
+        asm!(
+            "syscall",
+            inout("rax") num => ret,
+            in("rdi") arg1,
+            in("rsi") arg2,
+            in("rdx") arg3,
+            in("r10") arg4,
+            in("r8") arg5,
+            out("rcx") _,
+            out("r11") _,
+            options(nostack, preserves_flags)
+        );
+    }
+    ret
+}
+
 const SYS_KILL: c_long = 62;
+const SYS_CHMOD: c_long = 90;
+const SYS_FCHMOD: c_long = 91;
+const SYS_CHOWN: c_long = 92;
+const SYS_FCHOWN: c_long = 93;
+const SYS_LCHOWN: c_long = 94;
 const SYS_SETUID: c_long = 105;
 const SYS_SETGID: c_long = 106;
 const SYS_SETREUID: c_long = 113;
@@ -116,6 +185,8 @@ const SYS_SETGROUPS: c_long = 116;
 const SYS_SETRESUID: c_long = 117;
 const SYS_SETRESGID: c_long = 119;
 const SYS_PERSONALITY: c_long = 135;
+const SYS_FCHOWNAT: c_long = 260;
+const SYS_FCHMODAT: c_long = 268;
 
 /// Intercept `personality` syscall to ignore `EPERM` errors.
 ///
@@ -367,6 +438,215 @@ pub unsafe extern "C" fn setgroups(
     let list_addr = i64::try_from(list.addr()).unwrap_or(0);
     // SAFETY: Calling setgroups syscall.
     let res = unsafe { syscall2(SYS_SETGROUPS, size_long, list_addr) };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `chmod` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `chmod` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding chmod syscall"
+)]
+pub unsafe extern "C" fn chmod(
+    path: *const core::ffi::c_char,
+    mode: core::ffi::c_uint,
+) -> c_int {
+    // Reason for fallback: Out-of-range pointer address maps to 0.
+    let path_addr = i64::try_from(path.addr()).unwrap_or(0);
+    // SAFETY: Calling chmod syscall.
+    let res = unsafe { syscall2(SYS_CHMOD, path_addr, c_long::from(mode)) };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `fchmod` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `fchmod` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding fchmod syscall"
+)]
+pub unsafe extern "C" fn fchmod(fd: c_int, mode: core::ffi::c_uint) -> c_int {
+    // SAFETY: Calling fchmod syscall.
+    let res = unsafe {
+        syscall2(SYS_FCHMOD, c_long::from(fd), c_long::from(mode))
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `fchmodat` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `fchmodat` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding fchmodat syscall"
+)]
+pub unsafe extern "C" fn fchmodat(
+    dirfd: c_int,
+    path: *const core::ffi::c_char,
+    mode: core::ffi::c_uint,
+    flags: c_int,
+) -> c_int {
+    // Reason for fallback: Out-of-range pointer address maps to 0.
+    let path_addr = i64::try_from(path.addr()).unwrap_or(0);
+    // SAFETY: Calling fchmodat syscall.
+    let res = unsafe {
+        syscall4(
+            SYS_FCHMODAT,
+            c_long::from(dirfd),
+            path_addr,
+            c_long::from(mode),
+            c_long::from(flags),
+        )
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `chown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `chown` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding chown syscall"
+)]
+pub unsafe extern "C" fn chown(
+    path: *const core::ffi::c_char,
+    owner: core::ffi::c_uint,
+    group: core::ffi::c_uint,
+) -> c_int {
+    // Reason for fallback: Out-of-range pointer address maps to 0.
+    let path_addr = i64::try_from(path.addr()).unwrap_or(0);
+    // SAFETY: Calling chown syscall.
+    let res = unsafe {
+        syscall3(
+            SYS_CHOWN,
+            path_addr,
+            c_long::from(owner),
+            c_long::from(group),
+        )
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `fchown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `fchown` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding fchown syscall"
+)]
+pub unsafe extern "C" fn fchown(
+    fd: c_int,
+    owner: core::ffi::c_uint,
+    group: core::ffi::c_uint,
+) -> c_int {
+    // SAFETY: Calling fchown syscall.
+    let res = unsafe {
+        syscall3(
+            SYS_FCHOWN,
+            c_long::from(fd),
+            c_long::from(owner),
+            c_long::from(group),
+        )
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `lchown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `lchown` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding lchown syscall"
+)]
+pub unsafe extern "C" fn lchown(
+    path: *const core::ffi::c_char,
+    owner: core::ffi::c_uint,
+    group: core::ffi::c_uint,
+) -> c_int {
+    // Reason for fallback: Out-of-range pointer address maps to 0.
+    let path_addr = i64::try_from(path.addr()).unwrap_or(0);
+    // SAFETY: Calling lchown syscall.
+    let res = unsafe {
+        syscall3(
+            SYS_LCHOWN,
+            path_addr,
+            c_long::from(owner),
+            c_long::from(group),
+        )
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `fchownat` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+///
+/// # Safety
+///
+/// Invokes the `fchownat` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding fchownat syscall"
+)]
+pub unsafe extern "C" fn fchownat(
+    dirfd: c_int,
+    path: *const core::ffi::c_char,
+    owner: core::ffi::c_uint,
+    group: core::ffi::c_uint,
+    flags: c_int,
+) -> c_int {
+    // Reason for fallback: Out-of-range pointer address maps to 0.
+    let path_addr = i64::try_from(path.addr()).unwrap_or(0);
+    // SAFETY: Calling fchownat syscall.
+    let res = unsafe {
+        syscall5(
+            SYS_FCHOWNAT,
+            c_long::from(dirfd),
+            path_addr,
+            c_long::from(owner),
+            c_long::from(group),
+            c_long::from(flags),
+        )
+    };
     if res < 0 {
         return 0;
     }

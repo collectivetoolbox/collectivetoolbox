@@ -25,24 +25,8 @@
   (package
     (inherit pkg)
     (inputs
-     (map (match-lambda
-            (("rav1e" . _) #f)
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             (if (string=? (package-name p) "rav1e")
-                 #f
-                 ((@ (patches) apply-patches) p)))
-            (other other))
-          (filter (match-lambda
-                    (("rav1e" . _) #f)
-                    ((? package? p) (not (string=? (package-name p) "rav1e")))
-                    (_ #t))
-                  (package-inputs pkg))))
+     (modify-inputs (package-inputs pkg)
+       (delete "rav1e")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())

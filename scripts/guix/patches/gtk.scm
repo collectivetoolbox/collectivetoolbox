@@ -23,26 +23,9 @@
   #:export (gtk+-fixed-proc gtk+-fixed
             gtk-fixed-proc gtk-fixed))
 
-(define (map-input-list inputs)
-  (map (match-lambda
-         (((? string? name) (? package? p))
-          (list name ((@ (patches) apply-patches) p)))
-         (((? string? name) (? package? p) (? string? output))
-          (list name ((@ (patches) apply-patches) p) output))
-         (((? package? p) (? string? output))
-          (list ((@ (patches) apply-patches) p) output))
-         ((? package? p)
-          ((@ (patches) apply-patches) p))
-         (other other))
-       inputs))
-
 (define (gtk-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (map-input-list (package-inputs pkg)))
-    (propagated-inputs
-     (map-input-list (package-propagated-inputs pkg)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection")
@@ -76,10 +59,6 @@
 (define (gtk+-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (map-input-list (package-inputs pkg)))
-    (propagated-inputs
-     (map-input-list (package-propagated-inputs pkg)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (append wayland)))

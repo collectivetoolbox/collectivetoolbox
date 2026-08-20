@@ -25,31 +25,7 @@
     (inherit pkg)
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
-       (append ((@ (patches) apply-patches) gconf))))
-    (inputs
-     (map (match-lambda
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             ((@ (patches) apply-patches) p))
-            (other other))
-          (package-inputs pkg)))
-    (propagated-inputs
-     (map (match-lambda
-            (((? string? name) (? package? p))
-             (list name ((@ (patches) apply-patches) p)))
-            (((? string? name) (? package? p) (? string? output))
-             (list name ((@ (patches) apply-patches) p) output))
-            (((? package? p) (? string? output))
-             (list ((@ (patches) apply-patches) p) output))
-            ((? package? p)
-             ((@ (patches) apply-patches) p))
-            (other other))
-          (package-propagated-inputs pkg)))
+       (append gconf)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags ''())

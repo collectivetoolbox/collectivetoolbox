@@ -27,18 +27,7 @@
     (native-inputs
      (cons `("pkg-config" ,pkg-config)
            (package-native-inputs pkg)))
-    (inputs
-     (map (lambda (input)
-            (if (pair? input)
-                (list (car input) ((@ (patches) apply-patches) (cadr input)))
-                ((@ (patches) apply-patches) input)))
-          (package-inputs pkg)))
-    (propagated-inputs
-     (map (lambda (input)
-            (if (pair? input)
-                (list (car input) ((@ (patches) apply-patches) (cadr input)))
-                ((@ (patches) apply-patches) input)))
-          (package-propagated-inputs pkg)))
+
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)

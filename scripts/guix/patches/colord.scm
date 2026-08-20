@@ -28,13 +28,8 @@
     (inherit pkg)
     (inputs
      (cons (list "bash-minimal" bash-minimal)
-           (map (match-lambda
-                  ((name (? package? p))
-                   (list name ((@ (patches) apply-patches) p)))
-                  ((name (? package? p) output)
-                   (list name ((@ (patches) apply-patches) p) output))
-                  (other other))
-                (package-inputs pkg))))
+           (modify-inputs (package-inputs pkg)
+             (delete "gobject-introspection"))))
     (native-inputs
      (cons `("polkit" ,polkit)
            (package-native-inputs pkg)))
