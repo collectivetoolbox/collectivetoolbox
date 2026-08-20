@@ -312,9 +312,7 @@ start_guix_daemon() {
                     chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                 fi
                 daemon_env=(env "LD_PRELOAD=$nopersonality_so")
-                if [ "$nopersonality_dir" != "/usr/lib" ]; then
-                    daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
-                fi
+                daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
             fi
         fi
 
@@ -336,15 +334,14 @@ start_guix_daemon() {
     tmp_build_dir="$(mktemp -d)"
     chmod 755 "$tmp_build_dir"
 
-    if getent group guixbuild >/dev/null 2>&1; then
+    if ! is_container && getent group guixbuild >/dev/null 2>&1; then
         daemon_extra_args+=(--build-users-group=guixbuild)
     fi
 
     if [ -z "$disable_chroot" ]; then
         if ! unshare -m true 2>/dev/null && ! unshare -r -m true 2>/dev/null; then
-            echo "Error: Mount namespaces blocked by container environment." >&2
-            echo "Guix sandboxing requires mount namespace support." >&2
-            exit 1
+            echo "Mount namespaces unavailable in this environment. Automatically enabling --disable-chroot." >&2
+            disable_chroot="--disable-chroot"
         fi
     fi
 

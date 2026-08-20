@@ -206,7 +206,9 @@ Arguments:
 
 Options:
   -o, --output <OUTPUT>  Output file path or - for stdout
-      --force            Force overwrite without prompting
+      --force            Force overwrite existing destination file without confirmation
+      --verify           Verify compressed output by decompressing it
+      --no-verify        Skip verification of compressed output
   -h, --help             Print help
 
 Supported compression formats:
@@ -214,7 +216,8 @@ Supported compression formats:
   gz, gzip: GNU gzip format (RFC 1952)
   deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
-  bz, bz2, bzip2: Bzip2 compressed stream
+  bz2, bzip2: Bzip2 compressed stream
+  bz, bzip, bzip0, bzip-0.21: Original bzip 0.21 format
   compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
   sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
   compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
@@ -416,7 +419,8 @@ Supported compression formats:
   gz, gzip: GNU gzip format (RFC 1952)
   deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
-  bz, bz2, bzip2: Bzip2 compressed stream
+  bz2, bzip2: Bzip2 compressed stream
+  bz, bzip, bzip0, bzip-0.21: Original bzip 0.21 format
   compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
   sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
   compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
