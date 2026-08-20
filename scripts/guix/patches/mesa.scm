@@ -35,9 +35,9 @@
            (map (lambda (flag)
                   (cond
                    ((string-prefix? "-Dgallium-drivers=" flag)
-                    "-Dgallium-drivers=crocus,i915,r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
+                    "-Dgallium-drivers=r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
                    ((string-prefix? "-Dvulkan-drivers=" flag)
-                    "-Dvulkan-drivers=swrast,intel_hasvk,virtio")
+                    "-Dvulkan-drivers=swrast,virtio")
                    ((string-prefix? "-Dllvm=" flag)
                     "-Dllvm=enabled")
                    (else flag)))

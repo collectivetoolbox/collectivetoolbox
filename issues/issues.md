@@ -34,6 +34,10 @@ Cherry-pick 30f41d4a5
 
 Add a Homebrew tap?
 
+Add a data matching tool. See 2026-08-20-Matching and Linking.txt
+
+Add markdown content negotiation
+
 db_impl has accumulated a whole bunch of unrelated concerns.
 
 Include optional verification step in compression (default when writing to a file?)
