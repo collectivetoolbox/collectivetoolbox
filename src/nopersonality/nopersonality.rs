@@ -17,81 +17,96 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! `LD_PRELOAD` shared object intercepting `personality()` and `setuid()` syscalls.
+//! `LD_PRELOAD` shared object intercepting `personality()` and `kill()` syscalls.
 //!
-//! Ignores `EPERM` failures when setting personality, uid/gid, or chroot
-//! in unprivileged build containers during Guix image builds, and prevents
-//! `LD_PRELOAD` from leaking into child processes spawned by `guix-daemon`.
+//! Ignores `EPERM` failures when setting personality in unprivileged build
+//! containers during Guix image builds, and guards against `kill(-1, sig)`.
 
-use std::ffi::{c_char, c_int, c_long, c_ulong, c_void};
+#![no_std]
 
-const RTLD_NEXT: *mut c_void =
-    std::ptr::null_mut::<c_void>().wrapping_offset(-1);
+use core::arch::asm;
+use core::ffi::{c_int, c_long, c_ulong};
+use core::panic::PanicInfo;
 
-#[expect(
-    unsafe_code,
-    reason = "LD_PRELOAD shared library interfacing with dlsym C FFI"
-)]
-unsafe extern "C" {
-    fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-    fn unsetenv(name: *const c_char) -> c_int;
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
 }
 
 #[expect(
     unsafe_code,
-    reason = "ELF .init_array constructor to clear LD_PRELOAD from process environment"
+    clippy::missing_safety_doc,
+    reason = "Issuing direct syscall with inline assembly"
 )]
-#[unsafe(link_section = ".init_array")]
-#[used]
-static INIT: unsafe extern "C" fn() = {
-    unsafe extern "C" fn init() {
-        let name = c"LD_PRELOAD";
-        // SAFETY: Calling C library unsetenv with valid null-terminated string
-        // so that spawned child processes do not inherit LD_PRELOAD.
-        unsafe {
-            unsetenv(name.as_ptr());
-        }
+#[inline(always)]
+unsafe fn syscall1(num: c_long, arg1: c_long) -> c_long {
+    let ret: c_long;
+    // SAFETY: Issuing 1-argument syscall with clobbered rcx and r11.
+    unsafe {
+        asm!(
+            "syscall",
+            inout("rax") num => ret,
+            in("rdi") arg1,
+            out("rcx") _,
+            out("r11") _,
+            options(nostack, preserves_flags)
+        );
     }
-    init
-};
+    ret
+}
 
-type OrigPersonalityFn = unsafe extern "C" fn(c_ulong) -> c_long;
+#[expect(
+    unsafe_code,
+    clippy::missing_safety_doc,
+    reason = "Issuing direct syscall with inline assembly"
+)]
+#[inline(always)]
+unsafe fn syscall2(num: c_long, arg1: c_long, arg2: c_long) -> c_long {
+    let ret: c_long;
+    // SAFETY: Issuing 2-argument syscall with clobbered rcx and r11.
+    unsafe {
+        asm!(
+            "syscall",
+            inout("rax") num => ret,
+            in("rdi") arg1,
+            in("rsi") arg2,
+            out("rcx") _,
+            out("r11") _,
+            options(nostack, preserves_flags)
+        );
+    }
+    ret
+}
+
+const SYS_KILL: c_long = 62;
+const SYS_PERSONALITY: c_long = 135;
 
 /// Intercept `personality` syscall to ignore `EPERM` errors.
 ///
 /// # Safety
 ///
-/// Calls `dlsym` to resolve `personality` in `RTLD_NEXT` and invokes it.
+/// Invokes the `personality` syscall directly.
 #[unsafe(no_mangle)]
 #[expect(
     unsafe_code,
     reason = "LD_PRELOAD shared library export overriding personality syscall"
 )]
 pub unsafe extern "C" fn personality(persona: c_ulong) -> c_long {
-    let symbol_name = c"personality";
-    // SAFETY: Resolving personality symbol from RTLD_NEXT via dlsym.
-    let orig_ptr = unsafe { dlsym(RTLD_NEXT, symbol_name.as_ptr()) };
-    if !orig_ptr.is_null() {
-        // SAFETY: dlsym returned a non-null pointer matching OrigPersonalityFn.
-        let orig: OrigPersonalityFn = unsafe { std::mem::transmute(orig_ptr) };
-        // SAFETY: Invoking the resolved original personality function.
-        let res = unsafe { orig(persona) };
-        if res < 0 {
-            return 0;
-        }
-        return res;
+    let persona_long = i64::try_from(persona).unwrap_or(-1);
+    // SAFETY: Calling personality syscall.
+    let res = unsafe { syscall1(SYS_PERSONALITY, persona_long) };
+    if res < 0 {
+        return 0;
     }
-    0
+    res
 }
-
-type OrigKillFn = unsafe extern "C" fn(c_int, c_int) -> c_int;
 
 /// Intercept `kill` syscall to guard against `kill(-1, sig)` terminating
 /// all processes across the entire container.
 ///
 /// # Safety
 ///
-/// Calls `dlsym` to resolve `kill` in `RTLD_NEXT` and invokes it.
+/// Invokes the `kill` syscall directly.
 #[unsafe(no_mangle)]
 #[expect(
     unsafe_code,
@@ -101,15 +116,7 @@ pub unsafe extern "C" fn kill(pid: c_int, sig: c_int) -> c_int {
     if pid == -1 {
         return 0;
     }
-    let symbol_name = c"kill";
-    // SAFETY: Resolving kill symbol from RTLD_NEXT via dlsym.
-    let orig_ptr = unsafe { dlsym(RTLD_NEXT, symbol_name.as_ptr()) };
-    if !orig_ptr.is_null() {
-        // SAFETY: dlsym returned a non-null pointer matching OrigKillFn.
-        let orig: OrigKillFn = unsafe { std::mem::transmute(orig_ptr) };
-        // SAFETY: Invoking the resolved original kill function.
-        return unsafe { orig(pid, sig) };
-    }
-    0
+    // SAFETY: Calling kill syscall.
+    let res = unsafe { syscall2(SYS_KILL, c_long::from(pid), c_long::from(sig)) };
+    c_int::try_from(res).unwrap_or(-1)
 }
-

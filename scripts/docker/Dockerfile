@@ -83,10 +83,7 @@ RUN set -eux; \
         if [ -f "$key" ]; then \
             guix archive --authorize < "$key" || true; \
         fi; \
-    done; \
-    chmod -R u+w /gnu/store; \
-    find /gnu/store -name "perform-download.scm" -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} +; \
-    find /gnu/store -name "perform-download.go" -delete
+    done
 
 # Pre-build Guix packages and system image in Docker for layer caching.
 # Each step is a separate layer so failures don't re-run earlier steps.

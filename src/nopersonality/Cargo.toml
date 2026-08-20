@@ -7,6 +7,7 @@ description = "LD_PRELOAD shim for overriding personality() in containerized Gui
 
 [lib]
 path = "nopersonality.rs"
+# Note: it's actually built and used as a cdylib rather than an rlib, but we can't turn that on here because it breaks other workspace tooling, so set as rlib here.
 crate-type = ["rlib"]
 
 [dependencies]

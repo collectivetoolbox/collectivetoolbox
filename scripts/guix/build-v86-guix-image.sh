@@ -296,7 +296,7 @@ start_guix_daemon() {
             if [ ! -f "$nopersonality_so" ] || [ "$nopersonality_rs" -nt "$nopersonality_so" ]; then
                 echo "Building nopersonality cdylib shim..."
                 if command -v rustc >/dev/null 2>&1; then
-                    rustc --edition 2024 --crate-type cdylib -O "$nopersonality_rs" -o "$nopersonality_so"
+                    rustc --edition 2024 --crate-type cdylib -C panic=abort -O "$nopersonality_rs" -o "$nopersonality_so"
                 elif command -v cargo >/dev/null 2>&1; then
                     cargo build --package ctb-nopersonality --release
                     cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
@@ -318,13 +318,7 @@ start_guix_daemon() {
             fi
         fi
 
-        find /gnu/store -maxdepth 4 -name "perform-download.scm" -exec chmod u+w {} + -exec sed -i 's/(when (zero? (getuid))/(when #f/g' {} + 2>/dev/null || true
-        find /gnu/store -maxdepth 4 -name "perform-download.go" -delete 2>/dev/null || true
-        find /gnu/store -maxdepth 5 -name "cargo.scm" -path "*/build-system/*" -exec chmod u+w {} + -exec sed -i 's/(default-guile-json)/(cargo-guile-json)/g' {} + 2>/dev/null || true
-        find /gnu/store -maxdepth 5 -name "cargo.go" -path "*/build-system/*" -delete 2>/dev/null || true
-        if [ -f "$script_dir/patch-guix-substitute.py" ]; then
-            python3 "$script_dir/patch-guix-substitute.py" 2>/dev/null || true
-        fi
+
 
         if [ -d /homeless-shelter ]; then
             rm -r /homeless-shelter 2>/dev/null || true
@@ -445,7 +439,7 @@ case "$mode" in
     pull)
         start_guix_daemon
         echo "Updating Guix channels to latest..."
-        guix_run_with_retries pull --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        guix_run_with_retries pull --url="https://codeberg.org/guix/guix.git" --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
         for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
                    /root/.config/guix/current/share/guix/*.pub \
                    /usr/local/share/guix/*.pub; do
