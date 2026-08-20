@@ -372,6 +372,9 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
     false
 }
 
+const WITHIN_BOUNDS_WARNING: &str =
+    "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, either ensure!(), assert()!, unreachable!(), or .expect() with a Clippy exception should be used instead.";
+
 fn check_fallback_warnings(
     rel_path: &str,
     lines: &[&str],
@@ -400,7 +403,7 @@ fn check_fallback_warnings(
                 warnings.push((
                     rel_path.to_string(),
                     line_num,
-                    "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case, and .expect() should be considered instead.".to_string(),
+                    WITHIN_BOUNDS_WARNING.to_string(),
                 ));
             }
         }
@@ -461,10 +464,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].0, "src/example.rs");
         assert_eq!(warnings[0].1, 1);
-        assert_eq!(
-            warnings[0].2,
-            "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, .expect() should be used instead with a Clippy exception."
-        );
+        assert_eq!(warnings[0].2, WITHIN_BOUNDS_WARNING);
     }
 
     #[test]
