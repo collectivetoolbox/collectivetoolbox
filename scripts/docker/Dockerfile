@@ -94,9 +94,9 @@ COPY src/nopersonality /tmp/src/nopersonality
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --pull
 
-# Layer 1: Native i686 Dillo build (smoke test for Guix sandboxing)
+# Layer 1: Native i686 package build (smoke test for Guix sandboxing)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --build-dillo-native || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --smoke-test-native || { \
         st=$?; \
         echo "=== [RUN layer 1 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
@@ -108,9 +108,9 @@ RUN --security=insecure set -eux; \
         exit "$st"; \
     }
 
-# Layer 2: Cross-compile Dillo x86_64→i686 (smoke test for cross-toolchain)
+# Layer 2: Cross-compile package x86_64→i686 (smoke test for cross-toolchain)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --smoke-test-cross || { \
         st=$?; \
         echo "=== [RUN layer 2 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \

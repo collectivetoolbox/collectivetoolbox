@@ -42,6 +42,12 @@ while [[ $# -gt 0 ]]; do
         --pull)
             mode="pull"
             ;;
+        --smoke-test-native)
+            mode="smoke-test-native"
+            ;;
+        --smoke-test-cross|--smoke-test)
+            mode="smoke-test-cross"
+            ;;
         --build-dillo-native)
             mode="build-dillo-native"
             ;;
@@ -447,6 +453,22 @@ case "$mode" in
             fi
         done
         echo "Guix pull complete."
+        stop_guix_daemon
+        ;;
+
+    smoke-test-native)
+        start_guix_daemon
+        echo "Smoke testing native package resolution with GNU Hello..."
+        guix_run_with_retries build $keep_failed --fallback --system=i686-linux hello
+        echo "Native smoke test passed."
+        stop_guix_daemon
+        ;;
+
+    smoke-test-cross)
+        start_guix_daemon
+        echo "Smoke testing cross-compilation toolchain with GNU Hello..."
+        guix_run_with_retries build $keep_failed --fallback --system=x86_64-linux --target=i686-linux-gnu hello
+        echo "Cross-compilation smoke test passed."
         stop_guix_daemon
         ;;
 
