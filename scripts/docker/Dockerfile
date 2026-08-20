@@ -119,6 +119,17 @@ RUN --security=insecure set -eux; \
         exit "$st"; \
     }
 
+# Layer 2b: Cross-compile Dillo x86_64→i686
+RUN --security=insecure set -eux; \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo || { \
+        st=$?; \
+        echo "=== [RUN layer 2b failure diagnostic: exit code $st] ===" >&2; \
+        if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
+        if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
+        if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
+        exit "$st"; \
+    }
+
 # Layer 3: Cross-compile GNU Icecat x86_64→i686
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat || { \
