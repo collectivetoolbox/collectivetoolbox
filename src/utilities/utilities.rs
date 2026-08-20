@@ -705,6 +705,8 @@ pub fn feature(feature_name: &str) -> bool {
             .get_feature(&pc_settings::FeatureFlag::FeatureLogin),
         "registration" => current_settings
             .get_feature(&pc_settings::FeatureFlag::FeatureRegistration),
+        "provide_sync_server" | "sync" => current_settings
+            .get_feature(&pc_settings::FeatureFlag::FeatureProvideSyncServer),
         _ => false,
     }
 }

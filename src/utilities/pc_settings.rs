@@ -83,6 +83,7 @@ pub enum PcSettingBoolKey {
 pub enum FeatureFlag {
     FeatureLogin,
     FeatureRegistration,
+    FeatureProvideSyncServer,
 }
 
 pub enum PcSettingU16Key {
@@ -221,6 +222,12 @@ pub struct PcSettings {
     )]
     pub feature_registration: MaybeValue<bool>,
 
+    #[serde(
+        default = "MaybeValue::missing",
+        skip_serializing_if = "MaybeValue::is_missing"
+    )]
+    pub feature_provide_sync_server: MaybeValue<bool>,
+
     /// Base64-encoded Ed25519 private key for signing releases.
     /// Used by the developer when running --ctb-dev-sign.
     #[serde(
@@ -284,6 +291,7 @@ pub static DEFAULT_USE_OS_CA_CERTIFICATES: bool = true;
 pub static DEFAULT_ALLOW_LOCAL_ACCOUNT_CREATION: bool = false;
 pub static DEFAULT_FEATURE_LOGIN: bool = true;
 pub static DEFAULT_FEATURE_REGISTRATION: bool = true;
+pub static DEFAULT_FEATURE_PROVIDE_SYNC_SERVER: bool = false;
 
 impl PcSettings {
     pub fn get_str(&self, key: &PcSettingStrKey) -> Option<String> {
@@ -398,6 +406,12 @@ impl PcSettings {
             FeatureFlag::FeatureRegistration => {
                 match &self.feature_registration {
                     MaybeValue::Missing => DEFAULT_FEATURE_REGISTRATION,
+                    MaybeValue::Value(b) => *b,
+                }
+            }
+            FeatureFlag::FeatureProvideSyncServer => {
+                match &self.feature_provide_sync_server {
+                    MaybeValue::Missing => DEFAULT_FEATURE_PROVIDE_SYNC_SERVER,
                     MaybeValue::Value(b) => *b,
                 }
             }
@@ -557,6 +571,7 @@ impl PcSettings {
             allow_local_account_creation,
             feature_login,
             feature_registration,
+            feature_provide_sync_server,
             dev_signing_private_key,
             dev_signing_public_key,
             release_public_key,
@@ -600,6 +615,11 @@ impl PcSettings {
         );
         apply_bool(&mut map, "feature_login", &feature_login);
         apply_bool(&mut map, "feature_registration", &feature_registration);
+        apply_bool(
+            &mut map,
+            "feature_provide_sync_server",
+            &feature_provide_sync_server,
+        );
         apply_string(
             &mut map,
             "dev_signing_private_key",

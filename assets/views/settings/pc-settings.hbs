@@ -412,6 +412,23 @@ After reviewing the codebase, these **should remain separate settings**. Here's 
                                 Default
                             </label>
                         </td>
+                    <tr class="border-b-[1rem] border-b-transparent">
+                        <td>
+                            <label>Provide sync server:</label>
+                        </td>
+                        <td colspan="3">
+                            <input type="radio" name="feature_provide_sync_server" id="feature_provide_sync_server_true"
+                                class="w-full ml-2" value="true" {{#if feature_provide_sync_server }} checked {{/if}}>
+                            <label for="feature_provide_sync_server_true">Yes</label>
+                            <input type="radio" name="feature_provide_sync_server" id="feature_provide_sync_server_false"
+                                class="w-full ml-2" value="false" {{#unless feature_provide_sync_server }} checked {{/unless}}>
+                            <label for="feature_provide_sync_server_false">No</label>
+                            <label class="ml-2">
+                                <input type="checkbox" name="feature_provide_sync_server_default" class="form-default-adjacent"
+                                    {{#if feature_provide_sync_server_default }} checked {{/if}}>
+                                Default
+                            </label>
+                        </td>
                     </tr>
                 </tbody>
             </table>

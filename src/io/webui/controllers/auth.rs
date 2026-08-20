@@ -512,6 +512,14 @@ pub async fn post_api_user_register(
             .into_response();
     }
 
+    if !feature("registration") {
+        return (
+            StatusCode::FORBIDDEN,
+            axum::Json(serde_json::json!({ "error": "registration_disabled" })),
+        )
+            .into_response();
+    }
+
     let username = payload.username.clone();
     let exists = ctb_storage::user::user_exists(&username);
     if exists {
@@ -1101,6 +1109,108 @@ mod auth_controller_tests {
         User::delete_by_name(&format!("{name}_new")).ok();
         set_mock_register_result(None);
 
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_post_api_user_register_enforces_registration_setting(
+    ) -> Result<()> {
+        use crate::json::maybe_value::MaybeValue;
+        use crate::pc_settings::PcSettings;
+        use axum::http::HeaderMap;
+        use ctb_storage::models::sync::ApiRegisterRequest;
+
+        let name = function_name!();
+        let _ = lock_by_name(name)?;
+        User::delete_by_name(name).ok();
+
+        let old_settings = PcSettings::load().unwrap_or_default();
+
+        struct SettingsRestoreGuard(PcSettings);
+        impl Drop for SettingsRestoreGuard {
+            fn drop(&mut self) {
+                self.0.save().unwrap();
+            }
+        }
+        let _guard = SettingsRestoreGuard(old_settings.clone());
+
+        // 1. On non-public website, should return 403
+        let mut settings = old_settings.clone();
+        settings.serve_public_web_site_only = MaybeValue::Value(false);
+        settings.feature_registration = MaybeValue::Value(true);
+        settings.save().unwrap();
+
+        let (_state, app) = test_app();
+
+        let req_payload = ApiRegisterRequest {
+            username: name.to_string(),
+            uuid: crate::Uuid::new_v4().as_bytes().to_vec(),
+            auth: None,
+            display_name: None,
+            key_encryption_key_params: None,
+            wrapped_dek: None,
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+        let req_bytes = serde_json::to_vec(&req_payload).unwrap();
+
+        let (status, _body) = test_request::<()>(
+            &app,
+            Method::POST,
+            "/api/user/register",
+            Some(headers.clone()),
+            None,
+            Some(req_bytes.clone()),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        // 2. On public website with registration disabled, should return 403
+        let mut settings = old_settings.clone();
+        settings.serve_public_web_site_only = MaybeValue::Value(true);
+        settings.feature_registration = MaybeValue::Value(false);
+        settings.save().unwrap();
+
+        let (_state, app) = test_app();
+        let (status, body) = test_request::<()>(
+            &app,
+            Method::POST,
+            "/api/user/register",
+            Some(headers.clone()),
+            None,
+            Some(req_bytes.clone()),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert!(body.contains("registration_disabled"));
+
+        // 3. On public website with registration enabled, should succeed (201)
+        let mut settings = old_settings.clone();
+        settings.serve_public_web_site_only = MaybeValue::Value(true);
+        settings.feature_registration = MaybeValue::Value(true);
+        settings.save().unwrap();
+
+        let (_state, app) = test_app();
+        let (status, body) = test_request::<()>(
+            &app,
+            Method::POST,
+            "/api/user/register",
+            Some(headers.clone()),
+            None,
+            Some(req_bytes),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED);
+        assert!(body.contains("\"success\":true"));
+
+        User::delete_by_name(name).ok();
         Ok(())
     }
 }

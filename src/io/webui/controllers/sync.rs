@@ -168,7 +168,7 @@ pub async fn post_tokens_issue(
     user: AuthenticatedUser,
     Json(payload): Json<TokenIssueRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    if !feature("login") {
+    if !feature("login") || !feature("provide_sync_server") {
         return Err(StatusCode::NOT_FOUND);
     }
 
@@ -237,6 +237,10 @@ pub async fn post_sync_start(
     State(_state): State<AppState>,
     Json(payload): Json<SyncStartRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if !feature("provide_sync_server") {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let serial =
         hex2bin(&payload.serial_hex).map_err(|_| StatusCode::BAD_REQUEST)?;
     let tag =
@@ -295,6 +299,10 @@ pub async fn post_reserve_ids(
     headers: HeaderMap,
     Json(payload): Json<ReserveIdsRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if !feature("provide_sync_server") {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let session_id = get_bearer_token(&headers)?;
     let _ = validate_sync_session(&session_id)?;
 
@@ -314,6 +322,10 @@ pub async fn post_upload_chunks(
     headers: HeaderMap,
     Json(payload): Json<UploadChunkRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if !feature("provide_sync_server") {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let session_id = get_bearer_token(&headers)?;
     let _ = validate_sync_session(&session_id)?;
 
@@ -345,6 +357,10 @@ pub async fn get_download_chunks(
     headers: HeaderMap,
     Path(chunk_hash): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if !feature("provide_sync_server") {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let session_id = get_bearer_token(&headers)?;
     let _ = validate_sync_session(&session_id)?;
 
@@ -377,6 +393,22 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_sync_controller_endpoints() {
+        use crate::json::maybe_value::MaybeValue;
+        use crate::pc_settings::PcSettings;
+
+        let old_settings = PcSettings::load().unwrap_or_default();
+        struct SettingsRestoreGuard(PcSettings);
+        impl Drop for SettingsRestoreGuard {
+            fn drop(&mut self) {
+                self.0.save().unwrap();
+            }
+        }
+        let _guard = SettingsRestoreGuard(old_settings.clone());
+
+        let mut settings = old_settings.clone();
+        settings.feature_provide_sync_server = MaybeValue::Value(true);
+        settings.save().unwrap();
+
         let app = TestApp::default();
 
         let mut rng = rand::rng();
@@ -578,5 +610,97 @@ mod tests {
             .await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body, String::from_utf8(chunk_data).unwrap());
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn disabled_sync_routes_return_not_found() {
+        use crate::json::maybe_value::MaybeValue;
+        use crate::pc_settings::PcSettings;
+
+        let old_settings = PcSettings::load().unwrap_or_default();
+        struct SettingsRestoreGuard(PcSettings);
+        impl Drop for SettingsRestoreGuard {
+            fn drop(&mut self) {
+                self.0.save().unwrap();
+            }
+        }
+        let _guard = SettingsRestoreGuard(old_settings.clone());
+
+        let mut settings = old_settings.clone();
+        settings.feature_provide_sync_server = MaybeValue::Value(false);
+        settings.save().unwrap();
+
+        let app = TestApp::new();
+        let mut headers = HeaderMap::new();
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+
+        // 1. POST /api/sync/start
+        let (status, _) = app
+            .request(
+                Method::POST,
+                "/api/sync/start",
+                Some(headers.clone()),
+                None,
+                Some(
+                    serde_json::to_vec(&json!({
+                        "serial_hex": "00",
+                        "token_tag_hex": "00",
+                    }))
+                    .unwrap(),
+                ),
+                None::<&()>,
+            )
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        // 2. POST /api/sync/reserve-ids
+        let (status, _) = app
+            .request(
+                Method::POST,
+                "/api/sync/reserve-ids",
+                Some(headers.clone()),
+                None,
+                Some(
+                    serde_json::to_vec(&json!({
+                        "graph_id": 123u128,
+                    }))
+                    .unwrap(),
+                ),
+                None::<&()>,
+            )
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        // 3. POST /api/sync/chunks
+        let (status, _) = app
+            .request(
+                Method::POST,
+                "/api/sync/chunks",
+                Some(headers.clone()),
+                None,
+                Some(
+                    serde_json::to_vec(&json!({
+                        "chunk_hash": "test",
+                        "chunk_data_hex": "00",
+                    }))
+                    .unwrap(),
+                ),
+                None::<&()>,
+            )
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        // 4. GET /api/sync/chunks/test
+        let (status, _) = app
+            .request(
+                Method::GET,
+                "/api/sync/chunks/test",
+                None,
+                None,
+                None,
+                None::<&()>,
+            )
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
     }
 }

@@ -144,10 +144,12 @@ pub async fn get_public_pc_settings(
             // Feature flags
             "feature_login" => bool_or_default(&current_settings.feature_login, pc_settings::DEFAULT_FEATURE_LOGIN),
             "feature_registration" => bool_or_default(&current_settings.feature_registration, pc_settings::DEFAULT_FEATURE_REGISTRATION),
+            "feature_provide_sync_server" => bool_or_default(&current_settings.feature_provide_sync_server, pc_settings::DEFAULT_FEATURE_PROVIDE_SYNC_SERVER),
             "feature_login_default" => is_default_key("feature_login"),
             "feature_registration_default" => {
                 is_default_key("feature_registration")
             },
+            "feature_provide_sync_server_default" => is_default_key("feature_provide_sync_server"),
 
             // Secrets not shown, just whether they are set
             "tls_private_key_set" => matches!(current_settings.tls_private_key, MaybeOption::Value(_)),
@@ -218,6 +220,8 @@ pub struct PcSettingsForm {
     feature_login_default: Option<bool>,
     feature_registration: Option<bool>,
     feature_registration_default: Option<bool>,
+    feature_provide_sync_server: Option<bool>,
+    feature_provide_sync_server_default: Option<bool>,
     access_log_mode: Option<String>,
     access_log_mode_default: Option<bool>,
 }
@@ -274,6 +278,8 @@ pub async fn post_public_pc_settings(
         feature_login_default,
         feature_registration,
         feature_registration_default,
+        feature_provide_sync_server,
+        feature_provide_sync_server_default,
         access_log_mode,
         access_log_mode_default,
     } = form.0;
@@ -397,6 +403,11 @@ pub async fn post_public_pc_settings(
     let feature_registration = bool_to_patch(
         checkbox_is_checked(feature_registration_default),
         feature_registration,
+    );
+
+    let feature_provide_sync_server = bool_to_patch(
+        checkbox_is_checked(feature_provide_sync_server_default),
+        feature_provide_sync_server,
     );
 
     let access_log_mode = if checkbox_is_checked(access_log_mode_default) {
@@ -578,6 +589,7 @@ pub async fn post_public_pc_settings(
         allow_local_account_creation,
         feature_login,
         feature_registration,
+        feature_provide_sync_server,
         access_log_mode,
         ..Default::default()
     };
