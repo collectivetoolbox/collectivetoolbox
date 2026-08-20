@@ -305,6 +305,48 @@ pub unsafe extern "C" fn setresgid(
     0
 }
 
+/// Intercept `seteuid` syscall to ignore `EPERM` failures in container builds.
+///
+/// # Safety
+///
+/// Invokes the `setresuid` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding seteuid syscall"
+)]
+pub unsafe extern "C" fn seteuid(euid: core::ffi::c_uint) -> c_int {
+    // SAFETY: Calling setresuid syscall with -1 for ruid and suid.
+    let res = unsafe {
+        syscall3(SYS_SETRESUID, -1, c_long::from(euid), -1)
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
+/// Intercept `setegid` syscall to ignore `EPERM` failures in container builds.
+///
+/// # Safety
+///
+/// Invokes the `setresgid` syscall directly.
+#[unsafe(no_mangle)]
+#[expect(
+    unsafe_code,
+    reason = "LD_PRELOAD shared library export overriding setegid syscall"
+)]
+pub unsafe extern "C" fn setegid(egid: core::ffi::c_uint) -> c_int {
+    // SAFETY: Calling setresgid syscall with -1 for rgid and sgid.
+    let res = unsafe {
+        syscall3(SYS_SETRESGID, -1, c_long::from(egid), -1)
+    };
+    if res < 0 {
+        return 0;
+    }
+    0
+}
+
 /// Intercept `setgroups` syscall to ignore `EPERM` failures in container builds.
 ///
 /// # Safety

@@ -336,7 +336,7 @@ start_guix_daemon() {
     tmp_build_dir="$(mktemp -d)"
     chmod 755 "$tmp_build_dir"
 
-    if ! is_container && getent group guixbuild >/dev/null 2>&1; then
+    if getent group guixbuild >/dev/null 2>&1; then
         daemon_extra_args+=(--build-users-group=guixbuild)
     fi
 
