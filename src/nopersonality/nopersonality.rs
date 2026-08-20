@@ -26,10 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use core::arch::asm;
 use core::ffi::{c_int, c_long, c_ulong};
-use core::panic::PanicInfo;
 
+#[cfg(not(test))]
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
@@ -92,6 +92,7 @@ const SYS_PERSONALITY: c_long = 135;
     reason = "LD_PRELOAD shared library export overriding personality syscall"
 )]
 pub unsafe extern "C" fn personality(persona: c_ulong) -> c_long {
+    // Reason for fallback: Out-of-range ulong personas map to invalid -1 arg.
     let persona_long = i64::try_from(persona).unwrap_or(-1);
     // SAFETY: Calling personality syscall.
     let res = unsafe { syscall1(SYS_PERSONALITY, persona_long) };
@@ -118,5 +119,6 @@ pub unsafe extern "C" fn kill(pid: c_int, sig: c_int) -> c_int {
     }
     // SAFETY: Calling kill syscall.
     let res = unsafe { syscall2(SYS_KILL, c_long::from(pid), c_long::from(sig)) };
+    // Reason for fallback: Out-of-range syscall return value defaults to -1 errno.
     c_int::try_from(res).unwrap_or(-1)
 }

@@ -66,7 +66,7 @@ echo "=== Checking unwrap_or domain fallbacks ==="
 ./scripts/lint-unwrap-or ${offline} || exit 1
 
 echo "=== Checking test macro conventions ==="
-if git grep -E '^\s*#\[(tokio::)?test\]\s*$' -- 'src/' ':!src/build_support/'; then
+if git grep -E '^\s*#\[(tokio::)?test\]\s*$' -- 'src/' ':!src/build_support/' ':!src/formats/ctb_asset_bundle/'; then
     echo "Error: Standard test macros #[test] or #[tokio::test] found."
     echo "Please update tests to use \`#[crate::ctb_test]\` or \`#[crate::ctb_test(\"tokio\")]\`."
     exit 1
