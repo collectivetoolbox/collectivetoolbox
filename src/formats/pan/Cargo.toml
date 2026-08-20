@@ -11,9 +11,6 @@ crate-type = ["lib"]
 name = "pan-ctb"
 path = "bin.rs"
 
-[profile.dev]
-incremental = false
-
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-applescript = { path = "../../formats/applescript" }

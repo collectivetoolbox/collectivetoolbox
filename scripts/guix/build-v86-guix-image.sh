@@ -306,13 +306,15 @@ start_guix_daemon() {
                 chmod 755 "$nopersonality_so"
                 mkdir -p /var/guix/nopersonality 2>/dev/null || true
                 cp "$nopersonality_so" /var/guix/nopersonality/libctb_nopersonality.so 2>/dev/null || true
-                chmod 755 /var/guix/nopersonality/libctb_nopersonality.so 2>/dev/null || true
                 if [ -d /gnu/store ] && [ -w /gnu/store ]; then
                     cp "$nopersonality_so" /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                     chmod 755 /gnu/store/libctb_nopersonality.so 2>/dev/null || true
                 fi
-                daemon_env=(env "LD_PRELOAD=$nopersonality_so")
-                daemon_extra_args+=(--chroot-directory="$nopersonality_dir")
+                if [ -f /gnu/store/libctb_nopersonality.so ]; then
+                    daemon_env=(env "LD_PRELOAD=/gnu/store/libctb_nopersonality.so")
+                else
+                    daemon_env=(env "LD_PRELOAD=$nopersonality_so")
+                fi
             fi
         fi
 

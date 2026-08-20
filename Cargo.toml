@@ -65,16 +65,6 @@ crate-type = ["lib"]
 name = "ctoolbox"
 path = "src/bin.rs"
 
-[env]
-# Due to https://github.com/rust-lang/cargo/issues/10094 (I think it may be that
-# issue) this does not work, which will prevent building ctoolbox using Cargo
-# without wrapping in the build script.
-#MOZJS_FROM_SOURCE = { value = "1", force = true }
-# Try to stop mozjs build locking up the system
-#MAKEFLAGS = { value = "-j1", force = true }
-#CARGO_MAKEFLAGS = { value = "-j1", force = true }
-# Blocked on https://github.com/servo/servo/issues/18343
-
 [build-dependencies]
 anyhow = "1.0.100"
 vergen-gix = { version = "9.1.0", features = ["build", "cargo", "rustc", "si"] }

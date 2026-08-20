@@ -373,7 +373,7 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
 }
 
 const WITHIN_BOUNDS_WARNING: &str =
-    "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, either ensure!(), assert()!, unreachable!(), or .expect() with a Clippy exception should be used instead.";
+    "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar should be used instead.";
 
 fn check_fallback_warnings(
     rel_path: &str,
