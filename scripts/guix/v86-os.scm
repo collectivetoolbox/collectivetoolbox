@@ -38,13 +38,6 @@
 
 (define qemu-patched (apply-patches qemu))
 
-(define disable-cross?
-  (let ((val (or (getenv "DISABLE_CROSS")
-                 (getenv "CTB_DISABLE_CROSS"))))
-    (and val
-         (not (string=? val "0"))
-         (not (string=? val "false")))))
-
 (define os-packages
   (append (list xorg-server
                 xf86-video-vesa
@@ -53,10 +46,8 @@
                 xterm
                 bash
                 tmux
+                dillo
                 qemu-patched)
-          (if disable-cross?
-              '()
-              (list dillo))
           %base-packages))
 
 (define (all-transitive-sources packages)
