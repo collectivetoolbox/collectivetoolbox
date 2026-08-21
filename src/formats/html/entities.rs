@@ -111,7 +111,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
             EntitySet::Xml | EntitySet::Html4 => {
                 // Format: Col 0 = Decimal codepoint, Col 1 = name (without & or ;)
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
-                    if let Some(ch) = utilites::string::parse_hex_char(col0) {
+                    if let Ok(ch) = crate::utilities::string::parse_dec_char(col0) {
                         let char_str = ch.to_string();
                         let named_entity = format!("&{col1};");
                         char_to_entity
@@ -126,7 +126,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        if let Some(ch) = utilites::string::parse_hex_char(part) {
+                        if let Ok(ch) = crate::utilities::string::parse_hex_char(part) {
                             text.push(ch);
                         }
                     }
@@ -140,11 +140,17 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
                 }
             }
             EntitySet::MathMl => {
-                // Format: Col 0 = Codepoints space-separated, Col 1 = name (without & or ;)
+                // Format: Col 0 = Codepoints space-separated (decimal or hex), Col 1 = name (without & or ;)
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        if let Some(ch) = utilites::string::parse_hex_char(part) {
+                        let ch_opt = if col0.starts_with('x')
+                        {
+                            crate::utilities::string::parse_hex_char(part).ok()
+                        } else {
+                            crate::utilities::string::parse_dec_char(part).ok()
+                        };
+                        if let Some(ch) = ch_opt {
                             text.push(ch);
                         }
                     }

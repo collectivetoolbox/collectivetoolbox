@@ -170,7 +170,7 @@ where
     let options = DescriptionOptions::from(&args);
 
     let result = if let Some(ref cp_str) = args.codepoint {
-        let cp = utilities::string::parse_hex_u32(cp_str)?;
+        let cp = crate::utilities::string::parse_hex_u32(cp_str)?;
         let mut out = crate::describe_codepoint_with_options(cp, options);
         out.push('\n');
         out
@@ -260,11 +260,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_codepoints() {
-        assert_eq!(parse_codepoint("U+0041").unwrap(), 0x41);
-        assert_eq!(parse_codepoint("u+1f602").unwrap(), 0x1F602);
-        assert_eq!(parse_codepoint("0x41").unwrap(), 0x41);
-        assert_eq!(parse_codepoint("0X1F602").unwrap(), 0x1F602);
-        assert_eq!(parse_codepoint("41").unwrap(), 0x41);
+        assert_eq!(crate::utilities::string::parse_hex_u32("U+0041").unwrap(), 0x41);
+        assert_eq!(crate::utilities::string::parse_hex_u32("u+1f602").unwrap(), 0x1F602);
+        assert_eq!(crate::utilities::string::parse_hex_u32("0x41").unwrap(), 0x41);
+        assert_eq!(crate::utilities::string::parse_hex_u32("0X1F602").unwrap(), 0x1F602);
+        assert_eq!(crate::utilities::string::parse_hex_u32("41").unwrap(), 0x41);
     }
 
     #[crate::ctb_test]

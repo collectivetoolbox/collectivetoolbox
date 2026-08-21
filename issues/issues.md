@@ -40,11 +40,7 @@ Add markdown content negotiation
 
 License lint: Scheme files GPL3+; JS files LibreJS
 
-Neo encoding
-
 HQX
-
-Newer HTML entities
 
 db_impl has accumulated a whole bunch of unrelated concerns.
 

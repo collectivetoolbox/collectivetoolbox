@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Lint tool to check license headers and module docblocks in Rust source files.
+//! Lint tool to check license headers and docblocks in Rust and Scheme source
+//! files.
 
 use std::env;
 use std::fs;
@@ -26,7 +27,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 
 /// Default AGPL-3.0-or-later header.
-const DEFAULT_AGPL_HEADER: &str = r#"// SPDX-License-Identifier: AGPL-3.0-or-later
+const DEFAULT_AGPL_HEADER: &str = r"// SPDX-License-Identifier: AGPL-3.0-or-later
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -43,10 +44,10 @@ A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more detail
 
 You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/"#;
+*/";
 
 /// PAN format MIT header for files under `src/formats/pan/`.
-const PAN_MIT_HEADER: &str = r#"/* SPDX-License-Identifier: MIT */
+const PAN_MIT_HEADER: &str = r"/* SPDX-License-Identifier: MIT */
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -69,10 +70,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/"#;
+*/";
 
-/// The standard copyright block comment for Collective Toolbox AGPL.
-const AGPL_COPYRIGHT_BLOCK: &str = r#"/*
+/// Standard copyright block comment for AGPL.
+const AGPL_COPYRIGHT_BLOCK: &str = r"/*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
@@ -88,10 +89,10 @@ A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more detail
 
 You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/"#;
+*/";
 
 /// The copyright block comment for AGPL-3.0-only SeaBIOS-derived files.
-const AGPL_3_0_ONLY_COPYRIGHT_BLOCK: &str = r#"/*
+const AGPL_3_0_ONLY_COPYRIGHT_BLOCK: &str = r"/*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
 Contact: info@collectivetoolbox.com
@@ -106,7 +107,25 @@ A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more detail
 
 You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/"#;
+*/";
+
+/// Standard Scheme GPL-3.0-or-later header.
+const SCHEME_GPL_HEADER: &str = r";;; This file is part of Collective Toolbox, a database and document workspace and utilities.
+;;; Copyright (C) 2026 Collective Toolbox Developers
+;;; Contact: info@collectivetoolbox.com
+;;;
+;;; This Scheme program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
+;;;
+;;; This Scheme program is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.";
 
 #[derive(Debug)]
 struct Violation {
@@ -115,8 +134,13 @@ struct Violation {
     message: String,
 }
 
-/// Recursively find all `.rs` files excluding target, vendor, old, built, .git, and fixtures.
-fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+/// Recursively find all `.rs` and `.scm` files excluding target, vendor, old,
+/// built, generated, .git, and fixtures.
+fn find_files(
+    dir: &Path,
+    rs_files: &mut Vec<PathBuf>,
+    scm_files: &mut Vec<PathBuf>,
+) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -128,15 +152,21 @@ fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
                 || name == Some(".git")
                 || name == Some("old")
                 || name == Some("built")
+                || name == Some("generated")
                 || lossy.ends_with("src/build_support/data/fixtures")
                 || lossy.contains("src/build_support/data/fixtures/")
             {
                 continue;
             }
-            find_rs_files(&path, files)?;
-        } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
-            if !lossy.contains("src/build_support/data/fixtures") {
-                files.push(path);
+            find_files(&path, rs_files, scm_files)?;
+        } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if lossy.contains("src/build_support/data/fixtures") {
+                continue;
+            }
+            if ext == "rs" {
+                rs_files.push(path);
+            } else if ext == "scm" {
+                scm_files.push(path);
             }
         }
     }
@@ -181,8 +211,8 @@ fn contains_keyword(text: &str, keyword: &str) -> bool {
             .get(end_pos..end_pos.saturating_add(1))
             .and_then(|s| s.chars().next());
 
-        let is_left_boundary = prev_char.map_or(true, |c| !c.is_alphanumeric() && c != '_');
-        let is_right_boundary = next_char.map_or(true, |c| !c.is_alphanumeric() && c != '_');
+        let is_left_boundary = prev_char.is_none_or(|c| !c.is_alphanumeric() && c != '_');
+        let is_right_boundary = next_char.is_none_or(|c| !c.is_alphanumeric() && c != '_');
 
         if is_left_boundary && is_right_boundary {
             return true;
@@ -504,6 +534,107 @@ fn lint_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
     Ok(())
 }
 
+/// Lint a single Scheme file and record violations.
+fn lint_scm_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
+    let content = fs::read_to_string(file_path)
+        .with_context(|| format!("failed to read {}", file_path.display()))?;
+
+    let normalized = normalize_newlines(&content);
+    let trimmed_start = normalized.trim_start();
+    if trimmed_start.is_empty() {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: "File is empty".to_string(),
+        });
+        return Ok(());
+    }
+
+    if !normalized.starts_with(SCHEME_GPL_HEADER) {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: "Missing or invalid Scheme GPL license header at top of file".to_string(),
+        });
+        return Ok(());
+    }
+
+    let header_lines = SCHEME_GPL_HEADER.lines().count();
+    let lines: Vec<&str> = normalized.lines().collect();
+    let mut idx = header_lines;
+
+    // Skip empty lines following the license header
+    while let Some(line) = lines.get(idx) {
+        if line.trim().is_empty() {
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    // Next non-empty line must be a comment explaining the file's purpose (starts with `;`)
+    let Some(first_comment_line) = lines.get(idx) else {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: idx.saturating_add(1),
+            message: "Missing comment explaining the file's purpose after license header"
+                .to_string(),
+        });
+        return Ok(());
+    };
+
+    let trimmed = first_comment_line.trim_start();
+    if !trimmed.starts_with(';') {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: idx.saturating_add(1),
+            message: format!(
+                "Expected file purpose comment (`;;; ...`), found: `{}`",
+                first_comment_line.trim()
+            ),
+        });
+    }
+
+    Ok(())
+}
+
+/// Add Scheme headers to files that are missing them.
+fn add_scheme_headers(
+    scm_files: &[PathBuf],
+    workspace_root: &Path,
+) -> Result<(usize, usize)> {
+    let mut modified_count: usize = 0;
+    let mut already_valid_count: usize = 0;
+
+    for file_path in scm_files {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("failed to read {}", file_path.display()))?;
+
+        let normalized = normalize_newlines(&content);
+        if normalized.starts_with(SCHEME_GPL_HEADER) {
+            already_valid_count = already_valid_count.saturating_add(1);
+            continue;
+        }
+
+        let mut new_content = String::new();
+        new_content.push_str(SCHEME_GPL_HEADER);
+        new_content.push('\n');
+        if !content.starts_with('\n') && !content.is_empty() {
+            new_content.push('\n');
+        }
+        new_content.push_str(&content);
+
+        fs::write(file_path, new_content)
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
+
+        let relative = file_path.strip_prefix(workspace_root).unwrap_or(file_path);
+        println!("Added Scheme header to {}", relative.display());
+        modified_count = modified_count.saturating_add(1);
+    }
+
+    Ok((modified_count, already_valid_count))
+}
+
 /// Add default headers to files that are missing headers and do not contain licensing keywords in comments.
 fn add_headers(rs_files: &[PathBuf], workspace_root: &Path) -> Result<()> {
     let mut modified_count: usize = 0;
@@ -555,35 +686,40 @@ fn add_headers(rs_files: &[PathBuf], workspace_root: &Path) -> Result<()> {
     }
 
     println!("\nHeader addition summary:");
-    println!("  Modified: {}", modified_count);
-    println!("  Skipped (licensing keywords): {}", skipped_keyword_count);
-    println!("  Already valid: {}", already_valid_count);
+    println!("  Modified: {modified_count}");
+    println!("  Skipped (licensing keywords): {skipped_keyword_count}");
+    println!("  Already valid: {already_valid_count}");
 
     Ok(())
 }
 
 fn main() -> Result<()> {
-    let mut args = env::args().skip(1);
+    let args = env::args().skip(1);
     let mut workspace_root: Option<PathBuf> = None;
     let mut do_add_headers = false;
 
-    while let Some(arg) = args.next() {
+    for arg in args {
         if arg == "--add-headers" {
             do_add_headers = true;
         } else if workspace_root.is_none() {
             workspace_root = Some(PathBuf::from(arg));
         } else {
-            bail!("unexpected argument: {}", arg);
+            bail!("unexpected argument: {arg}");
         }
     }
 
     let workspace_root = workspace_root.unwrap_or_else(|| PathBuf::from("."));
 
     let mut rs_files = Vec::new();
-    find_rs_files(&workspace_root, &mut rs_files)?;
+    let mut scm_files = Vec::new();
+    find_files(&workspace_root, &mut rs_files, &mut scm_files)?;
 
     if do_add_headers {
         add_headers(&rs_files, &workspace_root)?;
+        let (scm_modified, scm_valid) = add_scheme_headers(&scm_files, &workspace_root)?;
+        println!("\nScheme header addition summary:");
+        println!("  Modified: {scm_modified}");
+        println!("  Already valid: {scm_valid}");
         return Ok(());
     }
 
@@ -591,16 +727,25 @@ fn main() -> Result<()> {
     for file_path in &rs_files {
         lint_file(file_path, &mut violations)?;
     }
+    for file_path in &scm_files {
+        lint_scm_file(file_path, &mut violations)?;
+    }
 
+    let total_files = rs_files.len().saturating_add(scm_files.len());
     if violations.is_empty() {
-        println!("header and docblock lint passed ({} files checked)", rs_files.len());
+        println!(
+            "header and docblock lint passed ({} files checked: {} Rust, {} Scheme)",
+            total_files,
+            rs_files.len(),
+            scm_files.len()
+        );
         return Ok(());
     }
 
     eprintln!(
         "header and docblock lint failed: found {} violations across {} files.\n",
         violations.len(),
-        rs_files.len()
+        total_files
     );
 
     for v in &violations {

@@ -121,8 +121,25 @@ pub fn parse_hex_usize(s: &str) -> Result<usize> {
 /// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
 /// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
 pub fn parse_hex_char(s: &str) -> Result<char> {
-    let val = parse_hex_u64(s)?;
-    char::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds platform char size: {e}"))
+    let val = parse_hex_u32(s)?;
+    char::try_from(val).map_err(|e| anyhow!("Hex value '{s}' is an invalid Unicode scalar value: {e}"))
+}
+
+/// Forgivingly parses a decimal string into a `u32`.
+///
+/// Trims whitespace.
+pub fn parse_dec_u32(s: &str) -> Result<u32> {
+    s.trim()
+        .parse::<u32>()
+        .map_err(|e| anyhow!("Failed to parse decimal '{s}': {e}"))
+}
+
+/// Forgivingly parses a decimal string into a `char`.
+///
+/// Trims whitespace.
+pub fn parse_dec_char(s: &str) -> Result<char> {
+    let val = parse_dec_u32(s)?;
+    char::try_from(val).map_err(|e| anyhow!("Decimal value '{s}' is an invalid Unicode scalar value: {e}"))
 }
 
 /// Forgivingly parses a hexadecimal string into a `u8`.
@@ -575,6 +592,10 @@ mod tests {
         assert_eq!(parse_hex_u8("0XFF")?, 255);
         assert_eq!(parse_hex_u64("0x100000000")?, 0x1_0000_0000);
         assert_eq!(parse_hex_usize("0x10")?, 16);
+        assert_eq!(parse_hex_char("0x41")?, 'A');
+        assert_eq!(parse_hex_char("U+03b4")?, 'δ');
+        assert_eq!(parse_dec_u32("65")?, 65);
+        assert_eq!(parse_dec_char("65")?, 'A');
         assert!(parse_hex_u8("0x100").is_err());
 
         let codepoints = parse_hex_codepoints("25a0 U+03b4 0x0394")?;

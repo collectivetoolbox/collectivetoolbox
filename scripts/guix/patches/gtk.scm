@@ -1,9 +1,11 @@
-;;; Patch for gtk+ cross-compilation with native wayland-scanner and -Dlibdir=lib.
-;;; Copyright 2026 Collective Toolbox contributors
-;;; This Scheme program is free software; you can redistribute it and/or modify it
-;;; under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation; either version 3 of the License, or (at
-;;; your option) any later version.
+;;; This file is part of Collective Toolbox, a database and document workspace and utilities.
+;;; Copyright (C) 2026 Collective Toolbox Developers
+;;; Contact: info@collectivetoolbox.com
+;;;
+;;; This Scheme program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
 ;;;
 ;;; This Scheme program is distributed in the hope that it will be useful, but
 ;;; WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,6 +14,8 @@
 ;;;
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Patch for gtk+ cross-compilation with native wayland-scanner and -Dlibdir=lib.
 
 (define-module (patches gtk)
   #:use-module (guix packages)
@@ -64,7 +68,8 @@
        (delete "colord-minimal" "librest")))
     (propagated-inputs
      (modify-inputs (package-propagated-inputs pkg)
-       (delete "librsvg" "libcloudproviders-minimal")))
+       (delete "librsvg" "libcloudproviders-minimal")
+       (append gdk-pixbuf)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection")
@@ -73,13 +78,15 @@
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(cons* "--libdir=lib"
-                 "-Dcolord=no"
-                 "-Dcloudproviders=false"
-                 "-Dintrospection=false"
-                 "-Dman=false"
-                 "-Dgtk_doc=false"
-                 #$flags))
+        #~(append (delete "-Dcloudproviders=true"
+                          (delete "-Dcolord=yes"
+                                  (delete "-Dman=true" #$flags)))
+                  '("-Dlibdir=lib"
+                    "-Dcolord=no"
+                    "-Dcloudproviders=false"
+                    "-Dintrospection=false"
+                    "-Dman=false"
+                    "-Dgtk_doc=false")))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (add-before 'configure 'disable-cross-introspection

@@ -15,30 +15,27 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for libical to disable introspection when cross-compiling.
+;;; Patch for xorg-server cross-compilation and non-chroot builds.
 
-(define-module (patches libical)
+(define-module (patches xorg-server)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages calendar)
-  #:export (libical-fixed-proc libical-fixed))
+  #:use-module (gnu packages xorg)
+  #:export (xorg-server-fixed-proc xorg-server-fixed))
 
-(define (libical-fixed-proc pkg)
+(define (xorg-server-fixed-proc pkg)
   (package
     (inherit pkg)
-    (native-inputs
-     (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection" "gtk-doc" "docbook-xml" "docbook-xsl")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(list "-DSHARED_ONLY=true"
-                "-DICAL_GLIB=false"
-                "-DGOBJECT_INTROSPECTION=false"
-                "-DICAL_GLIB_VAPI=false"
-                "-DICAL_BUILD_DOCS=false"))))))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'unpack 'fix-xkb-install
+              (lambda _
+                (substitute* "xkb/Makefile.in"
+                  (("^install-dist_xkbcompiledDATA:.*$")
+                   "install-dist_xkbcompiledDATA:\n\t@true\n"))))))))))
 
-(define libical-fixed
-  (libical-fixed-proc libical))
+(define xorg-server-fixed
+  (xorg-server-fixed-proc xorg-server))

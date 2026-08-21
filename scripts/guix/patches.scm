@@ -1,9 +1,11 @@
-;;; Aggregator module for Guix package patches.
-;;; Copyright 2026 Collective Toolbox contributors
-;;; This Scheme program is free software; you can redistribute it and/or modify it
-;;; under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation; either version 3 of the License, or (at
-;;; your option) any later version.
+;;; This file is part of Collective Toolbox, a database and document workspace and utilities.
+;;; Copyright (C) 2026 Collective Toolbox Developers
+;;; Contact: info@collectivetoolbox.com
+;;;
+;;; This Scheme program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
 ;;;
 ;;; This Scheme program is distributed in the hope that it will be useful, but
 ;;; WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,6 +14,8 @@
 ;;;
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Aggregator module for Guix package patches.
 
 (define-module (patches)
   #:use-module (guix packages)
@@ -63,6 +67,7 @@
   #:use-module (patches srt)
   #:use-module (patches talloc)
   #:use-module (patches x265)
+  #:use-module (patches xorg-server)
   #:use-module (patches icecat)
   #:use-module (patches gsettings-desktop-schemas)
   #:use-module (patches gobject-introspection)
@@ -146,6 +151,8 @@
     ("tdb" . ,tdb-fixed-proc)
     ("tevent" . ,tevent-fixed-proc)
     ("x265" . ,x265-fixed-proc)
+    ("xorg-server" . ,xorg-server-fixed-proc)
+    ("xorg-server-for-tests" . ,xorg-server-fixed-proc)
     ("icecat-minimal" . ,icecat-minimal-fixed-proc)
     ("icecat" . ,icecat-fixed-proc)))
 
