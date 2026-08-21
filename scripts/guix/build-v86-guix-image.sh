@@ -359,10 +359,24 @@ start_guix_daemon() {
         mkdir -p /var/guix/bin
         local real_daemon
         real_daemon="$(readlink -f "$daemon_bin")"
-        cp -f "$real_daemon" /var/guix/bin/guix-daemon-unconfined
-        chmod 755 /var/guix/bin/guix-daemon-unconfined
-        daemon_bin="/var/guix/bin/guix-daemon-unconfined"
+        if file "$real_daemon" 2>/dev/null | grep -qi "script"; then
+            local inner_elf
+            inner_elf="$(strings "$real_daemon" 2>/dev/null | grep -o '/gnu/store/[^"]*bin/guix-daemon' | head -n 1)"
+            if [ -n "$inner_elf" ] && [ -f "$inner_elf" ]; then
+                real_daemon="$inner_elf"
+            fi
+        fi
+        cp -f "$real_daemon" /var/guix/bin/ctb-daemon
+        chmod 755 /var/guix/bin/ctb-daemon
+        daemon_bin="/var/guix/bin/ctb-daemon"
+        if command -v aa-exec >/dev/null 2>&1; then
+            daemon_env=(aa-exec -p unconfined "${daemon_env[@]}")
+        fi
     fi
+
+    local guix_cmd
+    guix_cmd="$(type -p guix)"
+    daemon_env+=("GUIX=$guix_cmd" "GUIX_STATE_DIRECTORY=/var/guix" "GUIX_CONFIGURATION_DIRECTORY=/etc/guix" "NIX_STORE_DIR=/gnu/store")
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
     ${daemon_env[@]+"${daemon_env[@]}"} "$daemon_bin" ${disable_chroot:+"$disable_chroot"} --debug "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &

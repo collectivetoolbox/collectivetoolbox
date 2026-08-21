@@ -20,7 +20,8 @@
     (native-inputs '())
     (propagated-inputs '())
     (arguments
-     `(#:builder
+     `(#:modules ((guix build utils))
+       #:builder
        (begin
          (use-modules (guix build utils))
          (let ((out (assoc-ref %outputs "out")))

@@ -118,22 +118,22 @@ Inside container environments (like Docker containers or Kubernetes pods), these
 ### A. Decouple Layer 0 Inputs
 - Do **not** `COPY scripts/guix` before `guix pull`.
 - Only copy the minimal setup script (`build-v86-guix-image.sh`) and `src/nopersonality` before Layer 0 (`--pull`).
-- Any package patches (`scripts/guix/patches/`) and subsequent build steps (`build-v86-guix-image-step2.sh`) must be copied **after** Layer 0.
+- Any package patches (`scripts/guix/patches/`) and subsequent overlay definitions must be copied **after** Layer 0.
 
-### B. Two-Stage Script Architecture
+### B. Layer-Isolated Architecture
 ```text
 scripts/docker/Dockerfile:
   1. COPY scripts/guix/build-v86-guix-image.sh /tmp/scripts/guix/build-v86-guix-image.sh
      COPY src/nopersonality /tmp/src/nopersonality
   2. RUN --security=insecure ... build-v86-guix-image.sh --pull    <-- Layer 0 (PERMANENTLY CACHED)
-  3. COPY scripts/guix /tmp/scripts/guix                         <-- Package definitions & step 2
-  4. RUN ... build-v86-guix-image-step2.sh --smoke-test-native   <-- Layer 1
-  5. RUN ... build-v86-guix-image-step2.sh --smoke-test-cross    <-- Layer 2
-  6. RUN ... build-v86-guix-image-step2.sh --cross-dillo         <-- Layer 2b
-  7. RUN ... build-v86-guix-image-step2.sh --cross-icecat        <-- Layer 3
-  8. RUN ... build-v86-guix-image-step2.sh --prebuild-tarball    <-- Layer 4
+  3. COPY scripts/guix /tmp/scripts/guix                         <-- Package definitions & patches
+  4. RUN ... build-v86-guix-image.sh --smoke-test-native        <-- Layer 1
+  5. RUN ... build-v86-guix-image.sh --smoke-test-cross         <-- Layer 2
+  6. RUN ... build-v86-guix-image.sh --cross-dillo              <-- Layer 2b
+  7. RUN ... build-v86-guix-image.sh --cross-icecat             <-- Layer 3
+  8. RUN ... build-v86-guix-image.sh --prebuild-tarball         <-- Layer 4
 ```
-- Edits to `build-v86-guix-image-step2.sh` or `scripts/guix/patches/*.scm` will only invalidate Layer 1 onwards, keeping Layer 0 fully cached.
+- Edits to package definitions in `scripts/guix/patches/*.scm` will only invalidate Layer 1 onwards, keeping Layer 0 fully cached as long as `build-v86-guix-image.sh` is unchanged.
 
 ---
 

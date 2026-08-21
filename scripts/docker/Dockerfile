@@ -90,7 +90,7 @@ RUN set -eux; \
 COPY scripts/guix/build-v86-guix-image.sh /tmp/scripts/guix/build-v86-guix-image.sh
 COPY src/nopersonality /tmp/src/nopersonality
 
-# Layer 0: Update Guix channels withtitute support (cached independently of package patch edits)
+# Layer 0: Update Guix channels with substitute support (cached independently of package patch edits)
 RUN --security=insecure set -eux; \
     /tmp/scripts/guix/build-v86-guix-image.sh --pull
 
@@ -99,7 +99,7 @@ COPY scripts/guix /tmp/scripts/guix
 
 # Layer 1: Native i686 package build (smoke test for Guix sandboxing)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image-step2.sh --smoke-test-native || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --smoke-test-native || { \
         st=$?; \
         echo "=== [RUN layer 1 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
@@ -113,7 +113,7 @@ RUN --security=insecure set -eux; \
 
 # Layer 2: Cross-compile package x86_64→i686 (smoke test for cross-toolchain)
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image-step2.sh --smoke-test-cross || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --smoke-test-cross || { \
         st=$?; \
         echo "=== [RUN layer 2 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
@@ -124,7 +124,7 @@ RUN --security=insecure set -eux; \
 
 # Layer 2b: Cross-compile Dillo x86_64→i686
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image-step2.sh --cross-dillo || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-dillo || { \
         st=$?; \
         echo "=== [RUN layer 2b failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
@@ -135,7 +135,7 @@ RUN --security=insecure set -eux; \
 
 # Layer 3: Cross-compile GNU Icecat x86_64→i686
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image-step2.sh --cross-icecat || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --cross-icecat || { \
         st=$?; \
         echo "=== [RUN layer 3 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
@@ -146,7 +146,7 @@ RUN --security=insecure set -eux; \
 
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \
-    /tmp/scripts/guix/build-v86-guix-image-step2.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross || { \
+    /tmp/scripts/guix/build-v86-guix-image.sh --prebuild-tarball /var/guix/v86-system-image.tar.gz --disable-cross || { \
         st=$?; \
         echo "=== [RUN layer 4 failure diagnostic: exit code $st] ===" >&2; \
         if [ -f /proc/meminfo ]; then cat /proc/meminfo | head -n 15 >&2 || true; fi; \
