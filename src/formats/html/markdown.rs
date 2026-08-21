@@ -895,3 +895,94 @@ fn clean_output(s: &str) -> String {
 
     result.trim().to_string()
 }
+
+/// Convert HTML bytes to Markdown.
+pub fn html2md(html: Vec<u8>) -> Result<Vec<u8>> {
+    let md = markdown::html_to_markdown(html.as_slice())?;
+    Ok(md.into_bytes())
+}
+
+/// Convert HTML bytes to Markdown with width specification.
+pub fn html2md_with_width(html: Vec<u8>, _width: u16) -> Result<Vec<u8>> {
+    html2md(html)
+}
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+mod tests {
+    use super::*;
+
+#[crate::ctb_test]
+fn () {
+
+    #[crate::ctb_test]
+    fn test_html2md_links_and_images() -> Result<()> {
+        let html = b"<p>Check <a href=\"https://example.com/\">this link</a> and <img src=\"img.png\" alt=\"An image\" />.</p>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert_eq!(
+            md_str.trim(),
+            "Check [this link](https://example.com/) and ![An image](img.png)."
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_formatting_and_code() -> Result<()> {
+        let html = b"<p><b>Bold</b>, <i>Italic</i>, <code>inline code</code>, <del>deleted</del>.</p>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert_eq!(
+            md_str.trim(),
+            "**Bold**, *Italic*, `inline code`, ~~deleted~~."
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_headings_and_pre() -> Result<()> {
+        let html = b"<h1>Heading 1</h1><h2>Heading 2</h2><pre><code class=\"language-rust\">fn main() {\n    println!(\"Hello\");\n}</code></pre>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("# Heading 1"));
+        assert!(md_str.contains("## Heading 2"));
+        assert!(md_str.contains("```rust\nfn main() {\n    println!(\"Hello\");\n}\n```"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_table_with_alignment_and_escaping() -> Result<()> {
+        let html = b"<table>\
+            <thead>\
+                <tr><th align=\"left\">Item</th><th align=\"center\">Qty</th><th align=\"right\">Price</th></tr>\
+            </thead>\
+            <tbody>\
+                <tr><td>Widget A | Standard</td><td>10</td><td>$5.00</td></tr>\
+                <tr><td>Widget B</td><td>2</td><td>$12.50</td></tr>\
+            </tbody>\
+        </table>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("| Item | Qty | Price |"));
+        assert!(md_str.contains("| :--- | :---: | ---: |"));
+        assert!(md_str.contains("| Widget A \\| Standard | 10 | $5.00 |"));
+        assert!(md_str.contains("| Widget B | 2 | $12.50 |"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_table_without_thead() -> Result<()> {
+        let html = b"<table>\
+            <tr><td>First</td><td>Second</td></tr>\
+            <tr><td>1</td><td>2</td></tr>\
+        </table>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("| First | Second |"));
+        assert!(md_str.contains("| --- | --- |"));
+        assert!(md_str.contains("| 1 | 2 |"));
+        Ok(())
+    }
+}
+
+}
