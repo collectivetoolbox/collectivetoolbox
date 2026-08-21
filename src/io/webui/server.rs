@@ -186,6 +186,9 @@ pub fn build_app_router(state: AppState) -> Router {
         .layer(CorsLayer::permissive())
         .layer(middleware::from_fn(redirect_www_to_non_www_middleware))
         .layer(middleware::from_fn(clear_invalid_session_middleware))
+        .layer(middleware::from_fn(
+            crate::middleware::markdown_negotiation::markdown_negotiation_middleware,
+        ))
 }
 
 #[expect(

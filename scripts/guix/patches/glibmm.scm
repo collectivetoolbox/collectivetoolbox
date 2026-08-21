@@ -1,4 +1,4 @@
-;;; Patch for gtkmm to disable display tests in container environments and set --libdir=lib.
+;;; Patch for glibmm to set --libdir=lib.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,23 +13,22 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches gtkmm)
+(define-module (patches glibmm)
   #:use-module (guix packages)
   #:use-module (guix gexp)
   #:use-module (guix utils)
-  #:use-module (gnu packages gtk)
-  #:export (gtkmm-fixed-proc gtkmm-fixed))
+  #:use-module (gnu packages glib)
+  #:export (glibmm-fixed-proc glibmm-fixed))
 
-(define (gtkmm-fixed-proc pkg)
+(define (glibmm-fixed-proc pkg)
   (package
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
        ((#:configure-flags flags ''())
         #~(cons* "--libdir=lib"
                  "-Dbuild-documentation=false"
                  #$flags))))))
 
-(define gtkmm-fixed
-  (gtkmm-fixed-proc gtkmm))
+(define glibmm-fixed
+  (glibmm-fixed-proc glibmm))

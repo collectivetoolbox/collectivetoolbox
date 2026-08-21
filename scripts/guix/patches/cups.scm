@@ -1,4 +1,4 @@
-;;; Patch for cups, cups-minimal, and cups-filters to disable tests and use patched dependencies.
+;;; Patch for cups, cups-minimal, and cups-filters to disable tests and propagate patches.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -17,22 +17,7 @@
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages avahi)
-  #:use-module (gnu packages base)
-  #:use-module (gnu packages bash)
-  #:use-module (gnu packages compression)
   #:use-module (gnu packages cups)
-  #:use-module (gnu packages fonts)
-  #:use-module (gnu packages fontutils)
-  #:use-module (gnu packages ghostscript)
-  #:use-module (gnu packages glib)
-  #:use-module (gnu packages image)
-  #:use-module (gnu packages linux)
-  #:use-module (gnu packages pdf)
-  #:use-module (gnu packages photo)
-  #:use-module (gnu packages pkg-config)
-  #:use-module (gnu packages tls)
-  #:use-module (patches qpdf)
   #:export (cups-minimal-fixed-proc
             cups-minimal-fixed
             cups-fixed-proc
@@ -53,31 +38,6 @@
 (define (cups-filters-fixed-proc pkg)
   (package
     (inherit pkg)
-    (native-inputs
-     (list (list glib "bin")
-           pkg-config
-           cups-minimal-fixed))
-    (inputs
-     (list avahi
-           bash-minimal
-           coreutils
-           cups-minimal-fixed
-           dbus
-           font-dejavu
-           fontconfig
-           freetype
-           ghostscript/cups
-           glib
-           grep
-           ijs
-           lcms
-           libexif
-           libjpeg-turbo
-           libpng
-           libtiff
-           poppler
-           qpdf-fixed
-           sed))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)))))
@@ -88,18 +48,8 @@
 (define (cups-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (list avahi
-           coreutils
-           cups-filters-fixed
-           gnutls
-           linux-pam
-           zlib))
     (arguments
-     (substitute-keyword-arguments
-       (strip-keyword-arguments
-         '(#:tests?)
-         (package-arguments cups-minimal-fixed))
+     (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(append #$flags
@@ -108,39 +58,41 @@
         #~(modify-phases #$phases
             (delete 'check)
             (add-after 'install 'install-cups-filters
-              (lambda* (#:key outputs #:allow-other-keys)
+              (lambda* (#:key inputs outputs #:allow-other-keys)
                 (let ((out (assoc-ref outputs "out"))
-                      (filters #$cups-filters-fixed))
-                  ;; Filters.
-                  (mkdir-p (string-append out "/lib/cups/filter"))
-                  (for-each
-                   (lambda (f)
-                     (symlink f
-                              (string-append out "/lib/cups/filter/"
-                                             (basename f))))
-                   (find-files (string-append filters "/lib/cups/filter")))
+                      (filters (or (assoc-ref inputs "cups-filters")
+                                   #$(this-package-input "cups-filters"))))
+                  (when filters
+                    ;; Filters.
+                    (mkdir-p (string-append out "/lib/cups/filter"))
+                    (for-each
+                     (lambda (f)
+                       (symlink f
+                                (string-append out "/lib/cups/filter/"
+                                               (basename f))))
+                     (find-files (string-append filters "/lib/cups/filter")))
 
-                  ;; Backends.
-                  (mkdir-p (string-append out "/lib/cups/backend"))
-                  (for-each
-                   (lambda (f)
-                     (symlink (string-append filters f)
-                              (string-append out "/lib/cups/backend/"
-                                             (basename f))))
-                   '("/lib/cups/backend/parallel"
-                     "/lib/cups/backend/serial"))
+                    ;; Backends.
+                    (mkdir-p (string-append out "/lib/cups/backend"))
+                    (for-each
+                     (lambda (f)
+                       (symlink (string-append filters f)
+                                (string-append out "/lib/cups/backend/"
+                                               (basename f))))
+                     '("/lib/cups/backend/parallel"
+                       "/lib/cups/backend/serial"))
 
-                  ;; Banners.
-                  (let ((banners "/share/cups/banners"))
-                    (delete-file-recursively (string-append out banners))
-                    (symlink (string-append filters banners)
-                             (string-append out banners)))
+                    ;; Banners.
+                    (let ((banners "/share/cups/banners"))
+                      (delete-file-recursively (string-append out banners))
+                      (symlink (string-append filters banners)
+                               (string-append out banners)))
 
-                  ;; Assorted data.
-                  (let ((data "/share/cups/data"))
-                    (delete-file-recursively (string-append out data))
-                    (symlink (string-append filters data)
-                             (string-append out data))))))))))))
+                    ;; Assorted data.
+                    (let ((data "/share/cups/data"))
+                      (delete-file-recursively (string-append out data))
+                      (symlink (string-append filters data)
+                               (string-append out data)))))))))))))
 
 (define cups-fixed
   (cups-fixed-proc cups))

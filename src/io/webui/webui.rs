@@ -49,7 +49,13 @@ use ctb_storage::{get_asset, register_views};
 pub mod middleware {
     pub mod access_log_layer;
     pub mod compression_with_range;
+    pub mod markdown_negotiation;
 }
+
+/// Extension payload holding the original source markdown bytes for pages
+/// generated from Markdown assets.
+#[derive(Clone, Debug)]
+pub struct OriginalMarkdown(pub Vec<u8>);
 pub mod error;
 pub mod extractors;
 pub mod flexible_form;
@@ -199,6 +205,7 @@ fn _respond_markdown(
     let md = get_asset(asset_path);
 
     if let Some(md) = md {
+        let md_bytes = md.clone();
         let page = if allow_unsafe {
             // Reason for fallback: markdown parsing error on asset contents falls back to empty byte buffer
             markdown2html_unsafe(md).unwrap_or_else(|_| Vec::new())
@@ -206,11 +213,13 @@ fn _respond_markdown(
             markdown2html(md)
         };
 
-        respond_page_literal(
+        let mut resp = respond_page_literal(
             state,
             req,
             String::from_utf8_lossy(&page).as_ref(),
-        )
+        );
+        resp.extensions_mut().insert(OriginalMarkdown(md_bytes));
+        resp
     } else {
         error_404(
             state,
