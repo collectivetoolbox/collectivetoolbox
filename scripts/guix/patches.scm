@@ -65,10 +65,12 @@
   #:use-module (patches cairo)
   #:use-module (patches harfbuzz)
   #:use-module (patches wayland)
+  #:use-module (patches alsa-lib)
   #:export (apply-patches))
 
 (define package-patches
   `(("abseil-cpp" . ,abseil-cpp-fixed-proc)
+    ("alsa-lib" . ,alsa-lib-fixed-proc)
     ("cairo" . ,cairo-fixed-proc)
     ("harfbuzz" . ,harfbuzz-fixed-proc)
     ("wayland" . ,wayland-fixed-proc)

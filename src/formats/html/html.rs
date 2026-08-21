@@ -26,13 +26,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use ctb_utilities::csv_tools::CsvTable;
 use include_dir::{Dir, include_dir};
 use std::iter;
-use std::sync::Arc;
 
+pub mod entities;
 pub mod markdown;
 pub mod text_clipper;
+pub mod text_decorator;
 
 static HTML_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 

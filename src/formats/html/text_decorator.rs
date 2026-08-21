@@ -22,9 +22,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
-pub mod markdown;
-pub mod text_clipper;
-
 /// A plain-text decorator for html2text that renders links and text without
 /// Markdown-isms such as bracketed links.
 #[derive(Clone, Debug, Default)]

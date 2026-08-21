@@ -898,7 +898,7 @@ fn clean_output(s: &str) -> String {
 
 /// Convert HTML bytes to Markdown.
 pub fn html2md(html: Vec<u8>) -> Result<Vec<u8>> {
-    let md = markdown::html_to_markdown(html.as_slice())?;
+    let md = html_to_markdown(html.as_slice())?;
     Ok(md.into_bytes())
 }
 
@@ -908,12 +908,18 @@ pub fn html2md_with_width(html: Vec<u8>, _width: u16) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
-
-#[crate::ctb_test]
-fn () {
 
     #[crate::ctb_test]
     fn test_html2md_links_and_images() -> Result<()> {
@@ -983,6 +989,4 @@ fn () {
         assert!(md_str.contains("| 1 | 2 |"));
         Ok(())
     }
-}
-
 }

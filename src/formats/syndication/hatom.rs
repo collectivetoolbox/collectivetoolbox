@@ -57,7 +57,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - h-feed: <https://microformats.org/wiki/h-feed>
 //! - h-entry: <https://microformats.org/wiki/h-entry>
 
-use ctb_formats_html::{escape_quoted_attr, escape_text};
+use ctb_formats_html::entities::{escape_quoted_attr, escape_text};
 
 #[expect(
     unused_imports,

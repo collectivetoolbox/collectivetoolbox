@@ -31,7 +31,7 @@ use crate::rss::{
     RDF_NAMESPACE, RSS_09_091_MAX_ITEMS, RSS_09_MAX_SIZE, RSS_09_NAMESPACE,
     ensure_http_https_ftp_or_mailto_uri, write_text_element,
 };
-use ctb_formats_html::to_entities_netscape_1999;
+use ctb_formats_html::entities::to_entities_netscape_1999;
 use ctb_formats_utf8::{ellipsize_to_max_bytes, to_ascii_translit};
 use ctb_utilities::anyhow::ensure;
 use xml::writer::{EmitterConfig, XmlEvent};
