@@ -386,8 +386,7 @@ fi
   (package
     (inherit pkg)
     (build-system trivial-build-system)
-    (native-inputs
-     (list (list "icecat-l10n" icecat-l10n)))
+    (native-inputs '())
     (inputs
      (list (list "icecat-minimal" (icecat-minimal-fixed-proc icecat-minimal))))
     (arguments
@@ -398,7 +397,6 @@ fi
           (use-modules (guix build union)
                        (guix build utils))
           (let* ((base (assoc-ref %build-inputs "icecat-minimal"))
-                 (l10n (assoc-ref %build-inputs "icecat-l10n"))
                  (out (assoc-ref %outputs "out"))
                  (name "icecat")
                  (wrapper (string-append "lib/" name "/" name))
@@ -407,7 +405,7 @@ fi
                                         (string-append "share/applications/" name ".desktop"))
                                    (and (file-exists? (string-append base "/share/applications/mozilla.desktop"))
                                         "share/applications/mozilla.desktop"))))
-            (union-build out (list base l10n)
+            (union-build out (list base)
                          #:create-all-directories? #t)
             (when (file-exists? (string-append out "/" wrapper))
               (delete-file (string-append out "/" wrapper))
