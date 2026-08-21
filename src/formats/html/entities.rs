@@ -82,27 +82,6 @@ pub struct EntityTable {
     max_entity_len: usize,
 }
 
-fn parse_codepoint(token: &str) -> Option<char> {
-    let token = token.trim();
-    if token.is_empty() {
-        return None;
-    }
-    let code = if let Some(hex_part) =
-        token.strip_prefix('x').or_else(|| token.strip_prefix('X'))
-    {
-        u32::from_str_radix(hex_part, 16).ok()?
-    } else if token.len() == 5
-        || token.chars().any(|c| matches!(c, 'a'..='f' | 'A'..='F'))
-    {
-        u32::from_str_radix(token, 16).ok()?
-    } else if let Ok(val) = u32::from_str_radix(token, 10) {
-        val
-    } else {
-        u32::from_str_radix(token, 16).ok()?
-    };
-    char::from_u32(code)
-}
-
 fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable> {
     let mut char_to_entity = HashMap::new();
     let mut entity_to_text = HashMap::new();
@@ -132,7 +111,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
             EntitySet::Xml | EntitySet::Html4 => {
                 // Format: Col 0 = Decimal codepoint, Col 1 = name (without & or ;)
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
-                    if let Some(ch) = parse_codepoint(col0) {
+                    if let Some(ch) = utilites::string::parse_hex_char(col0) {
                         let char_str = ch.to_string();
                         let named_entity = format!("&{col1};");
                         char_to_entity
@@ -147,7 +126,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        if let Some(ch) = parse_codepoint(part) {
+                        if let Some(ch) = utilites::string::parse_hex_char(part) {
                             text.push(ch);
                         }
                     }
@@ -165,7 +144,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
                 if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        if let Some(ch) = parse_codepoint(part) {
+                        if let Some(ch) = utilites::string::parse_hex_char(part) {
                             text.push(ch);
                         }
                     }

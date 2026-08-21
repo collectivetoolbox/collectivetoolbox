@@ -64,27 +64,79 @@ pub fn remove_suffix(string: &str, suffix: &str) -> Result<String> {
     }
 }
 
-/// Parses a hexadecimal string (with optional leading 0x/0X) into a `u32`.
-pub fn parse_hex_u32(s: &str) -> Result<u32> {
+/// Strips whitespace and common hexadecimal prefixes (`0x`, `0X`, `U+`, `u+`, `#`, `x`, `X`).
+#[must_use]
+pub fn strip_hex_prefix(s: &str) -> &str {
     let trimmed = s.trim();
-    let hex_part = if let Some(stripped) = trimmed.strip_prefix("0x") {
+    if let Some(stripped) = trimmed.strip_prefix("0x") {
         stripped
     } else if let Some(stripped) = trimmed.strip_prefix("0X") {
         stripped
+    } else if let Some(stripped) = trimmed.strip_prefix("U+") {
+        stripped
+    } else if let Some(stripped) = trimmed.strip_prefix("u+") {
+        stripped
+    } else if let Some(stripped) = trimmed.strip_prefix('#') {
+        stripped
+    } else if let Some(stripped) = trimmed.strip_prefix('x') {
+        stripped
+    } else if let Some(stripped) = trimmed.strip_prefix('X') {
+        stripped
     } else {
         trimmed
-    };
+    }
+}
+
+/// Forgivingly parses a hexadecimal string into a `u64`.
+///
+/// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
+/// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
+pub fn parse_hex_u64(s: &str) -> Result<u64> {
+    let hex_part = strip_hex_prefix(s);
+    u64::from_str_radix(hex_part, 16)
+        .map_err(|e| anyhow!("Failed to parse hex '{s}': {e}"))
+}
+
+/// Forgivingly parses a hexadecimal string into a `u32`.
+///
+/// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
+/// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
+pub fn parse_hex_u32(s: &str) -> Result<u32> {
+    let hex_part = strip_hex_prefix(s);
     u32::from_str_radix(hex_part, 16)
         .map_err(|e| anyhow!("Failed to parse hex '{s}': {e}"))
 }
 
-/// Parses a hexadecimal string (with optional leading 0x/0X) into a `u8`.
+/// Forgivingly parses a hexadecimal string into a `usize`.
+///
+/// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
+/// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
+pub fn parse_hex_usize(s: &str) -> Result<usize> {
+    let val = parse_hex_u64(s)?;
+    usize::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds platform word size: {e}"))
+}
+
+/// Forgivingly parses a hexadecimal string into a `char`.
+///
+/// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
+/// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
+pub fn parse_hex_char(s: &str) -> Result<char> {
+    let val = parse_hex_u64(s)?;
+    char::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds platform char size: {e}"))
+}
+
+/// Forgivingly parses a hexadecimal string into a `u8`.
+///
+/// Trims whitespace and accepts raw hex digits as well as prefixes `0x`, `0X`,
+/// `U+`, `u+`, or `#` (e.g. `"0xFF"`, `"0x1a"`, `"#A0"`).
 pub fn parse_hex_u8(s: &str) -> Result<u8> {
     let val = parse_hex_u32(s)?;
     u8::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds byte range: {e}"))
 }
 
-/// Parses space-separated hex Unicode codepoints into a vector of characters.
+/// Forgivingly parses space-separated hex Unicode codepoints into a vector of characters.
+///
+/// Accepts hex codepoints with optional `0x`, `0X`, `U+`, or `u+` prefixes.
 pub fn parse_hex_codepoints(s: &str) -> Result<Vec<char>> {
     let mut chars = Vec::new();
     for token in s.split_whitespace() {
@@ -517,10 +569,15 @@ mod tests {
     fn test_hex_parsing() -> Result<()> {
         assert_eq!(parse_hex_u32("0x1F")?, 31);
         assert_eq!(parse_hex_u32("25a0")?, 0x25a0);
+        assert_eq!(parse_hex_u32("U+0041")?, 65);
+        assert_eq!(parse_hex_u32("u+03b4")?, 0x03b4);
+        assert_eq!(parse_hex_u32("#FF")?, 255);
         assert_eq!(parse_hex_u8("0XFF")?, 255);
+        assert_eq!(parse_hex_u64("0x100000000")?, 0x1_0000_0000);
+        assert_eq!(parse_hex_usize("0x10")?, 16);
         assert!(parse_hex_u8("0x100").is_err());
 
-        let codepoints = parse_hex_codepoints("25a0 03b4 0394")?;
+        let codepoints = parse_hex_codepoints("25a0 U+03b4 0x0394")?;
         assert_eq!(codepoints, vec!['■', 'δ', 'Δ']);
         Ok(())
     }

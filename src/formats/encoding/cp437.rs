@@ -86,19 +86,10 @@ fn try_load_mapping(
 
         for row in table.rows_iter() {
             if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
-                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
-                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
-                let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
-                    anyhow!("Failed to parse byte hex '{byte_str}': {e}")
-                })?;
-                let uni_code =
-                    u32::from_str_radix(uni_str, 16).map_err(|e| {
-                        anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
-                    })?;
+                let byte = ctb_utilities::string::parse_hex_u8(r0)?;
+                let uni_code = ctb_utilities::string::parse_hex_u32(r1)?;
                 let character = char::from_u32(uni_code).ok_or_else(|| {
-                    anyhow!("Invalid Unicode code point '{uni_str}'")
+                    anyhow!("Invalid Unicode code point '{r1}'")
                 })?;
 
                 if let Some(slot) = decode_table.get_mut(usize::from(byte)) {
@@ -122,19 +113,10 @@ fn try_load_mapping(
 
             for row in table.rows_iter() {
                 if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
-                    // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                    let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
-                    // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                    let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
-                    let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
-                        anyhow!("Failed to parse byte hex '{byte_str}': {e}")
-                    })?;
-                    let uni_code =
-                        u32::from_str_radix(uni_str, 16).map_err(|e| {
-                            anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
-                        })?;
+                    let byte = ctb_utilities::string::parse_hex_u8(r0)?;
+                    let uni_code = ctb_utilities::string::parse_hex_u32(r1)?;
                     let character = char::from_u32(uni_code).ok_or_else(|| {
-                        anyhow!("Invalid Unicode code point '{uni_str}'")
+                        anyhow!("Invalid Unicode code point '{r1}'")
                     })?;
 
                     // Variants only extend the encode_table, do not overwrite the decode_table

@@ -156,25 +156,6 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
     }
 }
 
-/// Parses a codepoint string in hex (e.g. `U+1F602`, `0x1F602`, `1F602`) or decimal.
-pub fn parse_codepoint(s: &str) -> Result<u32> {
-    let s = s.trim();
-    if let Some(stripped) = s.strip_prefix("U+").or_else(|| s.strip_prefix("u+"))
-    {
-        u32::from_str_radix(stripped, 16)
-            .context("Invalid hex in U+XXXX codepoint")
-    } else if let Some(stripped) =
-        s.strip_prefix("0x").or_else(|| s.strip_prefix("0X"))
-    {
-        u32::from_str_radix(stripped, 16)
-            .context("Invalid hex in 0xXXXX codepoint")
-    } else if let Ok(val) = u32::from_str_radix(s, 16) {
-        Ok(val)
-    } else {
-        s.parse::<u32>().context("Invalid codepoint integer")
-    }
-}
-
 /// Executes character_description CLI command logic.
 ///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
@@ -189,7 +170,7 @@ where
     let options = DescriptionOptions::from(&args);
 
     let result = if let Some(ref cp_str) = args.codepoint {
-        let cp = parse_codepoint(cp_str)?;
+        let cp = utilities::string::parse_hex_u32(cp_str)?;
         let mut out = crate::describe_codepoint_with_options(cp, options);
         out.push('\n');
         out
