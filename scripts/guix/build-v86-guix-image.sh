@@ -331,13 +331,15 @@ start_guix_daemon() {
         fi
     fi
 
-    if [ -d /homeless-shelter ]; then
-        rm -r /homeless-shelter 2>/dev/null || true
+    if is_container; then
+        if [ -d /homeless-shelter ]; then
+            rm -r /homeless-shelter 2>/dev/null || true
+        fi
+        mkdir -p /var/log/guix/drvs /var/guix 2>/dev/null || true
+        chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
+        chmod -R 1777 /var/log/guix 2>/dev/null || true
+        chmod 1775 /gnu/store /var/guix 2>/dev/null || true
     fi
-    mkdir -p /var/log/guix/drvs /var/guix 2>/dev/null || true
-    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store 2>/dev/null || true
-    chmod -R 1777 /var/log/guix 2>/dev/null || true
-    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
 
     tmp_build_dir="$(mktemp -d)"
     chmod 755 "$tmp_build_dir"
