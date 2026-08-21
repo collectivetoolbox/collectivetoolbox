@@ -64,6 +64,38 @@ pub fn remove_suffix(string: &str, suffix: &str) -> Result<String> {
     }
 }
 
+/// Parses a hexadecimal string (with optional leading 0x/0X) into a `u32`.
+pub fn parse_hex_u32(s: &str) -> Result<u32> {
+    let trimmed = s.trim();
+    let hex_part = if let Some(stripped) = trimmed.strip_prefix("0x") {
+        stripped
+    } else if let Some(stripped) = trimmed.strip_prefix("0X") {
+        stripped
+    } else {
+        trimmed
+    };
+    u32::from_str_radix(hex_part, 16)
+        .map_err(|e| anyhow!("Failed to parse hex '{s}': {e}"))
+}
+
+/// Parses a hexadecimal string (with optional leading 0x/0X) into a `u8`.
+pub fn parse_hex_u8(s: &str) -> Result<u8> {
+    let val = parse_hex_u32(s)?;
+    u8::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds byte range: {e}"))
+}
+
+/// Parses space-separated hex Unicode codepoints into a vector of characters.
+pub fn parse_hex_codepoints(s: &str) -> Result<Vec<char>> {
+    let mut chars = Vec::new();
+    for token in s.split_whitespace() {
+        let code = parse_hex_u32(token)?;
+        let ch = char::from_u32(code)
+            .ok_or_else(|| anyhow!("Invalid Unicode code point '{token}'"))?;
+        chars.push(ch);
+    }
+    Ok(chars)
+}
+
 /// Performs a compile-time (const) equality comparison between two string
 /// slices.
 #[expect(
@@ -479,6 +511,18 @@ mod tests {
         assert!(contains_ignore_ascii_case(b"hello world", b""));
         assert!(!contains_ignore_ascii_case(b"gzip, deflate", b"brotli"));
         assert!(!contains_ignore_ascii_case(b"short", b"very long needle"));
+    }
+
+    #[crate::ctb_test]
+    fn test_hex_parsing() -> Result<()> {
+        assert_eq!(parse_hex_u32("0x1F")?, 31);
+        assert_eq!(parse_hex_u32("25a0")?, 0x25a0);
+        assert_eq!(parse_hex_u8("0XFF")?, 255);
+        assert!(parse_hex_u8("0x100").is_err());
+
+        let codepoints = parse_hex_codepoints("25a0 03b4 0394")?;
+        assert_eq!(codepoints, vec!['■', 'δ', 'Δ']);
+        Ok(())
     }
 }
 

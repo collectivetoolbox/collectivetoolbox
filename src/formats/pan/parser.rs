@@ -1025,8 +1025,11 @@ fn data_section_name(
         return Ok(base_name.to_string());
     }
 
-    let _marker_text = ctb_formats_encoding::macroman::decode(&[*marker])
-        .context("Invalid MacRoman DATA section marker")?;
+    let _marker_text = ctb_formats_encoding::decode(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        &[*marker],
+    )
+    .context("Invalid MacRoman DATA section marker")?;
     Ok(base_name.to_string())
 }
 
@@ -1180,7 +1183,10 @@ fn decode_data_field_value(
 ) -> anyhow::Result<PanDataValue> {
     match field.field_type {
         PanFieldType::Text => {
-            let decoded = ctb_formats_encoding::macroman::decode(raw_bytes);
+            let decoded = ctb_formats_encoding::decode(
+                ctb_formats_encoding::CharEncoding::mac_roman(),
+                raw_bytes,
+            );
             if let Ok(decoded) = decoded {
                 return Ok(PanDataValue::Text(decoded.replace('\r', "\n")));
             }
@@ -1464,10 +1470,13 @@ fn parse_prelude_entries(
             .get(name_start..name_end)
             .context("Prelude name range is invalid")?
             .to_vec();
-        let name = ctb_formats_encoding::macroman::decode(&name_raw)
-            .with_context(|| {
-                format!("Invalid MacRoman prelude name at offset {cursor:#x}")
-            })?;
+        let name = ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            &name_raw,
+        )
+        .with_context(|| {
+            format!("Invalid MacRoman prelude name at offset {cursor:#x}")
+        })?;
 
         let mut value_cursor = name_end;
         let mut has_zero_delimiter_before_value = false;
@@ -1833,7 +1842,11 @@ fn parse_section_at_with_size(
         .get(name_start..name_end)
         .context("Section name range is invalid")?
         .to_vec();
-    let name = ctb_formats_encoding::macroman::decode(&name_raw).with_context(
+    let name = ctb_formats_encoding::decode(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        &name_raw,
+    )
+    .with_context(
         || format!("Invalid MacRoman section name at offset {offset:#x}"),
     )?;
 
@@ -1927,7 +1940,12 @@ fn section_layout_looks_valid_for_size(
     if name_bytes.is_empty() || name_bytes.contains(&0) {
         return false;
     }
-    if ctb_formats_encoding::macroman::decode(name_bytes).is_err() {
+    if ctb_formats_encoding::decode(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        name_bytes,
+    )
+    .is_err()
+    {
         return false;
     }
 
@@ -2122,8 +2140,11 @@ fn parse_names_payload(
         let name_raw = names_bytes
             .get(cursor..name_end)
             .context("NAMES entry extends beyond payload")?;
-        let name = ctb_formats_encoding::macroman::decode(name_raw)
-            .context("Invalid MacRoman string in NAMES payload")?;
+        let name = ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            name_raw,
+        )
+        .context("Invalid MacRoman string in NAMES payload")?;
         names.push(name);
         cursor = name_end;
     }
@@ -2259,8 +2280,11 @@ fn parse_using_payload(
             None
         } else {
             Some(
-                ctb_formats_encoding::macroman::decode(pattern_raw)
-                    .context("Invalid MacRoman string in USING payload")?,
+                ctb_formats_encoding::decode(
+                    ctb_formats_encoding::CharEncoding::mac_roman(),
+                    pattern_raw,
+                )
+                .context("Invalid MacRoman string in USING payload")?,
             )
         };
 

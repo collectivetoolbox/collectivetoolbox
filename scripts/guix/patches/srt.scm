@@ -1,4 +1,4 @@
-;;; Patch for pulseaudio to disable tests, doxygen, bluez5, and man when cross-compiling, and install into lib/.
+;;; Patch for srt cross-compilation with unit tests disabled.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,31 +13,24 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches pulseaudio)
+(define-module (patches srt)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages pulseaudio)
-  #:use-module (ice-9 match)
-  #:export (pulseaudio-fixed-proc pulseaudio-fixed))
+  #:use-module (gnu packages networking)
+  #:export (srt-fixed-proc srt-fixed))
 
-(define (pulseaudio-fixed-proc pkg)
+(define (srt-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (modify-inputs (package-inputs pkg)
-       (delete "webrtc-audio-processing" "avahi" "bluez")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(cons* "--libdir=lib"
-                 "-Dwebrtc-aec=disabled"
-                 "-Davahi=disabled"
-                 "-Dbluez5=disabled"
-                 "-Dtests=false"
-                 "-Ddoxygen=false"
-                 "-Dman=false"
-                 #$flags))))))
+       ((#:configure-flags flags ''())
+        #~(list (string-append "-DCMAKE_INSTALL_BINDIR=" #$output "/bin")
+                "-DCMAKE_INSTALL_INCLUDEDIR=include"
+                "-DENABLE_STATIC=OFF"
+                "-DENABLE_UNITTESTS=OFF"))))))
 
-(define pulseaudio-fixed #f)
+(define srt-fixed
+  (srt-fixed-proc srt))

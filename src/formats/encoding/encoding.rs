@@ -35,8 +35,8 @@ pub mod neo;
 pub mod unicode;
 
 pub use mapping::{
-    LowArea, NeoRegion, SingleByteEncoding, SingleByteMapping, asc, chr,
-    chr_char, decode, encode, mapping_for,
+    CharEncoding, LowArea, NeoRegion, SingleByteMapping, asc, chr, chr_char,
+    decode, encode, mapping,
 };
 
 static ENCODING_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");

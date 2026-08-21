@@ -152,8 +152,11 @@ pub fn byte_to_graphical(b: u8) -> char {
     } else if b == 127 {
         '␡'
     } else if b < 255 {
-        ctb_formats_encoding::cp437::chr_char(b)
-            .expect("CP437 mapping is defined for all u8 byte values 0..=255")
+        ctb_formats_encoding::chr_char(
+            ctb_formats_utilities::encoding::CharEncoding::cp437(),
+            b,
+        )
+        .expect("CP437 mapping is defined for all u8 byte values 0..=255")
     } else {
         '⍽'
     }

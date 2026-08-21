@@ -36,12 +36,18 @@ use crate::utilities::*;
 
 /// Converts a `MacRoman` code point into a string.
 pub fn chr(code: u8) -> String {
-    ctb_formats_encoding::macroman::chr(code)
+    ctb_formats_encoding::chr(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        code,
+    )
 }
 
 /// Returns the `MacRoman` code point for a single-character string.
 pub fn asc(s: &str) -> Option<u8> {
-    ctb_formats_encoding::macroman::asc(s)
+    ctb_formats_encoding::asc(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        s,
+    )
 }
 
 /// Formats a byte count using decimal SI units.

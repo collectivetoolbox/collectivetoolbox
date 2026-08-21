@@ -36,18 +36,16 @@ use crate::utilities::*;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::utilities::csv_tools::{self, CsvParseOptions};
-use ctb_utilities::anyhow::anyhow;
 use crate::mapping::SingleByteMapping;
-
-/// Re-export `SingleByteMapping` as `Cp437Mapping` for backward compatibility.
-pub type Cp437Mapping = SingleByteMapping;
+use crate::utilities::csv_tools::{self, CsvParseOptions};
+use ctb_formats_utilities::encoding::LowArea;
+use ctb_utilities::anyhow::anyhow;
 
 fn try_load_mapping(
     values_path: &str,
-    variants_path: &str,
+    variants_path: Option<&str>,
     is_control: bool,
-) -> Result<Cp437Mapping> {
+) -> Result<SingleByteMapping> {
     let mut decode_table = ['\0'; 256];
     let mut encode_table = HashMap::new();
 
@@ -111,35 +109,37 @@ fn try_load_mapping(
         }
     }
 
-    // 3. Load variants.tsv
-    if let Some(variants_bytes) = crate::get_encoding_data(variants_path) {
-        let table = csv_tools::parse_csv_reader(
-            &variants_bytes,
-            CsvParseOptions {
-                has_header: true,
-                delimiter: b'\t',
-            },
-        )?;
+    // 3. Load variants.tsv if requested
+    if let Some(vpath) = variants_path {
+        if let Some(variants_bytes) = crate::get_encoding_data(vpath) {
+            let table = csv_tools::parse_csv_reader(
+                &variants_bytes,
+                CsvParseOptions {
+                    has_header: true,
+                    delimiter: b'\t',
+                },
+            )?;
 
-        for row in table.rows_iter() {
-            if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
-                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
-                // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
-                let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
-                let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
-                    anyhow!("Failed to parse byte hex '{byte_str}': {e}")
-                })?;
-                let uni_code =
-                    u32::from_str_radix(uni_str, 16).map_err(|e| {
-                        anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
+            for row in table.rows_iter() {
+                if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
+                    // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
+                    let byte_str = r0.trim().strip_prefix("0x").unwrap_or(r0);
+                    // Reason for fallback: strip_prefix("0x") returns None if "0x" prefix is absent; falling back to original string allows parsing raw hex numbers.
+                    let uni_str = r1.trim().strip_prefix("0x").unwrap_or(r1);
+                    let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
+                        anyhow!("Failed to parse byte hex '{byte_str}': {e}")
                     })?;
-                let character = char::from_u32(uni_code).ok_or_else(|| {
-                    anyhow!("Invalid Unicode code point '{uni_str}'")
-                })?;
+                    let uni_code =
+                        u32::from_str_radix(uni_str, 16).map_err(|e| {
+                            anyhow!("Failed to parse Unicode hex '{uni_str}': {e}")
+                        })?;
+                    let character = char::from_u32(uni_code).ok_or_else(|| {
+                        anyhow!("Invalid Unicode code point '{uni_str}'")
+                    })?;
 
-                // Variants only extend the encode_table, do not overwrite the decode_table
-                encode_table.insert(character, byte);
+                    // Variants only extend the encode_table, do not overwrite the decode_table
+                    encode_table.insert(character, byte);
+                }
             }
         }
     }
@@ -148,59 +148,52 @@ fn try_load_mapping(
 }
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub static CP437_DINGBATS: LazyLock<Cp437Mapping> = LazyLock::new(|| {
+pub(crate) static CP437_DINGBATS: LazyLock<SingleByteMapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_dingbats/values.tsv",
-        "cp437/cp437_dingbats/variants.tsv",
+        Some("cp437/cp437_dingbats/variants.tsv"),
         false,
     )
     .expect("Failed to load CP437 dingbats mapping")
 });
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub static CP437_CONTROL: LazyLock<Cp437Mapping> = LazyLock::new(|| {
+pub(crate) static CP437_DINGBATS_BASE: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+    try_load_mapping(
+        "cp437/cp437_dingbats/values.tsv",
+        None,
+        false,
+    )
+    .expect("Failed to load CP437 dingbats base mapping")
+});
+
+#[expect(clippy::expect_used, reason = "Better to fail early here")]
+pub(crate) static CP437_CONTROL: LazyLock<SingleByteMapping> = LazyLock::new(|| {
     try_load_mapping(
         "cp437/cp437_control/values.tsv",
-        "cp437/cp437_control/variants.tsv",
+        Some("cp437/cp437_control/variants.tsv"),
         true,
     )
     .expect("Failed to load CP437 control mapping")
 });
 
-pub fn chr(code: u8) -> String {
-    CP437_DINGBATS.chr(code)
-}
+#[expect(clippy::expect_used, reason = "Better to fail early here")]
+pub(crate) static CP437_CONTROL_BASE: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+    try_load_mapping(
+        "cp437/cp437_control/values.tsv",
+        None,
+        true,
+    )
+    .expect("Failed to load CP437 control base mapping")
+});
 
-pub fn chr_char(code: u8) -> Result<char> {
-    CP437_DINGBATS.decode_byte(code)
-}
-
-pub fn asc(s: &str) -> Option<u8> {
-    CP437_DINGBATS.asc(s)
-}
-
-pub fn encode(input: &str) -> Result<Vec<u8>> {
-    CP437_DINGBATS.encode(input)
-}
-
-pub fn decode(input: &[u8]) -> Result<String> {
-    CP437_DINGBATS.decode(input)
-}
-
-pub fn chr_control(code: u8) -> String {
-    CP437_CONTROL.chr(code)
-}
-
-pub fn asc_control(s: &str) -> Option<u8> {
-    CP437_CONTROL.asc(s)
-}
-
-pub fn encode_control(input: &str) -> Result<Vec<u8>> {
-    CP437_CONTROL.encode(input)
-}
-
-pub fn decode_control(input: &[u8]) -> Result<String> {
-    CP437_CONTROL.decode(input)
+pub(crate) fn get_mapping(low_area: LowArea, include_variants: bool) -> &'static SingleByteMapping {
+    match (low_area, include_variants) {
+        (LowArea::Graphical, true) => &CP437_DINGBATS,
+        (LowArea::Graphical, false) => &CP437_DINGBATS_BASE,
+        (LowArea::Control, true) => &CP437_CONTROL,
+        (LowArea::Control, false) => &CP437_CONTROL_BASE,
+    }
 }
 
 #[cfg(test)]
@@ -216,11 +209,13 @@ pub fn decode_control(input: &[u8]) -> Result<String> {
 )]
 mod tests {
     use super::*;
+    use ctb_formats_utilities::encoding::CharEncoding;
 
     #[crate::ctb_test]
     fn test_cp437_control_decoding() -> Result<()> {
         let all_bytes = get_all_bytes()?;
-        let decoded = decode_control(&all_bytes)?;
+        let enc = CharEncoding::cp437_control();
+        let decoded = crate::decode(enc, &all_bytes)?;
 
         let expected_bytes = crate::get_encoding_data(
             "fixtures/cp437/cp437_control/all.utf8",
@@ -235,7 +230,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_cp437_dingbats_decoding() -> Result<()> {
         let all_bytes = get_all_bytes()?;
-        let decoded = decode(&all_bytes)?;
+        let enc = CharEncoding::cp437();
+        let decoded = crate::decode(enc, &all_bytes)?;
 
         let expected_bytes =
             crate::get_encoding_data("fixtures/cp437/cp437_dingbats/all.utf8")
@@ -250,6 +246,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cp437_control_variants() -> Result<()> {
+        let enc = CharEncoding::cp437_control();
         let variants_utf8_bytes = crate::get_encoding_data(
             "fixtures/cp437/cp437_control/variants.utf8",
         )
@@ -261,13 +258,14 @@ mod tests {
         )
         .ok_or_else(|| anyhow!("Missing variants.cp437 fixture for control"))?;
 
-        let encoded = encode_control(&variants_utf8)?;
+        let encoded = crate::encode(enc, &variants_utf8)?;
         assert_eq!(encoded, expected_cp437);
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_cp437_dingbats_variants() -> Result<()> {
+        let enc = CharEncoding::cp437();
         let variants_utf8_bytes = crate::get_encoding_data(
             "fixtures/cp437/cp437_dingbats/variants.utf8",
         )
@@ -281,7 +279,7 @@ mod tests {
             anyhow!("Missing variants.cp437 fixture for dingbats")
         })?;
 
-        let encoded = encode(&variants_utf8)?;
+        let encoded = crate::encode(enc, &variants_utf8)?;
         assert_eq!(encoded, expected_cp437);
         Ok(())
     }
@@ -311,30 +309,33 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_chr_asc() -> Result<()> {
+        let enc_dingbats = CharEncoding::cp437();
+        let enc_control = CharEncoding::cp437_control();
+
         for code in 0u8..=255 {
-            let character = chr(code);
-            let retrieved_code = asc(&character);
+            let character = crate::chr(enc_dingbats, code);
+            let retrieved_code = crate::asc(enc_dingbats, &character);
             assert_eq!(Some(code), retrieved_code);
         }
 
         for code in 0u8..=255 {
-            let character = chr_control(code);
-            let retrieved_code = asc_control(&character);
+            let character = crate::chr(enc_control, code);
+            let retrieved_code = crate::asc(enc_control, &character);
             assert_eq!(Some(code), retrieved_code);
         }
 
-        assert_eq!(Some(65), asc("A"));
-        assert_eq!("A", chr(65));
+        assert_eq!(Some(65), crate::asc(enc_dingbats, "A"));
+        assert_eq!("A", crate::chr(enc_dingbats, 65));
+        assert_eq!(Some(65), crate::asc(enc_control, "A"));
+        assert_eq!("A", crate::chr(enc_control, 65));
 
-        assert_eq!(Some(65), asc_control("A"));
-        assert_eq!("A", chr_control(65));
         Ok(())
     }
 }
 
 /*
-
-// From codepage_437 (https://crates.io/crates/codepage-437):
+Licensing notice for parts derived from codepage-437 (https://crates.io/crates/codepage-437):
+======
 
 The MIT License (MIT)
 
@@ -357,6 +358,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
 */

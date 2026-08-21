@@ -29,54 +29,7 @@ use crate::utilities::*;
 use std::collections::HashMap;
 use ctb_utilities::anyhow::anyhow;
 
-/// Mode for handling low character codes (0x00..=0x1F) in single-byte encodings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
-pub enum LowArea {
-    /// Graphical symbols (e.g. Neo graphical icons, CP437 dingbats).
-    #[default]
-    Graphical,
-    /// Control characters (e.g. standard C0 control codes).
-    Control,
-}
-
-/// Regional character layout for Neo encodings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
-pub enum NeoRegion {
-    /// United States layout.
-    #[default]
-    Us,
-    /// Ukrainian Macintosh layout.
-    UaMac,
-    /// Ukrainian PC layout.
-    UaPc,
-}
-
-/// Identifier for supported single-byte character encodings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SingleByteEncoding {
-    /// Code Page 437 (DOS Latin US).
-    Cp437 {
-        /// Low-area character mode (graphical dingbats vs control codes).
-        low_area: LowArea,
-    },
-    /// Neo character encoding.
-    Neo {
-        /// Regional layout variant.
-        region: NeoRegion,
-        /// Low-area character mode.
-        low_area: LowArea,
-    },
-    /// Mac OS Roman encoding.
-    MacRoman,
-}
-
-impl Default for SingleByteEncoding {
-    fn default() -> Self {
-        Self::Cp437 {
-            low_area: LowArea::Graphical,
-        }
-    }
-}
+pub use ctb_formats_utilities::encoding::{CharEncoding, LowArea, NeoRegion};
 
 /// A 256-entry bidirectional mapping between single bytes and Unicode characters.
 #[derive(Debug, Clone)]
@@ -180,46 +133,46 @@ impl SingleByteMapping {
     }
 }
 
-/// Returns the static mapping for the specified encoding.
+/// Returns the static `SingleByteMapping` for the specified `CharEncoding`.
 #[must_use]
-pub fn mapping_for(enc: SingleByteEncoding) -> &'static SingleByteMapping {
+pub fn mapping(enc: CharEncoding) -> &'static SingleByteMapping {
     match enc {
-        SingleByteEncoding::Cp437 { low_area } => match low_area {
-            LowArea::Graphical => &crate::cp437::CP437_DINGBATS,
-            LowArea::Control => &crate::cp437::CP437_CONTROL,
-        },
-        SingleByteEncoding::Neo { region, low_area } => {
+        CharEncoding::Cp437 {
+            low_area,
+            include_variants,
+        } => crate::cp437::get_mapping(low_area, include_variants),
+        CharEncoding::Neo { region, low_area } => {
             crate::neo::get_mapping(region, low_area)
         }
-        SingleByteEncoding::MacRoman => &crate::macroman::MACROMAN_MAPPING,
+        CharEncoding::MacRoman => &crate::macroman::MACROMAN_MAPPING,
     }
 }
 
-/// Encodes a Unicode string using the specified encoding.
-pub fn encode(enc: SingleByteEncoding, input: &str) -> Result<Vec<u8>> {
-    mapping_for(enc).encode(input)
+/// Encodes a Unicode string using the specified character encoding.
+pub fn encode(enc: CharEncoding, input: &str) -> Result<Vec<u8>> {
+    mapping(enc).encode(input)
 }
 
-/// Decodes a byte slice into a string using the specified encoding.
-pub fn decode(enc: SingleByteEncoding, input: &[u8]) -> Result<String> {
-    mapping_for(enc).decode(input)
+/// Decodes a byte slice into a Unicode string using the specified character encoding.
+pub fn decode(enc: CharEncoding, input: &[u8]) -> Result<String> {
+    mapping(enc).decode(input)
 }
 
 /// Returns the string representation of a character code in the specified encoding.
 #[must_use]
-pub fn chr(enc: SingleByteEncoding, code: u8) -> String {
-    mapping_for(enc).chr(code)
+pub fn chr(enc: CharEncoding, code: u8) -> String {
+    mapping(enc).chr(code)
 }
 
 /// Returns the character corresponding to a byte in the specified encoding.
-pub fn chr_char(enc: SingleByteEncoding, code: u8) -> Result<char> {
-    mapping_for(enc).decode_byte(code)
+pub fn chr_char(enc: CharEncoding, code: u8) -> Result<char> {
+    mapping(enc).decode_byte(code)
 }
 
 /// Returns the byte value for the first character of a string in the specified encoding.
 #[must_use]
-pub fn asc(enc: SingleByteEncoding, s: &str) -> Option<u8> {
-    mapping_for(enc).asc(s)
+pub fn asc(enc: CharEncoding, s: &str) -> Option<u8> {
+    mapping(enc).asc(s)
 }
 
 #[cfg(test)]
@@ -238,9 +191,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_unified_cp437_encoding() -> Result<()> {
-        let enc = SingleByteEncoding::Cp437 {
-            low_area: LowArea::Graphical,
-        };
+        let enc = CharEncoding::cp437();
         let encoded = encode(enc, "A")?;
         assert_eq!(encoded, vec![65]);
         let decoded = decode(enc, &[65])?;

@@ -1,5 +1,10 @@
 While I won't document all breaking changes until this application is stable, I'll try to note the most significant ones here.
 
+# August 20, 2026
+
+Breaking changes:
+- Reworked API of `ctb-formats-encoding`.
+
 # August 1, 2026
 
 Breaking changes:

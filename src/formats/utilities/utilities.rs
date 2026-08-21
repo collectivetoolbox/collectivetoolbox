@@ -20,6 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! File format detection, magic number lookup, and extension mapping tools.
 
 pub mod detection;
+pub mod encoding;
 pub mod extension;
 pub mod extension_data;
 pub mod format_id;

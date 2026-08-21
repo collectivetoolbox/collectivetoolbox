@@ -28,11 +28,10 @@ use crate::utilities::*;
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use ctb_utilities::anyhow::anyhow;
 use crate::mapping::SingleByteMapping;
 
 /// Pre-initialized `SingleByteMapping` for Mac OS Roman encoding.
-pub static MACROMAN_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+pub(crate) static MACROMAN_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
     let mut decode_table = ['\0'; 256];
     let mut encode_table = HashMap::new();
     for i in 0u8..=255 {
@@ -48,39 +47,6 @@ pub static MACROMAN_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
     SingleByteMapping::from_raw(decode_table, encode_table)
 });
 
-pub fn chr(code: u8) -> String {
-    let bytes = [code];
-    let (cow, _, _) = encoding_rs::MACINTOSH.decode(&bytes);
-    cow.into_owned()
-}
-
-pub fn asc(s: &str) -> Option<u8> {
-    let (cow, _, had_errors) = encoding_rs::MACINTOSH.encode(s);
-    if had_errors {
-        None
-    } else {
-        cow.first().copied()
-    }
-}
-
-pub fn encode(input: &str) -> Result<Vec<u8>> {
-    let (cow, _, had_errors) = encoding_rs::MACINTOSH.encode(input);
-    if had_errors {
-        Err(anyhow!("Encoding error: unmappable characters"))
-    } else {
-        Ok(cow.into_owned())
-    }
-}
-
-pub fn decode(input: &[u8]) -> Result<String> {
-    let (cow, _, had_errors) = encoding_rs::MACINTOSH.decode(input);
-    if had_errors {
-        Err(anyhow!("Decoding error: invalid bytes"))
-    } else {
-        Ok(cow.into_owned())
-    }
-}
-
 #[cfg(test)]
 #[expect(
     clippy::panic,
@@ -94,27 +60,30 @@ pub fn decode(input: &[u8]) -> Result<String> {
 )]
 mod tests {
     use super::*;
+    use ctb_formats_utilities::encoding::CharEncoding;
 
     #[crate::ctb_test]
     fn test_macroman_encoding() {
+        let enc = CharEncoding::mac_roman();
         let original = "Hello, World! ñ ü á";
-        let encoded = encode(original).unwrap();
-        let decoded = decode(&encoded).unwrap();
+        let encoded = crate::encode(enc, original).unwrap();
+        let decoded = crate::decode(enc, &encoded).unwrap();
         assert_eq!(original, decoded);
 
-        assert_eq!(encode("caf\u{e9}").unwrap(), vec![99, 97, 102, 142]);
+        assert_eq!(crate::encode(enc, "caf\u{e9}").unwrap(), vec![99, 97, 102, 142]);
     }
 
     #[crate::ctb_test]
     fn test_chr_asc() {
+        let enc = CharEncoding::mac_roman();
         for code in 0u8..=255 {
-            let character = chr(code);
-            let retrieved_code = asc(&character).unwrap();
+            let character = crate::chr(enc, code);
+            let retrieved_code = crate::asc(enc, &character).unwrap();
             assert_eq!(code, retrieved_code);
         }
-        assert_eq!(65, asc("A").unwrap());
-        assert_eq!("A", chr(65));
-        assert_eq!(194, asc("¬").unwrap());
-        assert_eq!("¬", chr(194));
+        assert_eq!(65, crate::asc(enc, "A").unwrap());
+        assert_eq!("A", crate::chr(enc, 65));
+        assert_eq!(194, crate::asc(enc, "¬").unwrap());
+        assert_eq!("¬", crate::chr(enc, 194));
     }
 }

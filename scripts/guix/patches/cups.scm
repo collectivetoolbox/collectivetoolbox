@@ -48,50 +48,15 @@
 (define (cups-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "cups-filters")))
     (arguments
-     (substitute-keyword-arguments (package-arguments pkg)
+     (substitute-keyword-arguments (package-arguments cups-minimal)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(append #$flags
-                  (list "--with-languages=all")))
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (delete 'check)
-            (add-after 'install 'install-cups-filters
-              (lambda* (#:key inputs outputs #:allow-other-keys)
-                (let ((out (assoc-ref outputs "out"))
-                      (filters (assoc-ref inputs "cups-filters")))
-                  (when filters
-                    ;; Filters.
-                    (mkdir-p (string-append out "/lib/cups/filter"))
-                    (for-each
-                     (lambda (f)
-                       (symlink f
-                                (string-append out "/lib/cups/filter/"
-                                               (basename f))))
-                     (find-files (string-append filters "/lib/cups/filter")))
-
-                    ;; Backends.
-                    (mkdir-p (string-append out "/lib/cups/backend"))
-                    (for-each
-                     (lambda (f)
-                       (symlink (string-append filters f)
-                                (string-append out "/lib/cups/backend/"
-                                               (basename f))))
-                     '("/lib/cups/backend/parallel"
-                       "/lib/cups/backend/serial"))
-
-                    ;; Banners.
-                    (let ((banners "/share/cups/banners"))
-                      (delete-file-recursively (string-append out banners))
-                      (symlink (string-append filters banners)
-                               (string-append out banners)))
-
-                    ;; Assorted data.
-                    (let ((data "/share/cups/data"))
-                      (delete-file-recursively (string-append out data))
-                      (symlink (string-append filters data)
-                               (string-append out data)))))))))))))
+                  (list "--with-languages=all")))))))
 
 (define cups-fixed
   (cups-fixed-proc cups))

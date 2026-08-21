@@ -2798,6 +2798,7 @@ dependencies = [
 name = "ctb-formats-encoding"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-utilities",
  "ctb-utilities",
  "encoding_rs",
  "fancy-regex",
