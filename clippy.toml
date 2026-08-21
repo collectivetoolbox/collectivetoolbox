@@ -1,4 +1,4 @@
-doc-valid-idents = ["StageL", "StageR", "UserLand", "AppleScript", "CRLite", "SQLite", "WebPKI", "DcText", "DcArray", "DcId", "DcList", "DcUtf", "DcUTF", "DcIds", "SeaBIOS", ".."]
+doc-valid-idents = ["StageL", "StageR", "UserLand", "AppleScript", "CRLite", "SQLite", "WebPKI", "DcText", "DcArray", "DcId", "DcList", "DcUtf", "DcUTF", "DcIds", "SeaBIOS", "MathML", ".."]
 allowed-wildcard-imports = [ "utilities" ]
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true

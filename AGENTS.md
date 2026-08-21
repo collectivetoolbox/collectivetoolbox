@@ -63,6 +63,7 @@
 - Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
 - If you make changes in troubleshooting that don't work, remove them later.
 - Use the newtype pattern whenever it may reduce confusion.
+- Do not add backticks around actual words/names of tools in docblocks just because Clippy complains about them (like MathML or StageL); add them to clippy.toml. Only add backticks for code, variable names, and similar.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

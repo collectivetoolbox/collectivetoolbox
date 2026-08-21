@@ -389,7 +389,7 @@ fn render_node(
 ) -> Result<()> {
     match &node.data {
         NodeData::Document => render_children(node, out, ctx)?,
-        NodeData::Doctype | NodeData::Comment(_) => {}
+        NodeData::Doctype | NodeData::Comment(()) => {}
         NodeData::Text(text) => {
             let s = text.borrow();
             if ctx.in_pre {
