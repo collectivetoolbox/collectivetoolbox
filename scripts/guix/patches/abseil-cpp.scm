@@ -23,12 +23,15 @@
 (define (abseil-cpp-fixed-proc pkg)
   (package
     (inherit pkg)
+    (native-inputs '())
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags #~'())
+       ((#:tests? _ #f) #f)
+       ((#:configure-flags _ #~'())
         #~(list "-DBUILD_SHARED_LIBS=ON"
                 "-DABSL_BUILD_TESTING=OFF"
-                "-DABSL_USE_EXTERNAL_GOOGLETEST=OFF"))))))
+                "-DABSL_USE_EXTERNAL_GOOGLETEST=OFF"
+                "-DCMAKE_EXE_LINKER_FLAGS="))))))
 
 (define abseil-cpp-fixed
   (abseil-cpp-fixed-proc abseil-cpp))

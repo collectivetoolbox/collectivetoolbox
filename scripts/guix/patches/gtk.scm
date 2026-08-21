@@ -59,15 +59,27 @@
 (define (gtk+-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "colord-minimal" "librest")))
+    (propagated-inputs
+     (modify-inputs (package-propagated-inputs pkg)
+       (delete "librsvg" "libcloudproviders-minimal")))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")
        (append wayland)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(append #$flags
-                  '("-Dlibdir=lib")))
+        #~(cons* "--libdir=lib"
+                 "-Dcolord=no"
+                 "-Dcloudproviders=false"
+                 "-Dintrospection=false"
+                 "-Dman=false"
+                 "-Dgtk_doc=false"
+                 #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (add-before 'configure 'disable-cross-introspection

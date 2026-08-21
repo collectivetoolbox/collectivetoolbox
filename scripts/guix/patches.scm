@@ -15,6 +15,7 @@
 
 (define-module (patches)
   #:use-module (guix packages)
+  #:use-module (ice-9 match)
   #:use-module (patches abseil-cpp)
   #:use-module (patches colord)
   #:use-module (patches cups)
@@ -60,12 +61,20 @@
   #:use-module (patches gsettings-desktop-schemas)
   #:use-module (patches gobject-introspection)
   #:use-module (patches pango)
+  #:use-module (patches glib)
+  #:use-module (patches cairo)
+  #:use-module (patches harfbuzz)
+  #:use-module (patches wayland)
   #:export (apply-patches))
 
 (define package-patches
   `(("abseil-cpp" . ,abseil-cpp-fixed-proc)
+    ("cairo" . ,cairo-fixed-proc)
+    ("harfbuzz" . ,harfbuzz-fixed-proc)
+    ("wayland" . ,wayland-fixed-proc)
     ("colord-minimal" . ,colord-fixed-proc)
     ("colord" . ,colord-fixed-proc)
+    ("glib" . ,glib-fixed-proc)
     ("gobject-introspection" . ,gobject-introspection-fixed-proc)
     ("gsettings-desktop-schemas" . ,gsettings-desktop-schemas-fixed-proc)
     ("cups-filters" . ,cups-filters-fixed-proc)
@@ -122,25 +131,33 @@
     ("icecat-minimal" . ,icecat-minimal-fixed-proc)
     ("icecat" . ,icecat-fixed-proc)))
 
-(define %apply-patches
-  (package-input-rewriting/spec package-patches #:replace-hidden? #t))
-
-(define (apply-patches pkg)
-  (let loop ((p (%apply-patches pkg))
-             (visited '()))
-    (if (or (not (package? p)) (member (package-name p) visited))
-        p
-        (let ((v (cons (package-name p) visited)))
-          (package/inherit p
-            (inputs
-             (map (lambda (inp)
-                    (if (and (pair? inp) (pair? (cdr inp)) (package? (cadr inp)))
-                        (cons* (car inp) (loop (%apply-patches (cadr inp)) v) (cddr inp))
-                        inp))
-                  (package-inputs p)))
-            (propagated-inputs
-             (map (lambda (inp)
-                    (if (and (pair? inp) (pair? (cdr inp)) (package? (cadr inp)))
-                        (cons* (car inp) (loop (%apply-patches (cadr inp)) v) (cddr inp))
-                        inp))
-                  (package-propagated-inputs p))))))))
+(define (apply-patches root-pkg)
+  (let ((table (make-hash-table)))
+    (define (transform pkg)
+      (if (not (package? pkg))
+          pkg
+          (or (hashq-ref table pkg)
+              (let* ((name (package-name pkg))
+                     (patch-proc (assoc-ref package-patches name))
+                     (patched (if patch-proc (patch-proc pkg) pkg))
+                     (rewritten
+                      (package
+                        (inherit patched)
+                        (inputs (map (match-lambda
+                                       ((label (? package? p) . rest)
+                                        (cons* label (transform p) rest))
+                                       (other other))
+                                     (package-inputs patched)))
+                        (propagated-inputs (map (match-lambda
+                                                  ((label (? package? p) . rest)
+                                                   (cons* label (transform p) rest))
+                                                  (other other))
+                                                (package-propagated-inputs patched)))
+                        (native-inputs (map (match-lambda
+                                              ((label (? package? p) . rest)
+                                               (cons* label (transform p) rest))
+                                              (other other))
+                                            (package-native-inputs patched))))))
+                (hashq-set! table pkg rewritten)
+                rewritten))))
+    (transform root-pkg)))

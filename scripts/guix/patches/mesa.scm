@@ -30,6 +30,7 @@
        ((#:validate-runpath? _ #t) #f)
        ((#:configure-flags flags #~'())
         #~(cons*
+           "--libdir=lib"
            "-Damd-use-llvm=false"
            "-Dllvm=enabled"
            (map (lambda (flag)

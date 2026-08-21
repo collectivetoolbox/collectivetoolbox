@@ -24,15 +24,19 @@
 (define (pulseaudio-fixed-proc pkg)
   (package
     (inherit pkg)
-
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "webrtc-audio-processing" "avahi")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(append #$flags
-                  '("-Dlibdir=lib"
-                    "-Dtests=false"
-                    "-Ddoxygen=false"
-                    "-Dman=false")))))))
+        #~(cons* "--libdir=lib"
+                 "-Decho-cancel-webrtc=disabled"
+                 "-Davahi=disabled"
+                 "-Dtests=false"
+                 "-Ddoxygen=false"
+                 "-Dman=false"
+                 #$flags))))))
 
 (define pulseaudio-fixed #f)

@@ -25,6 +25,9 @@
 (define (ibus-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "gtk" "gtk+" "python" "python-dbus" "python-pygobject" "dconf" "libdbusmenu" "libnotify")))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection")

@@ -36,10 +36,11 @@
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())
-        #~(append #$flags '("-Dlibdir=lib"
-                            "-Dintrospection=false"
-                            "-Dtests=false"
-                            "-Dvapi=false")))
+        #~(cons* "--libdir=lib"
+                 "-Dintrospection=false"
+                 "-Dtests=false"
+                 "-Dvapi=false"
+                 #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (add-before 'configure 'set-gettext-data-dirs

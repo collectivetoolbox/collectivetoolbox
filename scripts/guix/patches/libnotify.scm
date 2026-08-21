@@ -31,13 +31,12 @@
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())
-        #~(append #$flags
-                  '("-Dlibdir=lib"
-                    "-Dintrospection=disabled"
-                    "-Dgtk_doc=false"
-                    "-Dtests=false"
-                    "-Dman=false"
-                    "-Ddocbook_docs=disabled")))
+        #~(cons* "--libdir=lib"
+                 "-Dintrospection=disabled"
+                 "-Dgtk_doc=false"
+                 "-Dman=false"
+                 "-Ddocbook_docs=disabled"
+                 #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (replace 'move-doc

@@ -26,11 +26,12 @@
     (inherit pkg)
     (inputs
      (modify-inputs (package-inputs pkg)
-       (delete "rav1e")))
+       (delete "rav1e" "sdl2")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())
-        #~(delete "--enable-librav1e" #$flags))
+        #~(cons "--disable-ffplay"
+                (delete "--enable-librav1e" #$flags)))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (replace 'configure

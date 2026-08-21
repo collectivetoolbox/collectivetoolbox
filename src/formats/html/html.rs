@@ -27,11 +27,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 use ctb_utilities::csv_tools::CsvTable;
-use html2text::from_read;
 use include_dir::{Dir, include_dir};
 use std::iter;
 use std::sync::Arc;
 
+pub mod markdown;
 pub mod text_clipper;
 
 static HTML_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -40,14 +40,122 @@ pub(crate) fn get_html_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&HTML_DATA_DIR, key)
 }
 
+/// A plain-text decorator for html2text that renders links and text without
+/// Markdown-isms such as bracketed links.
+#[derive(Clone, Debug, Default)]
+pub struct PlainTextDecorator;
+
+impl PlainTextDecorator {
+    /// Create a new `PlainTextDecorator`.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl html2text::render::TextDecorator for PlainTextDecorator {
+    type Annotation = ();
+
+    fn decorate_link_start(&mut self, _url: &str) -> (String, Self::Annotation) {
+        (String::new(), ())
+    }
+
+    fn decorate_link_end(&mut self) -> String {
+        String::new()
+    }
+
+    fn decorate_em_start(&self) -> (String, Self::Annotation) {
+        (String::new(), ())
+    }
+
+    fn decorate_em_end(&self) -> String {
+        String::new()
+    }
+
+    fn decorate_strong_start(&self) -> (String, Self::Annotation) {
+        (String::new(), ())
+    }
+
+    fn decorate_strong_end(&self) -> String {
+        String::new()
+    }
+
+    fn decorate_strikeout_start(&self) -> (String, Self::Annotation) {
+        (String::new(), ())
+    }
+
+    fn decorate_strikeout_end(&self) -> String {
+        String::new()
+    }
+
+    fn decorate_code_start(&self) -> (String, Self::Annotation) {
+        (String::new(), ())
+    }
+
+    fn decorate_code_end(&self) -> String {
+        String::new()
+    }
+
+    fn decorate_preformat_first(&self) -> Self::Annotation {}
+
+    fn decorate_preformat_cont(&self) -> Self::Annotation {}
+
+    fn decorate_image(&mut self, _src: &str, title: &str) -> (String, Self::Annotation) {
+        (title.to_string(), ())
+    }
+
+    fn header_prefix(&self, level: usize) -> String {
+        let mut s = String::new();
+        for _ in 0..level {
+            s.push('#');
+        }
+        s.push(' ');
+        s
+    }
+
+    fn quote_prefix(&self) -> String {
+        "> ".to_string()
+    }
+
+    fn unordered_item_prefix(&self) -> String {
+        "* ".to_string()
+    }
+
+    fn ordered_item_prefix(&self, i: i64) -> String {
+        format!("{i}. ")
+    }
+
+    fn make_subblock_decorator(&self) -> Self {
+        self.clone()
+    }
+}
+
+/// Convert HTML bytes to plain text with default width 80.
 pub fn html2text(html: Vec<u8>) -> Result<Vec<u8>> {
     html2text_with_width(html, 80)
 }
 
+/// Convert HTML bytes to plain text wrapped to the specified width.
 pub fn html2text_with_width(html: Vec<u8>, width: u16) -> Result<Vec<u8>> {
-    let text = from_read(html.as_slice(), width.into())
-        .map_err(|e| anyhow::anyhow!("Failed to parse HTML to text: {e}"))?;
+    let width_usize = usize::from(width);
+    let text = html2text::from_read_with_decorator(
+        html.as_slice(),
+        width_usize,
+        PlainTextDecorator::new(),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to parse HTML to text: {e}"))?;
     Ok(text.into_bytes())
+}
+
+/// Convert HTML bytes to Markdown.
+pub fn html2md(html: Vec<u8>) -> Result<Vec<u8>> {
+    let md = markdown::html_to_markdown(html.as_slice())?;
+    Ok(md.into_bytes())
+}
+
+/// Convert HTML bytes to Markdown with width specification.
+pub fn html2md_with_width(html: Vec<u8>, _width: u16) -> Result<Vec<u8>> {
+    html2md(html)
 }
 
 pub fn sanitize_html(document: Vec<u8>) -> Vec<u8> {
@@ -313,6 +421,95 @@ mod tests {
     fn test_html32_decodes_numeric() -> Result<()> {
         let decoded = from_entities_html32("&#60;&#38;&#34;".to_string())?;
         assert_eq!(decoded, "<&\"".to_string());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2text_no_markdown_links() -> Result<()> {
+        let html = b"<p>Visit <a href=\"https://example.com/\">our website</a> for more details.</p>";
+        let text = html2text(html.to_vec())?;
+        let text_str = String::from_utf8(text)?;
+        assert_eq!(text_str.trim(), "Visit our website for more details.");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2text_preserves_lists_and_quotes() -> Result<()> {
+        let html = b"<ul><li>Alpha</li><li>Beta</li></ul><blockquote><p>Quote text</p></blockquote>";
+        let text = html2text(html.to_vec())?;
+        let text_str = String::from_utf8(text)?;
+        assert!(text_str.contains("* Alpha"));
+        assert!(text_str.contains("* Beta"));
+        assert!(text_str.contains("> Quote text"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_links_and_images() -> Result<()> {
+        let html = b"<p>Check <a href=\"https://example.com/\">this link</a> and <img src=\"img.png\" alt=\"An image\" />.</p>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert_eq!(
+            md_str.trim(),
+            "Check [this link](https://example.com/) and ![An image](img.png)."
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_formatting_and_code() -> Result<()> {
+        let html = b"<p><b>Bold</b>, <i>Italic</i>, <code>inline code</code>, <del>deleted</del>.</p>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert_eq!(
+            md_str.trim(),
+            "**Bold**, *Italic*, `inline code`, ~~deleted~~."
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_headings_and_pre() -> Result<()> {
+        let html = b"<h1>Heading 1</h1><h2>Heading 2</h2><pre><code class=\"language-rust\">fn main() {\n    println!(\"Hello\");\n}</code></pre>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("# Heading 1"));
+        assert!(md_str.contains("## Heading 2"));
+        assert!(md_str.contains("```rust\nfn main() {\n    println!(\"Hello\");\n}\n```"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_table_with_alignment_and_escaping() -> Result<()> {
+        let html = b"<table>\
+            <thead>\
+                <tr><th align=\"left\">Item</th><th align=\"center\">Qty</th><th align=\"right\">Price</th></tr>\
+            </thead>\
+            <tbody>\
+                <tr><td>Widget A | Standard</td><td>10</td><td>$5.00</td></tr>\
+                <tr><td>Widget B</td><td>2</td><td>$12.50</td></tr>\
+            </tbody>\
+        </table>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("| Item | Qty | Price |"));
+        assert!(md_str.contains("| :--- | :---: | ---: |"));
+        assert!(md_str.contains("| Widget A \\| Standard | 10 | $5.00 |"));
+        assert!(md_str.contains("| Widget B | 2 | $12.50 |"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_html2md_table_without_thead() -> Result<()> {
+        let html = b"<table>\
+            <tr><td>First</td><td>Second</td></tr>\
+            <tr><td>1</td><td>2</td></tr>\
+        </table>";
+        let md = html2md(html.to_vec())?;
+        let md_str = String::from_utf8(md)?;
+        assert!(md_str.contains("| First | Second |"));
+        assert!(md_str.contains("| --- | --- |"));
+        assert!(md_str.contains("| 1 | 2 |"));
         Ok(())
     }
 }
