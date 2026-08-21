@@ -482,6 +482,7 @@ cross_compile_dillo() {
 
 fetch_dillo_sources() {
     guix_run_with_retries build --sources=transitive -L "$script_dir" \
+        --system=x86_64-linux --target=i686-linux-gnu \
         -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))' || true
 }
 
@@ -495,7 +496,14 @@ cross_compile_icecat() {
 
 fetch_icecat_sources() {
     guix_run_with_retries build --sources=transitive -L "$script_dir" \
-        -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))' || true
+        --system=x86_64-linux --target=i686-linux-gnu \
+        -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal))' || true
+}
+
+fetch_system_sources() {
+    guix_run_with_retries build --sources=transitive -L "$script_dir" \
+        --system=x86_64-linux --target=i686-linux-gnu \
+        -e '((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm"))' || true
 }
 
 case "$mode" in
@@ -680,13 +688,24 @@ case "$mode" in
                 fi
             done
 
+            echo "Fetching and merging base system source closure into rootfs..."
+            system_sources="$(fetch_system_sources)"
+            for src_item in $system_sources; do
+                if [ -n "$src_item" ] && [ -e "$src_item" ]; then
+                    src_closure="$(guix gc -R "$src_item")"
+                    for item in $src_closure; do
+                        cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                    done
+                fi
+            done
+
             sys_profile="$(find "$tmp_rootfs_dir/gnu/store" -maxdepth 1 -name "*-profile" | head -n 1 || true)"
             if [ -n "$sys_profile" ] && [ -d "$sys_profile/bin" ]; then
                 ln -sf "$icecat_store_path/bin/icecat" "$sys_profile/bin/icecat"
             fi
             mkdir -p "$tmp_rootfs_dir/usr/local/bin"
             ln -sf "$icecat_store_path/bin/icecat" "$tmp_rootfs_dir/usr/local/bin/icecat"
-            echo "Successfully merged Icecat into Guix rootfs!"
+            echo "Successfully merged Icecat and source code into Guix rootfs!"
         fi
 
         # Done with all Guix operations; stop daemon before v86 packing.

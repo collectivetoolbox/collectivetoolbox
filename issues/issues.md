@@ -30,6 +30,8 @@
 
 ### Installer
 
+ALL SOURCE CODE EXCEPT ICECAT MISSING FROM GUIX IMAGE
+
 Cherry-pick 30f41d4a5
 
 Add a data matching tool. See 2026-08-20-Matching and Linking.txt

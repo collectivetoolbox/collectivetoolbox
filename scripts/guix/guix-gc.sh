@@ -15,12 +15,12 @@ WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 mkdir -p /var/guix/gcroots/ctoolbox
 
 # Register GC roots for key ctoolbox artifacts if present in /gnu/store.
-# Only protect actual directory outputs from successful builds, never
+# Only protect actual directory outputs or source tarballs/checkouts, never
 # temporary .drv, -builder scripts, lockfiles, or partial build trees.
 protect_store_item() {
     local target="$1"
     local name="$2"
-    if [ -d "${target}" ]; then
+    if [ -e "${target}" ]; then
         case "${target}" in
             *-builder|*.drv|*.lock|*.tmp|*-checkout-builder)
                 return 0
@@ -34,9 +34,7 @@ echo "Registering GC roots for essential workspace packages..."
 
 # Protect all current system profiles
 for p in /gnu/store/*-profile; do
-    if [ -d "${p}" ]; then
-        protect_store_item "${p}" "$(basename "${p}")"
-    fi
+    protect_store_item "${p}" "$(basename "${p}")"
 done
 
 # Protect final output directories for Icecat, Dillo, Mesa, and LLVM
@@ -58,6 +56,11 @@ done
 
 for l in /gnu/store/*-llvm-21*; do
     protect_store_item "${l}" "$(basename "${l}")"
+done
+
+# Protect source archives and checkouts
+for s in /gnu/store/*.tar.* /gnu/store/*.tgz /gnu/store/*-checkout; do
+    protect_store_item "${s}" "$(basename "${s}")"
 done
 
 # Clean up failed/interrupted build working directories in /tmp
