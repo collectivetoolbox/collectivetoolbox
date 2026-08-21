@@ -32,13 +32,9 @@
 
 Cherry-pick 30f41d4a5
 
-Add a Homebrew tap?
-
 Add a data matching tool. See 2026-08-20-Matching and Linking.txt
 
-Add markdown content negotiation
-
-License lint: Scheme files GPL3+; JS files LibreJS
+License lint JS files LibreJS - how to deal with vendor files?
 
 HQX
 
