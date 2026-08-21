@@ -59,6 +59,7 @@
   #:use-module (patches icecat)
   #:use-module (patches gsettings-desktop-schemas)
   #:use-module (patches gobject-introspection)
+  #:use-module (patches pango)
   #:export (apply-patches))
 
 (define package-patches
@@ -107,6 +108,7 @@
     ("ldb" . ,ldb-fixed-proc)
     ("mesa" . ,mesa-libclc-pkg-config-fixed-proc)
     ("orbit2" . ,orbit2-fixed-proc)
+    ("pango" . ,pango-fixed-proc)
     ("pulseaudio" . ,pulseaudio-fixed-proc)
     ("qpdf" . ,qpdf-fixed-proc)
     ("rest" . ,rest-fixed-proc)
