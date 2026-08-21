@@ -38,86 +38,10 @@ use std::sync::LazyLock;
 
 use crate::utilities::csv_tools::{self, CsvParseOptions};
 use ctb_utilities::anyhow::anyhow;
+use crate::mapping::SingleByteMapping;
 
-#[derive(Debug, Clone)]
-pub struct Cp437Mapping {
-    decode_table: [char; 256],
-    encode_table: HashMap<char, u8>,
-}
-
-impl Cp437Mapping {
-    pub fn decode_byte(&self, code: u8) -> Result<char> {
-        self.decode_table
-            .get(usize::from(code))
-            .copied()
-            .ok_or_else(|| anyhow!("Invalid Code Page 437 byte {code}"))
-    }
-
-    #[expect(
-        clippy::expect_used,
-        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
-    )]
-    pub fn chr(&self, code: u8) -> String {
-        self.decode_table
-            .get(usize::from(code))
-            .copied()
-            .expect("u8 fits in 256-entry decode table")
-            .to_string()
-    }
-
-    pub fn asc(&self, s: &str) -> Option<u8> {
-        let first_char = s.chars().next()?;
-        self.encode_table.get(&first_char).copied()
-    }
-
-    pub fn encode(&self, input: &str) -> Result<Vec<u8>> {
-        let mut result = Vec::with_capacity(input.len());
-        for c in input.chars() {
-            if let Some(&byte) = self.encode_table.get(&c) {
-                result.push(byte);
-            } else {
-                return Err(anyhow!(
-                    "Encoding error: unmappable character '{c}'"
-                ));
-            }
-        }
-        Ok(result)
-    }
-
-    #[expect(
-        clippy::expect_used,
-        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
-    )]
-    pub fn decode(&self, input: &[u8]) -> Result<String> {
-        let mut result = String::with_capacity(input.len());
-        for &byte in input {
-            result.push(
-                self.decode_table
-                    .get(usize::from(byte))
-                    .copied()
-                    .expect("u8 fits in 256-entry decode table"),
-            );
-        }
-        Ok(result)
-    }
-
-    #[expect(
-        clippy::expect_used,
-        reason = "u8 index is 0..=255 which always fits in 256-entry decode_table"
-    )]
-    pub fn remap(&mut self, byte: u8, character: char) {
-        let idx = usize::from(byte);
-        let old_char = self.decode_table.get(idx).copied().expect("u8 fits in 256-entry decode table");
-        if let Some(slot) = self.decode_table.get_mut(idx) {
-            *slot = character;
-        }
-
-        if self.encode_table.get(&old_char) == Some(&byte) {
-            self.encode_table.remove(&old_char);
-        }
-        self.encode_table.insert(character, byte);
-    }
-}
+/// Re-export `SingleByteMapping` as `Cp437Mapping` for backward compatibility.
+pub type Cp437Mapping = SingleByteMapping;
 
 fn try_load_mapping(
     values_path: &str,
@@ -220,10 +144,7 @@ fn try_load_mapping(
         }
     }
 
-    Ok(Cp437Mapping {
-        decode_table,
-        encode_table,
-    })
+    Ok(SingleByteMapping::from_raw(decode_table, encode_table))
 }
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]

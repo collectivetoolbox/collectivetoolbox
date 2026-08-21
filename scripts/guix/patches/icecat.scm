@@ -43,6 +43,9 @@
 (define (icecat-minimal-fixed-proc pkg)
   (package
     (inherit pkg)
+    (inputs
+     (modify-inputs (package-inputs pkg)
+       (delete "libgnome")))
     (native-inputs
      (cons* (list "rust-sysroot-for-i686-linux-gnu" (make-rust-sysroot "i686-linux-gnu"))
             (list "gcc-cross-lib" (cross-gcc "i686-linux-gnu" #:libc (cross-libc "i686-linux-gnu")) "lib")

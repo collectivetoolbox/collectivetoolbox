@@ -25,6 +25,7 @@
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:configure-flags flags ''())
         #~(list "-DENABLE_UNSTABLE_API_ABI_HEADERS=ON"
                 "-DENABLE_ZLIB=ON"
@@ -34,15 +35,23 @@
                 "-DENABLE_QT6=OFF"
                 "-DENABLE_NSS3=OFF"
                 "-DCMAKE_DISABLE_FIND_PACKAGE_NSS3=TRUE"
-                (string-append "-DPKG_CONFIG_EXECUTABLE="
-                               (or (which "i686-linux-gnu-pkg-config")
-                                   (which "pkg-config")
-                                   "pkg-config"))
                 (string-append "-DCMAKE_INSTALL_LIBDIR=" #$output "/lib")
                 (string-append "-DCMAKE_INSTALL_RPATH=" #$output "/lib")))
-       ((#:phases phases '%standard-phases)
-        #~(modify-phases #$phases
-            (delete 'set-PKG_CONFIG)))))
+       ((#:phases _ #~%standard-phases)
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'set-PKG_CONFIG
+              (lambda* (#:key target #:allow-other-keys)
+                (let ((pkg-cfg (or (which (if target
+                                              (string-append target "-pkg-config")
+                                              "pkg-config"))
+                                   (which "pkg-config"))))
+                  (setenv "PKG_CONFIG" pkg-cfg)
+                  (setenv "PKG_CONFIG_EXECUTABLE" pkg-cfg)
+                  (substitute* "CMakeLists.txt"
+                    (("project\\(poppler.*" match)
+                     (string-append match "\nset(PKG_CONFIG_EXECUTABLE \""
+                                    pkg-cfg
+                                    "\" CACHE FILEPATH \"pkg-config\" FORCE)\n"))))))))))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection")))))

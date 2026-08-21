@@ -24,10 +24,19 @@
 (define (gstreamer-fixed-proc pkg)
   (package
     (inherit pkg)
-
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
+       ((#:configure-flags flags #~'())
+        #~(cons* "--libdir=lib"
+                 "-Dintrospection=disabled"
+                 "-Ddoc=disabled"
+                 "-Dexamples=disabled"
+                 "-Dtests=disabled"
+                 #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases %standard-phases
             (add-after 'patch-shebangs 'do-not-capture-python

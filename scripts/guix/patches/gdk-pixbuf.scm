@@ -1,4 +1,4 @@
-;;; Patch for pulseaudio to disable tests, doxygen, bluez5, and man when cross-compiling, and install into lib/.
+;;; Patch for gdk-pixbuf cross-compilation disabling introspection, tests, and documentation.
 ;;; Copyright 2026 Collective Toolbox contributors
 ;;; This Scheme program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -13,31 +13,30 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (patches pulseaudio)
+(define-module (patches gdk-pixbuf)
   #:use-module (guix packages)
-  #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages pulseaudio)
-  #:use-module (ice-9 match)
-  #:export (pulseaudio-fixed-proc pulseaudio-fixed))
+  #:use-module (guix utils)
+  #:use-module (gnu packages gtk)
+  #:export (gdk-pixbuf-fixed-proc gdk-pixbuf-fixed))
 
-(define (pulseaudio-fixed-proc pkg)
+(define (gdk-pixbuf-fixed-proc pkg)
   (package
     (inherit pkg)
-    (inputs
-     (modify-inputs (package-inputs pkg)
-       (delete "webrtc-audio-processing" "avahi" "bluez")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(cons* "--libdir=lib"
-                 "-Decho-cancel-webrtc=disabled"
-                 "-Davahi=disabled"
-                 "-Dbluez5=disabled"
-                 "-Dtests=false"
-                 "-Ddoxygen=false"
-                 "-Dman=false"
-                 #$flags))))))
+       ((#:configure-flags flags ''())
+        #~(list "-Dinstalled_tests=false"
+                "-Dgtk_doc=false"
+                "-Ddocumentation=false"
+                "-Dintrospection=disabled"
+                "-Dglycin=disabled"
+                "-Dothers=enabled"
+                "--libdir=lib"))))
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))))
 
-(define pulseaudio-fixed #f)
+(define gdk-pixbuf-fixed
+  (gdk-pixbuf-fixed-proc gdk-pixbuf))

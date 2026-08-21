@@ -60,8 +60,7 @@
             (add-after 'install 'install-cups-filters
               (lambda* (#:key inputs outputs #:allow-other-keys)
                 (let ((out (assoc-ref outputs "out"))
-                      (filters (or (assoc-ref inputs "cups-filters")
-                                   #$(this-package-input "cups-filters"))))
+                      (filters (assoc-ref inputs "cups-filters")))
                   (when filters
                     ;; Filters.
                     (mkdir-p (string-append out "/lib/cups/filter"))

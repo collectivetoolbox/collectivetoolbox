@@ -25,7 +25,7 @@
     (inherit pkg)
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")))
+       (delete "gobject-introspection" "gtk-doc" "docbook-xml" "docbook-xsl")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)

@@ -26,7 +26,27 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
 use ctb_utilities::anyhow::anyhow;
+use crate::mapping::SingleByteMapping;
+
+/// Pre-initialized `SingleByteMapping` for Mac OS Roman encoding.
+pub static MACROMAN_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+    let mut decode_table = ['\0'; 256];
+    let mut encode_table = HashMap::new();
+    for i in 0u8..=255 {
+        let byte_slice = [i];
+        let (cow, _, _) = encoding_rs::MACINTOSH.decode(&byte_slice);
+        if let Some(ch) = cow.chars().next() {
+            if let Some(slot) = decode_table.get_mut(usize::from(i)) {
+                *slot = ch;
+            }
+            encode_table.entry(ch).or_insert(i);
+        }
+    }
+    SingleByteMapping::from_raw(decode_table, encode_table)
+});
 
 pub fn chr(code: u8) -> String {
     let bytes = [code];

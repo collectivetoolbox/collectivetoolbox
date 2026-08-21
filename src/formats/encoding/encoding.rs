@@ -30,7 +30,14 @@ use include_dir::{Dir, include_dir};
 
 pub mod cp437;
 pub mod macroman;
+pub mod mapping;
+pub mod neo;
 pub mod unicode;
+
+pub use mapping::{
+    LowArea, NeoRegion, SingleByteEncoding, SingleByteMapping, asc, chr,
+    chr_char, decode, encode, mapping_for,
+};
 
 static ENCODING_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
