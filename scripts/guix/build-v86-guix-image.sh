@@ -415,9 +415,9 @@ stop_guix_daemon() {
     fi
 }
 
-# Helper to run guix build/system commands with up to 3 retries for transient network/substitute failures
+# Helper to run guix build/system commands (defaults to 1 attempt; set GUIX_MAX_ATTEMPTS to retry)
 guix_run_with_retries() {
-    local max_attempts=3
+    local max_attempts="${GUIX_MAX_ATTEMPTS:-1}"
     if [ -n "$no_retries" ]; then
         max_attempts=1
     fi

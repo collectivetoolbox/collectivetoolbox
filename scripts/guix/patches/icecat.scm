@@ -388,7 +388,7 @@ fi
     (build-system trivial-build-system)
     (native-inputs '())
     (inputs
-     (list (list "icecat-minimal" (icecat-minimal-fixed-proc icecat-minimal))))
+     (list (list "icecat-minimal" icecat-minimal)))
     (arguments
      `(#:modules ((guix build union)
                   (guix build utils))
