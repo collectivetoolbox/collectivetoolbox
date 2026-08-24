@@ -171,16 +171,22 @@
                         (inputs (map (match-lambda
                                        ((label (? package? p) . rest)
                                         (cons* label (transform p) rest))
+                                       ((? package? p)
+                                        (transform p))
                                        (other other))
                                      (package-inputs patched)))
                         (propagated-inputs (map (match-lambda
                                                   ((label (? package? p) . rest)
                                                    (cons* label (transform p) rest))
+                                                  ((? package? p)
+                                                   (transform p))
                                                   (other other))
                                                 (package-propagated-inputs patched)))
                         (native-inputs (map (match-lambda
                                               ((label (? package? p) . rest)
                                                (cons* label (transform p) rest))
+                                              ((? package? p)
+                                               (transform p))
                                               (other other))
                                             (package-native-inputs patched))))))
                 (hashq-set! table pkg rewritten)
