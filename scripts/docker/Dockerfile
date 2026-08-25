@@ -131,7 +131,8 @@ RUN --security=insecure set -eux; \
         if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
         if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
         exit "$st"; \
-    }
+    }; \
+    rm -rf /tmp/guix-build-* /tmp/nix-build-* /tmp/tmp.* 2>/dev/null || true
 
 # Layer 3: Cross-compile GNU Icecat x86_64→i686
 RUN --security=insecure set -eux; \
@@ -142,7 +143,8 @@ RUN --security=insecure set -eux; \
         if [ -f /proc/vmstat ]; then grep -i oom /proc/vmstat >&2 || true; fi; \
         if [ -f /tmp/guix-daemon.log ]; then tail -n 100 /tmp/guix-daemon.log >&2 || true; fi; \
         exit "$st"; \
-    }
+    }; \
+    rm -rf /tmp/guix-build-* /tmp/nix-build-* /tmp/tmp.* 2>/dev/null || true
 
 # Layer 4: Build Guix i686 system image tarball
 RUN --security=insecure set -eux; \

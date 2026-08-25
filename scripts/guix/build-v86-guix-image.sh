@@ -424,6 +424,7 @@ stop_guix_daemon() {
         rm -rf "${tmp_build_dir?}" 2>/dev/null || true
         tmp_build_dir=""
     fi
+    rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
 }
 
 # Helper to run guix build/system commands (defaults to 1 attempt; set GUIX_MAX_ATTEMPTS to retry)
@@ -572,9 +573,14 @@ case "$mode" in
         echo "Cross-compiling Dillo from x86_64 for i686-linux-gnu..."
         dillo_store_path="$(cross_compile_dillo)"
         echo "Cross-compiled Dillo at: $dillo_store_path"
+        if [ -n "$dillo_store_path" ] && [ -e "$dillo_store_path" ]; then
+            mkdir -p /var/guix/gcroots/ctoolbox
+            ln -sf "$dillo_store_path" /var/guix/gcroots/ctoolbox/dillo
+        fi
         echo "Fetching and realizing Dillo source closure..."
         fetch_dillo_sources
         stop_guix_daemon
+        rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
         ;;
 
     cross-icecat)
@@ -582,12 +588,18 @@ case "$mode" in
         echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
         icecat_store_path="$(cross_compile_icecat)"
         echo "Cross-compiled Icecat at: $icecat_store_path"
+        if [ -n "$icecat_store_path" ] && [ -e "$icecat_store_path" ]; then
+            mkdir -p /var/guix/gcroots/ctoolbox
+            ln -sf "$icecat_store_path" /var/guix/gcroots/ctoolbox/icecat
+        fi
         echo "Fetching and realizing Icecat source closure..."
         fetch_icecat_sources
         stop_guix_daemon
+        rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
         ;;
 
     prebuild-tarball)
+        rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
         start_guix_daemon
         echo "Building Guix i686 system tarball image..."
         tarball_img="$(build_system_tarball)"
@@ -596,6 +608,7 @@ case "$mode" in
         mkdir -p "$(dirname "$prebuild_dest")"
         cp "$tarball_img" "$prebuild_dest"
         echo "Prebuilt Guix system image tarball at: $prebuild_dest"
+        rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
         ;;
 
     full)
