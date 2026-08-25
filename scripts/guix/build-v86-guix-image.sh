@@ -255,6 +255,17 @@ on_script_exit() {
             echo "=== [diagnostic] /tmp/guix-daemon.log (last 100 lines) ===" >&2
             tail -n 100 /tmp/guix-daemon.log >&2 || true
         fi
+        if [ -d /var/log/guix/drvs ]; then
+            echo "=== [diagnostic] Recent failed/modified derivation build logs ===" >&2
+            find /var/log/guix/drvs -type f -name "*.drv*" -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 5 | while read -r _ logfile; do
+                echo "=== [diagnostic] Derivation Log: $logfile ===" >&2
+                if [[ "$logfile" == *.gz ]]; then
+                    gzip -dc "$logfile" 2>/dev/null | tail -n 80 >&2 || true
+                else
+                    tail -n 80 "$logfile" 2>/dev/null >&2 || true
+                fi
+            done
+        fi
         echo "=== [diagnostic] Process snapshot ===" >&2
         ps aux 2>/dev/null | head -n 30 >&2 || true
     fi
@@ -429,16 +440,29 @@ guix_run_with_retries() {
         echo "[$(date +%T)] Starting guix command (attempt $attempt of $max_attempts): guix $*" >&2
         local start_ts
         start_ts="$(date +%s)"
+        local exit_st=0
         if guix "$@"; then
             local end_ts
             end_ts="$(date +%s)"
             echo "[$(date +%T)] guix command succeeded in $((end_ts - start_ts))s." >&2
             return 0
+        else
+            exit_st=$?
         fi
-        local exit_st=$?
         local end_ts
         end_ts="$(date +%s)"
         echo "[$(date +%T)] guix command failed with exit status $exit_st after $((end_ts - start_ts))s." >&2
+        if [ -d /var/log/guix/drvs ]; then
+            echo "=== [diagnostic] Recent Derivation Logs after command failure ===" >&2
+            find /var/log/guix/drvs -type f -name "*.drv*" -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 3 | while read -r _ logfile; do
+                echo "--- Derivation Log: $logfile ---" >&2
+                if [[ "$logfile" == *.gz ]]; then
+                    gzip -dc "$logfile" 2>/dev/null | tail -n 80 >&2 || true
+                else
+                    tail -n 80 "$logfile" 2>/dev/null >&2 || true
+                fi
+            done
+        fi
         if [ "$max_attempts" -gt 1 ]; then
             echo "Warning: guix command failed (attempt $attempt of $max_attempts)." >&2
         fi
@@ -462,7 +486,7 @@ guix_run_with_retries() {
 
 build_system_tarball() {
     local output
-    output="$(guix_run_with_retries system image --save-provenance $keep_failed --fallback -L "$script_dir" \
+    output="$(guix_run_with_retries system image -v 2 --save-provenance $keep_failed --fallback -L "$script_dir" \
         --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
     echo "$output" | grep -o '/gnu/store/[^[:space:]]*\.tar\.gz' | tail -n 1
 }

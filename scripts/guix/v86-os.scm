@@ -36,9 +36,7 @@
              (srfi srfi-1)
              (patches))
 
-(define qemu-patched (apply-patches qemu))
-
-(define os-packages
+(define raw-os-packages
   (append (list xorg-server
                 xf86-video-vesa
                 xf86-video-fbdev
@@ -47,8 +45,15 @@
                 bash
                 tmux
                 dillo
-                qemu-patched)
+                qemu)
           %base-packages))
+
+(define os-packages
+  (map (lambda (pkg)
+         (if (package? pkg)
+             (apply-patches pkg)
+             pkg))
+       raw-os-packages))
 
 (define (all-transitive-sources packages)
   "Return a list of all source origins for PACKAGES and their transitive closure."

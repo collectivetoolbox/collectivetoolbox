@@ -15,27 +15,20 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gst-plugins-good on i686-linux to disable hanging unit tests, lib64 directory, and pre-check Xvfb.
+;;; Qemu patch to disable tests during builds.
 
-(define-module (patches gst-plugins-good)
+(define-module (patches qemu)
+  #:use-module (gnu packages virtualization)
   #:use-module (guix packages)
   #:use-module (guix utils)
-  #:use-module (guix gexp)
-  #:use-module (gnu packages gstreamer)
-  #:export (gst-plugins-good-fixed-proc
-            gst-plugins-good-no-tests))
+  #:export (qemu-fixed-proc
+            qemu-fixed))
 
-(define (gst-plugins-good-fixed-proc pkg)
+(define (qemu-fixed-proc pkg)
   (package
     (inherit pkg)
     (arguments
-      (substitute-keyword-arguments (package-arguments pkg)
-        ((#:tests? _ #f) #f)
-        ((#:configure-flags flags #~'())
-         #~'("-Dlibdir=lib"))
-        ((#:phases phases)
-         #~(modify-phases #$phases
-             (delete 'pre-check)))))))
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #t) #f)))))
 
-(define gst-plugins-good-no-tests
-  (gst-plugins-good-fixed-proc gst-plugins-good))
+(define qemu-fixed (qemu-fixed-proc qemu))
