@@ -79,7 +79,9 @@
   #:use-module (patches harfbuzz)
   #:use-module (patches wayland)
   #:use-module (patches alsa-lib)
-  #:export (apply-patches))
+  #:use-module (srfi srfi-1)
+  #:export (apply-patches
+            all-transitive-sources))
 
 (define package-patches
   `(("abseil-cpp" . ,abseil-cpp-fixed-proc)
@@ -197,3 +199,13 @@
                 (hashq-set! table pkg rewritten)
                 rewritten))))
     (transform root-pkg)))
+
+(define (all-transitive-sources packages)
+  "Return a list of all source origins for PACKAGES and their transitive closure,
+including all bootstrap toolchain origins."
+  (let* ((closure (package-closure (filter package? packages)))
+         (sources (filter-map package-source closure)))
+    (delete-duplicates
+     (filter origin? sources)
+     (lambda (a b)
+       (equal? (origin-uri a) (origin-uri b))))))

@@ -505,9 +505,8 @@ cross_compile_dillo() {
 }
 
 fetch_dillo_sources() {
-    guix_run_with_retries build --sources=transitive -L "$script_dir" \
-        --system=x86_64-linux --target=i686-linux-gnu \
-        -e '((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))' || true
+    guix_run_with_retries build -L "$script_dir" \
+        -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))))' || true
 }
 
 cross_compile_icecat() {
@@ -519,15 +518,13 @@ cross_compile_icecat() {
 }
 
 fetch_icecat_sources() {
-    guix_run_with_retries build --sources=transitive -L "$script_dir" \
-        --system=x86_64-linux --target=i686-linux-gnu \
-        -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal))' || true
+    guix_run_with_retries build -L "$script_dir" \
+        -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal)) ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))))' || true
 }
 
 fetch_system_sources() {
-    guix_run_with_retries build --sources=transitive -L "$script_dir" \
-        --system=x86_64-linux --target=i686-linux-gnu \
-        -e '((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm"))' || true
+    guix_run_with_retries build -L "$script_dir" \
+        -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))' || true
 }
 
 case "$mode" in

@@ -55,15 +55,6 @@
              pkg))
        raw-os-packages))
 
-(define (all-transitive-sources packages)
-  "Return a list of all source origins for PACKAGES and their transitive closure."
-  (let* ((closure (package-closure (filter package? packages)))
-         (sources (filter-map package-source closure)))
-    (delete-duplicates
-     (filter origin? sources)
-     (lambda (a b)
-       (equal? (origin-uri a) (origin-uri b))))))
-
 (define (system-sources-service packages)
   "Create an etc-service entry exposing all source tarballs under /etc/sources,
 ensuring all source origins are fetched and retained in the system store closure."
