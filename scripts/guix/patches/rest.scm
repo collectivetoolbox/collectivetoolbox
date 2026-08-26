@@ -28,13 +28,14 @@
     (inherit pkg)
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")))
+       (delete "gobject-introspection" "gi-docgen")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags ''())
-        `(cons* "--enable-introspection=no"
-                "--disable-introspection"
+        `(cons* "-Dintrospection=false"
+                "-Ddocs=false"
+                "-Dexamples=false"
                 ,flags))))))
 
 (define rest-fixed
-  (rest-fixed-proc rest))
+  (rest-fixed-proc librest))
