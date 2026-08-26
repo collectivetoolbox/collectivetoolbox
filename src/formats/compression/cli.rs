@@ -36,7 +36,7 @@ pub struct CliCompressArgs {
     /// Input file path (or - for stdin)
     #[arg(default_value = "-")]
     pub file: PathBuf,
-    /// Output file path or - for stdout
+    /// Output file path or - for stdout. Defaults to stdout when input is stdin, or appends the format extension (`<file>.<ext>`) for file input.
     #[arg(
         short = 'o',
         long = "output",
@@ -75,7 +75,9 @@ pub struct CliDecompressArgs {
     pub format: Option<String>,
     /// Path to input file or "-" for stdin.
     pub input_path: PathBuf,
-    /// Optional output file path or "-" for stdout.
+    /// Optional output file path or "-" for stdout. Defaults to stdout when
+    /// input is stdin, or strips the compression extension (or appends
+    /// `.decompressed` if none recognized) when decompressing a file.
     pub output_path: Option<PathBuf>,
     /// Force overwrite existing destination file without confirmation.
     pub force: bool,

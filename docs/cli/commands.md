@@ -205,7 +205,7 @@ Arguments:
   [FILE]    Input file path (or - for stdin) [default: -]
 
 Options:
-  -o, --output <OUTPUT>  Output file path or - for stdout
+  -o, --output <OUTPUT>  Output file path or - for stdout. Defaults to stdout when input is stdin, or appends the format extension (`<file>.<ext>`) for file input
       --force            Force overwrite existing destination file without confirmation
       --verify           Verify compressed output by decompressing it
       --no-verify        Skip verification of compressed output
@@ -410,8 +410,8 @@ Arguments:
   [FILE]    Input file path (or - for stdin) [default: -]
 
 Options:
-  -o, --output <OUTPUT>  Output file path or - for stdout
-      --force            Force overwrite without prompting
+  -o, --output <OUTPUT>  Output file path or - for stdout. Defaults to stdout when input is stdin, or strips the compression extension (or appends `.decompressed` if none recognized) when decompressing a file
+      --force            Force overwrite of existing destination file without confirmation
   -h, --help             Print help
 
 Supported compression formats:

@@ -450,7 +450,7 @@ pub enum Command {
         /// Input file path (or - for stdin)
         #[arg(default_value = "-")]
         file: PathBuf,
-        /// Output file path or - for stdout
+        /// Output file path or - for stdout. Defaults to stdout when input is stdin, or strips the compression extension (or appends `.decompressed` if none recognized) when decompressing a file.
         #[arg(
             short = 'o',
             long = "output",
@@ -458,7 +458,7 @@ pub enum Command {
             value_name = "OUTPUT"
         )]
         output: Option<PathBuf>,
-        /// Force overwrite without prompting
+        /// Force overwrite of existing destination file without confirmation
         #[arg(long = "force")]
         force: bool,
     },

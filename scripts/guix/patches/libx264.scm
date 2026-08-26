@@ -34,7 +34,9 @@
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())
-        #~(append #$flags '("--cross-prefix=i686-linux-gnu-")))))))
+        (if (%current-target-system)
+            #~(append #$flags (list (string-append "--cross-prefix=" #$(%current-target-system) "-")))
+            flags))))))
 
 (define libx264-fixed
   (libx264-fixed-proc libx264))
