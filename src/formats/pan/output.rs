@@ -41,6 +41,7 @@ use crate::parser;
 pub enum PanCsvEncoding {
     #[default]
     Utf8,
+    Utf8Windows,
     MacRoman,
     Windows,
 }
@@ -171,7 +172,7 @@ fn csv_field_bytes(
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
-            if options.encoding == PanCsvEncoding::Windows {
+            if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
                 let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
                     || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
                 let mut mapped = Vec::with_capacity(field.raw_bytes.len());
@@ -189,7 +190,15 @@ fn csv_field_bytes(
                         mapped.truncate(pos);
                     }
                 }
-                Ok(mapped)
+                if options.encoding == PanCsvEncoding::Utf8Windows {
+                    let text = ctb_formats_encoding::decode(
+                        ctb_formats_encoding::CharEncoding::windows_1252(),
+                        &mapped,
+                    )?;
+                    Ok(text.into_bytes())
+                } else {
+                    Ok(mapped)
+                }
             } else if options.encoding == PanCsvEncoding::MacRoman {
                 let mut raw = field.raw_bytes.clone();
                 if options.output_patterns {
@@ -240,8 +249,16 @@ fn csv_field_bytes(
             } else if options.output_patterns {
                 if let Some(formatted) = field.formatted_value.as_ref() {
                     Ok(formatted.as_bytes().to_vec())
+                } else if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
+                    if let Ok(formatted) = crate::date::datepattern(*raw_serial, "MM/DD/YYYY") {
+                        Ok(formatted.into_bytes())
+                    } else if let Some(mdy) = pan_date_mdy.as_deref() {
+                        Ok(mdy.as_bytes().to_vec())
+                    } else {
+                        Ok(Vec::new())
+                    }
                 } else if let Ok(formatted) =
-                    crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
+                    crate::date::datepattern(*raw_serial, "MM/DD/yy")
                 {
                     Ok(formatted.into_bytes())
                 } else if let Some(mdy) = pan_date_mdy.as_deref() {
@@ -249,8 +266,16 @@ fn csv_field_bytes(
                 } else {
                     Ok(Vec::new())
                 }
+            } else if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
+                if let Ok(formatted) = crate::date::datepattern(*raw_serial, "MM/DD/YYYY") {
+                    Ok(formatted.into_bytes())
+                } else if let Some(mdy) = pan_date_mdy.as_deref() {
+                    Ok(mdy.as_bytes().to_vec())
+                } else {
+                    Ok(Vec::new())
+                }
             } else if let Ok(formatted) =
-                crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
+                crate::date::datepattern(*raw_serial, "MM/DD/yy")
             {
                 Ok(formatted.into_bytes())
             } else if let Some(mdy) = pan_date_mdy.as_deref() {
@@ -438,8 +463,8 @@ mod tests {
         let with_header_str = String::from_utf8(with_header)?;
         let no_header_str = String::from_utf8(no_header)?;
 
-        ensure!(with_header_str.starts_with("Make,Model,Year,Color,Price"));
-        ensure!(!no_header_str.starts_with("Make,Model,Year,Color,Price"));
+        ensure!(with_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
+        ensure!(!no_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
 
         Ok(())
     }

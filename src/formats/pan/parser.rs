@@ -1320,7 +1320,10 @@ fn decode_data_field_value(
     field: &PanSchemaField,
     raw_bytes: &[u8],
 ) -> anyhow::Result<PanDataValue> {
-    if raw_bytes == [100, 174, 218] {
+    let is_date_field = field.field_type == PanFieldType::Date
+        || field.name.to_ascii_lowercase().contains("date");
+
+    if is_date_field && raw_bytes == [100, 174, 218] {
         return Ok(PanDataValue::Date {
             raw_serial: 0,
             pan_date_mdy: None,
@@ -1329,18 +1332,13 @@ fn decode_data_field_value(
 
     match field.field_type {
         PanFieldType::Text => {
-            if raw_bytes.len() == 2 {
-                if let (Some(&b0), Some(&b1)) = (raw_bytes.first(), raw_bytes.get(1)) {
-                    let is_alphanumeric = b0.is_ascii_alphanumeric() && b1.is_ascii_alphanumeric();
-                    if !is_alphanumeric {
-                        if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
-                            if serial > 2_400_000 && serial < 2_600_000 {
-                                return Ok(PanDataValue::Date {
-                                    raw_serial: serial,
-                                    pan_date_mdy,
-                                });
-                            }
-                        }
+            if is_date_field && raw_bytes.len() == 2 {
+                if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
+                    if serial > 2_400_000 && serial < 2_600_000 {
+                        return Ok(PanDataValue::Date {
+                            raw_serial: serial,
+                            pan_date_mdy,
+                        });
                     }
                 }
             }
@@ -1401,7 +1399,7 @@ fn decode_data_field_value(
                 return Ok(PanDataValue::Float("0".to_string()));
             }
             if raw_bytes.len() != 8 {
-                return Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
+                return Ok(PanDataValue::Unknown(hex_string(raw_bytes)));
             }
             let raw_float: [u8; 8] = <[u8; 8]>::try_from(raw_bytes)
                 .context("Failed to read f64 bytes from DATA record")?;
@@ -1454,6 +1452,11 @@ fn format_data_field_value(
         PanDataValue::Fixed(fixed) => {
             let number = fixed.parse::<f64>().with_context(|| {
                 format!(
+                    "Could not parse fixed '{fixed}' as f64 for field '{field_name}'",
+                    field_name = field.name
+                )
+            })?;
+            let formatted = crate::string::pattern::pattern(number, pattern)
                 .with_context(|| {
                     format!(
                         "Could not format fixed field '{}' with pattern '{}'",
@@ -1465,8 +1468,8 @@ fn format_data_field_value(
         PanDataValue::Float(float_value) => {
             let number = float_value.parse::<f64>().with_context(|| {
                 format!(
-                    "Could not parse float '{}' as f64 for field '{}'",
-                    float_value, field.name
+                    "Could not parse float '{float_value}' as f64 for field '{field_name}'",
+                    field_name = field.name
                 )
             })?;
             let formatted = crate::string::pattern::pattern(number, pattern)
@@ -1479,6 +1482,9 @@ fn format_data_field_value(
             Ok(Some(formatted))
         }
         PanDataValue::Date { raw_serial, .. } => {
+            if *raw_serial == 0 {
+                return Ok(Some(String::new()));
+            }
             let formatted = crate::date::datepattern(*raw_serial, pattern)
                 .with_context(|| {
                     format!(
@@ -1508,12 +1514,12 @@ fn decode_pan_date_field(
         let jdn = epoch
             .checked_add(day_offset)
             .context("PAN date offset overflow")?;
-        let pan_date_mdy = crate::date::datepattern(jdn, "MM/DD/YYYY").ok();
+        let pan_date_mdy = crate::date::datestr(jdn).ok();
         return Ok((jdn, pan_date_mdy));
     }
 
     let serial = decode_i64_from_le_varint(raw_bytes)?;
-    let pan_date_mdy = crate::date::datepattern(serial, "MM/DD/YYYY").ok();
+    let pan_date_mdy = crate::date::datestr(serial).ok();
     Ok((serial, pan_date_mdy))
 }
 

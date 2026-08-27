@@ -884,13 +884,18 @@ Options:
 ```text
 Convert a .pan file to CSV output
 
-Usage: ctoolbox pan2csv <PAN_FILE>
+Usage: ctoolbox pan2csv [OPTIONS] <PAN_FILE>
 
 Arguments:
   <PAN_FILE>  Input PAN file path
 
 Options:
-  -h, --help  Print help
+  -p, --patterns             Format data using Panorama output patterns (also strips subsequent lines of text fields)
+      --header <HEADER>      Include CSV header row with field names (default: true) [default: true] [possible values: true, false]
+      --no-header            Do not include CSV header row (alias for --header=false)
+      --encoding <ENCODING>  Output character encoding (utf8, mac, windows) [default: utf8]
+      --crlf                 Line terminator: crlf (\r\n) or lf (\n)
+  -h, --help                 Print help
 ```
 
 ### `ctoolbox pan2parsejson`

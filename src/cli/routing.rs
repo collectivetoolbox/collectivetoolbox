@@ -971,6 +971,9 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
+                "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Utf8Windows
+                }
                 _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
             };
             let opts = ctb_formats_pan::output::PanCsvOptions {
