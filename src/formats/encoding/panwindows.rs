@@ -17,34 +17,35 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Character encoding and decoding definitions.
+//! Panorama Windows (CP1252 ANSI) character encoding and decoding utilities.
 
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{Dir, include_dir};
+use std::collections::HashMap;
+use std::sync::LazyLock;
+use crate::mapping::SingleByteMapping;
 
-pub mod cp437;
-pub mod macroman;
-pub mod mapping;
-pub mod neo;
-pub mod panwindows;
-pub mod unicode;
-
-pub use mapping::{
-    CharEncoding, LowArea, NeoRegion, SingleByteMapping, asc, chr, chr_char,
-    decode, encode, mapping,
-};
-
-static ENCODING_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-pub(crate) fn get_encoding_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&ENCODING_DATA_DIR, key)
-}
+/// Pre-initialized `SingleByteMapping` for Panorama Windows encoding.
+pub(crate) static PANWINDOWS_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+    let mut decode_table = ['\0'; 256];
+    let mut encode_table = HashMap::new();
+    for i in 0u8..=255 {
+        let byte_slice = [i];
+        let (cow, _, _) = encoding_rs::WINDOWS_1252.decode(&byte_slice);
+        if let Some(ch) = cow.chars().next() {
+            if let Some(slot) = decode_table.get_mut(usize::from(i)) {
+                *slot = ch;
+            }
+            encode_table.entry(ch).or_insert(i);
+        }
+    }
+    SingleByteMapping::from_raw(decode_table, encode_table)
+});
 
 #[cfg(test)]
 #[expect(
@@ -59,11 +60,14 @@ pub(crate) fn get_encoding_data(key: &str) -> Option<Vec<u8>> {
 )]
 mod tests {
     use super::*;
+    use ctb_formats_utilities::encoding::CharEncoding;
 
     #[crate::ctb_test]
-    fn test_placeholder() {
-        // unless there's a placeholder, the use super::*; will be deleted by
-        // formatting
-        assert!(true);
+    fn test_panwindows_encoding() {
+        let enc = CharEncoding::pan_windows();
+        let original = "Hello, World! ñ ü á";
+        let encoded = crate::encode(enc, original).unwrap();
+        let decoded = crate::decode(enc, &encoded).unwrap();
+        assert_eq!(original, decoded);
     }
 }

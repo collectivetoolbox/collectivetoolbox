@@ -340,6 +340,21 @@ pub enum Command {
     /// Convert a .pan file to CSV output
     #[command(name = "pan2csv")]
     Pan2Csv {
+        /// Format data using Panorama output patterns (also strips subsequent lines of text fields)
+        #[arg(long, short = 'p')]
+        patterns: bool,
+        /// Include CSV header row with field names (default: true)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        header: bool,
+        /// Do not include CSV header row (alias for --header=false)
+        #[arg(long = "no-header")]
+        no_header: bool,
+        /// Output character encoding (utf8, mac, windows)
+        #[arg(long, default_value = "utf8")]
+        encoding: String,
+        /// Line terminator: crlf (\r\n) or lf (\n)
+        #[arg(long)]
+        crlf: bool,
         /// Input PAN file path
         pan_file: PathBuf,
     },
@@ -939,10 +954,33 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 ))
             }
         },
-        Command::Pan2Csv { pan_file } => {
+        Command::Pan2Csv {
+            patterns,
+            header,
+            no_header,
+            encoding,
+            crlf,
+            pan_file,
+        } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
+            let include_header = if *no_header { false } else { *header };
+            let enc = match encoding.to_ascii_lowercase().as_str() {
+                "mac" | "macroman" | "mac-roman" | "macintosh" => {
+                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
+                }
+                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
+            };
+            let opts = ctb_formats_pan::output::PanCsvOptions {
+                output_patterns: *patterns,
+                include_header,
+                encoding: enc,
+                crlf: *crlf || enc == ctb_formats_pan::output::PanCsvEncoding::Windows,
+            };
             let output =
-                ctb_formats_pan::output::pan_to_csv(&data, false)?.into_bytes();
+                ctb_formats_pan::output::pan_to_csv_with_options(&data, &opts)?;
             Ok(ToolResult::immediate_ok(output))
         }
         Command::StagelBootstrapParse { input_file } => {

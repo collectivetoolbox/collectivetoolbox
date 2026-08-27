@@ -67,6 +67,8 @@ pub enum CharEncoding {
     },
     /// Mac OS Roman character encoding.
     MacRoman,
+    /// Windows ANSI (CP1252 / Panorama Windows) encoding.
+    PanWindows,
 }
 
 impl CharEncoding {
@@ -107,6 +109,12 @@ impl CharEncoding {
     #[must_use]
     pub const fn mac_roman() -> Self {
         Self::MacRoman
+    }
+
+    /// Windows ANSI (CP1252 / Panorama Windows) encoding.
+    #[must_use]
+    pub const fn pan_windows() -> Self {
+        Self::PanWindows
     }
 }
 

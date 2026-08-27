@@ -145,6 +145,7 @@ pub fn mapping(enc: CharEncoding) -> &'static SingleByteMapping {
             crate::neo::get_mapping(region, low_area)
         }
         CharEncoding::MacRoman => &crate::macroman::MACROMAN_MAPPING,
+        CharEncoding::PanWindows => &crate::panwindows::PANWINDOWS_MAPPING,
     }
 }
 

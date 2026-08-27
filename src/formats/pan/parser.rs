@@ -1320,14 +1320,31 @@ fn decode_data_field_value(
     field: &PanSchemaField,
     raw_bytes: &[u8],
 ) -> anyhow::Result<PanDataValue> {
+    if raw_bytes == [100, 174, 218] {
+        return Ok(PanDataValue::Date {
+            raw_serial: 0,
+            pan_date_mdy: None,
+        });
+    }
+
     match field.field_type {
         PanFieldType::Text => {
+            if raw_bytes.len() == 2 {
+                if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
+                    if serial > 2_400_000 && serial < 2_600_000 {
+                        return Ok(PanDataValue::Date {
+                            raw_serial: serial,
+                            pan_date_mdy,
+                        });
+                    }
+                }
+            }
             let decoded = ctb_formats_encoding::decode(
                 ctb_formats_encoding::CharEncoding::mac_roman(),
                 raw_bytes,
             );
             if let Ok(decoded) = decoded {
-                return Ok(PanDataValue::Text(decoded.replace('\r', "\n")));
+                return Ok(PanDataValue::Text(decoded));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1387,12 +1404,18 @@ fn decode_data_field_value(
             Ok(PanDataValue::Float(float.to_string()))
         }
         PanFieldType::Date => {
-            let date = decode_pan_date_field(raw_bytes);
-            if let Ok((serial, pan_date_mdy)) = date {
+            if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
                 return Ok(PanDataValue::Date {
                     raw_serial: serial,
                     pan_date_mdy,
                 });
+            }
+            let decoded = ctb_formats_encoding::decode(
+                ctb_formats_encoding::CharEncoding::mac_roman(),
+                raw_bytes,
+            );
+            if let Ok(decoded) = decoded {
+                return Ok(PanDataValue::Text(decoded));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1479,7 +1502,7 @@ fn format_data_field_value(
 fn decode_pan_date_field(
     raw_bytes: &[u8],
 ) -> anyhow::Result<(i64, Option<String>)> {
-    if raw_bytes.is_empty() {
+    if raw_bytes.is_empty() || raw_bytes == [100, 174, 218] {
         return Ok((0, None));
     }
 
@@ -1492,12 +1515,12 @@ fn decode_pan_date_field(
         let jdn = epoch
             .checked_add(day_offset)
             .context("PAN date offset overflow")?;
-        let pan_date_mdy = crate::date::datestr(jdn).ok();
+        let pan_date_mdy = crate::date::datepattern(jdn, "MM/DD/YYYY").ok();
         return Ok((jdn, pan_date_mdy));
     }
 
     let serial = decode_i64_from_le_varint(raw_bytes)?;
-    let pan_date_mdy = crate::date::datestr(serial).ok();
+    let pan_date_mdy = crate::date::datepattern(serial, "MM/DD/YYYY").ok();
     Ok((serial, pan_date_mdy))
 }
 

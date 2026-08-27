@@ -32,50 +32,96 @@ SOFTWARE.
 )]
 use crate::utilities::*;
 
-use csv::WriterBuilder;
 use std::fs;
 use std::path::Path;
 
 use crate::parser;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PanCsvEncoding {
+    #[default]
+    Utf8,
+    MacRoman,
+    Windows,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanCsvOptions {
+    pub output_patterns: bool,
+    pub include_header: bool,
+    pub encoding: PanCsvEncoding,
+    pub crlf: bool,
+}
+
+impl Default for PanCsvOptions {
+    fn default() -> Self {
+        Self {
+            output_patterns: false,
+            include_header: true,
+            encoding: PanCsvEncoding::Utf8,
+            crlf: false,
+        }
+    }
+}
+
 pub fn pan_to_csv(
     pan_file: &[u8],
     output_patterns: bool,
 ) -> anyhow::Result<String> {
+    let options = PanCsvOptions {
+        output_patterns,
+        include_header: true,
+        encoding: PanCsvEncoding::Utf8,
+        crlf: false,
+    };
+    let bytes = pan_to_csv_with_options(pan_file, &options)?;
+    String::from_utf8(bytes).context("CSV output is not valid UTF-8")
+}
+
+pub fn pan_to_csv_with_options(
+    pan_file: &[u8],
+    options: &PanCsvOptions,
+) -> anyhow::Result<Vec<u8>> {
     let pan = parser::parse_pan(pan_file)?;
     let Some(schema) = pan.schema.as_ref() else {
         warn!("PAN file does not contain schema/data records");
-        return Ok(String::new());
+        return Ok(Vec::new());
     };
     if schema.fields.is_empty() {
         warn!("PAN file does not contain schema fields");
-        return Ok(String::new());
+        return Ok(Vec::new());
     }
     let Some(data) = pan.data.as_ref() else {
         warn!("PAN file does not contain data section records");
-        return Ok(String::new());
+        return Ok(Vec::new());
     };
     for warning in &data.parse_warnings {
         warn_fmt!("PAN parse warning: {warning}");
     }
 
-    let header = schema
-        .fields
-        .iter()
-        .map(|field| field.name.clone())
-        .collect::<Vec<_>>();
+    let header = if options.include_header {
+        Some(
+            schema
+                .fields
+                .iter()
+                .map(|field| field.name.clone())
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        None
+    };
 
     let mut rows = Vec::with_capacity(data.records.len());
-    for record in &data.records {
+    for (row_idx, record) in data.records.iter().enumerate() {
         let mut row = Vec::with_capacity(record.fields.len());
         for field in &record.fields {
-            let value = csv_field_value(field, output_patterns)?;
+            let value = csv_field_bytes(field, options, row_idx + 1)?;
             row.push(value);
         }
         rows.push(row);
     }
 
-    write_csv_string(&header, &rows)
+    Ok(write_csv_bytes(header.as_deref(), &rows, options.crlf, options.encoding))
 }
 
 /// Convert a PAN file to JSON string. Mainly for testing and debugging
@@ -97,7 +143,13 @@ pub fn pan_file_to_csv_stdout(
             pan_file_display = pan_file.display()
         )
     })?;
-    Ok(pan_to_csv(&pan_data, output_patterns)?.into_bytes())
+    let options = PanCsvOptions {
+        output_patterns,
+        include_header: true,
+        encoding: PanCsvEncoding::Utf8,
+        crlf: false,
+    };
+    pan_to_csv_with_options(&pan_data, &options)
 }
 
 pub fn pan_file_to_parse_json_stdout(
@@ -112,65 +164,159 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(pan_to_parse_json(&pan_data)?.into_bytes())
 }
 
-fn csv_field_value(
+fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
-    output_patterns: bool,
-) -> anyhow::Result<String> {
-    if output_patterns {
-        if let Some(formatted) = field.formatted_value.as_ref() {
-            return Ok(formatted.clone());
-        }
-    }
-
+    options: &PanCsvOptions,
+    row_num: usize,
+) -> anyhow::Result<Vec<u8>> {
     match &field.value {
-        parser::PanDataValue::Text(text) => Ok(text.clone()),
-        parser::PanDataValue::Integer(integer) => Ok(integer.clone()),
-        parser::PanDataValue::Fixed(fixed) => Ok(fixed.clone()),
-        parser::PanDataValue::Float(float_value) => Ok(float_value.clone()),
+        parser::PanDataValue::Text(text) => {
+            if options.encoding == PanCsvEncoding::Windows {
+                let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
+                    || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
+                let mut mapped = Vec::with_capacity(field.raw_bytes.len());
+                for &b in &field.raw_bytes {
+                    if b == 0xfe {
+                        mapped.push(if use_ad { 0xad } else { 0xf0 });
+                    } else if b == 0xff {
+                        mapped.push(if use_ad { 0xfe } else { 0xb9 });
+                    } else {
+                        mapped.push(b);
+                    }
+                }
+                if options.output_patterns {
+                    if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
+                        mapped.truncate(pos);
+                    }
+                }
+                Ok(mapped)
+            } else if options.encoding == PanCsvEncoding::MacRoman {
+                let mut raw = field.raw_bytes.clone();
+                if options.output_patterns {
+                    if let Some(pos) = raw.iter().position(|&b| b == b'\r' || b == b'\n') {
+                        raw.truncate(pos);
+                    }
+                }
+                Ok(raw)
+            } else {
+                if options.output_patterns {
+                    let first_line = text.split(['\r', '\n']).next().unwrap_or("");
+                    Ok(first_line.as_bytes().to_vec())
+                } else {
+                    Ok(text.as_bytes().to_vec())
+                }
+            }
+        }
+        parser::PanDataValue::Integer(integer) => {
+            if options.output_patterns {
+                if let Some(formatted) = field.formatted_value.as_ref() {
+                    return Ok(formatted.as_bytes().to_vec());
+                }
+            }
+            Ok(integer.as_bytes().to_vec())
+        }
+        parser::PanDataValue::Fixed(fixed) => {
+            if options.output_patterns {
+                if let Some(formatted) = field.formatted_value.as_ref() {
+                    return Ok(formatted.as_bytes().to_vec());
+                }
+            }
+            Ok(fixed.as_bytes().to_vec())
+        }
+        parser::PanDataValue::Float(float_value) => {
+            if options.output_patterns {
+                if let Some(formatted) = field.formatted_value.as_ref() {
+                    return Ok(formatted.as_bytes().to_vec());
+                }
+            }
+            Ok(float_value.as_bytes().to_vec())
+        }
         parser::PanDataValue::Date {
             raw_serial,
             pan_date_mdy,
         } => {
             if *raw_serial == 0 {
-                Ok(String::new())
+                Ok(Vec::new())
+            } else if options.output_patterns {
+                if let Some(formatted) = field.formatted_value.as_ref() {
+                    Ok(formatted.as_bytes().to_vec())
+                } else if let Ok(formatted) =
+                    crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
+                {
+                    Ok(formatted.into_bytes())
+                } else if let Some(mdy) = pan_date_mdy.as_deref() {
+                    Ok(mdy.as_bytes().to_vec())
+                } else {
+                    Ok(Vec::new())
+                }
             } else if let Ok(formatted) =
-                crate::date::datepattern(*raw_serial, "MM/DD/YY")
+                crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
             {
-                Ok(formatted)
+                Ok(formatted.into_bytes())
             } else if let Some(mdy) = pan_date_mdy.as_deref() {
-                Ok(mdy.to_string())
+                Ok(mdy.as_bytes().to_vec())
             } else {
-                Ok(String::new())
+                Ok(Vec::new())
             }
         }
-        parser::PanDataValue::Unknown(value) => Ok(value.clone()),
+        parser::PanDataValue::Unknown(value) => Ok(value.as_bytes().to_vec()),
     }
 }
 
-fn write_csv_string(
-    header: &[String],
-    rows: &[Vec<String>],
-) -> anyhow::Result<String> {
-    let mut writer = WriterBuilder::new()
-        .terminator(csv::Terminator::Any(b'\n'))
-        .from_writer(Vec::new());
+fn format_csv_cell(cell_bytes: &[u8]) -> Vec<u8> {
+    let needs_quote = cell_bytes
+        .iter()
+        .any(|&b| b == b',' || b == b'"' || b == b'\r' || b == b'\n' || b == b'\t');
+    if needs_quote {
+        let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
+        out.push(b'"');
+        for &b in cell_bytes {
+            if b == b'"' {
+                out.push(b'"');
+                out.push(b'"');
+            } else {
+                out.push(b);
+            }
+        }
+        out.push(b'"');
+        out
+    } else {
+        cell_bytes.to_vec()
+    }
+}
 
-    writer
-        .write_record(header)
-        .context("Failed to write CSV header")?;
+fn write_csv_bytes(
+    header: Option<&[String]>,
+    rows: &[Vec<Vec<u8>>],
+    crlf: bool,
+    encoding: PanCsvEncoding,
+) -> Vec<u8> {
+    let line_ending = if crlf || encoding == PanCsvEncoding::Windows {
+        b"\r\n".as_slice()
+    } else {
+        b"\n".as_slice()
+    };
 
-    for row in rows {
-        writer
-            .write_record(row)
-            .context("Failed to write CSV row")?;
+    let mut out = Vec::new();
+    if let Some(header_fields) = header {
+        let mut header_cells = Vec::with_capacity(header_fields.len());
+        for name in header_fields {
+            header_cells.push(format_csv_cell(name.as_bytes()));
+        }
+        out.extend(header_cells.join(&b","[..]));
+        out.extend_from_slice(line_ending);
     }
 
-    writer.flush().context("Failed to flush CSV writer")?;
-    let csv_bytes = writer
-        .into_inner()
-        .context("Failed to finalize CSV output")?;
+    for row in rows {
+        let mut row_cells = Vec::with_capacity(row.len());
+        for cell in row {
+            row_cells.push(format_csv_cell(cell));
+        }
+        out.extend(row_cells.join(&b","[..]));
+        out.extend_from_slice(line_ending);
+    }
 
-    String::from_utf8(csv_bytes).context("CSV output is not valid UTF-8")
+    out
 }
 
 #[cfg(test)]
