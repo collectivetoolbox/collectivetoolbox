@@ -746,21 +746,13 @@ fn parse_data_record_headers(
         usize::from(u16::from_be_bytes([len16_high_byte, len16_low_byte]));
 
     if b0 == 0xfe {
-        let hsz = if payload
-            .get(cursor.saturating_add(3)..cursor.saturating_add(5))
-            == Some(&[0, 0])
-        {
-            5
-        } else {
-            4
-        };
         add_data_record_header_candidate(
             &mut candidates,
             &mut dedupe,
             payload.len(),
             cursor,
             be16_record_size,
-            hsz,
+            5,
             PanDataRecordFormat::Be16WithStatus,
         )?;
     }
@@ -989,15 +981,7 @@ fn parse_data_record_header_for_format(
             if declared_size < 5 {
                 bail!("DATA record BE16 size is too small")
             }
-            if payload.get(cursor.saturating_add(3)..cursor.saturating_add(5))
-                == Some(&[0, 0])
-            {
-                Ok((declared_size, 5))
-            } else if payload.get(cursor.saturating_add(3)) == Some(&0) {
-                Ok((declared_size, 4))
-            } else {
-                bail!("DATA BE16 marker byte is not zero")
-            }
+            Ok((declared_size, 5))
         }
         PanDataRecordFormat::Le16WithStatus => {
             let marker = payload
@@ -3529,6 +3513,57 @@ mod tests {
         ensure!(records.len() == 1);
         ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "?("));
         ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "PARAM1,P"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_fe_be16_with_nonzero_flags() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x1000,
+            types_section_offset: 0x1050,
+            widths_section_offset: 0x1080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "Title".to_string(),
+                    width: 10,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "Name".to_string(),
+                    width: 15,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte DATA section header
+        let mut payload = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+        // Record with non-zero flags in bytes 3..4: [0xfe, 0x00, 0x12, 0x06, 0xf8]
+        // status byte = 0xe0
+        // Field 0: len=8 -> "Senator" (1 len byte + 7 chars)
+        // Field 1: len=4 -> "Tim" (1 len byte + 3 chars)
+        // Total = 5 (header) + 1 (status) + 8 (f0) + 4 (f1) = 18 (0x12)
+        payload.extend_from_slice(&[
+            0xfe, 0x00, 0x12, 0x06, 0xf8, // 5-byte BE16 header with non-zero flags
+            0xe0, // status byte
+            0x08, b'S', b'e', b'n', b'a', b't', b'o', b'r', // Field 0 ("Title")
+            0x04, b'T', b'i', b'm', // Field 1 ("Name")
+        ]);
+
+        let (records, _, _) = parse_data_payload(&payload, 0x1000, &schema)?;
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Senator"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Tim"));
 
         Ok(())
     }
