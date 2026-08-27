@@ -460,6 +460,10 @@ fn parse_data_payload(
         6usize
     } else if payload.len() >= 6 && payload.get(1..6).is_some_and(|tail| tail.iter().all(|byte| *byte == 0)) {
         6usize
+    } else if payload.len() >= 6 && payload.get(..2) == Some(&[0, 0]) && payload.get(4..6) == Some(&[0, 0]) {
+        6usize
+    } else if payload.len() >= 6 && payload.get(2..6) == Some(&[0, 0, 0, 0]) {
+        6usize
     } else if payload.len() >= 4 && payload.get(..4) == Some(&[0, 0, 0, 0]) {
         4usize
     } else if payload.get(..2) == Some(&[0, 0]) {
@@ -757,7 +761,11 @@ fn parse_data_record_headers(
         )?;
     }
 
-    if b0 < 0xfe && b0 >= 2 {
+    if b0 < 0xfe
+        && b0 >= 2
+        && !(payload.get(cursor.saturating_add(1)) == Some(&0)
+            && payload.get(cursor.saturating_add(2)) == Some(&0))
+    {
         let b0_usize = usize::from(b0);
         if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) == Some(&b0) {
             add_data_record_header_candidate(
@@ -930,6 +938,11 @@ fn parse_data_record_header_for_format(
                 .context("DATA Byte8 record byte is missing")?;
             if b0 >= 0xfe || b0 < 2 {
                 bail!("DATA Byte8 record size is outside 2..=0xfd")
+            }
+            if payload.get(cursor.saturating_add(1)) == Some(&0)
+                && payload.get(cursor.saturating_add(2)) == Some(&0)
+            {
+                bail!("DATA Byte8 record bytes 1..2 are zero, expected LE24")
             }
             let b0_usize = usize::from(b0);
             if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) != Some(&b0) {
@@ -3726,4 +3739,148 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_6byte_be_length_prefix() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x2000,
+            types_section_offset: 0x2050,
+            widths_section_offset: 0x2080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "CustomerID".to_string(),
+                    width: 10,
+                    type_code: 6,
+                    type_label: "Integer".to_string(),
+                    field_type: PanFieldType::Integer,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "Class".to_string(),
+                    width: 15,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte section header [0x00, 0x00, hi, lo, 0x00, 0x00] followed by LE24 record
+        // Record size = 4 (header+status) + 3 (Field 0: int 1000 = [232, 3]) + 7 (Field 1: "Dealer") = 14 (0x0e)
+        let mut payload = vec![0x00, 0x00, 0x00, 0x0e, 0x00, 0x00];
+        payload.extend_from_slice(&[
+            0x0e, 0x00, 0x00, // 3-byte LE24 size
+            0x00, // status byte
+            0x03, 0xe8, 0x03, // Field 0: Integer 1000
+            0x07, b'D', b'e', b'a', b'l', b'e', b'r', // Field 1: Text "Dealer"
+        ]);
+
+        let (records, header_bytes, _) = parse_data_payload(&payload, 0x2000, &schema)?;
+        ensure!(header_bytes.len() == 6);
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Integer(i) if i == "1000"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Dealer"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_6byte_le_length_prefix_fe_be16() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x3000,
+            types_section_offset: 0x3050,
+            widths_section_offset: 0x3080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "TrackingNumber".to_string(),
+                    width: 20,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "Status".to_string(),
+                    width: 20,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte section header [lo, hi, 0x00, 0x00, 0x00, 0x00] followed by FE+BE16 record
+        // Record size = 6 (header+flags+status) + 13 (Field 0) + 18 (Field 1) = 37 (0x0025)
+        let mut payload = vec![0x25, 0x00, 0x00, 0x00, 0x00, 0x00];
+        payload.extend_from_slice(&[
+            0xfe, 0x00, 0x25, // FE prefix + BE16 size (37)
+            0x00, 0x00, // flags
+            0x00, // status byte
+            0x0d, b'8', b'2', b'9', b'1', b'7', b'7', b'3', b'9', b'3', b'1', b'3', b'6', // Field 0
+            0x12, b'D', b'e', b'l', b'i', b'v', b'e', b'r', b'y', b' ', b'C', b'o', b'm', b'p', b'l', b'e', b't', b'e', // Field 1
+        ]);
+
+        let (records, header_bytes, _) = parse_data_payload(&payload, 0x3000, &schema)?;
+        ensure!(header_bytes.len() == 6);
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "829177393136"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Delivery Complete"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_6byte_tag_prefix_sample_structure() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x4000,
+            types_section_offset: 0x4050,
+            widths_section_offset: 0x4080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "Name".to_string(),
+                    width: 20,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "Score".to_string(),
+                    width: 10,
+                    type_code: 6,
+                    type_label: "Integer".to_string(),
+                    field_type: PanFieldType::Integer,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte section header [b'S', 0x00, 0x00, 0x00, 0x00, 0x00] followed by LE24 record
+        // Record size = 4 (header+status) + 6 ("Alice") + 2 (score 42) = 12 (0x0c)
+        let mut payload = vec![b'S', 0x00, 0x00, 0x00, 0x00, 0x00];
+        payload.extend_from_slice(&[
+            0x0c, 0x00, 0x00, // 3-byte LE24 size
+            0x00, // status byte
+            0x06, b'A', b'l', b'i', b'c', b'e', // Field 0
+            0x02, 0x2a, // Field 1: Integer 42
+        ]);
+
+        let (records, header_bytes, _) = parse_data_payload(&payload, 0x4000, &schema)?;
+        ensure!(header_bytes.len() == 6);
+        ensure!(header_bytes[0] == b'S');
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Alice"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Integer(i) if i == "42"));
+
+        Ok(())
+    }
 }
+
