@@ -209,7 +209,11 @@ fn csv_field_bytes(
                 Ok(raw)
             } else {
                 if options.output_patterns {
-                    let first_line = text.split(['\r', '\n']).next().unwrap_or("");
+                    let first_line = text
+                        .split(['\r', '\n'])
+                        .next()
+                        // Reason for fallback: split always yields at least one item
+                        .unwrap_or("");
                     Ok(first_line.as_bytes().to_vec())
                 } else {
                     Ok(text.as_bytes().to_vec())

@@ -758,20 +758,18 @@ fn parse_data_record_headers(
     }
 
     if b0 < 0xfe && b0 >= 2 {
-        let hsz = if payload.get(cursor.saturating_add(1)) == Some(&0) {
-            3
-        } else {
-            1
-        };
-        add_data_record_header_candidate(
-            &mut candidates,
-            &mut dedupe,
-            payload.len(),
-            cursor,
-            usize::from(b0),
-            hsz,
-            PanDataRecordFormat::Byte8WithStatus,
-        )?;
+        let b0_usize = usize::from(b0);
+        if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) == Some(&b0) {
+            add_data_record_header_candidate(
+                &mut candidates,
+                &mut dedupe,
+                payload.len(),
+                cursor,
+                b0_usize,
+                3,
+                PanDataRecordFormat::Byte8WithStatus,
+            )?;
+        }
     }
 
     let declared_size_le = read_u32_le(payload, cursor)?;
@@ -933,11 +931,11 @@ fn parse_data_record_header_for_format(
             if b0 >= 0xfe || b0 < 2 {
                 bail!("DATA Byte8 record size is outside 2..=0xfd")
             }
-            if payload.get(cursor.saturating_add(1)) == Some(&0) {
-                Ok((usize::from(b0), 3))
-            } else {
-                Ok((usize::from(b0), 1))
+            let b0_usize = usize::from(b0);
+            if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) != Some(&b0) {
+                bail!("DATA Byte8 record trailer mismatch")
             }
+            Ok((b0_usize, 3))
         }
         PanDataRecordFormat::Le24WithStatus => {
             let len_lo = payload
@@ -1075,8 +1073,17 @@ fn parse_data_record_at_cursor(
         );
     }
 
+    let trailer_len = if format == PanDataRecordFormat::Byte8WithStatus
+        && record_header_size == 3
+        && payload.get(record_end.saturating_sub(1)) == payload.get(cursor)
+    {
+        1usize
+    } else {
+        0usize
+    };
+
     let row_payload = payload
-        .get(cursor.saturating_add(record_header_size)..record_end)
+        .get(cursor.saturating_add(record_header_size)..record_end.saturating_sub(trailer_len))
         .context("Could not read DATA row payload")?;
     let row = parse_data_record(
         row_payload,
@@ -1152,6 +1159,167 @@ fn data_section_has_unsupported_marker(header_bytes: &[u8]) -> bool {
     !marker.is_ascii_alphanumeric()
 }
 
+fn extract_raw_field_slices<'a>(
+    row_payload: &'a [u8],
+    schema: &PanSchema,
+    record_format: PanDataRecordFormat,
+) -> Vec<&'a [u8]> {
+    let start_offset = match record_format {
+        PanDataRecordFormat::Byte8WithStatus
+        | PanDataRecordFormat::Le32
+        | PanDataRecordFormat::Be32 => 0usize,
+        PanDataRecordFormat::Le24WithStatus
+        | PanDataRecordFormat::Be16WithStatus
+        | PanDataRecordFormat::Le16WithStatus
+        | PanDataRecordFormat::Be16WithStatusNoMarker
+        | PanDataRecordFormat::Le16WithStatusNoMarker => 1usize,
+    };
+
+    let Some(slice) = row_payload.get(start_offset..) else {
+        return Vec::new();
+    };
+
+    // Attempt 1: Standard length-prefixed fields starting at start_offset
+    let mut pos = 0usize;
+    let mut std_fields = Vec::new();
+    let mut std_valid = true;
+    while pos < slice.len() {
+        let Some(&len_byte) = slice.get(pos) else {
+            std_valid = false;
+            break;
+        };
+        let (header_len, payload_len) = if len_byte == 0x7e {
+            let Some(&hi) = slice.get(pos.saturating_add(1)) else {
+                std_valid = false;
+                break;
+            };
+            let Some(&lo) = slice.get(pos.saturating_add(2)) else {
+                std_valid = false;
+                break;
+            };
+            let total_len = usize::from(u16::from_be_bytes([hi, lo]));
+            (3usize, total_len.saturating_sub(3))
+        } else if len_byte == 0x7f {
+            let Some(&b1) = slice.get(pos.saturating_add(1)) else {
+                std_valid = false;
+                break;
+            };
+            let Some(&b2) = slice.get(pos.saturating_add(2)) else {
+                std_valid = false;
+                break;
+            };
+            let Some(&b3) = slice.get(pos.saturating_add(3)) else {
+                std_valid = false;
+                break;
+            };
+            let total_len = (usize::from(b1) << 16)
+                | (usize::from(b2) << 8)
+                | usize::from(b3);
+            (4usize, total_len.saturating_sub(4))
+        } else {
+            let total_len = usize::from(len_byte);
+            if total_len == 0 {
+                if std_fields.len() >= schema.fields.len() {
+                    break;
+                }
+                std_valid = false;
+                break;
+            }
+            (1usize, total_len.saturating_sub(1))
+        };
+        let start = pos.saturating_add(header_len);
+        let end = start.saturating_add(payload_len);
+        if end > slice.len() {
+            std_valid = false;
+            break;
+        }
+        if let Some(f_slice) = slice.get(start..end) {
+            std_fields.push(f_slice);
+        }
+        pos = end;
+    }
+    if std_valid && std_fields.len() >= schema.fields.len() {
+        return std_fields;
+    }
+
+    // Attempt 2: Initial 2-byte fixed fields (e.g. Number, Date) followed by length-prefixed fields
+    if slice.len() >= 4 {
+        let mut pos = 4usize;
+        let mut f2_fields = Vec::new();
+        if let Some(s0) = slice.get(0..2) {
+            f2_fields.push(s0);
+        }
+        if let Some(s1) = slice.get(2..4) {
+            f2_fields.push(s1);
+        }
+        let mut f2_valid = true;
+        while pos < slice.len() {
+            let Some(&len_byte) = slice.get(pos) else {
+                f2_valid = false;
+                break;
+            };
+            let total_len = usize::from(len_byte);
+            if total_len == 0 {
+                if f2_fields.len() >= schema.fields.len() {
+                    break;
+                }
+                f2_valid = false;
+                break;
+            }
+            let start = pos.saturating_add(1);
+            let end = start.saturating_add(total_len.saturating_sub(1));
+            if end > slice.len() {
+                f2_valid = false;
+                break;
+            }
+            if let Some(f_slice) = slice.get(start..end) {
+                f2_fields.push(f_slice);
+            }
+            pos = end;
+        }
+        if f2_valid && f2_fields.len() >= schema.fields.len() {
+            return f2_fields;
+        }
+    }
+
+    if std_valid && pos == slice.len() {
+        std_fields
+    } else {
+        Vec::new()
+    }
+}
+
+fn align_record_slices_to_schema<'a>(
+    raw_slices: &[&'a [u8]],
+    schema: &PanSchema,
+) -> Vec<&'a [u8]> {
+    if raw_slices.len() == schema.fields.len().saturating_add(1) {
+        if let (Some(f2), Some(f3), Some(sf2)) = (
+            raw_slices.get(2),
+            raw_slices.get(3),
+            schema.fields.get(2),
+        ) {
+            if sf2.field_type == PanFieldType::Text
+                && (f2.len() <= 2 || f2.iter().any(|&b| b < 32 && b != b'\r' && b != b'\n' && b != b'\t'))
+                && f3.iter().all(|&b| b >= 32 || b == b'\r' || b == b'\n' || b == b'\t')
+            {
+                let mut s = Vec::with_capacity(schema.fields.len());
+                if let Some(s0) = raw_slices.first() {
+                    s.push(*s0);
+                }
+                if let Some(s1) = raw_slices.get(1) {
+                    s.push(*s1);
+                }
+                for slice in raw_slices.iter().skip(3) {
+                    s.push(*slice);
+                }
+                return s;
+            }
+        }
+    }
+    raw_slices.to_vec()
+}
+
 fn parse_data_record(
     row_payload: &[u8],
     schema: &PanSchema,
@@ -1162,6 +1330,33 @@ fn parse_data_record(
 ) -> anyhow::Result<PanDataRecord> {
     if schema.fields.is_empty() {
         bail!("Cannot parse DATA records without schema fields");
+    }
+
+    let raw_slices = extract_raw_field_slices(row_payload, schema, record_format);
+    if !raw_slices.is_empty() {
+        let aligned_slices = align_record_slices_to_schema(&raw_slices, schema);
+        let mut values = Vec::with_capacity(schema.fields.len());
+        for (field_position, field) in schema.fields.iter().enumerate() {
+            if let Some(raw_bytes) = aligned_slices.get(field_position) {
+                push_data_field_with_raw_bytes(&mut values, field, raw_bytes)?;
+            } else {
+                append_empty_data_fields(
+                    &mut values,
+                    schema,
+                    field_position,
+                    "Could not get trailing DATA schema fields",
+                )?;
+                break;
+            }
+        }
+
+        return Ok(PanDataRecord {
+            index: record_index,
+            section_offset,
+            declared_size,
+            fields: values,
+            trailing_bytes: Vec::new(),
+        });
     }
 
     let mut values = Vec::with_capacity(schema.fields.len());
@@ -3451,28 +3646,28 @@ mod tests {
         // DATA section payload with 6-byte section header
         let mut payload = vec![0x00, 0x00, 0x06, 0x9c, 0x00, 0x00];
 
-        // Record 0: sz=15 (0x0f), header=[0x0f, 0x00, 0x00], status=0x01
+        // Record 0: sz=15 (0x0f), header=[0x0f, 0x80, 0x01]
         // Field 0: len=6 (1 + 5 bytes "Zion ") -> "Zion "
         // Field 1: len=3 (1 + 2 bytes "UT") -> "UT"
-        // Total record bytes = 3 (header) + 1 (status) + 6 (f0) + 3 (f1) + 2 (pad) = 15
+        // Total record bytes = 3 (header) + 6 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x0f) = 15
         payload.extend_from_slice(&[
-            0x0f, 0x00, 0x00, // 3-byte header: sz=15, zeros
-            0x01, // status byte
+            0x0f, 0x80, 0x01, // 3-byte header: sz=15, flag=0x80, status=0x01
             0x06, b'Z', b'i', b'o', b'n', b' ', // Field 0
             0x03, b'U', b'T', // Field 1
             0x00, 0x00, // padding within declared sz
+            0x0f, // 1-byte trailer matching sz
         ]);
 
-        // Record 1: sz=16 (0x10), header=[0x10, 0x00, 0x00], status=0x07
+        // Record 1: sz=16 (0x10), header=[0x10, 0x80, 0x07]
         // Field 0: len=7 (1 + 6 bytes "Acadia") -> "Acadia"
         // Field 1: len=3 (1 + 2 bytes "ME") -> "ME"
-        // Total record bytes = 3 (header) + 1 (status) + 7 (f0) + 3 (f1) + 2 (pad) = 16
+        // Total record bytes = 3 (header) + 7 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x10) = 16
         payload.extend_from_slice(&[
-            0x10, 0x00, 0x00, // 3-byte header: sz=16, zeros
-            0x07, // status byte
+            0x10, 0x80, 0x07, // 3-byte header: sz=16, flag=0x80, status=0x07
             0x07, b'A', b'c', b'a', b'd', b'i', b'a', // Field 0
             0x03, b'M', b'E', // Field 1
             0x00, 0x00, // padding within declared sz
+            0x10, // 1-byte trailer matching sz
         ]);
 
         let (records, _, trailing) = parse_data_payload(&payload, 0x1000, &schema)?;
