@@ -405,11 +405,11 @@ fn extract_data_from_sections(
             continue;
         };
         let section_name = data_section_name(&section.name, &header_bytes)?;
-        if trailing_bytes.iter().any(|byte| *byte != 0) {
-            let trailing_non_zero =
-                trailing_bytes.iter().filter(|byte| **byte != 0).count();
+        let non_zero_count =
+            trailing_bytes.iter().filter(|byte| **byte != 0).count();
+        if non_zero_count > 0 && !(trailing_bytes.len() <= 2 && non_zero_count <= 1) {
             parse_warnings.push(format!(
-                "DATA section at offset {offset:#x} ({name}) has {trailing_non_zero} non-zero trailing bytes after parsed records",
+                "DATA section at offset {offset:#x} ({name}) has {non_zero_count} non-zero trailing bytes after parsed records",
                 offset = section.offset,
                 name = section_name,
             ));
@@ -766,10 +766,7 @@ fn parse_data_record_headers(
     }
 
     if b0 < 0xfe && b0 >= 2 {
-        let hsz = if payload
-            .get(cursor.saturating_add(1)..cursor.saturating_add(3))
-            == Some(&[0, 0])
-        {
+        let hsz = if payload.get(cursor.saturating_add(1)) == Some(&0) {
             3
         } else {
             1
@@ -944,9 +941,7 @@ fn parse_data_record_header_for_format(
             if b0 >= 0xfe || b0 < 2 {
                 bail!("DATA Byte8 record size is outside 2..=0xfd")
             }
-            if payload.get(cursor.saturating_add(1)..cursor.saturating_add(3))
-                == Some(&[0, 0])
-            {
+            if payload.get(cursor.saturating_add(1)) == Some(&0) {
                 Ok((usize::from(b0), 3))
             } else {
                 Ok((usize::from(b0), 1))
@@ -2258,7 +2253,23 @@ fn parse_names_payload(
         return Ok(Vec::new());
     }
 
-    let names_bytes = if payload.len() >= 6 && payload.get(0..2) == Some(&[0x53, 0x00]) {
+    let names_bytes = if payload.len() >= 7 && payload.get(0..2) == Some(&[0x00, 0xfe]) {
+        let len_hi = *payload.get(2).context("NAMES BE16 length high byte missing")?;
+        let len_lo = *payload.get(3).context("NAMES BE16 length low byte missing")?;
+        let declared_bytes = usize::from(u16::from_be_bytes([len_hi, len_lo]));
+        if declared_bytes < 7 {
+            bail!("NAMES BE16 framed byte count is smaller than header size")
+        }
+        let names_data_len = declared_bytes
+            .checked_sub(7)
+            .context("NAMES framed byte count underflow")?;
+        let names_data_end = 7usize
+            .checked_add(names_data_len)
+            .context("NAMES framed byte count overflow")?;
+        payload
+            .get(7..names_data_end)
+            .context("Invalid NAMES framed payload range")?
+    } else if payload.len() >= 6 && payload.get(0..2) == Some(&[0x53, 0x00]) {
         let declared_bytes = usize::try_from(read_u32_le(payload, 2)?)
             .context("NAMES byte count does not fit in usize")?;
 

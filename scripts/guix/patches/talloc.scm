@@ -73,6 +73,7 @@
        (append python-wrapper which pkg-config)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:validate-runpath? _ #t) #f)
        ((#:phases phases)
         `(modify-phases ,phases
@@ -157,6 +158,7 @@
        (append python-wrapper which pkg-config)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:validate-runpath? _ #t) #f)
        ((#:phases phases)
         `(modify-phases ,phases
@@ -246,6 +248,7 @@
        (append cmocka)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:validate-runpath? _ #t) #f)
        ((#:phases phases)
         `(modify-phases ,phases

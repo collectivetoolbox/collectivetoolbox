@@ -43,26 +43,20 @@ pub fn pan_to_csv(
     output_patterns: bool,
 ) -> anyhow::Result<String> {
     let pan = parser::parse_pan(pan_file)?;
-    let schema = pan.schema.as_ref().context("PAN schema is missing")?;
-    let data = pan
-        .data
-        .as_ref()
-        .with_context(|| parser::diagnose_missing_data(&pan))?;
-    if !data.parse_warnings.is_empty() {
-        let warnings_preview = data
-            .parse_warnings
-            .iter()
-            .take(8)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(" | ");
-        let omitted = data.parse_warnings.len().saturating_sub(8);
-        if omitted == 0 {
-            bail!("PAN parse warnings detected: {warnings_preview}");
-        }
-        bail!(
-            "PAN parse warnings detected: {warnings_preview} | ... and {omitted} more"
-        );
+    let Some(schema) = pan.schema.as_ref() else {
+        warn!("PAN file does not contain schema/data records");
+        return Ok(String::new());
+    };
+    if schema.fields.is_empty() {
+        warn!("PAN file does not contain schema fields");
+        return Ok(String::new());
+    }
+    let Some(data) = pan.data.as_ref() else {
+        warn!("PAN file does not contain data section records");
+        return Ok(String::new());
+    };
+    for warning in &data.parse_warnings {
+        warn_fmt!("PAN parse warning: {warning}");
     }
 
     let header = schema
@@ -135,8 +129,20 @@ fn csv_field_value(
         parser::PanDataValue::Float(float_value) => Ok(float_value.clone()),
         parser::PanDataValue::Date {
             raw_serial,
-            pan_date_mdy: _,
-        } => crate::date::datepattern(*raw_serial, "MM/DD/YY"),
+            pan_date_mdy,
+        } => {
+            if *raw_serial == 0 {
+                Ok(String::new())
+            } else if let Ok(formatted) =
+                crate::date::datepattern(*raw_serial, "MM/DD/YY")
+            {
+                Ok(formatted)
+            } else if let Some(mdy) = pan_date_mdy.as_deref() {
+                Ok(mdy.to_string())
+            } else {
+                Ok(String::new())
+            }
+        }
         parser::PanDataValue::Unknown(value) => Ok(value.clone()),
     }
 }
