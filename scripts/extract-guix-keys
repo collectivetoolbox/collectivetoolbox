@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# extract-guix-keys: Extract Guix OpenPGP release signing keys and substitute
+# public keys from the current environment into the repository.
+#
+
+set -euo pipefail
+IFS=$'\n\t'
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Target directory where keys will be stored (defaults to scripts/docker/keys)
+OUTPUT_DIR="${1:-${REPO_ROOT}/scripts/docker/keys}"
+GPG_DIR="${OUTPUT_DIR}/openpgp"
+SUBSTITUTES_DIR="${OUTPUT_DIR}/substitutes"
+
+echo "=== Extracting Guix Keys ==="
+echo "Destination directory: ${OUTPUT_DIR}"
+
+if [[ ! -d "${GPG_DIR}" ]]; then
+    mkdir -p "${GPG_DIR}"
+fi
+
+if [[ ! -d "${SUBSTITUTES_DIR}" ]]; then
+    mkdir -p "${SUBSTITUTES_DIR}"
+fi
+
+# 1. Extract OpenPGP signing keys used by guix-install.sh
+# These keys are required to verify the cryptographic signature of Guix releases.
+declare -A GPG_KEYS
+GPG_KEYS["civodul"]="3CE464558A84FDC69DB40CFB090B11993D9AEBB5" # Ludovic Courtès
+GPG_KEYS["apteryx"]="27D586A4F8900854329FF09F1260E46482E63562" # Maxim Cournoyer
+GPG_KEYS["efraim"]="A28BF40C3E551372662D14F741AAE7DCCA3D8351"  # Efraim Flashner
+
+if command -v gpg >/dev/null 2>&1; then
+    echo "Exporting OpenPGP signing keys from GPG keyring..."
+
+    # Export individual signing keys in both binary and armored formats
+    for name in "${!GPG_KEYS[@]}"; do
+        key_id="${GPG_KEYS[$name]}"
+        if gpg --list-keys "${key_id}" >/dev/null 2>&1; then
+            echo "  Exporting ${name} (${key_id})..."
+            gpg --batch --yes --export "${key_id}" > "${GPG_DIR}/${name}.gpg"
+            gpg --batch --yes --armor --export "${key_id}" > "${GPG_DIR}/${name}.asc"
+        else
+            echo "  Warning: Key for ${name} (${key_id}) not found in GPG keyring."
+        fi
+    done
+
+    # Export all public keys currently in the keyring into a combined bundle
+    echo "  Exporting combined GPG public keyring..."
+    gpg --batch --yes --export > "${GPG_DIR}/guix-signing-keys.gpg"
+    gpg --batch --yes --armor --export > "${GPG_DIR}/guix-signing-keys.asc"
+else
+    echo "Warning: 'gpg' command not found. Skipping OpenPGP key extraction."
+fi
+
+# 2. Extract Guix substitute server authorization public keys (*.pub)
+# These public keys authorize binary substitute servers (e.g. bordeaux, berlin).
+echo "Searching and copying Guix substitute public keys (*.pub)..."
+
+SEARCH_PATHS=(
+    "/root/.config/guix/current/share/guix"
+    "/var/guix/profiles/per-user/root/current-profile/share/guix"
+    "/usr/local/share/guix"
+    "/usr/share/guix"
+)
+
+# Also check active GNU store profiles if present
+for store_dir in /gnu/store/*-guix-*/share/guix; do
+    if [[ -d "${store_dir}" ]]; then
+        SEARCH_PATHS+=("${store_dir}")
+    fi
+done
+
+FOUND_PUB_KEYS=0
+for search_dir in "${SEARCH_PATHS[@]}"; do
+    if [[ -d "${search_dir}" ]]; then
+        for pub_file in "${search_dir}"/*.pub; do
+            if [[ -f "${pub_file}" ]]; then
+                base_name="$(basename "${pub_file}")"
+                target_file="${SUBSTITUTES_DIR}/${base_name}"
+                echo "  Found ${base_name} at ${search_dir}"
+                cat "${pub_file}" > "${target_file}"
+                FOUND_PUB_KEYS=1
+            fi
+        done
+    fi
+done
+
+if [[ "${FOUND_PUB_KEYS}" -eq 0 ]]; then
+    echo "  No substitute .pub files found in standard paths."
+fi
+
+# 3. Extract Guix ACL configuration (/etc/guix/acl) if present
+if [[ -f "/etc/guix/acl" ]]; then
+    echo "Extracting /etc/guix/acl..."
+    cat "/etc/guix/acl" > "${OUTPUT_DIR}/acl"
+fi
+
+echo "=== Guix key extraction complete ==="
+echo "Extracted files in ${OUTPUT_DIR}:"
+ls -la "${OUTPUT_DIR}" "${GPG_DIR}" "${SUBSTITUTES_DIR}" 2>/dev/null || true
