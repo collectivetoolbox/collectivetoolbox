@@ -24,7 +24,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! area (0x00..=0x1F) uses graphical symbols (the common device character set),
 //! with an optional control character mode available. Documentation of the
 //! control character encoding (with graphical 0x0) was found commented out in
-//! the AlphaSync driver; not sure what its use (if any) was.
+//! the AlphaSync driver.
+//!
+//! AlphaWord uses a more complex file format/encoding. FIXME update this comment with details from AlphaSync.
 
 #[expect(
     unused_imports,

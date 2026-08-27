@@ -30,23 +30,55 @@
             libsoup-minimal-2-fixed))
 
 (define (libsoup-fixed-proc pkg)
-  (package
-    (inherit pkg)
-    (inputs
-     (modify-inputs (package-inputs pkg)
-       (delete "samba")))
-    (arguments
-     (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(append #$flags
-                  '("-Dlibdir=lib"
-                    "-Dtls_check=false"
-                    "-Dtests=false"
-                    "-Dntlm=disabled"
-                    "-Dintrospection=disabled"
-                    "-Dvapi=disabled"
-                    "-Dsysprof=disabled")))))))
+  (let ((has-doc-output? (member "doc" (package-outputs pkg))))
+    (package
+      (inherit pkg)
+      (inputs
+       (modify-inputs (package-inputs pkg)
+         (delete "samba")))
+      (native-inputs
+       (modify-inputs (package-native-inputs pkg)
+         (delete "gobject-introspection")))
+      (arguments
+       (if has-doc-output?
+           (substitute-keyword-arguments (package-arguments pkg)
+             ((#:tests? _ #f) #f)
+             ((#:configure-flags flags #~'())
+              #~(append (delete "-Ddocs=enabled" #$flags)
+                        (list "--libdir=lib"
+                              "-Ddocs=disabled"
+                              "-Dtls_check=false"
+                              "-Dtests=false"
+                              "-Dntlm=disabled"
+                              "-Dintrospection=disabled"
+                              "-Dvapi=disabled"
+                              "-Dsysprof=disabled"
+                              (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")
+                              (string-append "-Dcpp_link_args=-Wl,-rpath=" #$output "/lib"))))
+             ((#:phases phases)
+              #~(modify-phases #$phases
+                  (replace 'move-doc
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let ((out (assoc-ref outputs "out"))
+                            (doc (assoc-ref outputs "doc")))
+                        (when doc
+                          (mkdir-p (string-append doc "/share"))
+                          (when (file-exists? (string-append out "/share/doc"))
+                            (rename-file (string-append out "/share/doc")
+                                         (string-append doc "/share/doc"))))))))))
+           (substitute-keyword-arguments (package-arguments pkg)
+             ((#:tests? _ #f) #f)
+             ((#:configure-flags flags #~'())
+              #~(append (delete "-Ddocs=enabled" #$flags)
+                        (list "--libdir=lib"
+                              "-Dtls_check=false"
+                              "-Dtests=false"
+                              "-Dntlm=disabled"
+                              "-Dintrospection=disabled"
+                              "-Dvapi=disabled"
+                              "-Dsysprof=disabled"
+                              (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")
+                              (string-append "-Dcpp_link_args=-Wl,-rpath=" #$output "/lib"))))))))))
 
 (define libsoup-minimal-fixed-proc libsoup-fixed-proc)
 (define libsoup-minimal-2-fixed-proc libsoup-fixed-proc)

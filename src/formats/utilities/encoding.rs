@@ -48,6 +48,96 @@ pub enum NeoRegion {
     UaPc,
 }
 
+/// Line ending delimiter pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum LineEndingKind {
+    /// POSIX / Unix newline (`\n`, LF, 0x0A).
+    #[default]
+    Lf,
+    /// Classic Macintosh newline (`\r`, CR, 0x0D).
+    Cr,
+    /// Windows / DOS newline (`\r\n`, CRLF, 0x0D 0x0A).
+    CrLf,
+    /// Acorn / RISC OS newline (`\n\r`, LFCR, 0x0A 0x0D).
+    LfCr,
+    /// QNX traditional Record Separator (`\x1E`, RS, 0x1E).
+    Rs,
+    /// IBM / EBCDIC Next Line (`\u{0085}`, NEL).
+    Nl,
+}
+
+impl LineEndingKind {
+    /// Returns the string representation of this line ending delimiter.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Lf => "\n",
+            Self::Cr => "\r",
+            Self::CrLf => "\r\n",
+            Self::LfCr => "\n\r",
+            Self::Rs => "\x1E",
+            Self::Nl => "\u{0085}",
+        }
+    }
+
+    /// Returns the byte sequence for this line ending in UTF-8.
+    #[must_use]
+    pub const fn as_bytes(self) -> &'static [u8] {
+        self.as_str().as_bytes()
+    }
+}
+
+/// Mode defining whether newlines terminate every line or only separate lines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TerminationMode {
+    /// Every line including the last line is terminated by the newline sequence.
+    #[default]
+    Terminated,
+    /// Newline sequences only appear between lines; no trailing terminator on final line.
+    Separated,
+}
+
+/// Full specification of line ending style and termination mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct LineEndingFormat {
+    /// The line ending delimiter pattern.
+    pub kind: LineEndingKind,
+    /// Whether the delimiter terminates all lines or only separates them.
+    pub mode: TerminationMode,
+}
+
+impl LineEndingFormat {
+    /// Creates a new `LineEndingFormat` with terminated mode.
+    #[must_use]
+    pub const fn terminated(kind: LineEndingKind) -> Self {
+        Self {
+            kind,
+            mode: TerminationMode::Terminated,
+        }
+    }
+
+    /// Creates a new `LineEndingFormat` with separated mode.
+    #[must_use]
+    pub const fn separated(kind: LineEndingKind) -> Self {
+        Self {
+            kind,
+            mode: TerminationMode::Separated,
+        }
+    }
+}
+
+/// Option controlling line ending conversion during encoding, decoding, and transcoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum LineEndingOption {
+    /// Keep line endings as they are (no conversion / pure character conversion).
+    #[default]
+    Preserve,
+    /// Convert to the idiomatic line ending for the target character encoding.
+    EncodingDefault,
+    /// Convert to a specific line ending format.
+    Specific(LineEndingFormat),
+}
+
 /// Structured single-byte character encoding settings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharEncoding {
@@ -115,6 +205,33 @@ impl CharEncoding {
     #[must_use]
     pub const fn windows_1252() -> Self {
         Self::Windows1252
+    }
+
+    /// Returns the idiomatic / natural default line ending for this character encoding.
+    #[must_use]
+    pub const fn default_line_ending(self) -> LineEndingKind {
+        match self {
+            Self::MacRoman | Self::Neo { .. } => LineEndingKind::Cr,
+            Self::Cp437 { .. } | Self::Windows1252 => LineEndingKind::CrLf,
+        }
+    }
+
+    /// Checks whether the specified line ending can be encoded in this character encoding.
+    #[must_use]
+    pub const fn supports_line_ending(self, ending: LineEndingKind) -> bool {
+        match ending {
+            LineEndingKind::Lf
+            | LineEndingKind::Cr
+            | LineEndingKind::CrLf
+            | LineEndingKind::LfCr => true,
+            LineEndingKind::Rs => match self {
+                Self::MacRoman | Self::Windows1252 => true,
+                Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {
+                    matches!(low_area, LowArea::Control)
+                }
+            },
+            LineEndingKind::Nl => false,
+        }
     }
 }
 

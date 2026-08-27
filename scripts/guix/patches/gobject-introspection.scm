@@ -48,6 +48,7 @@
            (mkdir-p pkgconfig)
            (mkdir-p (string-append share "/gir-1.0"))
            (mkdir-p (string-append share "/gobject-introspection-1.0"))
+           (mkdir-p (string-append lib "/girepository-1.0"))
 
            ;; Create dummy g-ir binaries with proper interpreter and version response
            (for-each
@@ -65,11 +66,14 @@
                      "prefix=" out "\n"
                      "libdir=" lib "\n"
                      "includedir=" out "/include\n"
+                     "datadir=" share "\n"
                      "bindir=" bin "\n"
                      "g_ir_scanner=" bin "/g-ir-scanner\n"
                      "g_ir_compiler=" bin "/g-ir-compiler\n"
                      "g_ir_generate=" bin "/g-ir-generate\n"
+                     "girdir=" share "/gir-1.0\n"
                      "gir_dir=" share "/gir-1.0\n"
+                     "typelibdir=" lib "/girepository-1.0\n"
                      "\n"
                      "Name: gobject-introspection\n"
                      "Description: GObject Introspection\n"

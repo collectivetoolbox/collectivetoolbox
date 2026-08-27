@@ -774,7 +774,7 @@ fn parse_data_record_headers(
                 payload.len(),
                 cursor,
                 b0_usize,
-                3,
+                4,
                 PanDataRecordFormat::Byte8WithStatus,
             )?;
         }
@@ -948,13 +948,16 @@ fn parse_data_record_header_for_format(
             if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) != Some(&b0) {
                 bail!("DATA Byte8 record trailer mismatch")
             }
-            Ok((b0_usize, 3))
+            Ok((b0_usize, 4))
         }
         PanDataRecordFormat::Le24WithStatus => {
             let len_lo = payload
                 .get(cursor)
                 .copied()
                 .context("DATA LE24 length low byte is missing")?;
+            if len_lo == 0xfe {
+                bail!("DATA record starts with 0xfe marker, not LE24");
+            }
             let len_mid = payload
                 .get(cursor.saturating_add(1))
                 .copied()
@@ -1169,7 +1172,7 @@ fn data_section_has_unsupported_marker(header_bytes: &[u8]) -> bool {
         return false;
     }
 
-    !marker.is_ascii_alphanumeric()
+    !marker.is_ascii()
 }
 
 fn extract_raw_field_slices<'a>(
@@ -3088,6 +3091,37 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_format_data_field_value_cents_and_words_pattern() -> anyhow::Result<()> {
+        let field = PanSchemaField {
+            index: 0,
+            name: "Amount".to_string(),
+            width: 20,
+            type_code: 2,
+            type_label: "Fixed".to_string(),
+            field_type: PanFieldType::Fixed2,
+            output_pattern: Some("§ dollar~ and ¢¢/100".to_string()),
+        };
+
+        let val_42 = PanDataValue::Fixed("42.29".to_string());
+        let formatted_42 = format_data_field_value(&field, &val_42)?;
+        ensure!(formatted_42.as_deref() == Some("Forty two dollars and 29/100"));
+
+        let val_1 = PanDataValue::Fixed("1.05".to_string());
+        let formatted_1 = format_data_field_value(&field, &val_1)?;
+        ensure!(formatted_1.as_deref() == Some("One dollar and 05/100"));
+
+        let val_int = PanDataValue::Integer("100".to_string());
+        let formatted_int = format_data_field_value(&field, &val_int)?;
+        ensure!(formatted_int.as_deref() == Some("One hundred dollars and 00/100"));
+
+        let val_empty = PanDataValue::Fixed(String::new());
+        let formatted_empty = format_data_field_value(&field, &val_empty)?;
+        ensure!(formatted_empty.is_none());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_parse_data_payload_supports_fe_be16_record_lengths()
     -> anyhow::Result<()> {
         let schema = PanSchema {
@@ -3548,7 +3582,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_byte8_with_status_3byte_header(
+    fn test_parse_data_payload_byte8_with_status_4byte_header(
     ) -> anyhow::Result<()> {
         let schema = PanSchema {
             names_section_offset: 0,
@@ -3579,39 +3613,43 @@ mod tests {
         // DATA section payload with 2-byte section header
         let mut payload = vec![0x00, 0x00];
 
-        // Record 0: sz=15 (0x0f), header=[0x0f, 0x80, 0x01]
+        // Record 0: sz=16 (0x10), header=[0x10, 0x80, 0x00, 0x01]
         // Field 0: len=6 (1 + 5 bytes "Zion ") -> "Zion "
         // Field 1: len=3 (1 + 2 bytes "UT") -> "UT"
-        // Total record bytes = 3 (header) + 6 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x0f) = 15
+        // Total record bytes = 4 (header) + 6 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x10) = 16
         payload.extend_from_slice(&[
-            0x0f, 0x80, 0x01, // 3-byte header: sz=15, flag=0x80, status=0x01
+            0x10, 0x80, 0x00, 0x01, // 4-byte header: sz=16, flag=0x80, status=0x00, 0x01
             0x06, b'Z', b'i', b'o', b'n', b' ', // Field 0
             0x03, b'U', b'T', // Field 1
             0x00, 0x00, // padding within declared sz
-            0x0f, // 1-byte trailer matching sz
+            0x10, // 1-byte trailer matching sz
         ]);
 
-        // Record 1: sz=16 (0x10), header=[0x10, 0x80, 0x07]
+        // Record 1: sz=17 (0x11), header=[0x11, 0x80, 0x00, 0x07]
         // Field 0: len=7 (1 + 6 bytes "Acadia") -> "Acadia"
         // Field 1: len=3 (1 + 2 bytes "ME") -> "ME"
-        // Total record bytes = 3 (header) + 7 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x10) = 16
+        // Total record bytes = 4 (header) + 7 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x11) = 17
         payload.extend_from_slice(&[
-            0x10, 0x80, 0x07, // 3-byte header: sz=16, flag=0x80, status=0x07
+            0x11, 0x80, 0x00, 0x07, // 4-byte header: sz=17, flag=0x80, status=0x00, 0x07
             0x07, b'A', b'c', b'a', b'd', b'i', b'a', // Field 0
             0x03, b'M', b'E', // Field 1
             0x00, 0x00, // padding within declared sz
-            0x10, // 1-byte trailer matching sz
+            0x11, // 1-byte trailer matching sz
         ]);
 
         let (records, _, trailing) = parse_data_payload(&payload, 0x1000, &schema)?;
         ensure!(records.len() == 2);
         ensure!(trailing.is_empty());
 
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Zion "));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "UT"));
+        let r0_f0 = records.first().and_then(|r| r.fields.first());
+        ensure!(
+            matches!(r0_f0.map(|f| &f.value), Some(PanDataValue::Text(val)) if val == "Zion ")
+        );
 
-        ensure!(matches!(&records[1].fields[0].value, PanDataValue::Text(t) if t == "Acadia"));
-        ensure!(matches!(&records[1].fields[1].value, PanDataValue::Text(t) if t == "ME"));
+        let r1_f0 = records.get(1).and_then(|r| r.fields.first());
+        ensure!(
+            matches!(r1_f0.map(|f| &f.value), Some(PanDataValue::Text(val)) if val == "Acadia")
+        );
 
         Ok(())
     }

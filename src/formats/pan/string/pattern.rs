@@ -563,4 +563,28 @@ mod tests {
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_pattern_cents_variations_and_errors() -> Result<()> {
+        assert_eq!(
+            pattern(0.50, "§ dollar~ and ¢¢/100")?,
+            "Zero dollars and 50/100"
+        );
+        assert_eq!(
+            pattern(1.00, "§ dollar~ and ¢¢/100")?,
+            "One dollar and 00/100"
+        );
+        assert_eq!(
+            pattern(42.125, "§ and ¢¢¢/1000")?,
+            "Forty two and 125/1000"
+        );
+        assert_eq!(
+            pattern(100.0, "§ and ¢¢/100")?,
+            "One hundred and 00/100"
+        );
+
+        // Multiple distinct runs of ¢ are disallowed in Panorama patterns
+        assert!(pattern(42.29, "§ ¢¢ and ¢¢").is_err());
+        Ok(())
+    }
 }

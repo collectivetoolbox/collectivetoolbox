@@ -189,6 +189,113 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(json.into_bytes())
 }
 
+fn mac_roman_to_pan_windows_byte(b: u8) -> u8 {
+    match b {
+        0x80 => 0xC4,
+        0x81 => 0xC5,
+        0x82 => 0xC7,
+        0x83 => 0xC9,
+        0x84 => 0xD1,
+        0x85 => 0xD6,
+        0x86 => 0xDC,
+        0x87 => 0xE1,
+        0x88 => 0xE0,
+        0x89 => 0xE2,
+        0x8A => 0xE4,
+        0x8B => 0xE3,
+        0x8C => 0xE5,
+        0x8D => 0xE7,
+        0x8E => 0xE9,
+        0x8F => 0xE8,
+        0x90 => 0xEA,
+        0x91 => 0xEB,
+        0x92 => 0xED,
+        0x93 => 0xEC,
+        0x94 => 0xEE,
+        0x95 => 0xEF,
+        0x96 => 0xF1,
+        0x97 => 0xF3,
+        0x98 => 0xF2,
+        0x99 => 0xF4,
+        0x9A => 0xF6,
+        0x9B => 0xF5,
+        0x9C => 0xFA,
+        0x9D => 0xF9,
+        0x9E => 0xFB,
+        0x9F => 0xFC,
+        0xA1 => 0xB0,
+        0xA4 => 0xA7,
+        0xA5 => 0x95,
+        0xA6 => 0xB6,
+        0xA7 => 0xDF,
+        0xA8 => 0xAE,
+        0xAA => 0x99,
+        0xAB => 0xB4,
+        0xAC => 0xA8,
+        0xAD => 0x80,
+        0xAE => 0xC6,
+        0xB0 => 0x81,
+        0xB2 => 0x8D,
+        0xB3 => 0x8E,
+        0xB4 => 0xA5,
+        0xB6 => 0x8F,
+        0xB8 => 0xDE,
+        0xB9 => 0xFE,
+        0xBA => 0x9D,
+        0xBB => 0xAA,
+        0xBC => 0xBA,
+        0xBD => 0xA6,
+        0xBE => 0xE6,
+        0xBF => 0xF8,
+        0xC0 => 0xBF,
+        0xC1 => 0xA1,
+        0xC2 => 0xAC,
+        0xC3 => 0xB2,
+        0xC4 => 0x83,
+        0xC6 => 0xFD,
+        0xC7 => 0xAB,
+        0xC8 => 0xBB,
+        0xC9 => 0x85,
+        0xCA => 0xA0,
+        0xCB => 0xC0,
+        0xCC => 0xC3,
+        0xCD => 0xD5,
+        0xCE => 0x8C,
+        0xD0 => 0x96,
+        0xD1 => 0x97,
+        0xD2 => 0x93,
+        0xD3 => 0x94,
+        0xD4 => 0x91,
+        0xD5 => 0x92,
+        0xD6 => 0xF7,
+        0xD8 => 0xFF,
+        0xD9 => 0x9F,
+        0xDB => 0xA4,
+        0xE5 => 0xC2,
+        0xE6 => 0xCA,
+        0xE7 => 0xC1,
+        0xE8 => 0xCB,
+        0xE9 => 0xC8,
+        0xEA => 0xCD,
+        0xEB => 0xCE,
+        0xEC => 0xCF,
+        0xED => 0xCC,
+        0xEE => 0xD3,
+        0xEF => 0xD4,
+        0xF1 => 0xD2,
+        0xF2 => 0xDA,
+        0xF3 => 0xDB,
+        0xF4 => 0xD9,
+        0xF7 => 0x98,
+        0xF8 => 0xAF,
+        0xFB => 0xD7,
+        0xFC => 0xB8,
+        0xFE => 0xAD,
+        0xFF => 0xFE,
+        other => other,
+    }
+}
+
 fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
     options: &PanCsvOptions,
@@ -197,19 +304,22 @@ fn csv_field_bytes(
     match &field.value {
         parser::PanDataValue::Text(text) => {
             let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
-            if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
+            if options.encoding == PanCsvEncoding::Windows {
                 let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
                     || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
-                let mut mapped = Vec::with_capacity(field.raw_bytes.len());
-                for &b in &field.raw_bytes {
-                    if b == 0xfe {
-                        mapped.push(if use_ad { 0xad } else { 0xf0 });
-                    } else if b == 0xff {
-                        mapped.push(if use_ad { 0xfe } else { 0xb9 });
-                    } else {
-                        mapped.push(b);
-                    }
-                }
+                let mut mapped = field
+                    .raw_bytes
+                    .iter()
+                    .map(|&b| {
+                        if b == 0xfe {
+                            if use_ad { 0xad } else { 0xf0 }
+                        } else if b == 0xff {
+                            if use_ad { 0xfe } else { 0xb9 }
+                        } else {
+                            mac_roman_to_pan_windows_byte(b)
+                        }
+                    })
+                    .collect::<Vec<u8>>();
                 if options.output_patterns && options.truncate_multiline {
                     if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
                         mapped.truncate(pos);
@@ -221,15 +331,25 @@ fn csv_field_bytes(
                         }
                     }
                 }
-                if options.encoding == PanCsvEncoding::Utf8Windows {
-                    let text = ctb_formats_encoding::decode(
-                        ctb_formats_encoding::CharEncoding::windows_1252(),
-                        &mapped,
-                    )?;
-                    Ok(text.into_bytes())
-                } else {
-                    Ok(mapped)
+                Ok(mapped)
+            } else if options.encoding == PanCsvEncoding::Utf8Windows {
+                let decoded = ctb_formats_encoding::decode(
+                    ctb_formats_encoding::CharEncoding::mac_roman(),
+                    &field.raw_bytes,
+                )?;
+                let mut mapped = decoded.into_bytes();
+                if options.output_patterns && options.truncate_multiline {
+                    if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
+                        mapped.truncate(pos);
+                    }
+                } else if is_tabs_no_quotes {
+                    for b in &mut mapped {
+                        if *b == b'\r' || *b == b'\n' {
+                            *b = 0x0b;
+                        }
+                    }
                 }
+                Ok(mapped)
             } else if options.encoding == PanCsvEncoding::MacRoman {
                 let mut raw = field.raw_bytes.clone();
                 if options.output_patterns && options.truncate_multiline {
@@ -659,6 +779,96 @@ mod tests {
         )?;
         ensure!(!sample_csv_with_trunc.is_empty());
         ensure!(!sample_csv_no_trunc.is_empty());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_sample_windows_export_fixtures_all_variants() -> anyhow::Result<()> {
+        let pan_data = crate::get_pan_data("fixtures/SAMPLE.pan")
+            .context("Could not load fixtures/SAMPLE.pan")?;
+
+        let delimiters = [
+            ("commas", PanExportDelimiter::Commas),
+            ("tabs", PanExportDelimiter::Tabs),
+            ("tabs-no-quotes", PanExportDelimiter::TabsWithoutQuotes),
+            ("wordperfect", PanExportDelimiter::WordPerfect),
+        ];
+
+        for (delim_name, delim) in delimiters {
+            for header in [true, false] {
+                for patterns in [true, false] {
+                    let header_slug = if header { "field-names" } else { "no-field-names" };
+                    let patterns_slug = if patterns { "output-patterns" } else { "no-output-patterns" };
+                    let fixture_name = format!(
+                        "fixtures/SAMPLE-windows-{delim_name}-{header_slug}-{patterns_slug}.txt"
+                    );
+                    let expected = crate::get_pan_data(&fixture_name)
+                        .with_context(|| format!("Could not load {fixture_name}"))?;
+
+                    let options = PanCsvOptions {
+                        include_header: header,
+                        output_patterns: patterns,
+                        truncate_multiline: true,
+                        encoding: PanCsvEncoding::Windows,
+                        crlf: delim != PanExportDelimiter::WordPerfect,
+                        delimiter: delim,
+                    };
+
+                    let actual = pan_to_csv_with_options(&pan_data, &options)?;
+                    ensure!(
+                        actual == expected,
+                        "Fixture mismatch for {fixture_name}: actual len {} vs expected len {}",
+                        actual.len(),
+                        expected.len()
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_sample_with_patterns_v2_export_fixtures_all_variants() -> anyhow::Result<()> {
+        let pan_data = crate::get_pan_data("fixtures/Sample with patterns v2.pan")
+            .context("Could not load fixtures/Sample with patterns v2.pan")?;
+
+        let delimiters = [
+            ("commas", "commas", PanExportDelimiter::Commas),
+            ("tabs", "tabs", PanExportDelimiter::Tabs),
+            ("tabs no quotes", "tabs no quotes", PanExportDelimiter::TabsWithoutQuotes),
+            ("WordPerfect", "WordPerfect", PanExportDelimiter::WordPerfect),
+        ];
+
+        for (_, delim_label, delim) in delimiters {
+            for header in [true, false] {
+                for patterns in [true, false] {
+                    let header_slug = if header { "field names" } else { "no field names" };
+                    let patterns_slug = if patterns { "output patterns" } else { "no output patterns" };
+                    let fixture_name = format!(
+                        "fixtures/Sample with patterns v2 Windows, {delim_label}, {header_slug}, {patterns_slug}.txt"
+                    );
+                    let expected = crate::get_pan_data(&fixture_name)
+                        .with_context(|| format!("Could not load {fixture_name}"))?;
+
+                    let options = PanCsvOptions {
+                        include_header: header,
+                        output_patterns: patterns,
+                        truncate_multiline: true,
+                        encoding: PanCsvEncoding::Windows,
+                        crlf: delim != PanExportDelimiter::WordPerfect,
+                        delimiter: delim,
+                    };
+
+                    let actual = pan_to_csv_with_options(&pan_data, &options)?;
+                    ensure!(
+                        actual == expected,
+                        "Fixture mismatch for {fixture_name}: actual len {} vs expected len {}",
+                        actual.len(),
+                        expected.len()
+                    );
+                }
+            }
+        }
         Ok(())
     }
 }

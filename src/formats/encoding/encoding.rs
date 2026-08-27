@@ -29,14 +29,16 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 
 pub mod cp437;
+pub mod line_endings;
 pub mod mapping;
 pub mod neo;
 pub mod standard;
 pub mod unicode;
 
 pub use mapping::{
-    CharEncoding, LowArea, NeoRegion, SingleByteMapping, asc, chr, chr_char,
-    decode, encode, mapping,
+    CharEncoding, LineEndingFormat, LineEndingKind, LineEndingOption, LowArea,
+    NeoRegion, SingleByteMapping, TerminationMode, asc, chr, chr_char, decode,
+    decode_with_options, encode, encode_with_options, mapping, transcode,
 };
 
 static ENCODING_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");

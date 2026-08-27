@@ -29,7 +29,10 @@ use crate::utilities::*;
 use std::collections::HashMap;
 use ctb_utilities::anyhow::anyhow;
 
-pub use ctb_formats_utilities::encoding::{CharEncoding, LowArea, NeoRegion};
+pub use ctb_formats_utilities::encoding::{
+    CharEncoding, LineEndingFormat, LineEndingKind, LineEndingOption, LowArea,
+    NeoRegion, TerminationMode,
+};
 
 /// A 256-entry bidirectional mapping between single bytes and Unicode characters.
 #[derive(Debug, Clone)]
@@ -154,9 +157,44 @@ pub fn encode(enc: CharEncoding, input: &str) -> Result<Vec<u8>> {
     mapping(enc).encode(input)
 }
 
+/// Encodes a Unicode string with optional line ending conversion.
+pub fn encode_with_options(
+    enc: CharEncoding,
+    input: &str,
+    line_ending_opt: LineEndingOption,
+) -> Result<Vec<u8>> {
+    let converted = crate::line_endings::apply_line_ending_option(
+        input,
+        enc,
+        line_ending_opt,
+    )?;
+    mapping(enc).encode(&converted)
+}
+
 /// Decodes a byte slice into a Unicode string using the specified character encoding.
 pub fn decode(enc: CharEncoding, input: &[u8]) -> Result<String> {
     mapping(enc).decode(input)
+}
+
+/// Decodes a byte slice into a Unicode string with optional line ending conversion.
+pub fn decode_with_options(
+    enc: CharEncoding,
+    input: &[u8],
+    line_ending_opt: LineEndingOption,
+) -> Result<String> {
+    let decoded = mapping(enc).decode(input)?;
+    crate::line_endings::apply_line_ending_option(&decoded, enc, line_ending_opt)
+}
+
+/// Transcodes bytes from one character encoding to another with optional line ending conversion.
+pub fn transcode(
+    input: &[u8],
+    src_enc: CharEncoding,
+    dst_enc: CharEncoding,
+    line_ending_opt: LineEndingOption,
+) -> Result<Vec<u8>> {
+    let decoded = decode(src_enc, input)?;
+    encode_with_options(dst_enc, &decoded, line_ending_opt)
 }
 
 /// Returns the string representation of a character code in the specified encoding.
@@ -199,6 +237,35 @@ mod tests {
         assert_eq!(decoded, "A");
         assert_eq!(chr(enc, 65), "A");
         assert_eq!(asc(enc, "A"), Some(65));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_encode_decode_with_options() -> Result<()> {
+        let mac = CharEncoding::mac_roman();
+        let unix_text = "Hello\nWorld\n";
+
+        // encode with EncodingDefault on MacRoman should produce CR line endings (0x0D)
+        let mac_bytes =
+            encode_with_options(mac, unix_text, LineEndingOption::EncodingDefault)?;
+        assert_eq!(mac_bytes, b"Hello\rWorld\r");
+
+        // decode with EncodingDefault on Windows1252 should convert to CRLF
+        let win = CharEncoding::windows_1252();
+        let win_text =
+            decode_with_options(win, b"Hello\nWorld\n", LineEndingOption::EncodingDefault)?;
+        assert_eq!(win_text, "Hello\r\nWorld\r\n");
+
+        // Transcode from Windows-1252 (with CRLF) to MacRoman with EncodingDefault -> CR (0x0D)
+        let win_bytes = b"Hello\r\nWorld\r\n";
+        let transcoded = transcode(
+            win_bytes,
+            win,
+            mac,
+            LineEndingOption::EncodingDefault,
+        )?;
+        assert_eq!(transcoded, b"Hello\rWorld\r");
+
         Ok(())
     }
 }
