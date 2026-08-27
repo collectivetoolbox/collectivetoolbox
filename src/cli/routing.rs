@@ -349,6 +349,9 @@ pub enum Command {
         /// Do not include CSV header row (alias for --header=false)
         #[arg(long = "no-header")]
         no_header: bool,
+        /// Export delimiter / format: commas (default), tabs, tabs-no-quotes, wordperfect
+        #[arg(long, short = 'd', default_value = "commas")]
+        delimiter: String,
         /// Output character encoding (utf8, mac, windows)
         #[arg(long, default_value = "utf8")]
         encoding: String,
@@ -958,6 +961,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             patterns,
             header,
             no_header,
+            delimiter,
             encoding,
             crlf,
             pan_file,
@@ -976,11 +980,31 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 }
                 _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
             };
+            let delim = match delimiter.to_ascii_lowercase().replace('_', "-").as_str() {
+                "tab" | "tabs" | "tsv" => {
+                    ctb_formats_pan::output::PanExportDelimiter::Tabs
+                }
+                "tab-no-quotes"
+                | "tabs-no-quotes"
+                | "tab-without-quotes"
+                | "tabs-without-quotes"
+                | "tabs-w/o-quotes"
+                | "tsv-no-quotes" => {
+                    ctb_formats_pan::output::PanExportDelimiter::TabsWithoutQuotes
+                }
+                "wordperfect" | "wp" => {
+                    ctb_formats_pan::output::PanExportDelimiter::WordPerfect
+                }
+                _ => ctb_formats_pan::output::PanExportDelimiter::Commas,
+            };
             let opts = ctb_formats_pan::output::PanCsvOptions {
                 output_patterns: *patterns,
                 include_header,
                 encoding: enc,
-                crlf: *crlf || enc == ctb_formats_pan::output::PanCsvEncoding::Windows,
+                delimiter: delim,
+                crlf: *crlf
+                    || (delim != ctb_formats_pan::output::PanExportDelimiter::WordPerfect
+                        && enc == ctb_formats_pan::output::PanCsvEncoding::Windows),
             };
             let output =
                 ctb_formats_pan::output::pan_to_csv_with_options(&data, &opts)?;

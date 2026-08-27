@@ -46,11 +46,21 @@ pub enum PanCsvEncoding {
     Windows,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PanExportDelimiter {
+    #[default]
+    Commas,
+    Tabs,
+    TabsWithoutQuotes,
+    WordPerfect,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanCsvOptions {
     pub output_patterns: bool,
     pub include_header: bool,
     pub encoding: PanCsvEncoding,
+    pub delimiter: PanExportDelimiter,
     pub crlf: bool,
 }
 
@@ -60,6 +70,7 @@ impl Default for PanCsvOptions {
             output_patterns: false,
             include_header: true,
             encoding: PanCsvEncoding::Utf8,
+            delimiter: PanExportDelimiter::Commas,
             crlf: false,
         }
     }
@@ -73,6 +84,7 @@ pub fn pan_to_csv(
         output_patterns,
         include_header: true,
         encoding: PanCsvEncoding::Utf8,
+        delimiter: PanExportDelimiter::Commas,
         crlf: false,
     };
     let bytes = pan_to_csv_with_options(pan_file, &options)?;
@@ -122,7 +134,13 @@ pub fn pan_to_csv_with_options(
         rows.push(row);
     }
 
-    Ok(write_csv_bytes(header.as_deref(), &rows, options.crlf, options.encoding))
+    Ok(write_csv_bytes(
+        header.as_deref(),
+        &rows,
+        options.crlf,
+        options.encoding,
+        options.delimiter,
+    ))
 }
 
 /// Convert a PAN file to JSON string. Mainly for testing and debugging
@@ -148,6 +166,7 @@ pub fn pan_file_to_csv_stdout(
         output_patterns,
         include_header: true,
         encoding: PanCsvEncoding::Utf8,
+        delimiter: PanExportDelimiter::Commas,
         crlf: false,
     };
     pan_to_csv_with_options(&pan_data, &options)
@@ -172,6 +191,8 @@ fn csv_field_bytes(
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
+            let is_tabs = options.delimiter == PanExportDelimiter::Tabs
+                || options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
                 let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
                     || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
@@ -185,10 +206,33 @@ fn csv_field_bytes(
                         mapped.push(b);
                     }
                 }
-                if options.output_patterns {
+                if is_tabs {
+                    for b in &mut mapped {
+                        if *b == b'\r' || *b == b'\n' {
+                            *b = 0x0b;
+                        }
+                    }
+                } else if options.output_patterns {
                     if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
                         mapped.truncate(pos);
                     }
+                } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                    let mut norm = Vec::with_capacity(mapped.len());
+                    let mut i = 0usize;
+                    while i < mapped.len() {
+                        if let Some(&b) = mapped.get(i) {
+                            if b == b'\r' {
+                                if mapped.get(i.saturating_add(1)) == Some(&b'\n') {
+                                    i = i.saturating_add(1);
+                                }
+                                norm.push(b'\n');
+                            } else {
+                                norm.push(b);
+                            }
+                        }
+                        i = i.saturating_add(1);
+                    }
+                    mapped = norm;
                 }
                 if options.encoding == PanCsvEncoding::Utf8Windows {
                     let text = ctb_formats_encoding::decode(
@@ -201,20 +245,49 @@ fn csv_field_bytes(
                 }
             } else if options.encoding == PanCsvEncoding::MacRoman {
                 let mut raw = field.raw_bytes.clone();
-                if options.output_patterns {
+                if is_tabs {
+                    for b in &mut raw {
+                        if *b == b'\r' || *b == b'\n' {
+                            *b = 0x0b;
+                        }
+                    }
+                } else if options.output_patterns {
                     if let Some(pos) = raw.iter().position(|&b| b == b'\r' || b == b'\n') {
                         raw.truncate(pos);
                     }
+                } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                    let mut norm = Vec::with_capacity(raw.len());
+                    let mut i = 0usize;
+                    while i < raw.len() {
+                        if let Some(&b) = raw.get(i) {
+                            if b == b'\r' {
+                                if raw.get(i.saturating_add(1)) == Some(&b'\n') {
+                                    i = i.saturating_add(1);
+                                }
+                                norm.push(b'\n');
+                            } else {
+                                norm.push(b);
+                            }
+                        }
+                        i = i.saturating_add(1);
+                    }
+                    raw = norm;
                 }
                 Ok(raw)
             } else {
-                if options.output_patterns {
+                if is_tabs {
+                    let replaced = text.replace("\r\n", "\x0b").replace(['\r', '\n'], "\x0b");
+                    Ok(replaced.into_bytes())
+                } else if options.output_patterns {
                     let first_line = text
                         .split(['\r', '\n'])
                         .next()
                         // Reason for fallback: split always yields at least one item
                         .unwrap_or("");
                     Ok(first_line.as_bytes().to_vec())
+                } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                    let norm = text.replace("\r\n", "\n").replace('\r', "\n");
+                    Ok(norm.into_bytes())
                 } else {
                     Ok(text.as_bytes().to_vec())
                 }
@@ -292,25 +365,53 @@ fn csv_field_bytes(
     }
 }
 
-fn format_csv_cell(cell_bytes: &[u8]) -> Vec<u8> {
-    let needs_quote = cell_bytes
-        .iter()
-        .any(|&b| b == b',' || b == b'"' || b == b'\r' || b == b'\n' || b == b'\t');
-    if needs_quote {
-        let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
-        out.push(b'"');
-        for &b in cell_bytes {
-            if b == b'"' {
+fn format_export_cell(cell_bytes: &[u8], delimiter: PanExportDelimiter) -> Vec<u8> {
+    match delimiter {
+        PanExportDelimiter::Commas => {
+            let needs_quote = cell_bytes
+                .iter()
+                .any(|&b| b == b',' || b == b'"' || b == b'\r' || b == b'\n' || b == b'\t');
+            if needs_quote {
+                let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
                 out.push(b'"');
+                for &b in cell_bytes {
+                    if b == b'"' {
+                        out.push(b'"');
+                        out.push(b'"');
+                    } else {
+                        out.push(b);
+                    }
+                }
                 out.push(b'"');
+                out
             } else {
-                out.push(b);
+                cell_bytes.to_vec()
             }
         }
-        out.push(b'"');
-        out
-    } else {
-        cell_bytes.to_vec()
+        PanExportDelimiter::Tabs => {
+            let needs_quote = cell_bytes
+                .iter()
+                .any(|&b| b == b'\t' || b == b'"');
+            if needs_quote {
+                let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
+                out.push(b'"');
+                for &b in cell_bytes {
+                    if b == b'"' {
+                        out.push(b'"');
+                        out.push(b'"');
+                    } else {
+                        out.push(b);
+                    }
+                }
+                out.push(b'"');
+                out
+            } else {
+                cell_bytes.to_vec()
+            }
+        }
+        PanExportDelimiter::TabsWithoutQuotes | PanExportDelimiter::WordPerfect => {
+            cell_bytes.to_vec()
+        }
     }
 }
 
@@ -319,6 +420,7 @@ fn write_csv_bytes(
     rows: &[Vec<Vec<u8>>],
     crlf: bool,
     encoding: PanCsvEncoding,
+    delimiter: PanExportDelimiter,
 ) -> Vec<u8> {
     let line_ending = if crlf || encoding == PanCsvEncoding::Windows {
         b"\r\n".as_slice()
@@ -327,22 +429,74 @@ fn write_csv_bytes(
     };
 
     let mut out = Vec::new();
-    if let Some(header_fields) = header {
-        let mut header_cells = Vec::with_capacity(header_fields.len());
-        for name in header_fields {
-            header_cells.push(format_csv_cell(name.as_bytes()));
-        }
-        out.extend(header_cells.join(&b","[..]));
-        out.extend_from_slice(line_ending);
-    }
+    match delimiter {
+        PanExportDelimiter::Commas => {
+            if let Some(header_fields) = header {
+                let mut header_cells = Vec::with_capacity(header_fields.len());
+                for name in header_fields {
+                    header_cells.push(format_export_cell(name.as_bytes(), delimiter));
+                }
+                out.extend(header_cells.join(&b","[..]));
+                out.extend_from_slice(line_ending);
+            }
 
-    for row in rows {
-        let mut row_cells = Vec::with_capacity(row.len());
-        for cell in row {
-            row_cells.push(format_csv_cell(cell));
+            for row in rows {
+                let mut row_cells = Vec::with_capacity(row.len());
+                for cell in row {
+                    row_cells.push(format_export_cell(cell, delimiter));
+                }
+                out.extend(row_cells.join(&b","[..]));
+                out.extend_from_slice(line_ending);
+            }
         }
-        out.extend(row_cells.join(&b","[..]));
-        out.extend_from_slice(line_ending);
+        PanExportDelimiter::Tabs | PanExportDelimiter::TabsWithoutQuotes => {
+            if let Some(header_fields) = header {
+                let mut header_cells = Vec::with_capacity(header_fields.len());
+                for name in header_fields {
+                    header_cells.push(format_export_cell(name.as_bytes(), delimiter));
+                }
+                out.extend(header_cells.join(&b"\t"[..]));
+                out.extend_from_slice(line_ending);
+            }
+
+            for row in rows {
+                let mut row_cells = Vec::with_capacity(row.len());
+                for cell in row {
+                    row_cells.push(format_export_cell(cell, delimiter));
+                }
+                out.extend(row_cells.join(&b"\t"[..]));
+                out.extend_from_slice(line_ending);
+            }
+        }
+        PanExportDelimiter::WordPerfect => {
+            let wp_field_sep = if crlf {
+                b"\x12\r\n".as_slice()
+            } else {
+                b"\x12\n".as_slice()
+            };
+            let wp_record_sep = if crlf {
+                b"\x05\r\n".as_slice()
+            } else {
+                b"\x05\n".as_slice()
+            };
+
+            if let Some(header_fields) = header {
+                let mut header_cells = Vec::with_capacity(header_fields.len());
+                for name in header_fields {
+                    header_cells.push(name.as_bytes().to_vec());
+                }
+                out.extend(header_cells.join(wp_field_sep));
+                out.extend_from_slice(wp_record_sep);
+            }
+
+            for row in rows {
+                for cell in row {
+                    out.extend_from_slice(cell);
+                    out.extend_from_slice(wp_field_sep);
+                }
+                out.extend_from_slice(wp_record_sep);
+            }
+        }
     }
 
     out
@@ -431,6 +585,7 @@ mod tests {
             &rows,
             false,
             PanCsvEncoding::Utf8,
+            PanExportDelimiter::Commas,
         );
         let csv_output = String::from_utf8(csv_bytes)?;
         ensure!(
@@ -451,6 +606,7 @@ mod tests {
                 output_patterns: false,
                 include_header: true,
                 encoding: PanCsvEncoding::Utf8,
+                delimiter: PanExportDelimiter::Commas,
                 crlf: false,
             },
         )?;
@@ -460,6 +616,7 @@ mod tests {
                 output_patterns: false,
                 include_header: false,
                 encoding: PanCsvEncoding::Utf8,
+                delimiter: PanExportDelimiter::Commas,
                 crlf: false,
             },
         )?;
@@ -469,6 +626,41 @@ mod tests {
 
         ensure!(with_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
         ensure!(!no_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pan_export_delimiters() -> anyhow::Result<()> {
+        let header = vec!["Name".to_string(), "City".to_string()];
+        let rows = vec![vec![b"Alice\tSmith".to_vec(), b"New York".to_vec()]];
+
+        let tsv = write_csv_bytes(
+            Some(&header),
+            &rows,
+            false,
+            PanCsvEncoding::Utf8,
+            PanExportDelimiter::Tabs,
+        );
+        ensure!(String::from_utf8(tsv)? == "Name\tCity\n\"Alice\tSmith\"\tNew York\n");
+
+        let tsv_noq = write_csv_bytes(
+            Some(&header),
+            &rows,
+            false,
+            PanCsvEncoding::Utf8,
+            PanExportDelimiter::TabsWithoutQuotes,
+        );
+        ensure!(String::from_utf8(tsv_noq)? == "Name\tCity\nAlice\tSmith\tNew York\n");
+
+        let wp = write_csv_bytes(
+            Some(&header),
+            &rows,
+            false,
+            PanCsvEncoding::Utf8,
+            PanExportDelimiter::WordPerfect,
+        );
+        ensure!(String::from_utf8(wp)? == "Name\x12\nCity\x05\nAlice\tSmith\x12\nNew York\x12\n\x05\n");
 
         Ok(())
     }

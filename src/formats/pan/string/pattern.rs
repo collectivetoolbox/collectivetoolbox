@@ -413,7 +413,6 @@ fn is_one_words(value: f64, pat: &str) -> Result<bool> {
 
 fn cents_run_len(pat: &str) -> Result<usize> {
     let mut run_len = 0usize;
-    let mut seen_run = false;
 
     let mut it = pat.chars().peekable();
     while let Some(c) = it.next() {
@@ -421,11 +420,6 @@ fn cents_run_len(pat: &str) -> Result<usize> {
             continue;
         }
 
-        if seen_run && run_len == 0 {
-            bail!("pattern(): multiple ¢ runs are not supported");
-        }
-
-        seen_run = true;
         run_len = 1;
 
         while matches!(it.peek(), Some('¢')) {
