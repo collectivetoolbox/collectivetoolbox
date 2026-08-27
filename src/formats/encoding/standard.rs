@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Panorama Windows (CP1252 ANSI) character encoding and decoding utilities.
+//! Single-byte character mappings backed by `encoding_rs`.
 
 #[expect(
     unused_imports,
@@ -30,13 +30,15 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use crate::mapping::SingleByteMapping;
 
-/// Pre-initialized `SingleByteMapping` for Panorama Windows encoding.
-pub(crate) static PANWINDOWS_MAPPING: LazyLock<SingleByteMapping> = LazyLock::new(|| {
+/// Builds a `SingleByteMapping` table from an `encoding_rs::Encoding`.
+pub(crate) fn build_mapping_from_encoding_rs(
+    encoding: &'static encoding_rs::Encoding,
+) -> SingleByteMapping {
     let mut decode_table = ['\0'; 256];
     let mut encode_table = HashMap::new();
     for i in 0u8..=255 {
         let byte_slice = [i];
-        let (cow, _, _) = encoding_rs::WINDOWS_1252.decode(&byte_slice);
+        let (cow, _, _) = encoding.decode(&byte_slice);
         if let Some(ch) = cow.chars().next() {
             if let Some(slot) = decode_table.get_mut(usize::from(i)) {
                 *slot = ch;
@@ -45,7 +47,15 @@ pub(crate) static PANWINDOWS_MAPPING: LazyLock<SingleByteMapping> = LazyLock::ne
         }
     }
     SingleByteMapping::from_raw(decode_table, encode_table)
-});
+}
+
+/// Pre-initialized `SingleByteMapping` for Mac OS Roman encoding.
+pub(crate) static MACROMAN_MAPPING: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| build_mapping_from_encoding_rs(encoding_rs::MACINTOSH));
+
+/// Pre-initialized `SingleByteMapping` for Windows-1252 (ANSI) encoding.
+pub(crate) static WINDOWS_1252_MAPPING: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| build_mapping_from_encoding_rs(encoding_rs::WINDOWS_1252));
 
 #[cfg(test)]
 #[expect(
@@ -63,8 +73,18 @@ mod tests {
     use ctb_formats_utilities::encoding::CharEncoding;
 
     #[crate::ctb_test]
-    fn test_panwindows_encoding() {
-        let enc = CharEncoding::pan_windows();
+    fn test_macroman_encoding() {
+        let enc = CharEncoding::mac_roman();
+        let original = "Hello, World! ñ ü á";
+        let encoded = crate::encode(enc, original).unwrap();
+        let decoded = crate::decode(enc, &encoded).unwrap();
+        assert_eq!(original, decoded);
+        assert_eq!(crate::encode(enc, "caf\u{e9}").unwrap(), vec![99, 97, 102, 142]);
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_1252_encoding() {
+        let enc = CharEncoding::windows_1252();
         let original = "Hello, World! ñ ü á";
         let encoded = crate::encode(enc, original).unwrap();
         let decoded = crate::decode(enc, &encoded).unwrap();

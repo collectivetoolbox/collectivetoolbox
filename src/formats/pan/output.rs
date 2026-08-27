@@ -392,13 +392,54 @@ mod tests {
     fn test_write_csv_string_escapes_quotes_and_newlines() -> anyhow::Result<()>
     {
         let header = vec!["Name".to_string(), "Notes".to_string()];
-        let rows =
-            vec![vec!["Alice \"A\"".to_string(), "line1\nline2".to_string()]];
+        let rows = vec![vec![
+            b"Alice \"A\"".to_vec(),
+            b"line1\nline2".to_vec(),
+        ]];
 
-        let csv_output = write_csv_string(&header, &rows)?;
+        let csv_bytes = write_csv_bytes(
+            Some(&header),
+            &rows,
+            false,
+            PanCsvEncoding::Utf8,
+        );
+        let csv_output = String::from_utf8(csv_bytes)?;
         ensure!(
             csv_output == "Name,Notes\n\"Alice \"\"A\"\"\",\"line1\nline2\"\n"
         );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pan_csv_options_header_toggle() -> anyhow::Result<()> {
+        let pan = crate::get_pan_data("fixtures/SAMPLE.pan")
+            .context("Could not load fixtures/SAMPLE.pan")?;
+
+        let with_header = pan_to_csv_with_options(
+            &pan,
+            &PanCsvOptions {
+                output_patterns: false,
+                include_header: true,
+                encoding: PanCsvEncoding::Utf8,
+                crlf: false,
+            },
+        )?;
+        let no_header = pan_to_csv_with_options(
+            &pan,
+            &PanCsvOptions {
+                output_patterns: false,
+                include_header: false,
+                encoding: PanCsvEncoding::Utf8,
+                crlf: false,
+            },
+        )?;
+
+        let with_header_str = String::from_utf8(with_header)?;
+        let no_header_str = String::from_utf8(no_header)?;
+
+        ensure!(with_header_str.starts_with("Make,Model,Year,Color,Price"));
+        ensure!(!no_header_str.starts_with("Make,Model,Year,Color,Price"));
 
         Ok(())
     }

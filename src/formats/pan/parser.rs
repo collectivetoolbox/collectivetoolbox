@@ -1330,12 +1330,17 @@ fn decode_data_field_value(
     match field.field_type {
         PanFieldType::Text => {
             if raw_bytes.len() == 2 {
-                if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
-                    if serial > 2_400_000 && serial < 2_600_000 {
-                        return Ok(PanDataValue::Date {
-                            raw_serial: serial,
-                            pan_date_mdy,
-                        });
+                if let (Some(&b0), Some(&b1)) = (raw_bytes.first(), raw_bytes.get(1)) {
+                    let is_alphanumeric = b0.is_ascii_alphanumeric() && b1.is_ascii_alphanumeric();
+                    if !is_alphanumeric {
+                        if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
+                            if serial > 2_400_000 && serial < 2_600_000 {
+                                return Ok(PanDataValue::Date {
+                                    raw_serial: serial,
+                                    pan_date_mdy,
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -1344,7 +1349,7 @@ fn decode_data_field_value(
                 raw_bytes,
             );
             if let Ok(decoded) = decoded {
-                return Ok(PanDataValue::Text(decoded));
+                return Ok(PanDataValue::Text(decoded.replace('\r', "\n")));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1396,7 +1401,7 @@ fn decode_data_field_value(
                 return Ok(PanDataValue::Float("0".to_string()));
             }
             if raw_bytes.len() != 8 {
-                return Ok(PanDataValue::Unknown(hex_string(raw_bytes)));
+                return Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
             }
             let raw_float: [u8; 8] = <[u8; 8]>::try_from(raw_bytes)
                 .context("Failed to read f64 bytes from DATA record")?;
@@ -1415,7 +1420,7 @@ fn decode_data_field_value(
                 raw_bytes,
             );
             if let Ok(decoded) = decoded {
-                return Ok(PanDataValue::Text(decoded));
+                return Ok(PanDataValue::Text(decoded.replace('\r', "\n")));
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -1440,27 +1445,15 @@ fn format_data_field_value(
         PanDataValue::Integer(integer) => {
             let number = integer.parse::<f64>().with_context(|| {
                 format!(
-                    "Could not parse integer '{}' as f64 for field '{}'",
-                    integer, field.name
+                    "Could not parse integer '{integer}' as f64 for field '{field_name}'",
+                    field_name = field.name
                 )
             })?;
-            let formatted = crate::string::pattern::pattern(number, pattern)
-                .with_context(|| {
-                    format!(
-                        "Could not format integer field '{}' with pattern '{}'",
-                        field.name, pattern
-                    )
-                })?;
-            Ok(Some(formatted))
+            crate::string::pattern::pattern(number, pattern).map(Some)
         }
         PanDataValue::Fixed(fixed) => {
             let number = fixed.parse::<f64>().with_context(|| {
                 format!(
-                    "Could not parse fixed '{}' as f64 for field '{}'",
-                    fixed, field.name
-                )
-            })?;
-            let formatted = crate::string::pattern::pattern(number, pattern)
                 .with_context(|| {
                     format!(
                         "Could not format fixed field '{}' with pattern '{}'",

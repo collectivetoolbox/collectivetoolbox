@@ -29,10 +29,9 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 
 pub mod cp437;
-pub mod macroman;
 pub mod mapping;
 pub mod neo;
-pub mod panwindows;
+pub mod standard;
 pub mod unicode;
 
 pub use mapping::{
