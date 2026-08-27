@@ -1456,6 +1456,9 @@ fn decode_data_field_value(
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
         PanFieldType::Integer => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Integer(String::new()));
+            }
             let integer = decode_i64_from_le_varint(raw_bytes);
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Integer(integer.to_string()));
@@ -1463,6 +1466,9 @@ fn decode_data_field_value(
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
         PanFieldType::Fixed1 => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Fixed(String::new()));
+            }
             let integer = decode_i64_from_le_varint(raw_bytes);
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
@@ -1472,6 +1478,9 @@ fn decode_data_field_value(
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
         PanFieldType::Fixed2 => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Fixed(String::new()));
+            }
             let integer = decode_i64_from_le_varint(raw_bytes);
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
@@ -1481,6 +1490,9 @@ fn decode_data_field_value(
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
         PanFieldType::Fixed3 => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Fixed(String::new()));
+            }
             let integer = decode_i64_from_le_varint(raw_bytes);
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
@@ -1490,6 +1502,9 @@ fn decode_data_field_value(
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
         PanFieldType::Fixed4 => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Fixed(String::new()));
+            }
             let integer = decode_i64_from_le_varint(raw_bytes);
             if let Ok(integer) = integer {
                 return Ok(PanDataValue::Fixed(format_fixed_point(
@@ -1500,7 +1515,7 @@ fn decode_data_field_value(
         }
         PanFieldType::Float => {
             if raw_bytes.is_empty() {
-                return Ok(PanDataValue::Float("0".to_string()));
+                return Ok(PanDataValue::Float(String::new()));
             }
             if raw_bytes.len() != 8 {
                 return Ok(PanDataValue::Unknown(hex_string(raw_bytes)));
@@ -1545,6 +1560,9 @@ fn format_data_field_value(
 
     match value {
         PanDataValue::Integer(integer) => {
+            if integer.is_empty() {
+                return Ok(None);
+            }
             let number = integer.parse::<f64>().with_context(|| {
                 format!(
                     "Could not parse integer '{integer}' as f64 for field '{field_name}'",
@@ -1554,6 +1572,9 @@ fn format_data_field_value(
             crate::string::pattern::pattern(number, pattern).map(Some)
         }
         PanDataValue::Fixed(fixed) => {
+            if fixed.is_empty() {
+                return Ok(None);
+            }
             let number = fixed.parse::<f64>().with_context(|| {
                 format!(
                     "Could not parse fixed '{fixed}' as f64 for field '{field_name}'",
@@ -1570,6 +1591,9 @@ fn format_data_field_value(
             Ok(Some(formatted))
         }
         PanDataValue::Float(float_value) => {
+            if float_value.is_empty() {
+                return Ok(None);
+            }
             let number = float_value.parse::<f64>().with_context(|| {
                 format!(
                     "Could not parse float '{float_value}' as f64 for field '{field_name}'",
@@ -2895,11 +2919,11 @@ mod tests {
         ));
         ensure!(matches!(
             third_record.fields.get(1).map(|field| &field.value),
-            Some(PanDataValue::Integer(value)) if value == "0"
+            Some(PanDataValue::Integer(value)) if value.is_empty()
         ));
         ensure!(matches!(
             third_record.fields.get(7).map(|field| &field.value),
-            Some(PanDataValue::Float(value)) if value == "0"
+            Some(PanDataValue::Float(value)) if value.is_empty()
         ));
         ensure!(matches!(
             third_record.fields.get(6).map(|field| &field.value),
@@ -2908,7 +2932,7 @@ mod tests {
         ));
         ensure!(matches!(
             third_record.fields.get(8).map(|field| &field.value),
-            Some(PanDataValue::Fixed(value)) if value == "0.00"
+            Some(PanDataValue::Fixed(value)) if value.is_empty()
         ));
 
         ensure!(parsed.trailing_bytes.is_empty());

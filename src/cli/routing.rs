@@ -340,9 +340,12 @@ pub enum Command {
     /// Convert a .pan file to CSV output
     #[command(name = "pan2csv")]
     Pan2Csv {
-        /// Format data using Panorama output patterns (also strips subsequent lines of text fields)
+        /// Format data using Panorama output patterns (also strips subsequent lines of text fields by default)
         #[arg(long, short = 'p')]
         patterns: bool,
+        /// When formatting with patterns, keep full multiline text strings instead of truncating at first newline
+        #[arg(long = "keep-multiline")]
+        keep_multiline: bool,
         /// Include CSV header row with field names (default: true)
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         header: bool,
@@ -959,6 +962,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         },
         Command::Pan2Csv {
             patterns,
+            keep_multiline,
             header,
             no_header,
             delimiter,
@@ -999,6 +1003,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             };
             let opts = ctb_formats_pan::output::PanCsvOptions {
                 output_patterns: *patterns,
+                truncate_multiline: !*keep_multiline,
                 include_header,
                 encoding: enc,
                 delimiter: delim,
