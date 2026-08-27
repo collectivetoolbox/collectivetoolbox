@@ -24,22 +24,50 @@
   #:use-module (gnu packages gnome)
   #:export (json-glib-fixed-proc json-glib-fixed))
 
+(define (get-keyword kw args default)
+  (let loop ((rest args))
+    (cond ((null? rest) default)
+          ((null? (cdr rest)) default)
+          ((eq? (car rest) kw) (cadr rest))
+          (else (loop (cddr rest))))))
+
 (define (json-glib-fixed-proc pkg)
-  (package
-    (inherit pkg)
-    (arguments
-     (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags ''())
-        #~(list "-Dintrospection=disabled"
-                "-Dman=false"
-                "-Dgtk_doc=disabled"
-                "-Dtests=false"
-                "--libdir=lib"
-                (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")))
-       ((#:tests? _ #f) #f)))
-    (native-inputs
-     (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")))))
+  (let ((has-custom-phases? (get-keyword #:phases (package-arguments pkg) #f)))
+    (package
+      (inherit pkg)
+      (arguments
+       (if has-custom-phases?
+           (substitute-keyword-arguments (package-arguments pkg)
+             ((#:configure-flags flags ''())
+              #~(list "-Dintrospection=disabled"
+                      "-Dman=false"
+                      "-Dgtk_doc=disabled"
+                      "-Dtests=false"
+                      "--libdir=lib"
+                      (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")))
+             ((#:phases phases)
+              #~(modify-phases #$phases
+                  (replace 'move-docs
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let ((out (assoc-ref outputs "out"))
+                            (doc (assoc-ref outputs "doc")))
+                        (when (and doc (file-exists? (string-append out "/share/doc")))
+                          (copy-recursively (string-append out "/share/doc")
+                                            (string-append doc "/share/doc"))
+                          (delete-file-recursively (string-append out "/share/doc"))))))))
+             ((#:tests? _ #f) #f))
+           (substitute-keyword-arguments (package-arguments pkg)
+             ((#:configure-flags flags ''())
+              #~(list "-Dintrospection=disabled"
+                      "-Dman=false"
+                      "-Dgtk_doc=disabled"
+                      "-Dtests=false"
+                      "--libdir=lib"
+                      (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")))
+             ((#:tests? _ #f) #f))))
+      (native-inputs
+       (modify-inputs (package-native-inputs pkg)
+         (delete "gobject-introspection"))))))
 
 (define json-glib-fixed
   (json-glib-fixed-proc json-glib-minimal))

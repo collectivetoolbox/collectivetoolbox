@@ -115,6 +115,8 @@ pub struct PanDataRecord {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum PanDataRecordFormat {
     Le32,
+    Be32,
+    Byte8WithStatus,
     Le24WithStatus,
     Be16WithStatus,
     Le16WithStatus,
@@ -188,7 +190,9 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
     }
 
     let first_u32_le = read_u32_le(pan_file, 0)?;
-    let (entries, first_section_offset) = parse_prelude_entries(pan_file)?;
+    let is_be = detect_is_big_endian(pan_file);
+    let (entries, first_section_offset) =
+        parse_prelude_entries(pan_file, is_be)?;
     let raw_bytes = pan_file
         .get(..first_section_offset)
         .context("Prelude boundary extends beyond file end")?
@@ -201,7 +205,7 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
     let (top_level_sections, consumed_until) =
         parse_section_streams(pan_file, first_section_offset, &entries)?;
     let sections = collect_sections_recursively(pan_file, &top_level_sections)?;
-    let schemas = extract_schemas_from_sections(&sections)?;
+    let schemas = extract_schemas_from_sections(&sections, is_be)?;
     let schema = schemas.first().cloned();
     let data = extract_data_from_sections(&sections, &schemas)?;
     let trailing_full = pan_file
@@ -224,6 +228,16 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
         data,
         trailing_bytes,
     })
+}
+
+fn detect_is_big_endian(pan_file: &[u8]) -> bool {
+    let Ok(size_be) = read_u32_be(pan_file, 0) else {
+        return false;
+    };
+    let Ok(file_len_u32) = u32::try_from(pan_file.len()) else {
+        return false;
+    };
+    size_be.saturating_add(4) == file_len_u32
 }
 
 /// Build a human-readable diagnostic message for missing PAN DATA rows.
@@ -593,7 +607,6 @@ fn select_data_record_format(
 
     let mut best_format = None;
     let mut best_count = 0usize;
-    let mut best_cursor = 0usize;
     let mut probe_errors = Vec::new();
 
     for format in formats {
@@ -657,11 +670,8 @@ fn select_data_record_format(
             probe_cursor = record_end;
         }
 
-        if count > best_count
-            || (count == best_count && probe_cursor > best_cursor)
-        {
+        if count > best_count {
             best_count = count;
-            best_cursor = probe_cursor;
             best_format = Some(format);
         }
 
@@ -694,11 +704,73 @@ fn parse_data_record_headers(
     cursor: usize,
 ) -> anyhow::Result<Vec<(usize, usize, PanDataRecordFormat, &'static str)>> {
     if cursor.saturating_add(4) > payload.len() {
+        if cursor < payload.len() {
+            let b0 = *payload
+                .get(cursor)
+                .context("DATA record length is truncated")?;
+            if b0 < 0xfe && b0 >= 2 {
+                let mut candidates = Vec::new();
+                let mut dedupe = Vec::new();
+                add_data_record_header_candidate(
+                    &mut candidates,
+                    &mut dedupe,
+                    payload.len(),
+                    cursor,
+                    usize::from(b0),
+                    1,
+                    PanDataRecordFormat::Byte8WithStatus,
+                )?;
+                if !candidates.is_empty() {
+                    return Ok(candidates);
+                }
+            }
+        }
         bail!("DATA record length is truncated")
     }
 
     let mut candidates = Vec::new();
     let mut dedupe = Vec::new();
+
+    let b0 =
+        *payload.get(cursor).context("Could not read DATA record byte 0")?;
+    let is_le32_tail = payload
+        .get(cursor.saturating_add(1)..cursor.saturating_add(4))
+        == Some(&[0, 0, 0]);
+
+    let len16_high_byte = payload
+        .get(cursor.saturating_add(1))
+        .copied()
+        .context("Could not read DATA record length high byte")?;
+    let len16_low_byte = payload
+        .get(cursor.saturating_add(2))
+        .copied()
+        .context("Could not read DATA record length low byte")?;
+    let be16_record_size =
+        usize::from(u16::from_be_bytes([len16_high_byte, len16_low_byte]));
+
+    if b0 == 0xfe {
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            be16_record_size,
+            4,
+            PanDataRecordFormat::Be16WithStatus,
+        )?;
+    }
+
+    if b0 < 0xfe && !is_le32_tail && b0 >= 2 {
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            usize::from(b0),
+            1,
+            PanDataRecordFormat::Byte8WithStatus,
+        )?;
+    }
 
     let declared_size_le = read_u32_le(payload, cursor)?;
     let declared_size_le = usize::try_from(declared_size_le)
@@ -712,6 +784,31 @@ fn parse_data_record_headers(
         4,
         PanDataRecordFormat::Le32,
     )?;
+
+    let declared_size_be = read_u32_be(payload, cursor)?;
+    let declared_size_be = usize::try_from(declared_size_be)
+        .context("DATA record BE size does not fit in usize")?;
+    add_data_record_header_candidate(
+        &mut candidates,
+        &mut dedupe,
+        payload.len(),
+        cursor,
+        declared_size_be,
+        4,
+        PanDataRecordFormat::Be32,
+    )?;
+
+    if b0 < 0xfe && is_le32_tail && b0 >= 2 {
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            usize::from(b0),
+            1,
+            PanDataRecordFormat::Byte8WithStatus,
+        )?;
+    }
 
     let len24_low_byte = payload
         .get(cursor)
@@ -738,35 +835,17 @@ fn parse_data_record_headers(
         PanDataRecordFormat::Le24WithStatus,
     )?;
 
-    let len16_high_byte = payload
-        .get(cursor.saturating_add(1))
-        .copied()
-        .context("Could not read DATA record length high byte")?;
-    let len16_low_byte = payload
-        .get(cursor.saturating_add(2))
-        .copied()
-        .context("Could not read DATA record length low byte")?;
-
-    let be16_record_size =
-        usize::from(u16::from_be_bytes([len16_high_byte, len16_low_byte]));
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        be16_record_size,
-        4,
-        PanDataRecordFormat::Be16WithStatus,
-    )?;
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        be16_record_size,
-        3,
-        PanDataRecordFormat::Be16WithStatusNoMarker,
-    )?;
+    if b0 == 0xfe {
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            be16_record_size,
+            3,
+            PanDataRecordFormat::Be16WithStatusNoMarker,
+        )?;
+    }
 
     let le16_record_size =
         usize::from(u16::from_le_bytes([len16_high_byte, len16_low_byte]));
@@ -847,6 +926,25 @@ fn parse_data_record_header_for_format(
             }
             Ok((declared_size, 4))
         }
+        PanDataRecordFormat::Be32 => {
+            let declared_size = read_u32_be(payload, cursor)?;
+            let declared_size = usize::try_from(declared_size)
+                .context("DATA record BE32 size does not fit in usize")?;
+            if declared_size < 5 {
+                bail!("DATA record BE32 size is too small")
+            }
+            Ok((declared_size, 4))
+        }
+        PanDataRecordFormat::Byte8WithStatus => {
+            let b0 = payload
+                .get(cursor)
+                .copied()
+                .context("DATA record Byte8 size is missing")?;
+            if b0 >= 0xfe || b0 < 2 {
+                bail!("DATA record Byte8 size is invalid")
+            }
+            Ok((usize::from(b0), 1))
+        }
         PanDataRecordFormat::Le24WithStatus => {
             let len_lo = payload
                 .get(cursor)
@@ -869,6 +967,13 @@ fn parse_data_record_header_for_format(
             Ok((declared_size, 3))
         }
         PanDataRecordFormat::Be16WithStatus => {
+            let prefix = payload
+                .get(cursor)
+                .copied()
+                .context("DATA BE16 prefix byte is missing")?;
+            if prefix != 0xfe {
+                bail!("DATA BE16 prefix byte is not 0xfe")
+            }
             let marker = payload
                 .get(cursor.saturating_add(3))
                 .copied()
@@ -915,6 +1020,13 @@ fn parse_data_record_header_for_format(
             Ok((declared_size, 4))
         }
         PanDataRecordFormat::Be16WithStatusNoMarker => {
+            let prefix = payload
+                .get(cursor)
+                .copied()
+                .context("DATA BE16 no-marker prefix byte is missing")?;
+            if prefix != 0xfe {
+                bail!("DATA BE16 no-marker prefix byte is not 0xfe")
+            }
             let len_hi = payload
                 .get(cursor.saturating_add(1))
                 .copied()
@@ -1000,6 +1112,8 @@ fn parse_data_record_at_cursor(
 fn record_format_label(format: PanDataRecordFormat) -> &'static str {
     match format {
         PanDataRecordFormat::Le32 => "le32",
+        PanDataRecordFormat::Be32 => "be32",
+        PanDataRecordFormat::Byte8WithStatus => "status+byte8",
         PanDataRecordFormat::Le24WithStatus => "status+le24(no-marker)",
         PanDataRecordFormat::Be16WithStatus => "status+be16",
         PanDataRecordFormat::Le16WithStatus => "status+le16",
@@ -1065,8 +1179,9 @@ fn parse_data_record(
 
     let mut values = Vec::with_capacity(schema.fields.len());
     let mut cursor = match record_format {
-        PanDataRecordFormat::Le32 => 0usize,
-        PanDataRecordFormat::Le24WithStatus
+        PanDataRecordFormat::Le32 | PanDataRecordFormat::Be32 => 0usize,
+        PanDataRecordFormat::Byte8WithStatus
+        | PanDataRecordFormat::Le24WithStatus
         | PanDataRecordFormat::Be16WithStatus
         | PanDataRecordFormat::Le16WithStatus
         | PanDataRecordFormat::Be16WithStatusNoMarker
@@ -1090,32 +1205,69 @@ fn parse_data_record(
             break;
         }
 
-        let entry_len = usize::from(*row_payload.get(cursor).with_context(|| {
+        let len_byte = *row_payload.get(cursor).with_context(|| {
             format!(
                 "DATA row {record_index} in section {section_offset:#x} is missing field length"
             )
-        })?);
-        cursor = cursor
-            .checked_add(1)
-            .context("DATA row cursor overflow after field length")?;
-        let payload_len = if entry_len == 0 {
-            0
+        })?;
+        let (header_len, payload_len) = if len_byte == 0x7e {
+            let hi = *row_payload.get(cursor.saturating_add(1)).with_context(|| {
+                format!(
+                    "DATA row {record_index} in section {section_offset:#x} is missing extended 0x7e high byte"
+                )
+            })?;
+            let lo = *row_payload.get(cursor.saturating_add(2)).with_context(|| {
+                format!(
+                    "DATA row {record_index} in section {section_offset:#x} is missing extended 0x7e low byte"
+                )
+            })?;
+            let total_len = usize::from(u16::from_be_bytes([hi, lo]));
+            (3usize, total_len.saturating_sub(3))
+        } else if len_byte == 0x7f {
+            let b1 = *row_payload.get(cursor.saturating_add(1)).with_context(|| {
+                format!(
+                    "DATA row {record_index} in section {section_offset:#x} is missing extended 0x7f byte 1"
+                )
+            })?;
+            let b2 = *row_payload.get(cursor.saturating_add(2)).with_context(|| {
+                format!(
+                    "DATA row {record_index} in section {section_offset:#x} is missing extended 0x7f byte 2"
+                )
+            })?;
+            let b3 = *row_payload.get(cursor.saturating_add(3)).with_context(|| {
+                format!(
+                    "DATA row {record_index} in section {section_offset:#x} is missing extended 0x7f byte 3"
+                )
+            })?;
+            let total_len = (usize::from(b1) << 16)
+                | (usize::from(b2) << 8)
+                | usize::from(b3);
+            (4usize, total_len.saturating_sub(4))
         } else {
-            entry_len
-                .checked_sub(1)
-                .context("DATA field length underflow")?
+            let total_len = usize::from(len_byte);
+            (1usize, total_len.saturating_sub(1))
         };
+
+        cursor = cursor
+            .checked_add(header_len)
+            .context("DATA row cursor overflow after field length")?;
         let payload_end = cursor
             .checked_add(payload_len)
             .context("DATA field payload boundary overflow")?;
         if payload_end > row_payload.len() {
-            push_data_field_with_raw_bytes(&mut values, field, &[])?;
+            let available_len = row_payload.len().saturating_sub(cursor);
+            let raw_bytes = row_payload
+                .get(cursor..cursor.saturating_add(available_len))
+                // Reason for fallback: slice boundary checked above
+                .unwrap_or(&[]);
+            push_data_field_with_raw_bytes(&mut values, field, raw_bytes)?;
             append_empty_data_fields(
                 &mut values,
                 schema,
                 field_position.saturating_add(1),
                 "Could not get trailing DATA schema fields",
             )?;
+            cursor = row_payload.len();
             break;
         }
 
@@ -1436,6 +1588,7 @@ fn hex_string(bytes: &[u8]) -> String {
 
 fn parse_prelude_entries(
     pan_file: &[u8],
+    is_be: bool,
 ) -> anyhow::Result<(Vec<PanPreludeEntry>, usize)> {
     let mut entries = Vec::new();
     let mut cursor = 4usize;
@@ -1480,7 +1633,7 @@ fn parse_prelude_entries(
 
         let mut value_cursor = name_end;
         let mut has_zero_delimiter_before_value = false;
-        if pan_file.get(value_cursor).is_some_and(|byte| *byte == 0) {
+        if (name_end % 2) != 0 {
             has_zero_delimiter_before_value = true;
             value_cursor = value_cursor.saturating_add(1);
         }
@@ -1492,11 +1645,16 @@ fn parse_prelude_entries(
                     cursor,
                     &mut value_cursor,
                     has_zero_delimiter_before_value,
+                    is_be,
                 )?;
                 Some(value)
             }
             0x02 | 0x03 => {
-                parse_prelude_kind_2_or_3_value(pan_file, &mut value_cursor)?
+                parse_prelude_kind_2_or_3_value(
+                    pan_file,
+                    &mut value_cursor,
+                    is_be,
+                )?
             }
             _ => bail!(
                 "Unsupported prelude entry kind {kind:#x} at offset {cursor:#x}"
@@ -1534,6 +1692,7 @@ fn parse_prelude_kind_0_or_1_value(
     entry_offset: usize,
     value_cursor: &mut usize,
     has_zero_delimiter_before_value: bool,
+    is_be: bool,
 ) -> anyhow::Result<u32> {
     if (*value_cursor).saturating_add(4) > pan_file.len() {
         bail!(
@@ -1548,7 +1707,7 @@ fn parse_prelude_kind_0_or_1_value(
     let unshifted_score =
         prelude_boundary_score(pan_file, boundary_after_unshifted)?;
 
-    if !has_zero_delimiter_before_value && unshifted_score <= 1 {
+    if !has_zero_delimiter_before_value && unshifted_score <= 1 && !is_be {
         let shifted_value_cursor = (*value_cursor)
             .checked_add(1)
             .context("Prelude value cursor overflow")?;
@@ -1567,7 +1726,11 @@ fn parse_prelude_kind_0_or_1_value(
         }
     }
 
-    let value = read_u32_le(pan_file, selected_value_cursor)?;
+    let value = if is_be {
+        read_u32_be(pan_file, selected_value_cursor)?
+    } else {
+        read_u32_le(pan_file, selected_value_cursor)?
+    };
     *value_cursor = selected_value_cursor
         .checked_add(4)
         .context("Prelude cursor overflow after reading value")?;
@@ -1575,26 +1738,11 @@ fn parse_prelude_kind_0_or_1_value(
 }
 
 fn parse_prelude_kind_2_or_3_value(
-    pan_file: &[u8],
-    value_cursor: &mut usize,
+    _pan_file: &[u8],
+    _value_cursor: &mut usize,
+    _is_be: bool,
 ) -> anyhow::Result<Option<u32>> {
-    if (*value_cursor).saturating_add(4) > pan_file.len() {
-        return Ok(None);
-    }
-
-    let candidate = read_u32_le(pan_file, *value_cursor)?;
-    let candidate_offset = usize::try_from(candidate)
-        .context("Prelude pointer does not fit in usize")?;
-    if candidate_offset.saturating_add(6) > pan_file.len()
-        || !section_header_looks_valid(pan_file, candidate_offset)?
-    {
-        return Ok(None);
-    }
-
-    *value_cursor = (*value_cursor)
-        .checked_add(4)
-        .context("Prelude cursor overflow after reading pointer")?;
-    Ok(Some(candidate))
+    Ok(None)
 }
 
 fn prelude_boundary_score(
@@ -1958,6 +2106,7 @@ fn is_section_kind_valid(kind: u8) -> bool {
 
 fn extract_schemas_from_sections(
     sections: &[PanSection],
+    is_be: bool,
 ) -> anyhow::Result<Vec<PanSchema>> {
     if sections.is_empty() {
         return Ok(Vec::new());
@@ -1984,7 +2133,7 @@ fn extract_schemas_from_sections(
             }
 
             let Some(schema) =
-                build_schema_from_names_section(sections, index)?
+                build_schema_from_names_section(sections, index, is_be)?
             else {
                 continue;
             };
@@ -2000,6 +2149,7 @@ fn extract_schemas_from_sections(
 fn build_schema_from_names_section(
     sections: &[PanSection],
     index: usize,
+    is_be: bool,
 ) -> anyhow::Result<Option<PanSchema>> {
     let Some(section) = sections.get(index) else {
         return Ok(None);
@@ -2029,7 +2179,7 @@ fn build_schema_from_names_section(
         return Ok(None);
     };
 
-    let widths = parse_widths_payload(&widths_section.payload)?;
+    let widths = parse_widths_payload(&widths_section.payload, is_be)?;
     if widths.is_empty() {
         return Ok(None);
     }
@@ -2152,7 +2302,10 @@ fn parse_names_payload(
     Ok(names)
 }
 
-fn parse_widths_payload(payload: &[u8]) -> anyhow::Result<Vec<u16>> {
+fn parse_widths_payload(
+    payload: &[u8],
+    is_be: bool,
+) -> anyhow::Result<Vec<u16>> {
     let width_bytes = if (payload.len() & 1) == 1 && payload.first() == Some(&0)
     {
         payload.get(1..).context("Invalid WIDTHS payload range")?
@@ -2167,11 +2320,16 @@ fn parse_widths_payload(payload: &[u8]) -> anyhow::Result<Vec<u16>> {
     let mut widths = Vec::with_capacity(width_bytes.len() >> 1);
     let mut cursor = 0usize;
     while cursor.saturating_add(2) <= width_bytes.len() {
-        let lo = *width_bytes.get(cursor).context("WIDTHS low byte missing")?;
-        let hi = *width_bytes
+        let b0 = *width_bytes.get(cursor).context("WIDTHS byte 0 missing")?;
+        let b1 = *width_bytes
             .get(cursor.saturating_add(1))
-            .context("WIDTHS high byte missing")?;
-        widths.push(u16::from_le_bytes([lo, hi]));
+            .context("WIDTHS byte 1 missing")?;
+        let width = if is_be {
+            u16::from_be_bytes([b0, b1])
+        } else {
+            u16::from_le_bytes([b0, b1])
+        };
+        widths.push(width);
         cursor = cursor.saturating_add(2);
     }
 
@@ -2369,6 +2527,7 @@ mod tests {
         pan_file.push(0x01);
         pan_file.push(1);
         pan_file.extend_from_slice(b"D");
+        pan_file.push(0);
         pan_file.extend_from_slice(&24u32.to_le_bytes());
 
         pan_file.push(0x02);
@@ -2383,7 +2542,8 @@ mod tests {
         pan_file.extend_from_slice(b"VERSION");
         pan_file.extend_from_slice(&[0, 0, 0, 0, 0]);
 
-        let (entries, first_section_offset) = parse_prelude_entries(&pan_file)?;
+        let (entries, first_section_offset) =
+            parse_prelude_entries(&pan_file, false)?;
 
         ensure!(entries.len() == 3);
         ensure!(entries.first().is_some_and(|entry| entry.name == "ABC"));
@@ -3098,7 +3258,6 @@ mod tests {
                 output_pattern: None,
             }],
         };
-
         let schemas = vec![schema_a, schema_b];
         let selected = select_schema_for_data_section(&schemas, 0x880)
             .context("Expected a selected schema")?;
