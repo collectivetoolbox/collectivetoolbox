@@ -28,6 +28,7 @@ pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
 
+pub mod altura;
 pub mod cp437;
 pub mod line_endings;
 pub mod mapping;
