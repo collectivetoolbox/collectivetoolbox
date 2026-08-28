@@ -31,29 +31,31 @@
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:validate-runpath? _ #t) #f)
        ((#:configure-flags flags #~'())
-        (if (%current-target-system)
-            #~(cons*
-               "--libdir=lib"
-               "-Damd-use-llvm=false"
-               "-Dllvm=enabled"
-               (map (lambda (flag)
-                      (cond
-                       ((string-prefix? "-Dgallium-drivers=" flag)
-                        "-Dgallium-drivers=r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
-                       ((string-prefix? "-Dvulkan-drivers=" flag)
-                        "-Dvulkan-drivers=swrast,virtio")
-                       ((string-prefix? "-Dllvm=" flag)
-                        "-Dllvm=enabled")
-                       (else flag)))
-                    #$flags))
-            flags))
+        #~(cons*
+           "--libdir=lib"
+           #$(if (%current-target-system)
+                 #~(cons*
+                    "-Damd-use-llvm=false"
+                    "-Dllvm=enabled"
+                    (map (lambda (flag)
+                           (cond
+                            ((string-prefix? "-Dgallium-drivers=" flag)
+                             "-Dgallium-drivers=r300,nouveau,virgl,svga,llvmpipe,softpipe,zink")
+                            ((string-prefix? "-Dvulkan-drivers=" flag)
+                             "-Dvulkan-drivers=swrast,virtio")
+                            ((string-prefix? "-Dllvm=" flag)
+                             "-Dllvm=enabled")
+                            (else flag)))
+                         #$flags))
+                 flags)))
        ((#:phases phases)
-        (if (%current-target-system)
-            #~(modify-phases #$phases
-                (add-before 'configure 'expose-cross-discovery-metadata
-                  (lambda* (#:key inputs native-inputs #:allow-other-keys)
+        #~(modify-phases #$(if (%current-target-system)
+                               #~(modify-phases #$phases
+                                   (add-before 'configure 'expose-cross-discovery-metadata
+                                     (lambda* (#:key inputs native-inputs #:allow-other-keys)
                     (define (prepend-env-path variable entry)
                       (when (and entry (file-exists? entry))
                         (let ((current (or (getenv variable) "")))

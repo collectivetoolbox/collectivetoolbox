@@ -15,31 +15,33 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for harfbuzz to ensure libdir is lib and introspection is disabled.
+;;; Patch for graphviz to safely handle optional guile bindings phase.
 
-(define-module (patches harfbuzz)
+(define-module (patches graphviz)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gtk)
-  #:export (harfbuzz-fixed-proc harfbuzz-fixed))
+  #:use-module (gnu packages graphviz)
+  #:export (graphviz-fixed-proc
+            graphviz-fixed))
 
-(define (harfbuzz-fixed-proc pkg)
+(define (graphviz-fixed-proc pkg)
   (package
     (inherit pkg)
-    (native-inputs
-     (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(cons* "-Dintrospection=disabled"
-                 "--libdir=lib"
-                 "-Ddocs=disabled"
-                 (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")
-                 (string-append "-Dcpp_link_args=-Wl,-rpath=" #$output "/lib")
-                 #$flags))))))
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (replace 'move-guile-bindings
+              (lambda* (#:key outputs #:allow-other-keys)
+                (let* ((out (assoc-ref outputs "out"))
+                       (lib (string-append out "/lib"))
+                       (src (string-append lib "/graphviz/guile/libgv_guile.so"))
+                       (extdir (string-append lib "/guile/3.0/extensions")))
+                  (when (file-exists? src)
+                    (mkdir-p extdir)
+                    (rename-file src (string-append extdir "/libgv_guile.so"))))))))))))
 
-(define harfbuzz-fixed
-  (harfbuzz-fixed-proc harfbuzz))
+(define graphviz-fixed
+  (graphviz-fixed-proc graphviz))

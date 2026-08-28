@@ -26,6 +26,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! translate between Mac OS Roman and Windows ANSI (Windows-1252).
 //! Some characters that are not shared between the encodings are changed to
 //! different characters when files are transferred between operating systems.
+//!
+//! Altura is not a unique character encoding itself: internal file contents are
+//! standard Mac OS Roman, and the translated output is standard Windows-1252
+//! (Windows ANSI). This module provides Altura's specific 128-byte lookup tables
+//! (`0x80`..=`0xFF`) used to transliterate between Mac OS Roman and
+//! Windows-1252, including Altura's fallback substitutions for glyphs that do
+//! not exist in both sets.
 
 #[expect(
     unused_imports,

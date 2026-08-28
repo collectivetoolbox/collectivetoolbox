@@ -456,23 +456,38 @@ fn parse_data_payload(
         );
     }
 
-    let start_cursor = if payload.len() >= 6 && payload.get(..6) == Some(&[0, 0, 0, 0, 0, 0]) {
-        6usize
-    } else if payload.len() >= 6 && payload.get(1..6).is_some_and(|tail| tail.iter().all(|byte| *byte == 0)) {
-        6usize
-    } else if payload.len() >= 6 && payload.get(..2) == Some(&[0, 0]) && payload.get(4..6) == Some(&[0, 0]) {
-        6usize
-    } else if payload.len() >= 6 && payload.get(2..6) == Some(&[0, 0, 0, 0]) {
-        6usize
-    } else if payload.len() >= 4 && payload.get(..4) == Some(&[0, 0, 0, 0]) {
-        4usize
-    } else if payload.get(..2) == Some(&[0, 0]) {
-        2usize
+    let candidate_starts: &[usize] = if payload.len() >= 6 {
+        &[6, 4, 2, 0]
+    } else if payload.len() >= 4 {
+        &[4, 2, 0]
+    } else if payload.len() >= 2 {
+        &[2, 0]
     } else {
-        0usize
+        &[0]
     };
 
-    let record_format = select_data_record_format(payload, start_cursor, schema, section_offset)?;
+    let mut selected = None;
+    let mut last_error = None;
+    for &start_candidate in candidate_starts {
+        match select_data_record_format(payload, start_candidate, schema, section_offset) {
+            Ok(fmt) => {
+                selected = Some((start_candidate, fmt));
+                break;
+            }
+            Err(err) => {
+                last_error = Some(err);
+            }
+        }
+    }
+
+    let (start_cursor, record_format) = match selected {
+        Some(pair) => pair,
+        None => {
+            return Err(
+                last_error.unwrap_or_else(|| anyhow::anyhow!("Could not determine DATA record format")),
+            );
+        }
+    };
     let header_bytes = payload
         .get(..start_cursor)
         // Reason for fallback: start_cursor is within payload bounds
@@ -761,11 +776,7 @@ fn parse_data_record_headers(
         )?;
     }
 
-    if b0 < 0xfe
-        && b0 >= 2
-        && !(payload.get(cursor.saturating_add(1)) == Some(&0)
-            && payload.get(cursor.saturating_add(2)) == Some(&0))
-    {
+    if b0 < 0xfe && b0 >= 2 {
         let b0_usize = usize::from(b0);
         if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) == Some(&b0) {
             add_data_record_header_candidate(
@@ -780,56 +791,62 @@ fn parse_data_record_headers(
         }
     }
 
-    let declared_size_le = read_u32_le(payload, cursor)?;
-    let declared_size_le = usize::try_from(declared_size_le)
-        .context("DATA record size does not fit in usize")?;
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        declared_size_le,
-        4,
-        PanDataRecordFormat::Le32,
-    )?;
+    if b0 != 0xfe {
+        let declared_size_le = read_u32_le(payload, cursor)?;
+        let declared_size_le = usize::try_from(declared_size_le)
+            .context("DATA record size does not fit in usize")?;
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            declared_size_le,
+            4,
+            PanDataRecordFormat::Le32,
+        )?;
 
-    let declared_size_be = read_u32_be(payload, cursor)?;
-    let declared_size_be = usize::try_from(declared_size_be)
-        .context("DATA record BE size does not fit in usize")?;
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        declared_size_be,
-        4,
-        PanDataRecordFormat::Be32,
-    )?;
+        let declared_size_be = read_u32_be(payload, cursor)?;
+        let declared_size_be = usize::try_from(declared_size_be)
+            .context("DATA record BE size does not fit in usize")?;
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            declared_size_be,
+            4,
+            PanDataRecordFormat::Be32,
+        )?;
 
-    let len24_low_byte = payload
-        .get(cursor)
-        .copied()
-        .context("Could not read DATA record length low byte")?;
-    let len24_middle_byte = payload
-        .get(cursor.saturating_add(1))
-        .copied()
-        .context("Could not read DATA record length middle byte")?;
-    let len24_high_byte = payload
-        .get(cursor.saturating_add(2))
-        .copied()
-        .context("Could not read DATA record length high byte")?;
-    let le24_record_size = usize::from(len24_low_byte)
-        | (usize::from(len24_middle_byte) << 8)
-        | (usize::from(len24_high_byte) << 16);
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        le24_record_size,
-        4,
-        PanDataRecordFormat::Le24WithStatus,
-    )?;
+        let len24_low_byte = payload
+            .get(cursor)
+            .copied()
+            .context("Could not read DATA record length low byte")?;
+        let len24_middle_byte = payload
+            .get(cursor.saturating_add(1))
+            .copied()
+            .context("Could not read DATA record length middle byte")?;
+        let len24_high_byte = payload
+            .get(cursor.saturating_add(2))
+            .copied()
+            .context("Could not read DATA record length high byte")?;
+        let le24_record_size = usize::try_from(u32::from_le_bytes([
+            len24_low_byte,
+            len24_middle_byte,
+            len24_high_byte,
+            0,
+        ]))
+        .context("LE24 record size does not fit in usize")?;
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            le24_record_size,
+            4,
+            PanDataRecordFormat::Le24WithStatus,
+        )?;
+    }
 
     if b0 == 0xfe {
         add_data_record_header_candidate(
@@ -1186,10 +1203,19 @@ fn extract_raw_field_slices<'a>(
     let mut std_fields = Vec::new();
     let mut std_valid = true;
     while pos < slice.len() {
-        let Some(&len_byte) = slice.get(pos) else {
+        let Some(mut len_byte) = slice.get(pos).copied() else {
             std_valid = false;
             break;
         };
+        let mut control_len = 0usize;
+        if len_byte & 0xc0 == 0xc0 {
+            control_len = 1;
+            let Some(&actual_len) = slice.get(pos.saturating_add(1)) else {
+                std_valid = false;
+                break;
+            };
+            len_byte = actual_len;
+        }
         let (header_len, payload_len) = if len_byte == 0x7e {
             let Some(&hi) = slice.get(pos.saturating_add(1)) else {
                 std_valid = false;
@@ -1227,7 +1253,7 @@ fn extract_raw_field_slices<'a>(
             let total_len = usize::from(len_byte);
             (1usize, total_len.saturating_sub(1))
         };
-        let start = pos.saturating_add(header_len);
+        let start = pos.saturating_add(control_len).saturating_add(header_len);
         let end = start.saturating_add(payload_len);
         if end > slice.len() {
             std_valid = false;
@@ -3941,6 +3967,107 @@ mod tests {
         ensure!(records.len() == 1);
         ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Alice"));
         ensure!(matches!(&records[0].fields[1].value, PanDataValue::Integer(i) if i == "42"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_6byte_arbitrary_prefix() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x5000,
+            types_section_offset: 0x5050,
+            widths_section_offset: 0x5080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "Function".to_string(),
+                    width: 20,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "Body".to_string(),
+                    width: 30,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte arbitrary section header [0x56, 0x11, 0x03, 0x00, 0x00, 0x00]
+        // Byte8 record: total size = 26 (0x1a)
+        // 4 header bytes: [0x1a, 0x00, 0x00, 0x01]
+        // Field 0: 6 bytes [0x06, 'm', 'o', 'n', 'e', 'y']
+        // Field 1: 15 bytes [0x0f, 'p', 'a', 't', 't', 'e', 'r', 'n', '(', 'n', 'u', 'm', 'b', 'e', 'r']
+        // Trailer: 1 byte [0x1a] -> total = 4 + 6 + 15 + 1 = 26
+        let mut payload = vec![0x56, 0x11, 0x03, 0x00, 0x00, 0x00];
+        payload.extend_from_slice(&[
+            0x1a, 0x00, 0x00, 0x01,
+            0x06, b'm', b'o', b'n', b'e', b'y',
+            0x0f, b'p', b'a', b't', b't', b'e', b'r', b'n', b'(', b'n', b'u', b'm', b'b', b'e', b'r',
+            0x1a,
+        ]);
+
+        let (records, header_bytes, _) = parse_data_payload(&payload, 0x5000, &schema)?;
+        ensure!(header_bytes.len() == 6);
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "money"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "pattern(number"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_data_payload_c0_compressed_control_byte() -> anyhow::Result<()> {
+        let schema = PanSchema {
+            names_section_offset: 0x6000,
+            types_section_offset: 0x6050,
+            widths_section_offset: 0x6080,
+            fields: vec![
+                PanSchemaField {
+                    index: 0,
+                    name: "Year".to_string(),
+                    width: 10,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+                PanSchemaField {
+                    index: 1,
+                    name: "State".to_string(),
+                    width: 5,
+                    type_code: 0,
+                    type_label: "Text".to_string(),
+                    field_type: PanFieldType::Text,
+                    output_pattern: None,
+                },
+            ],
+        };
+
+        // 6-byte section header
+        let mut payload = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        // Record size = 16 (0x10)
+        // 4 header bytes: [0x10, 0x00, 0x00, 0x01]
+        // Field 0: 5 bytes [0x05, '1', '9', '7', '6']
+        // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K', 0x00] -> 5 bytes
+        // Trailer: [0x10] -> total = 4 + 5 + 6 + 1 = 16
+        payload.extend_from_slice(&[
+            0x10, 0x00, 0x00, 0x01,
+            0x05, b'1', b'9', b'7', b'6',
+            0xc0, 0x04, b'A', b'K', 0x00,
+            0x10,
+        ]);
+
+        let (records, _, _) = parse_data_payload(&payload, 0x6000, &schema)?;
+        ensure!(records.len() == 1);
+        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "1976"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "AK\0"));
 
         Ok(())
     }
