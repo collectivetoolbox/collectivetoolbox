@@ -64,26 +64,15 @@ RUN set -eux; \
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
 
-# `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
+# Copy pre-extracted Guix keys and installation script
+COPY scripts/docker/keys /tmp/guix-keys
+COPY scripts/docker/install-guix.sh /tmp/install-guix.sh
+
 RUN set -eux; \
-    curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh -o /tmp/guix-install.sh; \
-    chmod +x /tmp/guix-install.sh; \
-    sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh; \
-    sed -i 's/sys_maybe_setup_apparmor/true/g' /tmp/guix-install.sh; \
-    yes | /tmp/guix-install.sh; \
-    rm -f /tmp/guix-install.sh; \
-    rm -rf /etc/apparmor.d/guix* /etc/apparmor.d/tunables/guix* 2>/dev/null || true; \
-    mkdir -p /etc/guix /var/log/guix/drvs; \
-    chown -R root:guixbuild /var/guix /var/log/guix /gnu/store; \
-    chmod 1775 /gnu/store /var/guix; \
-    chmod -R 1777 /var/log/guix; \
-    for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
-               /root/.config/guix/current/share/guix/*.pub \
-               /usr/local/share/guix/*.pub; do \
-        if [ -f "$key" ]; then \
-            guix archive --authorize < "$key" || true; \
-        fi; \
-    done
+    /tmp/install-guix.sh /tmp/guix-keys; \
+    if [ -f /tmp/install-guix.sh ]; then \
+        rm /tmp/install-guix.sh; \
+    fi
 
 # Pre-build Guix packages and system image in Docker for layer caching.
 # Each step is a separate layer so failures don't re-run earlier steps.
