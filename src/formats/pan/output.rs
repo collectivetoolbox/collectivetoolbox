@@ -255,12 +255,6 @@ fn csv_field_bytes(
                     if let Some(pos) = raw.iter().position(|&b| b == b'\r' || b == b'\n') {
                         raw.truncate(pos);
                     }
-                } else if is_tabs_no_quotes {
-                    for b in &mut raw {
-                        if *b == b'\r' || *b == b'\n' {
-                            *b = 0x0b;
-                        }
-                    }
                 }
                 Ok(raw)
             } else {
@@ -413,6 +407,8 @@ fn write_csv_bytes(
 ) -> Vec<u8> {
     let line_ending = if crlf || encoding == PanCsvEncoding::Windows {
         b"\r\n".as_slice()
+    } else if encoding == PanCsvEncoding::MacRoman {
+        b"\r".as_slice()
     } else {
         b"\n".as_slice()
     };
