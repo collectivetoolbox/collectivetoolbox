@@ -4055,12 +4055,13 @@ mod tests {
         // Record size = 16 (0x10)
         // 4 header bytes: [0x10, 0x00, 0x00, 0x01]
         // Field 0: 5 bytes [0x05, '1', '9', '7', '6']
-        // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K', 0x00] -> 5 bytes
+        // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K', 0x00] -> 5 bytes + 1 padding byte [0x00] = 6 bytes
         // Trailer: [0x10] -> total = 4 + 5 + 6 + 1 = 16
         payload.extend_from_slice(&[
             0x10, 0x00, 0x00, 0x01,
             0x05, b'1', b'9', b'7', b'6',
             0xc0, 0x04, b'A', b'K', 0x00,
+            0x00,
             0x10,
         ]);
 

@@ -52,10 +52,10 @@
                          #$flags))
                  flags)))
        ((#:phases phases)
-        #~(modify-phases #$(if (%current-target-system)
-                               #~(modify-phases #$phases
-                                   (add-before 'configure 'expose-cross-discovery-metadata
-                                     (lambda* (#:key inputs native-inputs #:allow-other-keys)
+        (if (%current-target-system)
+            #~(modify-phases #$phases
+                (add-before 'configure 'expose-cross-discovery-metadata
+                  (lambda* (#:key inputs native-inputs #:allow-other-keys)
                     (define (prepend-env-path variable entry)
                       (when (and entry (file-exists? entry))
                         (let ((current (or (getenv variable) "")))
@@ -218,12 +218,23 @@
                     (substitute* "src/compiler/clc/meson.build"
                       (("and not has_spirv_link_workaround") "and false")
                       (("if has_spirv_link_workaround") "if true"))))
-                (add-before 'build 'preserve-cross-path
-                  (lambda _
-                    (let ((overlay-bin (string-append (getcwd) "/ctb-llvm-overlay/bin")))
-                      (when (file-exists? overlay-bin)
-                        (let ((current (or (getenv "PATH") "")))
-                          (setenv "PATH" (string-append overlay-bin ":" current)))))))
+                 (add-before 'build 'preserve-cross-path
+                   (lambda _
+                     (let ((overlay-bin (string-append (getcwd) "/ctb-llvm-overlay/bin")))
+                       (when (file-exists? overlay-bin)
+                         (let ((current (or (getenv "PATH") "")))
+                           (setenv "PATH" (string-append overlay-bin ":" current)))))))
+                 (add-after 'install 'symlink-lib-and-lib64
+                   (lambda* (#:key outputs #:allow-other-keys)
+                     (let ((out (assoc-ref outputs "out")))
+                       (when out
+                         (let ((lib (string-append out "/lib"))
+                               (lib64 (string-append out "/lib64")))
+                           (when (and (file-exists? lib64) (not (file-exists? lib)))
+                             (symlink "lib64" lib))
+                           (when (and (file-exists? lib) (not (file-exists? lib64)))
+                             (symlink "lib" lib64))))))))
+            #~(modify-phases #$phases
                 (add-after 'install 'symlink-lib-and-lib64
                   (lambda* (#:key outputs #:allow-other-keys)
                     (let ((out (assoc-ref outputs "out")))
@@ -233,7 +244,6 @@
                           (when (and (file-exists? lib64) (not (file-exists? lib)))
                             (symlink "lib64" lib))
                           (when (and (file-exists? lib) (not (file-exists? lib64)))
-                            (symlink "lib" lib64))))))))
-            phases))))))
+                            (symlink "lib" lib64))))))))))))
 
 (define-public mesa-libclc-pkg-config-fixed #f)
