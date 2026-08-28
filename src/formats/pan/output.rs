@@ -120,7 +120,14 @@ pub fn pan_to_csv_with_options(
             schema
                 .fields
                 .iter()
-                .map(|field| field.name.clone())
+                .map(|field| {
+                    field
+                        .name
+                        .replace("\r\n", " ")
+                        .replace(['\r', '\n'], " ")
+                        .trim()
+                        .to_string()
+                })
                 .collect::<Vec<_>>(),
         )
     } else {

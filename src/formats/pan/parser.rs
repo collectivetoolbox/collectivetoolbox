@@ -846,6 +846,27 @@ fn parse_data_record_headers(
             4,
             PanDataRecordFormat::Le24WithStatus,
         )?;
+
+        let le16_record_size =
+            usize::from(u16::from_le_bytes([len16_high_byte, len16_low_byte]));
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            le16_record_size,
+            5,
+            PanDataRecordFormat::Le16WithStatus,
+        )?;
+        add_data_record_header_candidate(
+            &mut candidates,
+            &mut dedupe,
+            payload.len(),
+            cursor,
+            le16_record_size,
+            4,
+            PanDataRecordFormat::Le16WithStatusNoMarker,
+        )?;
     }
 
     if b0 == 0xfe {
@@ -859,27 +880,6 @@ fn parse_data_record_headers(
             PanDataRecordFormat::Be16WithStatusNoMarker,
         )?;
     }
-
-    let le16_record_size =
-        usize::from(u16::from_le_bytes([len16_high_byte, len16_low_byte]));
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        le16_record_size,
-        5,
-        PanDataRecordFormat::Le16WithStatus,
-    )?;
-    add_data_record_header_candidate(
-        &mut candidates,
-        &mut dedupe,
-        payload.len(),
-        cursor,
-        le16_record_size,
-        4,
-        PanDataRecordFormat::Le16WithStatusNoMarker,
-    )?;
 
     if candidates.is_empty() {
         bail!("DATA record has unsupported length encoding")
@@ -955,11 +955,6 @@ fn parse_data_record_header_for_format(
                 .context("DATA Byte8 record byte is missing")?;
             if b0 >= 0xfe || b0 < 2 {
                 bail!("DATA Byte8 record size is outside 2..=0xfd")
-            }
-            if payload.get(cursor.saturating_add(1)) == Some(&0)
-                && payload.get(cursor.saturating_add(2)) == Some(&0)
-            {
-                bail!("DATA Byte8 record bytes 1..2 are zero, expected LE24")
             }
             let b0_usize = usize::from(b0);
             if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) != Some(&b0) {
@@ -1251,7 +1246,8 @@ fn extract_raw_field_slices<'a>(
             (1usize, 0usize)
         } else {
             let total_len = usize::from(len_byte);
-            (1usize, total_len.saturating_sub(1))
+            let overhead = 1usize.saturating_add(control_len);
+            (1usize, total_len.saturating_sub(overhead))
         };
         let start = pos.saturating_add(control_len).saturating_add(header_len);
         let end = start.saturating_add(payload_len);
@@ -1660,6 +1656,19 @@ fn decode_pan_date_field(
 ) -> anyhow::Result<(i64, Option<String>)> {
     if raw_bytes.is_empty() || raw_bytes == [100, 174, 218] {
         return Ok((0, None));
+    }
+
+    if raw_bytes.len() == 1 {
+        let date_raw: [u8; 1] = <[u8; 1]>::try_from(raw_bytes)
+            .context("Failed to read 1-byte PAN date payload")?;
+        let day_offset = i64::from(i8::from_le_bytes(date_raw));
+        let epoch = crate::date::datevalue(1984, 1, 24)
+            .context("Could not compute PAN date epoch")?;
+        let jdn = epoch
+            .checked_add(day_offset)
+            .context("PAN date offset overflow")?;
+        let pan_date_mdy = crate::date::datestr(jdn).ok();
+        return Ok((jdn, pan_date_mdy));
     }
 
     if raw_bytes.len() == 2 {
@@ -2556,37 +2565,14 @@ fn parse_types_payload(
         payload
     };
 
+    let payload = if payload.len() > expected_count && payload.first() == Some(&0) {
+        payload.get(1..).context("Invalid TYPES payload range")?
+    } else {
+        payload
+    };
+
     if payload.len() < expected_count {
         bail!("TYPES payload has fewer values than NAMES")
-    }
-
-    if payload.len() == expected_count {
-        return Ok(payload.to_vec());
-    }
-
-    if payload.len() == expected_count.saturating_add(1) {
-        if payload.first() == Some(&0) {
-            return Ok(payload
-                .get(1..)
-                .context("Invalid TYPES payload range")?
-                .to_vec());
-        }
-        if payload.last() == Some(&0) {
-            return Ok(payload
-                .get(..expected_count)
-                .context("Invalid TYPES payload range")?
-                .to_vec());
-        }
-    }
-
-    if payload.len() >= expected_count.saturating_add(2)
-        && payload.first() == Some(&0)
-        && payload.last() == Some(&0)
-    {
-        return Ok(payload
-            .get(1..expected_count.saturating_add(1))
-            .context("Invalid TYPES payload range")?
-            .to_vec());
     }
 
     Ok(payload
@@ -4052,23 +4038,23 @@ mod tests {
 
         // 6-byte section header
         let mut payload = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-        // Record size = 16 (0x10)
-        // 4 header bytes: [0x10, 0x00, 0x00, 0x01]
+        // Record size = 15 (0x0f)
+        // 4 header bytes: [0x0f, 0x00, 0x00, 0x01]
         // Field 0: 5 bytes [0x05, '1', '9', '7', '6']
-        // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K', 0x00] -> 5 bytes + 1 padding byte [0x00] = 6 bytes
-        // Trailer: [0x10] -> total = 4 + 5 + 6 + 1 = 16
+        // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K'] -> 4 bytes
+        // Trailer: [0x0f] -> total = 4 + 5 + 4 + 1 = 14 (+ 1 status/pad = 15)
         payload.extend_from_slice(&[
-            0x10, 0x00, 0x00, 0x01,
+            0x0f, 0x00, 0x00, 0x01,
             0x05, b'1', b'9', b'7', b'6',
-            0xc0, 0x04, b'A', b'K', 0x00,
+            0xc0, 0x04, b'A', b'K',
             0x00,
-            0x10,
+            0x0f,
         ]);
 
         let (records, _, _) = parse_data_payload(&payload, 0x6000, &schema)?;
         ensure!(records.len() == 1);
         ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "1976"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "AK\0"));
+        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "AK"));
 
         Ok(())
     }

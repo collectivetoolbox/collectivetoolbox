@@ -244,6 +244,6 @@
                           (when (and (file-exists? lib64) (not (file-exists? lib)))
                             (symlink "lib64" lib))
                           (when (and (file-exists? lib) (not (file-exists? lib64)))
-                            (symlink "lib" lib64))))))))))))
+                            (symlink "lib" lib64))))))))))))))
 
 (define-public mesa-libclc-pkg-config-fixed #f)

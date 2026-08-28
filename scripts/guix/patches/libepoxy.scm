@@ -15,15 +15,40 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for libepoxy to map propagated-inputs (mesa) through apply-patches.
+;;; Patch for libepoxy to ensure resilient Mesa library resolution and flags.
 
 (define-module (patches libepoxy)
-  #:use-module (guix packages)
   #:use-module (gnu packages gl)
-  #:use-module (ice-9 match)
+  #:use-module (guix gexp)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
   #:export (libepoxy-fixed-proc libepoxy-fixed))
 
-(define (libepoxy-fixed-proc pkg)
-  pkg)
+(define-public (libepoxy-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:validate-runpath? _ #t) #f)
+       ((#:tests? _ #f) #f)
+       ((#:configure-flags flags #~'())
+        #~(cons*
+           "--libdir=lib"
+           "-Ddocs=false"
+           "-Dtests=false"
+           #$flags))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (replace 'patch-paths
+              (lambda* (#:key inputs #:allow-other-keys)
+                (define (find-mesa-lib file)
+                  (or (false-if-exception (search-input-file inputs (string-append "lib/" file)))
+                      (false-if-exception (search-input-file inputs (string-append "lib64/" file)))
+                      file))
+                (substitute* (find-files "." "\\.[ch]$")
+                  (("libGL\\.so\\.1") (find-mesa-lib "libGL.so.1"))
+                  (("libEGL\\.so\\.1") (find-mesa-lib "libEGL.so.1"))
+                  (("libGLESv1_CM\\.so\\.1") (find-mesa-lib "libGLESv1_CM.so.1"))
+                  (("libGLESv2\\.so\\.2") (find-mesa-lib "libGLESv2.so.2")))))))))))
 
-(define libepoxy-fixed #f)
+(define-public libepoxy-fixed #f)
