@@ -766,4 +766,27 @@ mod tests {
         }
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_pan_to_csv_header_normalizes_newlines() -> anyhow::Result<()> {
+        let sample_bytes = crate::get_pan_data("fixtures/SAMPLE.pan")
+            .context("Could not load fixtures/SAMPLE.pan")?;
+        let options = PanCsvOptions {
+            include_header: true,
+            output_patterns: false,
+            truncate_multiline: true,
+            encoding: PanCsvEncoding::Utf8,
+            delimiter: PanExportDelimiter::Commas,
+            crlf: false,
+        };
+        let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
+        let first_line = csv_output
+            .split(|&b| b == b'\n')
+            .next()
+            .context("Empty CSV output")?;
+        let header_str = std::str::from_utf8(first_line)?;
+        ensure!(!header_str.contains('\r'));
+        ensure!(header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
+        Ok(())
+    }
 }

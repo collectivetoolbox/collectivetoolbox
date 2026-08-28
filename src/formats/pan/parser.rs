@@ -484,6 +484,7 @@ fn parse_data_payload(
         Some(pair) => pair,
         None => {
             return Err(
+                // Reason for fallback: last_error holds candidate parse failure
                 last_error.unwrap_or_else(|| anyhow::anyhow!("Could not determine DATA record format")),
             );
         }
@@ -4058,5 +4059,36 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_parse_types_payload_strips_leading_zero_padding() -> anyhow::Result<()> {
+        // Example: Phone Bill.pan with leading 0x00 pad followed by 9 field types
+        let payload = vec![0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x08, 0x00, 0x49];
+        let types = parse_types_payload(&payload, 9)?;
+        ensure!(types.len() == 9);
+        ensure!(types[0] == 0x04); // Date
+        ensure!(types[1] == 0x00); // Text
+        ensure!(types[5] == 0x06); // Integer
+        ensure!(types[7] == 0x08); // Fixed(2)
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_decode_pan_date_field_1byte_signed_offset() -> anyhow::Result<()> {
+        // 1-byte signed offset from 1984-01-24:
+        // Offset 5 -> 1984-01-29
+        let (jdn5, mdy5) = decode_pan_date_field(&[5])?;
+        ensure!(mdy5.as_deref() == Some("1/29/84") || mdy5.as_deref() == Some("01/29/1984") || jdn5 > 0);
+        let datestr5 = crate::date::datestr(jdn5)?;
+        ensure!(datestr5 == "1/29/84");
+
+        // Signed negative offset -7 (249 as u8) -> 1984-01-17
+        let (jdn_neg, _) = decode_pan_date_field(&[249])?;
+        let datestr_neg = crate::date::datestr(jdn_neg)?;
+        ensure!(datestr_neg == "1/17/84");
+
+        Ok(())
+    }
 }
+
 

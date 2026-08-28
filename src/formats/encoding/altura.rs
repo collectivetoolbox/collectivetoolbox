@@ -88,6 +88,7 @@ pub fn mac_roman_to_ansi_byte(b: u8) -> u8 {
         b
     } else {
         let idx = usize::from(b.saturating_sub(0x80));
+        // Reason for fallback: only the 128 high bytes are remapped; retain others
         MAC_ROMAN_TO_ANSI
             .get(idx)
             .copied()
@@ -103,6 +104,7 @@ pub fn ansi_to_mac_roman_byte(b: u8) -> u8 {
         b
     } else {
         let idx = usize::from(b.saturating_sub(0x80));
+        // Reason for fallback: only the 128 high bytes are remapped; retain others
         ANSI_TO_MAC_ROMAN
             .get(idx)
             .copied()
