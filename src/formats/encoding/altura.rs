@@ -19,14 +19,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Altura Mac2Win character translation tables.
 //!
-//! Altura Mac2Win was a cross-platform compatibility runtime used by
-//! applications such as Panorama for Windows. Internal data in `.pan` files was
+//! Altura Mac2Win is/was a cross-platform compatibility runtime used by
+//! applications such as Panorama for Windows. Internal data in `.pan` files is
 //! stored in Mac OS Roman across platforms; when running on Windows, Altura
-//! Mac2Win used 128-byte lookup tables (covering bytes `0x80`..=`0xFF`) to
+//! Mac2Win uses 128-byte lookup tables (covering bytes `0x80`..=`0xFF`) to
 //! translate between Mac OS Roman and Windows ANSI (Windows-1252).
-//! Some characters that were not shared between the encodings would be changed
-//! to different characters when files are transferred between operating
-//! systems.
+//! Some characters that are not shared between the encodings are changed to
+//! different characters when files are transferred between operating systems.
 
 #[expect(
     unused_imports,

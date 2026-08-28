@@ -74,6 +74,7 @@
   #:use-module (patches icecat)
   #:use-module (patches qemu)
   #:use-module (patches vulkan-loader)
+  #:use-module (patches virglrenderer)
   #:use-module (patches vala)
   #:use-module (patches gsettings-desktop-schemas)
   #:use-module (patches gobject-introspection)
@@ -170,7 +171,8 @@
     ("icecat-minimal" . ,icecat-minimal-fixed-proc)
     ("icecat" . ,icecat-fixed-proc)
     ("vulkan-loader" . ,vulkan-loader-fixed-proc)
-    ("vala" . ,vala-fixed-proc)))
+    ("vala" . ,vala-fixed-proc)
+    ("virglrenderer" . ,virglrenderer-fixed-proc)))
 
 (define (apply-patches root-pkg)
   (let ((table (make-hash-table)))
