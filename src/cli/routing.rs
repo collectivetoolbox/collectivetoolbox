@@ -1106,30 +1106,39 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             .into_bytes();
             Ok(ToolResult::immediate_ok(output))
         }
-        Command::Pan2Ast {
-            encoding,
-            pan_file,
+        Command::PanMacro2Ast {
+            input_encoding,
+            output_encoding,
+            input_file,
             macro_name,
         } => {
-            let data = read_file_or_stdin(pan_file.as_path())?;
-            let enc = match encoding.to_ascii_lowercase().as_str() {
+            let data = read_file_or_stdin(input_file.as_path())?;
+            let in_enc = match input_encoding.to_ascii_lowercase().as_str() {
+                "utf-8" | "utf8" => ctb_formats_pan::output::PanCsvEncoding::Utf8,
+                "win" | "windows" | "win1252" | "win-1252" | "windows-1252" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::MacRoman,
+            };
+            let out_enc = match output_encoding.to_ascii_lowercase().as_str() {
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
-                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                "win" | "windows" | "win1252" | "win-1252" | "windows-1252" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
-                "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
-                    ctb_formats_pan::output::PanCsvEncoding::Utf8Windows
-                }
-                _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
+                _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
             };
-            let output = ctb_formats_pan::output::pan_to_ast_with_encoding(
+
+            let ast_json = ctb_formats_pan::output::panmacro_to_ast_json(
                 &data,
-                &macro_name,
-                enc,
-            )?
-            .into_bytes();
+                macro_name.as_deref(),
+                in_enc,
+            )?;
+            let output = ctb_formats_pan::output::encode_ast_json_output(
+                &ast_json,
+                out_enc,
+            )?;
             Ok(ToolResult::immediate_ok(output))
         }
         Command::Pdf2Txt { pdf_file } => {
