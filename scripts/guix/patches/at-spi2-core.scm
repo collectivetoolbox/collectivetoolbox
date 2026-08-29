@@ -38,7 +38,9 @@
        ((#:tests? _ #f) #f)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")))))
+       (delete "gobject-introspection"
+               "python-dbusmock-for-tests"
+               "python-pytest")))))
 
 (define at-spi2-core-fixed
   (at-spi2-core-fixed-proc at-spi2-core))

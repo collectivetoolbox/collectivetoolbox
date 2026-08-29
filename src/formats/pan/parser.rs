@@ -279,6 +279,23 @@ pub enum PanDataValue {
     Unknown(String),
 }
 
+impl PanDataValue {
+    #[must_use]
+    pub fn to_display_string(&self) -> String {
+        match self {
+            Self::Text(s) | Self::Integer(s) | Self::Fixed(s) | Self::Float(s) | Self::Unknown(s) => {
+                s.clone()
+            }
+            Self::Date {
+                pan_date_mdy,
+                raw_serial,
+            } => pan_date_mdy
+                .clone()
+                .unwrap_or_else(|| raw_serial.to_string()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PanSchema {
     pub names_section_offset: usize,

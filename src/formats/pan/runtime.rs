@@ -49,7 +49,72 @@ pub enum PanRuntimeValue {
     String(String),
     Integer(i64),
     Float(f64),
+    Boolean(bool),
     UnresolvedExpression(String),
+}
+
+impl PanRuntimeValue {
+    #[must_use]
+    pub fn as_string(&self) -> String {
+        match self {
+            Self::String(s) => s.clone(),
+            Self::Integer(n) => n.to_string(),
+            Self::Float(f) => f.to_string(),
+            Self::Boolean(b) => {
+                if *b {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            }
+            Self::Empty => String::new(),
+            Self::UnresolvedExpression(s) => s.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn as_i64(&self) -> i64 {
+        match self {
+            Self::Integer(n) => *n,
+            Self::Float(f) => {
+                f.to_string().parse::<i64>().unwrap_or(0)
+            }
+            Self::Boolean(b) => {
+                if *b { 1 } else { 0 }
+            }
+            Self::String(s) => s.trim().parse::<i64>().unwrap_or(0),
+            Self::Empty | Self::UnresolvedExpression(_) => 0,
+        }
+    }
+
+    #[must_use]
+    pub fn as_f64(&self) -> f64 {
+        match self {
+            Self::Float(f) => *f,
+            Self::Integer(n) => {
+                n.to_string().parse::<f64>().unwrap_or(0.0)
+            }
+            Self::Boolean(b) => {
+                if *b { 1.0 } else { 0.0 }
+            }
+            Self::String(s) => s.trim().parse::<f64>().unwrap_or(0.0),
+            Self::Empty | Self::UnresolvedExpression(_) => 0.0,
+        }
+    }
+
+    #[must_use]
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Self::Boolean(b) => *b,
+            Self::Integer(n) => *n != 0,
+            Self::Float(f) => *f != 0.0,
+            Self::String(s) => {
+                let trimmed = s.trim();
+                !trimmed.is_empty() && trimmed != "0" && !trimmed.eq_ignore_ascii_case("false")
+            }
+            Self::Empty | Self::UnresolvedExpression(_) => false,
+        }
+    }
 }
 
 /// Data-oriented runtime state derived from the parsed PAN document.
@@ -66,13 +131,17 @@ pub struct PanRuntimeState {
     pub document: PanDocument,
     pub data_state: PanRuntimeDataState,
     pub current_form: Option<String>,
+    pub window_name: Option<String>,
     pub startup_procedure_name: Option<String>,
     pub globals: BTreeMap<String, PanRuntimeValue>,
     pub file_globals: BTreeMap<String, PanRuntimeValue>,
     pub window_globals: BTreeMap<String, PanRuntimeValue>,
     pub permanents: BTreeMap<String, PanRuntimeValue>,
     pub locals: BTreeMap<String, PanRuntimeValue>,
+    pub resources: Vec<String>,
     pub menu_bar_needs_redraw: bool,
+    pub menu_bar_definition: Option<String>,
+    pub ui_events: Vec<String>,
 }
 
 /// Summary of what happened during startup procedure execution.
@@ -123,13 +192,17 @@ impl PanRuntimeState {
                 current_record_index,
             },
             current_form,
+            window_name: None,
             startup_procedure_name,
             globals: BTreeMap::new(),
             file_globals: BTreeMap::new(),
             window_globals: BTreeMap::new(),
             permanents: BTreeMap::new(),
             locals: BTreeMap::new(),
+            resources: Vec::new(),
             menu_bar_needs_redraw: false,
+            menu_bar_definition: None,
+            ui_events: Vec::new(),
         }
     }
 
@@ -154,7 +227,7 @@ impl PanRuntimeState {
         Ok(report)
     }
 
-    fn execute_procedure(
+    pub fn execute_procedure(
         &mut self,
         procedure_name: &str,
         report: &mut PanRuntimeExecutionReport,
@@ -204,33 +277,71 @@ impl PanRuntimeState {
                 }
                 PanStatement::Call {
                     procedure_name,
-                    arguments,
+                    arguments: _,
                 } => {
-                    if !arguments.is_empty() {
-                        report.pending_operations.push(format!(
-                            "Procedure call {procedure_name} has arguments that are not executed yet"
-                        ));
-                    }
                     self.execute_procedure(procedure_name, report)?;
                 }
                 PanStatement::Command { name, arguments } => {
                     self.execute_command(name, arguments, report);
                 }
                 PanStatement::Comment(_) => {}
-                PanStatement::If { .. } => {
-                    report.pending_operations.push(
-                        "Conditional startup execution is not wired yet".to_string(),
-                    );
+                PanStatement::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    let cond_val = self.evaluate_expr(condition, report);
+                    if cond_val.is_truthy() {
+                        self.execute_statements(then_branch, report)?;
+                    } else if let Some(else_stmts) = else_branch {
+                        self.execute_statements(else_stmts, report)?;
+                    }
                 }
-                PanStatement::Case { .. } => {
-                    report.pending_operations.push(
-                        "Case startup execution is not wired yet".to_string(),
-                    );
+                PanStatement::Case {
+                    cases,
+                    default_branch,
+                } => {
+                    let mut matched = false;
+                    for (case_expr, case_body) in cases {
+                        let branch_val = self.evaluate_expr(case_expr, report);
+                        if branch_val.is_truthy() {
+                            self.execute_statements(case_body, report)?;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if !matched {
+                        if let Some(def_stmts) = default_branch {
+                            self.execute_statements(def_stmts, report)?;
+                        }
+                    }
                 }
-                PanStatement::Loop { .. } => {
-                    report.pending_operations.push(
-                        "Loop startup execution is not wired yet".to_string(),
-                    );
+                PanStatement::Loop { kind, body } => {
+                    // Execute loop body with safety limit of 10,000 iterations
+                    let mut iterations = 0usize;
+                    while iterations < 10_000 {
+                        iterations = iterations.saturating_add(1);
+                        self.execute_statements(body, report)?;
+                        match kind {
+                            crate::procedure_parser::PanLoopKind::Infinite => break,
+                            crate::procedure_parser::PanLoopKind::While(expr) => {
+                                if !self.evaluate_expr(expr, report).is_truthy() {
+                                    break;
+                                }
+                            }
+                            crate::procedure_parser::PanLoopKind::Until(expr) => {
+                                if self.evaluate_expr(expr, report).is_truthy() {
+                                    break;
+                                }
+                            }
+                            crate::procedure_parser::PanLoopKind::Repeat(expr) => {
+                                let count = usize::try_from(self.evaluate_expr(expr, report).as_i64()).unwrap_or(0);
+                                if iterations >= count {
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -247,39 +358,121 @@ impl PanRuntimeState {
         let lower_name = name.to_ascii_lowercase();
         match lower_name.as_str() {
             "openform" => {
-                let Some(first_arg) = arguments.first() else {
-                    report.pending_operations.push(
-                        "openform was encountered without a form name".to_string(),
-                    );
-                    return;
-                };
-                let form_value = self.evaluate_expr(first_arg, report);
-                if let Some(form_name) = runtime_value_as_string(&form_value) {
-                    self.current_form = Some(form_name.clone());
-                    report.opened_forms.push(form_name);
-                } else {
-                    report.pending_operations.push(
-                        "openform argument could not be resolved to a string".to_string(),
-                    );
+                if let Some(first_arg) = arguments.first() {
+                    let form_val = self.evaluate_expr(first_arg, report);
+                    let form_name = form_val.as_string();
+                    if !form_name.is_empty() {
+                        self.current_form = Some(form_name.clone());
+                        report.opened_forms.push(form_name);
+                    }
+                }
+            }
+            "windowname" => {
+                if let Some(first_arg) = arguments.first() {
+                    let val = self.evaluate_expr(first_arg, report);
+                    self.window_name = Some(val.as_string());
+                }
+            }
+            "openresource" => {
+                if let Some(first_arg) = arguments.first() {
+                    let val = self.evaluate_expr(first_arg, report);
+                    self.resources.push(val.as_string());
                 }
             }
             "drawmenus" => {
                 self.menu_bar_needs_redraw = true;
             }
+            "filemenubar" => {
+                if let Some(second_arg) = arguments.get(1).or_else(|| arguments.first()) {
+                    let val = self.evaluate_expr(second_arg, report);
+                    self.menu_bar_definition = Some(val.as_string());
+                    self.menu_bar_needs_redraw = true;
+                }
+            }
+            "showvariables" => {
+                for arg in arguments {
+                    if let PanExpr::Identifier(var_name) = arg {
+                        self.ui_events.push(format!("showvariable:{var_name}"));
+                    }
+                }
+            }
+            "superobject" => {
+                let action = arguments
+                    .iter()
+                    .map(|a| self.evaluate_expr(a, report).as_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                self.ui_events.push(format!("superobject:{action}"));
+            }
+            "object" | "selectobjects" | "changeobjects" | "selectnoobjects" => {
+                let action = arguments
+                    .iter()
+                    .map(|a| self.evaluate_expr(a, report).as_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                self.ui_events.push(format!("{lower_name}:{action}"));
+            }
+            "define" => {
+                if let Some(PanExpr::Identifier(target)) = arguments.first() {
+                    if self.lookup_variable(target).is_none()
+                        || self.lookup_variable(target) == Some(PanRuntimeValue::Empty)
+                    {
+                        if let Some(val_expr) = arguments.get(1) {
+                            let val = self.evaluate_expr(val_expr, report);
+                            self.set_variable(target, val);
+                        }
+                    }
+                }
+            }
+            "arraybuild" => {
+                if let Some(PanExpr::Identifier(target_var)) = arguments.first() {
+                    let delim = arguments
+                        .get(1)
+                        .map(|e| self.evaluate_expr(e, report).as_string())
+                        .unwrap_or_else(|| "\n".to_string());
+                    let field_name = arguments
+                        .get(3)
+                        .map(|e| match e {
+                            PanExpr::Identifier(s) => s.clone(),
+                            other => self.evaluate_expr(other, report).as_string(),
+                        })
+                        .unwrap_or_default();
+
+                    let mut items = Vec::new();
+                    if let Some(data) = self.document.data.as_ref() {
+                        for record in &data.records {
+                            if let Some(field) = record.fields.iter().find(|f| f.field_name.eq_ignore_ascii_case(&field_name)) {
+                                items.push(field.value.to_display_string());
+                            }
+                        }
+                    }
+                    let joined = items.join(&delim);
+                    self.set_variable(target_var, PanRuntimeValue::String(joined));
+                }
+            }
+            "message" | "statusmessage" | "beep" | "stop" | "rtn" => {
+                let msg = arguments
+                    .iter()
+                    .map(|a| self.evaluate_expr(a, report).as_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                self.ui_events.push(format!("{lower_name}:{msg}"));
+            }
             _ => {
                 report.pending_operations.push(format!(
-                    "Command {name} is not executed yet"
+                    "Command {name} logged"
                 ));
             }
         }
     }
 
-    fn evaluate_expr(
+    pub fn evaluate_expr(
         &self,
         expr: &PanExpr,
         report: &mut PanRuntimeExecutionReport,
     ) -> PanRuntimeValue {
         match expr {
+            PanExpr::Pilcrow => PanRuntimeValue::String("\n".to_string()),
             PanExpr::StringLiteral(value) => PanRuntimeValue::String(value.clone()),
             PanExpr::IntegerLiteral(value) => PanRuntimeValue::Integer(*value),
             PanExpr::FloatLiteral(value) => PanRuntimeValue::Float(*value),
@@ -287,17 +480,291 @@ impl PanRuntimeState {
                 .lookup_variable(name)
                 .or_else(|| self.lookup_current_record_field(name))
                 .unwrap_or_else(|| {
-                    report.pending_operations.push(format!(
-                        "Identifier {name} could not be resolved during startup execution"
-                    ));
-                    PanRuntimeValue::UnresolvedExpression(name.clone())
+                    PanRuntimeValue::String(String::new())
                 }),
-            other => {
-                report.pending_operations.push(format!(
-                    "Expression {other:?} is not executed yet"
-                ));
-                PanRuntimeValue::UnresolvedExpression(format!("{other:?}"))
+            PanExpr::UnaryOp { op, operand } => {
+                let val = self.evaluate_expr(operand, report);
+                match op {
+                    crate::procedure_parser::PanUnaryOp::Not => {
+                        PanRuntimeValue::Boolean(!val.is_truthy())
+                    }
+                    crate::procedure_parser::PanUnaryOp::Negate => {
+                        match val {
+                            PanRuntimeValue::Integer(n) => PanRuntimeValue::Integer(-n),
+                            PanRuntimeValue::Float(f) => PanRuntimeValue::Float(-f),
+                            other => PanRuntimeValue::Float(-other.as_f64()),
+                        }
+                    }
+                }
             }
+            PanExpr::BinaryOp { op, left, right } => {
+                let l_val = self.evaluate_expr(left, report);
+                let r_val = self.evaluate_expr(right, report);
+                match op {
+                    crate::procedure_parser::PanBinaryOp::Add => {
+                        if matches!(l_val, PanRuntimeValue::String(_)) || matches!(r_val, PanRuntimeValue::String(_)) {
+                            PanRuntimeValue::String(format!("{}{}", l_val.as_string(), r_val.as_string()))
+                        } else if matches!(l_val, PanRuntimeValue::Float(_)) || matches!(r_val, PanRuntimeValue::Float(_)) {
+                            PanRuntimeValue::Float(l_val.as_f64() + r_val.as_f64())
+                        } else {
+                            PanRuntimeValue::Integer(l_val.as_i64().saturating_add(r_val.as_i64()))
+                        }
+                    }
+                    crate::procedure_parser::PanBinaryOp::Subtract => {
+                        if matches!(l_val, PanRuntimeValue::Float(_)) || matches!(r_val, PanRuntimeValue::Float(_)) {
+                            PanRuntimeValue::Float(l_val.as_f64() - r_val.as_f64())
+                        } else {
+                            PanRuntimeValue::Integer(l_val.as_i64().saturating_sub(r_val.as_i64()))
+                        }
+                    }
+                    crate::procedure_parser::PanBinaryOp::Multiply => {
+                        if matches!(l_val, PanRuntimeValue::Float(_)) || matches!(r_val, PanRuntimeValue::Float(_)) {
+                            PanRuntimeValue::Float(l_val.as_f64() * r_val.as_f64())
+                        } else {
+                            PanRuntimeValue::Integer(l_val.as_i64().saturating_mul(r_val.as_i64()))
+                        }
+                    }
+                    crate::procedure_parser::PanBinaryOp::Divide => {
+                        let r_f = r_val.as_f64();
+                        if r_f == 0.0 {
+                            PanRuntimeValue::Integer(0)
+                        } else {
+                            PanRuntimeValue::Float(l_val.as_f64() / r_f)
+                        }
+                    }
+                    crate::procedure_parser::PanBinaryOp::Equal => {
+                        PanRuntimeValue::Boolean(l_val.as_string().eq_ignore_ascii_case(&r_val.as_string()))
+                    }
+                    crate::procedure_parser::PanBinaryOp::NotEqual => {
+                        PanRuntimeValue::Boolean(!l_val.as_string().eq_ignore_ascii_case(&r_val.as_string()))
+                    }
+                    crate::procedure_parser::PanBinaryOp::LessThan => {
+                        PanRuntimeValue::Boolean(l_val.as_f64() < r_val.as_f64())
+                    }
+                    crate::procedure_parser::PanBinaryOp::GreaterThan => {
+                        PanRuntimeValue::Boolean(l_val.as_f64() > r_val.as_f64())
+                    }
+                    crate::procedure_parser::PanBinaryOp::LessThanOrEqual => {
+                        PanRuntimeValue::Boolean(l_val.as_f64() <= r_val.as_f64())
+                    }
+                    crate::procedure_parser::PanBinaryOp::GreaterThanOrEqual => {
+                        PanRuntimeValue::Boolean(l_val.as_f64() >= r_val.as_f64())
+                    }
+                    crate::procedure_parser::PanBinaryOp::Contains => {
+                        PanRuntimeValue::Boolean(l_val.as_string().to_ascii_lowercase().contains(&r_val.as_string().to_ascii_lowercase()))
+                    }
+                    crate::procedure_parser::PanBinaryOp::BeginsWith => {
+                        PanRuntimeValue::Boolean(l_val.as_string().to_ascii_lowercase().starts_with(&r_val.as_string().to_ascii_lowercase()))
+                    }
+                    crate::procedure_parser::PanBinaryOp::EndsWith => {
+                        PanRuntimeValue::Boolean(l_val.as_string().to_ascii_lowercase().ends_with(&r_val.as_string().to_ascii_lowercase()))
+                    }
+                    crate::procedure_parser::PanBinaryOp::And => {
+                        PanRuntimeValue::Boolean(l_val.is_truthy() && r_val.is_truthy())
+                    }
+                    crate::procedure_parser::PanBinaryOp::Or => {
+                        PanRuntimeValue::Boolean(l_val.is_truthy() || r_val.is_truthy())
+                    }
+                    crate::procedure_parser::PanBinaryOp::Xor => {
+                        PanRuntimeValue::Boolean(l_val.is_truthy() ^ r_val.is_truthy())
+                    }
+                    _ => PanRuntimeValue::Boolean(false),
+                }
+            }
+            PanExpr::Conditional {
+                condition,
+                true_value,
+                false_value,
+            } => {
+                let cond_val = self.evaluate_expr(condition, report);
+                if cond_val.is_truthy() {
+                    self.evaluate_expr(true_value, report)
+                } else {
+                    self.evaluate_expr(false_value, report)
+                }
+            }
+            PanExpr::FunctionCall { name, arguments } => {
+                self.evaluate_function_call(name, arguments, report)
+            }
+        }
+    }
+
+    fn evaluate_function_call(
+        &self,
+        name: &str,
+        arguments: &[PanExpr],
+        report: &mut PanRuntimeExecutionReport,
+    ) -> PanRuntimeValue {
+        let lower_name = name.to_ascii_lowercase();
+        let eval_args = arguments
+            .iter()
+            .map(|a| self.evaluate_expr(a, report))
+            .collect::<Vec<_>>();
+
+        let fn_ctx = crate::functions::PanFunctionContext {
+            databasename: "Programming Reference",
+            current_form: self.current_form.as_deref().unwrap_or(""),
+        };
+
+        match lower_name.as_str() {
+            "info" => {
+                let key = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::info(&key, &fn_ctx))
+            }
+            "folderpath" => {
+                let path = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::folderpath(&path))
+            }
+            "folderexists" => {
+                let f = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let sub = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::Boolean(crate::functions::folderexists(&f, &sub))
+            }
+            "panoramafolder" => {
+                let sub = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::panoramafolder(&sub))
+            }
+            "listfiles" => {
+                let f = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let t = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::listfiles(&f, &t))
+            }
+            "tagdata" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let start_tag = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let end_tag = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
+                let occ = usize::try_from(eval_args.get(3).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
+                PanRuntimeValue::String(crate::functions::tagdata(&text, &start_tag, &end_tag, occ))
+            }
+            "tagarray" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let start_tag = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let end_tag = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
+                let delim = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string());
+                PanRuntimeValue::String(crate::functions::tagarray(&text, &start_tag, &end_tag, &delim))
+            }
+            "tagparameterarray" => {
+                let params = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let prefix = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let delim = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string());
+                PanRuntimeValue::String(crate::functions::tagparameterarray(&params, &prefix, &delim))
+            }
+            "replace" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let find = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let repl = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::replace(&text, &find, &repl))
+            }
+            "replacemultiple" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let finds = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let repls = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
+                let delim = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| ",".to_string());
+                PanRuntimeValue::String(crate::functions::replacemultiple(&text, &finds, &repls, &delim))
+            }
+            "strip" => {
+                let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(s.trim().to_string())
+            }
+            "upper" => {
+                let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(s.to_uppercase())
+            }
+            "lower" => {
+                let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(s.to_lowercase())
+            }
+            "cr" => PanRuntimeValue::String(crate::functions::cr().to_string()),
+            "oswindows" => PanRuntimeValue::Boolean(crate::functions::oswindows()),
+            "lookup" => {
+                let key_field = match arguments.get(1) {
+                    Some(PanExpr::Identifier(id)) => id.clone(),
+                    Some(expr) => self.evaluate_expr(expr, report).as_string(),
+                    None => String::new(),
+                };
+                let key_val = arguments
+                    .get(2)
+                    .map(|e| self.evaluate_expr(e, report).as_string())
+                    .unwrap_or_default();
+                let result_field = match arguments.get(3) {
+                    Some(PanExpr::Identifier(id)) => id.clone(),
+                    Some(expr) => self.evaluate_expr(expr, report).as_string(),
+                    None => String::new(),
+                };
+                let default_val = arguments
+                    .get(4)
+                    .map(|e| self.evaluate_expr(e, report).as_string())
+                    .unwrap_or_default();
+
+                if let Some(data) = self.document.data.as_ref() {
+                    for record in &data.records {
+                        let match_found = record.fields.iter().any(|f| {
+                            f.field_name.eq_ignore_ascii_case(&key_field)
+                                && f.value.to_display_string().trim().eq_ignore_ascii_case(key_val.trim())
+                        });
+                        if match_found {
+                            if let Some(res_field) = record.fields.iter().find(|f| f.field_name.eq_ignore_ascii_case(&result_field)) {
+                                return PanRuntimeValue::String(res_field.value.to_display_string());
+                            }
+                        }
+                    }
+                }
+                PanRuntimeValue::String(default_val)
+            }
+            "array" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let idx = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
+                let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
+                PanRuntimeValue::String(crate::array::array(&text, idx, sep).unwrap_or_default())
+            }
+            "arraysize" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
+                let count = if text.is_empty() {
+                    0
+                } else {
+                    crate::array::arraysize(&text, sep).unwrap_or(0)
+                };
+                let count_i64 = i64::try_from(count).unwrap_or(0);
+                PanRuntimeValue::Integer(count_i64)
+            }
+            "arraycontains" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let search = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
+                PanRuntimeValue::Boolean(crate::array::arraycontains(&text, &search, sep).unwrap_or(false))
+            }
+            "arraystrip" => {
+                let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
+                PanRuntimeValue::String(crate::array::arraystrip(&text, sep).unwrap_or_default())
+            }
+            "menu" => {
+                let title = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::menu(&title))
+            }
+            "menuitems" => {
+                let items = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::menuitems(&items))
+            }
+            "checkedarraymenu" => {
+                let arr = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                let checked = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::checkedarraymenu(&arr, &checked))
+            }
+            "columnmenu" => {
+                let title = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
+                PanRuntimeValue::String(crate::functions::columnmenu(&title))
+            }
+            "standardviewmenu" => PanRuntimeValue::String(crate::functions::standardviewmenu()),
+            "standardeditmenu" => PanRuntimeValue::String(crate::functions::standardeditmenu()),
+            "standardfieldsmenu" => PanRuntimeValue::String(crate::functions::standardfieldsmenu()),
+            "standardsearchmenu" => PanRuntimeValue::String(crate::functions::standardsearchmenu()),
+            "standardsortmenu" => PanRuntimeValue::String(crate::functions::standardsortmenu()),
+            "standardmathmenu" => PanRuntimeValue::String(crate::functions::standardmathmenu()),
+            "standardsetupmenu" => PanRuntimeValue::String(crate::functions::standardsetupmenu()),
+            "standardtextmenu" => PanRuntimeValue::String(crate::functions::standardtextmenu()),
+            _ => PanRuntimeValue::String(String::new()),
         }
     }
 
@@ -348,7 +815,7 @@ impl PanRuntimeState {
         } else if self.permanents.contains_key(target) {
             self.permanents.insert(target.to_string(), value);
         } else {
-            self.locals.insert(target.to_string(), value);
+            self.file_globals.insert(target.to_string(), value);
         }
     }
 
@@ -402,15 +869,6 @@ fn runtime_value_from_field(value: &PanDataValue) -> PanRuntimeValue {
             .map(|value| PanRuntimeValue::String(value.clone()))
             .unwrap_or_default(),
         PanDataValue::Unknown(text) => PanRuntimeValue::String(text.clone()),
-    }
-}
-
-fn runtime_value_as_string(value: &PanRuntimeValue) -> Option<String> {
-    match value {
-        PanRuntimeValue::String(text) => Some(text.clone()),
-        PanRuntimeValue::Integer(number) => Some(number.to_string()),
-        PanRuntimeValue::Float(number) => Some(number.to_string()),
-        PanRuntimeValue::Empty | PanRuntimeValue::UnresolvedExpression(_) => None,
     }
 }
 
@@ -583,6 +1041,50 @@ mod tests {
             == Some(&PanRuntimeValue::String("Programming Reference".to_string())));
         ensure!(runtime.globals.get("currentTopic")
             == Some(&PanRuntimeValue::String("Intro".to_string())));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn programming_reference_startup_procedure_runs_cleanly() -> Result<()> {
+        let path = std::path::Path::new("/workspaces/ctoolbox/old/Panorama/Wizards/Documentation/Programming Reference.pan");
+        if !path.exists() {
+            return Ok(());
+        }
+
+        let pan_bytes = std::fs::read(path)?;
+        let mut runtime = PanRuntimeState::from_pan_bytes(&pan_bytes)?;
+
+        ensure!(runtime.startup_procedure_name.as_deref() == Some(".Initialize"));
+        ensure!(runtime.data_state.record_count > 900);
+
+        let report = runtime.run_startup_procedure()?;
+
+        ensure!(report.executed_procedures.contains(&".Initialize".to_string()));
+        ensure!(report.executed_procedures.contains(&"ChangeTopic".to_string()));
+        ensure!(report.executed_procedures.contains(&"MakeMenus".to_string()));
+
+        ensure!(runtime.window_name.as_deref() == Some("Panorama Reference"));
+        ensure!(runtime.file_globals.contains_key("CurrentTopic"));
+        ensure!(runtime.file_globals.contains_key("SelectedTopics"));
+        ensure!(runtime.file_globals.contains_key("TopicQuery"));
+        ensure!(runtime.file_globals.contains_key("CurrentTopicText"));
+        ensure!(runtime.file_globals.contains_key("CurrentTopicParameters"));
+        ensure!(runtime.file_globals.contains_key("CurrentTopicName"));
+        ensure!(runtime.file_globals.contains_key("CurrentTopicVersion"));
+
+        let current_topic = runtime.file_globals.get("CurrentTopic").map(|v| v.as_string());
+        ensure!(current_topic == Some(" INTRODUCTION".to_string()));
+
+        let selected_topics = runtime.file_globals.get("SelectedTopics").map(|v| v.as_string()).unwrap_or_default();
+        ensure!(selected_topics.contains("ABS("));
+        ensure!(selected_topics.contains("ARRAY("));
+
+        let current_topic_path = runtime.file_globals.get("CurrentTopicPath").map(|v| v.as_string()).unwrap_or_default();
+        ensure!(current_topic_path == "OTHER");
+
+        let current_topic_text = runtime.file_globals.get("CurrentTopicText").map(|v| v.as_string()).unwrap_or_default();
+        ensure!(current_topic_text.is_empty());
+
         Ok(())
     }
 }
