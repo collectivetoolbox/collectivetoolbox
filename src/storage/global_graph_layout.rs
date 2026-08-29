@@ -28,6 +28,39 @@ use crate::utilities::*;
 
 use anyhow::Result;
 
+pub const UNICODE_REGION_START: u128 = 0;
+pub const UNICODE_REGION_END: u128 = 1_114_111;
+pub const DC_REGION_START: u128 = 1_114_112;
+pub const DC_REGION_END: u128 = 2_228_223;
+pub const FORMAT_REGION_START: u128 = 2_228_224;
+pub const FORMAT_REGION_END: u128 = 3_342_335;
+
+/// Converts a short Document Character (Dc) ID to its Global Graph ID.
+#[must_use]
+pub fn dc_to_gid(dc_id: u64) -> u128 {
+    DC_REGION_START.saturating_add(u128::from(dc_id))
+}
+
+/// Converts a short Format ID to its Global Graph ID.
+#[must_use]
+pub fn format_to_gid(fmt_id: u64) -> u128 {
+    FORMAT_REGION_START.saturating_add(u128::from(fmt_id))
+}
+
+/// Formats a Global Graph ID into its short prefix representation (`dc:N`, `fmt:N`, `uni:N`, `gid:N`).
+#[must_use]
+pub fn gid_to_short(gid: u128) -> String {
+    if gid <= UNICODE_REGION_END {
+        format!("uni:{gid}")
+    } else if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
+        format!("dc:{offset}", offset = gid.saturating_sub(DC_REGION_START))
+    } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
+        format!("fmt:{offset}", offset = gid.saturating_sub(FORMAT_REGION_START))
+    } else {
+        format!("gid:{gid}")
+    }
+}
+
 pub struct GraphBlock {
     pub name: String,
     pub first_id: u128,
@@ -126,4 +159,45 @@ fn get_layout_table() -> Result<std::sync::Arc<csv_tools::CsvTable>> {
             )
         },
     )
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_dc_to_gid_and_gid_to_short() {
+        assert_eq!(dc_to_gid(0), 1_114_112);
+        assert_eq!(dc_to_gid(296), 1_114_408);
+        assert_eq!(gid_to_short(1_114_408), "dc:296");
+    }
+
+    #[crate::ctb_test]
+    fn test_format_to_gid_and_gid_to_short() {
+        assert_eq!(format_to_gid(0), 2_228_224);
+        assert_eq!(format_to_gid(80), 2_228_304);
+        assert_eq!(gid_to_short(2_228_304), "fmt:80");
+    }
+
+    #[crate::ctb_test]
+    fn test_unicode_gid_to_short() {
+        assert_eq!(gid_to_short(0), "uni:0");
+        assert_eq!(gid_to_short(1234), "uni:1234");
+        assert_eq!(gid_to_short(1_114_111), "uni:1114111");
+    }
+
+    #[crate::ctb_test]
+    fn test_non_short_mappable_gid_to_short() {
+        assert_eq!(gid_to_short(23_234_234), "gid:23234234");
+    }
 }

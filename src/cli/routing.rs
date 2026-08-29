@@ -320,6 +320,30 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox xxd \"Hello\"\n  $ echo -n \"Hello\" | ctoolbox xxd\n  $ ctoolbox xxd -f file.bin -o file.hex\n  $ ctoolbox xxd --plain \"Hello\"\n  $ ctoolbox xxd --fancy \"Hello\""
     )]
     Xxd(ctb_formats_hexdump::cli::XxdArgs),
+    /// Convert short Document Character ID to Global Graph ID or show Dc metadata
+    #[command(
+        name = "short-dc",
+        alias = "short_dc",
+        alias = "shortdc",
+        after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
+    )]
+    ShortDc(crate::graph_id::ShortDcArgs),
+    /// Convert short Format ID to Global Graph ID or show Format metadata
+    #[command(
+        name = "short-fmt",
+        alias = "short_fmt",
+        alias = "shortfmt",
+        after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
+    )]
+    ShortFmt(crate::graph_id::ShortFmtArgs),
+    /// Convert Global Graph ID to short representation or show full metadata
+    #[command(
+        name = "gid",
+        alias = "graph-id",
+        alias = "graph_id",
+        after_help = "Examples:\n  $ ctoolbox gid --s 1114408\n  dc:296\n\n  $ ctoolbox gid -i 1114408"
+    )]
+    Gid(crate::graph_id::GidArgs),
     /// Generate a range of numbers in various bases
     #[command(
         name = "range_gen",
@@ -904,6 +928,18 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 None => Vec::new(),
             };
             Ok(ToolResult::immediate_ok(bytes))
+        }
+        Command::ShortDc(args) => {
+            let output = crate::graph_id::execute_cli_short_dc(args)?;
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
+        }
+        Command::ShortFmt(args) => {
+            let output = crate::graph_id::execute_cli_short_fmt(args)?;
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
+        }
+        Command::Gid(args) => {
+            let output = crate::graph_id::execute_cli_gid(args)?;
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::RangeGen(args) => {
             let output = ctb_formats_math::range_generator::range_cli_handler(args)?;

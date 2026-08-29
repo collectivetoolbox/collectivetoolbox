@@ -39,6 +39,7 @@ use crate::routing::{
 use ctb_storage::get_help_for_tty;
 
 pub mod base_conversion;
+pub mod graph_id;
 pub mod routing;
 pub mod subprocess;
 
@@ -649,6 +650,97 @@ $my_test_array = array('a' => '1', 'b' => '2');
                     String::from_utf8(stdout).expect("UTF-8 stdout"),
                     "U+0041 : LATIN CAPITAL LETTER A\n"
                 );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_dc = Command::ShortDc(crate::graph_id::ShortDcArgs {
+            id: "296".to_string(),
+            info: false,
+        });
+        let res_dc = run_lightweight_command(&cmd_short_dc)
+            .await
+            .expect("Run short-dc");
+        match res_dc {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "1114408\n");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_dc_i = Command::ShortDc(crate::graph_id::ShortDcArgs {
+            id: "296".to_string(),
+            info: true,
+        });
+        let res_dc_i = run_lightweight_command(&cmd_short_dc_i)
+            .await
+            .expect("Run short-dc -i");
+        match res_dc_i {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with("1114408\nNext number is a Dc-equivalent reference"));
+                assert!(s.contains("Type: !Cx (Control: Dc special)"));
+                assert!(s.contains("Syntax: :[number]"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_fmt = Command::ShortFmt(crate::graph_id::ShortFmtArgs {
+            id: "80".to_string(),
+            info: false,
+        });
+        let res_fmt = run_lightweight_command(&cmd_short_fmt)
+            .await
+            .expect("Run short-fmt");
+        match res_fmt {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "2228304\n");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_fmt_i = Command::ShortFmt(crate::graph_id::ShortFmtArgs {
+            id: "80".to_string(),
+            info: true,
+        });
+        let res_fmt_i = run_lightweight_command(&cmd_short_fmt_i)
+            .await
+            .expect("Run short-fmt -i");
+        match res_fmt_i {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with("2228304\nString\n\nCategory: semantic"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_gid_short = Command::Gid(crate::graph_id::GidArgs {
+            id: "1114408".to_string(),
+            short: true,
+            info: false,
+        });
+        let res_gid_short = run_lightweight_command(&cmd_gid_short)
+            .await
+            .expect("Run gid --s");
+        match res_gid_short {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "dc:296\n");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_gid_info = Command::Gid(crate::graph_id::GidArgs {
+            id: "1114408".to_string(),
+            short: false,
+            info: true,
+        });
+        let res_gid_info = run_lightweight_command(&cmd_gid_info)
+            .await
+            .expect("Run gid -i");
+        match res_gid_info {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with("1114408\nNext number is a Dc-equivalent reference"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

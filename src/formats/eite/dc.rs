@@ -27,9 +27,10 @@ use anyhow::{Result, anyhow, ensure};
 
 use crate::dc::data::{
     DCDATA_BIDI_CLASS_COL, DCDATA_CASING_COL, DCDATA_COMBINING_CLASS_COL,
-    DCDATA_COMPLEX_TRAITS_COL, DCDATA_DESCRIPTION_COL, DCDATA_NAME_COL,
-    DCDATA_SCRIPT_COL, DCDATA_TYPE_COL, dc_data_lookup_by_id,
-    dc_dataset_length, is_dc_dataset,
+    DCDATA_COMPLEX_TRAITS_COL, DCDATA_DESCRIPTION_COL, DCDATA_ID_COL,
+    DCDATA_NAME_COL, DCDATA_SCRIPT_COL, DCDATA_TYPE_COL,
+    dc_data_lookup_by_id, dc_data_lookup_by_value, dc_dataset_length,
+    is_dc_dataset,
 };
 use crate::util::string::substring_bug_compatible;
 use ctb_formats_base64::{
@@ -111,12 +112,20 @@ pub fn dc_get_el_class(dc: u32) -> Result<String> {
 
 /// Generic field fetch (dataset “`DcData`”, by numeric Dc id and original JS field number).
 pub fn dc_get_field(dc: u32, field_number: usize) -> Result<String> {
-    // Pass through field_number. If storage uses 0-based, change to field_number - 1 (with checks).
-    dc_data_lookup_by_id(
+    let dc_str = dc.to_string();
+    dc_data_lookup_by_value(
         "DcData",
-        usize::try_from(dc).context("Could not get usize from Dc")?,
+        DCDATA_ID_COL,
+        &dc_str,
         field_number,
     )
+    .or_else(|_| {
+        dc_data_lookup_by_id(
+            "DcData",
+            usize::try_from(dc).context("Could not get usize from Dc")?,
+            field_number,
+        )
+    })
     .map_err(|e| anyhow!("dc_get_field: {e}"))
 }
 
@@ -202,6 +211,105 @@ pub fn dc_get_mapping_to_format(dc: u32, format: &str) -> Result<String> {
         Ok(s) => Ok(s),
         Err(e) => Err(anyhow!("dc_get_mapping_to_format failed: {e}")),
     }
+}
+
+/// Expand a Unicode or Dc general category code to human-readable form.
+fn format_dc_type(type_code: &str) -> String {
+    let desc = describe_general_category(type_code);
+    if desc == type_code {
+        type_code.to_string()
+    } else {
+        format!("{type_code} ({desc})")
+    }
+}
+
+/// Expand a Unicode or Dc general category code to human-readable form.
+fn describe_general_category(type_code: &str) -> String {
+    match type_code {
+        "!Cx" => "Control: Dc special".to_string(),
+        other => ctb_formats_utilities::describe_general_category(other),
+    }
+}
+
+/// Formats detailed character metadata for a short Document Character (Dc) ID.
+///
+/// Output format includes the Global Graph ID (offset by 1,114,112), name, category,
+/// bidirectional class, combining class, type, syntax, aliases, and description.
+pub fn describe_dc(dc_id: u32) -> Result<String> {
+    ensure!(is_known_dc(dc_id)?, "Unknown Dc ID: {dc_id}");
+
+    let gid = 1_114_112_u128.saturating_add(u128::from(dc_id));
+    let name = dc_get_name(dc_id)?;
+    let combining = dc_get_combining_class(dc_id)?;
+    let bidi = dc_get_bidi_class(dc_id)?;
+    let casing = dc_get_casing(dc_id)?;
+    let dc_type = dc_get_type(dc_id)?;
+    let script = dc_get_script(dc_id)?;
+    let aliases_raw = dc_get_complex_traits(dc_id)?;
+    let desc = dc_get_description(dc_id)?;
+
+    let mut lines = Vec::new();
+    lines.push(format!("{gid}"));
+    lines.push(name);
+    lines.push(String::new());
+
+    if !script.is_empty() {
+        lines.push(format!("Category: {script}"));
+    }
+    if !bidi.is_empty() {
+        lines.push(format!("Bidirectional class: {bidi}"));
+    }
+    if !combining.is_empty() {
+        lines.push(format!("Combining class: {combining}"));
+    }
+    if !dc_type.is_empty() {
+        lines.push(format!("Type: {expanded}", expanded = format_dc_type(&dc_type)));
+    }
+    if !casing.is_empty() {
+        lines.push(format!("Casing: {casing}"));
+    }
+
+    if !aliases_raw.is_empty() {
+        let mut syntax_items = Vec::new();
+        let mut xref_items = Vec::new();
+        let mut decomp_items = Vec::new();
+        let mut alias_items = Vec::new();
+
+        for item in aliases_raw.split(',') {
+            let trimmed = item.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if trimmed.starts_with(':') {
+                syntax_items.push(trimmed);
+            } else if trimmed.starts_with('>') {
+                xref_items.push(trimmed);
+            } else if trimmed.starts_with('<') {
+                decomp_items.push(trimmed);
+            } else {
+                alias_items.push(trimmed);
+            }
+        }
+
+        if !syntax_items.is_empty() {
+            lines.push(format!("Syntax: {syn}", syn = syntax_items.join(", ")));
+        }
+        if !alias_items.is_empty() {
+            lines.push(format!("Aliases: {aliases}", aliases = alias_items.join(", ")));
+        }
+        if !xref_items.is_empty() {
+            lines.push(format!("Cross-references: {xrefs}", xrefs = xref_items.join(", ")));
+        }
+        if !decomp_items.is_empty() {
+            lines.push(format!("Decomposition: {decomps}", decomps = decomp_items.join(", ")));
+        }
+    }
+
+    if !desc.is_empty() {
+        lines.push(format!("Description: {desc}"));
+    }
+
+    Ok(lines.join("\n"))
 }
 
 pub fn is_dc_base64_encapsulation_character(dc: u32) -> bool {
@@ -415,6 +523,16 @@ mod tests {
         ];
         let result = bytes_to_dc_encapsulated_binary(input)?;
         assert_eq!(result, expected);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_describe_dc_296() -> Result<()> {
+        let desc = describe_dc(296)?;
+        assert_eq!(
+            desc,
+            "1114408\nNext number is a Dc-equivalent reference to a local node/document\n\nCategory: Miscellaneous\nBidirectional class: BN\nCombining class: 0\nType: !Cx (Control: Dc special)\nSyntax: :[number]"
+        );
         Ok(())
     }
 }

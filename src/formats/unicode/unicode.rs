@@ -43,3 +43,5 @@ pub use data::{UnicodeDataTables, find_block, find_block_with_version, get_table
 // Re-export all Unicode scalar/surrogate and UCS-2 helpers inlined for rustdoc.
 #[doc(inline)]
 pub use ctb_utilities::circular_dep_unicode::*;
+
+pub use ctb_formats_utilities::describe_general_category;

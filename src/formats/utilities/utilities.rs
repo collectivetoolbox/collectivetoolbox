@@ -24,8 +24,11 @@ pub mod encoding;
 pub mod extension;
 pub mod extension_data;
 pub mod format_id;
+pub mod format_info;
 pub mod magic;
 pub mod magic_data;
+
+pub use format_info::{describe_format, get_format_info, FormatInfo};
 
 
 #[expect(
@@ -46,6 +49,44 @@ impl CharUtfBytesExt for char {
         let mut buf = [0u8; 4];
         let s = self.encode_utf8(&mut buf);
         s.as_bytes().to_vec()
+    }
+}
+
+/// Expand a Unicode general category abbreviation into a human-readable description.
+#[must_use]
+pub fn describe_general_category(type_code: &str) -> String {
+    match type_code {
+        "Cc" => "Control".to_string(),
+        "Cf" => "Format".to_string(),
+        "Cs" => "Surrogate".to_string(),
+        "Co" => "Private Use".to_string(),
+        "Cn" => "Noncharacter".to_string(),
+        "Lu" => "Letter: Uppercase".to_string(),
+        "Ll" => "Letter: Lowercase".to_string(),
+        "Lt" => "Letter: Titlecase".to_string(),
+        "Lm" => "Letter: Modifier".to_string(),
+        "Lo" => "Letter: Other".to_string(),
+        "Mn" => "Mark: Nonspacing".to_string(),
+        "Mc" => "Mark: Spacing Combining".to_string(),
+        "Me" => "Mark: Enclosing".to_string(),
+        "Nd" => "Number: Decimal".to_string(),
+        "Nl" => "Number: Letter".to_string(),
+        "No" => "Number: Other".to_string(),
+        "Pc" => "Punctuation: Connector".to_string(),
+        "Pd" => "Punctuation: Dash".to_string(),
+        "Ps" => "Punctuation: Open".to_string(),
+        "Pe" => "Punctuation: Close".to_string(),
+        "Pi" => "Punctuation: Initial Quote".to_string(),
+        "Pf" => "Punctuation: Final Quote".to_string(),
+        "Po" => "Punctuation: Other".to_string(),
+        "Sm" => "Symbol: Math".to_string(),
+        "Sc" => "Symbol: Currency".to_string(),
+        "Sk" => "Symbol: Modifier".to_string(),
+        "So" => "Symbol: Other".to_string(),
+        "Zs" => "Separator: Space".to_string(),
+        "Zl" => "Separator: Line".to_string(),
+        "Zp" => "Separator: Paragraph".to_string(),
+        other => other.to_string(),
     }
 }
 

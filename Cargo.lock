@@ -2610,6 +2610,7 @@ dependencies = [
  "ctb-formats-pdf",
  "ctb-formats-stagel",
  "ctb-formats-unicode",
+ "ctb-formats-utilities",
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-x86",
