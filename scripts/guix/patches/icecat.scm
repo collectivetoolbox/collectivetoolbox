@@ -380,4 +380,6 @@ fi
                   (install-file desktop-file applications))))))))))
 
 (define (icecat-fixed-proc pkg)
-  (icecat-minimal-fixed-proc pkg))
+  (package
+    (inherit (icecat-minimal-fixed-proc (@ (gnu packages gnuzilla) icecat-minimal)))
+    (name "icecat")))

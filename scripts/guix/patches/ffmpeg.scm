@@ -31,7 +31,7 @@
     (inherit pkg)
     (inputs
      (modify-inputs (package-inputs pkg)
-       (delete "rav1e" "sdl2" "libbluray" "libcdio-paranoia" "libplacebo" "shaderc" "spirv-tools" "vidstab" "libcaca" "libgme" "openal" "ladspa")))
+       (delete "rav1e" "sdl2" "libbluray" "libcdio-paranoia" "libplacebo" "shaderc" "spirv-tools" "vidstab" "libcaca" "libgme" "openal" "ladspa" "vulkan-loader" "vulkan-headers")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
@@ -47,6 +47,7 @@
                  "--disable-libgme"
                  "--disable-openal"
                  "--disable-ladspa"
+                 "--disable-vulkan"
                  (filter (lambda (f)
                            (not (member f '("--enable-frei0r"
                                            "--enable-librav1e"
@@ -58,7 +59,8 @@
                                            "--enable-libcaca"
                                            "--enable-libgme"
                                            "--enable-openal"
-                                           "--enable-ladspa"))))
+                                           "--enable-ladspa"
+                                           "--enable-vulkan"))))
                          #$flags)))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
