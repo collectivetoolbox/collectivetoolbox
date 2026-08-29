@@ -169,7 +169,7 @@ pub struct PanSection {
 }
 
 /// Parsed representation of a PAN file.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PanDocument {
     pub prelude: PanPrelude,
     pub sections: Vec<PanSection>,
@@ -182,14 +182,14 @@ pub struct PanDocument {
     pub trailing_bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PanMacroInfo {
     pub name: String,
     pub size: usize,
     pub is_procedure: bool,
     pub code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ast: Option<crate::procedure_parser::PanProcedure>,
+    pub ast: Option<crate::procedure_parser::PanProcedureAst>,
     #[serde(with = "serde_pan_bytes")]
     pub payload: Vec<u8>,
 }

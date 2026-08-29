@@ -35,6 +35,7 @@ use clap::{Parser, Subcommand};
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
+use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
@@ -149,12 +150,14 @@ fn main() -> Result<()> {
                 }
                 _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
             };
-
-            let data = std::fs::read(&input_file).with_context(|| {
-                format!("Could not read input file: {}", input_file.display())
+            let input_data = fs::read(input_file.as_path()).with_context(|| {
+                format!(
+                    "Could not read input file: {input_file_display}",
+                    input_file_display = input_file.display()
+                )
             })?;
             let ast_json = ctb_formats_pan::output::panmacro_to_ast_json(
-                &data,
+                &input_data,
                 macro_name.as_deref(),
                 in_enc,
             )?;

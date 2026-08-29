@@ -214,7 +214,6 @@ pub fn pan_to_macro_with_encoding(
         if let Some(ref code) = macro_info.code {
             return Ok(code.clone());
         }
-        );
     }
     bail!(
         "Macro '{macro_name}' not found in PAN file (available macros: {:?})",
@@ -344,6 +343,30 @@ pub fn pan_file_to_ast_stdout(
         macro_name,
         PanCsvEncoding::Windows,
     )
+}
+
+fn format_procedure_code(
+    input_bytes: &[u8],
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let decoded = match encoding {
+        PanCsvEncoding::Utf8 => String::from_utf8(input_bytes.to_vec())
+            .context("Procedure code is not valid UTF-8")?,
+        PanCsvEncoding::Utf8Windows | PanCsvEncoding::Windows => {
+            ctb_formats_encoding::altura::mac_roman_to_utf8_windows(input_bytes)?
+        }
+        PanCsvEncoding::MacRoman => ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            input_bytes,
+        )?,
+    };
+
+    let mut result = String::new();
+    for line in decoded.split('\r') {
+        result.push_str(line.trim_end());
+        result.push('\n');
+    }
+    Ok(result)
 }
 
 fn csv_field_bytes(
