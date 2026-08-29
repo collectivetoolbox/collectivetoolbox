@@ -73,8 +73,10 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
         Err(_) => format!("<unknown Dc {short_dc}>"),
     };
 
-    let aliases_raw = ctb_formats_eite::dc::dc_get_complex_traits(short_dc)
-        .unwrap_or_default();
+    let aliases_raw = match ctb_formats_eite::dc::dc_get_complex_traits(short_dc) {
+        Ok(t) => t,
+        Err(_) => String::new(),
+    };
 
     let mut annotations = Vec::new();
     let mut abbreviation = None;
@@ -188,7 +190,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_describe_dcal() {
-        let text = "U+0041 dc:296 fmt:80";
+        let text = "65 1114408 2228304";
         let out = describe_dcal(text, DescriptionOptions::default()).unwrap();
         let lines: Vec<&str> = out.lines().collect();
         assert_eq!(lines.len(), 3);

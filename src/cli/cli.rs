@@ -656,7 +656,7 @@ $my_test_array = array('a' => '1', 'b' => '2');
 
         let cmd3_dcal = Command::CharacterDescription(
             ctb_formats_dctext::cli::CharacterDescriptionArgs {
-                input: Some("65 dc:296 fmt:80".to_string()),
+                input: Some("65 1114408 2228304".to_string()),
                 from: ctb_formats_dctext::cli::CharacterDescriptionInputFormat::Dcal,
                 ..Default::default()
             },
@@ -702,7 +702,7 @@ $my_test_array = array('a' => '1', 'b' => '2');
                 let s = String::from_utf8(stdout).expect("UTF-8");
                 assert!(s.starts_with("1114408\nNext number is a Dc-equivalent reference"));
                 assert!(s.contains("Type: !Cx (Control: Dc special)"));
-                assert!(s.contains("Syntax: :[number]"));
+                assert!(s.contains("Syntax: :~ [number]"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

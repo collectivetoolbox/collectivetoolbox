@@ -47,7 +47,7 @@ pub use cli::{
     CharacterDescriptionArgs, CharacterDescriptionInputFormat,
     execute_cli_character_description,
 };
-pub use dcal::{dcal_to_dclist, dclist_to_dcal, parse_graph_token};
+pub use dcal::{dcal_to_dclist, dclist_to_dcal};
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };

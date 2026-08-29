@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
 
 pub use ctb_formats_unicode::cli::{
@@ -38,8 +38,41 @@ use crate::character_description::{
     describe_dcal, describe_dclist, describe_graph_id,
     describe_unicode_with_options,
 };
-use crate::dcal::parse_graph_token;
 use crate::dctext_to_dclist;
+
+fn parse_codepoint_arg(token: &str) -> Result<u128> {
+    let trimmed = token.trim();
+    if trimmed.is_empty() {
+        bail!("Empty codepoint argument");
+    }
+    if let Some(rest) = trimmed.strip_prefix("dc:").or_else(|| trimmed.strip_prefix("Dc:")) {
+        let short = parse_u128_literal(rest)?;
+        return Ok(1_114_112_u128.saturating_add(short));
+    }
+    if let Some(rest) = trimmed.strip_prefix("fmt:").or_else(|| trimmed.strip_prefix("Fmt:")) {
+        let short = parse_u128_literal(rest)?;
+        return Ok(2_228_224_u128.saturating_add(short));
+    }
+    if let Some(rest) = trimmed.strip_prefix("uni:").or_else(|| trimmed.strip_prefix("Uni:")) {
+        return parse_u128_literal(rest);
+    }
+    if let Some(rest) = trimmed.strip_prefix("U+").or_else(|| trimmed.strip_prefix("u+")) {
+        return u128::from_str_radix(rest, 16)
+            .map_err(|e| anyhow!("Invalid Unicode hex codepoint '{trimmed}': {e}"));
+    }
+    parse_u128_literal(trimmed)
+}
+
+fn parse_u128_literal(s: &str) -> Result<u128> {
+    let s = s.trim();
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u128::from_str_radix(hex, 16)
+            .map_err(|e| anyhow!("Invalid hex literal '{s}': {e}"))
+    } else {
+        s.parse::<u128>()
+            .map_err(|e| anyhow!("Invalid integer literal '{s}': {e}"))
+    }
+}
 
 /// Supported input serialization formats for character descriptions.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -48,9 +81,12 @@ pub enum CharacterDescriptionInputFormat {
     #[default]
     #[value(name = "utf8", alias = "utf-8")]
     Utf8,
-    /// Dc ASCII List format (.dcal, space/newline-separated IDs)
+    /// Dc ASCII List format (.dcal, space/newline-separated global IDs)
     #[value(name = "dcal", alias = "dc-al", alias = "dc_al", alias = "dc-ascii-list")]
     Dcal,
+    /// Classic Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
+    #[value(name = "dcil", alias = "dc-il", alias = "dc_il", alias = "dc-integer-list")]
+    Dcil,
     /// DcText document format (with @<id>@ tokens)
     #[value(name = "dctext", alias = "dc-text", alias = "dc_text")]
     DcText,
@@ -157,7 +193,7 @@ where
     let options = DescriptionOptions::from(&args);
 
     let result = if let Some(ref cp_str) = args.codepoint {
-        let id = parse_graph_token(cp_str)?;
+        let id = parse_codepoint_arg(cp_str)?;
         let mut out = describe_graph_id(id, options);
         out.push('\n');
         out
@@ -180,6 +216,14 @@ where
                 let text = String::from_utf8(input_bytes)
                     .context("Dcal input is not valid UTF-8")?;
                 describe_dcal(&text, options)?
+            }
+            CharacterDescriptionInputFormat::Dcil => {
+                let (dca, _log) = ctb_formats_eite::formats::integer_list::dca_from_integer_list(
+                    &input_bytes,
+                    &ctb_formats_eite::formats::integer_list::IntegerListFormatSettings::default(),
+                )?;
+                let conv = crate::dcarray_to_dclist(&dca)?;
+                describe_dclist(&conv.result, options)
             }
             CharacterDescriptionInputFormat::DcText => {
                 let conv = dctext_to_dclist(&input_bytes)?;
@@ -250,6 +294,23 @@ mod tests {
         assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
         assert!(lines[1].starts_with("1114408 : Next number is a Dc-equivalent reference"));
         assert!(lines[2].starts_with("2228304 : String"));
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_dcil_format() {
+        let args = CharacterDescriptionArgs {
+            input: Some("296 21".to_string()),
+            from: CharacterDescriptionInputFormat::Dcil,
+            ..Default::default()
+        };
+        let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
+            .unwrap()
+            .unwrap();
+        let text = String::from_utf8(out).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].starts_with("1114408 : Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with("1114133 : Number sign"));
     }
 
     #[crate::ctb_test]

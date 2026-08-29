@@ -244,7 +244,7 @@ mod tests {
         .expect("short-dc -i 296");
         assert!(out_info.starts_with("1114408\nNext number is a Dc-equivalent reference"));
         assert!(out_info.contains("Type: !Cx (Control: Dc special)"));
-        assert!(out_info.contains("Syntax: :[number]"));
+        assert!(out_info.contains("Syntax: :~ [number]"));
     }
 
     #[crate::ctb_test]

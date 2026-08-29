@@ -26,7 +26,7 @@ Commands:
   short-fmt                  Convert short Format ID to Global Graph ID or show Format metadata
   gid                        Convert Global Graph ID to short representation or show full metadata
   range_gen                  Generate a range of numbers in various bases
-  character_description      Describe Unicode characters with annotations, aliases, and meanings
+  character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
   ia                         Internet Archive utilities
@@ -168,20 +168,22 @@ Examples:
 ### `ctoolbox character_description`
 
 ```text
-Describe Unicode characters with annotations, aliases, and meanings
+Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
 
 Usage: ctoolbox character_description [OPTIONS] [INPUT]
 
 Arguments:
-  [INPUT]  Input text containing characters to describe. If not provided, reads from stdin or file
+  [INPUT]  Input text containing characters/IDs to describe. If not provided, reads from stdin or file
 
 Options:
+      --from <FROM>
+          Input format: utf8 (default), dcal (Dc ASCII list), or dctext [default: utf8] [possible values: utf8, dcal, dctext]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
           Output file path (or - for stdout)
   -c, --codepoint <CODEPOINT>
-          Specific Unicode codepoint (e.g. U+0041, 0x41, 65)
+          Specific character, Dc ID, or Global Graph ID (e.g. U+0041, dc:296, 1114408, fmt:80)
       --mode <MODE>
           Description format mode (standard or wuc-compat) [default: standard] [possible values: standard, wuc-compat]
       --wuc-compat
@@ -197,9 +199,9 @@ Options:
 
 Examples:
   $ ctoolbox character_description "Hello"
+  $ ctoolbox character_description --from dcal "65 1114408 2228304"
+  $ ctoolbox character_description --codepoint dc:296
   $ ctoolbox character_description -f input.txt -o output.txt
-  $ ctoolbox character_description --codepoint U+1F602
-  $ ctoolbox character_description --wuc-compat "Hello"
 ```
 
 ### `ctoolbox compress`
