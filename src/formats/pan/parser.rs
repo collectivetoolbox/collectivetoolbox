@@ -186,6 +186,14 @@ pub struct PanDocument {
 pub struct PanMacroInfo {
     pub name: String,
     pub size: usize,
+    pub is_procedure: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub variables: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub statements: Vec<String>,
+    pub code: Option<String>,
+    #[serde(with = "serde_pan_bytes")]
+    pub payload: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -3013,6 +3021,213 @@ fn parse_rc_payload(payload: &[u8]) -> Option<usize> {
     }
 }
 
+fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
+    if chunk.is_empty() {
+        return None;
+    }
+    let is_valid = chunk.iter().all(|&b| {
+        (0x20..=0x7E).contains(&b)
+            || b == b'\r'
+            || b == b'\n'
+            || b == b'\t'
+            || b >= 0x80
+    });
+    if !is_valid {
+        return None;
+    }
+
+    let mut ansi_bytes = Vec::with_capacity(chunk.len());
+    for &b in chunk {
+        ansi_bytes.push(ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b));
+    }
+
+    let decoded = match ctb_formats_encoding::decode(
+        ctb_formats_encoding::CharEncoding::windows_1252(),
+        &ansi_bytes,
+    ) {
+        Ok(s) => s,
+        Err(_) => match ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            chunk,
+        ) {
+            Ok(s) => s,
+            Err(_) => return None,
+        },
+    };
+
+    let mut result = String::new();
+    for line in decoded.split('\r') {
+        let trimmed = line.trim_end();
+        result.push_str(trimmed);
+        result.push('\n');
+    }
+    Some(result)
+}
+
+fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
+    let body = macro_bytes.get(6usize.saturating_add(name_len)..)?;
+    if body.len() < 3 {
+        return None;
+    }
+
+    // 1. Structural parse: 2-byte BE or LE length prefix at pos - 2
+    for pos in (2..body.len()).rev() {
+        if let (Some(&b0), Some(&b1)) = (
+            body.get(pos.saturating_sub(2)),
+            body.get(pos.saturating_sub(1)),
+        ) {
+            let l_be = usize::from(u16::from_be_bytes([b0, b1]));
+            let l_le = usize::from(u16::from_le_bytes([b0, b1]));
+
+            for len in [l_be, l_le] {
+                if len > 0
+                    && pos.saturating_add(len) <= body.len()
+                    && (pos.saturating_add(len) == body.len()
+                        || pos.saturating_add(len)
+                            == body.len().saturating_sub(1))
+                {
+                    if let Some(chunk) = body.get(pos..pos.saturating_add(len))
+                    {
+                        if let Some(decoded) =
+                            decode_macro_procedure_bytes(chunk)
+                        {
+                            return Some(decoded);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fallback: 4-byte BE or LE length prefix at pos - 4
+    for pos in (4..body.len()).rev() {
+        if let (Some(&b0), Some(&b1), Some(&b2), Some(&b3)) = (
+            body.get(pos.saturating_sub(4)),
+            body.get(pos.saturating_sub(3)),
+            body.get(pos.saturating_sub(2)),
+            body.get(pos.saturating_sub(1)),
+        ) {
+            let l_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3]))
+                .unwrap_or(0);
+            let l_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3]))
+                .unwrap_or(0);
+
+            for len in [l_be, l_le] {
+                if len > 0
+                    && pos.saturating_add(len) <= body.len()
+                    && (pos.saturating_add(len) == body.len()
+                        || pos.saturating_add(len)
+                            == body.len().saturating_sub(1))
+                {
+                    if let Some(chunk) = body.get(pos..pos.saturating_add(len))
+                    {
+                        if let Some(decoded) =
+                            decode_macro_procedure_bytes(chunk)
+                        {
+                            return Some(decoded);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn is_macro_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn extract_macro_structures(
+    macro_bytes: &[u8],
+    name_len: usize,
+) -> (Vec<String>, Vec<String>) {
+    let body = match macro_bytes.get(6usize.saturating_add(name_len)..) {
+        Some(b) if b.len() >= 10 => b,
+        _ => return (Vec::new(), Vec::new()),
+    };
+    let enc = ctb_formats_encoding::CharEncoding::mac_roman();
+
+    let mut variables = Vec::new();
+    let mut statements = Vec::new();
+    let mut idx = 0usize;
+
+    while idx.saturating_add(4) <= body.len() {
+        if let (Some(&b0), Some(&b1), Some(&b2), Some(&b3)) = (
+            body.get(idx),
+            body.get(idx.saturating_add(1)),
+            body.get(idx.saturating_add(2)),
+            body.get(idx.saturating_add(3)),
+        ) {
+            let l_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3]))
+                .unwrap_or(0);
+            let l_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3]))
+                .unwrap_or(0);
+
+            for len in [l_le, l_be] {
+                if len >= 2
+                    && len < 300
+                    && idx.saturating_add(4).saturating_add(len) <= body.len()
+                {
+                    let start = idx.saturating_add(4);
+                    let end = start.saturating_add(len);
+                    if let Some(chunk) = body.get(start..end) {
+                        let is_all_text = chunk.iter().all(|&b| {
+                            (0x20..=0x7E).contains(&b)
+                                || b == b'\r'
+                                || b == b'\n'
+                                || b == b'\t'
+                                || b >= 0x80
+                        });
+                        if is_all_text {
+                            if let Ok(decoded) =
+                                ctb_formats_encoding::decode(enc, chunk)
+                            {
+                                let trimmed = decoded.trim();
+                                if trimmed.len() >= 2 {
+                                    if trimmed.contains(',')
+                                        && !trimmed.contains(&[
+                                            '(', '=', '<', '>', '+', '-', '*',
+                                            '/',
+                                        ][..])
+                                    {
+                                        for v in trimmed.split(',') {
+                                            let v_clean = v.trim();
+                                            if !v_clean.is_empty()
+                                                && is_macro_identifier(v_clean)
+                                                && !variables.iter().any(
+                                                    |existing| {
+                                                        existing == v_clean
+                                                    },
+                                                )
+                                            {
+                                                variables.push(v_clean.to_string());
+                                            }
+                                        }
+                                    } else if !statements.iter().any(|existing| {
+                                        existing == trimmed
+                                    }) {
+                                        statements.push(trimmed.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        idx = idx.saturating_add(1);
+    }
+
+    (variables, statements)
+}
+
 fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
     let mut macros = Vec::new();
     let mut cursor = 0usize;
@@ -3051,9 +3266,22 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                 };
 
                 if chosen_size > 0 {
+                    let raw_macro = payload
+                        .get(cursor..cursor.saturating_add(chosen_size))
+                        .unwrap_or(&[]);
+                    let code = extract_macro_code(raw_macro, nlen);
+                    let (variables, statements) =
+                        extract_macro_structures(raw_macro, nlen);
+                    let is_procedure = name.starts_with('.');
+
                     macros.push(PanMacroInfo {
                         name,
                         size: chosen_size,
+                        is_procedure,
+                        variables,
+                        statements,
+                        code,
+                        payload: raw_macro.to_vec(),
                     });
                     cursor = cursor.saturating_add(chosen_size);
                     continue;
@@ -4541,19 +4769,22 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_macros_payload() -> anyhow::Result<()> {
-        // Build sample MACROS payload with two macros
+        // Build sample MACROS payload with one macro
         let mut payload = Vec::new();
-        // Macro 1: size=18, marker=0x84, name_len=11, name=".Initialize"
-        payload.extend_from_slice(&18u32.to_le_bytes());
+        // Macro 1: size=31, marker=0x84, name_len=11, name=".Initialize"
+        payload.extend_from_slice(&31u32.to_le_bytes());
         payload.push(0x84);
         payload.push(11);
         payload.extend_from_slice(b".Initialize");
-        payload.extend_from_slice(&[0x00, 0x00]); // padding to 18
+        payload.extend_from_slice(&12u16.to_le_bytes());
+        payload.extend_from_slice(b"global x\rx=1"); // 12 bytes code
 
         let macros = parse_macros_payload(&payload);
         ensure!(macros.len() == 1);
         ensure!(macros[0].name == ".Initialize");
-        ensure!(macros[0].size == 18);
+        ensure!(macros[0].size == 31);
+        ensure!(!macros[0].payload.is_empty());
+        ensure!(macros[0].code.as_deref() == Some("global x\nx=1\n"));
 
         Ok(())
     }

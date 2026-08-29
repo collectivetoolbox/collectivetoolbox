@@ -60,6 +60,13 @@ enum Command {
         /// Input PAN file path
         pan_file: PathBuf,
     },
+    /// Extract a macro from a PAN file and print to stdout.
+    Macro {
+        /// Input PAN file path
+        pan_file: PathBuf,
+        /// Macro name
+        macro_name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -81,6 +88,16 @@ fn main() -> Result<()> {
                 ctb_formats_pan::output::pan_file_to_parse_json_stdout(
                     pan_file.as_path(),
                 )?;
+            io::stdout().lock().write_all(&output)?;
+        }
+        Command::Macro {
+            pan_file,
+            macro_name,
+        } => {
+            let output = ctb_formats_pan::output::pan_file_to_macro_stdout(
+                pan_file.as_path(),
+                &macro_name,
+            )?;
             io::stdout().lock().write_all(&output)?;
         }
     }

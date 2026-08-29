@@ -200,6 +200,41 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(json.into_bytes())
 }
 
+/// Extract the source code of a specified macro by name.
+pub fn pan_to_macro(
+    pan_file: &[u8],
+    macro_name: &str,
+) -> anyhow::Result<String> {
+    let pan = parser::parse_pan(pan_file)?;
+    if let Some(macro_info) = pan.macros.iter().find(|m| m.name == macro_name) {
+        if let Some(ref code) = macro_info.code {
+            return Ok(code.clone());
+        }
+        bail!(
+            "Macro '{macro_name}' found in PAN file, but procedure source code could not be decoded"
+        );
+    }
+    bail!(
+        "Macro '{macro_name}' not found in PAN file (available macros: {:?})",
+        pan.macros.iter().map(|m| &m.name).collect::<Vec<_>>()
+    );
+}
+
+/// Read a PAN file from disk and return macro procedure code bytes for stdout.
+pub fn pan_file_to_macro_stdout(
+    pan_file: &Path,
+    macro_name: &str,
+) -> anyhow::Result<Vec<u8>> {
+    let pan_data = fs::read(pan_file).with_context(|| {
+        format!(
+            "Could not read PAN file: {pan_file_display}",
+            pan_file_display = pan_file.display()
+        )
+    })?;
+    let macro_code = pan_to_macro(&pan_data, macro_name)?;
+    Ok(macro_code.into_bytes())
+}
+
 fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
     options: &PanCsvOptions,
@@ -822,6 +857,34 @@ mod tests {
         };
         let result = csv_field_bytes(&field, &options)?;
         ensure!(result == vec![0xf0, b'T', b'A', b'G', 0xb9]);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pan_to_macro_extracts_macro_code() -> anyhow::Result<()> {
+        let mut pan_bytes = Vec::new();
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+        // Prelude entry
+        pan_bytes.push(0x00);
+        pan_bytes.push(4);
+        pan_bytes.extend_from_slice(b"TEST");
+        pan_bytes.push(0);
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+        // Section: size = 37, kind = 0x83, len = 6, name = "MACROS"
+        pan_bytes.extend_from_slice(&37u32.to_le_bytes());
+        pan_bytes.push(0x83);
+        pan_bytes.push(6);
+        pan_bytes.extend_from_slice(b"MACROS");
+        // Macro record: size = 25, marker = 0x84, name_len = 5, name = "TestM"
+        pan_bytes.extend_from_slice(&25u32.to_le_bytes());
+        pan_bytes.push(0x84);
+        pan_bytes.push(5);
+        pan_bytes.extend_from_slice(b"TestM");
+        pan_bytes.extend_from_slice(&12u16.to_le_bytes());
+        pan_bytes.extend_from_slice(b"message \"Hi\"");
+
+        let code = pan_to_macro(&pan_bytes, "TestM")?;
+        ensure!(code == "message \"Hi\"\n");
         Ok(())
     }
 }

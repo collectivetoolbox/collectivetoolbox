@@ -38,6 +38,7 @@
            "--libdir=lib"
            #$(if (%current-target-system)
                  #~(cons*
+                    "--cross-file=/tmp/mesa-llvm-cross.ini"
                     "-Damd-use-llvm=false"
                     "-Dllvm=enabled"
                     (map (lambda (flag)
@@ -104,25 +105,50 @@
                                  (symlink src-path dest-path)))))
                          (or ((@ (ice-9 ftw) scandir) src) '()))))
 
+                    (define (find-store-input name)
+                      (let* ((all-env (string-append (or (getenv "LIBRARY_PATH") "") ":"
+                                                     (or (getenv "PATH") "") ":"
+                                                     (or (getenv "CPATH") "") ":"
+                                                     (or (getenv "PKG_CONFIG_PATH_FOR_BUILD") "") ":"
+                                                     (or (getenv "PKG_CONFIG_PATH") "")))
+                             (dirs (string-split all-env #\:))
+                             (match (find (lambda (dir)
+                                            (and (not (string-null? dir))
+                                                 (string-contains dir name)
+                                                 (file-exists? dir)))
+                                          dirs)))
+                        (and match
+                             (let ((parent (string-append match "/..")))
+                               (if (file-exists? parent)
+                                   (canonicalize-path parent)
+                                   match)))))
+
                     (let ((libclc (or (input-ref "libclc")
-                                      (find-input-by-prefix "libclc")))
+                                      (find-input-by-prefix "libclc")
+                                      (find-store-input "libclc")))
                           (llvm (or (input-ref "llvm-for-mesa")
                                     (input-ref "llvm")
-                                    (find-input-by-prefix "llvm")))
+                                    (find-input-by-prefix "llvm")
+                                    (find-store-input "llvm-18")
+                                    (find-store-input "llvm")))
                           (spirv-tools (or (input-ref "spirv-tools")
-                                           (find-input-by-prefix "spirv-tools")))
+                                           (find-input-by-prefix "spirv-tools")
+                                           (find-store-input "spirv-tools")))
                           (llvm-spirv (or (input-ref "spirv-llvm-translator")
                                           (input-ref "llvm-spirv")
                                           (find-input-by-prefix "spirv-llvm-translator")
-                                          (find-input-by-prefix "llvm-spirv")))
+                                          (find-input-by-prefix "llvm-spirv")
+                                          (find-store-input "spirv-llvm-translator")))
                           (cross-gcc (or (input-ref "cross-gcc")
                                          (input-ref "gcc-cross")
                                          (find-input-by-prefix "cross-gcc")
-                                         (find-input-by-prefix "gcc-cross")))
+                                         (find-input-by-prefix "gcc-cross")
+                                         (find-store-input "gcc-cross")))
                           (cross-binutils (or (input-ref "cross-binutils")
                                               (input-ref "binutils-cross")
                                               (find-input-by-prefix "binutils-cross")
-                                              (find-input-by-prefix "cross-binutils"))))
+                                              (find-input-by-prefix "cross-binutils")
+                                              (find-store-input "binutils-cross"))))
                       (when libclc
                         (prepend-env-path
                          "PKG_CONFIG_PATH"
@@ -178,9 +204,40 @@
                               (format p "done\n")
                               (format p "if [ -n \"$res\" ]; then echo \"$res\" | sed 's/^ //'; fi\n")))
                           (chmod wrapper-script #o755)
-                          (symlink wrapper-script (string-append overlay-bin "/i686-linux-gnu-llvm-config"))
-                          (symlink wrapper-script (string-append overlay-bin "/llvm-config-18"))
+                          (setenv "LLVM_CONFIG" wrapper-script)
+                          (setenv "LLVM_CONFIG_PATH" wrapper-script)
+                          (for-each
+                           (lambda (ver)
+                             (let ((name1 (string-append overlay-bin "/llvm-config" ver))
+                                   (name2 (string-append overlay-bin "/i686-linux-gnu-llvm-config" ver)))
+                               (unless (file-exists? name1) (symlink wrapper-script name1))
+                               (unless (file-exists? name2) (symlink wrapper-script name2))))
+                           '("" "-14" "-15" "-16" "-17" "-18" "-19" "-20" "-21" "-22" "-23" "-24" "-25"))
+                          (let ((cmake-bin (which "cmake"))
+                                (cmake-wrapper (string-append overlay-bin "/cmake")))
+                            (when (and cmake-bin (not (file-exists? cmake-wrapper)))
+                              (call-with-output-file cmake-wrapper
+                                (lambda (p)
+                                  (format p "#!/bin/sh\n")
+                                  (format p "exec ~s -DLLVM_DIR=~s/lib/cmake/llvm -DCMAKE_PREFIX_PATH=~s -DCMAKE_FIND_ROOT_PATH=~s \"$@\"\n"
+                                          cmake-bin llvm llvm llvm)))
+                              (chmod cmake-wrapper #o755)))
+                          (let ((cross-override "/tmp/mesa-llvm-cross.ini"))
+                            (when (file-exists? cross-override) (delete-file cross-override))
+                            (call-with-output-file cross-override
+                              (lambda (p)
+                                (format p "[binaries]\nllvm-config = '~a'\n" wrapper-script))))
                           (prepend-env-path "PATH" overlay-bin)))
+                      (let ((cross-override "/tmp/mesa-llvm-cross.ini"))
+                        (unless (file-exists? cross-override)
+                          (call-with-output-file cross-override
+                            (lambda (p)
+                              (format p "[binaries]\n")))))
+                      (when llvm
+                        (setenv "LLVM_DIR" (string-append llvm "/lib/cmake/llvm"))
+                        (setenv "LLVM_ROOT" llvm)
+                        (setenv "CMAKE_IGNORE_PATH" "/usr;/usr/lib/llvm-20;/usr/include/llvm-20")
+                        (prepend-env-path "CMAKE_PREFIX_PATH" llvm))
                       (when spirv-tools
                         (prepend-env-path "CMAKE_PREFIX_PATH" spirv-tools)
                         (prepend-env-path
@@ -203,6 +260,8 @@
                 (add-after 'expose-cross-discovery-metadata 'force-cmake-llvm-discovery
                   (lambda _
                     (substitute* "meson.build"
+                      (("method : host_machine\\.system\\(\\) == 'windows' \\? 'auto' : 'config-tool'")
+                       "method : 'config-tool'")
                       (("with_driver_using_cl = \\[")
                        "with_driver_using_cl = false\n_unused_driver_cl = [")
                       (("dep_clc = dependency\\('libclc'\\)")
@@ -220,8 +279,18 @@
                       (("if has_spirv_link_workaround") "if true"))))
                  (add-before 'build 'preserve-cross-path
                    (lambda _
-                     (let ((overlay-bin (string-append (getcwd) "/ctb-llvm-overlay/bin")))
-                       (when (file-exists? overlay-bin)
+                     (let* ((build-dir (getcwd))
+                            (src-dir (string-append build-dir "/../mesa-26.0.2"))
+                            (overlay-bin (or (and (file-exists? (string-append src-dir "/ctb-llvm-overlay/bin"))
+                                                  (string-append src-dir "/ctb-llvm-overlay/bin"))
+                                             (and (file-exists? (string-append build-dir "/ctb-llvm-overlay/bin"))
+                                                  (string-append build-dir "/ctb-llvm-overlay/bin")))))
+                       (when overlay-bin
+                         (let ((wrapper (string-append overlay-bin "/llvm-config")))
+                           (when (file-exists? wrapper)
+                             (setenv "LLVM_CONFIG" wrapper)
+                             (setenv "LLVM_CONFIG_PATH" wrapper)))
+                         (setenv "CMAKE_IGNORE_PATH" "/usr;/usr/lib/llvm-20;/usr/include/llvm-20")
                          (let ((current (or (getenv "PATH") "")))
                            (setenv "PATH" (string-append overlay-bin ":" current)))))))
                  (add-after 'install 'symlink-lib-and-lib64

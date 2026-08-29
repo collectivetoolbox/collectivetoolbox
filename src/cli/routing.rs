@@ -61,6 +61,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "gdb_instructions_generate"
             | "ia"
             | "pan2csv"
+            | "pan2macro"
             | "stagel-bootstrap-parse"
             | "stagel-bootstrap-convert"
             | "pan2parsejson"
@@ -395,6 +396,14 @@ pub enum Command {
     Pan2ParseJson {
         /// Input PAN file path
         pan_file: PathBuf,
+    },
+    /// Extract a macro/procedure from a .pan file
+    #[command(name = "pan2macro")]
+    Pan2Macro {
+        /// Input PAN file path
+        pan_file: PathBuf,
+        /// Name of the macro/procedure to extract
+        macro_name: String,
     },
     /// Convert a PDF file to text output
     #[command(name = "pdf2txt")]
@@ -1051,6 +1060,18 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let data = read_file_or_stdin(pan_file.as_path())?;
             let output =
                 ctb_formats_pan::output::pan_to_parse_json(&data)?.into_bytes();
+            Ok(ToolResult::immediate_ok(output))
+        }
+        Command::Pan2Macro {
+            pan_file,
+            macro_name,
+        } => {
+            let data = read_file_or_stdin(pan_file.as_path())?;
+            let output = ctb_formats_pan::output::pan_to_macro(
+                &data,
+                &macro_name,
+            )?
+            .into_bytes();
             Ok(ToolResult::immediate_ok(output))
         }
         Command::Pdf2Txt { pdf_file } => {
