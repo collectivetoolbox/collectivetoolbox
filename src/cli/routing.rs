@@ -1034,7 +1034,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 "wordperfect" | "wp" => {
                     ctb_formats_pan::output::PanExportDelimiter::WordPerfect
                 }
-                _ => ctb_formats_pan::output::PanExportDelimiter::Commas,
+                "commas" | "csv" => ctb_formats_pan::output::PanExportDelimiter::Commas,
+                _ => bail!("Unknown format for --delimiter: {delimiter:?}. Valid options are: commas, tabs, tabs-no-quotes, wordperfect"),
             };
             let opts = ctb_formats_pan::output::PanCsvOptions {
                 output_patterns: *patterns,
@@ -1126,6 +1127,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 _ => ctb_formats_pan::output::PanCsvEncoding::MacRoman,
             };
             let out_enc = match output_encoding.to_ascii_lowercase().as_str() {
+// FIXME: use short names from formats data library instead of this
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
