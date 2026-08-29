@@ -315,7 +315,7 @@ pub fn dispatch_function_call(
             )))
         }
         "lookup" => {
-            ensure_max_args(name, &eval_args, 5)?;
+            ensure_max_args(name, &eval_args, 6)?;
             let key_field = match arguments.get(1) {
                 Some(PanExpr::Identifier(id)) => id.clone(),
                 _ => arg_str(&eval_args, 1),
@@ -778,7 +778,7 @@ pub fn dispatch_function_call(
         }
         "weekvalue" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_u32_to_i64(crate::date::weekvalue(arg_i64(&eval_args, 0))))
+            Ok(res_i64(crate::date::weekvalue(arg_i64(&eval_args, 0))))
         }
         "eurodatestr" => {
             ensure_max_args(name, &eval_args, 1)?;
