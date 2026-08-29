@@ -44,7 +44,7 @@ pub fn dispatch_function_call(
     eval_arg: &mut dyn FnMut(&PanExpr) -> PanRuntimeValue,
 ) -> PanRuntimeValue {
     let lower_name = name.to_ascii_lowercase();
-    let eval_args: Vec<PanRuntimeValue> = arguments.iter().map(eval_arg).collect();
+    let eval_args: Vec<PanRuntimeValue> = arguments.iter().map(|a| eval_arg(a)).collect();
 
     let fn_ctx = crate::functions::PanFunctionContext {
         databasename: "Programming Reference",
@@ -124,21 +124,19 @@ pub fn dispatch_function_call(
         "lookup" => {
             let key_field = match arguments.get(1) {
                 Some(PanExpr::Identifier(id)) => id.clone(),
-                Some(expr) => eval_arg(expr).as_string(),
-                None => String::new(),
+                _ => eval_args.get(1).map(|v| v.as_string()).unwrap_or_default(),
             };
-            let key_val = arguments
+            let key_val = eval_args
                 .get(2)
-                .map(|e| eval_arg(e).as_string())
+                .map(|v| v.as_string())
                 .unwrap_or_default();
             let result_field = match arguments.get(3) {
                 Some(PanExpr::Identifier(id)) => id.clone(),
-                Some(expr) => eval_arg(expr).as_string(),
-                None => String::new(),
+                _ => eval_args.get(3).map(|v| v.as_string()).unwrap_or_default(),
             };
-            let default_val = arguments
+            let default_val = eval_args
                 .get(4)
-                .map(|e| eval_arg(e).as_string())
+                .map(|v| v.as_string())
                 .unwrap_or_default();
 
             if let Some(data) = state.document.data.as_ref() {
