@@ -11,8 +11,13 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-utf-8e-128 = { path = "../utf_8e_128" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-eite = { path = "../eite" }
+ctb-formats-unicode = { path = "../unicode" }
 ctb-formats-utf8 = { path = "../utf8" }
 const-default = { version = "1.0", features = ["derive"] }
+clap = { version = "4.5.54", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [lints]
 workspace = true

@@ -35,7 +35,19 @@ use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
 pub use ctb_formats_utilities::ConversionOutput;
 use ctb_formats_utilities::FormatLog;
 
+pub mod character_description;
+pub mod cli;
+pub mod dcal;
 pub mod utf8;
+
+pub use character_description::{
+    describe_dcal, describe_dclist, describe_graph_id,
+};
+pub use cli::{
+    CharacterDescriptionArgs, CharacterDescriptionInputFormat,
+    execute_cli_character_description,
+};
+pub use dcal::{dcal_to_dclist, dclist_to_dcal, parse_graph_token};
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };

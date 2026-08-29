@@ -636,7 +636,7 @@ $my_test_array = array('a' => '1', 'b' => '2');
         }
 
         let cmd3 = Command::CharacterDescription(
-            ctb_formats_unicode::cli::CharacterDescriptionArgs {
+            ctb_formats_dctext::cli::CharacterDescriptionArgs {
                 input: Some("A".to_string()),
                 ..Default::default()
             },
@@ -650,6 +650,28 @@ $my_test_array = array('a' => '1', 'b' => '2');
                     String::from_utf8(stdout).expect("UTF-8 stdout"),
                     "U+0041 : LATIN CAPITAL LETTER A\n"
                 );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd3_dcal = Command::CharacterDescription(
+            ctb_formats_dctext::cli::CharacterDescriptionArgs {
+                input: Some("65 dc:296 fmt:80".to_string()),
+                from: ctb_formats_dctext::cli::CharacterDescriptionInputFormat::Dcal,
+                ..Default::default()
+            },
+        );
+        let result3_dcal = run_lightweight_command(&cmd3_dcal)
+            .await
+            .expect("Run character_description --from dcal");
+        match result3_dcal {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8 stdout");
+                let lines: Vec<&str> = s.lines().collect();
+                assert_eq!(lines.len(), 3);
+                assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
+                assert!(lines[1].starts_with("1114408 : Next number is a Dc-equivalent reference"));
+                assert!(lines[2].starts_with("2228304 : String"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

@@ -257,7 +257,7 @@ impl ResourceBundle {
         verify_bundle_integrity(
             &bundle_path.display().to_string(),
             &parsed.header,
-            Some(EXPECTED_RESOURCE_BUNDLE_UUID),
+            EXPECTED_RESOURCE_BUNDLE_UUID,
             EXPECTED_RESOURCE_BUNDLE_SHA256,
         )?;
 

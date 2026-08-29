@@ -363,15 +363,15 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox range_gen 1 10\n  1\n  2\n  3\n  4\n  5\n  6\n  7\n  8\n  9\n  10\n\n  $ ctoolbox range_gen -s 2 1 10\n  1\n  3\n  5\n  7\n  9\n\n  $ ctoolbox range_gen -b 16 -t -S, 18D0C 18D12\n  18D0C,18D0D,18D0E,18D0F,18D10,18D11,18D12,\n\n  $ ctoolbox range_gen -b hex 0x00 0x10\n  00\n  01\n  02\n  03\n  04\n  05\n  06\n  07\n  08\n  09\n  0A\n  0B\n  0C\n  0D\n  0E\n  0F\n  10"
     )]
     RangeGen(ctb_formats_math::range_generator::RangeGenArgs),
-    /// Describe Unicode characters with annotations, aliases, and meanings
+    /// Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
     #[command(
         name = "character_description",
         alias = "character-description",
         alias = "chardesc",
-        after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description -f input.txt -o output.txt\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\""
+        after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
     )]
     CharacterDescription(
-        ctb_formats_unicode::cli::CharacterDescriptionArgs,
+        ctb_formats_dctext::cli::CharacterDescriptionArgs,
     ),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
@@ -958,7 +958,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::CharacterDescription(args) => {
-            let out = ctb_formats_unicode::cli::execute_cli_character_description(
+            let out = ctb_formats_dctext::cli::execute_cli_character_description(
                 args.clone(),
                 read_file_or_stdin,
             )?;
