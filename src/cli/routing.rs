@@ -304,9 +304,22 @@ pub enum Command {
     /// Convert binary data to a hexadecimal string or hex dump
     #[command(
         name = "bin2hex",
-        after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\""
+        after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\"\n  $ ctoolbox bin2hex --xxd \"Hello\""
     )]
     Bin2Hex(ctb_formats_hexdump::cli::Bin2HexArgs),
+    /// Format binary data as a hex dump (fancy by default, or --plain / --xxd)
+    #[command(
+        name = "hexdump",
+        alias = "hd",
+        after_help = "Examples:\n  $ ctoolbox hexdump \"Hello\"\n  $ ctoolbox hd -f file.bin\n  $ ctoolbox hexdump --plain \"Hello\"\n  $ ctoolbox hexdump --xxd \"Hello\""
+    )]
+    Hexdump(ctb_formats_hexdump::cli::HexDumpArgs),
+    /// Format binary data as an xxd hex dump
+    #[command(
+        name = "xxd",
+        after_help = "Examples:\n  $ ctoolbox xxd \"Hello\"\n  $ echo -n \"Hello\" | ctoolbox xxd\n  $ ctoolbox xxd -f file.bin -o file.hex\n  $ ctoolbox xxd --plain \"Hello\"\n  $ ctoolbox xxd --fancy \"Hello\""
+    )]
+    Xxd(ctb_formats_hexdump::cli::XxdArgs),
     /// Generate a range of numbers in various bases
     #[command(
         name = "range_gen",
@@ -861,6 +874,28 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::Bin2Hex(args) => {
             let out = ctb_formats_hexdump::cli::execute_cli_bin2hex(
+                args.clone(),
+                read_file_or_stdin,
+            )?;
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        Command::Hexdump(args) => {
+            let out = ctb_formats_hexdump::cli::execute_cli_hexdump(
+                args.clone(),
+                read_file_or_stdin,
+            )?;
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        Command::Xxd(args) => {
+            let out = ctb_formats_hexdump::cli::execute_cli_xxd(
                 args.clone(),
                 read_file_or_stdin,
             )?;

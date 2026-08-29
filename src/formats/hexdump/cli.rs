@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! CLI execution helpers for hex2bin and bin2hex.
+//! CLI execution helpers for hex2bin, bin2hex, hexdump, and xxd.
 
 #[allow(
     unused_imports,
@@ -50,7 +50,7 @@ pub struct Hex2BinArgs {
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     name = "bin2hex",
-    after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\""
+    after_help = "Examples:\n  $ ctoolbox bin2hex \"Hello\"\n  48656c6c6f\n\n  $ echo -n \"Hello\" | ctoolbox bin2hex\n  48656c6c6f\n\n  $ cat file.exe | ctoolbox bin2hex\n  4d5a...\n\n  $ ctoolbox bin2hex -f file.bin -o file.hex\n  $ ctoolbox bin2hex --hd -f file.bin\n  $ ctoolbox bin2hex --hf \"Hello\"\n  $ ctoolbox bin2hex --xxd \"Hello\""
 )]
 pub struct Bin2HexArgs {
     /// Data to convert. If not provided, reads from stdin or file.
@@ -62,15 +62,66 @@ pub struct Bin2HexArgs {
     #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
     /// Output in classic hex dump format
-    #[arg(long = "hd", conflicts_with = "hf")]
+    #[arg(long = "hd", conflicts_with = "hf", conflicts_with = "xxd")]
     pub hd: bool,
     /// Output in fancy hex dump format
-    #[arg(long = "hf", conflicts_with = "hd")]
+    #[arg(long = "hf", conflicts_with = "hd", conflicts_with = "xxd")]
     pub hf: bool,
+    /// Output in xxd hex dump format
+    #[arg(long = "xxd", conflicts_with = "hd", conflicts_with = "hf")]
+    pub xxd: bool,
+}
+
+/// Execution arguments for the hexdump / hd CLI tool.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    name = "hexdump",
+    after_help = "Examples:\n  $ ctoolbox hexdump \"Hello\"\n  $ ctoolbox hd -f file.bin\n  $ ctoolbox hexdump --plain \"Hello\"\n  $ ctoolbox hexdump --xxd \"Hello\""
+)]
+pub struct HexDumpArgs {
+    /// Data to dump. If not provided, reads from stdin or file.
+    pub value: Option<String>,
+    /// Input file path (or - for stdin)
+    #[arg(short = 'f', long = "file")]
+    pub file: Option<PathBuf>,
+    /// Output file path (or - for stdout)
+    #[arg(short = 'o', long = "output")]
+    pub output: Option<PathBuf>,
+    /// Output in plain (classic) hex dump format
+    #[arg(long = "plain", conflicts_with = "xxd")]
+    pub plain: bool,
+    /// Output in xxd hex dump format
+    #[arg(long = "xxd", conflicts_with = "plain")]
+    pub xxd: bool,
+}
+
+/// Execution arguments for the xxd CLI tool.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    name = "xxd",
+    after_help = "Examples:\n  $ ctoolbox xxd \"Hello\"\n  $ echo -n \"Hello\" | ctoolbox xxd\n  $ ctoolbox xxd -f file.bin -o file.hex\n  $ ctoolbox xxd --plain \"Hello\"\n  $ ctoolbox xxd --fancy \"Hello\""
+)]
+pub struct XxdArgs {
+    /// Data to dump. If not provided, reads from stdin or file.
+    pub value: Option<String>,
+    /// Input file path (or - for stdin)
+    #[arg(short = 'f', long = "file")]
+    pub file: Option<PathBuf>,
+    /// Output file path (or - for stdout)
+    #[arg(short = 'o', long = "output")]
+    pub output: Option<PathBuf>,
+    /// Output in plain (classic) hex dump format
+    #[arg(long = "plain", conflicts_with = "fancy")]
+    pub plain: bool,
+    /// Output in fancy hex dump format
+    #[arg(long = "fancy", conflicts_with = "plain")]
+    pub fancy: bool,
 }
 
 pub type CliHex2BinArgs = Hex2BinArgs;
 pub type CliBin2HexArgs = Bin2HexArgs;
+pub type CliHexDumpArgs = HexDumpArgs;
+pub type CliXxdArgs = XxdArgs;
 
 /// Executes hex2bin CLI command logic.
 ///
@@ -135,6 +186,8 @@ where
         crate::to_hex_dump(&input_bytes)
     } else if args.hf {
         crate::to_fancy_hex_dump(&input_bytes)
+    } else if args.xxd {
+        crate::to_xxd_hex_dump(&input_bytes)
     } else {
         crate::bin2hex(&input_bytes)
     };
@@ -153,6 +206,92 @@ where
         }
     } else {
         Ok(Some(encoded.into_bytes()))
+    }
+}
+
+/// Executes hexdump CLI command logic.
+///
+/// By default outputs in fancy format, or plain with `--plain`, or xxd with `--xxd`.
+pub fn execute_cli_hexdump<FRead>(
+    args: HexDumpArgs,
+    read_data: FRead,
+) -> Result<Option<Vec<u8>>>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+{
+    let input_bytes = if let Some(ref file_path) = args.file {
+        read_data(file_path)?
+    } else if let Some(ref val) = args.value {
+        val.as_bytes().to_vec()
+    } else {
+        read_data(Path::new("-"))?
+    };
+
+    let dump = if args.plain {
+        crate::to_hex_dump(&input_bytes)
+    } else if args.xxd {
+        crate::to_xxd_hex_dump(&input_bytes)
+    } else {
+        crate::to_fancy_hex_dump(&input_bytes)
+    };
+
+    if let Some(ref out_path) = args.output {
+        if out_path.as_path() == Path::new("-") {
+            Ok(Some(dump.into_bytes()))
+        } else {
+            std::fs::write(out_path, dump.as_bytes()).with_context(|| {
+                format!(
+                    "Failed to write output file: {path_display}",
+                    path_display = out_path.display()
+                )
+            })?;
+            Ok(None)
+        }
+    } else {
+        Ok(Some(dump.into_bytes()))
+    }
+}
+
+/// Executes xxd CLI command logic.
+///
+/// By default outputs in xxd format, or plain with `--plain`, or fancy with `--fancy`.
+pub fn execute_cli_xxd<FRead>(
+    args: XxdArgs,
+    read_data: FRead,
+) -> Result<Option<Vec<u8>>>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+{
+    let input_bytes = if let Some(ref file_path) = args.file {
+        read_data(file_path)?
+    } else if let Some(ref val) = args.value {
+        val.as_bytes().to_vec()
+    } else {
+        read_data(Path::new("-"))?
+    };
+
+    let dump = if args.plain {
+        crate::to_hex_dump(&input_bytes)
+    } else if args.fancy {
+        crate::to_fancy_hex_dump(&input_bytes)
+    } else {
+        crate::to_xxd_hex_dump(&input_bytes)
+    };
+
+    if let Some(ref out_path) = args.output {
+        if out_path.as_path() == Path::new("-") {
+            Ok(Some(dump.into_bytes()))
+        } else {
+            std::fs::write(out_path, dump.as_bytes()).with_context(|| {
+                format!(
+                    "Failed to write output file: {path_display}",
+                    path_display = out_path.display()
+                )
+            })?;
+            Ok(None)
+        }
+    } else {
+        Ok(Some(dump.into_bytes()))
     }
 }
 
@@ -209,6 +348,7 @@ mod tests {
         assert_eq!(parsed.output, None);
         assert!(!parsed.hd);
         assert!(!parsed.hf);
+        assert!(!parsed.xxd);
 
         let cmd_hd = Bin2HexArgs::augment_args(Command::new("bin2hex"));
         let matches_hd = cmd_hd
@@ -226,6 +366,7 @@ mod tests {
         assert_eq!(parsed_hd.output, Some(PathBuf::from("out.hex")));
         assert!(parsed_hd.hd);
         assert!(!parsed_hd.hf);
+        assert!(!parsed_hd.xxd);
 
         let cmd_hf = Bin2HexArgs::augment_args(Command::new("bin2hex"));
         let matches_hf = cmd_hf
@@ -234,14 +375,82 @@ mod tests {
         let parsed_hf = Bin2HexArgs::from_arg_matches(&matches_hf).unwrap();
         assert!(!parsed_hf.hd);
         assert!(parsed_hf.hf);
+        assert!(!parsed_hf.xxd);
 
-        // --hd and --hf should conflict
+        let cmd_xxd = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        let matches_xxd = cmd_xxd
+            .try_get_matches_from(["bin2hex", "--xxd"])
+            .expect("Parse bin2hex with --xxd");
+        let parsed_xxd = Bin2HexArgs::from_arg_matches(&matches_xxd).unwrap();
+        assert!(!parsed_xxd.hd);
+        assert!(!parsed_xxd.hf);
+        assert!(parsed_xxd.xxd);
+
+        // Flags should conflict
         let cmd_conflict = Bin2HexArgs::augment_args(Command::new("bin2hex"));
         assert!(
             cmd_conflict
                 .try_get_matches_from(["bin2hex", "--hd", "--hf"])
                 .is_err()
         );
+        let cmd_conflict2 = Bin2HexArgs::augment_args(Command::new("bin2hex"));
+        assert!(
+            cmd_conflict2
+                .try_get_matches_from(["bin2hex", "--hd", "--xxd"])
+                .is_err()
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_hexdump_and_xxd_cli_args_parsing() {
+        let cmd_hd = HexDumpArgs::augment_args(Command::new("hexdump"));
+        let matches_hd = cmd_hd
+            .try_get_matches_from(["hexdump", "Hello"])
+            .expect("Parse hexdump default");
+        let parsed_hd = HexDumpArgs::from_arg_matches(&matches_hd).unwrap();
+        assert_eq!(parsed_hd.value, Some("Hello".to_string()));
+        assert!(!parsed_hd.plain);
+        assert!(!parsed_hd.xxd);
+
+        let cmd_hd_plain = HexDumpArgs::augment_args(Command::new("hexdump"));
+        let matches_hd_plain = cmd_hd_plain
+            .try_get_matches_from(["hexdump", "--plain", "Hello"])
+            .expect("Parse hexdump --plain");
+        let parsed_hd_plain = HexDumpArgs::from_arg_matches(&matches_hd_plain).unwrap();
+        assert!(parsed_hd_plain.plain);
+        assert!(!parsed_hd_plain.xxd);
+
+        let cmd_hd_xxd = HexDumpArgs::augment_args(Command::new("hexdump"));
+        let matches_hd_xxd = cmd_hd_xxd
+            .try_get_matches_from(["hexdump", "--xxd", "Hello"])
+            .expect("Parse hexdump --xxd");
+        let parsed_hd_xxd = HexDumpArgs::from_arg_matches(&matches_hd_xxd).unwrap();
+        assert!(!parsed_hd_xxd.plain);
+        assert!(parsed_hd_xxd.xxd);
+
+        let cmd_hd_conflict = HexDumpArgs::augment_args(Command::new("hexdump"));
+        assert!(
+            cmd_hd_conflict
+                .try_get_matches_from(["hexdump", "--plain", "--xxd", "Hello"])
+                .is_err()
+        );
+
+        let cmd_xxd = XxdArgs::augment_args(Command::new("xxd"));
+        let matches_xxd = cmd_xxd
+            .try_get_matches_from(["xxd", "Hello"])
+            .expect("Parse xxd default");
+        let parsed_xxd = XxdArgs::from_arg_matches(&matches_xxd).unwrap();
+        assert_eq!(parsed_xxd.value, Some("Hello".to_string()));
+        assert!(!parsed_xxd.plain);
+        assert!(!parsed_xxd.fancy);
+
+        let cmd_xxd_plain = XxdArgs::augment_args(Command::new("xxd"));
+        let matches_xxd_plain = cmd_xxd_plain
+            .try_get_matches_from(["xxd", "--plain", "Hello"])
+            .expect("Parse xxd --plain");
+        let parsed_xxd_plain = XxdArgs::from_arg_matches(&matches_xxd_plain).unwrap();
+        assert!(parsed_xxd_plain.plain);
+        assert!(!parsed_xxd_plain.fancy);
     }
 
     #[crate::ctb_test]
@@ -283,57 +492,89 @@ mod tests {
             output: None,
             hd: false,
             hf: false,
+            xxd: false,
         };
         let out = execute_cli_bin2hex(args, |_| Ok(Vec::new())).unwrap();
         assert_eq!(out, Some(b"48656c6c6f".to_vec()));
     }
 
     #[crate::ctb_test]
-    fn test_execute_cli_bin2hex_hd_hf_and_file_io() {
-        let temp_dir = tempfile::tempdir().expect("Create temp dir");
-        let in_path = temp_dir.path().join("in.bin");
-        let out_path = temp_dir.path().join("out.hex");
-
+    fn test_execute_cli_hexdump_and_xxd_execution() {
         let data = b"Hello, World!\x00\x01\xff";
-        std::fs::write(&in_path, data).expect("Write input file");
 
-        // Classic hex dump
-        let args_hd = Bin2HexArgs {
+        // Hexdump default is fancy
+        let args_hd_default = HexDumpArgs {
             value: None,
-            file: Some(in_path.clone()),
+            file: None,
             output: None,
-            hd: true,
-            hf: false,
+            plain: false,
+            xxd: false,
         };
-        let out_hd =
-            execute_cli_bin2hex(args_hd, |p| Ok(std::fs::read(p)?)).unwrap();
-        assert_eq!(out_hd, Some(crate::to_hex_dump(data).into_bytes()));
+        let out_hd_default =
+            execute_cli_hexdump(args_hd_default, |_| Ok(data.to_vec())).unwrap();
+        assert_eq!(
+            out_hd_default,
+            Some(crate::to_fancy_hex_dump(data).into_bytes())
+        );
 
-        // Fancy hex dump
-        let args_hf = Bin2HexArgs {
+        // Hexdump --plain
+        let args_hd_plain = HexDumpArgs {
             value: None,
-            file: Some(in_path.clone()),
+            file: None,
             output: None,
-            hd: false,
-            hf: true,
+            plain: true,
+            xxd: false,
         };
-        let out_hf =
-            execute_cli_bin2hex(args_hf, |p| Ok(std::fs::read(p)?)).unwrap();
-        assert_eq!(out_hf, Some(crate::to_fancy_hex_dump(data).into_bytes()));
+        let out_hd_plain =
+            execute_cli_hexdump(args_hd_plain, |_| Ok(data.to_vec())).unwrap();
+        assert_eq!(
+            out_hd_plain,
+            Some(crate::to_hex_dump(data).into_bytes())
+        );
 
-        // File output
-        let args_out = Bin2HexArgs {
+        // Hexdump --xxd
+        let args_hd_xxd = HexDumpArgs {
             value: None,
-            file: Some(in_path.clone()),
-            output: Some(out_path.clone()),
-            hd: false,
-            hf: false,
+            file: None,
+            output: None,
+            plain: false,
+            xxd: true,
         };
-        let out_res =
-            execute_cli_bin2hex(args_out, |p| Ok(std::fs::read(p)?)).unwrap();
-        assert_eq!(out_res, None);
-        let written =
-            std::fs::read_to_string(out_path).expect("Read output hex");
-        assert_eq!(written, crate::bin2hex(data));
+        let out_hd_xxd =
+            execute_cli_hexdump(args_hd_xxd, |_| Ok(data.to_vec())).unwrap();
+        assert_eq!(
+            out_hd_xxd,
+            Some(crate::to_xxd_hex_dump(data).into_bytes())
+        );
+
+        // Xxd default is xxd format
+        let args_xxd_default = XxdArgs {
+            value: None,
+            file: None,
+            output: None,
+            plain: false,
+            fancy: false,
+        };
+        let out_xxd_default =
+            execute_cli_xxd(args_xxd_default, |_| Ok(data.to_vec())).unwrap();
+        assert_eq!(
+            out_xxd_default,
+            Some(crate::to_xxd_hex_dump(data).into_bytes())
+        );
+
+        // Xxd --fancy
+        let args_xxd_fancy = XxdArgs {
+            value: None,
+            file: None,
+            output: None,
+            plain: false,
+            fancy: true,
+        };
+        let out_xxd_fancy =
+            execute_cli_xxd(args_xxd_fancy, |_| Ok(data.to_vec())).unwrap();
+        assert_eq!(
+            out_xxd_fancy,
+            Some(crate::to_fancy_hex_dump(data).into_bytes())
+        );
     }
 }

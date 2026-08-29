@@ -19,8 +19,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Hex dump formatting utilities.
 
-use ctb_utilities::string::to_char;
-
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
@@ -31,6 +29,10 @@ pub(crate) use ctb_utilities::*;
 pub mod cli;
 
 use anyhow::{Result, anyhow};
+
+pub fn to_plain_hex_dump(data: &[u8]) -> String {
+    to_hex_dump(data)
+}
 
 pub fn to_hex_dump(data: &[u8]) -> String {
     let mut out = String::new();
@@ -52,6 +54,37 @@ pub fn to_hex_dump(data: &[u8]) -> String {
             }
         }
         out.push_str("|\n");
+    }
+    out
+}
+
+pub fn to_xxd_hex_dump(data: &[u8]) -> String {
+    let mut out = String::new();
+    for (i, chunk) in data.chunks(16).enumerate() {
+        out.push_str(&format!("{:08x}: ", i.saturating_mul(16)));
+        let mut hex_col = String::new();
+        for (g_idx, group) in chunk.chunks(2).enumerate() {
+            if g_idx > 0 {
+                hex_col.push(' ');
+            }
+            for &b in group {
+                hex_col.push_str(&format!("{b:02x}"));
+            }
+        }
+        out.push_str(&hex_col);
+        let pad_len = 39usize.saturating_sub(hex_col.len());
+        for _ in 0..pad_len {
+            out.push(' ');
+        }
+        out.push_str("  ");
+        for &b in chunk {
+            if (0x20..=0x7e).contains(&b) {
+                out.push(char::from(b));
+            } else {
+                out.push('.');
+            }
+        }
+        out.push('\n');
     }
     out
 }
@@ -205,6 +238,19 @@ mod tests {
         let dump = to_hex_dump(data);
         let expected = "00000000: 48 65 6c 6c 6f 2c 20 57 6f 72 6c 64 21 00 01 ff  |Hello, World!...|\n";
         assert_eq!(dump, expected);
+    }
+
+    #[crate::ctb_test]
+    fn test_xxd_hexdump() {
+        let data = b"Hello, World!\x00\x01\xff";
+        let dump = to_xxd_hex_dump(data);
+        let expected = "00000000: 4865 6c6c 6f2c 2057 6f72 6c64 2100 01ff  Hello, World!...\n";
+        assert_eq!(dump, expected);
+
+        let partial = b"Hello";
+        let partial_dump = to_xxd_hex_dump(partial);
+        let expected_partial = "00000000: 4865 6c6c 6f                             Hello\n";
+        assert_eq!(partial_dump, expected_partial);
     }
 
     #[crate::ctb_test]

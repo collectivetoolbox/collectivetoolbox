@@ -20,6 +20,8 @@ Commands:
   hexfmt                     Reformat hexdumps
   hex2bin                    Convert a hexadecimal string to binary data
   bin2hex                    Convert binary data to a hexadecimal string or hex dump
+  hexdump                    Format binary data as a hex dump (fancy by default, or --plain / --xxd)
+  xxd                        Format binary data as an xxd hex dump
   range_gen                  Generate a range of numbers in various bases
   character_description      Describe Unicode characters with annotations, aliases, and meanings
   gdb_instructions_generate  Generate GDB instructions from symbols
@@ -29,6 +31,8 @@ Commands:
   stagel-bootstrap-parse     Parse a StageL file to token output
   stagel-bootstrap-convert   Translate a StageL file using the bootstrap compiler
   pan2parsejson              Convert a .pan file to JSON of parse
+  pan2macro                  Extract a macro/procedure from a .pan file
+  panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
   pdf2txt                    Convert a PDF file to text output
   pdf2json                   Convert a PDF file to JSON output
   pdf2md                     Convert a PDF file to Markdown output
@@ -139,6 +143,7 @@ Options:
   -o, --output <OUTPUT>  Output file path (or - for stdout)
       --hd               Output in classic hex dump format
       --hf               Output in fancy hex dump format
+      --xxd              Output in xxd hex dump format
   -h, --help             Print help
 
 Examples:
@@ -154,6 +159,7 @@ Examples:
   $ ctoolbox bin2hex -f file.bin -o file.hex
   $ ctoolbox bin2hex --hd -f file.bin
   $ ctoolbox bin2hex --hf "Hello"
+  $ ctoolbox bin2hex --xxd "Hello"
 ```
 
 ### `ctoolbox character_description`
@@ -510,6 +516,30 @@ Examples:
 
   $ ctoolbox hex2dec -s ", " "FF 80 00"
   255, 128, 0
+```
+
+### `ctoolbox hexdump`
+
+```text
+Format binary data as a hex dump (fancy by default, or --plain / --xxd)
+
+Usage: ctoolbox hexdump [OPTIONS] [VALUE]
+
+Arguments:
+  [VALUE]  Data to dump. If not provided, reads from stdin or file
+
+Options:
+  -f, --file <FILE>      Input file path (or - for stdin)
+  -o, --output <OUTPUT>  Output file path (or - for stdout)
+      --plain            Output in plain (classic) hex dump format
+      --xxd              Output in xxd hex dump format
+  -h, --help             Print help
+
+Examples:
+  $ ctoolbox hexdump "Hello"
+  $ ctoolbox hd -f file.bin
+  $ ctoolbox hexdump --plain "Hello"
+  $ ctoolbox hexdump --xxd "Hello"
 ```
 
 ### `ctoolbox hexfmt`
@@ -890,11 +920,31 @@ Arguments:
   <PAN_FILE>  Input PAN file path
 
 Options:
-  -p, --patterns             Format data using Panorama output patterns (also strips subsequent lines of text fields)
-      --header <HEADER>      Include CSV header row with field names (default: true) [default: true] [possible values: true, false]
-      --no-header            Do not include CSV header row (alias for --header=false)
-      --encoding <ENCODING>  Output character encoding (utf8, mac, windows) [default: utf8]
-      --crlf                 Line terminator: crlf (\r\n) or lf (\n)
+  -p, --patterns                   Format data using Panorama output patterns (also strips subsequent lines of text fields by default)
+      --keep-multiline             When formatting with patterns, keep full multiline text strings instead of truncating at first newline
+      --header <HEADER>            Include CSV header row with field names (default: true) [default: true] [possible values: true, false]
+      --no-header                  Do not include CSV header row (alias for --header=false)
+  -d, --delimiter <DELIMITER>      Export delimiter / format: commas (default), tabs, tabs-no-quotes, wordperfect [default: commas]
+      --encoding <ENCODING>        Output character encoding (utf8, mac, windows) [default: utf8]
+      --crlf                       Line terminator: crlf (\r\n) or lf (\n)
+      --replicate-double-encoding  Replicate export inconsistencies and legacy double-encoding behavior
+      --run-startup-procedure      Run the startup procedure (.Initialize) before exporting CSV
+  -h, --help                       Print help
+```
+
+### `ctoolbox pan2macro`
+
+```text
+Extract a macro/procedure from a .pan file
+
+Usage: ctoolbox pan2macro [OPTIONS] <PAN_FILE> <MACRO_NAME>
+
+Arguments:
+  <PAN_FILE>    Input PAN file path
+  <MACRO_NAME>  Name of the macro/procedure to extract
+
+Options:
+      --encoding <ENCODING>  Output character encoding (mac, windows, utf8) [default: windows]
   -h, --help                 Print help
 ```
 
@@ -910,6 +960,26 @@ Arguments:
 
 Options:
   -h, --help  Print help
+```
+
+### `ctoolbox panmacro2ast`
+
+```text
+Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
+
+Usage: ctoolbox panmacro2ast [OPTIONS] <INPUT_FILE> [MACRO_NAME]
+
+Arguments:
+  <INPUT_FILE>  Input file path (macro code file, or PAN database file if macro_name is given, or - for stdin)
+  [MACRO_NAME]  Optional name of the macro/procedure (if provided, input_file is parsed as a whole .pan database)
+
+Options:
+  -i, --input-encoding <INPUT_ENCODING>
+          Input character encoding (utf-8, macroman, win-1252 / windows) [default: macroman]
+  -o, --output-encoding <OUTPUT_ENCODING>
+          Output character encoding (utf-8, macroman, win-1252 / windows) [default: utf-8]
+  -h, --help
+          Print help
 ```
 
 ### `ctoolbox pdf2json`
@@ -1399,5 +1469,30 @@ Arguments:
 
 Options:
   -h, --help  Print help
+```
+
+### `ctoolbox xxd`
+
+```text
+Format binary data as an xxd hex dump
+
+Usage: ctoolbox xxd [OPTIONS] [VALUE]
+
+Arguments:
+  [VALUE]  Data to dump. If not provided, reads from stdin or file
+
+Options:
+  -f, --file <FILE>      Input file path (or - for stdin)
+  -o, --output <OUTPUT>  Output file path (or - for stdout)
+      --plain            Output in plain (classic) hex dump format
+      --fancy            Output in fancy hex dump format
+  -h, --help             Print help
+
+Examples:
+  $ ctoolbox xxd "Hello"
+  $ echo -n "Hello" | ctoolbox xxd
+  $ ctoolbox xxd -f file.bin -o file.hex
+  $ ctoolbox xxd --plain "Hello"
+  $ ctoolbox xxd --fancy "Hello"
 ```
 

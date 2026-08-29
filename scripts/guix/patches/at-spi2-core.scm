@@ -41,8 +41,7 @@
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection"
                "python-dbusmock-for-tests"
-               "python-pytest"
-               "python-wrapper")))))
+               "python-pytest")))))
 
 (define at-spi2-core-fixed
   (at-spi2-core-fixed-proc at-spi2-core))
