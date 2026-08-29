@@ -68,15 +68,25 @@ pub fn prefers_markdown(headers: &HeaderMap) -> bool {
             if item.is_empty() {
                 continue;
             }
-            let mut parts = item.splitn(2, ';');
-            let mime = parts.next().unwrap_or("").trim().to_ascii_lowercase();
-            let params = parts.next().unwrap_or("");
-            let q = parse_qvalue(params).unwrap_or(1.0);
+            let (mime, params) = match item.split_once(';') {
+                Some((m, p)) => (m.trim().to_ascii_lowercase(), p),
+                None => (item.trim().to_ascii_lowercase(), ""),
+            };
+            let q = match parse_qvalue(params) {
+                Some(v) => v,
+                None => 1.0,
+            };
 
             if mime == "text/markdown" || mime == "text/x-markdown" {
-                markdown_q = Some(markdown_q.map_or(q, |curr| curr.max(q)));
+                markdown_q = Some(match markdown_q {
+                    Some(curr) => curr.max(q),
+                    None => q,
+                });
             } else if mime == "text/html" {
-                html_q = Some(html_q.map_or(q, |curr| curr.max(q)));
+                html_q = Some(match html_q {
+                    Some(curr) => curr.max(q),
+                    None => q,
+                });
             }
         }
     }
@@ -107,6 +117,7 @@ fn build_markdown_response(
     original_headers: &HeaderMap,
     body: Vec<u8>,
 ) -> Response {
+    // Reason for fallback: Response builder returns default response on the rare event of header/status failure.
     let mut response = Response::builder()
         .status(status)
         .body(axum::body::Body::from(body))
@@ -164,6 +175,7 @@ pub async fn markdown_negotiation_middleware(
         Ok(bytes) => bytes,
         Err(e) => {
             warn_fmt!("Failed reading HTML response body for Markdown negotiation: {e}");
+            // Reason for fallback: Response builder produces default response if empty body cannot be constructed.
             return Response::builder()
                 .status(parts.status)
                 .body(axum::body::Body::empty())

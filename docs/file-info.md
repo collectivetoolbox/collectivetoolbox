@@ -11,6 +11,7 @@ The following types of features are relevant:
   - This should optionally take into account file name patterns.
   - It should be able to work on a directory (to detect package formats like Mac .app), but needs to run quickly and not traverse the whole directory.
   - It should be able to work without a file system - other libraries should be able to call it as an in-memory utility. A common set of types for representing files, filesystem objects, and compressed archive entries will likely be relevant.
+    - An upcoming project is going to be implementing support for representing and unpacking archives like tar files.
 - Providing file format "nicknames" for command-line utilities, and a most-preferred nickname for use in UIs.
 - Providing a most-preferred extension.
 - Providing Rust struct identifiers.

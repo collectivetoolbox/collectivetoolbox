@@ -130,7 +130,10 @@ pub fn tagdata(text: &str, start_tag: &str, end_tag: &str, occurrence: usize) ->
                 return rest.to_string();
             }
             if let Some(rel_end) = rest.find(end_tag) {
-                return rest.get(..rel_end).unwrap_or("").to_string();
+                if let Some(sub) = rest.get(..rel_end) {
+                    return sub.to_string();
+                }
+                return String::new();
             }
             return rest.to_string();
         }
@@ -167,7 +170,10 @@ pub fn tagarray(text: &str, start_tag: &str, end_tag: &str, delim: &str) -> Stri
         }
 
         if let Some(rel_end) = rest.find(end_tag) {
-            let matched = rest.get(..rel_end).unwrap_or("");
+            let matched = match rest.get(..rel_end) {
+                Some(sub) => sub,
+                None => "",
+            };
             results.push(matched.to_string());
             cursor = content_start.saturating_add(rel_end).saturating_add(end_tag.len());
         } else {
@@ -186,15 +192,25 @@ pub fn tagparameterarray(params: &str, prefix: &str, delim: &str) -> String {
     for line in params.split('\n') {
         let trimmed = line.trim();
         if let Some(idx) = trimmed.find(prefix) {
-            let rest = trimmed.get(idx.saturating_add(prefix.len())..).unwrap_or("").trim();
+            let rest = match trimmed.get(idx.saturating_add(prefix.len())..) {
+                Some(sub) => sub.trim(),
+                None => "",
+            };
             if let Some(quoted) = rest.strip_prefix('"') {
                 if let Some(end_q) = quoted.find('"') {
-                    results.push(quoted.get(..end_q).unwrap_or("").to_string());
+                    let sub = match quoted.get(..end_q) {
+                        Some(s) => s,
+                        None => "",
+                    };
+                    results.push(sub.to_string());
                 } else {
                     results.push(quoted.to_string());
                 }
             } else {
-                let unquoted = rest.split_whitespace().next().unwrap_or("");
+                let unquoted = match rest.split_whitespace().next() {
+                    Some(u) => u,
+                    None => "",
+                };
                 results.push(unquoted.to_string());
             }
         }
@@ -219,7 +235,10 @@ pub fn replacemultiple(text: &str, find_list: &str, repl_list: &str, delim: &str
         if find.is_empty() {
             continue;
         }
-        let repl = repls.get(i).copied().unwrap_or("");
+        let repl = match repls.get(i) {
+            Some(&r) => r,
+            None => "",
+        };
         current = current.replace(find, repl);
     }
     current

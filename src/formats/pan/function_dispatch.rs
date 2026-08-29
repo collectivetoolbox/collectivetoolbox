@@ -35,6 +35,132 @@ use crate::utilities::*;
 use crate::procedure_parser::PanExpr;
 use crate::runtime::{PanRuntimeState, PanRuntimeValue};
 
+fn arg_str(args: &[PanRuntimeValue], idx: usize) -> String {
+    match args.get(idx) {
+        Some(v) => v.as_string(),
+        None => String::new(),
+    }
+}
+
+fn arg_f64(args: &[PanRuntimeValue], idx: usize) -> f64 {
+    match args.get(idx) {
+        Some(v) => v.as_f64(),
+        None => 0.0,
+    }
+}
+
+fn arg_i64(args: &[PanRuntimeValue], idx: usize) -> i64 {
+    match args.get(idx) {
+        Some(v) => v.as_i64(),
+        None => 0,
+    }
+}
+
+fn arg_usize(args: &[PanRuntimeValue], idx: usize, default: usize) -> usize {
+    match args.get(idx) {
+        Some(v) => match usize::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => default,
+        },
+        None => default,
+    }
+}
+
+fn arg_i32(args: &[PanRuntimeValue], idx: usize, default: i32) -> i32 {
+    match args.get(idx) {
+        Some(v) => match i32::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => default,
+        },
+        None => default,
+    }
+}
+
+fn arg_u32(args: &[PanRuntimeValue], idx: usize, default: u32) -> u32 {
+    match args.get(idx) {
+        Some(v) => match u32::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => default,
+        },
+        None => default,
+    }
+}
+
+fn arg_u8(args: &[PanRuntimeValue], idx: usize) -> u8 {
+    match args.get(idx) {
+        Some(v) => match u8::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => 0,
+        },
+        None => 0,
+    }
+}
+
+fn arg_u16(args: &[PanRuntimeValue], idx: usize) -> u16 {
+    match args.get(idx) {
+        Some(v) => match u16::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => 0,
+        },
+        None => 0,
+    }
+}
+
+fn arg_u64(args: &[PanRuntimeValue], idx: usize) -> u64 {
+    match args.get(idx) {
+        Some(v) => match u64::try_from(v.as_i64()) {
+            Ok(n) => n,
+            Err(_) => 0,
+        },
+        None => 0,
+    }
+}
+
+fn arg_char(args: &[PanRuntimeValue], idx: usize, default: char) -> char {
+    match args.get(idx) {
+        Some(v) => match v.as_string().chars().next() {
+            Some(c) => c,
+            None => default,
+        },
+        None => default,
+    }
+}
+
+fn arg_bool(args: &[PanRuntimeValue], idx: usize) -> bool {
+    match args.get(idx) {
+        Some(v) => v.is_truthy(),
+        None => false,
+    }
+}
+
+fn res_f64(res: anyhow::Result<f64>) -> PanRuntimeValue {
+    match res {
+        Ok(v) => PanRuntimeValue::Float(v),
+        Err(_) => PanRuntimeValue::Float(0.0),
+    }
+}
+
+fn res_str(res: anyhow::Result<String>) -> PanRuntimeValue {
+    match res {
+        Ok(v) => PanRuntimeValue::String(v),
+        Err(_) => PanRuntimeValue::String(String::new()),
+    }
+}
+
+fn res_i64(res: anyhow::Result<i64>) -> PanRuntimeValue {
+    match res {
+        Ok(v) => PanRuntimeValue::Integer(v),
+        Err(_) => PanRuntimeValue::Integer(0),
+    }
+}
+
+fn res_bool(res: anyhow::Result<bool>) -> PanRuntimeValue {
+    match res {
+        Ok(v) => PanRuntimeValue::Boolean(v),
+        Err(_) => PanRuntimeValue::Boolean(false),
+    }
+}
+
 /// Dispatch a built-in Panorama function call to its module implementation.
 #[must_use]
 pub fn dispatch_function_call(
@@ -48,70 +174,78 @@ pub fn dispatch_function_call(
 
     let fn_ctx = crate::functions::PanFunctionContext {
         databasename: "Programming Reference",
-        current_form: state.current_form.as_deref().unwrap_or(""),
+        current_form: match state.current_form.as_deref() {
+            Some(form) => form,
+            None => "",
+        },
     };
 
     match lower_name.as_str() {
         // --- Functions module (`crate::functions::*`) ---
         "info" => {
-            let key = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::info(&key, &fn_ctx))
+            PanRuntimeValue::String(crate::functions::info(&arg_str(&eval_args, 0), &fn_ctx))
         }
         "folderpath" => {
-            let path = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::folderpath(&path))
+            PanRuntimeValue::String(crate::functions::folderpath(&arg_str(&eval_args, 0)))
         }
         "folderexists" => {
-            let f = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sub = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Boolean(crate::functions::folderexists(&f, &sub))
+            PanRuntimeValue::Boolean(crate::functions::folderexists(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "panoramafolder" => {
-            let sub = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::panoramafolder(&sub))
+            PanRuntimeValue::String(crate::functions::panoramafolder(&arg_str(&eval_args, 0)))
         }
         "listfiles" => {
-            let f = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let t = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::listfiles(&f, &t))
+            PanRuntimeValue::String(crate::functions::listfiles(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "tagdata" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let start_tag = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let end_tag = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            let occ = usize::try_from(eval_args.get(3).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            PanRuntimeValue::String(crate::functions::tagdata(&text, &start_tag, &end_tag, occ))
+            PanRuntimeValue::String(crate::functions::tagdata(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+                arg_usize(&eval_args, 3, 1),
+            ))
         }
         "tagarray" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let start_tag = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let end_tag = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            let delim = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string());
-            PanRuntimeValue::String(crate::functions::tagarray(&text, &start_tag, &end_tag, &delim))
+            let delim = match eval_args.get(3) {
+                Some(v) => v.as_string(),
+                None => "\n".to_string(),
+            };
+            PanRuntimeValue::String(crate::functions::tagarray(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+                &delim,
+            ))
         }
         "tagparameterarray" => {
-            let params = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let prefix = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let delim = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string());
-            PanRuntimeValue::String(crate::functions::tagparameterarray(&params, &prefix, &delim))
+            let delim = match eval_args.get(2) {
+                Some(v) => v.as_string(),
+                None => "\n".to_string(),
+            };
+            PanRuntimeValue::String(crate::functions::tagparameterarray(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &delim,
+            ))
         }
         "?" => {
-            let cond = eval_args.first().map(|v| v.is_truthy()).unwrap_or(false);
-            let iftrue = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let iffalse = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::q(cond, &iftrue, &iffalse))
+            PanRuntimeValue::String(crate::functions::q(
+                arg_bool(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
         "lookup" => {
             let key_field = match arguments.get(1) {
                 Some(PanExpr::Identifier(id)) => id.clone(),
-                _ => eval_args.get(1).map(|v| v.as_string()).unwrap_or_default(),
+                _ => arg_str(&eval_args, 1),
             };
-            let key_val = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
+            let key_val = arg_str(&eval_args, 2);
             let result_field = match arguments.get(3) {
                 Some(PanExpr::Identifier(id)) => id.clone(),
-                _ => eval_args.get(3).map(|v| v.as_string()).unwrap_or_default(),
+                _ => arg_str(&eval_args, 3),
             };
-            let default_val = eval_args.get(4).map(|v| v.as_string()).unwrap_or_default();
+            let default_val = arg_str(&eval_args, 4);
             PanRuntimeValue::String(crate::functions::lookup(
                 &state.document,
                 &key_field,
@@ -123,21 +257,16 @@ pub fn dispatch_function_call(
         "cr" => PanRuntimeValue::String(crate::functions::cr().to_string()),
         "oswindows" => PanRuntimeValue::Boolean(crate::functions::oswindows()),
         "menu" => {
-            let title = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::menu(&title))
+            PanRuntimeValue::String(crate::functions::menu(&arg_str(&eval_args, 0)))
         }
         "menuitems" => {
-            let items = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::menuitems(&items))
+            PanRuntimeValue::String(crate::functions::menuitems(&arg_str(&eval_args, 0)))
         }
         "checkedarraymenu" => {
-            let arr = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let checked = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::checkedarraymenu(&arr, &checked))
+            PanRuntimeValue::String(crate::functions::checkedarraymenu(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "columnmenu" => {
-            let title = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::functions::columnmenu(&title))
+            PanRuntimeValue::String(crate::functions::columnmenu(&arg_str(&eval_args, 0)))
         }
         "standardviewmenu" => PanRuntimeValue::String(crate::functions::standardviewmenu()),
         "standardeditmenu" => PanRuntimeValue::String(crate::functions::standardeditmenu()),
@@ -150,714 +279,665 @@ pub fn dispatch_function_call(
 
         // --- Array module (`crate::array::*`) ---
         "array" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let idx = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::array(&text, idx, sep).unwrap_or_default())
+            res_str(crate::array::array(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arraycontains" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let search = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::Boolean(crate::array::arraycontains(&text, &search, sep).unwrap_or(false))
+            res_bool(crate::array::arraycontains(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arraychange" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let value = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let idx = usize::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraychange(&text, &value, idx, sep).unwrap_or_default())
+            res_str(crate::array::arraychange(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_usize(&eval_args, 2, 1),
+                arg_char(&eval_args, 3, '\n'),
+            ))
         }
         "arraydelete" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let idx = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let count = usize::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraydelete(&text, idx, count, sep).unwrap_or_default())
+            res_str(crate::array::arraydelete(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_usize(&eval_args, 2, 1),
+                arg_char(&eval_args, 3, '\n'),
+            ))
         }
         "arraydeduplicate" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraydeduplicate(&text, sep).unwrap_or_default())
+            res_str(crate::array::arraydeduplicate(&arg_str(&eval_args, 0), arg_char(&eval_args, 1, '\n')))
         }
         "arrayboth" => {
-            let a1 = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let a2 = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayboth(&a1, &a2, sep).unwrap_or_default())
+            res_str(crate::array::arrayboth(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arraydifference" => {
-            let a1 = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let a2 = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraydifference(&a1, &a2, sep).unwrap_or_default())
+            res_str(crate::array::arraydifference(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arrayrange" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let first = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let last = usize::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayrange(&text, first, last, sep).unwrap_or_default())
+            res_str(crate::array::arrayrange(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_usize(&eval_args, 2, 1),
+                arg_char(&eval_args, 3, '\n'),
+            ))
         }
         "arraysize" | "arrayelements" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
+            let text = arg_str(&eval_args, 0);
+            let sep = arg_char(&eval_args, 1, '\n');
             let count = if text.is_empty() {
                 0
             } else {
-                crate::array::arraysize(&text, sep).unwrap_or(0)
+                match crate::array::arraysize(&text, sep) {
+                    Ok(c) => match i64::try_from(c) {
+                        Ok(n) => n,
+                        Err(_) => 0,
+                    },
+                    Err(_) => 0,
+                }
             };
-            PanRuntimeValue::Integer(i64::try_from(count).unwrap_or(0))
+            PanRuntimeValue::Integer(count)
         }
         "arraysort" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraysort(&text, sep).unwrap_or_default())
+            res_str(crate::array::arraysort(&arg_str(&eval_args, 0), arg_char(&eval_args, 1, '\n')))
         }
         "arraystrip" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraystrip(&text, sep).unwrap_or_default())
+            res_str(crate::array::arraystrip(&arg_str(&eval_args, 0), arg_char(&eval_args, 1, '\n')))
         }
         "arrayelement" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let pos = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            let elem_no = crate::array::arrayelement(&text, pos, sep).unwrap_or(0);
-            PanRuntimeValue::Integer(i64::try_from(elem_no).unwrap_or(0))
+            let elem_no = match crate::array::arrayelement(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ) {
+                Ok(n) => match i64::try_from(n) {
+                    Ok(v) => v,
+                    Err(_) => 0,
+                },
+                Err(_) => 0,
+            };
+            PanRuntimeValue::Integer(elem_no)
         }
         "arrayitem" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let idx = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayitem(&text, idx, sep).unwrap_or_default())
+            res_str(crate::array::arrayitem(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arrayreverse" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayreverse(&text, sep).unwrap_or_default())
+            res_str(crate::array::arrayreverse(&arg_str(&eval_args, 0), arg_char(&eval_args, 1, '\n')))
         }
         "arraysearch" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let needle = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let start = usize::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            let idx = crate::array::arraysearch(&text, &needle, start, sep).unwrap_or(0);
-            PanRuntimeValue::Integer(i64::try_from(idx).unwrap_or(0))
+            let idx = match crate::array::arraysearch(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_usize(&eval_args, 2, 1),
+                arg_char(&eval_args, 3, '\n'),
+            ) {
+                Ok(n) => match i64::try_from(n) {
+                    Ok(v) => v,
+                    Err(_) => 0,
+                },
+                Err(_) => 0,
+            };
+            PanRuntimeValue::Integer(idx)
         }
         "arraytrim" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let count = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arraytrim(&text, count, sep).unwrap_or_default())
+            res_str(crate::array::arraytrim(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
         "arrayinsert" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let idx = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let count = usize::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let sep = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayinsert(&text, idx, count, sep).unwrap_or_default())
+            res_str(crate::array::arrayinsert(
+                &arg_str(&eval_args, 0),
+                arg_usize(&eval_args, 1, 1),
+                arg_usize(&eval_args, 2, 1),
+                arg_char(&eval_args, 3, '\n'),
+            ))
         }
         "makenumberedarray" => {
-            let sep = eval_args.first().map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            let start = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1);
-            let end = eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1);
-            PanRuntimeValue::String(crate::array::makenumberedarray(sep, start, end).unwrap_or_default())
+            res_str(crate::array::makenumberedarray(
+                arg_char(&eval_args, 0, '\n'),
+                arg_i64(&eval_args, 1),
+                arg_i64(&eval_args, 2),
+            ))
         }
         "arrayselected" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sel = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            PanRuntimeValue::String(crate::array::arrayselected(&text, &sel, sep).unwrap_or_default())
+            res_str(crate::array::arrayselected(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                arg_char(&eval_args, 2, '\n'),
+            ))
         }
 
         // --- Math module (`crate::math::*`) ---
         "abs" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::abs(n))
+            PanRuntimeValue::Float(crate::math::abs(arg_f64(&eval_args, 0)))
         }
         "fix" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::fix(n).unwrap_or(0.0))
+            res_f64(crate::math::fix(arg_f64(&eval_args, 0)))
         }
         "int" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::int(n).unwrap_or(0.0))
+            res_f64(crate::math::int(arg_f64(&eval_args, 0)))
         }
         "fixed" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::fixed(n).unwrap_or(0.0))
+            res_f64(crate::math::fixed(arg_f64(&eval_args, 0)))
         }
         "float" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::float(n).unwrap_or(0.0))
+            res_f64(crate::math::float(arg_f64(&eval_args, 0)))
         }
         "max" => {
-            let a = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let b = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::max(a, b))
+            PanRuntimeValue::Float(crate::math::max(arg_f64(&eval_args, 0), arg_f64(&eval_args, 1)))
         }
         "min" => {
-            let a = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let b = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::min(a, b))
+            PanRuntimeValue::Float(crate::math::min(arg_f64(&eval_args, 0), arg_f64(&eval_args, 1)))
         }
         "numsandwich" => {
-            let val = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let extra = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::numsandwich(val, extra))
+            PanRuntimeValue::Float(crate::math::numsandwich(arg_f64(&eval_args, 0), arg_f64(&eval_args, 1)))
         }
         "round" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let step = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(1.0);
-            PanRuntimeValue::Float(crate::math::round(n, step).unwrap_or(0.0))
+            let step = match eval_args.get(1) {
+                Some(v) => v.as_f64(),
+                None => 1.0,
+            };
+            res_f64(crate::math::round(arg_f64(&eval_args, 0), step))
         }
         "zeroblank" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            match crate::math::zeroblank(n) {
+            match crate::math::zeroblank(arg_f64(&eval_args, 0)) {
                 Some(f) => PanRuntimeValue::Float(f),
                 None => PanRuntimeValue::String(String::new()),
             }
         }
         "arccos" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arccos(n).unwrap_or(0.0))
+            res_f64(crate::math::arccos(arg_f64(&eval_args, 0)))
         }
         "arccosh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arccosh(n).unwrap_or(0.0))
+            res_f64(crate::math::arccosh(arg_f64(&eval_args, 0)))
         }
         "arcsin" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arcsin(n).unwrap_or(0.0))
+            res_f64(crate::math::arcsin(arg_f64(&eval_args, 0)))
         }
         "arcsinh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arcsinh(n).unwrap_or(0.0))
+            res_f64(crate::math::arcsinh(arg_f64(&eval_args, 0)))
         }
         "arctan" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arctan(n).unwrap_or(0.0))
+            res_f64(crate::math::arctan(arg_f64(&eval_args, 0)))
         }
         "arctanh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::arctanh(n).unwrap_or(0.0))
+            res_f64(crate::math::arctanh(arg_f64(&eval_args, 0)))
         }
         "cos" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::cos(n).unwrap_or(0.0))
+            res_f64(crate::math::cos(arg_f64(&eval_args, 0)))
         }
         "cosh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::cosh(n).unwrap_or(0.0))
+            res_f64(crate::math::cosh(arg_f64(&eval_args, 0)))
         }
         "sin" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::sin(n).unwrap_or(0.0))
+            res_f64(crate::math::sin(arg_f64(&eval_args, 0)))
         }
         "sinh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::sinh(n).unwrap_or(0.0))
+            res_f64(crate::math::sinh(arg_f64(&eval_args, 0)))
         }
         "tan" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::tan(n).unwrap_or(0.0))
+            res_f64(crate::math::tan(arg_f64(&eval_args, 0)))
         }
         "tanh" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::tanh(n).unwrap_or(0.0))
+            res_f64(crate::math::tanh(arg_f64(&eval_args, 0)))
         }
         "exp" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::exp(n).unwrap_or(0.0))
+            res_f64(crate::math::exp(arg_f64(&eval_args, 0)))
         }
         "log" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::log(n).unwrap_or(0.0))
+            res_f64(crate::math::log(arg_f64(&eval_args, 0)))
         }
         "log10" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::log10(n).unwrap_or(0.0))
+            res_f64(crate::math::log10(arg_f64(&eval_args, 0)))
         }
         "sqr" | "sqrt" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::sqr(n).unwrap_or(0.0))
+            res_f64(crate::math::sqr(arg_f64(&eval_args, 0)))
         }
         "fact" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::fact(n).unwrap_or(0.0))
+            res_f64(crate::math::fact(arg_f64(&eval_args, 0)))
         }
         "pmt" => {
-            let rate = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let nper = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pv = eval_args.get(2).map(|v| v.as_f64()).unwrap_or(0.0);
-            let fv = eval_args.get(3).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pmt_type = eval_args.get(4).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::pmt(rate, nper, pv, fv, pmt_type).unwrap_or(0.0))
+            res_f64(crate::math::pmt(
+                arg_f64(&eval_args, 0),
+                arg_f64(&eval_args, 1),
+                arg_f64(&eval_args, 2),
+                arg_f64(&eval_args, 3),
+                arg_f64(&eval_args, 4),
+            ))
         }
         "fv" => {
-            let rate = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let nper = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pmt = eval_args.get(2).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pv = eval_args.get(3).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pmt_type = eval_args.get(4).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::fv(rate, nper, pmt, pv, pmt_type).unwrap_or(0.0))
+            res_f64(crate::math::fv(
+                arg_f64(&eval_args, 0),
+                arg_f64(&eval_args, 1),
+                arg_f64(&eval_args, 2),
+                arg_f64(&eval_args, 3),
+                arg_f64(&eval_args, 4),
+            ))
         }
         "pv" => {
-            let rate = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let nper = eval_args.get(1).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pmt = eval_args.get(2).map(|v| v.as_f64()).unwrap_or(0.0);
-            let fv = eval_args.get(3).map(|v| v.as_f64()).unwrap_or(0.0);
-            let pmt_type = eval_args.get(4).map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::Float(crate::math::pv(rate, nper, pmt, fv, pmt_type).unwrap_or(0.0))
+            res_f64(crate::math::pv(
+                arg_f64(&eval_args, 0),
+                arg_f64(&eval_args, 1),
+                arg_f64(&eval_args, 2),
+                arg_f64(&eval_args, 3),
+                arg_f64(&eval_args, 4),
+            ))
         }
 
         // --- Date module (`crate::date::*`) ---
         "today" => {
-            let d = crate::date::today().unwrap_or(0);
-            PanRuntimeValue::Integer(d)
+            res_i64(crate::date::today())
         }
         "date" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::date::date(&s).unwrap_or(0))
+            res_i64(crate::date::date(&arg_str(&eval_args, 0)))
         }
         "datevalue" => {
-            let y = i32::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            let m = u32::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            let d = u32::try_from(eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1)).unwrap_or(1);
-            PanRuntimeValue::Integer(crate::date::datevalue(y, m, d).unwrap_or(0))
+            res_i64(crate::date::datevalue(
+                arg_i32(&eval_args, 0, 0),
+                arg_u32(&eval_args, 1, 1),
+                arg_u32(&eval_args, 2, 1),
+            ))
         }
         "datestr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::datestr(d).unwrap_or_default())
+            res_str(crate::date::datestr(arg_i64(&eval_args, 0)))
         }
         "dayofweek" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::dayofweek(d))
+            PanRuntimeValue::Integer(crate::date::dayofweek(arg_i64(&eval_args, 0)))
         }
         "daystr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::daystr(d).unwrap_or_default())
+            res_str(crate::date::daystr(arg_i64(&eval_args, 0)))
         }
         "dayvalue" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let val = crate::date::dayvalue(d).unwrap_or(1);
-            PanRuntimeValue::Integer(i64::from(val))
+            let val = match crate::date::dayvalue(arg_i64(&eval_args, 0)) {
+                Ok(v) => i64::from(v),
+                Err(_) => 1,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "monthvalue" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let val = crate::date::monthvalue(d).unwrap_or(1);
-            PanRuntimeValue::Integer(i64::from(val))
+            let val = match crate::date::monthvalue(arg_i64(&eval_args, 0)) {
+                Ok(v) => i64::from(v),
+                Err(_) => 1,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "yearvalue" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let val = crate::date::yearvalue(d).unwrap_or(0);
-            PanRuntimeValue::Integer(i64::from(val))
+            let val = match crate::date::yearvalue(arg_i64(&eval_args, 0)) {
+                Ok(v) => i64::from(v),
+                Err(_) => 0,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "month1st" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::month1st(d).unwrap_or(0))
+            res_i64(crate::date::month1st(arg_i64(&eval_args, 0)))
         }
         "monthlength" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::monthlength(d).unwrap_or(30))
+            let val = match crate::date::monthlength(arg_i64(&eval_args, 0)) {
+                Ok(v) => v,
+                Err(_) => 30,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "monthmath" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let offset = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::monthmath(d, offset).unwrap_or(d))
+            let d = arg_i64(&eval_args, 0);
+            let offset = arg_i64(&eval_args, 1);
+            let val = match crate::date::monthmath(d, offset) {
+                Ok(v) => v,
+                Err(_) => d,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "quarter1st" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::quarter1st(d).unwrap_or(0))
+            res_i64(crate::date::quarter1st(arg_i64(&eval_args, 0)))
         }
         "quartervalue" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let val = crate::date::quartervalue(d).unwrap_or(1);
-            PanRuntimeValue::Integer(i64::from(val))
+            let val = match crate::date::quartervalue(arg_i64(&eval_args, 0)) {
+                Ok(v) => i64::from(v),
+                Err(_) => 1,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "week1st" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::week1st(d))
+            PanRuntimeValue::Integer(crate::date::week1st(arg_i64(&eval_args, 0)))
         }
         "year1st" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::year1st(d).unwrap_or(0))
+            res_i64(crate::date::year1st(arg_i64(&eval_args, 0)))
         }
         "weekvalue" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::weekvalue(d).unwrap_or(1))
+            let val = match crate::date::weekvalue(arg_i64(&eval_args, 0)) {
+                Ok(v) => i64::from(v),
+                Err(_) => 1,
+            };
+            PanRuntimeValue::Integer(val)
         }
         "eurodatestr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::eurodatestr(d).unwrap_or_default())
+            res_str(crate::date::eurodatestr(arg_i64(&eval_args, 0)))
         }
         "longdatestr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::longdatestr(d).unwrap_or_default())
+            res_str(crate::date::longdatestr(arg_i64(&eval_args, 0)))
         }
         "completedatestr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::completedatestr(d).unwrap_or_default())
+            res_str(crate::date::completedatestr(arg_i64(&eval_args, 0)))
         }
         "naturaldatestr" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::naturaldatestr(d).unwrap_or_default())
+            res_str(crate::date::naturaldatestr(arg_i64(&eval_args, 0)))
         }
         "datepattern" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let pat = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::date::datepattern(d, &pat).unwrap_or_default())
+            res_str(crate::date::datepattern(arg_i64(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "supernow" => {
-            PanRuntimeValue::Integer(crate::date::supernow().unwrap_or(0))
+            res_i64(crate::date::supernow())
         }
         "superdate" => {
-            let d = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let t = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::superdate(d, t).unwrap_or(0))
+            res_i64(crate::date::superdate(arg_i64(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
         "regulardate" => {
-            let sd = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::regulardate(sd).unwrap_or(0))
+            res_i64(crate::date::regulardate(arg_i64(&eval_args, 0)))
         }
         "regulartime" => {
-            let sd = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::date::regulartime(sd).unwrap_or(0))
+            res_i64(crate::date::regulartime(arg_i64(&eval_args, 0)))
         }
         "superdatestr" => {
-            let sd = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::superdatestr(sd).unwrap_or_default())
+            res_str(crate::date::superdatestr(arg_i64(&eval_args, 0)))
         }
         "superdatesecondsstr" => {
-            let sd = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::date::superdatesecondsstr(sd).unwrap_or_default())
+            res_str(crate::date::superdatesecondsstr(arg_i64(&eval_args, 0)))
         }
         "superdatepattern" => {
-            let sd = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let dpat = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let tpat = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::date::superdatepattern(sd, &dpat, &tpat).unwrap_or_default())
+            res_str(crate::date::superdatepattern(
+                arg_i64(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
 
         // --- Time module (`crate::time::*`) ---
         "now" => {
-            PanRuntimeValue::Integer(crate::time::now().unwrap_or(0))
+            res_i64(crate::time::now())
         }
         "seconds" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::time::seconds(&s).unwrap_or(0))
+            res_i64(crate::time::seconds(&arg_str(&eval_args, 0)))
         }
         "timepattern" => {
-            let t = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let pat = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::time::timepattern(t, &pat).unwrap_or_default())
+            res_str(crate::time::timepattern(arg_i64(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "timestr" => {
-            let t = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::time::timestr(t).unwrap_or_default())
+            res_str(crate::time::timestr(arg_i64(&eval_args, 0)))
         }
         "time24" => {
-            let t = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::time::time24(t))
+            PanRuntimeValue::Integer(crate::time::time24(arg_i64(&eval_args, 0)))
         }
         "timedifference" => {
-            let t1 = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let t2 = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::time::timedifference(t1, t2))
+            PanRuntimeValue::Integer(crate::time::timedifference(arg_i64(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
         "timeinterval" => {
-            let t1 = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let t2 = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::time::timeinterval(t1, t2))
+            PanRuntimeValue::Integer(crate::time::timeinterval(arg_i64(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
         "time" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::time::time(&s).unwrap_or(0))
+            res_i64(crate::time::time(&arg_str(&eval_args, 0)))
         }
         "texttimedifference" => {
-            let s1 = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let s2 = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::time::texttimedifference(&s1, &s2).unwrap_or_default())
+            res_str(crate::time::texttimedifference(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "texttimeinterval" => {
-            let s1 = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let s2 = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::time::texttimeinterval(&s1, &s2).unwrap_or_default())
+            res_str(crate::time::texttimeinterval(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "tickcount" => {
-            PanRuntimeValue::Integer(crate::time::tickcount().unwrap_or(0))
+            res_i64(crate::time::tickcount())
         }
         "tcframes" => {
-            let tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let fps = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(30);
-            PanRuntimeValue::Integer(crate::time::tcframes(&tc, fps).unwrap_or(0))
+            let fps = match eval_args.get(1) {
+                Some(v) => v.as_i64(),
+                None => 30,
+            };
+            res_i64(crate::time::tcframes(&arg_str(&eval_args, 0), fps))
         }
         "timecode" => {
-            let frames = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            let fps = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(30);
-            PanRuntimeValue::String(crate::time::timecode(frames, fps).unwrap_or_default())
+            let fps = match eval_args.get(1) {
+                Some(v) => v.as_i64(),
+                None => 30,
+            };
+            res_str(crate::time::timecode(arg_i64(&eval_args, 0), fps))
         }
         "tcadd" => {
-            let tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let offset = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            let fps = eval_args.get(2).map(|v| v.as_i64()).unwrap_or(30);
-            PanRuntimeValue::String(crate::time::tcadd(&tc, offset, fps).unwrap_or_default())
+            let fps = match eval_args.get(2) {
+                Some(v) => v.as_i64(),
+                None => 30,
+            };
+            res_str(crate::time::tcadd(&arg_str(&eval_args, 0), arg_i64(&eval_args, 1), fps))
         }
         "outcode" => {
-            let tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let fps = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(30);
-            PanRuntimeValue::String(crate::time::outcode(&tc, fps).unwrap_or_default())
+            let fps = match eval_args.get(1) {
+                Some(v) => v.as_i64(),
+                None => 30,
+            };
+            res_str(crate::time::outcode(&arg_str(&eval_args, 0), fps))
         }
         "tcdiff" => {
-            let in_tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let out_tc = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let fps = eval_args.get(2).map(|v| v.as_i64()).unwrap_or(30);
-            let edl = eval_args.get(3).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::Integer(crate::time::tcdiff(&in_tc, &out_tc, fps, edl).unwrap_or(0))
+            let in_tc = arg_str(&eval_args, 0);
+            let out_tc = arg_str(&eval_args, 1);
+            let fps = match eval_args.get(2) {
+                Some(v) => v.as_i64(),
+                None => 30,
+            };
+            let edl = arg_i64(&eval_args, 3);
+            res_i64(crate::time::tcdiff(&in_tc, &out_tc, fps, edl))
         }
         "tc24to30" => {
-            let tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::time::tc24to30(&tc).unwrap_or_default())
+            res_str(crate::time::tc24to30(&arg_str(&eval_args, 0)))
         }
         "tc30to24" => {
-            let tc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::time::tc30to24(&tc).unwrap_or_default())
+            res_str(crate::time::tc30to24(&arg_str(&eval_args, 0)))
         }
         "feetandframes" => {
-            let frames = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::time::feetandframes(frames).unwrap_or_default())
+            res_str(crate::time::feetandframes(arg_i64(&eval_args, 0)))
         }
         "kcframes" => {
-            let ff = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::time::kcframes(&ff).unwrap_or(0))
+            res_i64(crate::time::kcframes(&arg_str(&eval_args, 0)))
         }
         "kcadd" => {
-            let kc = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let offset = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::time::kcadd(&kc, offset).unwrap_or_default())
+            res_str(crate::time::kcadd(&arg_str(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
         "kcdiff" => {
-            let incode = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let outcode = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::time::kcdiff(&incode, &outcode).unwrap_or(0))
+            res_i64(crate::time::kcdiff(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "kcoutfromlength" => {
-            let key = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let offset = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::time::kcoutfromlength(&key, offset).unwrap_or_default())
+            res_str(crate::time::kcoutfromlength(&arg_str(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
 
         // --- String module (`crate::string::*`) ---
         "cat" => {
-            let l = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let r = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::cat(&l, &r))
+            PanRuntimeValue::String(crate::string::cat(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "sandwich" => {
-            let p = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let r = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let s = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::sandwich(&p, &r, &s))
+            PanRuntimeValue::String(crate::string::sandwich(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
         "connect" => {
-            let p = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let c = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let s = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::connect(&p, &c, &s))
+            PanRuntimeValue::String(crate::string::stringmod::connect(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
         "yoke" => {
-            let p = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let j = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let s = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::yoke(&p, &j, &s))
+            PanRuntimeValue::String(crate::string::stringmod::yoke(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
         "crtovtab" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::crtovtab(&s))
+            PanRuntimeValue::String(crate::string::stringmod::crtovtab(&arg_str(&eval_args, 0)))
         }
         "vtabtocr" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::vtabtocr(&s))
+            PanRuntimeValue::String(crate::string::stringmod::vtabtocr(&arg_str(&eval_args, 0)))
         }
         "defaulttext" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let d = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::defaulttext(&t, &d))
+            PanRuntimeValue::String(crate::string::stringmod::defaulttext(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "extract" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let sep = eval_args.get(1).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string()).chars().next().unwrap_or('\n');
-            let item = eval_args.get(2).map(|v| v.as_i64()).unwrap_or(1);
-            PanRuntimeValue::String(crate::string::stringmod::extract(&t, sep, item).unwrap_or_default())
+            let sep = arg_char(&eval_args, 1, '\n');
+            let item = match eval_args.get(2) {
+                Some(v) => v.as_i64(),
+                None => 1,
+            };
+            res_str(crate::string::stringmod::extract(&arg_str(&eval_args, 0), sep, item))
         }
         "fixedwidth" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let w = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::stringmod::fixedwidth(&t, w))
+            PanRuntimeValue::String(crate::string::stringmod::fixedwidth(&arg_str(&eval_args, 0), arg_usize(&eval_args, 1, 0)))
         }
         "fixedwidthright" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let w = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::stringmod::fixedwidthright(&t, w))
+            PanRuntimeValue::String(crate::string::stringmod::fixedwidthright(&arg_str(&eval_args, 0), arg_usize(&eval_args, 1, 0)))
         }
         "padzero" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let w = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::stringmod::padzero(&t, w))
+            PanRuntimeValue::String(crate::string::stringmod::padzero(&arg_str(&eval_args, 0), arg_usize(&eval_args, 1, 0)))
         }
         "linestrip" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::linestrip(&s))
+            PanRuntimeValue::String(crate::string::stringmod::linestrip(&arg_str(&eval_args, 0)))
         }
         "lower" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::lower(&s))
+            PanRuntimeValue::String(crate::string::stringmod::lower(&arg_str(&eval_args, 0)))
         }
         "upper" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::upper(&s))
+            PanRuntimeValue::String(crate::string::stringmod::upper(&arg_str(&eval_args, 0)))
         }
         "upperword" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::upperword(&s))
+            PanRuntimeValue::String(crate::string::stringmod::upperword(&arg_str(&eval_args, 0)))
         }
         "obscuredigits" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let keep = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(4)).unwrap_or(4);
-            PanRuntimeValue::String(crate::string::stringmod::obscuredigits(&s, keep))
+            PanRuntimeValue::String(crate::string::stringmod::obscuredigits(&arg_str(&eval_args, 0), arg_usize(&eval_args, 1, 4)))
         }
         "onespace" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::onespace(&s))
+            PanRuntimeValue::String(crate::string::stringmod::onespace(&arg_str(&eval_args, 0)))
         }
         "onewhitespace" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::onewhitespace(&s))
+            PanRuntimeValue::String(crate::string::stringmod::onewhitespace(&arg_str(&eval_args, 0)))
         }
         "quoted" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::quoted(&s))
+            PanRuntimeValue::String(crate::string::stringmod::quoted(&arg_str(&eval_args, 0)))
         }
         "rep" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let count = eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::stringmod::rep(&s, count).unwrap_or_default())
+            res_str(crate::string::stringmod::rep(&arg_str(&eval_args, 0), arg_i64(&eval_args, 1)))
         }
         "replace" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let find = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let repl = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::replace(&text, &find, &repl).unwrap_or_default())
+            res_str(crate::string::stringmod::replace(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+            ))
         }
         "replacemultiple" => {
-            let text = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let finds = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            let repls = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();
-            let delim = eval_args.get(3).map(|v| v.as_string()).unwrap_or_else(|| ",".to_string()).chars().next().unwrap_or(',');
-            PanRuntimeValue::String(crate::string::stringmod::replacemultiple(&text, &finds, &repls, delim).unwrap_or_default())
+            let delim = arg_char(&eval_args, 3, ',');
+            res_str(crate::string::stringmod::replacemultiple(
+                &arg_str(&eval_args, 0),
+                &arg_str(&eval_args, 1),
+                &arg_str(&eval_args, 2),
+                delim,
+            ))
         }
         "strip" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::strip(&s))
+            PanRuntimeValue::String(crate::string::stringmod::strip(&arg_str(&eval_args, 0)))
         }
         "stripchar" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let r = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::stripchar(&s, &r).unwrap_or_default())
+            res_str(crate::string::stringmod::stripchar(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "striphtmltags" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::striphtmltags(&s))
+            PanRuntimeValue::String(crate::string::stringmod::striphtmltags(&arg_str(&eval_args, 0)))
         }
         "stripprintable" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::stripprintable(&s))
+            PanRuntimeValue::String(crate::string::stringmod::stripprintable(&arg_str(&eval_args, 0)))
         }
         "striptoalpha" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::striptoalpha(&s))
+            PanRuntimeValue::String(crate::string::stringmod::striptoalpha(&arg_str(&eval_args, 0)))
         }
         "striptonum" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::stringmod::striptonum(&s))
+            PanRuntimeValue::String(crate::string::stringmod::striptonum(&arg_str(&eval_args, 0)))
         }
         "chr" => {
-            let code = u8::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::chr(code))
+            PanRuntimeValue::String(crate::string::numeric::chr(arg_u8(&eval_args, 0)))
         }
         "asc" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let code = crate::string::numeric::asc(&s).unwrap_or(0);
-            PanRuntimeValue::Integer(i64::from(code))
+            let code = match crate::string::numeric::asc(&arg_str(&eval_args, 0)) {
+                Ok(c) => i64::from(c),
+                Err(_) => 0,
+            };
+            PanRuntimeValue::Integer(code)
         }
         "bytepattern" => {
-            let bytes = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::bytepattern(bytes).unwrap_or_default())
+            res_str(crate::string::numeric::bytepattern(arg_i64(&eval_args, 0)))
         }
         "commastr" => {
-            let n = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::commastr(n))
+            PanRuntimeValue::String(crate::string::numeric::commastr(arg_i64(&eval_args, 0)))
         }
         "dollarsandcents" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::String(crate::string::numeric::dollarsandcents(n).unwrap_or_default())
+            res_str(crate::string::numeric::dollarsandcents(arg_f64(&eval_args, 0)))
         }
         "money" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::String(crate::string::numeric::money(n).unwrap_or_default())
+            res_str(crate::string::numeric::money(arg_f64(&eval_args, 0)))
         }
         "hex" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let n = crate::string::numeric::hex(&s).unwrap_or(0);
-            PanRuntimeValue::Integer(i64::try_from(n).unwrap_or(0))
+            let n = match crate::string::numeric::hex(&arg_str(&eval_args, 0)) {
+                Ok(v) => match i64::try_from(v) {
+                    Ok(num) => num,
+                    Err(_) => 0,
+                },
+                Err(_) => 0,
+            };
+            PanRuntimeValue::Integer(n)
         }
         "hexbyte" => {
-            let n = u8::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::hexbyte(n))
+            PanRuntimeValue::String(crate::string::numeric::hexbyte(arg_u8(&eval_args, 0)))
         }
         "hexlong" => {
-            let n = u32::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::hexlong(n))
+            PanRuntimeValue::String(crate::string::numeric::hexlong(arg_u32(&eval_args, 0, 0)))
         }
         "hexstr" => {
-            let n = u64::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::hexstr(n))
+            PanRuntimeValue::String(crate::string::numeric::hexstr(arg_u64(&eval_args, 0)))
         }
         "hexword" => {
-            let n = u16::try_from(eval_args.first().map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::hexword(n))
+            PanRuntimeValue::String(crate::string::numeric::hexword(arg_u16(&eval_args, 0)))
         }
         "nth" => {
-            let n = eval_args.first().map(|v| v.as_i64()).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::nth(n))
+            PanRuntimeValue::String(crate::string::numeric::nth(arg_i64(&eval_args, 0)))
         }
         "places" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let p = usize::try_from(eval_args.get(1).map(|v| v.as_i64()).unwrap_or(0)).unwrap_or(0);
-            PanRuntimeValue::String(crate::string::numeric::places(n, p).unwrap_or_default())
+            res_str(crate::string::numeric::places(arg_f64(&eval_args, 0), arg_usize(&eval_args, 1, 0)))
         }
         "scientificnotation" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::String(crate::string::numeric::scientificnotation(n).unwrap_or_default())
+            res_str(crate::string::numeric::scientificnotation(arg_f64(&eval_args, 0)))
         }
         "str" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            PanRuntimeValue::String(crate::string::numeric::str_(n).unwrap_or_default())
+            res_str(crate::string::numeric::str_(arg_f64(&eval_args, 0)))
         }
         "val" => {
-            let s = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::Integer(crate::string::numeric::val(&s).unwrap_or(0))
+            res_i64(crate::string::numeric::val(&arg_str(&eval_args, 0)))
         }
         "pattern" => {
-            let n = eval_args.first().map(|v| v.as_f64()).unwrap_or(0.0);
-            let pat = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::pattern::pattern(n, &pat).unwrap_or_default())
+            res_str(crate::string::pattern::pattern(arg_f64(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         "funnel" => {
-            let t = eval_args.first().map(|v| v.as_string()).unwrap_or_default();
-            let pat = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
-            PanRuntimeValue::String(crate::string::funnel::funnel(&t, &pat))
+            PanRuntimeValue::String(crate::string::funnel::funnel(&arg_str(&eval_args, 0), &arg_str(&eval_args, 1)))
         }
         _ => PanRuntimeValue::String(String::new()),
     }

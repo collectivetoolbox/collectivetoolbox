@@ -76,13 +76,17 @@ impl PanRuntimeValue {
     pub fn as_i64(&self) -> i64 {
         match self {
             Self::Integer(n) => *n,
-            Self::Float(f) => {
-                f.to_string().parse::<i64>().unwrap_or(0)
-            }
+            Self::Float(f) => match f.to_string().parse::<i64>() {
+                Ok(val) => val,
+                Err(_) => 0,
+            },
             Self::Boolean(b) => {
                 if *b { 1 } else { 0 }
             }
-            Self::String(s) => s.trim().parse::<i64>().unwrap_or(0),
+            Self::String(s) => match s.trim().parse::<i64>() {
+                Ok(val) => val,
+                Err(_) => 0,
+            },
             Self::Empty | Self::UnresolvedExpression(_) => 0,
         }
     }
@@ -91,13 +95,17 @@ impl PanRuntimeValue {
     pub fn as_f64(&self) -> f64 {
         match self {
             Self::Float(f) => *f,
-            Self::Integer(n) => {
-                n.to_string().parse::<f64>().unwrap_or(0.0)
-            }
+            Self::Integer(n) => match n.to_string().parse::<f64>() {
+                Ok(val) => val,
+                Err(_) => 0.0,
+            },
             Self::Boolean(b) => {
                 if *b { 1.0 } else { 0.0 }
             }
-            Self::String(s) => s.trim().parse::<f64>().unwrap_or(0.0),
+            Self::String(s) => match s.trim().parse::<f64>() {
+                Ok(val) => val,
+                Err(_) => 0.0,
+            },
             Self::Empty | Self::UnresolvedExpression(_) => 0.0,
         }
     }
@@ -165,21 +173,21 @@ impl PanRuntimeState {
     /// Initialize runtime state from a parsed PAN document.
     #[must_use]
     pub fn from_document(document: PanDocument) -> Self {
-        let field_names = document
-            .schema
-            .as_ref()
-            .map(|schema| {
-                schema
-                    .fields
-                    .iter()
-                    .map(|field| field.name.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let record_count = document
-            .record_count
-            .or_else(|| document.data.as_ref().map(|data| data.records.len()))
-            .unwrap_or(0);
+        let field_names = match document.schema.as_ref() {
+            Some(schema) => schema
+                .fields
+                .iter()
+                .map(|field| field.name.clone())
+                .collect::<Vec<_>>(),
+            None => Vec::new(),
+        };
+        let record_count = match document.record_count {
+            Some(rc) => rc,
+            None => match document.data.as_ref() {
+                Some(data) => data.records.len(),
+                None => 0,
+            },
+        };
         let current_record_index = if record_count > 0 { Some(0) } else { None };
         let startup_procedure_name = find_startup_procedure_name(&document);
         let current_form = document.launch_form.clone();
@@ -335,7 +343,10 @@ impl PanRuntimeState {
                                 }
                             }
                             crate::procedure_parser::PanLoopKind::Repeat(expr) => {
-                                let count = usize::try_from(self.evaluate_expr(expr, report).as_i64()).unwrap_or(0);
+                                let count = match usize::try_from(self.evaluate_expr(expr, report).as_i64()) {
+                                    Ok(c) => c,
+                                    Err(_) => 0,
+                                };
                                 if iterations >= count {
                                     break;
                                 }
@@ -426,17 +437,15 @@ impl PanRuntimeState {
             }
             "arraybuild" => {
                 if let Some(PanExpr::Identifier(target_var)) = arguments.first() {
-                    let delim = arguments
-                        .get(1)
-                        .map(|e| self.evaluate_expr(e, report).as_string())
-                        .unwrap_or_else(|| "\n".to_string());
-                    let field_name = arguments
-                        .get(3)
-                        .map(|e| match e {
-                            PanExpr::Identifier(s) => s.clone(),
-                            other => self.evaluate_expr(other, report).as_string(),
-                        })
-                        .unwrap_or_default();
+                    let delim = match arguments.get(1) {
+                        Some(e) => self.evaluate_expr(e, report).as_string(),
+                        None => "\n".to_string(),
+                    };
+                    let field_name = match arguments.get(3) {
+                        Some(PanExpr::Identifier(s)) => s.clone(),
+                        Some(other) => self.evaluate_expr(other, report).as_string(),
+                        None => String::new(),
+                    };
 
                     let mut items = Vec::new();
                     if let Some(data) = self.document.data.as_ref() {
@@ -473,7 +482,10 @@ impl PanRuntimeState {
             }
             "gotorecord" => {
                 if let Some(arg) = arguments.first() {
-                    let rec_num = usize::try_from(self.evaluate_expr(arg, report).as_i64()).unwrap_or(1);
+                    let rec_num = match usize::try_from(self.evaluate_expr(arg, report).as_i64()) {
+                        Ok(n) => n,
+                        Err(_) => 1,
+                    };
                     if rec_num > 0 && rec_num <= self.data_state.record_count {
                         self.data_state.current_record_index = Some(rec_num.saturating_sub(1));
                     }
@@ -505,12 +517,15 @@ impl PanRuntimeState {
             PanExpr::StringLiteral(value) => PanRuntimeValue::String(value.clone()),
             PanExpr::IntegerLiteral(value) => PanRuntimeValue::Integer(*value),
             PanExpr::FloatLiteral(value) => PanRuntimeValue::Float(*value),
-            PanExpr::Identifier(name) => self
-                .lookup_variable(name)
-                .or_else(|| self.lookup_current_record_field(name))
-                .unwrap_or_else(|| {
+            PanExpr::Identifier(name) => {
+                if let Some(val) = self.lookup_variable(name) {
+                    val
+                } else if let Some(val) = self.lookup_current_record_field(name) {
+                    val
+                } else {
                     PanRuntimeValue::String(String::new())
-                }),
+                }
+            }
             PanExpr::UnaryOp { op, operand } => {
                 let val = self.evaluate_expr(operand, report);
                 match op {
@@ -743,18 +758,18 @@ fn find_startup_procedure_name(document: &PanDocument) -> Option<String> {
 fn runtime_value_from_field(value: &PanDataValue) -> PanRuntimeValue {
     match value {
         PanDataValue::Text(text) => PanRuntimeValue::String(text.clone()),
-        PanDataValue::Integer(number) => number
-            .parse::<i64>()
-            .map(PanRuntimeValue::Integer)
-            .unwrap_or_else(|_| PanRuntimeValue::String(number.clone())),
-        PanDataValue::Fixed(number) | PanDataValue::Float(number) => number
-            .parse::<f64>()
-            .map(PanRuntimeValue::Float)
-            .unwrap_or_else(|_| PanRuntimeValue::String(number.clone())),
-        PanDataValue::Date { pan_date_mdy, .. } => pan_date_mdy
-            .as_ref()
-            .map(|value| PanRuntimeValue::String(value.clone()))
-            .unwrap_or_default(),
+        PanDataValue::Integer(number) => match number.parse::<i64>() {
+            Ok(n) => PanRuntimeValue::Integer(n),
+            Err(_) => PanRuntimeValue::String(number.clone()),
+        },
+        PanDataValue::Fixed(number) | PanDataValue::Float(number) => match number.parse::<f64>() {
+            Ok(f) => PanRuntimeValue::Float(f),
+            Err(_) => PanRuntimeValue::String(number.clone()),
+        },
+        PanDataValue::Date { pan_date_mdy, .. } => match pan_date_mdy {
+            Some(value) => PanRuntimeValue::String(value.clone()),
+            None => PanRuntimeValue::String(String::new()),
+        },
         PanDataValue::Unknown(text) => PanRuntimeValue::String(text.clone()),
     }
 }

@@ -628,9 +628,10 @@ fn render_element(
             ensure_blank_lines(out, 1);
             let mut list_ctx = ctx.clone();
             list_ctx.list_depth = ctx.list_depth.saturating_add(1);
-            let start: usize = get_attr(attrs, "start")
-                .and_then(|s| s.parse::<usize>().ok())
-                .unwrap_or(1);
+            let start: usize = match get_attr(attrs, "start").and_then(|s| s.parse::<usize>().ok()) {
+                Some(s) => s,
+                None => 1,
+            };
             list_ctx.ordered_index = Some(start);
             render_children(node, out, &list_ctx)?;
             ensure_blank_lines(out, 1);
@@ -672,8 +673,14 @@ fn render_element(
             }
         }
         "img" => {
-            let src = get_attr(attrs, "src").unwrap_or_default();
-            let alt = get_attr(attrs, "alt").unwrap_or_default();
+            let src = match get_attr(attrs, "src") {
+                Some(s) => s,
+                None => "",
+            };
+            let alt = match get_attr(attrs, "alt") {
+                Some(s) => s,
+                None => "",
+            };
             let title = get_attr(attrs, "title");
             if let Some(t) = title {
                 out.push_str(&format!("![{alt}]({src} \"{t}\")"));
@@ -795,7 +802,10 @@ fn render_table(table_node: &Rc<Node>, out: &mut String) -> Result<()> {
         return Ok(());
     }
 
-    let col_count = rows.iter().map(|r| r.cells.len()).max().unwrap_or(0);
+    let col_count = match rows.iter().map(|r| r.cells.len()).max() {
+        Some(c) => c,
+        None => 0,
+    };
     if col_count == 0 {
         return Ok(());
     }
@@ -844,8 +854,10 @@ fn render_table(table_node: &Rc<Node>, out: &mut String) -> Result<()> {
     // Delimiter row
     out.push('|');
     for col_idx in 0..col_count {
-        out.push(' ');
-        let align = aligns.get(col_idx).copied().unwrap_or(ColumnAlign::None);
+        let align = match aligns.get(col_idx) {
+            Some(&a) => a,
+            None => ColumnAlign::None,
+        };
         match align {
             ColumnAlign::Left => out.push_str(":---"),
             ColumnAlign::Center => out.push_str(":---:"),

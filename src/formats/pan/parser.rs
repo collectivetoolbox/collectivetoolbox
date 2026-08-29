@@ -289,9 +289,10 @@ impl PanDataValue {
             Self::Date {
                 pan_date_mdy,
                 raw_serial,
-            } => pan_date_mdy
-                .clone()
-                .unwrap_or_else(|| raw_serial.to_string()),
+            } => match pan_date_mdy {
+                Some(s) => s.clone(),
+                None => raw_serial.to_string(),
+            },
         }
     }
 }
@@ -2713,10 +2714,22 @@ fn build_schema_from_names_section(
             prompt: prompts.get(field_index).cloned().flatten(),
             link: links.get(field_index).cloned().flatten(),
             range: ranges.get(field_index).cloned().flatten(),
-            digits: *digits_list.get(field_index).unwrap_or(&0),
-            justification: *justifications.get(field_index).unwrap_or(&PanJustification::Left),
-            clairvoyance: *clairvoyance_list.get(field_index).unwrap_or(&false),
-            capitalization: *capitalization_list.get(field_index).unwrap_or(&PanCapitalization::None),
+            digits: match digits_list.get(field_index) {
+                Some(d) => *d,
+                None => 0,
+            },
+            justification: match justifications.get(field_index) {
+                Some(j) => *j,
+                None => PanJustification::Left,
+            },
+            clairvoyance: match clairvoyance_list.get(field_index) {
+                Some(c) => *c,
+                None => false,
+            },
+            capitalization: match capitalization_list.get(field_index) {
+                Some(c) => *c,
+                None => PanCapitalization::None,
+            },
         })
         .collect::<Vec<_>>();
 
@@ -2905,21 +2918,37 @@ fn parse_string_array_payload(
         let len_lo = *payload.get(3).context("String array BE16 length low byte missing")?;
         let declared_bytes = usize::from(u16::from_be_bytes([len_hi, len_lo]));
         let end = declared_bytes.min(payload.len());
-        payload.get(7..end).unwrap_or(&[])
+        match payload.get(7..end) {
+            Some(slice) => slice,
+            None => &[],
+        }
     } else if payload.len() >= 6 && payload.get(0..2) == Some(&[0x47, 0x00]) {
         let declared_bytes = usize::try_from(read_u32_le(payload, 2)?)
             .context("String array byte count does not fit in usize")?;
         let end = declared_bytes.min(payload.len());
-        payload.get(6..end).unwrap_or(&[])
+        match payload.get(6..end) {
+            Some(slice) => slice,
+            None => &[],
+        }
     } else if payload.len() >= 5 && payload.first() == Some(&0) {
         let declared_bytes = usize::try_from(read_u32_le(payload, 1)?)
             .context("String array byte count does not fit in usize")?;
         let end = declared_bytes.min(payload.len());
-        payload.get(5..end).unwrap_or(&[])
+        match payload.get(5..end) {
+            Some(slice) => slice,
+            None => &[],
+        }
     } else if payload.len() >= 4 && payload.get(1..4) == Some(&[0x00, 0x00, 0x00]) {
-        let declared_bytes = usize::from(*payload.first().unwrap_or(&0));
+        let first_byte = match payload.first() {
+            Some(&b) => b,
+            None => 0,
+        };
+        let declared_bytes = usize::from(first_byte);
         let end = declared_bytes.min(payload.len());
-        payload.get(4..end).unwrap_or(&[])
+        match payload.get(4..end) {
+            Some(slice) => slice,
+            None => &[],
+        }
     } else {
         payload
     };
@@ -2933,14 +2962,29 @@ fn parse_string_array_payload(
         };
 
         let (header_len, item_len) = if len_b == 0x7e {
-            let hi = *array_bytes.get(cursor.saturating_add(1)).unwrap_or(&0);
-            let lo = *array_bytes.get(cursor.saturating_add(2)).unwrap_or(&0);
+            let hi = match array_bytes.get(cursor.saturating_add(1)) {
+                Some(&b) => b,
+                None => 0,
+            };
+            let lo = match array_bytes.get(cursor.saturating_add(2)) {
+                Some(&b) => b,
+                None => 0,
+            };
             let total = usize::from(u16::from_be_bytes([hi, lo]));
             (3usize, total.saturating_sub(3))
         } else if len_b == 0x7f {
-            let b1 = *array_bytes.get(cursor.saturating_add(1)).unwrap_or(&0);
-            let b2 = *array_bytes.get(cursor.saturating_add(2)).unwrap_or(&0);
-            let b3 = *array_bytes.get(cursor.saturating_add(3)).unwrap_or(&0);
+            let b1 = match array_bytes.get(cursor.saturating_add(1)) {
+                Some(&b) => b,
+                None => 0,
+            };
+            let b2 = match array_bytes.get(cursor.saturating_add(2)) {
+                Some(&b) => b,
+                None => 0,
+            };
+            let b3 = match array_bytes.get(cursor.saturating_add(3)) {
+                Some(&b) => b,
+                None => 0,
+            };
             let total = (usize::from(b1) << 16) | (usize::from(b2) << 8) | usize::from(b3);
             (4usize, total.saturating_sub(4))
         } else {
@@ -2950,7 +2994,10 @@ fn parse_string_array_payload(
 
         cursor = cursor.saturating_add(header_len);
         let end = cursor.saturating_add(item_len).min(array_bytes.len());
-        let raw = array_bytes.get(cursor..end).unwrap_or(&[]);
+        let raw = match array_bytes.get(cursor..end) {
+            Some(slice) => slice,
+            None => &[],
+        };
         cursor = end;
 
         if raw.is_empty() {
@@ -2987,7 +3034,11 @@ fn parse_bytes_payload(
 
     let mut result = Vec::with_capacity(expected_count);
     for i in 0..expected_count {
-        result.push(*payload.get(i).unwrap_or(&0));
+        let byte = match payload.get(i) {
+            Some(&b) => b,
+            None => 0,
+        };
+        result.push(byte);
     }
     Ok(result)
 }
@@ -3114,10 +3165,14 @@ pub fn extract_macro_code_bytes(macro_bytes: &[u8], name_len: usize) -> Option<&
             body.get(pos.saturating_sub(2)),
             body.get(pos.saturating_sub(1)),
         ) {
-            let l_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3]))
-                .unwrap_or(0);
-            let l_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3]))
-                .unwrap_or(0);
+            let l_be = match usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])) {
+                Ok(l) => l,
+                Err(_) => 0,
+            };
+            let l_le = match usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])) {
+                Ok(l) => l,
+                Err(_) => 0,
+            };
 
             for len in [l_be, l_le] {
                 if len > 0
@@ -3164,26 +3219,54 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
     let mut macros = Vec::new();
     let mut cursor = 0usize;
     while cursor.saturating_add(6) < payload.len() {
-        let b0 = *payload.get(cursor).unwrap_or(&0);
-        let b1 = *payload.get(cursor.saturating_add(1)).unwrap_or(&0);
-        let b2 = *payload.get(cursor.saturating_add(2)).unwrap_or(&0);
-        let b3 = *payload.get(cursor.saturating_add(3)).unwrap_or(&0);
-        let s_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])).unwrap_or(0);
-        let s_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).unwrap_or(0);
+        let b0 = match payload.get(cursor) {
+            Some(&b) => b,
+            None => 0,
+        };
+        let b1 = match payload.get(cursor.saturating_add(1)) {
+            Some(&b) => b,
+            None => 0,
+        };
+        let b2 = match payload.get(cursor.saturating_add(2)) {
+            Some(&b) => b,
+            None => 0,
+        };
+        let b3 = match payload.get(cursor.saturating_add(3)) {
+            Some(&b) => b,
+            None => 0,
+        };
+        let s_be = match usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])) {
+            Ok(s) => s,
+            Err(_) => 0,
+        };
+        let s_le = match usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])) {
+            Ok(s) => s,
+            Err(_) => 0,
+        };
 
-        if cursor.saturating_add(5) < payload.len()
-            && *payload.get(cursor.saturating_add(4)).unwrap_or(&0) == 0x84
-        {
-            let nlen = usize::from(*payload.get(cursor.saturating_add(5)).unwrap_or(&0));
+        let b4 = match payload.get(cursor.saturating_add(4)) {
+            Some(&b) => b,
+            None => 0,
+        };
+        if cursor.saturating_add(5) < payload.len() && b4 == 0x84 {
+            let nlen = match payload.get(cursor.saturating_add(5)) {
+                Some(&b) => usize::from(b),
+                None => 0,
+            };
             if cursor.saturating_add(6).saturating_add(nlen) <= payload.len() {
                 let name_start = cursor.saturating_add(6);
                 let name_end = name_start.saturating_add(nlen);
-                let raw_name = payload.get(name_start..name_end).unwrap_or(&[]);
-                let name = ctb_formats_encoding::decode(
+                let raw_name = match payload.get(name_start..name_end) {
+                    Some(slice) => slice,
+                    None => &[],
+                };
+                let name = match ctb_formats_encoding::decode(
                     ctb_formats_encoding::CharEncoding::mac_roman(),
                     raw_name,
-                )
-                .unwrap_or_else(|_| String::from_utf8_lossy(raw_name).into_owned());
+                ) {
+                    Ok(decoded) => decoded,
+                    Err(_) => String::from_utf8_lossy(raw_name).into_owned(),
+                };
 
                 let chosen_size = if cursor.saturating_add(s_le) <= payload.len()
                     && s_le >= 6usize.saturating_add(nlen)
@@ -3198,9 +3281,10 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                 };
 
                 if chosen_size > 0 {
-                    let raw_macro = payload
-                        .get(cursor..cursor.saturating_add(chosen_size))
-                        .unwrap_or(&[]);
+                    let raw_macro = match payload.get(cursor..cursor.saturating_add(chosen_size)) {
+                        Some(slice) => slice,
+                        None => &[],
+                    };
                     let code = extract_macro_code(raw_macro, nlen);
                     let ast = code
                         .as_deref()

@@ -164,8 +164,10 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
         }
     }
 
-    let max_entity_len =
-        entity_to_text.keys().map(String::len).max().unwrap_or(0);
+    let max_entity_len = match entity_to_text.keys().map(String::len).max() {
+        Some(len) => len,
+        None => 0,
+    };
 
     Ok(EntityTable {
         char_to_entity,
