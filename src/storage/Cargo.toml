@@ -13,7 +13,7 @@ ctb-formats-ctb-asset-bundle = { path = "../formats/ctb_asset_bundle" }
 ctb-formats-dctext = { path = "../formats/dctext" }
 ctb-formats-html = { path = "../formats/html" }
 ctb-formats-troff = { path = "../formats/troff" }
-ctb-storage-asset-bundle-locator = { path = "./asset_bundle_locator" }
+ctb-storage-asset-bundle = { path = "./asset_bundle" }
 
 serde = "1.0.228"
 serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }

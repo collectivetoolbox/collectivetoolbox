@@ -3053,7 +3053,7 @@ dependencies = [
  "csv",
  "ctb-formats-checksum",
  "ctb-formats-utilities",
- "ctb-storage",
+ "ctb-storage-asset-bundle",
  "ctb-utilities",
  "tempfile",
  "ucd-parse",
@@ -3321,7 +3321,7 @@ dependencies = [
  "ctb-formats-dctext",
  "ctb-formats-html",
  "ctb-formats-troff",
- "ctb-storage-asset-bundle-locator",
+ "ctb-storage-asset-bundle",
  "ctb-utilities",
  "encre-css",
  "glob",
@@ -3341,11 +3341,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-storage-asset-bundle-locator"
+name = "ctb-storage-asset-bundle"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-ctb-asset-bundle",
  "ctb-utilities",
+ "glob",
+ "memmap2",
  "tempfile",
+ "uuid",
 ]
 
 [[package]]
@@ -3614,7 +3618,7 @@ dependencies = [
  "ctb-renderer",
  "ctb-runtime",
  "ctb-storage",
- "ctb-storage-asset-bundle-locator",
+ "ctb-storage-asset-bundle",
  "ctb-storage-minimal",
  "ctb-test-macro",
  "ctb-unwrap-or-lint",

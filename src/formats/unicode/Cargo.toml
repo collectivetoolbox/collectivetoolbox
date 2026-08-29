@@ -10,7 +10,7 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-checksum = { path = "../checksum" }
-ctb-storage = { path = "../../storage" }
+ctb-storage-asset-bundle = { path = "../../storage/asset_bundle" }
 csv = "1.3.1"
 ucd-parse = "0.1.13"
 clap = { version = "4.5.54", features = ["derive"] }

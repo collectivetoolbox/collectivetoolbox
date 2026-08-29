@@ -131,7 +131,7 @@ ctb-renderer = { path = "src/renderer" }
 ctb-runtime = { path = "src/runtime" }
 ctb-storage = { path = "src/storage" }
 ctb-storage-minimal = { path = "src/storage/minimal" }
-ctb-storage-asset-bundle-locator = { path = "src/storage/asset_bundle_locator" }
+ctb-storage-asset-bundle = { path = "src/storage/asset_bundle" }
 ctb-utilities = { path = "src/utilities" }
 ctb-unwrap-or-lint = { path = "src/build_support/ctb_unwrap_or_lint" }
 ctb-workspace = { path = "src/workspace" }

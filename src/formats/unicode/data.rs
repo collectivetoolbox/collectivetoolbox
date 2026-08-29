@@ -44,19 +44,19 @@ pub enum UnicodeVersion {
 /// Returns the string contents of a file in the UCD asset directory for a given version.
 fn get_ucd_file_for_version(version: UnicodeVersion, name: &str) -> Option<String> {
     match version {
-        UnicodeVersion::V17_0 => ctb_storage::get_asset_utf8(&format!(
+        UnicodeVersion::V17_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
             "data/Unicode/Unicode-17.0.0/UCD/{name}"
         ))
         .ok(),
-        UnicodeVersion::V16_0 => ctb_storage::get_asset_utf8(&format!(
+        UnicodeVersion::V16_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
             "data/Unicode/Unicode-16.0.0/UCD/{name}"
         ))
         .ok(),
-        UnicodeVersion::V15_1 => ctb_storage::get_asset_utf8(&format!(
+        UnicodeVersion::V15_1 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
             "data/Unicode/Unicode-15.1.0/UCD/{name}"
         ))
         .ok(),
-        UnicodeVersion::V15_0 => ctb_storage::get_asset_utf8(&format!(
+        UnicodeVersion::V15_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
             "data/Unicode/Unicode-15.0.0/UCD/{name}"
         ))
         .ok(),
@@ -65,7 +65,7 @@ fn get_ucd_file_for_version(version: UnicodeVersion, name: &str) -> Option<Strin
 
 /// Returns the string contents of a file in the character_descriptions asset directory.
 fn get_character_descriptions_file(name: &str) -> Option<String> {
-    ctb_storage::get_asset_utf8(&format!("data/character_descriptions/{name}")).ok()
+    ctb_storage_asset_bundle::get_asset_utf8(&format!("data/character_descriptions/{name}")).ok()
 }
 
 /// A parsed Unicode block range.
@@ -673,7 +673,7 @@ pub struct UnihanReadingEntry {
 /// Table of Unihan readings and definitions mapped by codepoint.
 pub static UNIHAN_DATA: LazyLock<HashMap<u32, UnihanReadingEntry>> =
     LazyLock::new(|| {
-        let Some(content) = ctb_storage::get_asset_utf8(
+        let Some(content) = ctb_storage_asset_bundle::get_asset_utf8(
             "data/Unicode/Unicode-17.0.0/Unihan/Unihan/Unihan_Readings.txt",
         )
         .ok() else {

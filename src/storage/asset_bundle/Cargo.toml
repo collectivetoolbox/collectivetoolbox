@@ -1,0 +1,21 @@
+[package]
+name = "ctb-storage-asset-bundle"
+edition = "2024"
+
+[lib]
+path="asset_bundle.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-ctb-asset-bundle = { path = "../../formats/ctb_asset_bundle" }
+glob = "0.3.3"
+libc = "0.2.186"
+memmap2 = "0.9.9"
+uuid = { version = "1.19.0", features = [ "v4", "macro-diagnostics", "js", "serde" ] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
