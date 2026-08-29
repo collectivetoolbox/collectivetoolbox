@@ -263,7 +263,7 @@ ID,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=D
 261,End literal value,0,BN,,!Cx,EL Syntax,:260 [262:] [^261 255]+ ~,,
 262,Begin type definition,0,BN,,!Cx,EL Syntax,:~ [264] 263,,
 263,End type definition,0,BN,,!Cx,EL Syntax,:262 [264] ~,,
-264,Built-in type identifier: String,0,BN,,!Cx,EL Types,,,
+264,Built-in type identifier: String,0,BN,,!Cx,EL Types,<approx>(format 80),A specific case of “String” as a format (short-style format ID 80),
 265,void lang.invoke(String),0,BN,,!Cx,EL Routines,,Invoke the routine with the given name,
 266,void lang.block,0,BN,,!Cx,EL Routines,,Indicates a division between blocks of statements,
 267,Whitespace in source,0,BN,,!Cx,EL Miscellaneous,:([statement] ~) | (~ ~) | (~ [statement]),"Indicates that in source form, there is FIXME: following amount of whitespace.", a blank line should be present here
@@ -298,5 +298,7 @@ ID,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=D
 294,New line within paragraph,0,WS,,Zl,Punctuation,,"This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph.",
 295,Paragraph separator,0,B,,Zp,Punctuation,,This is the Unicode U+2029.,
 296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,Miscellaneous,:[number],,
-297,Next number is a Dc-equivalent reference to a global node from which this local node was moved.,,,,,,,,
-298,,,,,,,,,
+297,Next number is a Dc-equivalent reference to a global node to which this local node was moved.,0,BN,,!Cx,Miscellaneous,:[number],,
+298,Begin associativity group,0,BN,,!Cx,Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.,
+299,End associativity group,0,BN,,!Cx,Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.,
+300,,,,,,,,,
