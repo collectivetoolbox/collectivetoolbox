@@ -31,6 +31,9 @@
     (inputs
      (modify-inputs (package-inputs pkg)
        (delete "gobject-introspection")))
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())

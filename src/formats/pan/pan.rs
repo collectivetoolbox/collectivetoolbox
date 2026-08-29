@@ -40,6 +40,8 @@ pub mod array;
 pub mod date;
 /// Miscellaneous helpers.
 pub mod functions;
+/// Built-in function dispatcher.
+pub mod function_dispatch;
 /// Math and numeric helpers.
 pub mod math;
 /// Output parsed database to other formats.
