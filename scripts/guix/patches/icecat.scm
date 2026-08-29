@@ -211,12 +211,10 @@ fi
                                           (let ((files (find-files gcc-lib "^libgcc_s\\.so$")))
                                             (and (not (null? files)) (dirname (car files))))))
                        (input-lib-dirs (filter file-exists?
-                                              (map (match-lambda
-                                                     ((_ . dir) (string-append dir "/lib")))
+                                              (map (lambda (entry) (string-append (cdr entry) "/lib"))
                                                    inputs)))
                        (input-inc-dirs (filter file-exists?
-                                              (map (match-lambda
-                                                     ((_ . dir) (string-append dir "/include")))
+                                              (map (lambda (entry) (string-append (cdr entry) "/include"))
                                                    inputs)))
                        (input-L-flags (string-join (map (lambda (d) (string-append "-L" d)) input-lib-dirs) " "))
                        (input-I-flags (string-join (map (lambda (d) (string-append "-isystem " d)) input-inc-dirs) " "))
@@ -322,8 +320,7 @@ fi
                          ,@make-flags))))
             (add-after 'build 'neutralise-store-references
               (lambda _
-                (let* ((obj-dir (match (scandir "." (cut string-prefix? "obj-" <>))
-                                  ((dir) dir)))
+                (let* ((obj-dir (car (scandir "." (cut string-prefix? "obj-" <>))))
                        (file (string-append
                               obj-dir
                               "/dist/bin/chrome/toolkit/content/global/buildconfig.html")))

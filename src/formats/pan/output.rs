@@ -147,10 +147,11 @@ pub fn pan_to_csv_with_options(
     };
 
     let mut rows = Vec::with_capacity(data.records.len());
-    for record in &data.records {
+    for (row_index, record) in data.records.iter().enumerate() {
+        let row_num = row_index.saturating_add(1);
         let mut row = Vec::with_capacity(record.fields.len());
         for field in &record.fields {
-            let value = csv_field_bytes(field, options)?;
+            let value = csv_field_bytes(field, options, row_num)?;
             row.push(value);
         }
         rows.push(row);
@@ -395,21 +396,30 @@ fn format_procedure_code(
 fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
     options: &PanCsvOptions,
+    row_num: usize,
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
             let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows {
                 let double_pass = options.replicate_double_encoding;
+                let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
+                    || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
                 let mut mapped = field
                     .raw_bytes
                     .iter()
                     .map(|&b| {
-                        let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
-                        if double_pass && b != 0xfe && b != 0xff {
-                            ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
+                        if b == 0xfe {
+                            if use_ad { 0xad } else { 0xf0 }
+                        } else if b == 0xff {
+                            if use_ad { 0xfe } else { 0xb9 }
                         } else {
-                            b1
+                            let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
+                            if double_pass {
+                                ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
+                            } else {
+                                b1
+                            }
                         }
                     })
                     .collect::<Vec<u8>>();
@@ -1013,12 +1023,13 @@ mod tests {
             formatted_value: None,
         };
         let options = PanCsvOptions {
+            output_patterns: true,
             encoding: PanCsvEncoding::Windows,
             replicate_double_encoding: true,
             ..Default::default()
         };
-        let result = csv_field_bytes(&field, &options)?;
-        ensure!(result == vec![0xf0, b'T', b'A', b'G', 0xb9]);
+        let result = csv_field_bytes(&field, &options, 7)?;
+        ensure!(result == vec![0xad, b'T', b'A', b'G', 0xfe]);
         Ok(())
     }
 
