@@ -70,28 +70,35 @@ static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
     };
 
     for i in 0..table.row_count() {
-        let id_str = table.cell(i, 0).unwrap_or("");
-        let Ok(id) = id_str.trim().parse::<usize>() else {
+        let get_str = |col: usize| -> String {
+            match table.cell(i, col) {
+                Some(s) => s.trim().to_string(),
+                None => String::new(),
+            }
+        };
+
+        let id_str = get_str(0);
+        let Ok(id) = id_str.parse::<usize>() else {
             continue;
         };
 
-        let ident = table.cell(i, 1).unwrap_or("").trim().to_string();
-        let label = table.cell(i, 2).unwrap_or("").trim().to_string();
-        let category = table.cell(i, 3).unwrap_or("").trim().to_string();
-        let layer = table.cell(i, 4).unwrap_or("").trim().to_string();
-        let mime = table.cell(i, 5).unwrap_or("").trim().to_string();
-        let extensions = table.cell(i, 6).unwrap_or("").trim().to_string();
-        let uti = table.cell(i, 7).unwrap_or("").trim().to_string();
-        let apple_type = table.cell(i, 8).unwrap_or("").trim().to_string();
-        let magic = table.cell(i, 9).unwrap_or("").trim().to_string();
-        let nicknames = table.cell(i, 10).unwrap_or("").trim().to_string();
-        let base_format = table.cell(i, 11).unwrap_or("").trim().to_string();
-        let import_support = table.cell(i, 12).unwrap_or("").trim().to_string();
-        let export_support = table.cell(i, 13).unwrap_or("").trim().to_string();
-        let tests = table.cell(i, 14).unwrap_or("").trim().to_string();
-        let variant_types = table.cell(i, 15).unwrap_or("").trim().to_string();
-        let comments = table.cell(i, 16).unwrap_or("").trim().to_string();
-        let references = table.cell(i, 17).unwrap_or("").trim().to_string();
+        let ident = get_str(1);
+        let label = get_str(2);
+        let category = get_str(3);
+        let layer = get_str(4);
+        let mime = get_str(5);
+        let extensions = get_str(6);
+        let uti = get_str(7);
+        let apple_type = get_str(8);
+        let magic = get_str(9);
+        let nicknames = get_str(10);
+        let base_format = get_str(11);
+        let import_support = get_str(12);
+        let export_support = get_str(13);
+        let tests = get_str(14);
+        let variant_types = get_str(15);
+        let comments = get_str(16);
+        let references = get_str(17);
 
         map.insert(
             id,

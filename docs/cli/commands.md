@@ -22,6 +22,9 @@ Commands:
   bin2hex                    Convert binary data to a hexadecimal string or hex dump
   hexdump                    Format binary data as a hex dump (fancy by default, or --plain / --xxd)
   xxd                        Format binary data as an xxd hex dump
+  short-dc                   Convert short Document Character ID to Global Graph ID or show Dc metadata
+  short-fmt                  Convert short Format ID to Global Graph ID or show Format metadata
+  gid                        Convert Global Graph ID to short representation or show full metadata
   range_gen                  Generate a range of numbers in various bases
   character_description      Describe Unicode characters with annotations, aliases, and meanings
   gdb_instructions_generate  Generate GDB instructions from symbols
@@ -453,6 +456,28 @@ Usage: ctoolbox gdb_instructions_generate
 
 Options:
   -h, --help  Print help
+```
+
+### `ctoolbox gid`
+
+```text
+Convert Global Graph ID to short representation or show full metadata
+
+Usage: ctoolbox gid [OPTIONS] <ID>
+
+Arguments:
+  <ID>  Global graph ID or prefixed short ID (e.g. 1114408, dc:296, fmt:80, uni:1234)
+
+Options:
+  -s, --short  Output short prefix format (e.g. dc:296, fmt:80, uni:1234, gid:23234234)
+  -i, --info   Show full metadata for the Global Graph ID
+  -h, --help   Print help
+
+Examples:
+  $ ctoolbox gid --s 1114408
+  dc:296
+
+  $ ctoolbox gid -i 1114408
 ```
 
 ### `ctoolbox hex2bin`
@@ -1083,6 +1108,48 @@ Examples:
   0E
   0F
   10
+```
+
+### `ctoolbox short-dc`
+
+```text
+Convert short Document Character ID to Global Graph ID or show Dc metadata
+
+Usage: ctoolbox short-dc [OPTIONS] <ID>
+
+Arguments:
+  <ID>  Short Document Character (Dc) ID (e.g. 296, 0x128, dc:296)
+
+Options:
+  -i, --info  Show full metadata for the Document Character
+  -h, --help  Print help
+
+Examples:
+  $ ctoolbox short-dc 296
+  1114408
+
+  $ ctoolbox short-dc -i 296
+```
+
+### `ctoolbox short-fmt`
+
+```text
+Convert short Format ID to Global Graph ID or show Format metadata
+
+Usage: ctoolbox short-fmt [OPTIONS] <ID>
+
+Arguments:
+  <ID>  Short Format ID (e.g. 80, 0x50, fmt:80)
+
+Options:
+  -i, --info  Show full metadata for the Format
+  -h, --help  Print help
+
+Examples:
+  $ ctoolbox short-fmt 80
+  2228304
+
+  $ ctoolbox short-fmt -i 80
 ```
 
 ### `ctoolbox show-node`

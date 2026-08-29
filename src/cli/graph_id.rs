@@ -26,19 +26,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Context, Result, anyhow, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use ctb_storage::global_graph_layout::{
     DC_REGION_END, DC_REGION_START, FORMAT_REGION_END, FORMAT_REGION_START,
-    UNICODE_REGION_END, UNICODE_REGION_START, dc_to_gid, format_to_gid,
-    get_block_name_for_id, gid_to_short,
+    UNICODE_REGION_END, dc_to_gid, format_to_gid, get_block_name_for_id,
+    gid_to_short,
 };
 
 /// Arguments for the `short-dc` CLI command.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     name = "short-dc",
-    alias = "short_dc",
-    alias = "shortdc",
     after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
 )]
 pub struct ShortDcArgs {
@@ -54,8 +52,6 @@ pub struct ShortDcArgs {
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     name = "short-fmt",
-    alias = "short_fmt",
-    alias = "shortfmt",
     after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
 )]
 pub struct ShortFmtArgs {
@@ -71,8 +67,6 @@ pub struct ShortFmtArgs {
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     name = "gid",
-    alias = "graph-id",
-    alias = "graph_id",
     after_help = "Examples:\n  $ ctoolbox gid --s 1114408\n  dc:296\n\n  $ ctoolbox gid -i 1114408"
 )]
 pub struct GidArgs {
@@ -149,7 +143,7 @@ pub fn parse_graph_or_short_id(input: &str) -> Result<u128> {
 }
 
 /// Executes the `short-dc` CLI command.
-pub fn execute_cli_short_dc(args: ShortDcArgs) -> Result<String> {
+pub fn execute_cli_short_dc(args: &ShortDcArgs) -> Result<String> {
     let gid = parse_graph_or_short_id(&args.id)?;
     let dc_id = if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
         u32::try_from(gid.saturating_sub(DC_REGION_START))
@@ -169,7 +163,7 @@ pub fn execute_cli_short_dc(args: ShortDcArgs) -> Result<String> {
 }
 
 /// Executes the `short-fmt` CLI command.
-pub fn execute_cli_short_fmt(args: ShortFmtArgs) -> Result<String> {
+pub fn execute_cli_short_fmt(args: &ShortFmtArgs) -> Result<String> {
     let gid = parse_graph_or_short_id(&args.id)?;
     let fmt_id = if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
         usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
@@ -189,7 +183,7 @@ pub fn execute_cli_short_fmt(args: ShortFmtArgs) -> Result<String> {
 }
 
 /// Executes the `gid` CLI command.
-pub fn execute_cli_gid(args: GidArgs) -> Result<String> {
+pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
     let gid = parse_graph_or_short_id(&args.id)?;
 
     if args.info {
@@ -208,7 +202,10 @@ pub fn execute_cli_gid(args: GidArgs) -> Result<String> {
             let desc = ctb_formats_utilities::describe_format(fmt_id)?;
             Ok(format!("{desc}\n"))
         } else {
-            let block = get_block_name_for_id(gid).unwrap_or_else(|_| "Reserved".to_string());
+            let block = match get_block_name_for_id(gid) {
+                Ok(name) => name,
+                Err(_) => "Reserved".to_string(),
+            };
             Ok(format!("{gid}\nBlock: {block}\n"))
         }
     } else {
@@ -233,14 +230,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_short_dc_execution() {
-        let out = execute_cli_short_dc(ShortDcArgs {
+        let out = execute_cli_short_dc(&ShortDcArgs {
             id: "296".to_string(),
             info: false,
         })
         .expect("short-dc 296");
         assert_eq!(out, "1114408\n");
 
-        let out_info = execute_cli_short_dc(ShortDcArgs {
+        let out_info = execute_cli_short_dc(&ShortDcArgs {
             id: "296".to_string(),
             info: true,
         })
@@ -252,14 +249,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_short_fmt_execution() {
-        let out = execute_cli_short_fmt(ShortFmtArgs {
+        let out = execute_cli_short_fmt(&ShortFmtArgs {
             id: "80".to_string(),
             info: false,
         })
         .expect("short-fmt 80");
         assert_eq!(out, "2228304\n");
 
-        let out_info = execute_cli_short_fmt(ShortFmtArgs {
+        let out_info = execute_cli_short_fmt(&ShortFmtArgs {
             id: "80".to_string(),
             info: true,
         })
@@ -270,7 +267,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_gid_execution() {
         // Short output
-        let out_dc = execute_cli_gid(GidArgs {
+        let out_dc = execute_cli_gid(&GidArgs {
             id: "1114408".to_string(),
             short: true,
             info: false,
@@ -278,7 +275,7 @@ mod tests {
         .expect("gid --s 1114408");
         assert_eq!(out_dc, "dc:296\n");
 
-        let out_fmt = execute_cli_gid(GidArgs {
+        let out_fmt = execute_cli_gid(&GidArgs {
             id: "2228304".to_string(),
             short: true,
             info: false,
@@ -286,7 +283,7 @@ mod tests {
         .expect("gid --s 2228304");
         assert_eq!(out_fmt, "fmt:80\n");
 
-        let out_uni = execute_cli_gid(GidArgs {
+        let out_uni = execute_cli_gid(&GidArgs {
             id: "1234".to_string(),
             short: true,
             info: false,
@@ -294,7 +291,7 @@ mod tests {
         .expect("gid --s 1234");
         assert_eq!(out_uni, "uni:1234\n");
 
-        let out_other = execute_cli_gid(GidArgs {
+        let out_other = execute_cli_gid(&GidArgs {
             id: "23234234".to_string(),
             short: true,
             info: false,
@@ -303,7 +300,7 @@ mod tests {
         assert_eq!(out_other, "gid:23234234\n");
 
         // Info output
-        let out_dc_info = execute_cli_gid(GidArgs {
+        let out_dc_info = execute_cli_gid(&GidArgs {
             id: "1114408".to_string(),
             short: false,
             info: true,
@@ -311,7 +308,7 @@ mod tests {
         .expect("gid -i 1114408");
         assert!(out_dc_info.starts_with("1114408\nNext number is a Dc-equivalent reference"));
 
-        let out_fmt_info = execute_cli_gid(GidArgs {
+        let out_fmt_info = execute_cli_gid(&GidArgs {
             id: "2228304".to_string(),
             short: false,
             info: true,
@@ -319,7 +316,7 @@ mod tests {
         .expect("gid -i 2228304");
         assert!(out_fmt_info.starts_with("2228304\nString"));
 
-        let out_uni_info = execute_cli_gid(GidArgs {
+        let out_uni_info = execute_cli_gid(&GidArgs {
             id: "65".to_string(),
             short: false,
             info: true,
