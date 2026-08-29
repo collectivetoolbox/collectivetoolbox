@@ -87,8 +87,9 @@ ensuring all source origins are fetched and retained in the system store closure
                         (needed-for-boot? #t))
                       %base-file-systems))
 
-  (initrd-modules (append '("virtio" "virtio_pci" "9p" "9pnet" "9pnet_virtio")
-                          %base-initrd-modules))
+  (initrd-modules '("virtio_pci" "virtio_pci_legacy_dev" "virtio_pci_modern_dev"
+                    "virtio_blk" "virtio_net" "virtio_balloon" "virtio_mmio"
+                    "9p" "9pnet" "9pnet_virtio" "dm-crypt"))
 
   (packages os-packages)
 

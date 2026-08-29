@@ -810,6 +810,7 @@ mod tests {
             field_type: parser::PanFieldType::Text,
             type_label: "Text".to_string(),
             output_pattern: None,
+            formula: None,
             raw_bytes: vec![0xfe, b'T', b'A', b'G', 0xff],
             value: parser::PanDataValue::Text("test".to_string()),
             formatted_value: None,

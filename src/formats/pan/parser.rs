@@ -84,7 +84,32 @@ pub struct PanDocument {
     pub sections: Vec<PanSection>,
     pub schema: Option<PanSchema>,
     pub data: Option<PanData>,
+    pub launch_form: Option<String>,
+    pub record_count: Option<usize>,
+    pub macros: Vec<PanMacroInfo>,
     pub trailing_bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PanMacroInfo {
+    pub name: String,
+    pub size: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PanJustification {
+    #[default]
+    Left,
+    Right,
+    Center,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PanCapitalization {
+    #[default]
+    None,
+    AllUpper,
+    InitialCaps,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -131,6 +156,7 @@ pub struct PanDataFieldValue {
     pub field_type: PanFieldType,
     pub type_label: String,
     pub output_pattern: Option<String>,
+    pub formula: Option<String>,
     pub raw_bytes: Vec<u8>,
     pub value: PanDataValue,
     pub formatted_value: Option<String>,
@@ -168,6 +194,38 @@ pub struct PanSchemaField {
     pub type_label: String,
     pub field_type: PanFieldType,
     pub output_pattern: Option<String>,
+    pub formula: Option<String>,
+    pub default_value: Option<String>,
+    pub prompt: Option<String>,
+    pub link: Option<String>,
+    pub range: Option<String>,
+    pub digits: u8,
+    pub justification: PanJustification,
+    pub clairvoyance: bool,
+    pub capitalization: PanCapitalization,
+}
+
+impl Default for PanSchemaField {
+    fn default() -> Self {
+        Self {
+            index: 0,
+            name: String::new(),
+            width: 0,
+            type_code: 0,
+            type_label: "Text".to_string(),
+            field_type: PanFieldType::Text,
+            output_pattern: None,
+            formula: None,
+            default_value: None,
+            prompt: None,
+            link: None,
+            range: None,
+            digits: 0,
+            justification: PanJustification::Left,
+            clairvoyance: false,
+            capitalization: PanCapitalization::None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -208,6 +266,21 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
     let schemas = extract_schemas_from_sections(&sections, is_be)?;
     let schema = schemas.first().cloned();
     let data = extract_data_from_sections(&sections, &schemas)?;
+    let launch_form = sections
+        .iter()
+        .find(|s| s.name == "LAUNCH")
+        .and_then(|s| parse_launch_payload(&s.payload));
+    let record_count = sections
+        .iter()
+        .find(|s| s.name == "RC")
+        .and_then(|s| parse_rc_payload(&s.payload))
+        .or_else(|| data.as_ref().map(|d| d.records.len()));
+    let macros = sections
+        .iter()
+        .find(|s| s.name == "MACROS")
+        .map(|s| parse_macros_payload(&s.payload))
+        // Reason for fallback: empty macros list if MACROS section is not found
+        .unwrap_or_default();
     let trailing_full = pan_file
         .get(consumed_until..)
         .context("Consumed offset extends beyond file end")?;
@@ -226,6 +299,9 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
         sections,
         schema,
         data,
+        launch_form,
+        record_count,
+        macros,
         trailing_bytes,
     })
 }
@@ -1424,6 +1500,7 @@ fn push_data_field_with_raw_bytes(
         field_type: field.field_type.clone(),
         type_label: field.type_label.clone(),
         output_pattern: field.output_pattern.clone(),
+        formula: field.formula.clone(),
         raw_bytes: raw_bytes.to_vec(),
         value,
         formatted_value,
@@ -2383,11 +2460,109 @@ fn build_schema_from_names_section(
 
     let output_patterns = if let Some(using_section) = remaining_sections
         .iter()
-        .find(|candidate| candidate.name == "USING")
+        .find(|candidate| candidate.name == "USING" || candidate.name == "PATTERNS")
     {
-        parse_using_payload(&using_section.payload, field_count)?
+        parse_string_array_payload(&using_section.payload, field_count)?
     } else {
         vec![None; field_count]
+    };
+
+    let formulas = if let Some(eq_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "EQUATIONS")
+    {
+        parse_string_array_payload(&eq_section.payload, field_count)?
+    } else {
+        vec![None; field_count]
+    };
+
+    let default_values = if let Some(def_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "DEFAULTS")
+    {
+        parse_string_array_payload(&def_section.payload, field_count)?
+    } else {
+        vec![None; field_count]
+    };
+
+    let prompts = if let Some(prompt_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "PROMPTS")
+    {
+        parse_string_array_payload(&prompt_section.payload, field_count)?
+    } else {
+        vec![None; field_count]
+    };
+
+    let links = if let Some(link_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "LINKS")
+    {
+        parse_string_array_payload(&link_section.payload, field_count)?
+    } else {
+        vec![None; field_count]
+    };
+
+    let ranges = if let Some(range_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "RANGE")
+    {
+        parse_string_array_payload(&range_section.payload, field_count)?
+    } else {
+        vec![None; field_count]
+    };
+
+    let justifications = if let Some(just_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "JUSTIFICATION")
+    {
+        parse_bytes_payload(&just_section.payload, field_count)?
+            .into_iter()
+            .map(|b| match b {
+                1 => PanJustification::Right,
+                2 => PanJustification::Center,
+                _ => PanJustification::Left,
+            })
+            .collect::<Vec<_>>()
+    } else {
+        vec![PanJustification::Left; field_count]
+    };
+
+    let digits_list = if let Some(digits_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "DIGITS")
+    {
+        parse_bytes_payload(&digits_section.payload, field_count)?
+    } else {
+        vec![0u8; field_count]
+    };
+
+    let clairvoyance_list = if let Some(clair_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "CLAIRVOYANCE")
+    {
+        parse_bytes_payload(&clair_section.payload, field_count)?
+            .into_iter()
+            .map(|b| b != 0)
+            .collect::<Vec<_>>()
+    } else {
+        vec![false; field_count]
+    };
+
+    let capitalization_list = if let Some(case_section) = remaining_sections
+        .iter()
+        .find(|candidate| candidate.name == "UPPER CASE")
+    {
+        parse_bytes_payload(&case_section.payload, field_count)?
+            .into_iter()
+            .map(|b| match b {
+                1 => PanCapitalization::AllUpper,
+                2 => PanCapitalization::InitialCaps,
+                _ => PanCapitalization::None,
+            })
+            .collect::<Vec<_>>()
+    } else {
+        vec![PanCapitalization::None; field_count]
     };
 
     let fields = names
@@ -2402,11 +2577,16 @@ fn build_schema_from_names_section(
             type_code,
             type_label: type_code_label(type_code).to_string(),
             field_type: map_type_code(type_code),
-            output_pattern: output_patterns
-                .get(field_index)
-                .cloned()
-                // Reason for fallback: missing output pattern for schema field index defaults to None
-                .unwrap_or(None),
+            output_pattern: output_patterns.get(field_index).cloned().flatten(),
+            formula: formulas.get(field_index).cloned().flatten(),
+            default_value: default_values.get(field_index).cloned().flatten(),
+            prompt: prompts.get(field_index).cloned().flatten(),
+            link: links.get(field_index).cloned().flatten(),
+            range: ranges.get(field_index).cloned().flatten(),
+            digits: *digits_list.get(field_index).unwrap_or(&0),
+            justification: *justifications.get(field_index).unwrap_or(&PanJustification::Left),
+            clairvoyance: *clairvoyance_list.get(field_index).unwrap_or(&false),
+            capitalization: *capitalization_list.get(field_index).unwrap_or(&PanCapitalization::None),
         })
         .collect::<Vec<_>>();
 
@@ -2582,96 +2762,200 @@ fn parse_types_payload(
         .to_vec())
 }
 
-fn parse_using_payload(
+fn parse_string_array_payload(
     payload: &[u8],
     expected_count: usize,
 ) -> anyhow::Result<Vec<Option<String>>> {
-    if expected_count == 0 {
-        return Ok(Vec::new());
+    if expected_count == 0 || payload.is_empty() {
+        return Ok(vec![None; expected_count]);
     }
 
-    let using_bytes = if payload.len() >= 6 && payload.get(0..2) == Some(&[0x47, 0x00]) {
+    let array_bytes = if payload.len() >= 7 && payload.get(0..2) == Some(&[0x00, 0xfe]) {
+        let len_hi = *payload.get(2).context("String array BE16 length high byte missing")?;
+        let len_lo = *payload.get(3).context("String array BE16 length low byte missing")?;
+        let declared_bytes = usize::from(u16::from_be_bytes([len_hi, len_lo]));
+        let end = declared_bytes.min(payload.len());
+        payload.get(7..end).unwrap_or(&[])
+    } else if payload.len() >= 6 && payload.get(0..2) == Some(&[0x47, 0x00]) {
         let declared_bytes = usize::try_from(read_u32_le(payload, 2)?)
-            .context("USING byte count does not fit in usize")?;
-
-        if declared_bytes < 6 {
-            bail!("USING framed byte count is smaller than header size")
-        }
-
-        let using_data_len = declared_bytes
-            .checked_sub(6)
-            .context("USING framed byte count underflow")?;
-        let using_data_end = 6usize
-            .checked_add(using_data_len)
-            .context("USING framed byte count overflow")?;
-
-        payload
-            .get(6..using_data_end)
-            .context("Invalid USING framed payload range")?
+            .context("String array byte count does not fit in usize")?;
+        let end = declared_bytes.min(payload.len());
+        payload.get(6..end).unwrap_or(&[])
     } else if payload.len() >= 5 && payload.first() == Some(&0) {
         let declared_bytes = usize::try_from(read_u32_le(payload, 1)?)
-            .context("USING byte count does not fit in usize")?;
-
-        if declared_bytes < 5 {
-            bail!("USING framed byte count is smaller than header size")
-        }
-
-        let using_data_len = declared_bytes
-            .checked_sub(5)
-            .context("USING framed byte count underflow")?;
-        let using_data_end = 5usize
-            .checked_add(using_data_len)
-            .context("USING framed byte count overflow")?;
-
-        payload
-            .get(5..using_data_end)
-            .context("Invalid USING framed payload range")?
+            .context("String array byte count does not fit in usize")?;
+        let end = declared_bytes.min(payload.len());
+        payload.get(5..end).unwrap_or(&[])
+    } else if payload.len() >= 4 && payload.get(1..4) == Some(&[0x00, 0x00, 0x00]) {
+        let declared_bytes = usize::from(*payload.first().unwrap_or(&0));
+        let end = declared_bytes.min(payload.len());
+        payload.get(4..end).unwrap_or(&[])
     } else {
         payload
     };
 
-    let mut patterns = Vec::with_capacity(expected_count);
+    let mut items = Vec::with_capacity(expected_count);
     let mut cursor = 0usize;
     for _ in 0..expected_count {
-        let record_len = usize::from(
-            *using_bytes
-                .get(cursor)
-                .context("USING entry length is missing")?,
-        );
-        if record_len == 0 {
-            bail!("USING entry has zero record length")
-        }
-
-        cursor = cursor
-            .checked_add(1)
-            .context("USING cursor overflow after length")?;
-
-        let pattern_len = record_len
-            .checked_sub(1)
-            .context("USING entry length underflow")?;
-        let pattern_end = cursor
-            .checked_add(pattern_len)
-            .context("USING entry length overflow")?;
-        let pattern_raw = using_bytes
-            .get(cursor..pattern_end)
-            .context("USING entry extends beyond payload")?;
-        let pattern = if pattern_raw.is_empty() {
-            None
-        } else {
-            Some(
-                ctb_formats_encoding::decode(
-                    ctb_formats_encoding::CharEncoding::mac_roman(),
-                    pattern_raw,
-                )
-                .context("Invalid MacRoman string in USING payload")?,
-            )
+        let Some(&len_b) = array_bytes.get(cursor) else {
+            items.push(None);
+            continue;
         };
 
-        patterns.push(pattern);
-        cursor = pattern_end;
+        let (header_len, item_len) = if len_b == 0x7e {
+            let hi = *array_bytes.get(cursor.saturating_add(1)).unwrap_or(&0);
+            let lo = *array_bytes.get(cursor.saturating_add(2)).unwrap_or(&0);
+            let total = usize::from(u16::from_be_bytes([hi, lo]));
+            (3usize, total.saturating_sub(3))
+        } else if len_b == 0x7f {
+            let b1 = *array_bytes.get(cursor.saturating_add(1)).unwrap_or(&0);
+            let b2 = *array_bytes.get(cursor.saturating_add(2)).unwrap_or(&0);
+            let b3 = *array_bytes.get(cursor.saturating_add(3)).unwrap_or(&0);
+            let total = (usize::from(b1) << 16) | (usize::from(b2) << 8) | usize::from(b3);
+            (4usize, total.saturating_sub(4))
+        } else {
+            let total = usize::from(len_b);
+            (1usize, total.saturating_sub(1))
+        };
+
+        cursor = cursor.saturating_add(header_len);
+        let end = cursor.saturating_add(item_len).min(array_bytes.len());
+        let raw = array_bytes.get(cursor..end).unwrap_or(&[]);
+        cursor = end;
+
+        if raw.is_empty() {
+            items.push(None);
+        } else {
+            let s = ctb_formats_encoding::decode(
+                ctb_formats_encoding::CharEncoding::mac_roman(),
+                raw,
+            )
+            .context("Invalid MacRoman string in string array payload")?;
+            items.push(Some(s));
+        }
     }
 
-    Ok(patterns)
+    Ok(items)
+}
+
+fn parse_using_payload(
+    payload: &[u8],
+    expected_count: usize,
+) -> anyhow::Result<Vec<Option<String>>> {
+    parse_string_array_payload(payload, expected_count)
+}
+
+fn parse_bytes_payload(
+    payload: &[u8],
+    expected_count: usize,
+) -> anyhow::Result<Vec<u8>> {
+    let payload = if payload.len() > expected_count && payload.first() == Some(&0) {
+        payload.get(1..).context("Invalid bytes payload range")?
+    } else {
+        payload
+    };
+
+    let mut result = Vec::with_capacity(expected_count);
+    for i in 0..expected_count {
+        result.push(*payload.get(i).unwrap_or(&0));
+    }
+    Ok(result)
+}
+
+fn parse_launch_payload(payload: &[u8]) -> Option<String> {
+    if payload.len() < 2 {
+        return None;
+    }
+    let last_len = usize::from(*payload.last()?);
+    if last_len > 0 && last_len < payload.len() {
+        let start = payload.len().saturating_sub(last_len);
+        let name_bytes = payload.get(start..)?;
+        if name_bytes.iter().all(|&b| b.is_ascii_graphic() || b == b' ') {
+            return String::from_utf8(name_bytes.to_vec()).ok();
+        }
+    }
+    if payload.len() >= 8 {
+        for offset in (20..payload.len().saturating_sub(2)).rev() {
+            let slen = usize::from(*payload.get(offset)?);
+            if slen >= 3 && slen <= 32 && offset.saturating_add(1).saturating_add(slen) <= payload.len() {
+                let start = offset.saturating_add(1);
+                let end = start.saturating_add(slen);
+                let name_bytes = payload.get(start..end)?;
+                if name_bytes.iter().all(|&b| b.is_ascii_graphic() || b == b' ') {
+                    return String::from_utf8(name_bytes.to_vec()).ok();
+                }
+            }
+        }
+    }
+    None
+}
+
+fn parse_rc_payload(payload: &[u8]) -> Option<usize> {
+    if payload.len() < 4 {
+        return None;
+    }
+    let b0 = *payload.get(0)?;
+    let b1 = *payload.get(1)?;
+    let b2 = *payload.get(2)?;
+    let b3 = *payload.get(3)?;
+    let val_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).ok()?;
+    if val_le > 0 {
+        Some(val_le)
+    } else {
+        None
+    }
+}
+
+fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
+    let mut macros = Vec::new();
+    let mut cursor = 0usize;
+    while cursor.saturating_add(6) < payload.len() {
+        let b0 = *payload.get(cursor).unwrap_or(&0);
+        let b1 = *payload.get(cursor.saturating_add(1)).unwrap_or(&0);
+        let b2 = *payload.get(cursor.saturating_add(2)).unwrap_or(&0);
+        let b3 = *payload.get(cursor.saturating_add(3)).unwrap_or(&0);
+        let s_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])).unwrap_or(0);
+        let s_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).unwrap_or(0);
+
+        if cursor.saturating_add(5) < payload.len()
+            && *payload.get(cursor.saturating_add(4)).unwrap_or(&0) == 0x84
+        {
+            let nlen = usize::from(*payload.get(cursor.saturating_add(5)).unwrap_or(&0));
+            if cursor.saturating_add(6).saturating_add(nlen) <= payload.len() {
+                let name_start = cursor.saturating_add(6);
+                let name_end = name_start.saturating_add(nlen);
+                let raw_name = payload.get(name_start..name_end).unwrap_or(&[]);
+                let name = ctb_formats_encoding::decode(
+                    ctb_formats_encoding::CharEncoding::mac_roman(),
+                    raw_name,
+                )
+                .unwrap_or_else(|_| String::from_utf8_lossy(raw_name).into_owned());
+
+                let chosen_size = if cursor.saturating_add(s_le) <= payload.len()
+                    && s_le >= 6usize.saturating_add(nlen)
+                {
+                    s_le
+                } else if cursor.saturating_add(s_be) <= payload.len()
+                    && s_be >= 6usize.saturating_add(nlen)
+                {
+                    s_be
+                } else {
+                    0
+                };
+
+                if chosen_size > 0 {
+                    macros.push(PanMacroInfo {
+                        name,
+                        size: chosen_size,
+                    });
+                    cursor = cursor.saturating_add(chosen_size);
+                    continue;
+                }
+            }
+        }
+        cursor = cursor.saturating_add(1);
+    }
+    macros
 }
 
 fn map_type_code(type_code: u8) -> PanFieldType {
@@ -3113,6 +3397,7 @@ mod tests {
             type_label: "Fixed".to_string(),
             field_type: PanFieldType::Fixed2,
             output_pattern: Some("§ dollar~ and ¢¢/100".to_string()),
+            ..Default::default()
         };
 
         let val_42 = PanDataValue::Fixed("42.29".to_string());
@@ -3149,6 +3434,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
 
@@ -3191,6 +3477,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
 
@@ -3232,6 +3519,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
 
@@ -3275,6 +3563,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3284,6 +3573,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3350,6 +3640,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
 
@@ -3369,6 +3660,9 @@ mod tests {
             }],
             schema: Some(schema),
             data: None,
+            launch_form: None,
+            record_count: None,
+            macros: Vec::new(),
             trailing_bytes: Vec::new(),
         };
 
@@ -3393,6 +3687,7 @@ mod tests {
             type_label: "Integer".to_string(),
             field_type: PanFieldType::Integer,
             output_pattern: None,
+            ..Default::default()
         };
 
         let raw_bytes = vec![0xaa; 31];
@@ -3413,6 +3708,7 @@ mod tests {
             type_label: "Text".to_string(),
             field_type: PanFieldType::Text,
             output_pattern: None,
+            ..Default::default()
         };
 
         let value = decode_data_field_value(&field, b"line1\rline2\r")?;
@@ -3494,6 +3790,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
         let schema_b = PanSchema {
@@ -3508,6 +3805,7 @@ mod tests {
                 type_label: "Text".to_string(),
                 field_type: PanFieldType::Text,
                 output_pattern: None,
+                ..Default::default()
             }],
         };
         let schemas = vec![schema_a, schema_b];
@@ -3610,6 +3908,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3619,6 +3918,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3683,6 +3983,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3692,6 +3993,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3733,6 +4035,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3742,6 +4045,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3784,6 +4088,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3793,6 +4098,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3830,6 +4136,7 @@ mod tests {
                     type_label: "Integer".to_string(),
                     field_type: PanFieldType::Integer,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3839,6 +4146,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3877,6 +4185,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3886,6 +4195,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3925,6 +4235,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3934,6 +4245,7 @@ mod tests {
                     type_label: "Integer".to_string(),
                     field_type: PanFieldType::Integer,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -3973,6 +4285,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -3982,6 +4295,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -4024,6 +4338,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
                 PanSchemaField {
                     index: 1,
@@ -4033,6 +4348,7 @@ mod tests {
                     type_label: "Text".to_string(),
                     field_type: PanFieldType::Text,
                     output_pattern: None,
+                    ..Default::default()
                 },
             ],
         };
@@ -4086,6 +4402,47 @@ mod tests {
         let (jdn_neg, _) = decode_pan_date_field(&[249])?;
         let datestr_neg = crate::date::datestr(jdn_neg)?;
         ensure!(datestr_neg == "1/17/84");
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_equations_and_design_attributes() -> anyhow::Result<()> {
+        let pan_file = crate::get_pan_data("fixtures/Sample with patterns v2.pan")
+            .context("Could not load fixtures/Sample with patterns v2.pan")?;
+
+        let parsed = parse_pan(&pan_file)?;
+        let schema = parsed.schema.context("Expected schema to be parsed")?;
+        ensure!(schema.fields.len() == 9);
+
+        // Check field defaults and patterns
+        let date_field = schema.fields.iter().find(|f| f.name == "ExampleDateField").context("ExampleDateField missing")?;
+        ensure!(date_field.default_value.as_deref() == Some("today"));
+        ensure!(date_field.output_pattern.as_deref() == Some("MM-DD-YYYY"));
+
+        let fixed2_field = schema.fields.iter().find(|f| f.name == "ExampleNumericFieldFixed2").context("ExampleNumericFieldFixed2 missing")?;
+        ensure!(fixed2_field.output_pattern.as_deref() == Some("#,.## oz"));
+        ensure!(fixed2_field.digits == 3);
+        ensure!(fixed2_field.justification == PanJustification::Right);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_macros_payload() -> anyhow::Result<()> {
+        // Build sample MACROS payload with two macros
+        let mut payload = Vec::new();
+        // Macro 1: size=18, marker=0x84, name_len=11, name=".Initialize"
+        payload.extend_from_slice(&18u32.to_le_bytes());
+        payload.push(0x84);
+        payload.push(11);
+        payload.extend_from_slice(b".Initialize");
+        payload.extend_from_slice(&[0x00, 0x00]); // padding to 18
+
+        let macros = parse_macros_payload(&payload);
+        ensure!(macros.len() == 1);
+        ensure!(macros[0].name == ".Initialize");
+        ensure!(macros[0].size == 18);
 
         Ok(())
     }
