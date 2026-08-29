@@ -101,7 +101,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal (Dc ASCII list), or dctext
+    /// Input format: utf8 (default), dcal (Dc ASCII list), dcil (classic Dc integer list), or dctext
     #[arg(long = "from", value_enum, default_value_t = CharacterDescriptionInputFormat::Utf8)]
     pub from: CharacterDescriptionInputFormat,
 

@@ -388,7 +388,7 @@ pub enum Command {
         #[command(subcommand)]
         command: IACommand,
     },
-    /// Convert a .pan file to CSV output
+    /// Convert a .pan file to CSV format (writes to stdout)
     #[command(name = "pan2csv")]
     Pan2Csv {
         /// Format data using Panorama output patterns (also strips subsequent lines of text fields by default)
@@ -444,13 +444,13 @@ pub enum Command {
         /// Target language (js or bash)
         target_lang: String,
     },
-    /// Convert a .pan file to JSON of parse
+    /// Convert a .pan file to JSON of parse (writes to stdout)
     #[command(name = "pan2parsejson")]
     Pan2ParseJson {
         /// Input PAN file path
         pan_file: PathBuf,
     },
-    /// Extract a macro/procedure from a .pan file
+    /// Extract a macro/procedure from a .pan file (writes to stdout)
     #[command(name = "pan2macro")]
     Pan2Macro {
         /// Output character encoding (mac, windows, utf8)
@@ -461,7 +461,7 @@ pub enum Command {
         /// Name of the macro/procedure to extract
         macro_name: String,
     },
-    /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
+    /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
     #[command(name = "panmacro2ast")]
     PanMacro2Ast {
         /// Input character encoding (utf-8, macroman, win-1252 / windows)

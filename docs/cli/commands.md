@@ -30,12 +30,12 @@ Commands:
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
   ia                         Internet Archive utilities
-  pan2csv                    Convert a .pan file to CSV output
+  pan2csv                    Convert a .pan file to CSV format (writes to stdout)
   stagel-bootstrap-parse     Parse a StageL file to token output
   stagel-bootstrap-convert   Translate a StageL file using the bootstrap compiler
-  pan2parsejson              Convert a .pan file to JSON of parse
-  pan2macro                  Extract a macro/procedure from a .pan file
-  panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
+  pan2parsejson              Convert a .pan file to JSON of parse (writes to stdout)
+  pan2macro                  Extract a macro/procedure from a .pan file (writes to stdout)
+  panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
   pdf2txt                    Convert a PDF file to text output
   pdf2json                   Convert a PDF file to JSON output
   pdf2md                     Convert a PDF file to Markdown output
@@ -177,7 +177,7 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format: utf8 (default), dcal (Dc ASCII list), or dctext [default: utf8] [possible values: utf8, dcal, dctext]
+          Input format: utf8 (default), dcal (Dc ASCII list), dcil (classic Dc integer list), or dctext [default: utf8] [possible values: utf8, dcal, dcil, dctext]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
@@ -199,6 +199,8 @@ Options:
 
 Examples:
   $ ctoolbox character_description "Hello"
+  $ ctoolbox character_description --codepoint U+1F602
+  $ ctoolbox character_description --wuc-compat "Hello"
   $ ctoolbox character_description --from dcal "65 1114408 2228304"
   $ ctoolbox character_description --codepoint dc:296
   $ ctoolbox character_description -f input.txt -o output.txt
@@ -939,7 +941,7 @@ Options:
 ### `ctoolbox pan2csv`
 
 ```text
-Convert a .pan file to CSV output
+Convert a .pan file to CSV format (writes to stdout)
 
 Usage: ctoolbox pan2csv [OPTIONS] <PAN_FILE>
 
@@ -962,7 +964,7 @@ Options:
 ### `ctoolbox pan2macro`
 
 ```text
-Extract a macro/procedure from a .pan file
+Extract a macro/procedure from a .pan file (writes to stdout)
 
 Usage: ctoolbox pan2macro [OPTIONS] <PAN_FILE> <MACRO_NAME>
 
@@ -978,7 +980,7 @@ Options:
 ### `ctoolbox pan2parsejson`
 
 ```text
-Convert a .pan file to JSON of parse
+Convert a .pan file to JSON of parse (writes to stdout)
 
 Usage: ctoolbox pan2parsejson <PAN_FILE>
 
@@ -992,7 +994,7 @@ Options:
 ### `ctoolbox panmacro2ast`
 
 ```text
-Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
+Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
 
 Usage: ctoolbox panmacro2ast [OPTIONS] <INPUT_FILE> [MACRO_NAME]
 
