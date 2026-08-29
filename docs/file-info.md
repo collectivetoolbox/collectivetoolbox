@@ -11,9 +11,11 @@ The following types of features are relevant:
   - This should optionally take into account file name patterns.
   - It should be able to work on a directory (to detect package formats like Mac .app), but needs to run quickly and not traverse the whole directory.
   - It should be able to work without a file system - other libraries should be able to call it as an in-memory utility. A common set of types for representing files, filesystem objects, and compressed archive entries will likely be relevant.
-    - An upcoming project is going to be implementing support for representing and unpacking archives like tar files.
+    - An upcoming project is going to be implementing support for representing and unpacking archives like tar files, including metadata.
 - Providing file format "nicknames" for command-line utilities, and a most-preferred nickname for use in UIs.
 - Providing a most-preferred extension.
 - Providing Rust struct identifiers.
 - Global graph ID references for file formats - these are the IDs in the current spreadsheet, with the offset to locate them in the formats graph block (see the graph layout documentation).
 - Implementing a readable format description DSL that can also be represented in Dcs (=global graph IDs). I'd like you to plan out a syntax for this. Examples of the general idea (not sure about this syntax): `directory > tar > bz2` (a bz2 tarball), `bz2` (any bz2 stream), `((english > iso8859-1) ! utf8) > utf8` (English text encoded as latin1, misinterpreted/mojibaked as UTF-8, stored as UTF-8), `pan > (((macroman | altura-mac-to-win) > utf8) & CRLF & CSV) | (hexdump & xxd & utf8)` (I think this is what , `(pan > json) | . I'll need to add new Dcs for semantic grouping and for operations like "union" (which I used & for here), "transform" (which I used : for here), "convert" (which I used a > for here), and "transmute" (which I used a ! for here). These are format *descriptions*, but there's also the use case for this of format *instructions*, like defining a 
+- I wonder if it would be useful to use Kaitai Struct and the compatibly-licensed parts of its library of format definitions for some parsing?
+
