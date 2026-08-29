@@ -147,11 +147,10 @@ pub fn pan_to_csv_with_options(
     };
 
     let mut rows = Vec::with_capacity(data.records.len());
-    for (row_index, record) in data.records.iter().enumerate() {
-        let row_num = row_index.saturating_add(1);
+    for record in &data.records {
         let mut row = Vec::with_capacity(record.fields.len());
         for field in &record.fields {
-            let value = csv_field_bytes(field, options, row_num)?;
+            let value = csv_field_bytes(field, options)?;
             row.push(value);
         }
         rows.push(row);
@@ -1014,13 +1013,12 @@ mod tests {
             formatted_value: None,
         };
         let options = PanCsvOptions {
-            output_patterns: true,
             encoding: PanCsvEncoding::Windows,
             replicate_double_encoding: true,
             ..Default::default()
         };
-        let result = csv_field_bytes(&field, &options, 7)?;
-        ensure!(result == vec![0xad, b'T', b'A', b'G', 0xfe]);
+        let result = csv_field_bytes(&field, &options)?;
+        ensure!(result == vec![0xf0, b'T', b'A', b'G', 0xb9]);
         Ok(())
     }
 
