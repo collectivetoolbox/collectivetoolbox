@@ -352,3 +352,5 @@ Import/export/tests support columns meaning:
 335,CtbAssetBundleV2,"Collective Toolbox resource bundle, version 2",container,,,.rsrc,,,,,CtbAssetBundle,,,,,,
 336,CtbAssetBundleV3,"Collective Toolbox resource bundle, version 3",container,,,.rsrc,,,,,CtbAssetBundle,,,,,,
 337,CtbAssetBundleV4,"Collective Toolbox resource bundle, version 4",container,,,.rsrc,,,,,CtbAssetBundle,,,,,,
+338,Jq,"jq programming language",programming,,,,,,,,,,,,,,
+339,JqJaq,"jq programming language as implemented by jaq",programming,,,,,,,,Jq,,,,,,
