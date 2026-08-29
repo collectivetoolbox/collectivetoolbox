@@ -70,11 +70,19 @@ fn parse_hex_table(file_path: &str) -> Result<[u8; 128]> {
     Ok(table)
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Embedded static translation tables are validated at compile time and infallible"
+)]
 static MAC_ROMAN_TO_ANSI: LazyLock<[u8; 128]> = LazyLock::new(|| {
     parse_hex_table("altura-mac2win/MacRoman to ANSI.csv")
         .expect("Failed to load Altura MacRoman to ANSI table")
 });
 
+#[expect(
+    clippy::expect_used,
+    reason = "Embedded static translation tables are validated at compile time and infallible"
+)]
 static ANSI_TO_MAC_ROMAN: LazyLock<[u8; 128]> = LazyLock::new(|| {
     parse_hex_table("altura-mac2win/ANSI to MacRoman.csv")
         .expect("Failed to load Altura ANSI to MacRoman table")

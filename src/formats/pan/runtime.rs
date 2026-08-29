@@ -534,7 +534,7 @@ impl PanRuntimeState {
                     }
                     crate::procedure_parser::PanUnaryOp::Negate => {
                         match val {
-                            PanRuntimeValue::Integer(n) => PanRuntimeValue::Integer(-n),
+                            PanRuntimeValue::Integer(n) => PanRuntimeValue::Integer(n.saturating_neg()),
                             PanRuntimeValue::Float(f) => PanRuntimeValue::Float(-f),
                             other => PanRuntimeValue::Float(-other.as_f64()),
                         }
@@ -639,12 +639,18 @@ impl PanRuntimeState {
         arguments: &[PanExpr],
         report: &mut PanRuntimeExecutionReport,
     ) -> PanRuntimeValue {
-        crate::function_dispatch::dispatch_function_call(
+        match crate::function_dispatch::dispatch_function_call(
             self,
             name,
             arguments,
             &mut |expr| self.evaluate_expr(expr, report),
-        )
+        ) {
+            Ok(val) => val,
+            Err(err) => {
+                warn_fmt!("Failed evaluating function '{name}': {err}");
+                PanRuntimeValue::Empty
+            }
+        }
     }
 
     fn load_procedure_ast(&self, procedure_name: &str) -> Result<Option<PanProcedureAst>> {

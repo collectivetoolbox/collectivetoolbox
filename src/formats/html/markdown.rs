@@ -675,11 +675,11 @@ fn render_element(
         "img" => {
             let src = match get_attr(attrs, "src") {
                 Some(s) => s,
-                None => "",
+                None => String::new(),
             };
             let alt = match get_attr(attrs, "alt") {
                 Some(s) => s,
-                None => "",
+                None => String::new(),
             };
             let title = get_attr(attrs, "title");
             if let Some(t) = title {
