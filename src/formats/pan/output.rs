@@ -200,6 +200,39 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(json.into_bytes())
 }
 
+/// Helper to format raw procedure bytes into an output string using the requested encoding.
+pub fn format_procedure_code(
+    raw_bytes: &[u8],
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let decoded = if matches!(
+        encoding,
+        PanCsvEncoding::Windows | PanCsvEncoding::Utf8Windows
+    ) {
+        let mut ansi_bytes = Vec::with_capacity(raw_bytes.len());
+        for &b in raw_bytes {
+            ansi_bytes.push(ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b));
+        }
+        ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::windows_1252(),
+            &ansi_bytes,
+        )?
+    } else {
+        ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            raw_bytes,
+        )?
+    };
+
+    let mut result = String::new();
+    for line in decoded.split('\r') {
+        let trimmed = line.trim_end();
+        result.push_str(trimmed);
+        result.push('\n');
+    }
+    Ok(result)
+}
+
 /// Extract the source code of a specified macro by name using the requested encoding.
 pub fn pan_to_macro_with_encoding(
     pan_file: &[u8],
@@ -214,6 +247,8 @@ pub fn pan_to_macro_with_encoding(
         if let Some(ref code) = macro_info.code {
             return Ok(code.clone());
         }
+        bail!(
+            "Macro '{macro_name}' found in PAN file, but procedure source code could not be decoded"
         );
     }
     bail!(
