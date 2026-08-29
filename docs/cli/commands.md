@@ -14,7 +14,7 @@ Commands:
   waitshutdown               Wait for the provided PID to shutdown, then clean up
   waitrestart                Wait for the provided PID to shutdown, then start ctoolbox with the given port
   waitupgrade                Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
-  base2base                  Convert from one base to another (for base <= 36)
+  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
   hex2dec                    Convert from hexadecimal to decimal
   dec2hex                    Convert from decimal to hexadecimal
   hexfmt                     Reformat hexdumps
@@ -94,7 +94,7 @@ Options:
 ### `ctoolbox base2base`
 
 ```text
-Convert from one base to another (for base <= 36)
+Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
 
 Usage: ctoolbox base2base [OPTIONS] <ARGS>...
 
@@ -114,6 +114,7 @@ Options:
   -l, --limit <LIMIT>                  Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
   -p, --pad                            Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
   -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+      --alphabet <ALPHABET>            Alphabet to use for base conversion. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
   -q, --quiet                          Suppress warning messages
   -h, --help                           Print help (see more with '--help')
 
@@ -129,6 +130,9 @@ Examples:
 
   $ ctoolbox base2base 10 16 --bytes 255 128
   ff 80
+
+  $ ctoolbox base2base 10 64 "0 1 63 64 255" --alphabet base64_standard
+  A B / BA D/
 ```
 
 ### `ctoolbox bin2hex`

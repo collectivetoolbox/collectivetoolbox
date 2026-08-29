@@ -30,8 +30,30 @@ use anyhow::{Result, anyhow};
 
 use crate::{StringInput, ToolResult};
 use ctb_formats_eite::encoding::base::{
-    BaseConversionPaddingMode, BaseStringFormatSettings, base_to_base_string,
+    BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
+    base_to_base_string,
 };
+
+/// Alphabet selection for base conversions.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CliBaseAlphabet {
+    /// Standard alphanumeric alphabet (0-9, a-z), supporting bases up to 36.
+    #[default]
+    Standard,
+    /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51, 0-9 = 52..61, + = 62, / = 63),
+    /// supporting bases up to 64.
+    #[value(name = "base64_standard", alias = "base64-standard", alias = "base64")]
+    Base64Standard,
+}
+
+impl From<CliBaseAlphabet> for BaseAlphabet {
+    fn from(cli: CliBaseAlphabet) -> Self {
+        match cli {
+            CliBaseAlphabet::Standard => Self::Standard,
+            CliBaseAlphabet::Base64Standard => Self::Base64Standard,
+        }
+    }
+}
 
 #[derive(clap::Args, Debug)]
 #[expect(
@@ -118,6 +140,10 @@ pub struct BaseArgs {
     #[arg(short = 'P', long, default_value_t = 1, conflicts_with("pad"))]
     pub pad_l: u32,
 
+    /// Alphabet to use for base conversion. Bases > 36 require specifying an alphabet like base64_standard.
+    #[arg(long, value_enum, default_value = "standard")]
+    pub alphabet: CliBaseAlphabet,
+
     /// Suppress warning messages
     #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
@@ -161,6 +187,7 @@ pub fn run_base_convert(
             pad_l: args.pad_l,
             pad_fit: args.pad,
         },
+        alphabet: args.alphabet.into(),
     };
 
     if args.bytes {
@@ -235,6 +262,9 @@ pub fn run_base2base(
     args: &[String],
     base_args: &BaseArgs,
 ) -> Result<ToolResult> {
+    let alphabet: BaseAlphabet = base_args.alphabet.into();
+    let max_base = alphabet.max_base();
+
     let (input, from_base, to_base) = if args.len() >= 3
         && let (Ok(from), Ok(to)) = (
             args.first()
@@ -244,9 +274,17 @@ pub fn run_base2base(
                 .ok_or_else(|| anyhow!("Missing to_base"))?
                 .parse::<u8>(),
         )
-        && (2..=36).contains(&from)
-        && (2..=36).contains(&to)
     {
+        if !(2..=max_base).contains(&from) || !(2..=max_base).contains(&to) {
+            let err_msg = if from > 36 || to > 36 {
+                format!(
+                    "Base out of range (from: {from}, to: {to}). Bases > 36 (up to 64) require --alphabet base64_standard."
+                )
+            } else {
+                format!("Invalid base (from: {from}, to: {to}). Supported range for alphabet is 2..={max_base}.")
+            };
+            return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
+        }
         let input = match args.get(2..) {
             Some(s) => s.join(" "),
             None => String::new(),

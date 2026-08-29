@@ -29,7 +29,6 @@ use crate::utilities::*;
 use anyhow::{Result, anyhow, bail, ensure};
 use malachite::Natural;
 use malachite::base::num::basic::traits::Zero;
-use malachite::base::num::conversion::traits::ToStringBase;
 
 use crate::encoding::ascii::{byte_from_stagel_char, stagel_char_from_byte};
 use ctb_formats_utilities::FormatLog;
@@ -54,6 +53,138 @@ impl Default for BaseConversionPaddingMode {
 impl BaseConversionPaddingMode {
     pub fn none() -> Self {
         Self::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BaseAlphabet {
+    /// Standard alphanumeric alphabet (0-9, A-Z/a-z), case-insensitive, base 2..=36.
+    #[default]
+    Standard,
+    /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51, 0-9 = 52..61, + = 62, / = 63),
+    /// case-sensitive, base 2..=64.
+    Base64Standard,
+}
+
+impl BaseAlphabet {
+    /// Returns the maximum base supported by this alphabet.
+    pub fn max_base(self) -> u8 {
+        match self {
+            Self::Standard => 36,
+            Self::Base64Standard => 64,
+        }
+    }
+
+    /// Whether digits in this alphabet are case-sensitive.
+    pub fn is_case_sensitive(self) -> bool {
+        match self {
+            Self::Standard => false,
+            Self::Base64Standard => true,
+        }
+    }
+
+    /// Returns the zero digit character for this alphabet.
+    pub fn zero_char(self) -> char {
+        match self {
+            Self::Standard => '0',
+            Self::Base64Standard => 'A',
+        }
+    }
+
+    /// Returns the character for the given digit value.
+    pub fn char_for_digit(self, d: u8) -> Result<char> {
+        match self {
+            Self::Standard => {
+                if !(0..=35).contains(&d) {
+                    bail!("{d} is not within range 0..=35 for standard alphabet");
+                }
+                if d <= 9 {
+                    char::from_u32(u32::from(d).saturating_add(48))
+                        .ok_or_else(|| anyhow!("Invalid ASCII char"))
+                } else {
+                    char::from_u32(u32::from(d).saturating_add(55))
+                        .ok_or_else(|| anyhow!("Invalid ASCII char"))
+                }
+            }
+            Self::Base64Standard => {
+                if !(0..=63).contains(&d) {
+                    bail!("{d} is not within range 0..=63 for Base64Standard alphabet");
+                }
+                match d {
+                    0..=25 => char::from_u32(u32::from(d).saturating_add(65))
+                        .ok_or_else(|| anyhow!("Invalid ASCII char")),
+                    26..=51 => char::from_u32(
+                        u32::from(d).saturating_sub(26).saturating_add(97),
+                    )
+                    .ok_or_else(|| anyhow!("Invalid ASCII char")),
+                    52..=61 => char::from_u32(
+                        u32::from(d).saturating_sub(52).saturating_add(48),
+                    )
+                    .ok_or_else(|| anyhow!("Invalid ASCII char")),
+                    62 => Ok('+'),
+                    63 => Ok('/'),
+                    _ => bail!("Digit out of range"),
+                }
+            }
+        }
+    }
+
+    /// Returns the digit value for the given character.
+    pub fn digit_for_char(self, ch: char) -> Result<u8> {
+        match self {
+            Self::Standard => {
+                let ch_uc = ch.to_ascii_uppercase();
+                let b = u8::try_from(ch_uc).map_err(|_| anyhow!("'{ch}' is not ASCII"))?;
+                if (48..=57).contains(&b) {
+                    Ok(b.saturating_sub(48))
+                } else if (65..=90).contains(&b) {
+                    Ok(b.saturating_sub(55))
+                } else {
+                    bail!("'{ch}' is not within range 0..=9, A..=Z for standard alphabet");
+                }
+            }
+            Self::Base64Standard => {
+                let b = u8::try_from(ch).map_err(|_| anyhow!("'{ch}' is not ASCII"))?;
+                match b {
+                    65..=90 => Ok(b.saturating_sub(65)), // 'A'..='Z' -> 0..25
+                    97..=122 => Ok(b.saturating_sub(97).saturating_add(26)), // 'a'..='z' -> 26..51
+                    48..=57 => Ok(b.saturating_sub(48).saturating_add(52)), // '0'..='9' -> 52..61
+                    43 => Ok(62), // '+' -> 62
+                    47 => Ok(63), // '/' -> 63
+                    _ => bail!("'{ch}' is not a valid digit in Base64Standard alphabet"),
+                }
+            }
+        }
+    }
+
+    /// Returns true if the character represents a valid digit in this base.
+    pub fn is_digit(self, ch: char, base: u8) -> bool {
+        if !self.is_supported_base(base) {
+            return false;
+        }
+        match self.digit_for_char(ch) {
+            Ok(d) => d < base,
+            Err(_) => false,
+        }
+    }
+
+    /// Returns true if the given base is valid for this alphabet.
+    pub fn is_supported_base(self, base: u8) -> bool {
+        (1..=self.max_base()).contains(&base)
+    }
+}
+
+/// Resolves the appropriate alphabet for a given base and user-configured alphabet.
+pub fn alphabet_for_base(base: u8, requested: BaseAlphabet) -> BaseAlphabet {
+    match requested {
+        BaseAlphabet::Standard => BaseAlphabet::Standard,
+        BaseAlphabet::Base64Standard => {
+            if base > 36 {
+                BaseAlphabet::Base64Standard
+            } else {
+                BaseAlphabet::Standard
+            }
+        }
     }
 }
 
@@ -86,6 +217,8 @@ pub struct BaseStringFormatSettings {
     pub limit: u64,
     /// Zero-pad the left of each number to at least this many digits.
     pub pad: BaseConversionPaddingMode,
+    /// Alphabet to use for base conversion.
+    pub alphabet: BaseAlphabet,
 }
 
 impl Default for BaseStringFormatSettings {
@@ -103,6 +236,7 @@ impl Default for BaseStringFormatSettings {
                 pad_l: 1,
                 pad_fit: false,
             },
+            alphabet: BaseAlphabet::Standard,
         }
     }
 }
@@ -200,24 +334,67 @@ pub fn int_from_base_str_u128(s: &str, base: u8) -> Result<u128> {
     Ok(acc)
 }
 
-/// Returns the integer represented by n in the requested base.
+/// Returns the integer represented by n in the requested base using the given alphabet.
 #[expect(
     clippy::arithmetic_side_effects,
     reason = "Natural is arbitrary-precision and cannot overflow"
 )]
-pub fn int_from_base_str_big(s: &str, base: u8) -> Result<Natural> {
-    if !is_supported_base(base) {
-        bail!("Unsupported base {base}");
-    }
+pub fn int_from_base_str_big_alphabet(
+    s: &str,
+    base: u8,
+    alphabet: BaseAlphabet,
+) -> Result<Natural> {
+    let alpha = alphabet_for_base(base, alphabet);
+    ensure!(
+        alpha.is_supported_base(base),
+        "Unsupported base {base} for alphabet {alphabet:?}"
+    );
     let mut acc = Natural::ZERO;
+    let base_nat = Natural::from(base);
     for ch in s.chars() {
-        let d = int_from_base36_char(&ch.to_string())?;
+        let d = alpha.digit_for_char(ch)?;
         if d >= base {
-            bail!("Digit {d} >= base {base}");
+            bail!("Digit '{ch}' (value {d}) >= base {base}");
         }
-        acc = acc * Natural::from(base) + Natural::from(d);
+        acc = acc * &base_nat + Natural::from(d);
     }
     Ok(acc)
+}
+
+/// Returns the string representation of an arbitrary-precision integer in the requested base and alphabet.
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "Natural is arbitrary-precision and cannot overflow"
+)]
+pub fn int_to_base_str_big_alphabet(
+    mut n: Natural,
+    base: u8,
+    alphabet: BaseAlphabet,
+) -> Result<String> {
+    let alpha = alphabet_for_base(base, alphabet);
+    ensure!(
+        alpha.is_supported_base(base),
+        "Unsupported base {base} for alphabet {alphabet:?}"
+    );
+    if n == 0 {
+        return Ok(alpha.char_for_digit(0)?.to_string());
+    }
+    let base_nat = Natural::from(base);
+    let mut digits = Vec::new();
+    while n > 0 {
+        let rem_nat = &n % &base_nat;
+        let rem = u8::try_from(&rem_nat)
+            .map_err(|e| anyhow!("Digit out of range: {e:?}"))?;
+        digits.push(alpha.char_for_digit(rem)?);
+        n /= &base_nat;
+    }
+    digits.reverse();
+    Ok(digits.into_iter().collect())
+}
+
+/// Returns the integer represented by n in the requested base.
+pub fn int_from_base_str_big(s: &str, base: u8) -> Result<Natural> {
+    int_from_base_str_big_alphabet(s, base, BaseAlphabet::Standard)
 }
 
 /// Returns the integer represented by n in the requested base.
@@ -266,8 +443,13 @@ pub fn dec_to_hex_string(s: &str) -> Result<(String, FormatLog)> {
     clippy::arithmetic_side_effects,
     reason = "Natural is arbitrary-precision and cannot overflow"
 )]
-pub fn get_digits_needed(n: Natural, base: u8) -> Result<Natural> {
-    ensure!(is_supported_base(base), "Unsupported base {base}");
+pub fn get_digits_needed(
+    n: Natural,
+    base: u8,
+    alphabet: BaseAlphabet,
+) -> Result<Natural> {
+    let alpha = alphabet_for_base(base, alphabet);
+    ensure!(alpha.is_supported_base(base), "Unsupported base {base}");
     let mut digits = Natural::ZERO;
     let mut value = n;
     while value > 0 {
@@ -314,6 +496,7 @@ pub fn format_base_string(
         settings.limit,
         settings.collapse_filtered,
         &settings.collapse_only,
+        settings.alphabet,
     )?;
     let (out, mut log) = parsed;
 
@@ -323,7 +506,7 @@ pub fn format_base_string(
     Ok((formatted.0, log))
 }
 
-/// Parse a string contaning numbers in base 2 through 36, convert it to the
+/// Parse a string contaning numbers in base 2 through 64, convert it to the
 /// target base, and print it formatted. Will warn for extra characters other
 /// than spaces and commas.
 pub fn base_to_base_string(
@@ -341,6 +524,7 @@ pub fn base_to_base_string(
         format_settings.limit,
         format_settings.collapse_filtered,
         &format_settings.collapse_only,
+        format_settings.alphabet,
     )?;
 
     let (res, mut log) = converted;
@@ -364,19 +548,25 @@ fn _parse_base_string(
     limit: u64,
     collapse_filtered: bool,
     collapse_only: &Vec<String>,
+    alphabet: BaseAlphabet,
 ) -> Result<(Vec<String>, FormatLog)> {
+    let from_alphabet = alphabet_for_base(from_base, alphabet);
+    let to_alphabet = alphabet_for_base(to_base, alphabet);
     ensure!(
-        is_supported_base(from_base),
-        "Unsupported from_base {from_base}"
+        from_alphabet.is_supported_base(from_base),
+        "Unsupported from_base {from_base} for alphabet {alphabet:?}"
     );
-    ensure!(is_supported_base(to_base), "Unsupported to_base {to_base}");
+    ensure!(
+        to_alphabet.is_supported_base(to_base),
+        "Unsupported to_base {to_base} for alphabet {alphabet:?}"
+    );
     let mut log = FormatLog::default();
     let chars: Vec<char> = s.chars().collect();
     let mut i = 0;
     let mut in_num = false;
     let mut num_chars: String = String::new();
     let mut out: Vec<String> = Vec::new();
-    let max_digits = get_digits_needed(Natural::from(limit), from_base)?;
+    let max_digits = get_digits_needed(Natural::from(limit), from_base, alphabet)?;
     let max_digits: usize = usize::try_from(&max_digits).map_err(|e| {
         anyhow!(
             "Base conversion length of digits greater than usize, limited by String.len(): {e:?}"
@@ -412,11 +602,9 @@ fn _parse_base_string(
         {
             *num_chars = num_chars.trim_start_matches(base_prefix).to_string();
         }
-        out.push(
-            int_from_base_str_big(num_chars, from_base)?
-                .to_string_base(to_base)
-                .to_uppercase(),
-        );
+        let nat = int_from_base_str_big_alphabet(num_chars, from_base, from_alphabet)?;
+        let formatted = int_to_base_str_big_alphabet(nat, to_base, to_alphabet)?;
+        out.push(formatted);
         Ok(())
     };
     let normalize_or_push_char = |out: &mut Vec<String>, c: char| {
@@ -430,8 +618,7 @@ fn _parse_base_string(
             .copied()
             .ok_or_else(|| anyhow!("Index out of bounds"))?;
 
-        let this_is_base_digit =
-            is_base_digit(c.to_string().as_str(), from_base)?;
+        let this_is_base_digit = from_alphabet.is_digit(c, from_base);
 
         if let Some(base_prefix_char) = base_prefix_char {
             let potential_prefix = if let Some(potential_prefix) =
@@ -447,7 +634,7 @@ fn _parse_base_string(
 
             let next = i.checked_add(2).and_then(|idx| chars.get(idx));
             let next_is_base_digit = if let Some(next) = next {
-                is_base_digit(&next.to_string(), from_base)?
+                from_alphabet.is_digit(*next, from_base)
             } else {
                 false
             };
@@ -527,9 +714,10 @@ pub fn _format_base_string(
     let pad = &settings.pad;
     let limit = settings.limit;
     let num_prefix = &settings.prefix;
+    let to_alphabet = alphabet_for_base(base, settings.alphabet);
 
     let padded_width: u32 = if pad.pad_fit {
-        let max_digits = get_digits_needed(Natural::from(limit), base)?;
+        let max_digits = get_digits_needed(Natural::from(limit), base, settings.alphabet)?;
         u32::try_from(&max_digits)
             .map_err(|e| anyhow!("Padding to more than 32 bits of digits is not supported just because it seems unnecessary, but could be increased: {e:?}"))?
     } else {
@@ -558,18 +746,15 @@ pub fn _format_base_string(
 
     let mut out: String = String::new();
     for (index, token) in tokens.iter().enumerate() {
-        let formatted = if is_base_str(token, base)? {
+        let formatted = if is_base_str_alphabet(token, base, to_alphabet) {
             let separator = if index < tokens.len().saturating_sub(1) {
                 &settings.separator
             } else {
                 ""
             };
-            format!(
-                "{num_prefix}{:0>width$}{}",
-                token,
-                separator,
-                width = usize::try_from(padded_width)?
-            )
+            let pad_len = usize::try_from(padded_width)?.saturating_sub(token.chars().count());
+            let padding = to_alphabet.zero_char().to_string().repeat(pad_len);
+            format!("{num_prefix}{padding}{token}{separator}")
         } else {
             token.clone()
         };
@@ -577,7 +762,9 @@ pub fn _format_base_string(
     }
 
     Ok((
-        if settings.lowercase {
+        if to_alphabet.is_case_sensitive() {
+            out
+        } else if settings.lowercase {
             casefold_base_chars_in_string(&out, base, false)?
         } else {
             casefold_base_chars_in_string(&out, base, true)?
@@ -590,6 +777,24 @@ pub fn is_supported_base(base: u8) -> bool {
     (1..=36).contains(&base)
 }
 
+pub fn is_base_digit_alphabet(ch: char, base: u8, alphabet: BaseAlphabet) -> bool {
+    let alpha = alphabet_for_base(base, alphabet);
+    alpha.is_digit(ch, base)
+}
+
+pub fn is_base_str_alphabet(s: &str, base: u8, alphabet: BaseAlphabet) -> bool {
+    let alpha = alphabet_for_base(base, alphabet);
+    if !alpha.is_supported_base(base) {
+        return false;
+    }
+    for ch in s.chars() {
+        if !alpha.is_digit(ch, base) {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn is_base_digit(ch: &str, base: u8) -> Result<bool> {
     if ch.chars().count() != 1 {
         bail!("Invalid digit");
@@ -597,23 +802,17 @@ pub fn is_base_digit(ch: &str, base: u8) -> Result<bool> {
     if !is_supported_base(base) {
         bail!("Unsupported base {base}");
     }
-    let v = int_from_base36_char(ch);
-    if v.is_err() {
-        return Ok(false);
-    }
-    Ok(v? < base)
+    let Some(c) = ch.chars().next() else {
+        bail!("Empty character string");
+    };
+    Ok(BaseAlphabet::Standard.is_digit(c, base))
 }
 
 pub fn is_base_str(s: &str, base: u8) -> Result<bool> {
     if !is_supported_base(base) {
         bail!("Unsupported base {base}");
     }
-    for ch in s.chars() {
-        if !is_base_digit(&ch.to_string(), base)? {
-            return Ok(false);
-        }
-    }
-    Ok(true)
+    Ok(is_base_str_alphabet(s, base, BaseAlphabet::Standard))
 }
 
 /// Convert two hex digits to a single byte -> char (StageL: charFromHexByte)
@@ -883,5 +1082,78 @@ mod tests {
         let (conv, log) = conv.expect("checked");
         assert_eq!("10000", conv);
         assert!(log.has_warnings());
+    }
+
+    #[crate::ctb_test]
+    fn test_base64_alphabet_digits() {
+        let alpha = BaseAlphabet::Base64Standard;
+        assert_eq!(alpha.char_for_digit(0).unwrap(), 'A');
+        assert_eq!(alpha.char_for_digit(25).unwrap(), 'Z');
+        assert_eq!(alpha.char_for_digit(26).unwrap(), 'a');
+        assert_eq!(alpha.char_for_digit(51).unwrap(), 'z');
+        assert_eq!(alpha.char_for_digit(52).unwrap(), '0');
+        assert_eq!(alpha.char_for_digit(61).unwrap(), '9');
+        assert_eq!(alpha.char_for_digit(62).unwrap(), '+');
+        assert_eq!(alpha.char_for_digit(63).unwrap(), '/');
+        assert!(alpha.char_for_digit(64).is_err());
+
+        for d in 0..=63 {
+            let ch = alpha.char_for_digit(d).unwrap();
+            let parsed = alpha.digit_for_char(ch).unwrap();
+            assert_eq!(d, parsed);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_base64_standard_conversion() {
+        let settings = BaseStringFormatSettings {
+            alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+
+        // Base 10 -> Base 64
+        assert_string_ok_eq_no_warnings(
+            "A B / BA D/",
+            base_to_base_string("0 1 63 64 255", 10, 64, &settings),
+        );
+
+        // Base 64 -> Base 10
+        assert_string_ok_eq_no_warnings(
+            "0 1 63 64 255",
+            base_to_base_string("A B / BA D/", 64, 10, &settings),
+        );
+
+        // Base 16 -> Base 64
+        assert_string_ok_eq_no_warnings(
+            "D/ EA",
+            base_to_base_string("ff 100", 16, 64, &settings),
+        );
+
+        // Case sensitivity: 'a' is 26, 'A' is 0, '0' is 52
+        assert_string_ok_eq_no_warnings(
+            "26 0 52",
+            base_to_base_string("a A 0", 64, 10, &settings),
+        );
+
+        // Zero-padding with 'A'
+        let pad_settings = BaseStringFormatSettings {
+            alphabet: BaseAlphabet::Base64Standard,
+            pad: BaseConversionPaddingMode {
+                pad_l: 4,
+                pad_fit: false,
+            },
+            ..Default::default()
+        };
+        assert_string_ok_eq_no_warnings(
+            "AAAF",
+            base_to_base_string("5", 10, 64, &pad_settings),
+        );
+
+        // Base > 36 fails if Standard alphabet is configured
+        let standard_settings = BaseStringFormatSettings {
+            alphabet: BaseAlphabet::Standard,
+            ..Default::default()
+        };
+        assert!(base_to_base_string("255", 10, 64, &standard_settings).is_err());
     }
 }

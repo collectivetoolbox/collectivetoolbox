@@ -34,7 +34,9 @@ use ctb_formats_stagel::convert::run_stagel_bootstrap_convert;
 use ctb_utilities::json::maybe_value::MaybeOption;
 use std::path::PathBuf;
 
-use crate::base_conversion::{BaseArgs, run_base2base, run_base_convert};
+use crate::base_conversion::{
+    BaseArgs, CliBaseAlphabet, run_base2base, run_base_convert,
+};
 use crate::utilities::{
     fork, get_this_executable, upgrade_in_place,
     wait_for_ctoolbox_exit_and_clean_up,
@@ -262,10 +264,10 @@ pub enum Command {
         #[arg(long)]
         port: u16,
     },
-    /// Convert from one base to another (for base <= 36)
+    /// Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
     #[command(
         name = "base2base",
-        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80"
+        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --alphabet base64_standard\n  A B / BA D/"
     )]
     Base2Base {
         /// All positional arguments for custom parsing
@@ -1671,6 +1673,7 @@ mod tests {
                 limit: 0,
                 pad: false,
                 pad_l: 1,
+                alphabet: CliBaseAlphabet::Standard,
                 quiet: false,
             },
         };
@@ -1682,6 +1685,49 @@ mod tests {
                 assert_eq!(exit_code, 0);
                 let output = String::from_utf8(stdout)?;
                 assert_eq!(output.trim(), "0b11111 0b101010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_base2base_base64_positional_args() -> Result<()> {
+        let cmd = Command::Base2Base {
+            args: vec![
+                "10".to_string(),
+                "64".to_string(),
+                "0".to_string(),
+                "1".to_string(),
+                "63".to_string(),
+                "64".to_string(),
+                "255".to_string(),
+            ],
+            base_args: BaseArgs {
+                bytes: false,
+                no_pad: false,
+                prefix: String::new(),
+                separator: " ".to_string(),
+                lowercase: false,
+                filter_chars: true,
+                collapse_filtered: false,
+                collapse_only: Vec::new(),
+                parse_prefixes: true,
+                limit: 0,
+                pad: false,
+                pad_l: 1,
+                alphabet: CliBaseAlphabet::Base64Standard,
+                quiet: false,
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout)?;
+                assert_eq!(output.trim(), "A B / BA D/");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

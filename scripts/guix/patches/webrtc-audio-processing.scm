@@ -33,7 +33,7 @@
         #~(cons* "-Dlibdir=lib" #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
-            (replace 'apply-patches
+            (add-before 'configure 'patch-arch
               (lambda _
                 (substitute* "webrtc/rtc_base/system/arch.h"
                   (("elif defined\\(_M_IX86\\) \\|\\| defined\\(__i386__\\)")
