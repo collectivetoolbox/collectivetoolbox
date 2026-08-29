@@ -362,8 +362,8 @@ pub enum Command {
         #[arg(long)]
         crlf: bool,
         /// Replicate export inconsistencies and legacy double-encoding behavior
-        #[arg(long = "replicate-export-inconsistencies")]
-        replicate_export_inconsistencies: bool,
+        #[arg(long = "replicate-double-encoding")]
+        replicate_double_encoding: bool,
         /// Input PAN file path
         pan_file: PathBuf,
     },
@@ -971,7 +971,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             delimiter,
             encoding,
             crlf,
-            replicate_export_inconsistencies,
+            replicate_double_encoding,
             pan_file,
         } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
@@ -1014,7 +1014,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 crlf: *crlf
                     || (delim != ctb_formats_pan::output::PanExportDelimiter::WordPerfect
                         && enc == ctb_formats_pan::output::PanCsvEncoding::Windows),
-                replicate_export_inconsistencies: *replicate_export_inconsistencies,
+                replicate_double_encoding: *replicate_double_encoding,
             };
             let output =
                 ctb_formats_pan::output::pan_to_csv_with_options(&data, &opts)?;

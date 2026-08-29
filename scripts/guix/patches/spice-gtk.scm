@@ -15,18 +15,27 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for spice-gtk on i686-linux to ensure libraries are installed into lib/ instead of lib64/ and disable tests.
+;;; Patch for spice-gtk on i686-linux to disable introspection/vapi/tests and ensure libdir is lib.
 
 (define-module (patches spice-gtk)
   #:use-module (guix packages)
+  #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (gnu packages spice)
-  #:export (spice-gtk-fixed))
+  #:export (spice-gtk-fixed-proc spice-gtk-fixed))
+
+(define (spice-gtk-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
+       ((#:configure-flags flags #~'())
+        #~(cons* "-Dlibdir=lib"
+                 "-Dintrospection=disabled"
+                 "-Dvapi=disabled"
+                 "-Dgtk_doc=disabled"
+                 #$flags))))))
 
 (define spice-gtk-fixed
-  (package
-    (inherit spice-gtk)
-    (arguments
-      (cons* #:tests? #f
-             #:configure-flags #~'("-Dlibdir=lib")
-             (package-arguments spice-gtk)))))
+  (spice-gtk-fixed-proc spice-gtk))

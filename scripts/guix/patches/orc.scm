@@ -15,23 +15,23 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gspell to disable gobject_introspection and configure libdir.
+;;; Patch for orc to ensure installation into lib/ instead of lib64/.
 
-(define-module (patches gspell)
+(define-module (patches orc)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gnome)
-  #:export (gspell-fixed-proc gspell-fixed))
+  #:use-module (gnu packages gstreamer)
+  #:export (orc-fixed-proc orc-fixed))
 
-(define (gspell-fixed-proc pkg)
+(define (orc-fixed-proc pkg)
   (package
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(cons* "-Dlibdir=lib" "-Dgobject_introspection=false" "-Dvapi=false" "-Dtests=false" #$flags))))))
+        #~(cons* "--libdir=lib" #$flags))))))
 
-(define gspell-fixed
-  (gspell-fixed-proc gspell))
+(define orc-fixed
+  (orc-fixed-proc orc))

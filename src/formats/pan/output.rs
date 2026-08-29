@@ -63,7 +63,7 @@ pub struct PanCsvOptions {
     pub encoding: PanCsvEncoding,
     pub delimiter: PanExportDelimiter,
     pub crlf: bool,
-    pub replicate_export_inconsistencies: bool,
+    pub replicate_double_encoding: bool,
 }
 
 impl Default for PanCsvOptions {
@@ -75,7 +75,7 @@ impl Default for PanCsvOptions {
             encoding: PanCsvEncoding::Utf8,
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
-            replicate_export_inconsistencies: false,
+            replicate_double_encoding: false,
         }
     }
 }
@@ -91,7 +91,7 @@ pub fn pan_to_csv(
         encoding: PanCsvEncoding::Utf8,
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
-        replicate_export_inconsistencies: false,
+        replicate_double_encoding: false,
     };
     let bytes = pan_to_csv_with_options(pan_file, &options)?;
     String::from_utf8(bytes).context("CSV output is not valid UTF-8")
@@ -182,7 +182,7 @@ pub fn pan_file_to_csv_stdout(
         encoding: PanCsvEncoding::Utf8,
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
-        replicate_export_inconsistencies: false,
+        replicate_double_encoding: false,
     };
     pan_to_csv_with_options(&pan_data, &options)
 }
@@ -208,12 +208,13 @@ fn csv_field_bytes(
         parser::PanDataValue::Text(text) => {
             let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows {
+                let double_pass = options.replicate_double_encoding;
                 let mut mapped = field
                     .raw_bytes
                     .iter()
                     .map(|&b| {
                         let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
-                        if options.replicate_export_inconsistencies {
+                        if double_pass && b != 0xfe && b != 0xff {
                             ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
                         } else {
                             b1
@@ -600,7 +601,7 @@ mod tests {
                 encoding: PanCsvEncoding::Utf8,
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
-                replicate_export_inconsistencies: false,
+                replicate_double_encoding: false,
             },
         )?;
         let no_header = pan_to_csv_with_options(
@@ -612,7 +613,7 @@ mod tests {
                 encoding: PanCsvEncoding::Utf8,
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
-                replicate_export_inconsistencies: false,
+                replicate_double_encoding: false,
             },
         )?;
 
@@ -715,7 +716,7 @@ mod tests {
                         encoding: PanCsvEncoding::Windows,
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
-                        replicate_export_inconsistencies: false,
+                        replicate_double_encoding: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -761,7 +762,7 @@ mod tests {
                         encoding: PanCsvEncoding::Windows,
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
-                        replicate_export_inconsistencies: false,
+                        replicate_double_encoding: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -788,7 +789,7 @@ mod tests {
             encoding: PanCsvEncoding::Utf8,
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
-            replicate_export_inconsistencies: false,
+            replicate_double_encoding: false,
         };
         let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
         let first_line = csv_output
@@ -800,4 +801,27 @@ mod tests {
         ensure!(header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_windows_export_tag_delimiters_single_pass() -> anyhow::Result<()> {
+        let field = parser::PanDataFieldValue {
+            field_index: 0,
+            field_name: "TagField".to_string(),
+            field_type: parser::PanFieldType::Text,
+            type_label: "Text".to_string(),
+            output_pattern: None,
+            raw_bytes: vec![0xfe, b'T', b'A', b'G', 0xff],
+            value: parser::PanDataValue::Text("test".to_string()),
+            formatted_value: None,
+        };
+        let options = PanCsvOptions {
+            encoding: PanCsvEncoding::Windows,
+            replicate_double_encoding: true,
+            ..Default::default()
+        };
+        let result = csv_field_bytes(&field, &options)?;
+        ensure!(result == vec![0xf0, b'T', b'A', b'G', 0xb9]);
+        Ok(())
+    }
 }
+

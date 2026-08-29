@@ -15,23 +15,26 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gspell to disable gobject_introspection and configure libdir.
+;;; Patch for libcamera and libcamera-minimal to disable tests and ensure libdir is lib.
 
-(define-module (patches gspell)
+(define-module (patches libcamera)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
-  #:use-module (gnu packages gnome)
-  #:export (gspell-fixed-proc gspell-fixed))
+  #:use-module (gnu packages photo)
+  #:export (libcamera-fixed-proc
+            libcamera-minimal-fixed-proc))
 
-(define (gspell-fixed-proc pkg)
+(define (libcamera-fixed-proc pkg)
   (package
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
-        #~(cons* "-Dlibdir=lib" "-Dgobject_introspection=false" "-Dvapi=false" "-Dtests=false" #$flags))))))
+        #~(cons* "-Dtest=false"
+                 "-Dlibdir=lib"
+                 (delete "-Dtest=true" #$flags)))))))
 
-(define gspell-fixed
-  (gspell-fixed-proc gspell))
+(define (libcamera-minimal-fixed-proc pkg)
+  (libcamera-fixed-proc pkg))
