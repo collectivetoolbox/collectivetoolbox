@@ -29,10 +29,11 @@ curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/etc/guix-install.sh 
 chmod +x "${INSTALL_SCRIPT}"
 
 # 3. Find a fast, reachable GNU Guix binary mirror
-# (ftp.gnu.org is frequently unreachable/timed out, so we test responsive mirrors)
+# Default to ftp.gnu.org and fall back to alternative mirrors if unreachable or timed out
 CANDIDATE_MIRRORS=(
+    "https://ftp.gnu.org/gnu/guix/"
     "https://mirror.dogado.de/gnu/guix/"
-    "https://ftp.acc.umu.se/mirror/gnu.org/gnu/guix/"
+    "https://mirror.accum.se/mirror/gnu.org/gnu/guix/"
     "https://mirror.freedif.org/GNU/guix/"
     "https://ftpmirror.gnu.org/gnu/guix/"
 )

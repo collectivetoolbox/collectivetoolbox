@@ -396,43 +396,21 @@ fn format_procedure_code(
 fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
     options: &PanCsvOptions,
-    row_num: usize,
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
             let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows {
-                let is_wp = options.delimiter == PanExportDelimiter::WordPerfect;
-                let full_double_pass = (is_tabs_no_quotes || is_wp) && !options.output_patterns;
-                let is_programming_reference_edited = (options.run_startup_procedure || options.replicate_double_encoding)
-                    && (
-                        (options.output_patterns && (
-                            matches!(row_num, 61 | 156 | 174 | 296 | 312 | 363 | 481 | 507 | 514 | 593 | 909 | 963)
-                            || (field.field_name.eq_ignore_ascii_case("Description") && matches!(row_num, 125 | 166))
-                        ))
-                        || (!options.output_patterns && (
-                            (field.field_name.eq_ignore_ascii_case("Text") && matches!(row_num, 24 | 26 | 27 | 31 | 32 | 35 | 39 | 76 | 83 | 90 | 123 | 128 | 133 | 144 | 158 | 182 | 196 | 198 | 292 | 427 | 455 | 462 | 542 | 570 | 628 | 657 | 660 | 917 | 1012 | 1136 | 1137 | 1160))
-                            || (field.field_name.eq_ignore_ascii_case("Description") && matches!(row_num, 56 | 151 | 391 | 490))
-                        ))
-                    );
-                let double_pass = full_double_pass || is_programming_reference_edited;
-                let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
-                    || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
+                let double_pass = options.replicate_double_encoding;
                 let mut mapped = field
                     .raw_bytes
                     .iter()
                     .map(|&b| {
-                        if b == 0xfe {
-                            if use_ad { 0xad } else { 0xf0 }
-                        } else if b == 0xff {
-                            if use_ad { 0xfe } else { 0xb9 }
+                        let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
+                        if double_pass && b != 0xfe && b != 0xff {
+                            ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
                         } else {
-                            let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
-                            if double_pass {
-                                ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
-                            } else {
-                                b1
-                            }
+                            b1
                         }
                     })
                     .collect::<Vec<u8>>();
