@@ -231,6 +231,8 @@ impl Default for PanSchemaField {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PanFieldType {
     Text,
+    Picture,
+    Choices,
     Date,
     Float,
     Integer,
@@ -1644,6 +1646,15 @@ fn decode_data_field_value(
             }
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
+        PanFieldType::Choices => {
+            if raw_bytes.is_empty() {
+                return Ok(PanDataValue::Unknown(String::new()));
+            }
+            Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
+        }
+        PanFieldType::Picture => {
+            Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
+        }
         PanFieldType::Unknown(_type_code) => {
             Ok(PanDataValue::Unknown(hex_string(raw_bytes)))
         }
@@ -2961,6 +2972,8 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
 fn map_type_code(type_code: u8) -> PanFieldType {
     match type_code {
         0 => PanFieldType::Text,
+        1 => PanFieldType::Picture,
+        2 => PanFieldType::Choices,
         4 => PanFieldType::Date,
         5 => PanFieldType::Float,
         6 => PanFieldType::Integer,
@@ -2975,6 +2988,8 @@ fn map_type_code(type_code: u8) -> PanFieldType {
 fn type_code_label(type_code: u8) -> &'static str {
     match type_code {
         0 => "Text",
+        1 => "Picture",
+        2 => "Choices",
         4 => "Date",
         5 => "Float",
         6 => "Integer",
@@ -4443,6 +4458,21 @@ mod tests {
         ensure!(macros.len() == 1);
         ensure!(macros[0].name == ".Initialize");
         ensure!(macros[0].size == 18);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_picture_and_choices_field_types() -> anyhow::Result<()> {
+        let types = parse_types_payload(&[0x00, 0x01, 0x02, 0x04, 0x06], 5)?;
+        ensure!(map_type_code(types[0]) == PanFieldType::Text);
+        ensure!(map_type_code(types[1]) == PanFieldType::Picture);
+        ensure!(map_type_code(types[2]) == PanFieldType::Choices);
+        ensure!(map_type_code(types[3]) == PanFieldType::Date);
+        ensure!(map_type_code(types[4]) == PanFieldType::Integer);
+
+        ensure!(type_code_label(1) == "Picture");
+        ensure!(type_code_label(2) == "Choices");
 
         Ok(())
     }
