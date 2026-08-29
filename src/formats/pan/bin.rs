@@ -55,6 +55,9 @@ enum Command {
         /// Apply schema output patterns instead of raw values.
         #[arg(long)]
         output_patterns: bool,
+        /// Run the startup procedure (.Initialize) before exporting CSV
+        #[arg(long = "run-startup-procedure")]
+        run_startup_procedure: bool,
     },
     /// Convert a PAN file to parse JSON and print to stdout.
     ParseJson {
@@ -93,10 +96,16 @@ fn main() -> Result<()> {
         Command::Csv {
             pan_file,
             output_patterns,
+            run_startup_procedure,
         } => {
-            let output = ctb_formats_pan::output::pan_file_to_csv_stdout(
-                pan_file.as_path(),
+            let options = ctb_formats_pan::output::PanCsvOptions {
                 output_patterns,
+                run_startup_procedure,
+                ..Default::default()
+            };
+            let output = ctb_formats_pan::output::pan_file_to_csv_with_options_stdout(
+                pan_file.as_path(),
+                &options,
             )?;
             io::stdout().lock().write_all(&output)?;
         }

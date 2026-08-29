@@ -64,6 +64,7 @@ pub struct PanCsvOptions {
     pub delimiter: PanExportDelimiter,
     pub crlf: bool,
     pub replicate_double_encoding: bool,
+    pub run_startup_procedure: bool,
 }
 
 impl Default for PanCsvOptions {
@@ -76,6 +77,7 @@ impl Default for PanCsvOptions {
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
             replicate_double_encoding: false,
+            run_startup_procedure: false,
         }
     }
 }
@@ -92,6 +94,7 @@ pub fn pan_to_csv(
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
         replicate_double_encoding: false,
+        run_startup_procedure: false,
     };
     let bytes = pan_to_csv_with_options(pan_file, &options)?;
     String::from_utf8(bytes).context("CSV output is not valid UTF-8")
@@ -101,7 +104,13 @@ pub fn pan_to_csv_with_options(
     pan_file: &[u8],
     options: &PanCsvOptions,
 ) -> anyhow::Result<Vec<u8>> {
-    let pan = parser::parse_pan(pan_file)?;
+    let pan = if options.run_startup_procedure {
+        let mut runtime = crate::runtime::PanRuntimeState::from_pan_bytes(pan_file)?;
+        let _ = runtime.run_startup_procedure();
+        runtime.document
+    } else {
+        parser::parse_pan(pan_file)?
+    };
     let Some(schema) = pan.schema.as_ref() else {
         warn!("PAN file does not contain schema/data records");
         return Ok(Vec::new());
@@ -183,8 +192,22 @@ pub fn pan_file_to_csv_stdout(
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
         replicate_double_encoding: false,
+        run_startup_procedure: false,
     };
     pan_to_csv_with_options(&pan_data, &options)
+}
+
+pub fn pan_file_to_csv_with_options_stdout(
+    pan_file: &Path,
+    options: &PanCsvOptions,
+) -> anyhow::Result<Vec<u8>> {
+    let pan_data = fs::read(pan_file).with_context(|| {
+        format!(
+            "Could not read PAN file: {pan_file_display}",
+            pan_file_display = pan_file.display()
+        )
+    })?;
+    pan_to_csv_with_options(&pan_data, options)
 }
 
 pub fn pan_file_to_parse_json_stdout(
@@ -771,6 +794,7 @@ mod tests {
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
                 replicate_double_encoding: false,
+                run_startup_procedure: false,
             },
         )?;
         let no_header = pan_to_csv_with_options(
@@ -783,6 +807,7 @@ mod tests {
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
                 replicate_double_encoding: false,
+                run_startup_procedure: false,
             },
         )?;
 
@@ -886,6 +911,7 @@ mod tests {
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
                         replicate_double_encoding: false,
+                        run_startup_procedure: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -932,6 +958,7 @@ mod tests {
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
                         replicate_double_encoding: false,
+                        run_startup_procedure: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -959,6 +986,7 @@ mod tests {
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
             replicate_double_encoding: false,
+            run_startup_procedure: false,
         };
         let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
         let first_line = csv_output
@@ -1019,6 +1047,20 @@ mod tests {
 
         let code = pan_to_macro(&pan_bytes, "TestM")?;
         ensure!(code == "message \"Hi\"\n");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pan_to_csv_run_startup_procedure() -> anyhow::Result<()> {
+        let sample_bytes = crate::get_pan_data("fixtures/SAMPLE.pan")
+            .context("Could not load fixtures/SAMPLE.pan")?;
+        let options = PanCsvOptions {
+            include_header: true,
+            run_startup_procedure: true,
+            ..Default::default()
+        };
+        let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
+        ensure!(!csv_output.is_empty());
         Ok(())
     }
 }

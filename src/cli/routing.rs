@@ -366,6 +366,9 @@ pub enum Command {
         /// Replicate export inconsistencies and legacy double-encoding behavior
         #[arg(long = "replicate-double-encoding")]
         replicate_double_encoding: bool,
+        /// Run the startup procedure (.Initialize) before exporting CSV
+        #[arg(long = "run-startup-procedure")]
+        run_startup_procedure: bool,
         /// Input PAN file path
         pan_file: PathBuf,
     },
@@ -999,6 +1002,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             encoding,
             crlf,
             replicate_double_encoding,
+            run_startup_procedure,
             pan_file,
         } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
@@ -1042,6 +1046,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                     || (delim != ctb_formats_pan::output::PanExportDelimiter::WordPerfect
                         && enc == ctb_formats_pan::output::PanCsvEncoding::Windows),
                 replicate_double_encoding: *replicate_double_encoding,
+                run_startup_procedure: *run_startup_procedure,
             };
             let output =
                 ctb_formats_pan::output::pan_to_csv_with_options(&data, &opts)?;

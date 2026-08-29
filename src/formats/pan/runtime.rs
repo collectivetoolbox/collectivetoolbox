@@ -450,6 +450,35 @@ impl PanRuntimeState {
                     self.set_variable(target_var, PanRuntimeValue::String(joined));
                 }
             }
+            "downrecord" => {
+                if let Some(cur) = self.data_state.current_record_index {
+                    let max = self.data_state.record_count.saturating_sub(1);
+                    self.data_state.current_record_index = Some(cur.saturating_add(1).min(max));
+                }
+            }
+            "uprecord" => {
+                if let Some(cur) = self.data_state.current_record_index {
+                    self.data_state.current_record_index = Some(cur.saturating_sub(1));
+                }
+            }
+            "firstrecord" | "toprecord" => {
+                if self.data_state.record_count > 0 {
+                    self.data_state.current_record_index = Some(0);
+                }
+            }
+            "lastrecord" | "bottomrecord" => {
+                if self.data_state.record_count > 0 {
+                    self.data_state.current_record_index = Some(self.data_state.record_count.saturating_sub(1));
+                }
+            }
+            "gotorecord" => {
+                if let Some(arg) = arguments.first() {
+                    let rec_num = usize::try_from(self.evaluate_expr(arg, report).as_i64()).unwrap_or(1);
+                    if rec_num > 0 && rec_num <= self.data_state.record_count {
+                        self.data_state.current_record_index = Some(rec_num.saturating_sub(1));
+                    }
+                }
+            }
             "message" | "statusmessage" | "beep" | "stop" | "rtn" => {
                 let msg = arguments
                     .iter()
@@ -527,7 +556,7 @@ impl PanRuntimeState {
                     crate::procedure_parser::PanBinaryOp::Divide => {
                         let r_f = r_val.as_f64();
                         if r_f == 0.0 {
-                            PanRuntimeValue::Integer(0)
+                            PanRuntimeValue::Float(0.0)
                         } else {
                             PanRuntimeValue::Float(l_val.as_f64() / r_f)
                         }
@@ -649,9 +678,32 @@ impl PanRuntimeState {
             self.window_globals.insert(target.to_string(), value);
         } else if self.permanents.contains_key(target) {
             self.permanents.insert(target.to_string(), value);
+        } else if self.set_current_record_field(target, &value) {
+            // Field was updated on the current record!
         } else {
             self.file_globals.insert(target.to_string(), value);
         }
+    }
+
+    fn set_current_record_field(&mut self, field_name: &str, value: &PanRuntimeValue) -> bool {
+        let Some(idx) = self.data_state.current_record_index else {
+            return false;
+        };
+        let Some(data) = self.document.data.as_mut() else {
+            return false;
+        };
+        let Some(record) = data.records.get_mut(idx) else {
+            return false;
+        };
+        let Some(field) = record
+            .fields
+            .iter_mut()
+            .find(|f| f.field_name.eq_ignore_ascii_case(field_name))
+        else {
+            return false;
+        };
+        field.value = PanDataValue::Text(value.as_string());
+        true
     }
 
     fn lookup_variable(&self, name: &str) -> Option<PanRuntimeValue> {
@@ -669,7 +721,7 @@ impl PanRuntimeState {
         let field = current_record
             .fields
             .iter()
-            .find(|field| field.field_name == name)?;
+            .find(|field| field.field_name.eq_ignore_ascii_case(name))?;
         Some(runtime_value_from_field(&field.value))
     }
 
@@ -684,7 +736,7 @@ fn find_startup_procedure_name(document: &PanDocument) -> Option<String> {
     document
         .macros
         .iter()
-        .find(|macro_info| macro_info.is_procedure && macro_info.name == ".Initialize")
+        .find(|macro_info| macro_info.is_procedure && macro_info.name.eq_ignore_ascii_case(".Initialize"))
         .map(|macro_info| macro_info.name.clone())
 }
 

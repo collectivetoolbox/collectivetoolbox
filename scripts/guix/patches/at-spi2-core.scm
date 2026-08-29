@@ -35,12 +35,14 @@
                 "--libdir=lib"
                 (string-append "-Dc_link_args=-Wl,-rpath=" #$output "/lib")
                 (string-append "-Dcpp_link_args=-Wl,-rpath=" #$output "/lib")))
+       ((#:phases _ #~%standard-phases) #~%standard-phases)
        ((#:tests? _ #f) #f)))
     (native-inputs
      (modify-inputs (package-native-inputs pkg)
        (delete "gobject-introspection"
                "python-dbusmock-for-tests"
-               "python-pytest")))))
+               "python-pytest"
+               "python-wrapper")))))
 
 (define at-spi2-core-fixed
   (at-spi2-core-fixed-proc at-spi2-core))
