@@ -37,7 +37,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::parser::{
-    PanDataRecord, PanDataValue, PanDocument, PanFieldType, PanMacroInfo,
+    PanDataRecord, PanDataValue, PanDocument,
 };
 use crate::procedure_parser::{PanExpr, PanProcedureAst, PanStatement, PanVariableScope};
 
@@ -368,7 +368,7 @@ impl PanRuntimeState {
             .fields
             .iter()
             .find(|field| field.field_name == name)?;
-        Some(runtime_value_from_field(field.field_type, &field.value))
+        Some(runtime_value_from_field(&field.value))
     }
 
     fn current_record(&self) -> Option<&PanDataRecord> {
@@ -386,10 +386,7 @@ fn find_startup_procedure_name(document: &PanDocument) -> Option<String> {
         .map(|macro_info| macro_info.name.clone())
 }
 
-fn runtime_value_from_field(
-    _field_type: PanFieldType,
-    value: &PanDataValue,
-) -> PanRuntimeValue {
+fn runtime_value_from_field(value: &PanDataValue) -> PanRuntimeValue {
     match value {
         PanDataValue::Text(text) => PanRuntimeValue::String(text.clone()),
         PanDataValue::Integer(number) => number
@@ -432,8 +429,9 @@ mod tests {
     use super::*;
 
     use crate::parser::{
-        PanCapitalization, PanData, PanDataFieldValue, PanDataRecord, PanJustification,
-        PanPrelude, PanSchema, PanSchemaField, PanSection,
+        PanCapitalization, PanData, PanDataFieldValue, PanDataRecord, PanFieldType,
+        PanJustification, PanMacroInfo, PanPrelude, PanSchema, PanSchemaField,
+        PanSection,
     };
 
     fn sample_document() -> PanDocument {
