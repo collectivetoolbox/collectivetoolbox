@@ -48,6 +48,22 @@ pub fn array(text: &str, item: usize, sep: char) -> Result<String> {
     Ok(text.split(sep).nth(idx).unwrap_or("").to_string())
 }
 
+/// Alias for `array`.
+pub fn arrayitem(text: &str, item: usize, sep: char) -> Result<String> {
+    array(text, item, sep)
+}
+
+/// Returns elements from `text` that correspond to non-empty elements in `selection`.
+pub fn arrayselected(text: &str, selection: &str, sep: char) -> Result<String> {
+    let mut out = Vec::new();
+    for (t, s) in text.split(sep).zip(selection.split(sep)) {
+        if !s.trim().is_empty() && s.trim() != "0" {
+            out.push(t);
+        }
+    }
+    Ok(join_parts(&out, sep))
+}
+
 /// Returns true if any element equals `needle`.
 pub fn arraycontains(text: &str, needle: &str, sep: char) -> Result<bool> {
     Ok(text.split(sep).any(|el| el == needle))

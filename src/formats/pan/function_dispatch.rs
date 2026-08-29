@@ -95,7 +95,7 @@ pub fn dispatch_function_call(
             let delim = eval_args.get(2).map(|v| v.as_string()).unwrap_or_else(|| "\n".to_string());
             PanRuntimeValue::String(crate::functions::tagparameterarray(&params, &prefix, &delim))
         }
-        "q" | "?" => {
+        "?" => {
             let cond = eval_args.first().map(|v| v.is_truthy()).unwrap_or(false);
             let iftrue = eval_args.get(1).map(|v| v.as_string()).unwrap_or_default();
             let iffalse = eval_args.get(2).map(|v| v.as_string()).unwrap_or_default();

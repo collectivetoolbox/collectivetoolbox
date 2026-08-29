@@ -323,7 +323,7 @@ pub fn standardtextmenu() -> String {
 /// Look up a value from a database document.
 #[must_use]
 pub fn lookup(
-    document: &PanDocument,
+    document: &crate::parser::PanDocument,
     key_field: &str,
     key_val: &str,
     result_field: &str,
