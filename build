@@ -51,6 +51,11 @@ set -euxo pipefail
 # Change directory to the script's parent directory (the repo root)
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
+# In dev containers, ensure zstd-sys build artifacts retain open permissions on exit
+if [[ -n "${DEVCONTAINER-}" || -n "${REMOTE_CONTAINERS-}" ]]; then
+    trap 'chmod -R a+rwX target/*/build/zstd-sys-* target/*/*/build/zstd-sys-* target/*/*/*/build/zstd-sys-* 2>/dev/null || true' EXIT
+fi
+
 # Later, should verify correct feature flags are set on crates. They have a tendency to get added by Cargo by other dependencies, which then break the builds.
 # Known problems:
 
