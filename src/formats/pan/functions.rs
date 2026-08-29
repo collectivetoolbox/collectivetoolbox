@@ -320,6 +320,31 @@ pub fn standardtextmenu() -> String {
     "Text:Font;Size;Style;".to_string()
 }
 
+/// Look up a value from a database document.
+#[must_use]
+pub fn lookup(
+    document: &PanDocument,
+    key_field: &str,
+    key_val: &str,
+    result_field: &str,
+    default_val: &str,
+) -> String {
+    if let Some(data) = document.data.as_ref() {
+        for record in &data.records {
+            let match_found = record.fields.iter().any(|f| {
+                f.field_name.eq_ignore_ascii_case(key_field)
+                    && f.value.to_display_string().trim().eq_ignore_ascii_case(key_val.trim())
+            });
+            if match_found {
+                if let Some(res_field) = record.fields.iter().find(|f| f.field_name.eq_ignore_ascii_case(result_field)) {
+                    return res_field.value.to_display_string();
+                }
+            }
+        }
+    }
+    default_val.to_string()
+}
+
 #[cfg(test)]
 #[expect(
     clippy::panic,
