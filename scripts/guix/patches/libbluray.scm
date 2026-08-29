@@ -15,31 +15,27 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gtkmm to disable display tests in container environments and set --libdir=lib.
+;;; Patch for libbluray to disable bdjava jar and java toolchain dependencies.
 
-(define-module (patches gtkmm)
+(define-module (patches libbluray)
   #:use-module (guix packages)
-  #:use-module (guix gexp)
   #:use-module (guix utils)
-  #:use-module (gnu packages gtk)
-  #:export (gtkmm-fixed-proc gtkmm-fixed))
+  #:use-module (guix gexp)
+  #:use-module (ice-9 match)
+  #:export (libbluray-fixed-proc libbluray-fixed))
 
-(define (gtkmm-fixed-proc pkg)
-  (if (string-prefix? "2." (package-version pkg))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f))))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f)
-           ((#:configure-flags flags ''())
-            #~(cons* "--libdir=lib"
-                     "-Dbuild-documentation=false"
-                     #$flags)))))))
+(define (libbluray-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (native-inputs
+     (modify-inputs (package-native-inputs pkg)
+       (delete "ant" "icedtea" "openjdk")))
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
+       ((#:configure-flags flags #~'())
+        #~(cons* "--disable-bdjava-jar"
+                 "--disable-static"
+                 (delete "--enable-bdjava-jar" #$flags)))))))
 
-(define gtkmm-fixed
-  (gtkmm-fixed-proc gtkmm))
+(define libbluray-fixed #f)

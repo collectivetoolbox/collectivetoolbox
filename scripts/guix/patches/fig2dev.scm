@@ -15,31 +15,19 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gtkmm to disable display tests in container environments and set --libdir=lib.
+;;; Patch for fig2dev to disable tests during build.
 
-(define-module (patches gtkmm)
+(define-module (patches fig2dev)
   #:use-module (guix packages)
-  #:use-module (guix gexp)
   #:use-module (guix utils)
-  #:use-module (gnu packages gtk)
-  #:export (gtkmm-fixed-proc gtkmm-fixed))
+  #:use-module (guix gexp)
+  #:export (fig2dev-fixed-proc fig2dev-fixed))
 
-(define (gtkmm-fixed-proc pkg)
-  (if (string-prefix? "2." (package-version pkg))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f))))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f)
-           ((#:configure-flags flags ''())
-            #~(cons* "--libdir=lib"
-                     "-Dbuild-documentation=false"
-                     #$flags)))))))
+(define (fig2dev-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)))))
 
-(define gtkmm-fixed
-  (gtkmm-fixed-proc gtkmm))
+(define fig2dev-fixed #f)

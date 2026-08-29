@@ -61,42 +61,59 @@
 (define gtk-fixed #f)
 
 (define (gtk+-fixed-proc pkg)
-  (package
-    (inherit pkg)
-    (inputs
-     (modify-inputs (package-inputs pkg)
-       (delete "colord-minimal" "librest")))
-    (propagated-inputs
-     (modify-inputs (package-propagated-inputs pkg)
-       (delete "librsvg" "libcloudproviders-minimal")
-       (append gdk-pixbuf)))
-    (native-inputs
-     (modify-inputs (package-native-inputs pkg)
-       (delete "gobject-introspection")
-       (append wayland)))
-    (arguments
-     (substitute-keyword-arguments (package-arguments pkg)
-       ((#:tests? _ #f) #f)
-       ((#:configure-flags flags #~'())
-        #~(append (delete "-Dcloudproviders=true"
-                          (delete "-Dcolord=yes"
-                                  (delete "-Dman=true" #$flags)))
-                  '("-Dlibdir=lib"
-                    "-Dcolord=no"
-                    "-Dcloudproviders=false"
-                    "-Dintrospection=false"
-                    "-Dman=false"
-                    "-Dgtk_doc=false")))
-       ((#:phases phases #~%standard-phases)
-        #~(modify-phases #$phases
-            (add-before 'configure 'disable-cross-introspection
-              (lambda* (#:key target #:allow-other-keys)
-                (when target
-                  (substitute* "meson_options.txt"
-                    (("option\\('introspection', type: 'boolean', value: 'true'")
-                     "option('introspection', type: 'boolean', value: 'false'"))
-                  (substitute* "meson.build"
-                    (("build_gir = .*")
-                     "build_gir = false\n")))))))))))
+  (if (string-prefix? "2." (package-version pkg))
+      (package
+        (inherit pkg)
+        (native-inputs
+         (modify-inputs (package-native-inputs pkg)
+           (delete "gobject-introspection")))
+        (arguments
+         (substitute-keyword-arguments (package-arguments pkg)
+           ((#:tests? _ #f) #f)
+           ((#:configure-flags flags #~'())
+            #~(append #$flags
+                      '("--enable-introspection=no"
+                        "--disable-gtk-doc"
+                        "--disable-man")))
+           ((#:phases phases #~%standard-phases)
+            #~(modify-phases #$phases
+                (delete 'pre-check))))))
+      (package
+        (inherit pkg)
+        (inputs
+         (modify-inputs (package-inputs pkg)
+           (delete "colord-minimal" "librest")))
+        (propagated-inputs
+         (modify-inputs (package-propagated-inputs pkg)
+           (delete "librsvg" "libcloudproviders-minimal")
+           (append gdk-pixbuf)))
+        (native-inputs
+         (modify-inputs (package-native-inputs pkg)
+           (delete "gobject-introspection")
+           (append wayland)))
+        (arguments
+         (substitute-keyword-arguments (package-arguments pkg)
+           ((#:tests? _ #f) #f)
+           ((#:configure-flags flags #~'())
+            #~(append (delete "-Dcloudproviders=true"
+                              (delete "-Dcolord=yes"
+                                      (delete "-Dman=true" #$flags)))
+                      '("-Dlibdir=lib"
+                        "-Dcolord=no"
+                        "-Dcloudproviders=false"
+                        "-Dintrospection=false"
+                        "-Dman=false"
+                        "-Dgtk_doc=false")))
+           ((#:phases phases #~%standard-phases)
+            #~(modify-phases #$phases
+                (add-before 'configure 'disable-cross-introspection
+                  (lambda* (#:key target #:allow-other-keys)
+                    (when target
+                      (substitute* "meson_options.txt"
+                        (("option\\('introspection', type: 'boolean', value: 'true'")
+                         "option('introspection', type: 'boolean', value: 'false'"))
+                      (substitute* "meson.build"
+                        (("build_gir = .*")
+                         "build_gir = false\n"))))))))))))
 
 (define gtk+-fixed #f)

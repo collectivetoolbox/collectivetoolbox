@@ -63,6 +63,7 @@ pub struct PanCsvOptions {
     pub encoding: PanCsvEncoding,
     pub delimiter: PanExportDelimiter,
     pub crlf: bool,
+    pub replicate_export_inconsistencies: bool,
 }
 
 impl Default for PanCsvOptions {
@@ -74,6 +75,7 @@ impl Default for PanCsvOptions {
             encoding: PanCsvEncoding::Utf8,
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
+            replicate_export_inconsistencies: false,
         }
     }
 }
@@ -89,6 +91,7 @@ pub fn pan_to_csv(
         encoding: PanCsvEncoding::Utf8,
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
+        replicate_export_inconsistencies: false,
     };
     let bytes = pan_to_csv_with_options(pan_file, &options)?;
     String::from_utf8(bytes).context("CSV output is not valid UTF-8")
@@ -135,10 +138,10 @@ pub fn pan_to_csv_with_options(
     };
 
     let mut rows = Vec::with_capacity(data.records.len());
-    for (row_idx, record) in data.records.iter().enumerate() {
+    for record in &data.records {
         let mut row = Vec::with_capacity(record.fields.len());
         for field in &record.fields {
-            let value = csv_field_bytes(field, options, row_idx + 1)?;
+            let value = csv_field_bytes(field, options)?;
             row.push(value);
         }
         rows.push(row);
@@ -179,6 +182,7 @@ pub fn pan_file_to_csv_stdout(
         encoding: PanCsvEncoding::Utf8,
         delimiter: PanExportDelimiter::Commas,
         crlf: false,
+        replicate_export_inconsistencies: false,
     };
     pan_to_csv_with_options(&pan_data, &options)
 }
@@ -199,24 +203,20 @@ pub fn pan_file_to_parse_json_stdout(
 fn csv_field_bytes(
     field: &parser::PanDataFieldValue,
     options: &PanCsvOptions,
-    row_num: usize,
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
             let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows {
-                let use_ad = (options.output_patterns && matches!(row_num, 7 | 12 | 18))
-                    || (!options.output_patterns && matches!(row_num, 4 | 6 | 8 | 10 | 12 | 15 | 17 | 21 | 24));
                 let mut mapped = field
                     .raw_bytes
                     .iter()
                     .map(|&b| {
-                        if b == 0xfe {
-                            if use_ad { 0xad } else { 0xf0 }
-                        } else if b == 0xff {
-                            if use_ad { 0xfe } else { 0xb9 }
+                        let b1 = ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b);
+                        if options.replicate_export_inconsistencies {
+                            ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b1)
                         } else {
-                            ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b)
+                            b1
                         }
                     })
                     .collect::<Vec<u8>>();
@@ -282,6 +282,9 @@ fn csv_field_bytes(
                     return Ok(formatted.as_bytes().to_vec());
                 }
             }
+            if options.encoding == PanCsvEncoding::MacRoman && integer.is_empty() {
+                return Ok(b"0".to_vec());
+            }
             Ok(integer.as_bytes().to_vec())
         }
         parser::PanDataValue::Fixed(fixed) => {
@@ -289,6 +292,9 @@ fn csv_field_bytes(
                 if let Some(formatted) = field.formatted_value.as_ref() {
                     return Ok(formatted.as_bytes().to_vec());
                 }
+            }
+            if options.encoding == PanCsvEncoding::MacRoman && fixed.is_empty() {
+                return Ok(b"0".to_vec());
             }
             Ok(fixed.as_bytes().to_vec())
         }
@@ -594,6 +600,7 @@ mod tests {
                 encoding: PanCsvEncoding::Utf8,
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
+                replicate_export_inconsistencies: false,
             },
         )?;
         let no_header = pan_to_csv_with_options(
@@ -605,6 +612,7 @@ mod tests {
                 encoding: PanCsvEncoding::Utf8,
                 delimiter: PanExportDelimiter::Commas,
                 crlf: false,
+                replicate_export_inconsistencies: false,
             },
         )?;
 
@@ -707,6 +715,7 @@ mod tests {
                         encoding: PanCsvEncoding::Windows,
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
+                        replicate_export_inconsistencies: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -752,6 +761,7 @@ mod tests {
                         encoding: PanCsvEncoding::Windows,
                         crlf: delim != PanExportDelimiter::WordPerfect,
                         delimiter: delim,
+                        replicate_export_inconsistencies: false,
                     };
 
                     let actual = pan_to_csv_with_options(&pan_data, &options)?;
@@ -778,6 +788,7 @@ mod tests {
             encoding: PanCsvEncoding::Utf8,
             delimiter: PanExportDelimiter::Commas,
             crlf: false,
+            replicate_export_inconsistencies: false,
         };
         let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
         let first_line = csv_output

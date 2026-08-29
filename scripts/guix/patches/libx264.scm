@@ -15,7 +15,7 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for libx264 to supply config in native-inputs and --cross-prefix.
+;;; Patch for libx264 to supply config in native-inputs, fix 32-bit host detection, and --cross-prefix.
 
 (define-module (patches libx264)
   #:use-module (guix packages)
@@ -33,10 +33,35 @@
            (package-native-inputs pkg)))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
-       ((#:configure-flags flags #~'())
-        (if (%current-target-system)
-            #~(append #$flags (list (string-append "--cross-prefix=" #$(%current-target-system) "-")))
-            flags))))))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (replace 'configure
+              (lambda* (#:key outputs configure-flags target system #:allow-other-keys)
+                (let* ((out (assoc-ref outputs "out"))
+                       (host-triplet (or target
+                                         (if (and system (string-prefix? "i686" system))
+                                             "i686-linux"
+                                             #f))))
+                  (catch #t
+                    (lambda ()
+                      (apply invoke
+                             "./configure"
+                             (string-append "--prefix=" out)
+                             (append (if target
+                                         (list (string-append "--cross-prefix=" target "-"))
+                                         '())
+                                     (if host-triplet
+                                         (list (string-append "--host=" host-triplet))
+                                         '())
+                                     '("--enable-shared"
+                                       "--disable-cli"
+                                       "--enable-pic"))))
+                    (lambda (key . args)
+                      (when (file-exists? "config.log")
+                        (format #t "=== config.log tail ===~%")
+                        (force-output)
+                        (system* "cat" "config.log"))
+                      (apply throw key args))))))))))))
 
 (define libx264-fixed
   (libx264-fixed-proc libx264))

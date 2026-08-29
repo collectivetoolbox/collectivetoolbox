@@ -15,31 +15,18 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gtkmm to disable display tests in container environments and set --libdir=lib.
+;;; Patch for texlive-bin to disable test suite failing on stderr preload messages.
 
-(define-module (patches gtkmm)
+(define-module (patches texlive-bin)
   #:use-module (guix packages)
-  #:use-module (guix gexp)
   #:use-module (guix utils)
-  #:use-module (gnu packages gtk)
-  #:export (gtkmm-fixed-proc gtkmm-fixed))
+  #:export (texlive-bin-fixed-proc texlive-bin-fixed))
 
-(define (gtkmm-fixed-proc pkg)
-  (if (string-prefix? "2." (package-version pkg))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f))))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f)
-           ((#:configure-flags flags ''())
-            #~(cons* "--libdir=lib"
-                     "-Dbuild-documentation=false"
-                     #$flags)))))))
+(define (texlive-bin-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)))))
 
-(define gtkmm-fixed
-  (gtkmm-fixed-proc gtkmm))
+(define texlive-bin-fixed #f)

@@ -15,7 +15,7 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for ffmpeg cross-compilation without rav1e and with cross-compile flags.
+;;; Patch for ffmpeg cross-compilation without heavy/problematic dependencies.
 
 (define-module (patches ffmpeg)
   #:use-module (guix packages)
@@ -23,6 +23,7 @@
   #:use-module (guix gexp)
   #:use-module (ice-9 match)
   #:use-module (gnu packages video)
+  #:use-module (srfi srfi-1)
   #:export (ffmpeg-fixed-proc ffmpeg-fixed ffmpeg-6-fixed))
 
 (define (ffmpeg-fixed-proc pkg)
@@ -30,15 +31,35 @@
     (inherit pkg)
     (inputs
      (modify-inputs (package-inputs pkg)
-       (delete "rav1e" "sdl2")))
+       (delete "rav1e" "sdl2" "libbluray" "libcdio-paranoia" "libplacebo" "shaderc" "spirv-tools" "vidstab" "libcaca" "libgme" "openal" "ladspa")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(cons* "--disable-ffplay"
                  "--disable-frei0r"
-                 (delete "--enable-frei0r"
-                         (delete "--enable-librav1e" #$flags))))
+                 "--disable-libbluray"
+                 "--disable-libcdio"
+                 "--disable-libplacebo"
+                 "--disable-libshaderc"
+                 "--disable-libvidstab"
+                 "--disable-libcaca"
+                 "--disable-libgme"
+                 "--disable-openal"
+                 "--disable-ladspa"
+                 (filter (lambda (f)
+                           (not (member f '("--enable-frei0r"
+                                           "--enable-librav1e"
+                                           "--enable-libbluray"
+                                           "--enable-libcdio"
+                                           "--enable-libplacebo"
+                                           "--enable-libshaderc"
+                                           "--enable-libvidstab"
+                                           "--enable-libcaca"
+                                           "--enable-libgme"
+                                           "--enable-openal"
+                                           "--enable-ladspa"))))
+                         #$flags)))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (replace 'configure
@@ -46,9 +67,9 @@
                 (let* ((out (assoc-ref outputs "out"))
                        (build-inputs (or native-inputs inputs))
                        (pkg-cfg (search-input-file build-inputs
-                                                   (if target
-                                                       (string-append "bin/" target "-pkg-config")
-                                                       "bin/pkg-config"))))
+                                                    (if target
+                                                        (string-append "bin/" target "-pkg-config")
+                                                        "bin/pkg-config"))))
                   (substitute* "configure"
                     (("#! */bin/sh") (string-append "#!" (which "sh"))))
                   (setenv "SHELL" (which "bash"))
@@ -68,8 +89,19 @@
                                                (string-append "--cxx=" target "-g++")
                                                (string-append "--pkg-config=" pkg-cfg))
                                          '())
-                                     (delete "--enable-frei0r"
-                                             (delete "--enable-librav1e" configure-flags)))))
+                                     (filter (lambda (f)
+                                               (not (member f '("--enable-frei0r"
+                                                               "--enable-librav1e"
+                                                               "--enable-libbluray"
+                                                               "--enable-libcdio"
+                                                               "--enable-libplacebo"
+                                                               "--enable-libshaderc"
+                                                               "--enable-libvidstab"
+                                                               "--enable-libcaca"
+                                                               "--enable-libgme"
+                                                               "--enable-openal"
+                                                               "--enable-ladspa"))))
+                                             configure-flags))))
                     (lambda (key . args)
                       (when (file-exists? "ffbuild/config.log")
                         (format #t "=== ffbuild/config.log tail ===~%")

@@ -15,31 +15,23 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for gtkmm to disable display tests in container environments and set --libdir=lib.
+;;; Patch for libsigc++ to configure libdir correctly for meson builds.
 
-(define-module (patches gtkmm)
+(define-module (patches libsigc++)
   #:use-module (guix packages)
-  #:use-module (guix gexp)
+  #:use-module (guix build-system)
   #:use-module (guix utils)
-  #:use-module (gnu packages gtk)
-  #:export (gtkmm-fixed-proc gtkmm-fixed))
+  #:use-module (guix gexp)
+  #:export (libsigc++-fixed-proc libsigc++-fixed))
 
-(define (gtkmm-fixed-proc pkg)
-  (if (string-prefix? "2." (package-version pkg))
+(define (libsigc++-fixed-proc pkg)
+  (if (eq? (build-system-name (package-build-system pkg)) 'meson)
       (package
         (inherit pkg)
         (arguments
          (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f))))
-      (package
-        (inherit pkg)
-        (arguments
-         (substitute-keyword-arguments (package-arguments pkg)
-           ((#:tests? _ #f) #f)
-           ((#:configure-flags flags ''())
-            #~(cons* "--libdir=lib"
-                     "-Dbuild-documentation=false"
-                     #$flags)))))))
+           ((#:configure-flags flags #~'())
+            #~(cons* "-Dlibdir=lib" #$flags)))))
+      pkg))
 
-(define gtkmm-fixed
-  (gtkmm-fixed-proc gtkmm))
+(define libsigc++-fixed #f)
