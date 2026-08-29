@@ -62,6 +62,19 @@ enum Command {
     },
     /// Extract a macro from a PAN file and print to stdout.
     Macro {
+        /// Output character encoding (mac, windows, utf8)
+        #[arg(long, default_value = "windows")]
+        encoding: String,
+        /// Input PAN file path
+        pan_file: PathBuf,
+        /// Macro name
+        macro_name: String,
+    },
+    /// Parse a macro to AST JSON and print to stdout.
+    Ast {
+        /// Output character encoding (mac, windows, utf8)
+        #[arg(long, default_value = "windows")]
+        encoding: String,
         /// Input PAN file path
         pan_file: PathBuf,
         /// Macro name
@@ -91,12 +104,44 @@ fn main() -> Result<()> {
             io::stdout().lock().write_all(&output)?;
         }
         Command::Macro {
+            encoding,
             pan_file,
             macro_name,
         } => {
-            let output = ctb_formats_pan::output::pan_file_to_macro_stdout(
+            let enc = match encoding.to_ascii_lowercase().as_str() {
+                "mac" | "macroman" | "mac-roman" | "macintosh" => {
+                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
+                }
+                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
+            };
+            let output = ctb_formats_pan::output::pan_file_to_macro_with_encoding_stdout(
                 pan_file.as_path(),
                 &macro_name,
+                enc,
+            )?;
+            io::stdout().lock().write_all(&output)?;
+        }
+        Command::Ast {
+            encoding,
+            pan_file,
+            macro_name,
+        } => {
+            let enc = match encoding.to_ascii_lowercase().as_str() {
+                "mac" | "macroman" | "mac-roman" | "macintosh" => {
+                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
+                }
+                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
+            };
+            let output = ctb_formats_pan::output::pan_file_to_ast_with_encoding_stdout(
+                pan_file.as_path(),
+                &macro_name,
+                enc,
             )?;
             io::stdout().lock().write_all(&output)?;
         }

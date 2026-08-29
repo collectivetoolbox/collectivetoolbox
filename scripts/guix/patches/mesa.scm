@@ -38,7 +38,7 @@
            "--libdir=lib"
            #$(if (%current-target-system)
                  #~(cons*
-                    "--cross-file=/tmp/mesa-llvm-cross.ini"
+                    "--cross-file=../mesa-26.0.2/mesa-llvm-cross.ini"
                     "-Damd-use-llvm=false"
                     "-Dllvm=enabled"
                     (map (lambda (flag)
@@ -128,6 +128,8 @@
                                       (find-store-input "libclc")))
                           (llvm (or (input-ref "llvm-for-mesa")
                                     (input-ref "llvm")
+                                    (find-input-by-prefix "llvm-for-mesa")
+                                    (find-store-input "llvm-for-mesa")
                                     (find-input-by-prefix "llvm")
                                     (find-store-input "llvm-18")
                                     (find-store-input "llvm")))
@@ -213,22 +215,41 @@
                                (unless (file-exists? name1) (symlink wrapper-script name1))
                                (unless (file-exists? name2) (symlink wrapper-script name2))))
                            '("" "-14" "-15" "-16" "-17" "-18" "-19" "-20" "-21" "-22" "-23" "-24" "-25"))
-                          (let ((cmake-bin (which "cmake"))
-                                (cmake-wrapper (string-append overlay-bin "/cmake")))
-                            (when (and cmake-bin (not (file-exists? cmake-wrapper)))
+                           (let* ((orig-cmake (or (which "cmake")
+                                                  "/gnu/store/slczra1cc6dfjd3pvzmbpkfwrrps7f28-cmake-minimal-cross-3.31.10/bin/cmake"))
+                                  (cmake-wrapper (string-append overlay-bin "/cmake-cross-wrapper"))
+                                  (cross-override (string-append (getcwd) "/mesa-llvm-cross.ini")))
+                             (when (file-exists? cmake-wrapper) (delete-file cmake-wrapper))
                               (call-with-output-file cmake-wrapper
                                 (lambda (p)
                                   (format p "#!/bin/sh\n")
-                                  (format p "exec ~s -DLLVM_DIR=~s/lib/cmake/llvm -DCMAKE_PREFIX_PATH=~s -DCMAKE_FIND_ROOT_PATH=~s \"$@\"\n"
-                                          cmake-bin llvm llvm llvm)))
-                              (chmod cmake-wrapper #o755)))
-                          (let ((cross-override "/tmp/mesa-llvm-cross.ini"))
-                            (when (file-exists? cross-override) (delete-file cross-override))
-                            (call-with-output-file cross-override
-                              (lambda (p)
-                                (format p "[binaries]\nllvm-config = '~a'\n" wrapper-script))))
+                                  (format p "args=()\n")
+                                  (format p "for arg in \"$@\"; do\n")
+                                  (format p "  case \"$arg\" in\n")
+                                  (format p "    -DLLVM_MESON_PACKAGE_NAMES=*)\n")
+                                  (format p "      args+=(\"-DLLVM_MESON_PACKAGE_NAMES=LLVM;LLVM-18;LLVM18;LLVM-18.1;LLVM18.1\") ;;\n")
+                                  (format p "    -DLLVM_MESON_VERSIONS=*)\n")
+                                  (format p "      args+=(\"-DLLVM_MESON_VERSIONS=18.1.8;18.1.0;18.0;18.0.0;18\") ;;\n")
+                                  (format p "    *)\n")
+                                  (format p "      args+=(\"$arg\") ;;\n")
+                                  (format p "  esac\n")
+                                  (format p "done\n")
+                                  (format p "exec ~s -DLLVM_DIR=~s/lib/cmake/llvm -DLLVM_ROOT=~s -DCMAKE_PREFIX_PATH=~s -DCMAKE_FIND_ROOT_PATH=~s \"${args[@]}\"\n"
+                                          orig-cmake llvm llvm llvm llvm)))
+                             (chmod cmake-wrapper #o755)
+                             (when (file-exists? cross-override) (delete-file cross-override))
+                             (call-with-output-file cross-override
+                               (lambda (p)
+                                 (format p "[binaries]\n")
+                                 (format p "cmake = '~a'\n" cmake-wrapper)
+                                 (format p "llvm-config = '~a'\n" wrapper-script)
+                                 (for-each
+                                  (lambda (v)
+                                    (format p "llvm-config~a = '~a'\n" v wrapper-script)
+                                    (format p "i686-linux-gnu-llvm-config~a = '~a'\n" v wrapper-script))
+                                  '("-14" "-15" "-16" "-17" "-18" "-19" "-20" "-21" "-22" "-23" "-24" "-25")))))
                           (prepend-env-path "PATH" overlay-bin)))
-                      (let ((cross-override "/tmp/mesa-llvm-cross.ini"))
+                      (let ((cross-override (string-append (getcwd) "/mesa-llvm-cross.ini")))
                         (unless (file-exists? cross-override)
                           (call-with-output-file cross-override
                             (lambda (p)

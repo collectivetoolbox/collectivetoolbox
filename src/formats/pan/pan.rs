@@ -46,6 +46,8 @@ pub mod math;
 pub mod output;
 /// Parser for .pan files.
 pub mod parser;
+/// Parser and AST for Panorama procedure code.
+pub mod procedure_parser;
 /// String manipulation helpers.
 pub mod string;
 /// Time formatting and parsing helpers.

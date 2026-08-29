@@ -187,10 +187,6 @@ pub struct PanMacroInfo {
     pub name: String,
     pub size: usize,
     pub is_procedure: bool,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub variables: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub statements: Vec<String>,
     pub code: Option<String>,
     #[serde(with = "serde_pan_bytes")]
     pub payload: Vec<u8>,
@@ -3036,24 +3032,11 @@ fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
         return None;
     }
 
-    let mut ansi_bytes = Vec::with_capacity(chunk.len());
-    for &b in chunk {
-        ansi_bytes.push(ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b));
-    }
-
-    let decoded = match ctb_formats_encoding::decode(
-        ctb_formats_encoding::CharEncoding::windows_1252(),
-        &ansi_bytes,
-    ) {
-        Ok(s) => s,
-        Err(_) => match ctb_formats_encoding::decode(
-            ctb_formats_encoding::CharEncoding::mac_roman(),
-            chunk,
-        ) {
-            Ok(s) => s,
-            Err(_) => return None,
-        },
-    };
+    let decoded = ctb_formats_encoding::decode(
+        ctb_formats_encoding::CharEncoding::mac_roman(),
+        chunk,
+    )
+    .ok()?;
 
     let mut result = String::new();
     for line in decoded.split('\r') {
@@ -3064,7 +3047,7 @@ fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
     Some(result)
 }
 
-fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
+pub fn extract_macro_code_bytes(macro_bytes: &[u8], name_len: usize) -> Option<&[u8]> {
     let body = macro_bytes.get(6usize.saturating_add(name_len)..)?;
     if body.len() < 3 {
         return None;
@@ -3088,10 +3071,15 @@ fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
                 {
                     if let Some(chunk) = body.get(pos..pos.saturating_add(len))
                     {
-                        if let Some(decoded) =
-                            decode_macro_procedure_bytes(chunk)
-                        {
-                            return Some(decoded);
+                        let is_valid = chunk.iter().all(|&b| {
+                            (0x20..=0x7E).contains(&b)
+                                || b == b'\r'
+                                || b == b'\n'
+                                || b == b'\t'
+                                || b >= 0x80
+                        });
+                        if is_valid {
+                            return Some(chunk);
                         }
                     }
                 }
@@ -3121,10 +3109,15 @@ fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
                 {
                     if let Some(chunk) = body.get(pos..pos.saturating_add(len))
                     {
-                        if let Some(decoded) =
-                            decode_macro_procedure_bytes(chunk)
-                        {
-                            return Some(decoded);
+                        let is_valid = chunk.iter().all(|&b| {
+                            (0x20..=0x7E).contains(&b)
+                                || b == b'\r'
+                                || b == b'\n'
+                                || b == b'\t'
+                                || b >= 0x80
+                        });
+                        if is_valid {
+                            return Some(chunk);
                         }
                     }
                 }
@@ -3135,97 +3128,17 @@ fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
     None
 }
 
-fn is_macro_identifier(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
-        _ => return false,
-    }
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
+    let chunk = extract_macro_code_bytes(macro_bytes, name_len)?;
+    decode_macro_procedure_bytes(chunk)
 }
 
-fn extract_macro_structures(
-    macro_bytes: &[u8],
-    name_len: usize,
-) -> (Vec<String>, Vec<String>) {
-    let body = match macro_bytes.get(6usize.saturating_add(name_len)..) {
-        Some(b) if b.len() >= 10 => b,
-        _ => return (Vec::new(), Vec::new()),
-    };
-    let enc = ctb_formats_encoding::CharEncoding::mac_roman();
-
-    let mut variables = Vec::new();
-    let mut statements = Vec::new();
-    let mut idx = 0usize;
-
-    while idx.saturating_add(4) <= body.len() {
-        if let (Some(&b0), Some(&b1), Some(&b2), Some(&b3)) = (
-            body.get(idx),
-            body.get(idx.saturating_add(1)),
-            body.get(idx.saturating_add(2)),
-            body.get(idx.saturating_add(3)),
-        ) {
-            let l_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3]))
-                .unwrap_or(0);
-            let l_be = usize::try_from(u32::from_be_bytes([b0, b1, b2, b3]))
-                .unwrap_or(0);
-
-            for len in [l_le, l_be] {
-                if len >= 2
-                    && len < 300
-                    && idx.saturating_add(4).saturating_add(len) <= body.len()
-                {
-                    let start = idx.saturating_add(4);
-                    let end = start.saturating_add(len);
-                    if let Some(chunk) = body.get(start..end) {
-                        let is_all_text = chunk.iter().all(|&b| {
-                            (0x20..=0x7E).contains(&b)
-                                || b == b'\r'
-                                || b == b'\n'
-                                || b == b'\t'
-                                || b >= 0x80
-                        });
-                        if is_all_text {
-                            if let Ok(decoded) =
-                                ctb_formats_encoding::decode(enc, chunk)
-                            {
-                                let trimmed = decoded.trim();
-                                if trimmed.len() >= 2 {
-                                    if trimmed.contains(',')
-                                        && !trimmed.contains(&[
-                                            '(', '=', '<', '>', '+', '-', '*',
-                                            '/',
-                                        ][..])
-                                    {
-                                        for v in trimmed.split(',') {
-                                            let v_clean = v.trim();
-                                            if !v_clean.is_empty()
-                                                && is_macro_identifier(v_clean)
-                                                && !variables.iter().any(
-                                                    |existing| {
-                                                        existing == v_clean
-                                                    },
-                                                )
-                                            {
-                                                variables.push(v_clean.to_string());
-                                            }
-                                        }
-                                    } else if !statements.iter().any(|existing| {
-                                        existing == trimmed
-                                    }) {
-                                        statements.push(trimmed.to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        idx = idx.saturating_add(1);
+impl PanMacroInfo {
+    /// Returns the raw byte slice of the procedure source code from the macro payload.
+    pub fn raw_code_bytes(&self) -> Option<&[u8]> {
+        let name_len = usize::from(*self.payload.get(5)?);
+        extract_macro_code_bytes(&self.payload, name_len)
     }
-
-    (variables, statements)
 }
 
 fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
@@ -3270,16 +3183,12 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                         .get(cursor..cursor.saturating_add(chosen_size))
                         .unwrap_or(&[]);
                     let code = extract_macro_code(raw_macro, nlen);
-                    let (variables, statements) =
-                        extract_macro_structures(raw_macro, nlen);
                     let is_procedure = name.starts_with('.');
 
                     macros.push(PanMacroInfo {
                         name,
                         size: chosen_size,
                         is_procedure,
-                        variables,
-                        statements,
                         code,
                         payload: raw_macro.to_vec(),
                     });

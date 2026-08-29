@@ -200,13 +200,50 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(json.into_bytes())
 }
 
-/// Extract the source code of a specified macro by name.
-pub fn pan_to_macro(
+/// Helper to format raw procedure bytes into an output string using the requested encoding.
+pub fn format_procedure_code(
+    raw_bytes: &[u8],
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let decoded = if matches!(
+        encoding,
+        PanCsvEncoding::Windows | PanCsvEncoding::Utf8Windows
+    ) {
+        let mut ansi_bytes = Vec::with_capacity(raw_bytes.len());
+        for &b in raw_bytes {
+            ansi_bytes.push(ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b));
+        }
+        ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::windows_1252(),
+            &ansi_bytes,
+        )?
+    } else {
+        ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            raw_bytes,
+        )?
+    };
+
+    let mut result = String::new();
+    for line in decoded.split('\r') {
+        let trimmed = line.trim_end();
+        result.push_str(trimmed);
+        result.push('\n');
+    }
+    Ok(result)
+}
+
+/// Extract the source code of a specified macro by name using the requested encoding.
+pub fn pan_to_macro_with_encoding(
     pan_file: &[u8],
     macro_name: &str,
+    encoding: PanCsvEncoding,
 ) -> anyhow::Result<String> {
     let pan = parser::parse_pan(pan_file)?;
     if let Some(macro_info) = pan.macros.iter().find(|m| m.name == macro_name) {
+        if let Some(raw) = macro_info.raw_code_bytes() {
+            return format_procedure_code(raw, encoding);
+        }
         if let Some(ref code) = macro_info.code {
             return Ok(code.clone());
         }
@@ -220,10 +257,19 @@ pub fn pan_to_macro(
     );
 }
 
+/// Extract the source code of a specified macro by name.
+pub fn pan_to_macro(
+    pan_file: &[u8],
+    macro_name: &str,
+) -> anyhow::Result<String> {
+    pan_to_macro_with_encoding(pan_file, macro_name, PanCsvEncoding::Windows)
+}
+
 /// Read a PAN file from disk and return macro procedure code bytes for stdout.
-pub fn pan_file_to_macro_stdout(
+pub fn pan_file_to_macro_with_encoding_stdout(
     pan_file: &Path,
     macro_name: &str,
+    encoding: PanCsvEncoding,
 ) -> anyhow::Result<Vec<u8>> {
     let pan_data = fs::read(pan_file).with_context(|| {
         format!(
@@ -231,8 +277,68 @@ pub fn pan_file_to_macro_stdout(
             pan_file_display = pan_file.display()
         )
     })?;
-    let macro_code = pan_to_macro(&pan_data, macro_name)?;
+    let macro_code = pan_to_macro_with_encoding(&pan_data, macro_name, encoding)?;
     Ok(macro_code.into_bytes())
+}
+
+/// Read a PAN file from disk and return macro procedure code bytes for stdout.
+pub fn pan_file_to_macro_stdout(
+    pan_file: &Path,
+    macro_name: &str,
+) -> anyhow::Result<Vec<u8>> {
+    pan_file_to_macro_with_encoding_stdout(
+        pan_file,
+        macro_name,
+        PanCsvEncoding::Windows,
+    )
+}
+
+/// Extract and parse a macro/procedure into an AST JSON string.
+pub fn pan_to_ast_with_encoding(
+    pan_file: &[u8],
+    macro_name: &str,
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let macro_code = pan_to_macro_with_encoding(pan_file, macro_name, encoding)?;
+    let ast = crate::procedure_parser::parse_procedure(&macro_code)?;
+    serde_json::to_string_pretty(&ast)
+        .context("Failed to serialize procedure AST to JSON")
+}
+
+/// Extract and parse a macro/procedure into an AST JSON string.
+pub fn pan_to_ast(
+    pan_file: &[u8],
+    macro_name: &str,
+) -> anyhow::Result<String> {
+    pan_to_ast_with_encoding(pan_file, macro_name, PanCsvEncoding::Windows)
+}
+
+/// Read a PAN file from disk and return AST JSON bytes for stdout.
+pub fn pan_file_to_ast_with_encoding_stdout(
+    pan_file: &Path,
+    macro_name: &str,
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<Vec<u8>> {
+    let pan_data = fs::read(pan_file).with_context(|| {
+        format!(
+            "Could not read PAN file: {pan_file_display}",
+            pan_file_display = pan_file.display()
+        )
+    })?;
+    let ast_json = pan_to_ast_with_encoding(&pan_data, macro_name, encoding)?;
+    Ok(ast_json.into_bytes())
+}
+
+/// Read a PAN file from disk and return AST JSON bytes for stdout.
+pub fn pan_file_to_ast_stdout(
+    pan_file: &Path,
+    macro_name: &str,
+) -> anyhow::Result<Vec<u8>> {
+    pan_file_to_ast_with_encoding_stdout(
+        pan_file,
+        macro_name,
+        PanCsvEncoding::Windows,
+    )
 }
 
 fn csv_field_bytes(

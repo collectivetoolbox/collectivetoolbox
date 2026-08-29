@@ -400,9 +400,23 @@ pub enum Command {
     /// Extract a macro/procedure from a .pan file
     #[command(name = "pan2macro")]
     Pan2Macro {
+        /// Output character encoding (mac, windows, utf8)
+        #[arg(long, default_value = "windows")]
+        encoding: String,
         /// Input PAN file path
         pan_file: PathBuf,
         /// Name of the macro/procedure to extract
+        macro_name: String,
+    },
+    /// Parse a macro/procedure into AST JSON from a .pan file
+    #[command(name = "pan2ast")]
+    Pan2Ast {
+        /// Output character encoding (mac, windows, utf8)
+        #[arg(long, default_value = "windows")]
+        encoding: String,
+        /// Input PAN file path
+        pan_file: PathBuf,
+        /// Name of the macro/procedure to parse
         macro_name: String,
     },
     /// Convert a PDF file to text output
@@ -1063,13 +1077,53 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(output))
         }
         Command::Pan2Macro {
+            encoding,
             pan_file,
             macro_name,
         } => {
             let data = read_file_or_stdin(pan_file.as_path())?;
-            let output = ctb_formats_pan::output::pan_to_macro(
+            let enc = match encoding.to_ascii_lowercase().as_str() {
+                "mac" | "macroman" | "mac-roman" | "macintosh" => {
+                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
+                }
+                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Utf8Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
+            };
+            let output = ctb_formats_pan::output::pan_to_macro_with_encoding(
                 &data,
                 &macro_name,
+                enc,
+            )?
+            .into_bytes();
+            Ok(ToolResult::immediate_ok(output))
+        }
+        Command::Pan2Ast {
+            encoding,
+            pan_file,
+            macro_name,
+        } => {
+            let data = read_file_or_stdin(pan_file.as_path())?;
+            let enc = match encoding.to_ascii_lowercase().as_str() {
+                "mac" | "macroman" | "mac-roman" | "macintosh" => {
+                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
+                }
+                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Windows
+                }
+                "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Utf8Windows
+                }
+                _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
+            };
+            let output = ctb_formats_pan::output::pan_to_ast_with_encoding(
+                &data,
+                &macro_name,
+                enc,
             )?
             .into_bytes();
             Ok(ToolResult::immediate_ok(output))
