@@ -48,6 +48,8 @@ pub mod output;
 pub mod parser;
 /// Parser and AST for Panorama procedure code.
 pub mod procedure_parser;
+/// Runtime state and partial procedure execution for Panorama databases.
+pub mod runtime;
 /// String manipulation helpers.
 pub mod string;
 /// Time formatting and parsing helpers.
