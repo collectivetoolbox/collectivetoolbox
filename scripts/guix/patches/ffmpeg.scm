@@ -102,7 +102,8 @@
                                                                "--enable-libcaca"
                                                                "--enable-libgme"
                                                                "--enable-openal"
-                                                               "--enable-ladspa"))))
+                                                               "--enable-ladspa"
+                                                               "--enable-vulkan"))))
                                              configure-flags))))
                     (lambda (key . args)
                       (when (file-exists? "ffbuild/config.log")
