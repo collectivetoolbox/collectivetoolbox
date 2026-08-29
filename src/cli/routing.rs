@@ -62,7 +62,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "ia"
             | "pan2csv"
             | "pan2macro"
-            | "pan2ast"
+            | "panmacro2ast"
             | "stagel-bootstrap-parse"
             | "stagel-bootstrap-convert"
             | "pan2parsejson"
@@ -409,16 +409,19 @@ pub enum Command {
         /// Name of the macro/procedure to extract
         macro_name: String,
     },
-    /// Parse a macro/procedure into AST JSON from a .pan file
-    #[command(name = "pan2ast")]
-    Pan2Ast {
-        /// Output character encoding (mac, windows, utf8)
-        #[arg(long, default_value = "windows")]
-        encoding: String,
-        /// Input PAN file path
-        pan_file: PathBuf,
-        /// Name of the macro/procedure to parse
-        macro_name: String,
+    /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided)
+    #[command(name = "panmacro2ast")]
+    PanMacro2Ast {
+        /// Input character encoding (utf-8, macroman, win-1252 / windows)
+        #[arg(long = "input-encoding", short = 'i', default_value = "macroman")]
+        input_encoding: String,
+        /// Output character encoding (utf-8, macroman, win-1252 / windows)
+        #[arg(long = "output-encoding", short = 'o', default_value = "utf-8")]
+        output_encoding: String,
+        /// Input file path (macro code file, or PAN database file if macro_name is given, or - for stdin)
+        input_file: PathBuf,
+        /// Optional name of the macro/procedure (if provided, input_file is parsed as a whole .pan database)
+        macro_name: Option<String>,
     },
     /// Convert a PDF file to text output
     #[command(name = "pdf2txt")]

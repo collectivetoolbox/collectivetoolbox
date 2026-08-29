@@ -188,6 +188,8 @@ pub struct PanMacroInfo {
     pub size: usize,
     pub is_procedure: bool,
     pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ast: Option<crate::procedure_parser::PanProcedure>,
     #[serde(with = "serde_pan_bytes")]
     pub payload: Vec<u8>,
 }
@@ -3183,6 +3185,9 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                         .get(cursor..cursor.saturating_add(chosen_size))
                         .unwrap_or(&[]);
                     let code = extract_macro_code(raw_macro, nlen);
+                    let ast = code
+                        .as_deref()
+                        .and_then(|c| crate::procedure_parser::parse_procedure(c).ok());
                     let is_procedure = name.starts_with('.');
 
                     macros.push(PanMacroInfo {
@@ -3190,6 +3195,7 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                         size: chosen_size,
                         is_procedure,
                         code,
+                        ast,
                         payload: raw_macro.to_vec(),
                     });
                     cursor = cursor.saturating_add(chosen_size);

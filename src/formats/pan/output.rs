@@ -200,39 +200,6 @@ pub fn pan_file_to_parse_json_stdout(
     Ok(json.into_bytes())
 }
 
-/// Helper to format raw procedure bytes into an output string using the requested encoding.
-pub fn format_procedure_code(
-    raw_bytes: &[u8],
-    encoding: PanCsvEncoding,
-) -> anyhow::Result<String> {
-    let decoded = if matches!(
-        encoding,
-        PanCsvEncoding::Windows | PanCsvEncoding::Utf8Windows
-    ) {
-        let mut ansi_bytes = Vec::with_capacity(raw_bytes.len());
-        for &b in raw_bytes {
-            ansi_bytes.push(ctb_formats_encoding::altura::mac_roman_to_ansi_byte(b));
-        }
-        ctb_formats_encoding::decode(
-            ctb_formats_encoding::CharEncoding::windows_1252(),
-            &ansi_bytes,
-        )?
-    } else {
-        ctb_formats_encoding::decode(
-            ctb_formats_encoding::CharEncoding::mac_roman(),
-            raw_bytes,
-        )?
-    };
-
-    let mut result = String::new();
-    for line in decoded.split('\r') {
-        let trimmed = line.trim_end();
-        result.push_str(trimmed);
-        result.push('\n');
-    }
-    Ok(result)
-}
-
 /// Extract the source code of a specified macro by name using the requested encoding.
 pub fn pan_to_macro_with_encoding(
     pan_file: &[u8],
@@ -247,8 +214,6 @@ pub fn pan_to_macro_with_encoding(
         if let Some(ref code) = macro_info.code {
             return Ok(code.clone());
         }
-        bail!(
-            "Macro '{macro_name}' found in PAN file, but procedure source code could not be decoded"
         );
     }
     bail!(
@@ -293,16 +258,56 @@ pub fn pan_file_to_macro_stdout(
     )
 }
 
+/// Parse a macro procedure into AST JSON string.
+/// If `macro_name` is Some, `input_bytes` is treated as a PAN database file.
+/// If `macro_name` is None, `input_bytes` is treated directly as macro procedure code.
+pub fn panmacro_to_ast_json(
+    input_bytes: &[u8],
+    macro_name: Option<&str>,
+    input_encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let macro_code = if let Some(name) = macro_name {
+        pan_to_macro_with_encoding(input_bytes, name, input_encoding)?
+    } else {
+        format_procedure_code(input_bytes, input_encoding)?
+    };
+
+    let ast = crate::procedure_parser::parse_procedure(&macro_code)?;
+    serde_json::to_string_pretty(&ast)
+        .context("Failed to serialize procedure AST to JSON")
+}
+
+/// Encode an AST JSON string into bytes using the requested output encoding.
+pub fn encode_ast_json_output(
+    ast_json: &str,
+    output_encoding: PanCsvEncoding,
+) -> anyhow::Result<Vec<u8>> {
+    match output_encoding {
+        PanCsvEncoding::Windows => {
+            ctb_formats_encoding::encode(
+                ctb_formats_encoding::CharEncoding::windows_1252(),
+                ast_json,
+            )
+        }
+        PanCsvEncoding::MacRoman => {
+            ctb_formats_encoding::encode(
+                ctb_formats_encoding::CharEncoding::mac_roman(),
+                ast_json,
+            )
+        }
+        PanCsvEncoding::Utf8 | PanCsvEncoding::Utf8Windows => {
+            Ok(ast_json.as_bytes().to_vec())
+        }
+    }
+}
+
 /// Extract and parse a macro/procedure into an AST JSON string.
 pub fn pan_to_ast_with_encoding(
     pan_file: &[u8],
     macro_name: &str,
     encoding: PanCsvEncoding,
 ) -> anyhow::Result<String> {
-    let macro_code = pan_to_macro_with_encoding(pan_file, macro_name, encoding)?;
-    let ast = crate::procedure_parser::parse_procedure(&macro_code)?;
-    serde_json::to_string_pretty(&ast)
-        .context("Failed to serialize procedure AST to JSON")
+    panmacro_to_ast_json(pan_file, Some(macro_name), encoding)
 }
 
 /// Extract and parse a macro/procedure into an AST JSON string.
