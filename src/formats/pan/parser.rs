@@ -36,6 +36,93 @@ use serde::{Deserialize, Serialize};
 )]
 use crate::utilities::*;
 
+/// Serde helper for serializing `Vec<u8>` as MacRoman-decoded UTF-8 string
+/// and deserializing from either a string or a byte sequence.
+pub mod serde_pan_bytes {
+    use std::fmt;
+    use ctb_formats_encoding::CharEncoding;
+    use serde::{
+        de::{self, Visitor},
+        Deserializer, Serializer,
+    };
+
+    /// Serializes byte slices into a MacRoman-decoded UTF-8 string.
+    pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let enc = CharEncoding::mac_roman();
+        let mut s = String::with_capacity(bytes.len());
+        for &b in bytes {
+            if let Ok(c) = ctb_formats_encoding::chr_char(enc, b) {
+                s.push(c);
+            } else {
+                s.push(char::from(b));
+            }
+        }
+        serializer.serialize_str(&s)
+    }
+
+    /// Deserializes a string or byte integer array back into `Vec<u8>`.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct BytesVisitor;
+
+        impl<'de> Visitor<'de> for BytesVisitor {
+            type Value = Vec<u8>;
+
+            fn expecting(
+                &self,
+                formatter: &mut fmt::Formatter<'_>,
+            ) -> fmt::Result {
+                formatter.write_str(
+                    "a string encoded as MacRoman or an array of byte integers",
+                )
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let enc = CharEncoding::mac_roman();
+                let mut bytes = Vec::with_capacity(v.len());
+                for ch in v.chars() {
+                    let cp = u32::from(ch);
+                    if cp <= 0x7F {
+                        if let Ok(b) = u8::try_from(cp) {
+                            bytes.push(b);
+                        }
+                    } else if let Some(b) =
+                        ctb_formats_encoding::asc(enc, &ch.to_string())
+                    {
+                        bytes.push(b);
+                    } else if let Ok(b) = u8::try_from(cp) {
+                        bytes.push(b);
+                    } else {
+                        bytes.push(b'?');
+                    }
+                }
+                Ok(bytes)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut bytes = Vec::new();
+                while let Some(byte) = seq.next_element::<u8>()? {
+                    bytes.push(byte);
+                }
+                Ok(bytes)
+            }
+        }
+
+        deserializer.deserialize_any(BytesVisitor)
+    }
+}
+
 /// The leading u32 and symbolic prelude entries before tagged sections.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PanPrelude {
@@ -44,6 +131,7 @@ pub struct PanPrelude {
     /// Decoded symbolic entries before the first section.
     pub entries: Vec<PanPreludeEntry>,
     /// Raw bytes for the entire prelude region.
+    #[serde(with = "serde_pan_bytes")]
     pub raw_bytes: Vec<u8>,
 }
 
@@ -52,6 +140,7 @@ pub struct PanPrelude {
 pub struct PanPreludeEntry {
     pub offset: usize,
     pub kind: u8,
+    #[serde(with = "serde_pan_bytes")]
     pub name_raw: Vec<u8>,
     pub name: String,
     pub has_zero_delimiter_before_value: bool,
@@ -70,10 +159,12 @@ pub struct PanSection {
     /// Section kind byte directly after the size field.
     pub kind: u8,
     /// Raw name bytes for this section.
+    #[serde(with = "serde_pan_bytes")]
     pub name_raw: Vec<u8>,
     /// Section name decoded as Mac OS Roman.
     pub name: String,
     /// Raw section payload bytes.
+    #[serde(with = "serde_pan_bytes")]
     pub payload: Vec<u8>,
 }
 
@@ -87,6 +178,7 @@ pub struct PanDocument {
     pub launch_form: Option<String>,
     pub record_count: Option<usize>,
     pub macros: Vec<PanMacroInfo>,
+    #[serde(with = "serde_pan_bytes")]
     pub trailing_bytes: Vec<u8>,
 }
 
@@ -123,7 +215,9 @@ pub struct PanData {
 pub struct PanDataSection {
     pub offset: usize,
     pub name: String,
+    #[serde(with = "serde_pan_bytes")]
     pub header_bytes: Vec<u8>,
+    #[serde(with = "serde_pan_bytes")]
     pub trailing_bytes: Vec<u8>,
     pub record_count: usize,
 }
@@ -134,6 +228,7 @@ pub struct PanDataRecord {
     pub section_offset: usize,
     pub declared_size: u32,
     pub fields: Vec<PanDataFieldValue>,
+    #[serde(with = "serde_pan_bytes")]
     pub trailing_bytes: Vec<u8>,
 }
 
@@ -157,6 +252,7 @@ pub struct PanDataFieldValue {
     pub type_label: String,
     pub output_pattern: Option<String>,
     pub formula: Option<String>,
+    #[serde(with = "serde_pan_bytes")]
     pub raw_bytes: Vec<u8>,
     pub value: PanDataValue,
     pub formatted_value: Option<String>,
@@ -4476,6 +4572,28 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_serde_pan_bytes_roundtrip() -> anyhow::Result<()> {
+        let original_bytes = vec![0x00, 0x00, 0x06, 0x84, b'.', b'I', b'n', b'i', b't'];
+        let section = PanSection {
+            offset: 10,
+            declared_size: 20,
+            kind: 1,
+            name_raw: b"MACROS".to_vec(),
+            name: "MACROS".to_string(),
+            payload: original_bytes.clone(),
+        };
+
+        let json = serde_json::to_string(&section)?;
+        ensure!(json.contains("\".Init\"") || json.contains(".Init"));
+
+        let deserialized: PanSection = serde_json::from_str(&json)?;
+        ensure!(deserialized.payload == original_bytes);
+
+        Ok(())
+    }
 }
+
 
 
