@@ -29,9 +29,14 @@ pub(crate) use ctb_utilities::*;
 pub mod base;
 pub mod calculator_classic;
 pub mod center_of_gravity;
+pub mod cli;
 pub mod constant;
 pub mod parsing;
 pub mod range_generator;
+
+pub use cli::{
+    BaseArgs, BaseToBaseArgs, CliBaseAlphabet, run_base2base, run_base_convert,
+};
 
 #[cfg(test)]
 #[allow(

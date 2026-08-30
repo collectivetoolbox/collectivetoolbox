@@ -531,7 +531,7 @@ mod tests {
         let desc = describe_dc(296)?;
         assert_eq!(
             desc,
-            "1114408\nNext number is a Dc-equivalent reference to a local node/document\n\nCategory: Miscellaneous\nBidirectional class: BN\nCombining class: 0\nType: !Cx (Control: Dc special)\nSyntax: :[number]"
+            "1114408\nNext number is a Dc-equivalent reference to a local node/document\n\nCategory: Miscellaneous\nBidirectional class: BN\nCombining class: 0\nType: !Cx (Control: Dc special)\nSyntax: :~ [number]"
         );
         Ok(())
     }

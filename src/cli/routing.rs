@@ -35,8 +35,8 @@ use ctb_formats_stagel::convert::run_stagel_bootstrap_convert;
 use ctb_utilities::json::maybe_value::MaybeOption;
 use std::path::PathBuf;
 
-use crate::base_conversion::{
-    BaseArgs, CliBaseAlphabet, run_base2base, run_base_convert,
+use ctb_formats_math::cli::{
+    BaseArgs, run_base2base, run_base_convert,
 };
 use crate::utilities::{
     fork, get_this_executable, upgrade_in_place,
@@ -342,7 +342,7 @@ pub enum Command {
         alias = "shortdc",
         after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
     )]
-    ShortDc(crate::graph_id::ShortDcArgs),
+    ShortDc(ctb_formats_dctext::cli_identifiers::ShortDcArgs),
     /// Convert short Format ID to Global Graph ID or show Format metadata
     #[command(
         name = "short-fmt",
@@ -350,7 +350,7 @@ pub enum Command {
         alias = "shortfmt",
         after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
     )]
-    ShortFmt(crate::graph_id::ShortFmtArgs),
+    ShortFmt(ctb_formats_dctext::cli_identifiers::ShortFmtArgs),
     /// Convert Global Graph ID to short representation or show full metadata
     #[command(
         name = "gid",
@@ -358,7 +358,7 @@ pub enum Command {
         alias = "graph_id",
         after_help = "Examples:\n  $ ctoolbox gid --s 1114408\n  dc:296\n\n  $ ctoolbox gid -i 1114408"
     )]
-    Gid(crate::graph_id::GidArgs),
+    Gid(ctb_formats_dctext::cli_identifiers::GidArgs),
     /// Generate a range of numbers in various bases
     #[command(
         name = "range_gen",
@@ -886,20 +886,61 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {
-            run_base2base(args, base_args)
+            let out = run_base2base(args, base_args)?;
+            Ok(ToolResult::Immediate {
+                stdout: out.stdout,
+                stderr: out.stderr,
+                exit_code: out.exit_code,
+            })
         }
         Command::Hex2Dec {
             string_input,
             base_args,
-        } => run_base_convert(&Some(16), &Some(10), string_input, base_args),
+        } => {
+            let out = run_base_convert(
+                &Some(16),
+                &Some(10),
+                &string_input.input,
+                base_args,
+            )?;
+            Ok(ToolResult::Immediate {
+                stdout: out.stdout,
+                stderr: out.stderr,
+                exit_code: out.exit_code,
+            })
+        }
         Command::Dec2Hex {
             string_input,
             base_args,
-        } => run_base_convert(&Some(10), &Some(16), string_input, base_args),
+        } => {
+            let out = run_base_convert(
+                &Some(10),
+                &Some(16),
+                &string_input.input,
+                base_args,
+            )?;
+            Ok(ToolResult::Immediate {
+                stdout: out.stdout,
+                stderr: out.stderr,
+                exit_code: out.exit_code,
+            })
+        }
         Command::Hexfmt {
             string_input,
             base_args,
-        } => run_base_convert(&Some(16), &Some(16), string_input, base_args),
+        } => {
+            let out = run_base_convert(
+                &Some(16),
+                &Some(16),
+                &string_input.input,
+                base_args,
+            )?;
+            Ok(ToolResult::Immediate {
+                stdout: out.stdout,
+                stderr: out.stderr,
+                exit_code: out.exit_code,
+            })
+        }
         Command::Hex2Bin(args) => {
             let out = ctb_formats_hexdump::cli::execute_cli_hex2bin(
                 args.clone(),
@@ -945,15 +986,18 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(bytes))
         }
         Command::ShortDc(args) => {
-            let output = crate::graph_id::execute_cli_short_dc(args)?;
+            let output =
+                ctb_formats_dctext::cli_identifiers::execute_cli_short_dc(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::ShortFmt(args) => {
-            let output = crate::graph_id::execute_cli_short_fmt(args)?;
+            let output =
+                ctb_formats_dctext::cli_identifiers::execute_cli_short_fmt(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::Gid(args) => {
-            let output = crate::graph_id::execute_cli_gid(args)?;
+            let output =
+                ctb_formats_dctext::cli_identifiers::execute_cli_gid(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::RangeGen(args) => {
@@ -1587,6 +1631,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
 mod tests {
     use super::*;
     use clap::CommandFactory;
+    use ctb_formats_math::cli::CliBaseAlphabet;
 
     #[crate::ctb_test]
     fn test_compress_command_help() {

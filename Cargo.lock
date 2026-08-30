@@ -2769,6 +2769,7 @@ dependencies = [
  "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
+ "ctb-storage-minimal",
  "ctb-utilities",
  "tempfile",
 ]
@@ -3106,6 +3107,7 @@ name = "ctb-formats-utilities"
 version = "0.0.0"
 dependencies = [
  "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
@@ -3326,7 +3328,9 @@ dependencies = [
  "ctb-formats-dctext",
  "ctb-formats-html",
  "ctb-formats-troff",
+ "ctb-formats-utilities",
  "ctb-storage-asset-bundle",
+ "ctb-storage-minimal",
  "ctb-utilities",
  "encre-css",
  "glob",

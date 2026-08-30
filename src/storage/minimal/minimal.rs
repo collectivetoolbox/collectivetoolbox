@@ -25,7 +25,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
+use include_dir::{Dir, include_dir};
+
+pub mod global_graph_layout;
 pub mod xkb;
+
+static STORAGE_MINIMAL_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+pub(crate) fn get_storage_minimal_inline_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&STORAGE_MINIMAL_DATA_DIR, key)
+}
 
 static LICENSE_FILE: &[u8] = include_bytes!("../../../LICENSE.md");
 

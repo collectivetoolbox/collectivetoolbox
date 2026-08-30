@@ -30,8 +30,6 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use anyhow::Result;
 
-const FORMATS_CSV_DATA: &str = include_str!("data/formats.csv");
-
 /// Detailed metadata record for a format from `formats.csv`.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FormatInfo {
@@ -57,7 +55,10 @@ pub struct FormatInfo {
 
 static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
     let mut map = HashMap::new();
-    let bytes = FORMATS_CSV_DATA.as_bytes().to_vec();
+    let bytes = match crate::get_formats_utilities_data("formats.csv") {
+        Some(b) => b,
+        None => return map,
+    };
     let table = match csv_tools::parse_csv_reader(
         &bytes,
         csv_tools::CsvParseOptions {

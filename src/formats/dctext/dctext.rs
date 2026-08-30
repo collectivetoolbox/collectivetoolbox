@@ -37,6 +37,7 @@ use ctb_formats_utilities::FormatLog;
 
 pub mod character_description;
 pub mod cli;
+pub mod cli_identifiers;
 pub mod dcal;
 pub mod utf8;
 
@@ -46,6 +47,10 @@ pub use character_description::{
 pub use cli::{
     CharacterDescriptionArgs, CharacterDescriptionInputFormat,
     execute_cli_character_description,
+};
+pub use cli_identifiers::{
+    GidArgs, ShortDcArgs, ShortFmtArgs, execute_cli_gid, execute_cli_short_dc,
+    execute_cli_short_fmt, parse_graph_or_short_id,
 };
 pub use dcal::{dcal_to_dclist, dclist_to_dcal};
 pub use utf8::{

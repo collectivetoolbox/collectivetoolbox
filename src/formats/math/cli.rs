@@ -28,8 +28,7 @@ use crate::utilities::*;
 
 use anyhow::{Result, anyhow};
 
-use crate::{StringInput, ToolResult};
-use ctb_formats_eite::encoding::base::{
+use crate::base::{
     BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
     base_to_base_string,
 };
@@ -62,7 +61,7 @@ impl CliBaseAlphabet {
     }
 }
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 #[expect(
     clippy::struct_excessive_bools,
     reason = "clap CLI options mapping structure"
@@ -160,7 +159,7 @@ pub struct BaseArgs {
     pub quiet: bool,
 }
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 pub struct BaseToBaseArgs {
     /// Base of input numbers
     #[arg(default_value_t = 10)]
@@ -169,6 +168,32 @@ pub struct BaseToBaseArgs {
     /// Base of output numbers
     #[arg(default_value_t = 10)]
     pub to_base: u8,
+}
+
+/// Output of a CLI base conversion command execution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseConvertOutput {
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+    pub exit_code: i32,
+}
+
+impl BaseConvertOutput {
+    pub fn ok(stdout: Vec<u8>) -> Self {
+        Self {
+            stdout,
+            stderr: Vec::new(),
+            exit_code: 0,
+        }
+    }
+
+    pub fn err(stderr: Vec<u8>, exit_code: i32) -> Self {
+        Self {
+            stdout: Vec::new(),
+            stderr,
+            exit_code,
+        }
+    }
 }
 
 // ---------------------------
@@ -182,9 +207,9 @@ pub struct BaseToBaseArgs {
 pub fn run_base_convert(
     from_base: &Option<u8>,
     to_base: &Option<u8>,
-    string_input: &StringInput,
+    input: &str,
     args: &BaseArgs,
-) -> Result<ToolResult> {
+) -> Result<BaseConvertOutput> {
     let mut format_settings = BaseStringFormatSettings {
         prefix: args.prefix.clone(),
         separator: args.separator.clone(),
@@ -219,7 +244,7 @@ pub fn run_base_convert(
             };
         }
     } else if args.no_pad {
-        return Ok(ToolResult::immediate_err(
+        return Ok(BaseConvertOutput::err(
             "--no-pad is only valid with --bytes\n".as_bytes().to_vec(),
             1,
         ));
@@ -230,7 +255,7 @@ pub fn run_base_convert(
     if (from_base.is_none() && !to_base.is_none())
         || (!from_base.is_none() && to_base.is_none())
     {
-        return Ok(ToolResult::immediate_err(
+        return Ok(BaseConvertOutput::err(
             "Either both or neither base must be specified\n"
                 .as_bytes()
                 .to_vec(),
@@ -240,19 +265,18 @@ pub fn run_base_convert(
 
     // Reason for fallback: base_to_base_string takes optional from_base and to_base CLI arguments. When both are None (neither explicitly supplied by user), the CLI command defaults to decimal (base 10) for both input and output.
     let converted = base_to_base_string(
-        string_input.input.as_str(),
+        input,
         from_base.unwrap_or(10),
         to_base.unwrap_or(10),
         &format_settings,
     );
 
     match converted {
-        Err(e) => Ok(ToolResult::immediate_err(
+        Err(e) => Ok(BaseConvertOutput::err(
             format!("{e:?}\n").as_bytes().to_vec(),
             1,
         )),
         Ok((res, log)) => {
-            // Add any extra formatting to log if desired
             let mut output_bytes = res.into_bytes();
             output_bytes.push(b'\n');
             let stderr_bytes = if quiet {
@@ -260,7 +284,7 @@ pub fn run_base_convert(
             } else {
                 log.format_all().into_bytes()
             };
-            Ok(ToolResult::Immediate {
+            Ok(BaseConvertOutput {
                 stdout: output_bytes,
                 stderr: stderr_bytes,
                 exit_code: 0,
@@ -273,7 +297,7 @@ pub fn run_base_convert(
 pub fn run_base2base(
     args: &[String],
     base_args: &BaseArgs,
-) -> Result<ToolResult> {
+) -> Result<BaseConvertOutput> {
     let input_max_base = base_args.input_alphabet.max_base();
     let output_max_base = base_args.output_alphabet.max_base();
 
@@ -297,7 +321,7 @@ pub fn run_base2base(
                     "Invalid base (from: {from}). Supported range for input alphabet is 1..={input_max_base}.\n"
                 )
             };
-            return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
+            return Ok(BaseConvertOutput::err(err_msg.into_bytes(), 1));
         }
         if !(1..=output_max_base).contains(&to) {
             let err_msg = if to > 36 {
@@ -309,7 +333,7 @@ pub fn run_base2base(
                     "Invalid base (to: {to}). Supported range for output alphabet is 1..={output_max_base}.\n"
                 )
             };
-            return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
+            return Ok(BaseConvertOutput::err(err_msg.into_bytes(), 1));
         }
         let input = match args.get(2..) {
             Some(s) => s.join(" "),
@@ -325,13 +349,5 @@ pub fn run_base2base(
         (input, None, None)
     };
 
-    run_base_convert(
-        &from_base,
-        &to_base,
-        &StringInput {
-            input: input.clone(),
-        },
-        base_args,
-    )
+    run_base_convert(&from_base, &to_base, &input, base_args)
 }
-

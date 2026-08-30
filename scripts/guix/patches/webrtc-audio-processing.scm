@@ -27,12 +27,17 @@
 (define (webrtc-audio-processing-fixed-proc pkg)
   (package
     (inherit pkg)
+    (source
+     (origin
+       (inherit (package-source pkg))
+       (patches '())))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
        ((#:configure-flags flags #~'())
         #~(cons* "-Dlibdir=lib" #$flags))
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
+            (delete 'apply-patches)
             (add-before 'configure 'patch-arch
               (lambda _
                 (substitute* "webrtc/rtc_base/system/arch.h"

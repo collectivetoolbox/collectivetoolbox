@@ -41,8 +41,6 @@ use crate::routing::{
 };
 use ctb_storage::get_help_for_tty;
 
-pub mod base_conversion;
-pub mod graph_id;
 pub mod routing;
 pub mod subprocess;
 
@@ -679,10 +677,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_short_dc = Command::ShortDc(crate::graph_id::ShortDcArgs {
-            id: "296".to_string(),
-            info: false,
-        });
+        let cmd_short_dc = Command::ShortDc(
+            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
+                id: "296".to_string(),
+                info: false,
+            },
+        );
         let res_dc = run_lightweight_command(&cmd_short_dc)
             .await
             .expect("Run short-dc");
@@ -693,10 +693,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_short_dc_i = Command::ShortDc(crate::graph_id::ShortDcArgs {
-            id: "296".to_string(),
-            info: true,
-        });
+        let cmd_short_dc_i = Command::ShortDc(
+            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
+                id: "296".to_string(),
+                info: true,
+            },
+        );
         let res_dc_i = run_lightweight_command(&cmd_short_dc_i)
             .await
             .expect("Run short-dc -i");
@@ -710,10 +712,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_short_fmt = Command::ShortFmt(crate::graph_id::ShortFmtArgs {
-            id: "80".to_string(),
-            info: false,
-        });
+        let cmd_short_fmt = Command::ShortFmt(
+            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
+                id: "80".to_string(),
+                info: false,
+            },
+        );
         let res_fmt = run_lightweight_command(&cmd_short_fmt)
             .await
             .expect("Run short-fmt");
@@ -724,10 +728,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_short_fmt_i = Command::ShortFmt(crate::graph_id::ShortFmtArgs {
-            id: "80".to_string(),
-            info: true,
-        });
+        let cmd_short_fmt_i = Command::ShortFmt(
+            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
+                id: "80".to_string(),
+                info: true,
+            },
+        );
         let res_fmt_i = run_lightweight_command(&cmd_short_fmt_i)
             .await
             .expect("Run short-fmt -i");
@@ -739,11 +745,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_gid_short = Command::Gid(crate::graph_id::GidArgs {
-            id: "1114408".to_string(),
-            short: true,
-            info: false,
-        });
+        let cmd_gid_short =
+            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
+                id: "1114408".to_string(),
+                short: true,
+                info: false,
+            });
         let res_gid_short = run_lightweight_command(&cmd_gid_short)
             .await
             .expect("Run gid --s");
@@ -754,11 +761,12 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_gid_info = Command::Gid(crate::graph_id::GidArgs {
-            id: "1114408".to_string(),
-            short: false,
-            info: true,
-        });
+        let cmd_gid_info =
+            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
+                id: "1114408".to_string(),
+                short: false,
+                info: true,
+            });
         let res_gid_info = run_lightweight_command(&cmd_gid_info)
             .await
             .expect("Run gid -i");
