@@ -38,8 +38,26 @@ use ctb_formats_utilities::FormatLog;
 pub mod character_description;
 pub mod cli;
 pub mod cli_identifiers;
+pub mod dc_number;
 pub mod dcal;
 pub mod utf8;
+
+pub use dc_number::{
+    GID_BASE64_END, GID_BASE64_PADDING, GID_BASE64_START, GID_BEGIN_NUMBER,
+    GID_DC_199, GID_END_NUMBER, GID_FORMAT_199, GID_NEGATIVE, GID_POSITIVE,
+    SHORT_DC_BASE64_END, SHORT_DC_BASE64_PADDING, SHORT_DC_BASE64_START,
+    SHORT_DC_BEGIN_NUMBER, SHORT_DC_END_NUMBER, SHORT_DC_NEGATIVE,
+    SHORT_DC_POSITIVE, SHORT_ID_FORMAT_199, base64_char_to_global_dc,
+    base64_char_to_short_dc, base64_str_to_global_dcs, base64_str_to_short_dcs,
+    global_dc_to_base64_char, global_dcs_to_base64_str, i128_to_dc_number_global,
+    i128_to_dc_number_short, integer_to_dc_number_global,
+    integer_to_dc_number_short, natural_to_dc_number_global,
+    natural_to_dc_number_short, parse_dc_number_global,
+    parse_dc_number_global_i128, parse_dc_number_short,
+    parse_dc_number_short_i128, read_dc_number_global, read_dc_number_short,
+    short_dc_to_base64_char, short_dcs_to_base64_str, u128_to_dc_number_global,
+    u128_to_dc_number_short,
+};
 
 pub use character_description::{
     describe_dcal, describe_dclist, describe_graph_id,

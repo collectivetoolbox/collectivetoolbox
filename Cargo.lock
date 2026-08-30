@@ -2765,12 +2765,14 @@ dependencies = [
  "clap",
  "const-default",
  "ctb-formats-eite",
+ "ctb-formats-math",
  "ctb-formats-unicode",
  "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
  "ctb-storage-minimal",
  "ctb-utilities",
+ "malachite",
  "tempfile",
 ]
 
