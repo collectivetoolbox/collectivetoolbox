@@ -209,6 +209,7 @@ unimplemented = "warn"
 unreachable = "warn"
 get_unwrap = "deny"
 unchecked_time_subtraction = "deny"
+host_endian_bytes = "deny"
 
 # Avoid silent failing
 let_underscore_future = "warn"

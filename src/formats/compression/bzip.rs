@@ -1226,7 +1226,7 @@ pub fn compress_stream_with_block_size(
         } else {
             orig_i32.saturating_add(1)
         };
-        let v_u32 = u32::from_ne_bytes(v.to_ne_bytes());
+        let v_u32 = u32::from_le_bytes(v.to_le_bytes());
         encoder.encode_u32(v_u32, bogus_model)?;
 
         let mut models = MtfModelSuite::new()?;
@@ -1346,7 +1346,7 @@ pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Res
 
     loop {
         let v_u32 = decoder.decode_u32(&mut bogus_model)?;
-        let v = i32::from_ne_bytes(v_u32.to_ne_bytes());
+        let v = i32::from_le_bytes(v_u32.to_le_bytes());
         let is_last_block = v < 0;
         let orig_ptr = usize::try_from(v.unsigned_abs().saturating_sub(1))
             .context("origPtr calculation overflow")?;

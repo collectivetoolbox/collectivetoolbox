@@ -40,10 +40,27 @@
             (delete 'apply-patches)
             (add-before 'configure 'patch-arch
               (lambda _
-                (when (file-exists? "webrtc/api/scoped_refptr.h")
-                  (substitute* "webrtc/api/scoped_refptr.h"
-                    (("absl::Nullable<([^>]+)>" _ type) type)
-                    (("absl::Nonnull<([^>]+)>" _ type) type)))
+                (for-each
+                 (lambda (file)
+                   (substitute* file
+                     (("^#ifndef [A-Za-z0-9_]+" all)
+                      (string-append all "\n"
+                                     "#ifdef __cplusplus\n"
+                                     "#include <cstdint>\n"
+                                     "#endif\n"
+                                     "#include <stdint.h>\n"
+                                     "#include <stddef.h>\n"
+                                     "#ifdef __cplusplus\n"
+                                     "namespace absl {\n"
+                                     "#ifndef CTB_ABSL_NULLABILITY_DEFINED\n"
+                                     "#define CTB_ABSL_NULLABILITY_DEFINED\n"
+                                     "template <typename T> using Nullable = T;\n"
+                                     "template <typename T> using Nonnull = T;\n"
+                                     "template <typename T> using NullabilityUnknown = T;\n"
+                                     "#endif\n"
+                                     "}\n"
+                                     "#endif\n"))))
+                 (find-files "webrtc" "\\.(h|hpp)$"))
                 (when (file-exists? "webrtc/rtc_base/system/arch.h")
                   (substitute* "webrtc/rtc_base/system/arch.h"
                     (("elif defined\\(_M_IX86\\) \\|\\| defined\\(__i386__\\)")
