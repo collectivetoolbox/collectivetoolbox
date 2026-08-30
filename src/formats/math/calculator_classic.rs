@@ -25,14 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
-/// Constant for the radical of 13 ($\sqrt{13}$), matching legacy button feature.
-pub const RADICAL_13: f64 = 3.605_551_275_463_989;
-
-/// Constant value for $\pi$, matching legacy calculator constant input.
-pub const CONST_PI: f64 = std::f64::consts::PI;
-
-/// Constant value for Euler's number $e$, matching legacy constant input.
-pub const CONST_E: f64 = std::f64::consts::E;
+pub use crate::constant::{CONST_E, CONST_PI};
 
 /// Result of a square root evaluation, representing real or imaginary output.
 #[derive(Debug, Clone, PartialEq)]
@@ -382,7 +375,10 @@ mod tests {
         assert_eq!(square_root(-4.0), SquareRootResult::Imaginary(2.0));
         assert_eq!(format_square_root(9.0), "3");
         assert_eq!(format_square_root(-4.0), "2i");
-        assert!((RADICAL_13 - 13.0f64.sqrt()).abs() < 1e-9);
+        assert_eq!(
+            square_root(13.0),
+            SquareRootResult::Real(13.0f64.sqrt())
+        );
     }
 
     #[crate::ctb_test]

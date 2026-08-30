@@ -30,7 +30,7 @@ use anyhow::{Result, anyhow, bail, ensure};
 use malachite::Natural;
 use malachite::base::num::basic::traits::Zero;
 
-/// Represents a mathematical integer base / radix (e.g. 2, 8, 10, 16, 64).
+/// Represents a mathematical integer base / radix (e.g. 1, 2, 8, 10, 16, 64).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Base(u8);
 
@@ -54,10 +54,16 @@ impl BaseAlphabet {
         }
     }
 
-    /// Returns true if the given radix is valid for this alphabet.
+    /// Returns true if the given base radix is valid for this alphabet.
     #[must_use]
-    pub fn is_supported_base(self, radix: Base) -> bool {
-        (1..=self.max_base()).contains(&radix.radix())
+    pub fn is_supported_base(self, radix: u8) -> bool {
+        (1..=self.max_base()).contains(&radix)
+    }
+
+    /// Returns true if the given `Base` is valid for this alphabet.
+    #[must_use]
+    pub fn is_supported_base_type(self, base: Base) -> bool {
+        self.is_supported_base(base.radix())
     }
 
     /// Returns the zero digit character for this alphabet.
@@ -110,7 +116,7 @@ impl BaseAlphabet {
                 }
                 '+' => Ok(62),
                 '/' => Ok(63),
-                _ => bail!("Character '{c}' is not a valid digit in base64 alphabet"),
+                _ => bail!("Character '{c}' is not a valid digit in Base64Standard alphabet"),
             },
         }
     }
@@ -149,6 +155,18 @@ impl BaseAlphabet {
             }
         }
     }
+
+    /// Returns true if character is a valid digit for the given numeric base.
+    #[must_use]
+    pub fn is_digit(self, c: char, base: u8) -> bool {
+        if !self.is_supported_base(base) {
+            return false;
+        }
+        match self.digit_for_char(c) {
+            Ok(d) => d < base,
+            Err(_) => false,
+        }
+    }
 }
 
 /// Represents a numeral system defined by a mathematical radix and a digit alphabet.
@@ -159,6 +177,10 @@ pub struct NumeralSystem {
 }
 
 impl NumeralSystem {
+    pub const UNARY: Self = Self {
+        radix: Base::Unary,
+        alphabet: BaseAlphabet::Standard,
+    };
     pub const BINARY: Self = Self {
         radix: Base::Binary,
         alphabet: BaseAlphabet::Standard,
@@ -176,14 +198,14 @@ impl NumeralSystem {
         alphabet: BaseAlphabet::Standard,
     };
     pub const BASE64: Self = Self {
-        radix: Base::Base64,
+        radix: Base::from_radix_const(64),
         alphabet: BaseAlphabet::Base64Standard,
     };
 
     /// Creates a new `NumeralSystem` with validation that the radix is supported by the alphabet.
     pub fn new(radix: Base, alphabet: BaseAlphabet) -> Result<Self> {
         ensure!(
-            alphabet.is_supported_base(radix),
+            alphabet.is_supported_base_type(radix),
             "Radix {radix:?} (value {}) is not supported by alphabet {alphabet:?}",
             radix.radix()
         );
@@ -258,6 +280,8 @@ impl From<Base> for NumeralSystem {
 
 impl Base {
     #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    pub const Unary: Self = Self(1);
+    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Binary: Self = Self(2);
     #[allow(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Octal: Self = Self(8);
@@ -267,12 +291,17 @@ impl Base {
     pub const Hex: Self = Self(16);
     #[allow(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Hexadecimal: Self = Self(16);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
 
-    /// Creates a `Base` with range validation (2..=64).
+    /// Creates a `Base` with range validation (1..=64).
     pub fn new(radix: u8) -> Result<Self> {
-        ensure!((1..).contains(&radix), "Unsupported base radix: {radix}");
+        ensure!((1..=64).contains(&radix), "Unsupported base radix: {radix}");
         Ok(Self(radix))
+    }
+
+    /// Creates a `Base` with const evaluation without range check.
+    #[must_use]
+    pub const fn from_radix_const(radix: u8) -> Self {
+        Self(radix)
     }
 
     /// Creates a `Base` from a numeric radix with range validation.
@@ -286,8 +315,8 @@ impl Base {
         self.0
     }
 
-    /// Parses a base from a string representation, including numeric radices ("2".."64")
-    /// and standard names/aliases ("bin", "binary", "oct", "octal", "dec", "decimal",
+    /// Parses a base from a string representation, including numeric radices ("1".."64")
+    /// and standard names/aliases ("unary", "bin", "binary", "oct", "octal", "dec", "decimal",
     /// "hex", "hexadecimal", "base64", etc.).
     pub fn from_str_or_name(s: &str) -> Result<Self> {
         let trimmed = s.trim();
@@ -295,16 +324,19 @@ impl Base {
             return Self::from_radix(radix);
         }
         match trimmed.to_ascii_lowercase().as_str() {
+            "unary" | "un" => Ok(Self::Unary),
             "bin" | "binary" => Ok(Self::Binary),
             "oct" | "octal" => Ok(Self::Octal),
             "dec" | "decimal" => Ok(Self::Decimal),
             "hex" | "hexadecimal" => Ok(Self::Hex),
-            "base64" | "b64" => Ok(Self::Base64),
+            "base64" | "b64" => Self::new(64),
             _ => bail!("Unknown or unsupported base: '{s}'"),
         }
     }
 }
 
+#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+pub const Unary: Base = Base::Unary;
 #[allow(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Binary: Base = Base::Binary;
 #[allow(non_upper_case_globals, reason = "Base name alias constants")]
@@ -315,7 +347,6 @@ pub const Decimal: Base = Base::Decimal;
 pub const Hex: Base = Base::Hex;
 #[allow(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Hexadecimal: Base = Base::Hexadecimal;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
 
 impl TryFrom<u8> for Base {
     type Error = anyhow::Error;
@@ -348,6 +379,15 @@ pub fn char_to_digit(c: char, base: Base) -> Result<u8> {
 )]
 pub fn parse_natural_system(s: &str, system: NumeralSystem) -> Result<Natural> {
     ensure!(!s.is_empty(), "Cannot parse empty string as number");
+    let radix = system.radix.radix();
+    if radix == 1 {
+        for ch in s.chars() {
+            let d = system.alphabet.digit_for_char(ch)?;
+            ensure!(d == 0, "Invalid digit '{ch}' for base 1");
+        }
+        return Ok(Natural::from(s.chars().count()));
+    }
+
     let s = match system.radix {
         // Reason for fallback: numbers without base prefix retain original string representation.
         Base::Hex => s
@@ -367,7 +407,6 @@ pub fn parse_natural_system(s: &str, system: NumeralSystem) -> Result<Natural> {
         _ => s,
     };
     ensure!(!s.is_empty(), "Cannot parse empty number string after prefix");
-    let radix = system.radix.radix();
     let mut acc = Natural::ZERO;
     let base_nat = Natural::from(radix);
     for ch in s.chars() {
@@ -392,11 +431,19 @@ pub fn format_natural_system(
     system: NumeralSystem,
     min_width: usize,
 ) -> Result<String> {
-    let mut raw = if *n == Natural::ZERO {
+    let radix = system.radix.radix();
+    let mut raw = if radix == 1 {
+        if *n == Natural::ZERO {
+            String::new()
+        } else {
+            let count = usize::try_from(n)
+                .map_err(|e| anyhow!("Value too large for base 1 format: {e:?}"))?;
+            std::iter::repeat_n(system.zero_char(), count).collect()
+        }
+    } else if *n == Natural::ZERO {
         let zero_char = system.zero_char();
         zero_char.to_string()
     } else {
-        let radix = system.radix.radix();
         let base_nat = Natural::from(radix);
         let mut digits = Vec::new();
         let mut val = n.clone();
@@ -444,26 +491,28 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_base_radices_and_aliases() {
+        assert_eq!(Base::Unary.radix(), 1);
         assert_eq!(Base::Binary.radix(), 2);
         assert_eq!(Base::Octal.radix(), 8);
         assert_eq!(Base::Decimal.radix(), 10);
         assert_eq!(Base::Hex.radix(), 16);
         assert_eq!(Base::Hexadecimal.radix(), 16);
-        assert_eq!(Base::Base64.radix(), 64);
-        assert_eq!(Base::Base64_Standard.radix(), 64);
 
-        for r in 2..=64 {
+        for r in 1..=64 {
             let b = Base::from_radix(r).unwrap();
             assert_eq!(b.radix(), r);
         }
-        assert_eq!(Base::from_radix(64).unwrap(), Base::Base64);
         assert!(Base::from_radix(0).is_err());
-        assert!(Base::from_radix(1).is_err());
         assert!(Base::from_radix(65).is_err());
     }
 
     #[crate::ctb_test]
     fn test_numeral_system() {
+        let unary = NumeralSystem::UNARY;
+        assert_eq!(unary.radix.radix(), 1);
+        assert_eq!(unary.char_for_digit(0).unwrap(), '0');
+        assert!(unary.char_for_digit(1).is_err());
+
         let dec = NumeralSystem::DECIMAL;
         assert_eq!(dec.radix.radix(), 10);
         assert_eq!(dec.alphabet, BaseAlphabet::Standard);
@@ -479,7 +528,7 @@ mod tests {
         assert_eq!(b64.digit_for_char('/').unwrap(), 63);
 
         // Custom base 30 with Base64 alphabet
-        let b30_b64 = NumeralSystem::new(Base::Base30, BaseAlphabet::Base64Standard).unwrap();
+        let b30_b64 = NumeralSystem::new(Base::new(30).unwrap(), BaseAlphabet::Base64Standard).unwrap();
         assert_eq!(b30_b64.char_for_digit(0).unwrap(), 'A');
         assert_eq!(b30_b64.char_for_digit(20).unwrap(), 'U');
         assert!(b30_b64.char_for_digit(30).is_err());
@@ -494,24 +543,24 @@ mod tests {
         assert_eq!(char_to_digit('F', Base::Hex).unwrap(), 15);
         assert!(char_to_digit('G', Base::Hex).is_err());
 
-        // Base 64
-        assert_eq!(digit_to_char(0, Base::Base64).unwrap(), 'A');
-        assert_eq!(digit_to_char(25, Base::Base64).unwrap(), 'Z');
-        assert_eq!(digit_to_char(26, Base::Base64).unwrap(), 'a');
-        assert_eq!(digit_to_char(51, Base::Base64).unwrap(), 'z');
-        assert_eq!(digit_to_char(52, Base::Base64).unwrap(), '0');
-        assert_eq!(digit_to_char(61, Base::Base64).unwrap(), '9');
-        assert_eq!(digit_to_char(62, Base::Base64).unwrap(), '+');
-        assert_eq!(digit_to_char(63, Base::Base64).unwrap(), '/');
+        let b64_base = Base::new(64).unwrap();
+        assert_eq!(digit_to_char(0, b64_base).unwrap(), 'A');
+        assert_eq!(digit_to_char(25, b64_base).unwrap(), 'Z');
+        assert_eq!(digit_to_char(26, b64_base).unwrap(), 'a');
+        assert_eq!(digit_to_char(51, b64_base).unwrap(), 'z');
+        assert_eq!(digit_to_char(52, b64_base).unwrap(), '0');
+        assert_eq!(digit_to_char(61, b64_base).unwrap(), '9');
+        assert_eq!(digit_to_char(62, b64_base).unwrap(), '+');
+        assert_eq!(digit_to_char(63, b64_base).unwrap(), '/');
 
-        assert_eq!(char_to_digit('A', Base::Base64).unwrap(), 0);
-        assert_eq!(char_to_digit('Z', Base::Base64).unwrap(), 25);
-        assert_eq!(char_to_digit('a', Base::Base64).unwrap(), 26);
-        assert_eq!(char_to_digit('z', Base::Base64).unwrap(), 51);
-        assert_eq!(char_to_digit('0', Base::Base64).unwrap(), 52);
-        assert_eq!(char_to_digit('9', Base::Base64).unwrap(), 61);
-        assert_eq!(char_to_digit('+', Base::Base64).unwrap(), 62);
-        assert_eq!(char_to_digit('/', Base::Base64).unwrap(), 63);
+        assert_eq!(char_to_digit('A', b64_base).unwrap(), 0);
+        assert_eq!(char_to_digit('Z', b64_base).unwrap(), 25);
+        assert_eq!(char_to_digit('a', b64_base).unwrap(), 26);
+        assert_eq!(char_to_digit('z', b64_base).unwrap(), 51);
+        assert_eq!(char_to_digit('0', b64_base).unwrap(), 52);
+        assert_eq!(char_to_digit('9', b64_base).unwrap(), 61);
+        assert_eq!(char_to_digit('+', b64_base).unwrap(), 62);
+        assert_eq!(char_to_digit('/', b64_base).unwrap(), 63);
     }
 
     #[crate::ctb_test]
@@ -521,17 +570,31 @@ mod tests {
         assert_eq!(format_natural(&n, Base::Hex, 4).unwrap(), "001A");
         assert_eq!(format_natural(&n, Base::Decimal, 1).unwrap(), "26");
 
-        let b64_n = parse_natural("BA", Base::Base64).unwrap();
+        let b64_base = Base::new(64).unwrap();
+        let b64_n = parse_natural("BA", b64_base).unwrap();
         // 'B' = 1, 'A' = 0 -> 1 * 64 + 0 = 64
         assert_eq!(b64_n, Natural::from(64u32));
-        assert_eq!(format_natural(&b64_n, Base::Base64, 3).unwrap(), "ABA");
+        assert_eq!(format_natural(&b64_n, b64_base, 3).unwrap(), "ABA");
 
         // Format and parse with custom NumeralSystem
-        let b30_b64 = NumeralSystem::new(Base::Base30, BaseAlphabet::Base64Standard).unwrap();
+        let b30_b64 = NumeralSystem::new(Base::new(30).unwrap(), BaseAlphabet::Base64Standard).unwrap();
         let val = Natural::from(25516010u32);
         let s = format_natural_system(&val, b30_b64, 0).unwrap();
         assert_eq!(s, "BBPBDU");
         let parsed = parse_natural_system(&s, b30_b64).unwrap();
         assert_eq!(parsed, val);
+
+        // Base 1 (unary) tests
+        let un_val = Natural::from(5u32);
+        let un_str = format_natural(&un_val, Base::Unary, 0).unwrap();
+        assert_eq!(un_str, "00000");
+        let un_parsed = parse_natural(&un_str, Base::Unary).unwrap();
+        assert_eq!(un_parsed, un_val);
+
+        let un_b64_sys = NumeralSystem::new(Base::Unary, BaseAlphabet::Base64Standard).unwrap();
+        let un_b64_str = format_natural_system(&un_val, un_b64_sys, 0).unwrap();
+        assert_eq!(un_b64_str, "AAAAA");
+        let un_b64_parsed = parse_natural_system(&un_b64_str, un_b64_sys).unwrap();
+        assert_eq!(un_b64_parsed, un_val);
     }
 }

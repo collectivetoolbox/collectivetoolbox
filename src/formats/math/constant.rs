@@ -17,38 +17,13 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Mathematical computation, base conversion, and calculator utilities.
+//! Mathematical constants.
 
-#[allow(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
-)]
-pub(crate) use ctb_utilities::*;
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use crate::utilities::*;
 
-pub mod base;
-pub mod calculator_classic;
-pub mod center_of_gravity;
-pub mod constant;
-pub mod parsing;
-pub mod range_generator;
+/// Constant value for $\pi$.
+pub const CONST_PI: f64 = std::f64::consts::PI;
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_modules_load() {
-        assert!(true);
-    }
-}
+/// Constant value for Euler's number $e$.
+pub const CONST_E: f64 = std::f64::consts::E;

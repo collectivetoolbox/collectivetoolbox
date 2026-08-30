@@ -50,8 +50,8 @@ pub fn range(
     let start_num = ParsedNumber::parse(start, base)?;
     let end_num = ParsedNumber::parse(end, base)?;
     let step_str = if step.is_empty() { "1" } else { step };
-    let step_base = if base == Base::Base64 {
-        Base::Base10
+    let step_base = if base.radix() == 64 {
+        Base::Decimal
     } else {
         base
     };
@@ -182,21 +182,21 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_range_hex() -> Result<()> {
-        let items = range(base::Base16, "0A", "12", "1")?;
+        let items = range(base::Hex, "0A", "12", "1")?;
         assert_eq!(
             items,
             vec!["0A", "0B", "0C", "0D", "0E", "0F", "10", "11", "12"]
         );
 
         let formatted =
-            range_format(&range(base::Base16, "0A", "12", "1")?, ", ");
+            range_format(&range(base::Hex, "0A", "12", "1")?, ", ");
         assert_eq!(formatted, "0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12");
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_range_hex_prefix() -> Result<()> {
-        let items = range(base::Base16, "0x00", "0x10", "1")?;
+        let items = range(base::Hex, "0x00", "0x10", "1")?;
         assert_eq!(items.len(), 17);
         assert_eq!(items.first().map(String::as_str), Some("00"));
         assert_eq!(items.last().map(String::as_str), Some("10"));
@@ -206,11 +206,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_range_trailing_decimal() -> Result<()> {
         let formatted =
-            range_trailing(&range(base::Base10, "9", "12", "1")?, "\n");
+            range_trailing(&range(base::Decimal, "9", "12", "1")?, "\n");
         assert_eq!(formatted, "9\n10\n11\n12\n");
 
         let formatted2 = range_format_trailing(
-            &range(base::Base10, "9", "12", "1")?,
+            &range(base::Decimal, "9", "12", "1")?,
             "\n",
         );
         assert_eq!(formatted2, "9\n10\n11\n12\n");
@@ -219,11 +219,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_range_descending() -> Result<()> {
-        let items = range(base::Base10, "05", "02", "1")?;
+        let items = range(base::Decimal, "05", "02", "1")?;
         assert_eq!(items, vec!["05", "04", "03", "02"]);
-        let items = range(base::Base10, "02", "-2", "1")?;
+        let items = range(base::Decimal, "02", "-2", "1")?;
         assert_eq!(items, vec!["02", "01", "00", "-01", "-02"]);
-        let items = range(base::Base10, "0.010", "-0.010", "0.02")?;
+        let items = range(base::Decimal, "0.010", "-0.010", "0.02")?;
         assert_eq!(items, vec!["0.010", "-0.010"]);
         Ok(())
     }
@@ -237,9 +237,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_range_base64() -> Result<()> {
-        let items = range(base::Base64, "A", "D", "1")?;
+        let b64 = Base::new(64)?;
+        let items = range(b64, "A", "D", "1")?;
         assert_eq!(items, vec!["A", "B", "C", "D"]);
-        let items = range(base::Base64, "9", "/", "1")?;
+        let items = range(b64, "9", "/", "1")?;
         assert_eq!(items, vec!["9", "+", "/"]);
         Ok(())
     }

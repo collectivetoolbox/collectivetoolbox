@@ -264,10 +264,14 @@ pub async fn handle_calculator_call(
             }))
         }
         "getConstants" => {
+            let radical13_val = match square_root(13.0) {
+                SquareRootResult::Real(v) => v,
+                SquareRootResult::Imaginary(v) => v,
+            };
             Ok(serde_json::json!({
                 "pi": CONST_PI,
                 "e": CONST_E,
-                "radical13": RADICAL_13
+                "radical13": radical13_val
             }))
         }
         _ => anyhow::bail!("Unknown calculator function: {func}"),

@@ -10,6 +10,7 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-base16b = { path = "../base16b" }
 ctb-formats-base64 = { path = "../base64" }
+ctb-formats-math = { path = "../math" }
 ctb-formats-utf8 = { path = "../utf8" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-wtf8 = { path = "../wtf8" }

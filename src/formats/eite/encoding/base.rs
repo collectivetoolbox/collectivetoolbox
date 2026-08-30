@@ -56,123 +56,7 @@ impl BaseConversionPaddingMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum BaseAlphabet {
-    /// Standard alphanumeric alphabet (0-9, A-Z/a-z), case-insensitive, base 2..=36.
-    #[default]
-    Standard,
-    /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51, 0-9 = 52..61, + = 62, / = 63),
-    /// case-sensitive, base 2..=64.
-    Base64Standard,
-}
-
-impl BaseAlphabet {
-    /// Returns the maximum base supported by this alphabet.
-    pub fn max_base(self) -> u8 {
-        match self {
-            Self::Standard => 36,
-            Self::Base64Standard => 64,
-        }
-    }
-
-    /// Whether digits in this alphabet are case-sensitive.
-    pub fn is_case_sensitive(self) -> bool {
-        match self {
-            Self::Standard => false,
-            Self::Base64Standard => true,
-        }
-    }
-
-    /// Returns the zero digit character for this alphabet.
-    pub fn zero_char(self) -> char {
-        match self {
-            Self::Standard => '0',
-            Self::Base64Standard => 'A',
-        }
-    }
-
-    /// Returns the character for the given digit value.
-    pub fn char_for_digit(self, d: u8) -> Result<char> {
-        match self {
-            Self::Standard => {
-                if !(0..=35).contains(&d) {
-                    bail!("{d} is not within range 0..=35 for standard alphabet");
-                }
-                if d <= 9 {
-                    char::from_u32(u32::from(d).saturating_add(48))
-                        .ok_or_else(|| anyhow!("Invalid ASCII char"))
-                } else {
-                    char::from_u32(u32::from(d).saturating_add(55))
-                        .ok_or_else(|| anyhow!("Invalid ASCII char"))
-                }
-            }
-            Self::Base64Standard => {
-                if !(0..=63).contains(&d) {
-                    bail!("{d} is not within range 0..=63 for Base64Standard alphabet");
-                }
-                match d {
-                    0..=25 => char::from_u32(u32::from(d).saturating_add(65))
-                        .ok_or_else(|| anyhow!("Invalid ASCII char")),
-                    26..=51 => char::from_u32(
-                        u32::from(d).saturating_sub(26).saturating_add(97),
-                    )
-                    .ok_or_else(|| anyhow!("Invalid ASCII char")),
-                    52..=61 => char::from_u32(
-                        u32::from(d).saturating_sub(52).saturating_add(48),
-                    )
-                    .ok_or_else(|| anyhow!("Invalid ASCII char")),
-                    62 => Ok('+'),
-                    63 => Ok('/'),
-                    _ => bail!("Digit out of range"),
-                }
-            }
-        }
-    }
-
-    /// Returns the digit value for the given character.
-    pub fn digit_for_char(self, ch: char) -> Result<u8> {
-        match self {
-            Self::Standard => {
-                let ch_uc = ch.to_ascii_uppercase();
-                let b = u8::try_from(ch_uc).map_err(|_| anyhow!("'{ch}' is not ASCII"))?;
-                if (48..=57).contains(&b) {
-                    Ok(b.saturating_sub(48))
-                } else if (65..=90).contains(&b) {
-                    Ok(b.saturating_sub(55))
-                } else {
-                    bail!("'{ch}' is not within range 0..=9, A..=Z for standard alphabet");
-                }
-            }
-            Self::Base64Standard => {
-                let b = u8::try_from(ch).map_err(|_| anyhow!("'{ch}' is not ASCII"))?;
-                match b {
-                    65..=90 => Ok(b.saturating_sub(65)), // 'A'..='Z' -> 0..25
-                    97..=122 => Ok(b.saturating_sub(97).saturating_add(26)), // 'a'..='z' -> 26..51
-                    48..=57 => Ok(b.saturating_sub(48).saturating_add(52)), // '0'..='9' -> 52..61
-                    43 => Ok(62), // '+' -> 62
-                    47 => Ok(63), // '/' -> 63
-                    _ => bail!("'{ch}' is not a valid digit in Base64Standard alphabet"),
-                }
-            }
-        }
-    }
-
-    /// Returns true if the character represents a valid digit in this base.
-    pub fn is_digit(self, ch: char, base: u8) -> bool {
-        if !self.is_supported_base(base) {
-            return false;
-        }
-        match self.digit_for_char(ch) {
-            Ok(d) => d < base,
-            Err(_) => false,
-        }
-    }
-
-    /// Returns true if the given base is valid for this alphabet.
-    pub fn is_supported_base(self, base: u8) -> bool {
-        (1..=self.max_base()).contains(&base)
-    }
-}
+pub use ctb_formats_math::base::{Base, BaseAlphabet, NumeralSystem};
 
 #[derive(Clone)]
 #[expect(clippy::struct_excessive_bools, reason = "conversion format flags")]
@@ -337,6 +221,15 @@ pub fn int_from_base_str_big_alphabet(
         alphabet.is_supported_base(base),
         "Unsupported base {base} for alphabet {alphabet:?}"
     );
+    if base == 1 {
+        for ch in s.chars() {
+            let d = alphabet.digit_for_char(ch)?;
+            if d >= 1 {
+                bail!("Digit '{ch}' (value {d}) >= base 1");
+            }
+        }
+        return Ok(Natural::from(s.chars().count()));
+    }
     let mut acc = Natural::ZERO;
     let base_nat = Natural::from(base);
     for ch in s.chars() {
@@ -363,6 +256,14 @@ pub fn int_to_base_str_big_alphabet(
         alphabet.is_supported_base(base),
         "Unsupported base {base} for alphabet {alphabet:?}"
     );
+    if base == 1 {
+        if n == 0 {
+            return Ok(String::new());
+        }
+        let count = usize::try_from(&n)
+            .map_err(|e| anyhow!("Value too large for base 1 conversion: {e:?}"))?;
+        return Ok(std::iter::repeat_n(alphabet.zero_char(), count).collect());
+    }
     if n == 0 {
         return Ok(alphabet.char_for_digit(0)?.to_string());
     }
@@ -436,6 +337,9 @@ pub fn get_digits_needed(
     alphabet: BaseAlphabet,
 ) -> Result<Natural> {
     ensure!(alphabet.is_supported_base(base), "Unsupported base {base}");
+    if base == 1 {
+        return Ok(n);
+    }
     let mut digits = Natural::ZERO;
     let mut value = n;
     while value > 0 {
@@ -1169,5 +1073,36 @@ mod tests {
         // Base > 36 fails if Standard alphabet is configured
         let standard_settings = BaseStringFormatSettings::default();
         assert!(base_to_base_string("255", 10, 64, &standard_settings).is_err());
+
+        // Base 1 (unary) tests with Standard alphabet
+        assert_string_ok_eq_no_warnings(
+            "00000",
+            base_to_base_string("5", 10, 1, &BaseStringFormatSettings::default()),
+        );
+        assert_string_ok_eq_no_warnings(
+            "5",
+            base_to_base_string("00000", 1, 10, &BaseStringFormatSettings::default()),
+        );
+
+        // Base 1 (unary) tests with Base64Standard alphabet
+        let dec_to_un_b64 = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Standard,
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        assert_string_ok_eq_no_warnings(
+            "AAAAA",
+            base_to_base_string("5", 10, 1, &dec_to_un_b64),
+        );
+        let un_b64_to_dec = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Base64Standard,
+            output_alphabet: BaseAlphabet::Standard,
+            ..Default::default()
+        };
+        assert_string_ok_eq_no_warnings(
+            "5",
+            base_to_base_string("AAAAA", 1, 10, &un_b64_to_dec),
+        );
     }
 }
+

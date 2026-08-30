@@ -287,26 +287,26 @@ pub fn run_base2base(
                 .parse::<u8>(),
         )
     {
-        if !(2..=input_max_base).contains(&from) {
+        if !(1..=input_max_base).contains(&from) {
             let err_msg = if from > 36 {
                 format!(
                     "Base out of range (from: {from}). Bases > 36 (up to 64) require --input-alphabet base64_standard.\n"
                 )
             } else {
                 format!(
-                    "Invalid base (from: {from}). Supported range for input alphabet is 2..={input_max_base}.\n"
+                    "Invalid base (from: {from}). Supported range for input alphabet is 1..={input_max_base}.\n"
                 )
             };
             return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
         }
-        if !(2..=output_max_base).contains(&to) {
+        if !(1..=output_max_base).contains(&to) {
             let err_msg = if to > 36 {
                 format!(
                     "Base out of range (to: {to}). Bases > 36 (up to 64) require --output-alphabet base64_standard.\n"
                 )
             } else {
                 format!(
-                    "Invalid base (to: {to}). Supported range for output alphabet is 2..={output_max_base}.\n"
+                    "Invalid base (to: {to}). Supported range for output alphabet is 1..={output_max_base}.\n"
                 )
             };
             return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));

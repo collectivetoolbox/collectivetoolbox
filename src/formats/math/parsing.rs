@@ -262,7 +262,7 @@ impl ParsedNumber {
         }
 
         // Check for imaginary number with coefficient like "5i", "-5i"
-        if base == Base::Base10
+        if base == Base::Decimal
             && let Some(coeff_str) = s_no_sign.strip_suffix(['i', 'I'])
         {
             let trimmed_coeff = coeff_str.trim();
@@ -287,17 +287,17 @@ impl ParsedNumber {
         let (num_part_raw, unit_suffix) = separate_unit_suffix(s_no_sign, base);
         let num_part = match base {
             // Reason for fallback: numbers without base prefix retain original string representation.
-            Base::Base16 => num_part_raw
+            Base::Hex => num_part_raw
                 .strip_prefix("0x")
                 .or_else(|| num_part_raw.strip_prefix("0X"))
                 .unwrap_or(num_part_raw),
             // Reason for fallback: numbers without base prefix retain original string representation.
-            Base::Base2 => num_part_raw
+            Base::Binary => num_part_raw
                 .strip_prefix("0b")
                 .or_else(|| num_part_raw.strip_prefix("0B"))
                 .unwrap_or(num_part_raw),
             // Reason for fallback: numbers without base prefix retain original string representation.
-            Base::Base8 => num_part_raw
+            Base::Octal => num_part_raw
                 .strip_prefix("0o")
                 .or_else(|| num_part_raw.strip_prefix("0O"))
                 .unwrap_or(num_part_raw),
@@ -343,7 +343,7 @@ impl ParsedNumber {
                 int_width = trimmed_prefix.len();
                 Rational::from(int_nat) + frac_rat
             }
-        } else if base != Base::Base64
+        } else if base.radix() != 64
             && (num_part.contains('/') || num_part.contains('⁄'))
         {
             let (num_str, den_str) = if let Some(parts) = num_part.split_once('⁄') {
@@ -421,7 +421,12 @@ impl ParsedNumber {
     /// Converts this parsed number to an `f64`.
     #[must_use]
     pub fn to_f64(&self) -> f64 {
-        self.value.to_f64()
+        let val = self.value.to_f64();
+        if self.unit_suffix.as_deref() == Some("%") {
+            val / 100.0
+        } else {
+            val
+        }
     }
 
     /// Scales the number value by $base^{dec\_places}$ and returns the resulting exact signed [`Integer`].
@@ -482,8 +487,12 @@ fn separate_unit_suffix(s: &str, base: Base) -> (&str, Option<String>) {
         return (stripped.trim_end(), Some("\"".to_owned()));
     }
 
+    if let Some(stripped) = s.strip_suffix('%') {
+        return (stripped.trim_end(), Some("%".to_owned()));
+    }
+
     // Attached unit letters for Base10
-    if base == Base::Base10 {
+    if base == Base::Decimal {
         let mut split_idx = s.len();
         for (i, c) in s.char_indices().rev() {
             if c.is_alphabetic() || c.is_ascii_digit() {
@@ -509,7 +518,7 @@ fn separate_unit_suffix(s: &str, base: Base) -> (&str, Option<String>) {
 
 /// Backward-compatible wrapper parsing a numeric string to `f64`.
 pub fn parse_number(s: &str) -> Result<f64> {
-    let parsed = ParsedNumber::parse(s, Base::Base10)?;
+    let parsed = ParsedNumber::parse(s, Base::Decimal)?;
     Ok(parsed.to_f64())
 }
 
@@ -529,7 +538,7 @@ pub struct ParsedInput {
 /// Backward-compatible wrapper analyzing layout of a numeric string.
 #[must_use]
 pub fn analyze_input(s: &str) -> ParsedInput {
-    if let Ok(num) = ParsedNumber::parse(s, Base::Base10) {
+    if let Ok(num) = ParsedNumber::parse(s, Base::Decimal) {
         ParsedInput {
             int_width: num.int_width,
             frac_width: num.frac_len,
@@ -649,7 +658,7 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
                     break;
                 }
             }
-            let parsed = ParsedNumber::parse(&num_str, Base::Base10)?;
+            let parsed = ParsedNumber::parse(&num_str, Base::Decimal)?;
             tokens.push(MathToken::Number(parsed));
             continue;
         }
@@ -665,7 +674,7 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             }
             if word.eq_ignore_ascii_case("mod") {
                 tokens.push(MathToken::Modulo);
-            } else if let Ok(parsed) = ParsedNumber::parse(&word, Base::Base10) {
+            } else if let Ok(parsed) = ParsedNumber::parse(&word, Base::Decimal) {
                 tokens.push(MathToken::Number(parsed));
             } else {
                 bail!("Unknown identifier in expression: {word}");
@@ -854,6 +863,10 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
+    #[expect(
+        clippy::approx_constant,
+        reason = "Testing parse_number on -3.14 literal rather than pi"
+    )]
     fn test_parse_number() {
         assert_eq!(parse_number("123").unwrap(), 123.0);
         assert_eq!(parse_number("12.34").unwrap(), 12.34);
@@ -862,66 +875,71 @@ mod tests {
         assert_eq!(parse_number("e").unwrap(), CONST_E);
         assert_eq!(parse_number("E").unwrap(), CONST_E);
         parse_number("abc").unwrap_err();
+        assert_eq!(parse_number("42").unwrap(), 42.0);
+        assert!(approx_eq!(f64, parse_number("-3.14").unwrap(), -3.14));
+        assert_eq!(parse_number("-3.25").unwrap(), -3.25);
+        assert_eq!(parse_number("100%").unwrap(), 1.0);
+        assert_eq!(parse_number("50%").unwrap(), 0.5);
     }
 
     #[crate::ctb_test]
     fn test_parsed_number_fractions_and_units() {
-        let p1 = ParsedNumber::parse("3½", Base::Base10).unwrap();
+        let p1 = ParsedNumber::parse("3½", Base::Decimal).unwrap();
         assert_eq!(p1.to_f64(), 3.5);
         assert_eq!(
             p1.to_rational().unwrap(),
             &Rational::from_naturals(Natural::from(7u8), Natural::from(2u8))
         );
 
-        let p2 = ParsedNumber::parse("3 1/2 oz", Base::Base10).unwrap();
+        let p2 = ParsedNumber::parse("3 1/2 oz", Base::Decimal).unwrap();
         assert_eq!(p2.to_f64(), 3.5);
         assert_eq!(p2.unit_suffix.as_deref(), Some("oz"));
 
-        let p2 = ParsedNumber::parse("3 1⁄2\"", Base::Base10).unwrap();
+        let p2 = ParsedNumber::parse("3 1⁄2\"", Base::Decimal).unwrap();
         assert_eq!(p2.to_f64(), 3.5);
         assert_eq!(p2.unit_suffix.as_deref(), Some("\""));
 
-        let p2 = ParsedNumber::parse("⅟2 mm2", Base::Base10).unwrap();
+        let p2 = ParsedNumber::parse("⅟2 mm2", Base::Decimal).unwrap();
         assert_eq!(p2.to_f64(), 0.5);
         assert_eq!(p2.unit_suffix.as_deref(), Some("mm2"));
 
-        let p3 = ParsedNumber::parse("3lb", Base::Base10).unwrap();
+        let p3 = ParsedNumber::parse("3lb", Base::Decimal).unwrap();
         assert_eq!(p3.to_f64(), 3.0);
         assert_eq!(p3.unit_suffix.as_deref(), Some("lb"));
 
-        let p4 = ParsedNumber::parse("3½ g", Base::Base10).unwrap();
+        let p4 = ParsedNumber::parse("3½ g", Base::Decimal).unwrap();
         assert_eq!(p4.to_f64(), 3.5);
         assert_eq!(p4.unit_suffix.as_deref(), Some("g"));
 
-        let p4 = ParsedNumber::parse("↉ g", Base::Base10).unwrap();
+        let p4 = ParsedNumber::parse("↉ g", Base::Decimal).unwrap();
         assert_eq!(p4.to_f64(), 0.0);
         assert_eq!(p4.unit_suffix.as_deref(), Some("g"));
     }
 
     #[crate::ctb_test]
     fn test_symbolic_constants_preserved() {
-        let pi = ParsedNumber::parse("PI", Base::Base10).unwrap();
+        let pi = ParsedNumber::parse("PI", Base::Decimal).unwrap();
         assert_eq!(pi.value, NumberValue::Pi);
         assert_eq!(pi.to_f64(), CONST_PI);
-        let pi = ParsedNumber::parse("π", Base::Base10).unwrap();
+        let pi = ParsedNumber::parse("π", Base::Decimal).unwrap();
         assert_eq!(pi.value, NumberValue::Pi);
 
-        let e = ParsedNumber::parse("e", Base::Base10).unwrap();
+        let e = ParsedNumber::parse("e", Base::Decimal).unwrap();
         assert_eq!(e.value, NumberValue::E);
         assert_eq!(e.to_f64(), CONST_E);
 
-        let i = ParsedNumber::parse("i", Base::Base10).unwrap();
+        let i = ParsedNumber::parse("i", Base::Decimal).unwrap();
         assert_eq!(i.value, NumberValue::ImaginaryI);
 
-        let i = ParsedNumber::parse("5i", Base::Base10).unwrap();
+        let i = ParsedNumber::parse("5i", Base::Decimal).unwrap();
         assert_eq!(i.value, NumberValue::ImaginaryI * 5);
 
-        let i = ParsedNumber::parse("-i", Base::Base10).unwrap();
+        let i = ParsedNumber::parse("-i", Base::Decimal).unwrap();
         assert_eq!(i.value, NumberValue::ImaginaryI * -1);
 
-        let i = ParsedNumber::parse("∞", Base::Base10).unwrap();
+        let i = ParsedNumber::parse("∞", Base::Decimal).unwrap();
         assert_eq!(i.value, NumberValue::Infinity);
-        let i = ParsedNumber::parse("-∞", Base::Base10).unwrap();
+        let i = ParsedNumber::parse("-∞", Base::Decimal).unwrap();
         assert_eq!(i.value, NumberValue::Infinity * -1);
     }
 
@@ -933,10 +951,10 @@ mod tests {
         assert!(info.has_decimal);
         assert_eq!(info.frac_len, 3);
 
-        let scaled = parse_scaled("-0.010", Base::Base10, 3).unwrap();
+        let scaled = parse_scaled("-0.010", Base::Decimal, 3).unwrap();
         assert_eq!(scaled, Integer::from(-10));
         let formatted =
-            format_scaled(&scaled, Base::Base10, 3, 1, 3, true).unwrap();
+            format_scaled(&scaled, Base::Decimal, 3, 1, 3, true).unwrap();
         assert_eq!(formatted, "-0.010");
     }
 

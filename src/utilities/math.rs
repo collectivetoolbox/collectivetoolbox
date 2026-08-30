@@ -21,3 +21,5 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod approx_float;
 pub mod exact_float;
+
+pub use float_cmp::{ApproxEq, F32Margin, F64Margin, Ulps, approx_eq};
