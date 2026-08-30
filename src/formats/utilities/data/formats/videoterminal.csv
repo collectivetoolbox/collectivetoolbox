@@ -1,4 +1,4 @@
-ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,4 +14,4 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-8,Vt100,VT100,videoterminal,,,.vt100,,,,Videoterminal,,,,,Terminal format is an option for text files; when exporting would get the extension format: [terminal].[encoding].txt for example: vt100.utf8.txt,
+,8,Vt100,VT100,videoterminal,,,.vt100,,,,Videoterminal,,,,,Terminal format is an option for text files; when exporting would get the extension format: [terminal].[encoding].txt for example: vt100.utf8.txt,

@@ -1,4 +1,4 @@
-ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,20 +14,20 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-199,Integer,Integer number,number,,,,,,,,,,,,,
-200,Natural,Natural number,number,,,,,,,,,,,,,
-201,Positive,Positive number,number,,,,,,,,,,,,,
-202,Negative,Negative number,number,,,,,,,,,,,,,
-203,U8,8-bit unsigned integer,number,,,,,,,,,,,,,
-204,I8,8-bit signed integer,number,,,,,,,,,,,,,
-205,U16,16-bit unsigned integer,number,,,,,,,,,,,,,
-206,I16,16-bit signed integer,number,,,,,,,,,,,,,
-207,U32,32-bit unsigned integer,number,,,,,,,,,,,,,
-208,I32,32-bit signed integer,number,,,,,,,,,,,,,
-209,U64,64-bit unsigned integer,number,,,,,,,,,,,,,
-210,I64,64-bit signed integer,number,,,,,,,,,,,,,
-211,U128,128-bit unsigned integer,number,,,,,,,,,,,,,
-212,I128,128-bit signed integer,number,,,,,,,,,,,,,
-213,Float,Floating-point number,number,,,,,,,,,,,,,
-214,Fixed,Fixed-point number,number,,,,,,,,,,,,,
-215,Pack32,Pack32 (encoded 32-bit value),number,,,,,,,,,,,,,
+,199,Integer,Integer number,number,,,,,,,,,,,,,
+,200,Natural,Natural number,number,,,,,,,,,,,,,
+,201,Positive,Positive number,number,,,,,,,,,,,,,
+,202,Negative,Negative number,number,,,,,,,,,,,,,
+,203,U8,8-bit unsigned integer,number,,,,,,,,,,,,,
+,204,I8,8-bit signed integer,number,,,,,,,,,,,,,
+,205,U16,16-bit unsigned integer,number,,,,,,,,,,,,,
+,206,I16,16-bit signed integer,number,,,,,,,,,,,,,
+,207,U32,32-bit unsigned integer,number,,,,,,,,,,,,,
+,208,I32,32-bit signed integer,number,,,,,,,,,,,,,
+,209,U64,64-bit unsigned integer,number,,,,,,,,,,,,,
+,210,I64,64-bit signed integer,number,,,,,,,,,,,,,
+,211,U128,128-bit unsigned integer,number,,,,,,,,,,,,,
+,212,I128,128-bit signed integer,number,,,,,,,,,,,,,
+,213,Float,Floating-point number,number,,,,,,,,,,,,,
+,214,Fixed,Fixed-point number,number,,,,,,,,,,,,,
+,215,Pack32,Pack32 (encoded 32-bit value),number,,,,,,,,,,,,,
