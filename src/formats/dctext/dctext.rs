@@ -86,7 +86,7 @@ pub type DcList = Vec<u128>;
 ///
 /// Plain text characters become their corresponding Unicode codepoint IDs (`0..=0x10FFFF`).
 /// Tokens in `@<dcid>@` format are parsed into `u128` values.
-/// `@L<dcid>@` tokens expand to `1114408` followed by `<dcid>`.
+/// `@L<number>@` tokens expand to `1114408` followed by the Dc number representation of `<number>`.
 /// `@@` tokens represent codepoint `64` (`@`).
 ///
 /// # Errors
@@ -130,13 +130,26 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                     dcid_str = stripped;
                 }
 
-                if let Ok(dcid) = dcid_str.parse::<u128>() {
-                    if l_prefix {
-                        list.push(1_114_408u128);
-                        list.push(dcid);
+                if l_prefix {
+                    if let Ok(int_val) = dcid_str.parse::<malachite::Integer>() {
+                        match integer_to_dc_number_global(&int_val) {
+                            Ok(dc_num_gids) => {
+                                list.push(1_114_408u128);
+                                list.extend(dc_num_gids);
+                            }
+                            Err(e) => {
+                                log.warn(&format!(
+                                    "Failed to encode Dc number for @{token}@: {e}"
+                                ));
+                            }
+                        }
                     } else {
-                        list.push(dcid);
+                        log.warn(&format!(
+                            "Invalid local reference token @{token}@ in DcText"
+                        ));
                     }
+                } else if let Ok(dcid) = dcid_str.parse::<u128>() {
+                    list.push(dcid);
                 } else {
                     log.warn(&format!(
                         "Invalid DcID token @{token}@ in DcText"
@@ -180,10 +193,12 @@ pub fn dclist_to_dctext(dclist: &[u128]) -> Vec<u8> {
                 output.push_str(&format!("@{dcid}@"));
             }
         } else if dcid == 1_114_408 {
-            if let Some(&next_dc) = dclist.get(i.saturating_add(1)) {
-                output.push_str(&format!("@L{next_dc}@"));
-                i = i.saturating_add(2);
-                continue;
+            if let Some(rest) = dclist.get(i.saturating_add(1)..) {
+                if let Ok((int_val, consumed)) = read_dc_number_global(rest) {
+                    output.push_str(&format!("@L{int_val}@"));
+                    i = i.saturating_add(1).saturating_add(consumed);
+                    continue;
+                }
             }
             output.push_str("@1114408@");
         } else {
@@ -444,7 +459,7 @@ mod tests {
         let text = "hi @64@ @@ @65@ @128@ there 🥴 @L42@ noncharacter @1114111@ surrogate @56191@ unicode null @0@ dc null @1114112@ @2147483648@ 2^128-1 @340282366920938463463374607431768211455@";
         let dcutf = dctext_to_dcutf(text.as_bytes().to_vec());
         assert_eq!(
-            "686920402040204120c28020746865726520f09fa5b420ff84849084a82a206e6f6e63686172616374657220f48fbfbf20737572726f6761746520edadbf20756e69636f6465206e756c6c2000206463206e756c6c20ff848490808020ff8682808080808020325e3132382d3120ff9683bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf",
+            "686920402040204120c28020746865726520f09fa5b420ff84849084a8ff8484908086ff8488a08387ff84849082a9ff8484908087206e6f6e63686172616374657220f48fbfbf20737572726f6761746520edadbf20756e69636f6465206e756c6c2000206463206e756c6c20ff848490808020ff8682808080808020325e3132382d3120ff9683bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf",
             bin2hex(&dcutf)
         );
 
