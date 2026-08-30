@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,18 +14,18 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228385,161,Tar,`tar` (tape archive),container,,,,,,,,,,,,,
-2228386,162,Zip,ZIP archive,container,,,,,,,,,,,,,
-2228387,163,CtbAssetBundle,Collective Toolbox asset bundle,container,,,.rsrc,,,,,,,,,,
-2228512,288,Shar,Shell archive,container,,,.shar,,,,,,,,,,
-2228513,289,Cpio,CPIO archive,container,,,.cpio,,,,,,,,,,
-2228514,290,Pax,PAX archive,container,,,.pax,,,,,,,,,,
-2228515,291,TarGz,,container,,,".tar.gz, .tgz",,,,Tar & Gzip,,,,,,
-2228516,292,TarZ,,container,,,".tar.Z, .taz",,,,Tar & CompressLzw,,,,,,
-2228517,293,TarBz2,,container,,,".tar.bz2, .tbz2",,,,Tar & Bzip2,,,,,,
-2228529,305,Zpaq,ZPAQ,container,,,,,,,,,,,,,
-2228546,322,TarLzo,"TAR, LZO",container,,,".tar.lzo, .tzo",,,,Tar & Lzo,,,,,,
-2228558,334,CtbAssetBundleV1,"Collective Toolbox resource bundle, version 1",container,,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228559,335,CtbAssetBundleV2,"Collective Toolbox resource bundle, version 2",container,,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228560,336,CtbAssetBundleV3,"Collective Toolbox resource bundle, version 3",container,,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228561,337,CtbAssetBundleV4,"Collective Toolbox resource bundle, version 4",container,,,.rsrc,,,,CtbAssetBundle,,,,,,
+2228385,161,Tar,`tar` (tape archive),container,,,,,,,,,,,,
+2228386,162,Zip,ZIP archive,container,,,,,,,,,,,,
+2228387,163,CtbAssetBundle,Collective Toolbox asset bundle,container,,.rsrc,,,,,,,,,,
+2228512,288,Shar,Shell archive,container,,.shar,,,,,,,,,,
+2228513,289,Cpio,CPIO archive,container,,.cpio,,,,,,,,,,
+2228514,290,Pax,PAX archive,container,,.pax,,,,,,,,,,
+2228515,291,TarGz,,container,,".tar.gz, .tgz",,,,Tar & Gzip,,,,,,
+2228516,292,TarZ,,container,,".tar.Z, .taz",,,,Tar & CompressLzw,,,,,,
+2228517,293,TarBz2,,container,,".tar.bz2, .tbz2",,,,Tar & Bzip2,,,,,,
+2228529,305,Zpaq,ZPAQ,container,,,,,,,,,,,,
+2228546,322,TarLzo,"TAR, LZO",container,,".tar.lzo, .tzo",,,,Tar & Lzo,,,,,,
+2228558,334,CtbAssetBundleV1,"Collective Toolbox resource bundle, version 1",container,,.rsrc,,,,CtbAssetBundle,,,,,,
+2228559,335,CtbAssetBundleV2,"Collective Toolbox resource bundle, version 2",container,,.rsrc,,,,CtbAssetBundle,,,,,,
+2228560,336,CtbAssetBundleV3,"Collective Toolbox resource bundle, version 3",container,,.rsrc,,,,CtbAssetBundle,,,,,,
+2228561,337,CtbAssetBundleV4,"Collective Toolbox resource bundle, version 4",container,,.rsrc,,,,CtbAssetBundle,,,,,,

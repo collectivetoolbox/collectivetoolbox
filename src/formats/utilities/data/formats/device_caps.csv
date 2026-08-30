@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,14 +14,14 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228233,9,Videoterminal,Character-mode terminal,device_caps,,,.txt,,,,,,,,,"Variants: terminal, encoding",
-2228234,10,Teleprinter,Character-mode teleprinter,device_caps,,,.txt,,,,,,,,,"Variants: terminal, encoding. (A printer that can overstrike etc. would still be considered immutable; immutable refers to whether it can erase. Raster, postscript, etc. printers would use their respective formats rather than this one.)",
-2228490,266,TerminalMouse,Character-mode videoterminal supporting mouse input,device_caps,,,,,,,,,,,,,
-2228491,267,TerminalGraphics,Character-mode videoterminal supporting graphics,device_caps,,,,,,,,,,,,,
-2228492,268,TerminalSixelGraphics,Character-mode videoterminal supporting sixel graphics,device_caps,,,,,,,,,,,,,
-2228493,269,TerminalIterm2Graphics,Character-mode videoterminal supporting iTerm2 graphics,device_caps,,,,,,,,,,,,,
-2228494,270,TerminalKittyGraphics,Character-mode videoterminal supporting Kitty graphics,device_caps,,,,,,,,,,,,,
-2228495,271,RasterDisplay,Raster display,device_caps,,,,,,,,,,,,,
-2228496,272,VectorDisplay,Vector display,device_caps,,,,,,,,,,,,,
-2228497,273,RenderModeImmediate,Render full document immediately without interactive features,device_caps,,,,,,,,,,,,,
-2228498,274,RenderModeInteractive,Render with interactive features enabled,device_caps,,,,,,,,,,,,,
+2228233,9,Videoterminal,Character-mode terminal,device_caps,,.txt,,,,,,,,,"Variants: terminal, encoding",
+2228234,10,Teleprinter,Character-mode teleprinter,device_caps,,.txt,,,,,,,,,"Variants: terminal, encoding. (A printer that can overstrike etc. would still be considered immutable; immutable refers to whether it can erase. Raster, postscript, etc. printers would use their respective formats rather than this one.)",
+2228490,266,TerminalMouse,Character-mode videoterminal supporting mouse input,device_caps,,,,,,,,,,,,
+2228491,267,TerminalGraphics,Character-mode videoterminal supporting graphics,device_caps,,,,,,,,,,,,
+2228492,268,TerminalSixelGraphics,Character-mode videoterminal supporting sixel graphics,device_caps,,,,,,,,,,,,
+2228493,269,TerminalIterm2Graphics,Character-mode videoterminal supporting iTerm2 graphics,device_caps,,,,,,,,,,,,
+2228494,270,TerminalKittyGraphics,Character-mode videoterminal supporting Kitty graphics,device_caps,,,,,,,,,,,,
+2228495,271,RasterDisplay,Raster display,device_caps,,,,,,,,,,,,
+2228496,272,VectorDisplay,Vector display,device_caps,,,,,,,,,,,,
+2228497,273,RenderModeImmediate,Render full document immediately without interactive features,device_caps,,,,,,,,,,,,
+2228498,274,RenderModeInteractive,Render with interactive features enabled,device_caps,,,,,,,,,,,,
