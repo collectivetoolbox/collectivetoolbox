@@ -14,29 +14,29 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-,180,Csv,Comma-Separated Values,database,,,.csv,,,,,,,,,,
-,181,Tsv,Tab-Separated Values,database,,,.tsv,,,,,,,,,,
-,182,Ssv,Semicolon-Separated Values,database,,,.ssv,,,,,,,,,,
-,183,Multipart,Multipart form data,database,,,,,,,,,,,,,
-,184,Json,JSON,database,,,.json,,,,,,,,,,
-,185,Jsonc,JSONC,database,,,.json,,,,Json,,,,,,
-,186,Xml,XML,database,,,.xml,,,,,,,,,,
-,187,Warc,WARC,database,,,.warc,,,,,,,,,,
-,188,Pan,Panorama database,database,,,".pan, ",,,,,,,,,,
-,189,Sqlite,SQLite database,database,,,.sqlite,,,,,,,,,,
-,190,IaMetaJson,Internet Archive metadata JSON,database,,,.json,,,,Json,,,,,,
-,191,IaFilesXml,Internet Archive files XML,database,,,_files.xml,,,,Xml,,,,,,
-,192,IaMetaXml,Internet Archive metadata XML,database,,,_meta.xml,,,,Xml,,,,,,
-,193,IaMetaSqlite,Internet Archive metadata SQLite,database,,,_meta.sqlite,,,,Sqlite,,,,,,
-,194,Clubcard,Clubcard data,database,,,,,,,,,,,,,
-,195,CrliteFilter,CRLite filter data,database,,,,,,,,,,,,,
-,196,CrliteFilterDelta,CRLite filter delta,database,,,,,,,,,,,,,
-,197,CommonLogFormat,NCSA Common Log Format,database,,,,,,,,,,,,,
-,198,ExtendedLogFormat,W3C Extended Log Format,database,,,,,,,,,,,,,
-,225,Pem,"PEM printable encoding (Privacy-Enhanced Mail, RFC 7468)",database,,application/x-pem-file,".pem, .crt",,,,,,,,,See more specific formats below,
-,309,Pkcs8PrivateKey,PKCS#8 Private Key (RFC 5958 sec. 7.1) (Public Key Cryptography Standard 8),database,,application/pkcs8,".p8, .key",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
-,310,Pkcs10Csr,PKCS#10 Certificate Signing Request (RFC 5967 sec. 3.1) (Public Key Cryptography Standard 10),database,,application/pkcs10,".p10, .csr",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
-,311,PkixCert,X.509 Certificate (RFC 2585 sec. 4.1; RFC 5280 sec. 4),database,,"application/pkix-cert, application/x-x509-ca-cert, application/x-x509-user-cert, application/x-x509-email-cert",".cer, .crt",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst https://nss-crypto.org/reference/_sources/security/nss/legacy/certificate_download_specification/index.rst.txt
-,312,PkixCrl,X.509 CRL (RFC 2585 sec. 4.2; RFC 5280 sec. 5),database,,"application/pkix-crl, application/x-pkcs7-crl",.crl,,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
-,313,Pkcs7Mime,PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7),database,,"application/pkcs7-mime, application/x-pkcs7-certificates, application/x-pkcs7-certreqresp",".p7c, .p7b, .spc, .p7r",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
-,314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,application/x-pkcs12,".p12, .pfx",com.rsa.pkcs-12,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+2228404,180,Csv,Comma-Separated Values,database,,,.csv,,,,,,,,,,
+2228405,181,Tsv,Tab-Separated Values,database,,,.tsv,,,,,,,,,,
+2228406,182,Ssv,Semicolon-Separated Values,database,,,.ssv,,,,,,,,,,
+2228407,183,Multipart,Multipart form data,database,,,,,,,,,,,,,
+2228408,184,Json,JSON,database,,,.json,,,,,,,,,,
+2228409,185,Jsonc,JSONC,database,,,.json,,,,Json,,,,,,
+2228410,186,Xml,XML,database,,,.xml,,,,,,,,,,
+2228411,187,Warc,WARC,database,,,.warc,,,,,,,,,,
+2228412,188,Pan,Panorama database,database,,,".pan, ",,,,,,,,,,
+2228413,189,Sqlite,SQLite database,database,,,.sqlite,,,,,,,,,,
+2228414,190,IaMetaJson,Internet Archive metadata JSON,database,,,.json,,,,Json,,,,,,
+2228415,191,IaFilesXml,Internet Archive files XML,database,,,_files.xml,,,,Xml,,,,,,
+2228416,192,IaMetaXml,Internet Archive metadata XML,database,,,_meta.xml,,,,Xml,,,,,,
+2228417,193,IaMetaSqlite,Internet Archive metadata SQLite,database,,,_meta.sqlite,,,,Sqlite,,,,,,
+2228418,194,Clubcard,Clubcard data,database,,,,,,,,,,,,,
+2228419,195,CrliteFilter,CRLite filter data,database,,,,,,,,,,,,,
+2228420,196,CrliteFilterDelta,CRLite filter delta,database,,,,,,,,,,,,,
+2228421,197,CommonLogFormat,NCSA Common Log Format,database,,,,,,,,,,,,,
+2228422,198,ExtendedLogFormat,W3C Extended Log Format,database,,,,,,,,,,,,,
+2228449,225,Pem,"PEM printable encoding (Privacy-Enhanced Mail, RFC 7468)",database,,application/x-pem-file,".pem, .crt",,,,,,,,,See more specific formats below,
+2228533,309,Pkcs8PrivateKey,PKCS#8 Private Key (RFC 5958 sec. 7.1) (Public Key Cryptography Standard 8),database,,application/pkcs8,".p8, .key",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+2228534,310,Pkcs10Csr,PKCS#10 Certificate Signing Request (RFC 5967 sec. 3.1) (Public Key Cryptography Standard 10),database,,application/pkcs10,".p10, .csr",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+2228535,311,PkixCert,X.509 Certificate (RFC 2585 sec. 4.1; RFC 5280 sec. 4),database,,"application/pkix-cert, application/x-x509-ca-cert, application/x-x509-user-cert, application/x-x509-email-cert",".cer, .crt",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst https://nss-crypto.org/reference/_sources/security/nss/legacy/certificate_download_specification/index.rst.txt
+2228536,312,PkixCrl,X.509 CRL (RFC 2585 sec. 4.2; RFC 5280 sec. 5),database,,"application/pkix-crl, application/x-pkcs7-crl",.crl,,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+2228537,313,Pkcs7Mime,PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7),database,,"application/pkcs7-mime, application/x-pkcs7-certificates, application/x-pkcs7-certreqresp",".p7c, .p7b, .spc, .p7r",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+2228538,314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,application/x-pkcs12,".p12, .pfx",com.rsa.pkcs-12,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst

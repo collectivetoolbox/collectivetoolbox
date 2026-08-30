@@ -63,8 +63,6 @@ pub const GID_POSITIVE: u128 = 1_114_122;
 pub const GID_NEGATIVE: u128 = 1_114_123;
 /// Global Graph ID for Format 199 (`2228423`).
 pub const GID_FORMAT_199: u128 = 2_228_423;
-/// Global Graph ID for classic Dc 199 (`1114311`).
-pub const GID_DC_199: u128 = 1_114_311;
 
 /// First short Dc ID for Base64 encapsulation digits (digit 0 = 'A' = Dc 127).
 pub const SHORT_DC_BASE64_START: u32 = 127;
@@ -337,7 +335,7 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
 
     let second = gids.get(1).copied().ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     ensure!(
-        second == GID_FORMAT_199 || second == GID_DC_199 || second == u128::from(SHORT_ID_FORMAT_199),
+        second == GID_FORMAT_199,
         "Expected format 199 indicator after Dc 6, found {second}"
     );
 

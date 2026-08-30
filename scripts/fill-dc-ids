@@ -1,10 +1,25 @@
 #!/usr/bin/env python3
 """
-One-off script to populate Column A ('Dc') with the new global graph Dc ID
-calculated from the short Dc ID in Column B ('Short'):
-    Dc ID = Short ID + 1114112 (0x110000)
+Populate Column A ('Dc') with the new global graph ID calculated from the
+short ID in Column B ('Short'):
+    Global Graph ID = Short ID + Region Offset
 
-Operates on all CSV files in src/formats/dctext/data/categories/*.csv.
+Dataset Region Offsets (from global graph layout):
+    - Dcs (dctext):     Offset +1114112 (0x110000) -> [1114112 .. 2228223]
+    - Formats (util):   Offset +2228224 (0x220000) -> [2228224 .. 3342335]
+
+Examples:
+    # Run on formats (Offset: +2228224)
+    ./scripts/fill-dc-ids -t formats
+
+    # Run on Dcs (Offset: +1114112)
+    ./scripts/fill-dc-ids -t dcs
+
+    # Run on both datasets
+    ./scripts/fill-dc-ids -t both
+
+    # Dry-run preview without modifying files
+    ./scripts/fill-dc-ids -t formats --dry-run
 """
 
 import argparse
@@ -15,7 +30,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-DC_OFFSET = 1114112  # 0x110000
+DC_OFFSET = 1114112        # 0x110000 (Document Characters)
+FORMAT_OFFSET = 2228224    # 0x220000 (Formats and Filters)
 
 
 def find_repo_root(start_path: Path) -> Path:
@@ -27,9 +43,9 @@ def find_repo_root(start_path: Path) -> Path:
     return start_path.resolve()
 
 
-def process_file(path: Path, dry_run: bool = False, backup: bool = False) -> Tuple[int, int]:
+def process_file(path: Path, offset: int, dry_run: bool = False, backup: bool = False) -> Tuple[int, int]:
     """
-    Update Column A with Column B + 1114112 for all data rows.
+    Update Column A with Column B + offset for all data rows.
     Returns (total_rows, updated_rows).
     """
     with open(path, "r", encoding="utf-8", newline="") as f:
@@ -56,7 +72,7 @@ def process_file(path: Path, dry_run: bool = False, backup: bool = False) -> Tup
         short_str = r[col_b_idx].strip()
         if short_str.isdigit():
             short_id = int(short_str)
-            new_dc_id = str(short_id + DC_OFFSET)
+            new_dc_id = str(short_id + offset)
             if r[col_a_idx] != new_dc_id:
                 r[col_a_idx] = new_dc_id
                 updated_rows += 1
@@ -80,9 +96,59 @@ def process_file(path: Path, dry_run: bool = False, backup: bool = False) -> Tup
     return len(rows), updated_rows
 
 
+def process_dataset(
+    name: str,
+    files: List[Path],
+    offset: int,
+    repo_root: Path,
+    dry_run: bool = False,
+    backup: bool = False,
+) -> Tuple[int, int]:
+    """Process all files in a dataset with the given offset."""
+    print(f"\nProcessing {len(files)} {name} CSV files (Offset: +{offset}):")
+    total_all_rows = 0
+    total_all_updated = 0
+
+    for path in files:
+        rel_path = path.relative_to(repo_root) if path.is_relative_to(repo_root) else path
+        total_rows, updated_rows = process_file(path, offset=offset, dry_run=dry_run, backup=backup)
+        total_all_rows += total_rows
+        total_all_updated += updated_rows
+
+        status = "WILL UPDATE" if (dry_run and updated_rows > 0) else ("UPDATED" if updated_rows > 0 else "UP TO DATE")
+        print(f"  [{status:11}] {str(rel_path):<55} ({updated_rows}/{total_rows} rows)")
+
+    return total_all_rows, total_all_updated
+
+
+class HelpOnErrorParser(argparse.ArgumentParser):
+    """Custom parser that prints docblock examples on error."""
+
+    def error(self, message: str):
+        if __doc__:
+            print(__doc__.strip(), file=sys.stderr)
+            print("-" * 78, file=sys.stderr)
+        self.print_help(sys.stderr)
+        print(f"\nError: {message}", file=sys.stderr)
+        sys.exit(2)
+
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Fill column A ('Dc') with new global graph Dc ID (Short ID + 1114112)."
+    parser = HelpOnErrorParser(
+        description="Fill column A ('Dc') with new global graph ID (Short ID + offset) for Dcs or Formats.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "-t",
+        "--type",
+        choices=["formats", "format", "dcs", "dc", "both"],
+        default="formats",
+        help="Dataset type to process: 'formats' (+2228224), 'dcs' (+1114112), or 'both' (default: formats).",
+    )
+    parser.add_argument(
+        "--offset",
+        type=int,
+        help="Override numeric offset to add to Column B (Short ID).",
     )
     parser.add_argument(
         "--root",
@@ -93,7 +159,7 @@ def main():
         "--files",
         nargs="+",
         type=Path,
-        help="Explicit list of CSV files to process (defaults to src/formats/dctext/data/categories/*.csv).",
+        help="Explicit list of CSV files to process (overrides --type).",
     )
     parser.add_argument(
         "--dry-run",
@@ -111,39 +177,57 @@ def main():
     script_dir = Path(__file__).resolve().parent
     repo_root = args.root if args.root else find_repo_root(script_dir)
 
+    if args.dry_run:
+        print("Mode: DRY RUN (no files will be modified)")
+
+    grand_total_rows = 0
+    grand_total_updated = 0
+    grand_total_files = 0
+
     if args.files:
         files = [f.resolve() for f in args.files if f.is_file() and f.suffix == ".csv"]
+        offset = args.offset if args.offset is not None else FORMAT_OFFSET
+        total_rows, total_updated = process_dataset(
+            "custom", files, offset, repo_root, dry_run=args.dry_run, backup=args.backup
+        )
+        grand_total_files += len(files)
+        grand_total_rows += total_rows
+        grand_total_updated += total_updated
     else:
-        categories_dir = repo_root / "src" / "formats" / "dctext" / "data" / "categories"
-        if not categories_dir.exists():
-            print(f"Error: Categories directory not found at {categories_dir}", file=sys.stderr)
-            sys.exit(1)
-        files = sorted(categories_dir.glob("*.csv"))
+        target_type = args.type.lower()
 
-    if not files:
-        print("No CSV files found to process.")
-        sys.exit(1)
+        if target_type in ("formats", "format", "both"):
+            formats_dir = repo_root / "src" / "formats" / "utilities" / "data" / "formats"
+            if not formats_dir.exists():
+                print(f"Error: Formats directory not found at {formats_dir}", file=sys.stderr)
+                sys.exit(1)
+            files = sorted(formats_dir.glob("*.csv"))
+            offset = args.offset if args.offset is not None else FORMAT_OFFSET
+            t_rows, t_updated = process_dataset(
+                "Formats", files, offset, repo_root, dry_run=args.dry_run, backup=args.backup
+            )
+            grand_total_files += len(files)
+            grand_total_rows += t_rows
+            grand_total_updated += t_updated
 
-    print(f"Processing {len(files)} CSV files (Offset: +{DC_OFFSET}):")
-    if args.dry_run:
-        print("Mode: DRY RUN (no files will be modified)\n")
-
-    total_all_rows = 0
-    total_all_updated = 0
-
-    for path in files:
-        rel_path = path.relative_to(repo_root) if path.is_relative_to(repo_root) else path
-        total_rows, updated_rows = process_file(path, dry_run=args.dry_run, backup=args.backup)
-        total_all_rows += total_rows
-        total_all_updated += updated_rows
-
-        status = "WILL UPDATE" if (args.dry_run and updated_rows > 0) else ("UPDATED" if updated_rows > 0 else "UP TO DATE")
-        print(f"  [{status:11}] {str(rel_path):<55} ({updated_rows}/{total_rows} rows)")
+        if target_type in ("dcs", "dc", "both"):
+            dcs_dir = repo_root / "src" / "formats" / "dctext" / "data" / "categories"
+            if not dcs_dir.exists():
+                print(f"Error: Dcs directory not found at {dcs_dir}", file=sys.stderr)
+                sys.exit(1)
+            files = sorted(dcs_dir.glob("*.csv"))
+            offset = args.offset if args.offset is not None else DC_OFFSET
+            t_rows, t_updated = process_dataset(
+                "Dcs", files, offset, repo_root, dry_run=args.dry_run, backup=args.backup
+            )
+            grand_total_files += len(files)
+            grand_total_rows += t_rows
+            grand_total_updated += t_updated
 
     print(f"\nSummary:")
-    print(f"  Total files: {len(files)}")
-    print(f"  Total rows: {total_all_rows}")
-    print(f"  Rows {'needing update' if args.dry_run else 'updated'}: {total_all_updated}")
+    print(f"  Total files: {grand_total_files}")
+    print(f"  Total rows:  {grand_total_rows}")
+    print(f"  Rows {'needing update' if args.dry_run else 'updated'}: {grand_total_updated}")
 
 
 if __name__ == "__main__":

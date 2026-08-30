@@ -14,5 +14,5 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-,216,Gregorian,Gregorian calendar,calendar,,,,,,,,,,,,,
-,217,Julian,Julian calendar,calendar,,,,,,,,,,,,,
+2228440,216,Gregorian,Gregorian calendar,calendar,,,,,,,,,,,,,
+2228441,217,Julian,Julian calendar,calendar,,,,,,,,,,,,,

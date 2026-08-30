@@ -14,7 +14,7 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-,135,Elf,ELF (Executable and Linkable Format),executable,,,", .axf, .bin, .elf, .o, .out, .prx, .puff, .ko, .mod, .so, .AppImage",,,,,,,,,,
-,136,Pe,PE (Portable Executable),executable,,,".exe, .com, .dll, .sys, .acm, .ax, .cpl, .drv, .efi, .ime, .mui, .ocx, .scr, .tsp, .msstyles",,,,,,,,,,
-,137,MachO,Mach-O (Mach object),executable,,,", .o, .dylib, .kext",,,,,,,,,,
-,138,DebianPackage,Debian package,executable,,,.deb,,,,,,,,,,
+2228359,135,Elf,ELF (Executable and Linkable Format),executable,,,", .axf, .bin, .elf, .o, .out, .prx, .puff, .ko, .mod, .so, .AppImage",,,,,,,,,,
+2228360,136,Pe,PE (Portable Executable),executable,,,".exe, .com, .dll, .sys, .acm, .ax, .cpl, .drv, .efi, .ime, .mui, .ocx, .scr, .tsp, .msstyles",,,,,,,,,,
+2228361,137,MachO,Mach-O (Mach object),executable,,,", .o, .dylib, .kext",,,,,,,,,,
+2228362,138,DebianPackage,Debian package,executable,,,.deb,,,,,,,,,,
