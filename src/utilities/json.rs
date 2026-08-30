@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later AND MIT
+// SPDX-License-Identifier for parts derived from jaq: MIT
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -16,6 +17,8 @@ A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more detail
 You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+// See additional license details at end of file.
 
 //! JSON querying, jq-compatible filtering, and serialization utilities.
 
@@ -48,34 +51,6 @@ macro_rules! utilities_json_json {
         $crate::json::utilities_serde_json::to_string(&$crate::json::utilities_serde_json_json!($($json)+)).unwrap_or_else(|_| String::new())
     };
 }
-
-/* Remaining code is based on https://github.com/01mf02/jaq
-    License:
-
-    Permission is hereby granted, free of charge, to any
-    person obtaining a copy of this software and associated
-    documentation files (the "Software"), to deal in the
-    Software without restriction, including without
-    limitation the rights to use, copy, modify, merge,
-    publish, distribute, sublicense, and/or sell copies of
-    the Software, and to permit persons to whom the Software
-    is furnished to do so, subject to the following
-    conditions:
-
-    The above copyright notice and this permission notice
-    shall be included in all copies or substantial portions
-    of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-    DEALINGS IN THE SOFTWARE.
-*/
 
 #[derive(Error, Debug)]
 #[error("Jaq JSON error")] // Formats the error message - but I haven't implemented it properly
@@ -395,3 +370,33 @@ mod tests {
         Ok(())
     }
 }
+
+/*
+
+License from parts derived from jaq:
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+*/
