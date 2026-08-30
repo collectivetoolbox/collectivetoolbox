@@ -208,8 +208,9 @@ where
 
         match args.from {
             CharacterDescriptionInputFormat::Utf8 => {
-                let text = String::from_utf8(input_bytes)
-                    .context("Input is not valid UTF-8 text")?;
+                let text = String::from_utf8(input_bytes).with_context(|| {
+                    "Input is not valid UTF-8 text\n\nNOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line."
+                })?;
                 describe_unicode_with_options(&text, options)
             }
             CharacterDescriptionInputFormat::Dcal => {
@@ -324,5 +325,37 @@ mod tests {
             .unwrap();
         let text = String::from_utf8(out).unwrap();
         assert!(text.starts_with("1114408 : Next number is a Dc-equivalent reference"));
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_utf8_invalid_error_hint() {
+        let invalid_utf8_bytes = vec![0x68, 0x69, 0xff, 0x84];
+        let args = CharacterDescriptionArgs {
+            from: CharacterDescriptionInputFormat::Utf8,
+            ..Default::default()
+        };
+        let err = execute_cli_character_description(args, |_| Ok(invalid_utf8_bytes.clone()))
+            .unwrap_err();
+        let err_msg = format!("{err:?}");
+        assert!(err_msg.contains("NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line."));
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_dctext_binary_dcutf_input() {
+        let text = "hi @64@ @L42@";
+        let raw_bytes = crate::dctext_to_dcutf(text.as_bytes().to_vec());
+        let args = CharacterDescriptionArgs {
+            from: CharacterDescriptionInputFormat::DcText,
+            ..Default::default()
+        };
+        let out = execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
+            .unwrap()
+            .unwrap();
+        let desc = String::from_utf8(out).unwrap();
+        assert!(desc.contains("U+0068 : LATIN SMALL LETTER H"));
+        assert!(desc.contains("1114408 : Next number is a Dc-equivalent reference"));
+        assert!(desc.contains("1114118 : Begin number"));
+        assert!(desc.contains("2228423"));
+        assert!(desc.contains("1114119 : End number"));
     }
 }

@@ -97,76 +97,66 @@ pub type DcList = Vec<u128>;
 )]
 pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
     let mut log = FormatLog::default();
-    let text = match std::str::from_utf8(document) {
-        Ok(s) => s,
-        Err(e) => {
-            log.warn(&format!("Invalid UTF-8 in DcText input: {e}"));
-            return Ok(ConversionOutput::new(Vec::new(), log));
-        }
-    };
-
     let mut list = Vec::new();
-    for line in text.lines() {
-        let mut rest = line;
-        while let Some(start) = rest.find('@') {
-            let prefix = rest.get(..start).expect("start is index returned by rest.find('@')");
-            for ch in prefix.chars() {
-                list.push(u128::from(u32::from(ch)));
-            }
+    let mut i = 0usize;
 
-            // Reason for fallback: if @ is the last character in rest, start + 1 exceeds string length and empty slice indicates no remaining text.
-            rest = rest.get(start.saturating_add(1)..).unwrap_or("");
+    while i < document.len() {
+        let Some(slice) = document.get(i..) else { break };
+        let Some(&first_byte) = slice.first() else { break };
 
-            if let Some(end) = rest.find('@') {
-                let token = rest.get(..end).expect("end is index returned by rest.find('@')");
-                let mut dcid_str = token;
-                let mut l_prefix = false;
+        if first_byte == b'@' {
+            if let Some(rest) = slice.get(1..) {
+                if let Some(end_rel) = rest.iter().position(|&b| b == b'@') {
+                    if let Some(token_bytes) = rest.get(..end_rel) {
+                        if let Ok(token_str) = std::str::from_utf8(token_bytes) {
+                            let mut dcid_str = token_str;
+                            let mut is_l = false;
 
-                if dcid_str.is_empty() {
-                    dcid_str = "64"; // @@ token represents @ (codepoint 64)
-                }
-                if let Some(stripped) = dcid_str.strip_prefix('L') {
-                    l_prefix = true;
-                    dcid_str = stripped;
-                }
-
-                if l_prefix {
-                    if let Ok(int_val) = dcid_str.parse::<malachite::Integer>() {
-                        match integer_to_dc_number_global(&int_val) {
-                            Ok(dc_num_gids) => {
-                                list.push(1_114_408u128);
-                                list.extend(dc_num_gids);
+                            if dcid_str.is_empty() {
+                                dcid_str = "64"; // @@ token represents @ (codepoint 64)
                             }
-                            Err(e) => {
-                                log.warn(&format!(
-                                    "Failed to encode Dc number for @{token}@: {e}"
-                                ));
+                            if let Some(stripped) = dcid_str.strip_prefix('L') {
+                                is_l = true;
+                                dcid_str = stripped;
+                            }
+
+                            if is_l {
+                                if let Ok(int_val) = dcid_str.parse::<malachite::Integer>() {
+                                    match integer_to_dc_number_global(&int_val) {
+                                        Ok(dc_num_gids) => {
+                                            list.push(1_114_408u128);
+                                            list.extend(dc_num_gids);
+                                            i = i.saturating_add(2).saturating_add(end_rel);
+                                            continue;
+                                        }
+                                        Err(e) => {
+                                            log.warn(&format!(
+                                                "Failed to encode Dc number for @{token_str}@: {e}"
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    log.warn(&format!(
+                                        "Invalid local reference token @{token_str}@ in DcText"
+                                    ));
+                                }
+                            } else if let Ok(dcid) = dcid_str.parse::<u128>() {
+                                list.push(dcid);
+                                i = i.saturating_add(2).saturating_add(end_rel);
+                                continue;
                             }
                         }
-                    } else {
-                        log.warn(&format!(
-                            "Invalid local reference token @{token}@ in DcText"
-                        ));
                     }
-                } else if let Ok(dcid) = dcid_str.parse::<u128>() {
-                    list.push(dcid);
-                } else {
-                    log.warn(&format!(
-                        "Invalid DcID token @{token}@ in DcText"
-                    ));
                 }
-                // Reason for fallback: if closing @ is the last character in rest, end + 1 exceeds string length and empty slice indicates no remaining text.
-                rest = rest.get(end.saturating_add(1)..).unwrap_or("");
-            } else {
-                for ch in rest.chars() {
-                    list.push(u128::from(u32::from(ch)));
-                }
-                rest = "";
-                break;
             }
         }
-        for ch in rest.chars() {
-            list.push(u128::from(u32::from(ch)));
+
+        if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
+            list.push(codepoint);
+            i = i.saturating_add(size);
+        } else {
+            list.push(u128::from(first_byte));
+            i = i.saturating_add(1);
         }
     }
 
