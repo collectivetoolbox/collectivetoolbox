@@ -1,0 +1,16 @@
+ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Magic,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+(for trans_:
+  =run the tr.)","Export support
+(for trans_:
+  =reverse the
+    tr.)",Tests,"Variant Types
+(comma-
+  delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
+Import/export/tests support columns meaning:
+   -1=N/A
+   blank/0=none
+   1=WIP
+   2=mostly, or fully for at least one version of a format with options
+   3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
+   4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   5=4+optional strict validation.",References
