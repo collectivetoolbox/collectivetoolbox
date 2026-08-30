@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
 use crate::DcList;
