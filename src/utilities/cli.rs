@@ -26,6 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use futures::Stream;
+use std::pin::Pin;
+
 // ---------------------------
 // Tool Result Abstractions
 // ---------------------------

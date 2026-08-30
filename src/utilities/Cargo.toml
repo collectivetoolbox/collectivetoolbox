@@ -49,6 +49,7 @@ memmap2 = "0.9.9"
 uuid = { version = "1.19.0", features = ["v4", "serde"] }
 nix = { version = "0.30", features = ["fs", "signal"] }
 tokio = { version = "1.49.0", features = ["full", "tracing"] }
+futures = "0.3"
 smart-default = "0.7.1"
 csv = "1.4.0"
 chrono = { version = "0.4", features = ["serde"] }

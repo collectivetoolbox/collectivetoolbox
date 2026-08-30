@@ -42,7 +42,7 @@ use crate::utilities::{
     fork, get_this_executable, upgrade_in_place,
     wait_for_ctoolbox_exit_and_clean_up,
 };
-use crate::{StringInput, ToolResult, generate_help_bytes};
+use crate::{StringInput, generate_help_bytes};
 
 /// Return true if this is a command that can be run without booting.
 pub fn is_lightweight_command(command: &str) -> bool {
@@ -886,60 +886,40 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {
-            let out = run_base2base(args, base_args)?;
-            Ok(ToolResult::Immediate {
-                stdout: out.stdout,
-                stderr: out.stderr,
-                exit_code: out.exit_code,
-            })
+            run_base2base(args, base_args)
         }
         Command::Hex2Dec {
             string_input,
             base_args,
         } => {
-            let out = run_base_convert(
+            run_base_convert(
                 &Some(16),
                 &Some(10),
                 &string_input.input,
                 base_args,
-            )?;
-            Ok(ToolResult::Immediate {
-                stdout: out.stdout,
-                stderr: out.stderr,
-                exit_code: out.exit_code,
-            })
+            )
         }
         Command::Dec2Hex {
             string_input,
             base_args,
         } => {
-            let out = run_base_convert(
+            run_base_convert(
                 &Some(10),
                 &Some(16),
                 &string_input.input,
                 base_args,
-            )?;
-            Ok(ToolResult::Immediate {
-                stdout: out.stdout,
-                stderr: out.stderr,
-                exit_code: out.exit_code,
-            })
+            )
         }
         Command::Hexfmt {
             string_input,
             base_args,
         } => {
-            let out = run_base_convert(
+            run_base_convert(
                 &Some(16),
                 &Some(16),
                 &string_input.input,
                 base_args,
-            )?;
-            Ok(ToolResult::Immediate {
-                stdout: out.stdout,
-                stderr: out.stderr,
-                exit_code: out.exit_code,
-            })
+            )
         }
         Command::Hex2Bin(args) => {
             let out = ctb_formats_hexdump::cli::execute_cli_hex2bin(

@@ -32,9 +32,8 @@ pub(crate) use ctb_utilities::*;
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use ctb_utilities::ipc::{ChildKind, format_child_kind};
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use std::env;
-use std::pin::Pin;
 
 use crate::routing::{
     Command, is_lightweight_command, run_lightweight_command,

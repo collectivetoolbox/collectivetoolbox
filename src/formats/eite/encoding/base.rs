@@ -26,6 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::encoding::ascii::{byte_from_stagel_char, stagel_char_from_byte};
 pub use ctb_formats_math::base::{
     Base, BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
     NumeralSystem, base_to_base_string, casefold_base_chars_in_string,

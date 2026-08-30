@@ -3416,6 +3416,7 @@ dependencies = [
  "float-cmp",
  "fork",
  "fs2",
+ "futures",
  "hex",
  "hifijson",
  "humantime",
