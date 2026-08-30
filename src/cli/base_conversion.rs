@@ -55,6 +55,13 @@ impl From<CliBaseAlphabet> for BaseAlphabet {
     }
 }
 
+impl CliBaseAlphabet {
+    #[must_use]
+    pub fn max_base(self) -> u8 {
+        BaseAlphabet::from(self).max_base()
+    }
+}
+
 #[derive(clap::Args, Debug)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -140,9 +147,13 @@ pub struct BaseArgs {
     #[arg(short = 'P', long, default_value_t = 1, conflicts_with("pad"))]
     pub pad_l: u32,
 
-    /// Alphabet to use for base conversion. Bases > 36 require specifying an alphabet like base64_standard.
+    /// Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard.
     #[arg(long, value_enum, default_value = "standard")]
-    pub alphabet: CliBaseAlphabet,
+    pub input_alphabet: CliBaseAlphabet,
+
+    /// Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard.
+    #[arg(long, value_enum, default_value = "standard")]
+    pub output_alphabet: CliBaseAlphabet,
 
     /// Suppress warning messages
     #[arg(short, long, default_value_t = false)]
@@ -187,7 +198,8 @@ pub fn run_base_convert(
             pad_l: args.pad_l,
             pad_fit: args.pad,
         },
-        alphabet: args.alphabet.into(),
+        input_alphabet: args.input_alphabet.into(),
+        output_alphabet: args.output_alphabet.into(),
     };
 
     if args.bytes {
@@ -208,7 +220,7 @@ pub fn run_base_convert(
         }
     } else if args.no_pad {
         return Ok(ToolResult::immediate_err(
-            "--no-pad is only valid with --bytes".as_bytes().to_vec(),
+            "--no-pad is only valid with --bytes\n".as_bytes().to_vec(),
             1,
         ));
     }
@@ -219,7 +231,7 @@ pub fn run_base_convert(
         || (!from_base.is_none() && to_base.is_none())
     {
         return Ok(ToolResult::immediate_err(
-            "Either both or neither base must be specified"
+            "Either both or neither base must be specified\n"
                 .as_bytes()
                 .to_vec(),
             1,
@@ -236,7 +248,7 @@ pub fn run_base_convert(
 
     match converted {
         Err(e) => Ok(ToolResult::immediate_err(
-            format!("{e:?}").as_bytes().to_vec(),
+            format!("{e:?}\n").as_bytes().to_vec(),
             1,
         )),
         Ok((res, log)) => {
@@ -262,8 +274,8 @@ pub fn run_base2base(
     args: &[String],
     base_args: &BaseArgs,
 ) -> Result<ToolResult> {
-    let alphabet: BaseAlphabet = base_args.alphabet.into();
-    let max_base = alphabet.max_base();
+    let input_max_base = base_args.input_alphabet.max_base();
+    let output_max_base = base_args.output_alphabet.max_base();
 
     let (input, from_base, to_base) = if args.len() >= 3
         && let (Ok(from), Ok(to)) = (
@@ -275,13 +287,27 @@ pub fn run_base2base(
                 .parse::<u8>(),
         )
     {
-        if !(2..=max_base).contains(&from) || !(2..=max_base).contains(&to) {
-            let err_msg = if from > 36 || to > 36 {
+        if !(2..=input_max_base).contains(&from) {
+            let err_msg = if from > 36 {
                 format!(
-                    "Base out of range (from: {from}, to: {to}). Bases > 36 (up to 64) require --alphabet base64_standard."
+                    "Base out of range (from: {from}). Bases > 36 (up to 64) require --input-alphabet base64_standard.\n"
                 )
             } else {
-                format!("Invalid base (from: {from}, to: {to}). Supported range for alphabet is 2..={max_base}.")
+                format!(
+                    "Invalid base (from: {from}). Supported range for input alphabet is 2..={input_max_base}.\n"
+                )
+            };
+            return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
+        }
+        if !(2..=output_max_base).contains(&to) {
+            let err_msg = if to > 36 {
+                format!(
+                    "Base out of range (to: {to}). Bases > 36 (up to 64) require --output-alphabet base64_standard.\n"
+                )
+            } else {
+                format!(
+                    "Invalid base (to: {to}). Supported range for output alphabet is 2..={output_max_base}.\n"
+                )
             };
             return Ok(ToolResult::immediate_err(err_msg.into_bytes(), 1));
         }

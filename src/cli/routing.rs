@@ -264,10 +264,10 @@ pub enum Command {
         #[arg(long)]
         port: u16,
     },
-    /// Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
+    /// Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
     #[command(
         name = "base2base",
-        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --alphabet base64_standard\n  A B / BA D/"
+        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --output-alphabet base64_standard\n  A B / BA D/"
     )]
     Base2Base {
         /// All positional arguments for custom parsing
@@ -1673,7 +1673,8 @@ mod tests {
                 limit: 0,
                 pad: false,
                 pad_l: 1,
-                alphabet: CliBaseAlphabet::Standard,
+                input_alphabet: CliBaseAlphabet::Standard,
+                output_alphabet: CliBaseAlphabet::Standard,
                 quiet: false,
             },
         };
@@ -1716,7 +1717,8 @@ mod tests {
                 limit: 0,
                 pad: false,
                 pad_l: 1,
-                alphabet: CliBaseAlphabet::Base64Standard,
+                input_alphabet: CliBaseAlphabet::Standard,
+                output_alphabet: CliBaseAlphabet::Base64Standard,
                 quiet: false,
             },
         };
@@ -1731,6 +1733,84 @@ mod tests {
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_base2base_base30_base64_alphabet() -> Result<()> {
+        let cmd = Command::Base2Base {
+            args: vec![
+                "10".to_string(),
+                "30".to_string(),
+                "25516010".to_string(),
+            ],
+            base_args: BaseArgs {
+                bytes: false,
+                no_pad: false,
+                prefix: String::new(),
+                separator: " ".to_string(),
+                lowercase: false,
+                filter_chars: true,
+                collapse_filtered: false,
+                collapse_only: Vec::new(),
+                parse_prefixes: true,
+                limit: 0,
+                pad: false,
+                pad_l: 1,
+                input_alphabet: CliBaseAlphabet::Standard,
+                output_alphabet: CliBaseAlphabet::Base64Standard,
+                quiet: false,
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout)?;
+                assert_eq!(output.trim(), "BBPBDU");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Roundtrip back to base 10
+        let cmd_back = Command::Base2Base {
+            args: vec![
+                "30".to_string(),
+                "10".to_string(),
+                "BBPBDU".to_string(),
+            ],
+            base_args: BaseArgs {
+                bytes: false,
+                no_pad: false,
+                prefix: String::new(),
+                separator: " ".to_string(),
+                lowercase: false,
+                filter_chars: true,
+                collapse_filtered: false,
+                collapse_only: Vec::new(),
+                parse_prefixes: true,
+                limit: 0,
+                pad: false,
+                pad_l: 1,
+                input_alphabet: CliBaseAlphabet::Base64Standard,
+                output_alphabet: CliBaseAlphabet::Standard,
+                quiet: false,
+            },
+        };
+        let res_back = run_lightweight_command(&cmd_back).await?;
+        match res_back {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout)?;
+                assert_eq!(output.trim(), "25516010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
         Ok(())
     }
 }

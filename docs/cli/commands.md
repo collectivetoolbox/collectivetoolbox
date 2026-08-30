@@ -14,7 +14,7 @@ Commands:
   waitshutdown               Wait for the provided PID to shutdown, then clean up
   waitrestart                Wait for the provided PID to shutdown, then start ctoolbox with the given port
   waitupgrade                Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
-  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
+  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
   hex2dec                    Convert from hexadecimal to decimal
   dec2hex                    Convert from decimal to hexadecimal
   hexfmt                     Reformat hexdumps
@@ -94,7 +94,7 @@ Options:
 ### `ctoolbox base2base`
 
 ```text
-Convert from one base to another (for base <= 36, or <= 64 with --alphabet base64_standard)
+Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
 
 Usage: ctoolbox base2base [OPTIONS] <ARGS>...
 
@@ -102,21 +102,22 @@ Arguments:
   <ARGS>...  All positional arguments for custom parsing
 
 Options:
-  -b, --bytes                          Shortcut for -n -q --limit 255 --pad
-      --no-pad                         Invalid unless using --bytes option. Turns off padding
-      --prefix <PREFIX>                Add prefix to each output number (e.g. 0x) [default: ""]
-  -s, --separator <SEPARATOR>          Separator inserted after numeric output values (except the last one) [default: " "]
-      --lowercase                      Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
-  -f, --filter-chars                   Whether to filter out bytes that aren't digits in the input base
-  -c, --collapse-filtered              Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
-      --collapse-only <COLLAPSE_ONLY>  A list of filtered characters to collapse, leaving others as spaces [default: []]
-      --parse-prefixes                 Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
-  -l, --limit <LIMIT>                  Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
-  -p, --pad                            Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
-  -P, --pad-l <PAD_L>                  Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
-      --alphabet <ALPHABET>            Alphabet to use for base conversion. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
-  -q, --quiet                          Suppress warning messages
-  -h, --help                           Print help (see more with '--help')
+  -b, --bytes                                      Shortcut for -n -q --limit 255 --pad
+      --no-pad                                     Invalid unless using --bytes option. Turns off padding
+      --prefix <PREFIX>                            Add prefix to each output number (e.g. 0x) [default: ""]
+  -s, --separator <SEPARATOR>                      Separator inserted after numeric output values (except the last one) [default: " "]
+      --lowercase                                  Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
+  -f, --filter-chars                               Whether to filter out bytes that aren't digits in the input base
+  -c, --collapse-filtered                          Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
+      --collapse-only <COLLAPSE_ONLY>              A list of filtered characters to collapse, leaving others as spaces [default: []]
+      --parse-prefixes                             Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
+  -l, --limit <LIMIT>                              Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
+  -p, --pad                                        Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
+  -P, --pad-l <PAD_L>                              Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+      --input-alphabet <INPUT_ALPHABET>            Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+      --output-alphabet <OUTPUT_ALPHABET>          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+  -q, --quiet                                      Suppress warning messages
+  -h, --help                                       Print help (see more with '--help')
 
 Examples:
   $ ctoolbox base2base 10 16 "255 16 10"
@@ -131,7 +132,7 @@ Examples:
   $ ctoolbox base2base 10 16 --bytes 255 128
   ff 80
 
-  $ ctoolbox base2base 10 64 "0 1 63 64 255" --alphabet base64_standard
+  $ ctoolbox base2base 10 64 "0 1 63 64 255" --output-alphabet base64_standard
   A B / BA D/
 ```
 

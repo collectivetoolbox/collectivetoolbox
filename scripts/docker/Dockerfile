@@ -48,22 +48,20 @@ RUN set -eux; \
 RUN set -eux; \
     echo "umask 0000" >> /etc/bash.bashrc; \
     echo "umask 0000" >> /etc/profile; \
-    echo "umask 0000" > /etc/profile.d/umask.sh; \
-    cat <<'EOF' >> /etc/profile.d/umask.sh; \
-cargo() { \
-    command cargo "$@" \
-    local st=$? \
-    for arg in "$@"; do \
-        case "$arg" in \
-            build|b|test|t|check|c|run|r|doc) \
-                chmod -R a+rwX /workspaces/ctoolbox/target/*/build/zstd-sys-* /workspaces/ctoolbox/target/*/*/build/zstd-sys-* /workspaces/ctoolbox/target/*/*/*/build/zstd-sys-* 2>/dev/null || true \
-                break \
-                ;; \
-        esac \
-    done \
-    return $st \
-} \
-EOF \
+    printf '%s\n' \
+        'cargo() {' \
+        '    command cargo "$@"' \
+        '    local st=$?' \
+        '    for arg in "$@"; do' \
+        '        case "$arg" in' \
+        '            build|b|test|t|check|c|run|r|doc)' \
+        '                chmod -R a+rwX /workspaces/ctoolbox/target/*/build/zstd-sys-* /workspaces/ctoolbox/target/*/*/build/zstd-sys-* /workspaces/ctoolbox/target/*/*/*/build/zstd-sys-* 2>/dev/null || true' \
+        '                break' \
+        '                ;;' \
+        '        esac' \
+        '    done' \
+        '    return $st' \
+        '}' >> /etc/profile.d/umask.sh; \
     cat /etc/profile.d/umask.sh >> /etc/bash.bashrc; \
     chmod +x /etc/profile.d/umask.sh; \
     sed -i 's/UMASK\s*022/UMASK 0000/' /etc/login.defs
