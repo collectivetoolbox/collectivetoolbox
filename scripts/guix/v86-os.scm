@@ -94,7 +94,6 @@ ensuring all source origins are fetched and retained in the system store closure
   (packages os-packages)
 
   (services (cons* (service static-networking-service-type '())
-                   (service provenance-service-type)
                    (system-sources-service os-packages)
                    (simple-service 'v86-session-environment
                                    session-environment-service-type

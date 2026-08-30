@@ -26,7 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-// Any nontrivial logic should go in the associated crate, rather than this file.
+// Any nontrivial logic should go in the associated crate, rather than this file and crate.
+// This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
 
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
