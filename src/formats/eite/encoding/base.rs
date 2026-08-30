@@ -19,9 +19,77 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Base conversion
 
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
 
+pub use ctb_formats_math::base::{
+    Base, BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
+    NumeralSystem, base_to_base_string, casefold_base_chars_in_string,
+    char_from_hex_byte, dec_to_hex_single, dec_to_hex_string,
+    format_base_string, get_digits_needed, hex_to_dec_single,
+    hex_to_dec_string, int_from_base_str_big,
+    int_from_base_str_big_alphabet, int_from_base_str_u32,
+    int_from_base_str_u128, int_to_base_str,
+    int_to_base_str_big_alphabet, is_base_digit, is_base_digit_alphabet,
+    is_base_str, is_base_str_alphabet,
+    is_supported_base_with_default_alphabet as is_supported_base,
+};
 
-pub use ctb_formats_math::base::{Base, BaseAlphabet, NumeralSystem, BaseStringFormatSettings,  int_to_base36_char, int_from_base36_char, int_from_base_str_u32, int_from_base_str_u128, int_from_base_str_big_alphabet, int_to_base_str_big_alphabet, int_from_base_str_big, int_from_base_str_big, int_to_base_str, hex_to_dec_single, dec_to_hex_single, hex_to_dec_string, dec_to_hex_string, get_digits_needed, casefold_base_chars_in_string, format_base_string,  base_to_base_string, is_supported_base_with_default_alphabet as is_supported_base, is_base_digit_alphabet, is_base_str_alphabet, is_base_digit,  is_base_str, char_from_hex_byte};
+/// Returns the nth digit in base 36 or less (using capitalized digits).
+/// The original JS version had a bug where it would accept 36 as a base, when 0
+/// to 35 is expected (36 digits).
+///
+/// You probably want `BaseAlphabet::Standard.char_for_digit(n)` instead. This is conceptually similar, but returns an uppercase digit.
+pub fn int_to_base36_char(n: u8) -> Result<String> {
+    if !(0..=35).contains(&n) {
+        bail!("{n} is not within range 0..=35");
+    }
+    if n <= 9 {
+        stagel_char_from_byte(n.saturating_add(48))
+    } else {
+        stagel_char_from_byte(n.saturating_add(55))
+    }
+}
+
+/// Returns an int given the nth digit in base 36 or less (using capitalized digits).
+///
+/// You probably want `BaseAlphabet::Standard.digit_for_char(c)` instead. This is conceptually simlar, but does not accept lowercase digits.
+pub fn int_from_base36_char(ch: &str) -> Result<u8> {
+    // Validate input: must be a single character StageL string
+    if ch.len() != 1 {
+        bail!("'{ch}' is not a single StageL character");
+    }
+
+    // Convert to uppercase
+    let ch_uc = ch.to_ascii_uppercase();
+    let b = byte_from_stagel_char(&ch_uc)?;
+
+    let int_res = if b >= 65 {
+        if b > 90 {
+            bail!(
+                "'{ch_uc}' is not within the supported range of digits between 0 and Z (35)."
+            );
+        }
+        b.saturating_sub(55)
+    } else {
+        if !(48..=57).contains(&b) {
+            bail!(
+                "'{ch}' is not within the supported range of digits between 0 and Z (35)."
+            );
+        }
+        b.saturating_sub(48)
+    };
+
+    if !(0..=35).contains(&int_res) {
+        bail!("Internal error in int_from_base36_char called with n='{ch}'.");
+    }
+
+    Ok(int_res)
+}
 
 /*
 Maybe useful:

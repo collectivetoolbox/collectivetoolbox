@@ -854,6 +854,7 @@ fn render_table(table_node: &Rc<Node>, out: &mut String) -> Result<()> {
     // Delimiter row
     out.push('|');
     for col_idx in 0..col_count {
+        out.push(' ');
         let align = match aligns.get(col_idx) {
             Some(&a) => a,
             None => ColumnAlign::None,

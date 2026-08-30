@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow, bail, ensure};
+use ctb_formats_utilities::FormatLog;
 use malachite::Natural;
 use malachite::base::num::basic::traits::Zero;
 
@@ -555,54 +556,6 @@ impl Default for BaseStringFormatSettings {
     }
 }
 
-/// Returns the nth digit in base 36 or less (using capitalized digits).
-/// The original JS version had a bug where it would accept 36 as a base, when 0
-/// to 35 is expected (36 digits).
-pub fn int_to_base36_char(n: u8) -> Result<String> {
-    if !(0..=35).contains(&n) {
-        bail!("{n} is not within range 0..=35");
-    }
-    if n <= 9 {
-        stagel_char_from_byte(n.saturating_add(48))
-    } else {
-        stagel_char_from_byte(n.saturating_add(55))
-    }
-}
-
-/// Returns an int given the nth digit in base 36 or less (using capitalized digits).
-pub fn int_from_base36_char(ch: &str) -> Result<u8> {
-    // Validate input: must be a single character string
-    if ch.len() != 1 {
-        bail!("'{ch}' is not a single character");
-    }
-
-    // Convert to uppercase
-    let ch_uc = ch.to_ascii_uppercase();
-    let b = byte_from_stagel_char(&ch_uc)?;
-
-    let int_res = if b >= 65 {
-        if b > 90 {
-            bail!(
-                "'{ch_uc}' is not within the supported range of digits between 0 and Z (35)."
-            );
-        }
-        b.saturating_sub(55)
-    } else {
-        if !(48..=57).contains(&b) {
-            bail!(
-                "'{ch}' is not within the supported range of digits between 0 and Z (35)."
-            );
-        }
-        b.saturating_sub(48)
-    };
-
-    if !(0..=35).contains(&int_res) {
-        bail!("Internal error in int_from_base36_char called with n='{ch}'.");
-    }
-
-    Ok(int_res)
-}
-
 /// Returns the integer represented by n in the requested base.
 pub fn int_from_base_str_u32(s: &str, base: u8) -> Result<u32> {
     let nat = int_from_base_str_big_alphabet(s, base, BaseAlphabet::Standard)?;
@@ -808,8 +761,10 @@ pub fn casefold_base_chars_in_string(
     base: u8,
     uppercase: bool,
 ) -> Result<String> {
-    ensure!(is_supported_base(base), "Unsupported base {base}");
-    ensure!(!base.is_case_sensitive())
+    ensure!(
+        is_supported_base_with_default_alphabet(base),
+        "Unsupported base {base} (case folding is only supported for bases up to 36)"
+    );
     let mut result = String::new();
     for c in s.chars() {
         if is_base_digit(c.to_string().as_str(), base)? {
