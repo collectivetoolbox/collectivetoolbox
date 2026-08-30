@@ -40,24 +40,29 @@
             (delete 'apply-patches)
             (add-before 'configure 'patch-arch
               (lambda _
-                (substitute* "webrtc/rtc_base/system/arch.h"
-                  (("elif defined\\(_M_IX86\\) \\|\\| defined\\(__i386__\\)")
-                   "elif defined(__SSE__) && (defined(_M_IX86) || defined(__i386__))")
-                  (("#error Please add support for your architecture in rtc_base/system/arch.h")
-                   (string-append
-                    "/* instead of failing, use typical unix defines... */\n"
-                    "#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__\n"
-                    "#define WEBRTC_ARCH_LITTLE_ENDIAN\n"
-                    "#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__\n"
-                    "#define WEBRTC_ARCH_BIG_ENDIAN\n"
-                    "#else\n"
-                    "#error __BYTE_ORDER__ is not defined\n"
-                    "#endif\n"
-                    "#if defined(__LP64__)\n"
-                    "#define WEBRTC_ARCH_64_BITS\n"
-                    "#else\n"
-                    "#define WEBRTC_ARCH_32_BITS\n"
-                    "#endif\n")))))))))))
+                (when (file-exists? "webrtc/api/scoped_refptr.h")
+                  (substitute* "webrtc/api/scoped_refptr.h"
+                    (("absl::Nullable<([^>]+)>" _ type) type)
+                    (("absl::Nonnull<([^>]+)>" _ type) type)))
+                (when (file-exists? "webrtc/rtc_base/system/arch.h")
+                  (substitute* "webrtc/rtc_base/system/arch.h"
+                    (("elif defined\\(_M_IX86\\) \\|\\| defined\\(__i386__\\)")
+                     "elif defined(__SSE__) && (defined(_M_IX86) || defined(__i386__))")
+                    (("#error Please add support for your architecture in rtc_base/system/arch.h")
+                     (string-append
+                      "/* instead of failing, use typical unix defines... */\n"
+                      "#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__\n"
+                      "#define WEBRTC_ARCH_LITTLE_ENDIAN\n"
+                      "#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__\n"
+                      "#define WEBRTC_ARCH_BIG_ENDIAN\n"
+                      "#else\n"
+                      "#error __BYTE_ORDER__ is not defined\n"
+                      "#endif\n"
+                      "#if defined(__LP64__)\n"
+                      "#define WEBRTC_ARCH_64_BITS\n"
+                      "#else\n"
+                      "#define WEBRTC_ARCH_32_BITS\n"
+                      "#endif\n"))))))))))))
 
 (define webrtc-audio-processing-fixed
   (webrtc-audio-processing-fixed-proc webrtc-audio-processing))
