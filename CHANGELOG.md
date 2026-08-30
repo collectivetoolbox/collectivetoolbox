@@ -1,5 +1,9 @@
 While I won't document all breaking changes until this application is stable, I'll try to note the most significant ones here.
 
+# August 30, 2026
+
+- Relocated Dcs 286 `Begin set text color` and 287 `End set text color` (introduced in commit b41c5, Feb 2019) to 304 `Begin set text color` and 305 `End set text color`, as those IDs were already assigned to Dcs 286 `Begin italicized text` and 287 `End italicized text`. It looks like all files I have use those Dc IDs for italics, rather than for coloring.
+
 # August 20, 2026
 
 Breaking changes:

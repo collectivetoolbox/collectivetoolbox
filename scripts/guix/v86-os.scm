@@ -45,7 +45,7 @@
                 bash
                 tmux
                 dillo
-                qemu)
+                qemu-minimal)
           %base-packages))
 
 (define os-packages
@@ -54,21 +54,6 @@
              (apply-patches pkg)
              pkg))
        raw-os-packages))
-
-(define (system-sources-service packages)
-  "Create an etc-service entry exposing all source tarballs under /etc/sources,
-ensuring all source origins are fetched and retained in the system store closure."
-  (simple-service 'system-sources
-                  etc-service-type
-                  `(("sources"
-                     ,(file-union
-                       "system-sources"
-                       (map (lambda (src)
-                              (list (or (origin-actual-file-name src)
-                                        (origin-file-name src)
-                                        "source-tarball")
-                                    src))
-                            (all-transitive-sources packages)))))))
 
 (operating-system
   (host-name "ctoolbox-v86")
@@ -94,7 +79,6 @@ ensuring all source origins are fetched and retained in the system store closure
   (packages os-packages)
 
   (services (cons* (service static-networking-service-type '())
-                   (system-sources-service os-packages)
                    (simple-service 'v86-session-environment
                                    session-environment-service-type
                                    '(("GALLIUM_DRIVER" . "llvmpipe")
