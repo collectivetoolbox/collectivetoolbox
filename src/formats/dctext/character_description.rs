@@ -68,6 +68,7 @@ pub fn describe_graph_id(id: u128, options: DescriptionOptions) -> String {
 }
 
 fn describe_dc_id(gid: u128, short_dc: u32) -> String {
+    let is_known = ctb_formats_eite::dc::dc_get_name(short_dc).is_ok();
     let name = match ctb_formats_eite::dc::dc_get_name(short_dc) {
         Ok(n) => n,
         Err(_) => format!("<unknown Dc {short_dc}>"),
@@ -100,7 +101,13 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
         }
     }
 
-    let mut out = format!("{gid} : {name}");
+    let display_name = if is_known && !name.starts_with('<') {
+        format!("<Dc> {name}")
+    } else {
+        name
+    };
+
+    let mut out = format!("{gid} : {display_name}");
     if let Some(abbr) = abbreviation {
         out.push(' ');
         out.push_str(&abbr);
@@ -173,11 +180,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_describe_graph_id_dc() {
         let desc_296 = describe_graph_id(1114408, DescriptionOptions::default());
-        assert!(desc_296.starts_with("1114408 : Next number is a Dc-equivalent reference to a local node/document"));
+        assert!(desc_296.starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference to a local node/document"));
         assert!(desc_296.contains("{syntax: `:~ [number]`}") || desc_296.contains("syntax: `:~ [number]`"));
 
         let desc_21 = describe_graph_id(1114133, DescriptionOptions::default());
-        assert!(desc_21.starts_with("1114133 : Number sign"));
+        assert!(desc_21.starts_with("1114133 : <Dc> Number sign"));
         assert!(desc_21.contains("octothorpe") || desc_21.contains("hash"));
     }
 
@@ -195,7 +202,7 @@ mod tests {
         let lines: Vec<&str> = out.lines().collect();
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-        assert!(lines[1].starts_with("1114408 : Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
         assert!(lines[2].starts_with("2228304 : String"));
     }
 }

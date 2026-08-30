@@ -634,7 +634,7 @@ $my_test_array = array('a' => '1', 'b' => '2');
                 let lines: Vec<&str> = s.lines().collect();
                 assert_eq!(lines.len(), 3);
                 assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-                assert!(lines[1].starts_with("1114408 : Next number is a Dc-equivalent reference"));
+                assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
                 assert!(lines[2].starts_with("2228304 : String"));
             }
             _ => panic!("Expected Immediate ToolResult"),

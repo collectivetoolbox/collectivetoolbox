@@ -53,21 +53,17 @@ pub struct FormatInfo {
     pub references: String,
 }
 
-static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
-    let mut map = HashMap::new();
-    let bytes = match crate::get_formats_utilities_data("formats.csv") {
-        Some(b) => b,
-        None => return map,
-    };
+fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
+    let vec_bytes = bytes.to_vec();
     let table = match csv_tools::parse_csv_reader(
-        &bytes,
+        &vec_bytes,
         csv_tools::CsvParseOptions {
             has_header: true,
             ..Default::default()
         },
     ) {
         Ok(t) => t,
-        Err(_) => return map,
+        Err(_) => return,
     };
 
     for i in 0..table.row_count() {
@@ -124,6 +120,20 @@ static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
                 references,
             },
         );
+    }
+}
+
+static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    if let Some(file) = crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.csv") {
+        parse_format_csv_data(file.contents(), &mut map);
+    }
+    if let Some(dir) = crate::FORMATS_UTILITIES_DATA_DIR.get_dir("formats") {
+        for file in dir.files() {
+            if file.path().extension().and_then(|ext| ext.to_str()) == Some("csv") {
+                parse_format_csv_data(file.contents(), &mut map);
+            }
+        }
     }
     map
 });

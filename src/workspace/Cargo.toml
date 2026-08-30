@@ -17,6 +17,7 @@ ctb-network = { path = "../network" }
 ctb-renderer = { path = "../renderer" }
 ctb-runtime = { path = "../runtime" }
 ctb-storage = { path = "../storage" }
+ctb-storage-minimal = { path = "../storage/minimal" }
 ctb-workspace-x11-client = { path = "x11_client" }
 ctb-workspace-x11-client-egui = { path = "x11_client_egui" }
 ctb-workspace-ipc = { path = "./ipc" }

@@ -82,6 +82,8 @@ pub async fn entry() -> anyhow::Result<()> {
         cli::Invocation::Subprocess(sub) => {
             setup_logger_for_subprocess(&sub.kind)?;
             setup_subprocess_panic_hooks();
+            ctb_storage_minimal::xkb::ensure_xkb_config_root()?;
+            ctb_storage_minimal::xkb::ensure_x11_locale_root()?;
             ctb_storage::validate_resource_bundle()?;
             start_service(&sub.kind, &sub.args).await?;
             Ok(())
@@ -98,6 +100,8 @@ pub async fn entry() -> anyhow::Result<()> {
             }
 
             // Proceed with full application boot.
+            ctb_storage_minimal::xkb::ensure_xkb_config_root()?;
+            ctb_storage_minimal::xkb::ensure_x11_locale_root()?;
             setup_logger_for_user()?;
             setup_workspace_panic_hooks();
             ctb_storage::validate_resource_bundle()?;

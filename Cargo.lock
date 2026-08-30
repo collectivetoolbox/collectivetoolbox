@@ -3487,6 +3487,7 @@ dependencies = [
  "ctb-renderer",
  "ctb-runtime",
  "ctb-storage",
+ "ctb-storage-minimal",
  "ctb-utilities",
  "ctb-workspace-ipc",
  "ctb-workspace-x11-client",

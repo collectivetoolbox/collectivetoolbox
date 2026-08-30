@@ -46,6 +46,21 @@ use nix::libc::{
     MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit, syscall,
 };
 
+/// Helper to check if an error represents an OS Error 2 (ENOENT / Not Found).
+fn is_not_found_error(err: &anyhow::Error) -> bool {
+    for cause in err.chain() {
+        if let Some(io_err) = cause.downcast_ref::<std::io::Error>() {
+            if io_err.kind() == std::io::ErrorKind::NotFound
+                || io_err.raw_os_error() == Some(2)
+            {
+                return true;
+            }
+        }
+    }
+    let msg = format!("{err:?}");
+    msg.contains("os error 2") || msg.contains("No such file or directory")
+}
+
 #[tokio::main]
 pub async fn main() -> Result<()> {
     // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
@@ -70,9 +85,21 @@ pub async fn main() -> Result<()> {
         result.err()
     );
 
-    // Ensure XKB data is available before any winit/X11 initialization.
-    ctb_storage_minimal::xkb::ensure_xkb_config_root()?;
-    ctb_storage_minimal::xkb::ensure_x11_locale_root()?;
+    if let Err(err) = ctoolbox::workspace::entry().await {
+        if is_not_found_error(&err) {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            if let Err(retry_err) = ctoolbox::workspace::entry().await {
+                eprintln!(
+                    "Error: A required file or directory was not found during startup (os error 2).\n\
+                     Details: {retry_err:?}\n\n\
+                     Please retry running the command again by hand."
+                );
+                std::process::exit(1);
+            }
+            return Ok(());
+        }
+        return Err(err);
+    }
 
-    ctoolbox::workspace::entry().await
+    Ok(())
 }

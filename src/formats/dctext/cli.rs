@@ -293,7 +293,7 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-        assert!(lines[1].starts_with("1114408 : Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
         assert!(lines[2].starts_with("2228304 : String"));
     }
 
@@ -310,8 +310,8 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("1114408 : Next number is a Dc-equivalent reference"));
-        assert!(lines[1].starts_with("1114133 : Number sign"));
+        assert!(lines[0].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with("1114133 : <Dc> Number sign"));
     }
 
     #[crate::ctb_test]
@@ -324,7 +324,7 @@ mod tests {
             .unwrap()
             .unwrap();
         let text = String::from_utf8(out).unwrap();
-        assert!(text.starts_with("1114408 : Next number is a Dc-equivalent reference"));
+        assert!(text.starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
     }
 
     #[crate::ctb_test]
@@ -353,9 +353,39 @@ mod tests {
             .unwrap();
         let desc = String::from_utf8(out).unwrap();
         assert!(desc.contains("U+0068 : LATIN SMALL LETTER H"));
-        assert!(desc.contains("1114408 : Next number is a Dc-equivalent reference"));
-        assert!(desc.contains("1114118 : Begin number"));
+        assert!(desc.contains("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(desc.contains("1114118 : <Dc> Begin number"));
         assert!(desc.contains("2228423"));
-        assert!(desc.contains("1114119 : End number"));
+        assert!(desc.contains("1114119 : <Dc> End number"));
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_user_hex_input() {
+        let raw_bytes: Vec<u8> = vec![
+            0x68, 0x69, 0x20, 0x40, 0x20, 0x40, 0x20, 0x41, 0x20, 0xc2, 0x80,
+            0x20, 0x74, 0x68, 0x65, 0x72, 0x65, 0x20, 0xf0, 0x9f, 0xa5, 0xb4,
+            0x20, 0xff, 0x84, 0x84, 0x90, 0x84, 0xa8, 0xff, 0x84, 0x84, 0x90,
+            0x80, 0x86, 0xff, 0x84, 0x88, 0xa0, 0x83, 0x87, 0xff, 0x84, 0x84,
+            0x90, 0x82, 0xa9, 0xff, 0x84, 0x84, 0x90, 0x80, 0x87, 0x20, 0x6e,
+            0x6f, 0x6e, 0x63, 0x68, 0x61, 0x72, 0x61, 0x63, 0x74, 0x65, 0x72,
+            0x20, 0xf4, 0x8f, 0xbf, 0xbf, 0x20, 0x73, 0x75, 0x72, 0x72, 0x6f,
+            0x67, 0x61, 0x74, 0x65, 0x20, 0xed, 0xad, 0xbf, 0x20, 0x75, 0x6e,
+            0x69, 0x63, 0x6f, 0x64, 0x65, 0x20, 0x6e, 0x75, 0x6c, 0x6c, 0x20,
+            0x00, 0x20, 0x64, 0x63, 0x20, 0x6e, 0x75, 0x6c, 0x6c, 0x20, 0xff,
+            0x84, 0x84, 0x90, 0x80, 0x80, 0x20, 0xff, 0x86, 0x82, 0x80, 0x80,
+            0x80, 0x80, 0x80, 0x20, 0x32, 0x5e, 0x31, 0x32, 0x38, 0x2d, 0x31,
+            0x20, 0xff, 0x96, 0x83, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf,
+            0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf,
+            0xbf, 0xbf,
+        ];
+        let args = CharacterDescriptionArgs {
+            from: CharacterDescriptionInputFormat::DcText,
+            ..Default::default()
+        };
+        let out = execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
+            .unwrap()
+            .unwrap();
+        let desc = String::from_utf8(out).unwrap();
+        println!("OUTPUT:\n{desc}");
     }
 }
