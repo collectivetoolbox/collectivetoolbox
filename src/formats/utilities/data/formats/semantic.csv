@@ -1,4 +1,4 @@
-ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Magic,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,12 +14,12 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-1,DcArray,Internal: Classic Dc Array,semantic,semantic,,,,,,,,-1,-1,-1,,"Array of classic (short) Dc ints, without a defined repreresentation - &[u32] in Rust; an in StageL",
-7,Unicode,Unicode,semantic,semantic,,,,,,,,-1,-1,-1,,Array of ints representing Unicode characters. Might include things that aren’t valid unicode.,
-51,BaseString,Numbers/data encoded using an alphabet,semantic,,,,,,,,,,,,,,
-80,String,String,semantic,,,,,,,,,,,,,,
-218,DateString,A string representing a date,semantic,,,,,,,,,,,,,,
-219,TimeString,A string representing a time,semantic,,,,,,,,,,,,,,
-220,DateTimeString,A string representing a date and time,semantic,,,,,,,,,,,,,,
-224,MathExpression,Math expression,semantic,,,,,,,,,,,,,,
-308,Hexdump,Family of formats of binary data represented as hexadecimal,semantic,,,,,,,,,,,,,,
+1,DcArray,Internal: Classic Dc Array,semantic,semantic,,,,,,,-1,-1,-1,,"Array of classic (short) Dc ints, without a defined repreresentation - &[u32] in Rust; an in StageL",
+7,Unicode,Unicode,semantic,semantic,,,,,,,-1,-1,-1,,Array of ints representing Unicode characters. Might include things that aren’t valid unicode.,
+51,BaseString,Numbers/data encoded using an alphabet,semantic,,,,,,,,,,,,,
+80,String,String,semantic,,,,,,,,,,,,,
+218,DateString,A string representing a date,semantic,,,,,,,,,,,,,
+219,TimeString,A string representing a time,semantic,,,,,,,,,,,,,
+220,DateTimeString,A string representing a date and time,semantic,,,,,,,,,,,,,
+224,MathExpression,Math expression,semantic,,,,,,,,,,,,,
+308,Hexdump,Family of formats of binary data represented as hexadecimal,semantic,,,,,,,,,,,,,

@@ -1,4 +1,4 @@
-ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Magic,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,6 +14,6 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-221,PanDate,Panorama date,date,,,,,,,,,,,,,,
-222,PanTime,Panorama time,date,,,,,,,,,,,,,,
-223,PanSuperDate,Panorama SuperDate,date,,,,,,,,,,,,,,
+221,PanDate,Panorama date,date,,,,,,,,,,,,,
+222,PanTime,Panorama time,date,,,,,,,,,,,,,
+223,PanSuperDate,Panorama SuperDate,date,,,,,,,,,,,,,

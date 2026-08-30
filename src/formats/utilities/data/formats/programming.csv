@@ -1,4 +1,4 @@
-ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Magic,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+ID,Ident (Rust-friendly),Label,Category,"Layer (Semantic, Serialization, Armor, Compression, Container)","MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,22 +14,22 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-18,JavaScript,JavaScript,programming,,,.js,,,,,,,,,,"Programming languages are both formats on their own account, and variants of other formats: for exporting to a text-based format, you could opt to have programmatic Dcs exported to a programming language or a natlang.",
-119,AppleScript,AppleScript,programming,,,,,,,,,,,,,,
-120,TypeScript,TypeScript,programming,,,,,,,,,,,,,,
-121,Perl,Perl,programming,,,,,,,,,,,,,,
-122,Bash,Bash,programming,,,,,,,,,,,,,,
-123,C,C,programming,,,,,,,"c, csrc",,,,,,,
-124,Cpp,C++,programming,,,,,,,,,,,,,,
-125,Cs,C#,programming,,,,,,,,,,,,,,
-126,Java,Java,programming,,,,,,,,,,,,,,
-127,Perl5,Perl 5,programming,,,,,,,,Perl,,,,,,
-128,Perl6,Perl 6 (quite different from earlier Perl versions),programming,,,,,,,,,,,,,,
-129,Raku,Raku (successor of Perl 6),programming,,,,,,,,Perl6,,,,,,
-130,Rust,Rust,programming,,,,,,,,,,,,,,
-131,Php,PHP,programming,,,,,,,,,,,,,,
-132,Sh,POSIX sh,programming,,,,,,,,,,,,,,
-133,StageL,StageL,programming,,,.stagel,,,,,,,,,,,
-134,StageLParseResult,StageL parse result,programming,,,,,,,,,,,,,,
-338,Jq,jq programming language,programming,,,,,,,,,,,,,,
-339,JqJaq,jq programming language as implemented by jaq,programming,,,,,,,,Jq,,,,,,
+18,JavaScript,JavaScript,programming,,,.js,,,,,,,,,"Programming languages are both formats on their own account, and variants of other formats: for exporting to a text-based format, you could opt to have programmatic Dcs exported to a programming language or a natlang.",
+119,AppleScript,AppleScript,programming,,,,,,,,,,,,,
+120,TypeScript,TypeScript,programming,,,,,,,,,,,,,
+121,Perl,Perl,programming,,,,,,,,,,,,,
+122,Bash,Bash,programming,,,,,,,,,,,,,
+123,C,C,programming,,,,,,"c, csrc",,,,,,,
+124,Cpp,C++,programming,,,,,,,,,,,,,
+125,Cs,C#,programming,,,,,,,,,,,,,
+126,Java,Java,programming,,,,,,,,,,,,,
+127,Perl5,Perl 5,programming,,,,,,,Perl,,,,,,
+128,Perl6,Perl 6 (quite different from earlier Perl versions),programming,,,,,,,,,,,,,
+129,Raku,Raku (successor of Perl 6),programming,,,,,,,Perl6,,,,,,
+130,Rust,Rust,programming,,,,,,,,,,,,,
+131,Php,PHP,programming,,,,,,,,,,,,,
+132,Sh,POSIX sh,programming,,,,,,,,,,,,,
+133,StageL,StageL,programming,,,.stagel,,,,,,,,,,
+134,StageLParseResult,StageL parse result,programming,,,,,,,,,,,,,
+338,Jq,jq programming language,programming,,,,,,,,,,,,,
+339,JqJaq,jq programming language as implemented by jaq,programming,,,,,,,Jq,,,,,,

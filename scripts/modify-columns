@@ -1,0 +1,597 @@
+#!/usr/bin/env python3
+"""
+Modify CSV schema/columns (add, rename, delete, reorder, move, sync) across all
+CSVs of a given dataset type ('dcs' or 'formats') or custom files/directories.
+
+Examples:
+  # List columns in dcs dataset
+  ./scripts/modify-columns -t dcs list
+
+  # Add a new column with default value
+  ./scripts/modify-columns -t dcs add "Notes" --default "" --after "Description"
+
+  # Rename a column
+  ./scripts/modify-columns -t dcs rename "Script" "Script Name"
+
+  # Delete a column
+  ./scripts/modify-columns -t dcs delete "Aa"
+
+  # Move a column
+  ./scripts/modify-columns -t formats move "Category" --before "Label"
+
+  # Reorder columns
+  ./scripts/modify-columns -t dcs reorder ID Name ◌ ⇆ Aa Type Script Description
+
+  # Sync all category CSVs to match schema.csv
+  ./scripts/modify-columns -t dcs sync
+"""
+
+import argparse
+import csv
+import os
+import sys
+import tempfile
+from pathlib import Path
+from typing import Callable, List, Optional, Tuple
+
+
+def find_repo_root(start_path: Path) -> Path:
+    """Find repository root by looking for .git or src/formats directory."""
+    curr = start_path.resolve()
+    for parent in [curr] + list(curr.parents):
+        if (parent / ".git").exists() or (parent / "src" / "formats").exists():
+            return parent
+    return start_path.resolve()
+
+
+def col_idx_to_letter(idx: int) -> str:
+    """Convert 0-based column index to spreadsheet letter (A, B, ..., Z, AA, AB...)."""
+    result = ""
+    idx += 1
+    while idx > 0:
+        idx, rem = divmod(idx - 1, 26)
+        result = chr(65 + rem) + result
+    return result
+
+
+def letter_to_col_idx(letter: str) -> Optional[int]:
+    """Convert spreadsheet column letter to 0-based index."""
+    s = letter.strip().upper()
+    if not s or not s.isalpha():
+        return None
+    idx = 0
+    for ch in s:
+        idx = idx * 26 + (ord(ch) - ord('A') + 1)
+    return idx - 1
+
+
+def normalize_str(s: str) -> str:
+    """Normalize string for fuzzy comparison."""
+    return "".join(ch.lower() for ch in s if ch.isalnum())
+
+
+def find_column_index(columns: List[str], target: str) -> int:
+    """
+    Find column index in columns list using exact match, letter, index, or prefix/fuzzy match.
+    Raises ValueError if not found or ambiguous.
+    """
+    target_clean = target.strip()
+    if not target_clean and "" in columns:
+        return columns.index("")
+
+    # 1. Exact match
+    if target_clean in columns:
+        return columns.index(target_clean)
+
+    # 2. Integer index (0-based or 1-based)
+    if target_clean.isdigit():
+        val = int(target_clean)
+        if 0 <= val < len(columns):
+            return val
+        if 1 <= val <= len(columns):
+            return val - 1
+
+    # 3. Column letter (e.g. A, B, C... Z, AA)
+    if target_clean.isalpha():
+        letter_idx = letter_to_col_idx(target_clean)
+        if letter_idx is not None and 0 <= letter_idx < len(columns):
+            return letter_idx
+
+    # 4. First line exact match (for multiline headers)
+    for i, col in enumerate(columns):
+        first_line = col.split("\n", 1)[0].strip()
+        if first_line.lower() == target_clean.lower():
+            return i
+
+    # 5. Normalized alphanumeric match
+    norm_target = normalize_str(target_clean)
+    matches = []
+    for i, col in enumerate(columns):
+        if normalize_str(col) == norm_target:
+            matches.append(i)
+    if len(matches) == 1:
+        return matches[0]
+
+    # 6. Prefix / substring match
+    for i, col in enumerate(columns):
+        first_line = col.split("\n", 1)[0].strip()
+        if normalize_str(first_line).startswith(norm_target):
+            matches.append(i)
+    matches = list(dict.fromkeys(matches))  # deduplicate preserving order
+    if len(matches) == 1:
+        return matches[0]
+    elif len(matches) > 1:
+        matched_names = [f"[{i}] {columns[i]!r}" for i in matches]
+        raise ValueError(f"Ambiguous column identifier '{target}'. Matches: {', '.join(matched_names)}")
+
+    raise ValueError(f"Column '{target}' not found in headers: {[c.split(chr(10), 1)[0] for c in columns]}")
+
+
+class TableTransformer:
+    """Handles schema transformations on in-memory CSV tables."""
+
+    def __init__(self, header: List[str], rows: List[List[str]]):
+        self.header = list(header)
+        self.rows = [list(r) for r in rows]
+
+    def add_column(
+        self,
+        name: str,
+        default_val: str = "",
+        position: Optional[int] = None,
+        after_col: Optional[str] = None,
+        before_col: Optional[str] = None,
+    ):
+        """Add a new column with specified default value and position."""
+        if after_col:
+            idx = find_column_index(self.header, after_col) + 1
+        elif before_col:
+            idx = find_column_index(self.header, before_col)
+        elif position is not None:
+            idx = max(0, min(position, len(self.header)))
+        else:
+            idx = len(self.header)
+
+        self.header.insert(idx, name)
+        for row in self.rows:
+            # Pad row if necessary
+            while len(row) < idx:
+                row.append("")
+            row.insert(idx, default_val)
+
+    def rename_column(self, old_col: str, new_name: str):
+        """Rename an existing column."""
+        idx = find_column_index(self.header, old_col)
+        self.header[idx] = new_name
+
+    def delete_column(self, target_col: str):
+        """Delete a column by name/index/letter."""
+        idx = find_column_index(self.header, target_col)
+        self.header.pop(idx)
+        for row in self.rows:
+            if idx < len(row):
+                row.pop(idx)
+
+    def move_column(
+        self,
+        target_col: str,
+        to_idx: Optional[int] = None,
+        after_col: Optional[str] = None,
+        before_col: Optional[str] = None,
+    ):
+        """Move a column to a new position."""
+        old_idx = find_column_index(self.header, target_col)
+        col_name = self.header.pop(old_idx)
+        col_values = [row.pop(old_idx) if old_idx < len(row) else "" for row in self.rows]
+
+        if after_col:
+            new_idx = find_column_index(self.header, after_col) + 1
+        elif before_col:
+            new_idx = find_column_index(self.header, before_col)
+        elif to_idx is not None:
+            new_idx = max(0, min(to_idx, len(self.header)))
+        else:
+            new_idx = len(self.header)
+
+        self.header.insert(new_idx, col_name)
+        for row, val in zip(self.rows, col_values):
+            while len(row) < new_idx:
+                row.append("")
+            row.insert(new_idx, val)
+
+    def reorder_columns(self, ordered_targets: List[str]):
+        """
+        Reorder columns to match the list of column targets.
+        Any columns not specified will be appended at the end in their original order.
+        """
+        target_indices = [find_column_index(self.header, t) for t in ordered_targets]
+        remaining_indices = [i for i in range(len(self.header)) if i not in target_indices]
+        full_indices = target_indices + remaining_indices
+
+        new_header = [self.header[i] for i in full_indices]
+        new_rows = []
+        for row in self.rows:
+            new_row = [row[i] if i < len(row) else "" for i in full_indices]
+            new_rows.append(new_row)
+
+        self.header = new_header
+        self.rows = new_rows
+
+    def sync_to_schema(self, reference_header: List[str], default_val: str = ""):
+        """
+        Sync current table columns to match reference_header exactly:
+        - Columns present in reference_header are kept/reordered and added if missing.
+        - Extraneous columns not in reference_header are removed.
+        """
+        # Map reference column names to current indices
+        ref_indices = []
+        for ref_col in reference_header:
+            try:
+                idx = find_column_index(self.header, ref_col)
+                ref_indices.append(idx)
+            except ValueError:
+                ref_indices.append(-1)  # Missing column to be added
+
+        new_rows = []
+        for row in self.rows:
+            new_row = []
+            for idx in ref_indices:
+                if idx != -1 and idx < len(row):
+                    new_row.append(row[idx])
+                else:
+                    new_row.append(default_val)
+            new_rows.append(new_row)
+
+        self.header = list(reference_header)
+        self.rows = new_rows
+
+
+def get_files_for_dataset(repo_root: Path, dataset_type: str) -> Tuple[List[Path], Optional[Path]]:
+    """Return all CSV files and the schema file for the given dataset type."""
+    d_type = dataset_type.lower().strip()
+    if d_type in ("dcs", "dc", "dctext"):
+        base_dir = repo_root / "src" / "formats" / "dctext" / "data"
+        categories_dir = base_dir / "categories"
+        schema_file = base_dir / "schema.csv"
+        files = []
+        if schema_file.exists():
+            files.append(schema_file)
+        if categories_dir.exists():
+            files.extend(sorted(categories_dir.glob("*.csv")))
+        return files, (schema_file if schema_file.exists() else None)
+
+    elif d_type in ("formats", "format", "util", "utilities"):
+        base_dir = repo_root / "src" / "formats" / "utilities" / "data"
+        formats_dir = base_dir / "formats"
+        schema_file = base_dir / "schema.csv"
+        files = []
+        if schema_file.exists():
+            files.append(schema_file)
+        if formats_dir.exists():
+            files.extend(sorted(formats_dir.glob("*.csv")))
+        return files, (schema_file if schema_file.exists() else None)
+
+    else:
+        raise ValueError(f"Unknown dataset type '{dataset_type}'. Supported: 'dcs', 'formats'")
+
+
+def read_csv_file(path: Path) -> Tuple[List[str], List[List[str]]]:
+    """Read CSV file and return header list and rows list."""
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        reader = csv.reader(f)
+        try:
+            header = next(reader)
+        except StopIteration:
+            header = []
+        rows = [row for row in reader if any(field.strip() for field in row) or row]
+    return header, rows
+
+
+def write_csv_file(path: Path, header: List[str], rows: List[List[str]]):
+    """Atomically write CSV file."""
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="", dir=path.parent, delete=False) as tmp:
+        writer = csv.writer(tmp, lineterminator="\n")
+        writer.writerow(header)
+        writer.writerows(rows)
+        tmp_path = Path(tmp.name)
+    tmp_path.replace(path)
+
+
+def print_columns_table(header: List[str], title: str = "Columns"):
+    """Nicely print a table of columns."""
+    print(f"\n{title} (Total: {len(header)} columns):")
+    print(f"  {'Index':<6} {'Letter':<8} {'Column Name'}")
+    print(f"  {'-'*5:<6} {'-'*6:<8} {'-'*40}")
+    for i, col in enumerate(header):
+        letter = col_idx_to_letter(i)
+        clean_name = col.replace("\n", " ")
+        if len(clean_name) > 60:
+            clean_name = clean_name[:57] + "..."
+        print(f"  [{i:>2}]   ({letter:>2})     {clean_name!r}")
+
+
+def execute_pipeline(
+    files: List[Path],
+    transform_fn: Callable[[TableTransformer], None],
+    dry_run: bool = False,
+    backup: bool = False,
+    repo_root: Optional[Path] = None,
+):
+    """Apply transformation pipeline to all specified CSV files."""
+    if not files:
+        print("No CSV files found to process.")
+        return
+
+    print(f"\nProcessing {len(files)} files:")
+    for path in files:
+        rel_path = path.relative_to(repo_root) if repo_root and path.is_relative_to(repo_root) else path
+        header, rows = read_csv_file(path)
+        transformer = TableTransformer(header, rows)
+
+        old_header = list(transformer.header)
+        transform_fn(transformer)
+        new_header = transformer.header
+        new_rows = transformer.rows
+
+        header_changed = (old_header != new_header)
+        status = "CHANGED" if header_changed else "NO CHANGE"
+        if dry_run and header_changed:
+            status = "WILL UPDATE"
+
+        print(f"  [{status:11}] {str(rel_path):<55} ({len(old_header)} cols -> {len(new_header)} cols, {len(new_rows)} rows)")
+
+        if header_changed and not dry_run:
+            if backup:
+                bak_path = path.with_suffix(path.suffix + ".bak")
+                with open(bak_path, "w", encoding="utf-8", newline="") as f_bak:
+                    writer = csv.writer(f_bak, lineterminator="\n")
+                    writer.writerow(old_header)
+                    writer.writerows(rows)
+            write_csv_file(path, new_header, new_rows)
+
+    if dry_run:
+        print("\nDry run completed: no files were modified.")
+    else:
+        print("\nOperation completed successfully.")
+
+
+class HelpOnErrorParser(argparse.ArgumentParser):
+    """Custom parser that prints docblock examples on error."""
+
+    def error(self, message: str):
+        if __doc__:
+            print(__doc__.strip(), file=sys.stderr)
+            print("-" * 78, file=sys.stderr)
+        self.print_help(sys.stderr)
+        print(f"\nError: {message}", file=sys.stderr)
+        sys.exit(2)
+
+
+def parse_arguments(argv: Optional[List[str]] = None) -> Tuple[argparse.Namespace, argparse.ArgumentParser]:
+    """Parse CLI arguments with support for global flags anywhere in argv."""
+    if argv is None:
+        argv = sys.argv[1:]
+
+    global_parser = argparse.ArgumentParser(add_help=False)
+    global_parser.add_argument(
+        "-t",
+        "--type",
+        choices=["dcs", "dc", "dctext", "formats", "format", "utilities"],
+        help="Dataset type to operate on: 'dcs' (in dctext) or 'formats' (in utilities).",
+    )
+    global_parser.add_argument(
+        "--files",
+        nargs="+",
+        type=Path,
+        help="Explicit list of CSV files to operate on (overrides --type).",
+    )
+    global_parser.add_argument(
+        "--dir",
+        type=Path,
+        help="Directory of CSV files to operate on (overrides --type).",
+    )
+    global_parser.add_argument(
+        "--root",
+        type=Path,
+        help="Repository root directory (auto-detected if omitted).",
+    )
+    global_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulate the operation without modifying files on disk.",
+    )
+    global_parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Create .bak backups of modified files.",
+    )
+
+    global_args, remaining = global_parser.parse_known_args(argv)
+
+    parser = HelpOnErrorParser(
+        parents=[global_parser],
+        description="Add, rename, delete, reorder, or sync columns across CSV files of a given type (dcs or formats). Example: `./scripts/modify-columns -t formats delete J`",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # Subcommands
+    subparsers = parser.add_subparsers(dest="command", help="Column operation to perform")
+
+    # list
+    subparsers.add_parser("list", help="List columns and current schema")
+
+    # add
+    add_parser = subparsers.add_parser("add", help="Add a new column")
+    add_parser.add_argument("name", help="Name of the new column")
+    add_parser.add_argument("--default", default="", help="Default value for existing rows (default: empty)")
+    add_parser.add_argument("--after", help="Place after column (name, letter, or index)")
+    add_parser.add_argument("--before", help="Place before column (name, letter, or index)")
+    add_parser.add_argument("--at", type=int, help="Place at 0-based column index")
+
+    # rename
+    rename_parser = subparsers.add_parser("rename", help="Rename an existing column")
+    rename_parser.add_argument("old_name", help="Existing column (name, letter, or index)")
+    rename_parser.add_argument("new_name", help="New name for the column")
+
+    # delete
+    delete_parser = subparsers.add_parser("delete", aliases=["drop", "remove"], help="Delete a column")
+    delete_parser.add_argument("target", nargs="+", help="Column(s) to delete (name, letter, or index)")
+
+    # move
+    move_parser = subparsers.add_parser("move", help="Move a column to a new position")
+    move_parser.add_argument("target", help="Column to move (name, letter, or index)")
+    move_parser.add_argument("--after", help="Place after column (name, letter, or index)")
+    move_parser.add_argument("--before", help="Place before column (name, letter, or index)")
+    move_parser.add_argument("--to", type=int, help="Place at 0-based column index")
+
+    # reorder
+    reorder_parser = subparsers.add_parser("reorder", help="Reorder columns")
+    reorder_parser.add_argument(
+        "order",
+        nargs="+",
+        help="List of column names/letters/indices in desired order (comma-separated or multiple args)",
+    )
+
+    # sync
+    sync_parser = subparsers.add_parser("sync", help="Sync columns of all files with schema.csv")
+    sync_parser.add_argument(
+        "--schema-file",
+        type=Path,
+        help="Reference schema CSV file (defaults to dataset schema.csv)",
+    )
+    sync_parser.add_argument(
+        "--default",
+        default="",
+        help="Default value for newly added columns",
+    )
+
+    if not argv:
+        if __doc__:
+            print(__doc__.strip(), file=sys.stderr)
+            print("-" * 78, file=sys.stderr)
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    args = parser.parse_args(remaining)
+
+    # Merge global arguments into args
+    for key, val in vars(global_args).items():
+        if getattr(args, key, None) is None or getattr(args, key, None) is False:
+            setattr(args, key, val)
+
+    return args, parser
+
+
+def main():
+    args, parser = parse_arguments()
+
+    script_dir = Path(__file__).resolve().parent
+    repo_root = args.root if args.root else find_repo_root(script_dir)
+
+    # Resolve target files
+    schema_file = None
+    if args.files:
+        files = [f.resolve() for f in args.files if f.is_file() and f.suffix == ".csv"]
+    elif args.dir:
+        dir_path = args.dir.resolve()
+        files = sorted(dir_path.glob("*.csv"))
+        potential_schema = dir_path / "schema.csv"
+        if potential_schema.exists():
+            schema_file = potential_schema
+    elif args.type:
+        files, schema_file = get_files_for_dataset(repo_root, args.type)
+    else:
+        if __doc__:
+            print(__doc__.strip(), file=sys.stderr)
+            print("-" * 78, file=sys.stderr)
+        parser.print_help(sys.stderr)
+        print("\nError: Please specify target dataset (-t dcs or -t formats), --files, or --dir.", file=sys.stderr)
+        sys.exit(1)
+
+    if not files:
+        print("No CSV files found to operate on.", file=sys.stderr)
+        sys.exit(1)
+
+    # If no command or 'list' command
+    if not args.command or args.command == "list":
+        # Read the first file (or schema file) to display columns
+        sample_file = schema_file if (schema_file and schema_file.exists()) else files[0]
+        header, rows = read_csv_file(sample_file)
+        rel_sample = sample_file.relative_to(repo_root) if sample_file.is_relative_to(repo_root) else sample_file
+        print_columns_table(header, title=f"Columns in {rel_sample}")
+        print(f"\nTotal files in dataset: {len(files)}")
+        return
+
+    # Build transformation function
+    if args.command == "add":
+        def transform(t: TableTransformer):
+            t.add_column(
+                name=args.name,
+                default_val=args.default,
+                position=args.at,
+                after_col=args.after,
+                before_col=args.before,
+            )
+
+    elif args.command == "rename":
+        def transform(t: TableTransformer):
+            t.rename_column(args.old_name, args.new_name)
+
+    elif args.command in ("delete", "drop", "remove"):
+        targets = []
+        for item in args.target:
+            if "," in item:
+                targets.extend(part.strip() for part in item.split(",") if part.strip())
+            else:
+                targets.append(item.strip())
+
+        def transform(t: TableTransformer):
+            for tgt in targets:
+                t.delete_column(tgt)
+
+    elif args.command == "move":
+        def transform(t: TableTransformer):
+            t.move_column(
+                target_col=args.target,
+                to_idx=args.to,
+                after_col=args.after,
+                before_col=args.before,
+            )
+
+    elif args.command == "reorder":
+        order_list = []
+        for item in args.order:
+            if "," in item:
+                order_list.extend(part.strip() for part in item.split(",") if part.strip())
+            else:
+                order_list.append(item.strip())
+
+        def transform(t: TableTransformer):
+            t.reorder_columns(order_list)
+
+    elif args.command == "sync":
+        ref_file = args.schema_file if args.schema_file else schema_file
+        if not ref_file or not ref_file.exists():
+            print(f"Error: Schema reference file not found: {ref_file}", file=sys.stderr)
+            sys.exit(1)
+
+        ref_header, _ = read_csv_file(ref_file)
+
+        def transform(t: TableTransformer):
+            t.sync_to_schema(ref_header, default_val=args.default)
+
+    else:
+        print(f"Unknown command {args.command}", file=sys.stderr)
+        sys.exit(1)
+
+    execute_pipeline(
+        files=files,
+        transform_fn=transform,
+        dry_run=args.dry_run,
+        backup=args.backup,
+        repo_root=repo_root,
+    )
+
+
+if __name__ == "__main__":
+    main()
