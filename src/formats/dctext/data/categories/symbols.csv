@@ -12,3 +12,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114223,111,Tilde punctuation,0,ON,,Sm,Symbols,,,
 1114393,281,Association football,0,ON,,So,Symbols,"soccer ball, foot ball",,
 1114394,282,"Association football, text style",0,ON,,So,Symbols,<style>281,,
+1114395,283,"Association football, emoji style",0,ON,,So,Emoji,<style>281,,
+1114396,284,"Association football, emoji style, bouncing",0,ON,,So,Emoji,<approx>283,,
+1114397,285,"Association football, emoji style, rolling",0,ON,,So,Emoji,<approx>283,,

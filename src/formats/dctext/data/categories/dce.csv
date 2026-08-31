@@ -32,7 +32,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114373,261,End literal value,0,BN,,!Cx,EL Syntax,:260 [262:] [^261 255]+ ~,,
 1114374,262,Begin type definition,0,BN,,!Cx,EL Syntax,:~ [264] 263,,
 1114375,263,End type definition,0,BN,,!Cx,EL Syntax,:262 [264] ~,,
-1114376,264,Built-in type identifier: String,0,BN,,!Cx,EL Types,<approx>(format 80),A specific case of “String” as a format (short-style format ID 80),
+1114376,264,Built-in type identifier: String,0,BN,,!Cx,EL Types,<approx>(f80),A specific case of “String” as a format (short-style format ID 80),
 1114377,265,void lang.invoke(String),0,BN,,!Cx,EL Routines,,Invoke the routine with the given name,
 1114378,266,void lang.block,0,BN,,!Cx,EL Routines,,Indicates a division between blocks of statements,
 1114379,267,Whitespace in source,0,BN,,!Cx,EL Miscellaneous,:([statement] ~) | (~ ~) | (~ [statement]),"Indicates that in source form, there is FIXME: following amount of whitespace.", a blank line should be present here
