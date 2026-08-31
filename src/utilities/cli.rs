@@ -69,6 +69,8 @@ impl ToolResult {
     }
 }
 
+use std::io::IsTerminal;
+
 /// Returns true if standard error is connected to an interactive terminal.
 pub fn is_stderr_interactive() -> bool {
     std::io::stderr().is_terminal()

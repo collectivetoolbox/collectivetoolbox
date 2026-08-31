@@ -1089,7 +1089,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download(
                         target,
@@ -1111,7 +1111,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download_here(
                         target,
@@ -1128,7 +1128,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::checkeddl(
                         target,

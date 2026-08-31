@@ -402,6 +402,7 @@ fn download_with_client(
             format!("Failed to write downloaded file {}", destination.display())
         })?;
         let size_str = format_bytes_decimal(
+            // Reason for fallback: usize to u64 conversion is infallible on 32-bit and 64-bit platforms; zero fallback safely avoids panic during progress display.
             u64::try_from(bytes.len()).unwrap_or(0),
         );
         progress.finish_step(Some(&size_str));
@@ -533,6 +534,7 @@ fn download_here_with_client(
         format!("Failed to write {}", output_path.display())
     })?;
     let size_str = format_bytes_decimal(
+        // Reason for fallback: usize to u64 conversion is infallible on 32-bit and 64-bit platforms; zero fallback safely avoids panic during progress display.
         u64::try_from(bytes.len()).unwrap_or(0),
     );
     progress.finish_step(Some(&size_str));

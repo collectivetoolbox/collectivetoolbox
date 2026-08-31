@@ -488,7 +488,7 @@ guix_run_with_retries() {
 
 build_system_tarball() {
     local output
-    output="$(guix_run_with_retries system image -v 2 --save-provenance $keep_failed --fallback -L "$script_dir" \
+    output="$(guix_run_with_retries system image -v 2 $keep_failed --fallback -L "$script_dir" \
         --system=i686-linux --image-type=tarball "$script_dir/v86-os.scm")"
     echo "$output" | grep -o '/gnu/store/[^[:space:]]*\.tar\.gz' | tail -n 1
 }
