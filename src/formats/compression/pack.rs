@@ -144,10 +144,9 @@ impl<W: Write> BitWriter<W> {
             let space = 8u32.saturating_sub(self.valid);
             let take = rem_bits.min(space);
             let shift = rem_bits.saturating_sub(take);
-            let mask = (1u32
-                .checked_shl(take)
-                .context("bit shift out of range")?)
-            .saturating_sub(1);
+            let mask =
+                (1u32.checked_shl(take).context("bit shift out of range")?)
+                    .saturating_sub(1);
             let val = (code >> shift) & mask;
 
             self.bitbuf = (self.bitbuf << take) | val;
@@ -352,9 +351,9 @@ impl PartialOrd for HuffmanNode {
 
 fn collect_depths(node: &HuffmanNode, depth: usize, depths: &mut [usize; 257]) {
     if let Some(sym) = node.symbol {
-            if let Some(slot) = depths.get_mut(sym) {
-                *slot = depth;
-            }
+        if let Some(slot) = depths.get_mut(sym) {
+            *slot = depth;
+        }
     } else {
         if let Some(ref l) = node.left {
             collect_depths(l, depth.saturating_add(1), depths);
@@ -437,7 +436,7 @@ pub fn compress_pack_stream(
     let mut depths = [0usize; 257];
     collect_depths(&root, 0, &mut depths);
 
-    #[allow(
+    #[expect(
         clippy::expect_used,
         reason = "depths is a non-empty 257-element array"
     )]
@@ -810,8 +809,7 @@ pub fn compress_old_pack_stream(
         tree_words.push(0);
 
         if let Some(sym) = node.symbol {
-            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1))
-            {
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
                 *slot_right = u16::try_from(sym)
                     .context("Huffman symbol out of range for u16")?;
             }
@@ -833,8 +831,7 @@ pub fn compress_old_pack_stream(
             if let Some(slot_left) = tree_words.get_mut(tp) {
                 *slot_left = left_offset;
             }
-            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1))
-            {
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
                 *slot_right = right_offset;
             }
         }
@@ -925,10 +922,9 @@ pub fn compress_old_pack_stream(
             let space = 16u32.saturating_sub(valid_bits);
             let take = rem_bits.min(space);
             let shift = rem_bits.saturating_sub(take);
-            let mask = (1u32
-                .checked_shl(take)
-                .context("bit shift out of range")?)
-            .saturating_sub(1);
+            let mask =
+                (1u32.checked_shl(take).context("bit shift out of range")?)
+                    .saturating_sub(1);
             let val = u16::try_from((code >> shift) & mask)?;
 
             // Reason for fallback: shifting by >= 16 bits on u16 shifts out all bits, defaulting to 0.

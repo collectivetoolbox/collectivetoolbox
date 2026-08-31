@@ -229,8 +229,7 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 u128::from_le_bytes(original_graph_id_bytes);
 
             // 8. Body
-            let body =
-                bytes.get(105..).context("Missing body bytes")?.to_vec();
+            let body = bytes.get(105..).context("Missing body bytes")?.to_vec();
 
             Ok(PackagedNode {
                 node_type,
@@ -291,8 +290,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_deserialize_v1_sample() -> Result<()> {
-        let file = get_storage_data("fixtures/packaged_node_v1_format_sample.ctbn")
-            .context("Missing v1 sample fixture file")?;
+        let file =
+            get_storage_data("fixtures/packaged_node_v1_format_sample.ctbn")
+                .context("Missing v1 sample fixture file")?;
         let bytes = file.contents();
         let deserialized = deserialize_packaged_node(bytes)?;
         assert_eq!(deserialized.node_type, NodeType::Data);

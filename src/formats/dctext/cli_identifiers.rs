@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI handlers for converting between short IDs and Global Graph IDs.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -122,11 +122,12 @@ pub fn parse_graph_or_short_id(input: &str) -> Result<u128> {
         .or_else(|| trimmed.strip_prefix("U+"))
         .or_else(|| trimmed.strip_prefix("u+"))
     {
-        let cp = if rest.chars().all(|c| c.is_ascii_hexdigit()) && rest.len() <= 6 {
-            u128::from_str_radix(rest, 16)?
-        } else {
-            parse_number_literal(rest)?
-        };
+        let cp =
+            if rest.chars().all(|c| c.is_ascii_hexdigit()) && rest.len() <= 6 {
+                u128::from_str_radix(rest, 16)?
+            } else {
+                parse_number_literal(rest)?
+            };
         ensure!(
             cp <= UNICODE_REGION_END,
             "Unicode code point exceeds 0x10FFFF maximum: {cp}"
@@ -188,8 +189,12 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
 
     if args.info {
         if gid <= UNICODE_REGION_END {
-            let cp = u32::try_from(gid).context("Invalid Unicode code point")?;
-            let desc = ctb_formats_unicode::character_description::describe_codepoint(cp);
+            let cp =
+                u32::try_from(gid).context("Invalid Unicode code point")?;
+            let desc =
+                ctb_formats_unicode::character_description::describe_codepoint(
+                    cp,
+                );
             Ok(format!("{gid}\n{desc}\n"))
         } else if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
             let dc_id = u32::try_from(gid.saturating_sub(DC_REGION_START))
@@ -197,8 +202,9 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
             let desc = ctb_formats_eite::dc::describe_dc(dc_id)?;
             Ok(format!("{desc}\n"))
         } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-            let fmt_id = usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
-                .context("Invalid Format ID range")?;
+            let fmt_id =
+                usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
+                    .context("Invalid Format ID range")?;
             let desc = ctb_formats_utilities::describe_format(fmt_id)?;
             Ok(format!("{desc}\n"))
         } else {
@@ -215,7 +221,7 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -242,7 +248,11 @@ mod tests {
             info: true,
         })
         .expect("short-dc -i 296");
-        assert!(out_info.starts_with("1114408\nNext number is a Dc-equivalent reference"));
+        assert!(
+            out_info.starts_with(
+                "1114408\nNext number is a Dc-equivalent reference"
+            )
+        );
         assert!(out_info.contains("Type: !Cx (Control: Dc special)"));
         assert!(out_info.contains("Syntax: :~ [number]"));
     }
@@ -306,7 +316,11 @@ mod tests {
             info: true,
         })
         .expect("gid -i 1114408");
-        assert!(out_dc_info.starts_with("1114408\nNext number is a Dc-equivalent reference"));
+        assert!(
+            out_dc_info.starts_with(
+                "1114408\nNext number is a Dc-equivalent reference"
+            )
+        );
 
         let out_fmt_info = execute_cli_gid(&GidArgs {
             id: "2228304".to_string(),

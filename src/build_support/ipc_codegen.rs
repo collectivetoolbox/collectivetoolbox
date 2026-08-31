@@ -54,7 +54,9 @@ fn push_generated(out: &mut String, service: &str) {
     out.push_str("WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR\n");
     out.push_str("A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.\n\n");
     out.push_str("You should have received a copy of the GNU Affero General Public License along\n");
-    out.push_str("with this program.  If not, see <https://www.gnu.org/licenses/>.\n");
+    out.push_str(
+        "with this program.  If not, see <https://www.gnu.org/licenses/>.\n",
+    );
     out.push_str("*/\n\n");
     let _ = writeln!(out, "// IPC service for {service} process.");
     out.push_str("//\n");

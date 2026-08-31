@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! remote global graph server. Ensures session tokens are handled transiently
 //! at request boundaries.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -59,9 +59,9 @@ impl NodeApiClient {
             .context("Failed to create HTTPS client")?;
 
         let mut headers = reqwest::header::HeaderMap::new();
-        if let Ok(header_val) = reqwest::header::HeaderValue::from_str(&format!(
-            "session={global_session_token}"
-        )) {
+        if let Ok(header_val) = reqwest::header::HeaderValue::from_str(
+            &format!("session={global_session_token}"),
+        ) {
             headers.insert(reqwest::header::COOKIE, header_val);
         }
 
@@ -117,7 +117,10 @@ impl NodeApiClient {
     }
 
     /// Helper to construct the publish endpoint URL.
-    pub fn build_publish_url(server_url: &str, target_id: Option<u128>) -> String {
+    pub fn build_publish_url(
+        server_url: &str,
+        target_id: Option<u128>,
+    ) -> String {
         let base = format!(
             "{}/api/nodes/0/0/publish",
             server_url.trim_end_matches('/')
@@ -146,7 +149,11 @@ impl NodeApiClient {
         let alloc_id_str = val
             .get("allocated_id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Invalid server response structure: missing allocated_id"))?;
+            .ok_or_else(|| {
+                anyhow!(
+                    "Invalid server response structure: missing allocated_id"
+                )
+            })?;
 
         alloc_id_str
             .parse::<u128>()
@@ -167,7 +174,7 @@ impl NodeApiClient {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -182,11 +189,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_build_publish_url() {
-        let url_no_target = NodeApiClient::build_publish_url("https://example.com/", None);
+        let url_no_target =
+            NodeApiClient::build_publish_url("https://example.com/", None);
         assert_eq!(url_no_target, "https://example.com/api/nodes/0/0/publish");
 
-        let url_with_target =
-            NodeApiClient::build_publish_url("https://example.com", Some(8589934595));
+        let url_with_target = NodeApiClient::build_publish_url(
+            "https://example.com",
+            Some(8589934595),
+        );
         assert_eq!(
             url_with_target,
             "https://example.com/api/nodes/0/0/publish?target_id=8589934595"
@@ -209,10 +219,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_parse_publish_response_invalid() {
         let json_invalid_field = r#"{"other_field": "123"}"#;
-        assert!(NodeApiClient::parse_publish_response(json_invalid_field).is_err());
+        NodeApiClient::parse_publish_response(json_invalid_field).unwrap_err();
 
         let json_invalid_number = r#"{"allocated_id": "not_a_number"}"#;
-        assert!(NodeApiClient::parse_publish_response(json_invalid_number).is_err());
+        NodeApiClient::parse_publish_response(json_invalid_number).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -225,6 +235,6 @@ mod tests {
     #[crate::ctb_test]
     fn test_parse_checksum_response_invalid() {
         let json_missing = r#"{"status": "ok"}"#;
-        assert!(NodeApiClient::parse_checksum_response(json_missing).is_err());
+        NodeApiClient::parse_checksum_response(json_missing).unwrap_err();
     }
 }

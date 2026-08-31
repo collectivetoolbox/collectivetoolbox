@@ -503,15 +503,21 @@ pub fn compress_stream_direct(
             Ok(bytes_written)
         }
         CompressionFormat::Xz => {
-            let mut encoder = lzma_rust2::XzWriter::new(writer, lzma_rust2::XzOptions::default())
-                .context("Failed to create XZ encoder")?;
+            let mut encoder = lzma_rust2::XzWriter::new(
+                writer,
+                lzma_rust2::XzOptions::default(),
+            )
+            .context("Failed to create XZ encoder")?;
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to XZ encoder")?;
             encoder.finish().context("Failed to finish XZ encoder")?;
             Ok(bytes_written)
         }
         CompressionFormat::Lzip => {
-            let mut encoder = lzma_rust2::LzipWriter::new(writer, lzma_rust2::LzipOptions::default());
+            let mut encoder = lzma_rust2::LzipWriter::new(
+                writer,
+                lzma_rust2::LzipOptions::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to Lzip encoder")?;
             encoder.finish().context("Failed to finish Lzip encoder")?;
@@ -519,15 +525,19 @@ pub fn compress_stream_direct(
         }
         CompressionFormat::Lzma => {
             let options = lzma_rust2::LzmaOptions::default();
-            let mut encoder = lzma_rust2::LzmaWriter::new(writer, &options, true, true, None)
-                .context("Failed to create LZMA encoder")?;
+            let mut encoder =
+                lzma_rust2::LzmaWriter::new(writer, &options, true, true, None)
+                    .context("Failed to create LZMA encoder")?;
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to LZMA encoder")?;
             encoder.finish().context("Failed to finish LZMA encoder")?;
             Ok(bytes_written)
         }
         CompressionFormat::Lzma2 => {
-            let mut encoder = lzma_rust2::Lzma2Writer::new(writer, lzma_rust2::Lzma2Options::default());
+            let mut encoder = lzma_rust2::Lzma2Writer::new(
+                writer,
+                lzma_rust2::Lzma2Options::default(),
+            );
             let bytes_written = std::io::copy(reader, &mut encoder)
                 .context("Failed to write to LZMA2 encoder")?;
             encoder.finish().context("Failed to finish LZMA2 encoder")?;
@@ -543,13 +553,18 @@ pub fn compress_stream_direct(
         }
         CompressionFormat::Lzo => {
             let mut input = Vec::new();
-            reader.read_to_end(&mut input).context("Failed to read input for LZO compression")?;
+            reader
+                .read_to_end(&mut input)
+                .context("Failed to read input for LZO compression")?;
             if input.is_empty() {
                 return Ok(0);
             }
-            let compressed = lzokay_native::compress(&input)
-                .map_err(|e| anyhow::anyhow!("LZO compression failed: {e:?}"))?;
-            writer.write_all(&compressed).context("Failed to write LZO compressed data")?;
+            let compressed = lzokay_native::compress(&input).map_err(|e| {
+                anyhow::anyhow!("LZO compression failed: {e:?}")
+            })?;
+            writer
+                .write_all(&compressed)
+                .context("Failed to write LZO compressed data")?;
             Ok(u64::try_from(input.len())?)
         }
     }
@@ -682,8 +697,9 @@ pub fn decompress_stream(
             Ok(bytes_written)
         }
         CompressionFormat::Lzma => {
-            let mut decoder = lzma_rust2::LzmaReader::new_mem_limit(reader, u32::MAX, None)
-                .context("Failed to create LZMA decoder")?;
+            let mut decoder =
+                lzma_rust2::LzmaReader::new_mem_limit(reader, u32::MAX, None)
+                    .context("Failed to create LZMA decoder")?;
             let bytes_written = std::io::copy(&mut decoder, writer)
                 .context("Failed to decompress LZMA stream")?;
             Ok(bytes_written)
@@ -707,14 +723,20 @@ pub fn decompress_stream(
         }
         CompressionFormat::Lzo => {
             let mut input = Vec::new();
-            reader.read_to_end(&mut input).context("Failed to read input for LZO decompression")?;
+            reader
+                .read_to_end(&mut input)
+                .context("Failed to read input for LZO decompression")?;
             if input.is_empty() {
                 return Ok(0);
             }
             let mut cursor = std::io::Cursor::new(input);
             let decompressed = lzokay_native::decompress(&mut cursor, None)
-                .map_err(|e| anyhow::anyhow!("LZO decompression failed: {e:?}"))?;
-            writer.write_all(&decompressed).context("Failed to write LZO decompressed data")?;
+                .map_err(|e| {
+                    anyhow::anyhow!("LZO decompression failed: {e:?}")
+                })?;
+            writer
+                .write_all(&decompressed)
+                .context("Failed to write LZO decompressed data")?;
             Ok(u64::try_from(decompressed.len())?)
         }
     }
@@ -1088,9 +1110,7 @@ mod tests {
             CompressionFormat::Lzip => {
                 &["fixtures/example2 with lemurs.pan.lz"]
             }
-            CompressionFormat::Xz => {
-                &["fixtures/example2 with lemurs.pan.xz"]
-            }
+            CompressionFormat::Xz => &["fixtures/example2 with lemurs.pan.xz"],
             CompressionFormat::Zstd => {
                 &["fixtures/example2 with lemurs.pan.zst"]
             }
@@ -1100,7 +1120,9 @@ mod tests {
         };
 
         // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess. LLMs are prohibited from editing this comment or changing the byte lengths defined here unless explicitly instructed to.
-        let random_bytes_len = if format == CompressionFormat::Compact || format == CompressionFormat::Bzip {
+        let random_bytes_len = if format == CompressionFormat::Compact
+            || format == CompressionFormat::Bzip
+        {
             262_144 // 256 KiB
         } else {
             67_108_864 // 64 MiB
@@ -1147,7 +1169,7 @@ mod tests {
                 "Roundtrip failed for case '{case_name}', format {format:?}: expected len {}, got len {}",
                 data.len(),
                 decompressed.len()
-            )
+            );
         }
 
         for &fixture_path in fixtures {

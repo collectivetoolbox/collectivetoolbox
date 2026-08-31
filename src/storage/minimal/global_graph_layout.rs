@@ -55,7 +55,10 @@ pub fn gid_to_short(gid: u128) -> String {
     } else if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
         format!("dc:{offset}", offset = gid.saturating_sub(DC_REGION_START))
     } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-        format!("fmt:{offset}", offset = gid.saturating_sub(FORMAT_REGION_START))
+        format!(
+            "fmt:{offset}",
+            offset = gid.saturating_sub(FORMAT_REGION_START)
+        )
     } else {
         format!("gid:{gid}")
     }
@@ -134,7 +137,9 @@ pub fn get_block_name_for_id(node_id: u128) -> Result<String> {
 pub fn validate_publish_target(target_id: u128) -> Result<()> {
     if let Some(ref block) = get_block("Unicode") {
         if block.contains_id(target_id) {
-            anyhow::bail!("Publishing nodes to the Unicode range is disallowed.");
+            anyhow::bail!(
+                "Publishing nodes to the Unicode range is disallowed."
+            );
         }
     }
     if get_block_name_for_id(target_id)? == "Unicode" {
@@ -165,7 +170,7 @@ fn get_layout_table() -> Result<std::sync::Arc<csv_tools::CsvTable>> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

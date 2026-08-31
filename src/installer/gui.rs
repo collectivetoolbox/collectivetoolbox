@@ -167,9 +167,11 @@ impl Default for AppState {
         Self {
             config: InstallConfig::new(
                 // Reason for fallback: system default directory resolution failure falls back to standard system paths /opt/ctoolbox and /var/lib/ctoolbox
-                default_user_install_dir().unwrap_or_else(|_| PathBuf::from("/opt/ctoolbox")),
+                default_user_install_dir()
+                    .unwrap_or_else(|_| PathBuf::from("/opt/ctoolbox")),
                 // Reason for fallback: system default directory resolution failure falls back to standard system paths /opt/ctoolbox and /var/lib/ctoolbox
-                default_storage_dir().unwrap_or_else(|_| PathBuf::from("/var/lib/ctoolbox")),
+                default_storage_dir()
+                    .unwrap_or_else(|_| PathBuf::from("/var/lib/ctoolbox")),
             ),
             features: placeholder_feature_tree(),
             release_manifest: None,

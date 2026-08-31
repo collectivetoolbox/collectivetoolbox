@@ -31,7 +31,8 @@ use anyhow::Result;
 pub use ctb_formats_unicode::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe as describe_unicode, describe_codepoint,
-    describe_codepoint_with_options, describe_with_options as describe_unicode_with_options,
+    describe_codepoint_with_options,
+    describe_with_options as describe_unicode_with_options,
 };
 
 use crate::dcal::dcal_to_dclist;
@@ -74,10 +75,8 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
         Err(_) => format!("<unknown Dc {short_dc}>"),
     };
 
-    let aliases_raw = match ctb_formats_eite::dc::dc_get_complex_traits(short_dc) {
-        Ok(t) => t,
-        Err(_) => String::new(),
-    };
+    let aliases_raw = ctb_formats_eite::dc::dc_get_complex_traits(short_dc)
+        .unwrap_or_default();
 
     let mut annotations = Vec::new();
     let mut abbreviation = None;
@@ -148,7 +147,10 @@ pub fn describe_dclist(dclist: &[u128], options: DescriptionOptions) -> String {
 }
 
 /// Parses a Dcal input string and describes each character / Dc ID.
-pub fn describe_dcal(input: &str, options: DescriptionOptions) -> Result<String> {
+pub fn describe_dcal(
+    input: &str,
+    options: DescriptionOptions,
+) -> Result<String> {
     let conv = dcal_to_dclist(input.as_bytes())?;
     Ok(describe_dclist(&conv.result, options))
 }
@@ -179,9 +181,13 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_describe_graph_id_dc() {
-        let desc_296 = describe_graph_id(1114408, DescriptionOptions::default());
+        let desc_296 =
+            describe_graph_id(1114408, DescriptionOptions::default());
         assert!(desc_296.starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference to a local node/document"));
-        assert!(desc_296.contains("{syntax: `:~ [number]`}") || desc_296.contains("syntax: `:~ [number]`"));
+        assert!(
+            desc_296.contains("{syntax: `:~ [number]`}")
+                || desc_296.contains("syntax: `:~ [number]`")
+        );
 
         let desc_21 = describe_graph_id(1114133, DescriptionOptions::default());
         assert!(desc_21.starts_with("1114133 : <Dc> Number sign"));
@@ -190,7 +196,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_describe_graph_id_format() {
-        let desc_fmt = describe_graph_id(2228304, DescriptionOptions::default());
+        let desc_fmt =
+            describe_graph_id(2228304, DescriptionOptions::default());
         assert!(desc_fmt.starts_with("2228304 : String"));
         assert!(desc_fmt.contains("[semantic]"));
     }
@@ -202,7 +209,9 @@ mod tests {
         let lines: Vec<&str> = out.lines().collect();
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-        assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
         assert!(lines[2].starts_with("2228304 : String"));
     }
 }

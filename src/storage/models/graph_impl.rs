@@ -245,19 +245,19 @@ pub async fn list_databases(session_token: String) -> Result<Vec<String>> {
             if let Ok(params) = crate::db::sea_values_to_turso(values) {
                 if let Ok(mut data_stmt) = conn.prepare(&sql).await {
                     if let Ok(mut data_rows) = data_stmt.query(params).await {
-                    while let Ok(Some(row)) = data_rows.next().await {
-                        if let Ok(Value::Text(p)) = row.get_value(0) {
-                            let resolved =
-                                p.replace("{user_id}", &user_id.to_string());
-                            if !list.contains(&resolved) {
-                                list.push(resolved);
+                        while let Ok(Some(row)) = data_rows.next().await {
+                            if let Ok(Value::Text(p)) = row.get_value(0) {
+                                let resolved = p
+                                    .replace("{user_id}", &user_id.to_string());
+                                if !list.contains(&resolved) {
+                                    list.push(resolved);
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
     }
 
     Ok(list)

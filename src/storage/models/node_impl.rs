@@ -343,11 +343,10 @@ pub async fn get_node_dto(
         match row.get_value(5) {
             Ok(Value::Blob(b)) => {
                 if b.len() == 16 {
-                    timestamp_val = u128::from_be_bytes(
-                        b.as_slice().try_into().context(
+                    timestamp_val =
+                        u128::from_be_bytes(b.as_slice().try_into().context(
                             "Timestamp 16-byte blob conversion failed",
-                        )?,
-                    );
+                        )?);
                 } else if b.len() == 8 {
                     timestamp_val = u128::from(u64::from_be_bytes(
                         b.as_slice().try_into().context(
@@ -445,11 +444,10 @@ pub async fn list_nodes(
         match row.get_value(5) {
             Ok(Value::Blob(b)) => {
                 if b.len() == 16 {
-                    timestamp_val = u128::from_be_bytes(
-                        b.as_slice().try_into().context(
+                    timestamp_val =
+                        u128::from_be_bytes(b.as_slice().try_into().context(
                             "Timestamp 16-byte blob conversion failed",
-                        )?,
-                    );
+                        )?);
                 } else if b.len() == 8 {
                     timestamp_val = u128::from(u64::from_be_bytes(
                         b.as_slice().try_into().context(

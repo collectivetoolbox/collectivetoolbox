@@ -20,12 +20,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Command-line runner for data table validation, automatic ID assignment,
 //! and merged dataset generation.
 
-use std::process::ExitCode;
 use ctb_formats_data_validator::{
     assign_and_update_dc_categories, assign_and_update_format_categories,
     find_repository_root, generate_merged_csvs, validate_all_data_tables,
     validate_all_data_tables_from_repo,
 };
+use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
@@ -47,7 +47,9 @@ fn main() -> ExitCode {
     let repo_root = match find_repository_root() {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("Error: Could not determine repository root for --write mode ({e})");
+            eprintln!(
+                "Error: Could not determine repository root for --write mode ({e})"
+            );
             return ExitCode::FAILURE;
         }
     };
@@ -57,7 +59,9 @@ fn main() -> ExitCode {
             if stats.new_ids_assigned > 0 || stats.dc_ids_recalculated > 0 {
                 println!(
                     "Dc Tables: assigned {} new IDs, recalculated {} Dc IDs (max Short ID: {}).",
-                    stats.new_ids_assigned, stats.dc_ids_recalculated, stats.max_short_id
+                    stats.new_ids_assigned,
+                    stats.dc_ids_recalculated,
+                    stats.max_short_id
                 );
             }
         }
@@ -72,7 +76,9 @@ fn main() -> ExitCode {
             if stats.new_ids_assigned > 0 || stats.dc_ids_recalculated > 0 {
                 println!(
                     "Format Tables: assigned {} new IDs, recalculated {} Dc IDs (max Short ID: {}).",
-                    stats.new_ids_assigned, stats.dc_ids_recalculated, stats.max_short_id
+                    stats.new_ids_assigned,
+                    stats.dc_ids_recalculated,
+                    stats.max_short_id
                 );
             }
         }

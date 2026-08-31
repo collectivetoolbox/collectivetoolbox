@@ -427,7 +427,7 @@ fn is_line_break(units: &[u16], index: usize) -> bool {
             if i == name_start {
                 return false;
             }
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "name_start < i <= units.len() guaranteed by loop termination"
             )]
@@ -568,7 +568,7 @@ fn clip_plain_text(
                 if u == NEWLINE_CHAR_CODE {
                     let insert_indicator = insert_indicator_at_linebreak
                         && has_non_whitespace(&units, peek_index);
-                    #[allow(
+                    #[expect(
                         clippy::expect_used,
                         reason = "peek_index < units.len() checked on line 543"
                     )]
@@ -624,7 +624,7 @@ fn clip_plain_text(
             break;
         }
 
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "i <= units.len() invariant in loop"
         )]
@@ -652,7 +652,7 @@ fn clip_plain_text(
             break;
         }
 
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "i <= units.len() invariant in loop"
         )]
@@ -1106,7 +1106,9 @@ fn clip_html(
                 bail!("Invalid HTML: {text}");
             };
 
-            let Some(between_units) = units.get(i.saturating_add(2)..tag_end_index) else {
+            let Some(between_units) =
+                units.get(i.saturating_add(2)..tag_end_index)
+            else {
                 bail!("Invalid HTML: {text}");
             };
             let between = units_to_string(between_units).trim().to_string();
@@ -1167,7 +1169,7 @@ fn clip_html(
                 break;
             }
 
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "i <= units.len() invariant in clip_html_text loop"
             )]
@@ -1196,7 +1198,7 @@ fn clip_html(
             break;
         }
 
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "i <= units.len() invariant in clip_html_text loop"
         )]

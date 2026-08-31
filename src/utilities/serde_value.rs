@@ -30,7 +30,11 @@ use crate::json;
 /// Inserts a key-value pair into a JSON object. If the input is an object, it adds
 /// the key directly. If not, it wraps the input in a new object under "original"
 /// and adds the new key. Returns the modified `Value`.
-pub fn insert_key<T: Serialize>(input: T, key: &str, value: Value) -> Result<Value> {
+pub fn insert_key<T: Serialize>(
+    input: T,
+    key: &str,
+    value: Value,
+) -> Result<Value> {
     let mut val = to_value(input)?;
     if let Value::Object(map) = &mut val {
         map.insert(key.to_string(), value);
@@ -59,9 +63,7 @@ pub fn get_bytes(val: &Value) -> Option<Vec<u8>> {
             }
             bytes
         }
-        Value::String(s) => {
-            standard_base64_to_bytes(s.clone()).ok()?
-        }
+        Value::String(s) => standard_base64_to_bytes(s.clone()).ok()?,
         _ => return None,
     };
     Some(value_bytes)

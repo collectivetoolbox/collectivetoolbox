@@ -383,11 +383,12 @@ fn get_bundle(locale: Locale) -> &'static Bundle {
     } else if let Some(en_bundle) = bundles.get(&Locale::EnUs) {
         en_bundle
     } else {
-        static FALLBACK_BUNDLE: std::sync::LazyLock<Bundle> = std::sync::LazyLock::new(|| {
-            // Reason for fallback: static string "en-US" parse error defaults to initial LanguageIdentifier
-            let lang_id = "en-US".parse().unwrap_or_default();
-            Bundle::new_concurrent(vec![lang_id])
-        });
+        static FALLBACK_BUNDLE: std::sync::LazyLock<Bundle> =
+            std::sync::LazyLock::new(|| {
+                // Reason for fallback: static string "en-US" parse error defaults to initial LanguageIdentifier
+                let lang_id = "en-US".parse().unwrap_or_default();
+                Bundle::new_concurrent(vec![lang_id])
+            });
         &FALLBACK_BUNDLE
     }
 }

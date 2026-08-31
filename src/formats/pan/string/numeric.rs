@@ -659,8 +659,8 @@ fn format_number_in_base(radix: RadixSpec, n: i128) -> Result<String> {
         let rem = (value
             .checked_rem(base_i128)
             .context("remainder by base failed")?)
-            .try_into()
-            .context("remainder out of range")?;
+        .try_into()
+        .context("remainder out of range")?;
         digits.push(digit_char(rem)?);
         value = value
             .checked_div(base_i128)

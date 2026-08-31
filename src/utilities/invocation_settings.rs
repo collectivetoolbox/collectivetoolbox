@@ -141,9 +141,7 @@ pub fn get_settings() -> InvocationSettings {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        InvocationSettings, TlsValidatorOverride,
-    };
+    use super::{InvocationSettings, TlsValidatorOverride};
 
     #[crate::ctb_test]
     fn test_invocation_settings_skip_crlite_flag() {
@@ -178,7 +176,10 @@ mod tests {
         let roundtrip_args = settings.command_line_args();
         assert_eq!(
             roundtrip_args,
-            vec!["--use-bundled-tls-validator", "--insecure-skip-crlite-check"]
+            vec![
+                "--use-bundled-tls-validator",
+                "--insecure-skip-crlite-check"
+            ]
         );
     }
 }

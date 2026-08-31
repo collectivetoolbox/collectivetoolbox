@@ -117,13 +117,12 @@ pub fn get_uuid_from_document(document: Vec<u8>) -> Option<Vec<u8>> {
         return None;
     }
 
-    let uuid_binary = Uuid::from_slice(
-        document.get(..16).expect("document length is >= 16"),
-    )
-    .ok()?
-    .hyphenated()
-    .to_string()
-    .into_bytes();
+    let uuid_binary =
+        Uuid::from_slice(document.get(..16).expect("document length is >= 16"))
+            .ok()?
+            .hyphenated()
+            .to_string()
+            .into_bytes();
     // Reason for fallback: document may be under 36 bytes, in which case empty slice safely prevents panic during textual UUID check.
     let uuid_string =
         String::from_utf8_lossy(document.get(..36).unwrap_or(&[]))

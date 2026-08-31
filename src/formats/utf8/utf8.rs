@@ -44,7 +44,9 @@ pub fn truncate_to_max_bytes(s: &str, max_len: usize) -> String {
     while end > 0 && !s.is_char_boundary(end) {
         end = end.saturating_sub(1);
     }
-    s.get(..end).expect("end is a valid char boundary within s").to_owned()
+    s.get(..end)
+        .expect("end is a valid char boundary within s")
+        .to_owned()
 }
 
 /// Ellipsize a string to a maximum byte length, respecting UTF-8 boundaries.

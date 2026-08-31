@@ -113,7 +113,8 @@ fn get_or_create_voprf_key() -> Result<Vec<u8>, StatusCode> {
     if let Ok(Some(key)) = ipcb!(storage).get_voprf_key_b() {
         return Ok(key);
     }
-    let key = generate_server_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let key =
+        generate_server_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let _ = ipcb!(storage).save_voprf_key_b(key.clone());
     Ok(key)
 }

@@ -265,12 +265,12 @@ fn assemble_release_file_bytes(
 /// Format: `{chunks_dir}/{first-2-chars}/{next-2-chars}/{full-hash}.br`
 fn compressed_chunk_file_path(chunks_dir: &StdPath, hash: &str) -> PathBuf {
     if hash.len() >= 4 {
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "hash.len() >= 4 checked in if condition"
         )]
         let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "hash.len() >= 4 checked in if condition"
         )]

@@ -45,20 +45,33 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
     if trimmed.is_empty() {
         bail!("Empty codepoint argument");
     }
-    if let Some(rest) = trimmed.strip_prefix("dc:").or_else(|| trimmed.strip_prefix("Dc:")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("dc:")
+        .or_else(|| trimmed.strip_prefix("Dc:"))
+    {
         let short = parse_u128_literal(rest)?;
         return Ok(1_114_112_u128.saturating_add(short));
     }
-    if let Some(rest) = trimmed.strip_prefix("fmt:").or_else(|| trimmed.strip_prefix("Fmt:")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("fmt:")
+        .or_else(|| trimmed.strip_prefix("Fmt:"))
+    {
         let short = parse_u128_literal(rest)?;
         return Ok(2_228_224_u128.saturating_add(short));
     }
-    if let Some(rest) = trimmed.strip_prefix("uni:").or_else(|| trimmed.strip_prefix("Uni:")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("uni:")
+        .or_else(|| trimmed.strip_prefix("Uni:"))
+    {
         return parse_u128_literal(rest);
     }
-    if let Some(rest) = trimmed.strip_prefix("U+").or_else(|| trimmed.strip_prefix("u+")) {
-        return u128::from_str_radix(rest, 16)
-            .map_err(|e| anyhow!("Invalid Unicode hex codepoint '{trimmed}': {e}"));
+    if let Some(rest) = trimmed
+        .strip_prefix("U+")
+        .or_else(|| trimmed.strip_prefix("u+"))
+    {
+        return u128::from_str_radix(rest, 16).map_err(|e| {
+            anyhow!("Invalid Unicode hex codepoint '{trimmed}': {e}")
+        });
     }
     parse_u128_literal(trimmed)
 }
@@ -82,17 +95,27 @@ pub enum CharacterDescriptionInputFormat {
     #[value(name = "utf8", alias = "utf-8")]
     Utf8,
     /// Dc ASCII List format (.dcal, space/newline-separated global IDs)
-    #[value(name = "dcal", alias = "dc-al", alias = "dc_al", alias = "dc-ascii-list")]
+    #[value(
+        name = "dcal",
+        alias = "dc-al",
+        alias = "dc_al",
+        alias = "dc-ascii-list"
+    )]
     Dcal,
     /// Classic Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
-    #[value(name = "dcil", alias = "dc-il", alias = "dc_il", alias = "dc-integer-list")]
+    #[value(
+        name = "dcil",
+        alias = "dc-il",
+        alias = "dc_il",
+        alias = "dc-integer-list"
+    )]
     Dcil,
     /// DcText document format (with @<id>@ tokens)
     #[value(name = "dctext", alias = "dc-text", alias = "dc_text")]
     DcText,
 }
 
-/// Execution arguments for the character_description CLI tool.
+/// Execution arguments for the `character_description` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
@@ -140,13 +163,12 @@ pub struct CharacterDescriptionArgs {
 
 impl From<&CharacterDescriptionArgs> for DescriptionOptions {
     fn from(args: &CharacterDescriptionArgs) -> Self {
-        let mode = if args.wuc_compat
-            || args.mode == CliDescriptionMode::WucCompat
-        {
-            DescriptionMode::WucCompat
-        } else {
-            DescriptionMode::Standard
-        };
+        let mode =
+            if args.wuc_compat || args.mode == CliDescriptionMode::WucCompat {
+                DescriptionMode::WucCompat
+            } else {
+                DescriptionMode::Standard
+            };
 
         let control_name_format = if args.wuc_compat {
             ControlNameFormat::Wuc
@@ -167,8 +189,11 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
             CliUnicodeVersion::V15_0 => UnicodeVersion::V15_0,
         };
 
-        let include_unihan_readings =
-            if args.wuc_compat { false } else { !args.no_unihan_readings };
+        let include_unihan_readings = if args.wuc_compat {
+            false
+        } else {
+            !args.no_unihan_readings
+        };
 
         DescriptionOptions {
             mode,
@@ -179,7 +204,7 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
     }
 }
 
-/// Executes character_description CLI command logic.
+/// Executes `character_description` CLI command logic.
 ///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
@@ -293,7 +318,9 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-        assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(lines[1].starts_with(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
         assert!(lines[2].starts_with("2228304 : String"));
     }
 
@@ -310,7 +337,9 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(lines[0].starts_with(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
         assert!(lines[1].starts_with("1114133 : <Dc> Number sign"));
     }
 
@@ -324,7 +353,9 @@ mod tests {
             .unwrap()
             .unwrap();
         let text = String::from_utf8(out).unwrap();
-        assert!(text.starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(text.starts_with(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
     }
 
     #[crate::ctb_test]
@@ -334,8 +365,10 @@ mod tests {
             from: CharacterDescriptionInputFormat::Utf8,
             ..Default::default()
         };
-        let err = execute_cli_character_description(args, |_| Ok(invalid_utf8_bytes.clone()))
-            .unwrap_err();
+        let err = execute_cli_character_description(args, |_| {
+            Ok(invalid_utf8_bytes.clone())
+        })
+        .unwrap_err();
         let err_msg = format!("{err:?}");
         assert!(err_msg.contains("NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line."));
     }
@@ -348,12 +381,15 @@ mod tests {
             from: CharacterDescriptionInputFormat::DcText,
             ..Default::default()
         };
-        let out = execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
-            .unwrap()
-            .unwrap();
+        let out =
+            execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
+                .unwrap()
+                .unwrap();
         let desc = String::from_utf8(out).unwrap();
         assert!(desc.contains("U+0068 : LATIN SMALL LETTER H"));
-        assert!(desc.contains("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+        assert!(desc.contains(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
         assert!(desc.contains("1114118 : <Dc> Begin number"));
         assert!(desc.contains("2228423"));
         assert!(desc.contains("1114119 : <Dc> End number"));
@@ -382,9 +418,10 @@ mod tests {
             from: CharacterDescriptionInputFormat::DcText,
             ..Default::default()
         };
-        let out = execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
-            .unwrap()
-            .unwrap();
+        let out =
+            execute_cli_character_description(args, |_| Ok(raw_bytes.clone()))
+                .unwrap()
+                .unwrap();
         let desc = String::from_utf8(out).unwrap();
         println!("OUTPUT:\n{desc}");
     }

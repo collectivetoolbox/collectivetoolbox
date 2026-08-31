@@ -36,9 +36,12 @@ pub fn utf8_char_array_from_byte_array(bytes: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u8> = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
-        let slice = bytes
-            .get(i..)
-            .ok_or_else(|| anyhow!("Index {i} out of bounds for byte slice of len {}", bytes.len()))?;
+        let slice = bytes.get(i..).ok_or_else(|| {
+            anyhow!(
+                "Index {i} out of bounds for byte slice of len {}",
+                bytes.len()
+            )
+        })?;
         let (mut temp, consumed) = first_char_of_utf8_string(slice)?;
         out.append(&mut temp);
         i = i.saturating_add(consumed);
@@ -97,7 +100,7 @@ pub fn first_utf8_codepoint(bytes: &[u8]) -> Result<(u32, usize)> {
 }
 
 /// Helper: decode last UTF-8 codepoint (or raw byte) returning (codepoint, `byte_len`).
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "non-empty bytes check at function start guarantees len >= 1, so index len - 1 is in bounds"
 )]

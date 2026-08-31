@@ -36,10 +36,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parser::{
-    PanDataRecord, PanDataValue, PanDocument,
+use crate::parser::{PanDataRecord, PanDataValue, PanDocument};
+use crate::procedure_parser::{
+    PanExpr, PanProcedureAst, PanStatement, PanVariableScope,
 };
-use crate::procedure_parser::{PanExpr, PanProcedureAst, PanStatement, PanVariableScope};
 
 /// Runtime representation of a Panorama value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -80,9 +80,7 @@ impl PanRuntimeValue {
                 Ok(val) => val,
                 Err(_) => 0,
             },
-            Self::Boolean(b) => {
-                if *b { 1 } else { 0 }
-            }
+            Self::Boolean(b) => i64::from(*b),
             Self::String(s) => match s.trim().parse::<i64>() {
                 Ok(val) => val,
                 Err(_) => 0,
@@ -95,17 +93,15 @@ impl PanRuntimeValue {
     pub fn as_f64(&self) -> f64 {
         match self {
             Self::Float(f) => *f,
-            Self::Integer(n) => match n.to_string().parse::<f64>() {
-                Ok(val) => val,
-                Err(_) => 0.0,
-            },
+            Self::Integer(n) => n.to_string().parse::<f64>().unwrap_or(0.0),
             Self::Boolean(b) => {
-                if *b { 1.0 } else { 0.0 }
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
             }
-            Self::String(s) => match s.trim().parse::<f64>() {
-                Ok(val) => val,
-                Err(_) => 0.0,
-            },
+            Self::String(s) => s.trim().parse::<f64>().unwrap_or(0.0),
             Self::Empty | Self::UnresolvedExpression(_) => 0.0,
         }
     }
@@ -118,7 +114,9 @@ impl PanRuntimeValue {
             Self::Float(f) => *f != 0.0,
             Self::String(s) => {
                 let trimmed = s.trim();
-                !trimmed.is_empty() && trimmed != "0" && !trimmed.eq_ignore_ascii_case("false")
+                !trimmed.is_empty()
+                    && trimmed != "0"
+                    && !trimmed.eq_ignore_ascii_case("false")
             }
             Self::Empty | Self::UnresolvedExpression(_) => false,
         }
@@ -188,7 +186,8 @@ impl PanRuntimeState {
                 None => 0,
             },
         };
-        let current_record_index = if record_count > 0 { Some(0) } else { None };
+        let current_record_index =
+            if record_count > 0 { Some(0) } else { None };
         let startup_procedure_name = find_startup_procedure_name(&document);
         let current_form = document.launch_form.clone();
 
@@ -222,7 +221,9 @@ impl PanRuntimeState {
     }
 
     /// Execute the startup procedure if the database declares one.
-    pub fn run_startup_procedure(&mut self) -> Result<PanRuntimeExecutionReport> {
+    pub fn run_startup_procedure(
+        &mut self,
+    ) -> Result<PanRuntimeExecutionReport> {
         let mut report = PanRuntimeExecutionReport {
             startup_procedure_name: self.startup_procedure_name.clone(),
             ..PanRuntimeExecutionReport::default()
@@ -273,9 +274,9 @@ impl PanRuntimeState {
                     let scope_vars = self.scope_map_mut(*scope);
                     for name in names {
                         scope_vars.entry(name.clone()).or_default();
-                        report.declared_variables.push(format!(
-                            "{scope:?}:{name}"
-                        ));
+                        report
+                            .declared_variables
+                            .push(format!("{scope:?}:{name}"));
                     }
                 }
                 PanStatement::Assignment { target, value } => {
@@ -331,19 +332,31 @@ impl PanRuntimeState {
                         iterations = iterations.saturating_add(1);
                         self.execute_statements(body, report)?;
                         match kind {
-                            crate::procedure_parser::PanLoopKind::Infinite => break,
-                            crate::procedure_parser::PanLoopKind::While(expr) => {
-                                if !self.evaluate_expr(expr, report).is_truthy() {
+                            crate::procedure_parser::PanLoopKind::Infinite => {
+                                break;
+                            }
+                            crate::procedure_parser::PanLoopKind::While(
+                                expr,
+                            ) => {
+                                if !self.evaluate_expr(expr, report).is_truthy()
+                                {
                                     break;
                                 }
                             }
-                            crate::procedure_parser::PanLoopKind::Until(expr) => {
-                                if self.evaluate_expr(expr, report).is_truthy() {
+                            crate::procedure_parser::PanLoopKind::Until(
+                                expr,
+                            ) => {
+                                if self.evaluate_expr(expr, report).is_truthy()
+                                {
                                     break;
                                 }
                             }
-                            crate::procedure_parser::PanLoopKind::Repeat(expr) => {
-                                let count = match usize::try_from(self.evaluate_expr(expr, report).as_i64()) {
+                            crate::procedure_parser::PanLoopKind::Repeat(
+                                expr,
+                            ) => {
+                                let count = match usize::try_from(
+                                    self.evaluate_expr(expr, report).as_i64(),
+                                ) {
                                     Ok(c) => c,
                                     Err(_) => 0,
                                 };
@@ -394,7 +407,9 @@ impl PanRuntimeState {
                 self.menu_bar_needs_redraw = true;
             }
             "filemenubar" => {
-                if let Some(second_arg) = arguments.get(1).or_else(|| arguments.first()) {
+                if let Some(second_arg) =
+                    arguments.get(1).or_else(|| arguments.first())
+                {
                     let val = self.evaluate_expr(second_arg, report);
                     self.menu_bar_definition = Some(val.as_string());
                     self.menu_bar_needs_redraw = true;
@@ -415,7 +430,8 @@ impl PanRuntimeState {
                     .join(" ");
                 self.ui_events.push(format!("superobject:{action}"));
             }
-            "object" | "selectobjects" | "changeobjects" | "selectnoobjects" => {
+            "object" | "selectobjects" | "changeobjects"
+            | "selectnoobjects" => {
                 let action = arguments
                     .iter()
                     .map(|a| self.evaluate_expr(a, report).as_string())
@@ -426,7 +442,8 @@ impl PanRuntimeState {
             "define" => {
                 if let Some(PanExpr::Identifier(target)) = arguments.first() {
                     if self.lookup_variable(target).is_none()
-                        || self.lookup_variable(target) == Some(PanRuntimeValue::Empty)
+                        || self.lookup_variable(target)
+                            == Some(PanRuntimeValue::Empty)
                     {
                         if let Some(val_expr) = arguments.get(1) {
                             let val = self.evaluate_expr(val_expr, report);
@@ -436,38 +453,51 @@ impl PanRuntimeState {
                 }
             }
             "arraybuild" => {
-                if let Some(PanExpr::Identifier(target_var)) = arguments.first() {
+                if let Some(PanExpr::Identifier(target_var)) = arguments.first()
+                {
                     let delim = match arguments.get(1) {
                         Some(e) => self.evaluate_expr(e, report).as_string(),
                         None => "\n".to_string(),
                     };
                     let field_name = match arguments.get(3) {
                         Some(PanExpr::Identifier(s)) => s.clone(),
-                        Some(other) => self.evaluate_expr(other, report).as_string(),
+                        Some(other) => {
+                            self.evaluate_expr(other, report).as_string()
+                        }
                         None => String::new(),
                     };
 
                     let mut items = Vec::new();
                     if let Some(data) = self.document.data.as_ref() {
                         for record in &data.records {
-                            if let Some(field) = record.fields.iter().find(|f| f.field_name.eq_ignore_ascii_case(&field_name)) {
+                            if let Some(field) =
+                                record.fields.iter().find(|f| {
+                                    f.field_name
+                                        .eq_ignore_ascii_case(&field_name)
+                                })
+                            {
                                 items.push(field.value.to_display_string());
                             }
                         }
                     }
                     let joined = items.join(&delim);
-                    self.set_variable(target_var, PanRuntimeValue::String(joined));
+                    self.set_variable(
+                        target_var,
+                        PanRuntimeValue::String(joined),
+                    );
                 }
             }
             "downrecord" => {
                 if let Some(cur) = self.data_state.current_record_index {
                     let max = self.data_state.record_count.saturating_sub(1);
-                    self.data_state.current_record_index = Some(cur.saturating_add(1).min(max));
+                    self.data_state.current_record_index =
+                        Some(cur.saturating_add(1).min(max));
                 }
             }
             "uprecord" => {
                 if let Some(cur) = self.data_state.current_record_index {
-                    self.data_state.current_record_index = Some(cur.saturating_sub(1));
+                    self.data_state.current_record_index =
+                        Some(cur.saturating_sub(1));
                 }
             }
             "firstrecord" | "toprecord" => {
@@ -477,17 +507,19 @@ impl PanRuntimeState {
             }
             "lastrecord" | "bottomrecord" => {
                 if self.data_state.record_count > 0 {
-                    self.data_state.current_record_index = Some(self.data_state.record_count.saturating_sub(1));
+                    self.data_state.current_record_index =
+                        Some(self.data_state.record_count.saturating_sub(1));
                 }
             }
             "gotorecord" => {
                 if let Some(arg) = arguments.first() {
-                    let rec_num = match usize::try_from(self.evaluate_expr(arg, report).as_i64()) {
-                        Ok(n) => n,
-                        Err(_) => 1,
-                    };
+                    let rec_num = usize::try_from(
+                        self.evaluate_expr(arg, report).as_i64(),
+                    )
+                    .unwrap_or(1);
                     if rec_num > 0 && rec_num <= self.data_state.record_count {
-                        self.data_state.current_record_index = Some(rec_num.saturating_sub(1));
+                        self.data_state.current_record_index =
+                            Some(rec_num.saturating_sub(1));
                     }
                 }
             }
@@ -500,9 +532,9 @@ impl PanRuntimeState {
                 self.ui_events.push(format!("{lower_name}:{msg}"));
             }
             _ => {
-                report.pending_operations.push(format!(
-                    "Command {name} logged"
-                ));
+                report
+                    .pending_operations
+                    .push(format!("Command {name} logged"));
             }
         }
     }
@@ -514,13 +546,16 @@ impl PanRuntimeState {
     ) -> PanRuntimeValue {
         match expr {
             PanExpr::Pilcrow => PanRuntimeValue::String("\n".to_string()),
-            PanExpr::StringLiteral(value) => PanRuntimeValue::String(value.clone()),
+            PanExpr::StringLiteral(value) => {
+                PanRuntimeValue::String(value.clone())
+            }
             PanExpr::IntegerLiteral(value) => PanRuntimeValue::Integer(*value),
             PanExpr::FloatLiteral(value) => PanRuntimeValue::Float(*value),
             PanExpr::Identifier(name) => {
                 if let Some(val) = self.lookup_variable(name) {
                     val
-                } else if let Some(val) = self.lookup_current_record_field(name) {
+                } else if let Some(val) = self.lookup_current_record_field(name)
+                {
                     val
                 } else {
                     PanRuntimeValue::String(String::new())
@@ -532,13 +567,13 @@ impl PanRuntimeState {
                     crate::procedure_parser::PanUnaryOp::Not => {
                         PanRuntimeValue::Boolean(!val.is_truthy())
                     }
-                    crate::procedure_parser::PanUnaryOp::Negate => {
-                        match val {
-                            PanRuntimeValue::Integer(n) => PanRuntimeValue::Integer(n.saturating_neg()),
-                            PanRuntimeValue::Float(f) => PanRuntimeValue::Float(-f),
-                            other => PanRuntimeValue::Float(-other.as_f64()),
+                    crate::procedure_parser::PanUnaryOp::Negate => match val {
+                        PanRuntimeValue::Integer(n) => {
+                            PanRuntimeValue::Integer(n.saturating_neg())
                         }
-                    }
+                        PanRuntimeValue::Float(f) => PanRuntimeValue::Float(-f),
+                        other => PanRuntimeValue::Float(-other.as_f64()),
+                    },
                 }
             }
             PanExpr::BinaryOp { op, left, right } => {
@@ -653,7 +688,10 @@ impl PanRuntimeState {
         }
     }
 
-    fn load_procedure_ast(&self, procedure_name: &str) -> Result<Option<PanProcedureAst>> {
+    fn load_procedure_ast(
+        &self,
+        procedure_name: &str,
+    ) -> Result<Option<PanProcedureAst>> {
         let Some(macro_info) = self
             .document
             .macros
@@ -706,7 +744,11 @@ impl PanRuntimeState {
         }
     }
 
-    fn set_current_record_field(&mut self, field_name: &str, value: &PanRuntimeValue) -> bool {
+    fn set_current_record_field(
+        &mut self,
+        field_name: &str,
+        value: &PanRuntimeValue,
+    ) -> bool {
         let Some(idx) = self.data_state.current_record_index else {
             return false;
         };
@@ -737,7 +779,10 @@ impl PanRuntimeState {
             .or_else(|| self.permanents.get(name).cloned())
     }
 
-    fn lookup_current_record_field(&self, name: &str) -> Option<PanRuntimeValue> {
+    fn lookup_current_record_field(
+        &self,
+        name: &str,
+    ) -> Option<PanRuntimeValue> {
         let current_record = self.current_record()?;
         let field = current_record
             .fields
@@ -757,7 +802,10 @@ fn find_startup_procedure_name(document: &PanDocument) -> Option<String> {
     document
         .macros
         .iter()
-        .find(|macro_info| macro_info.is_procedure && macro_info.name.eq_ignore_ascii_case(".Initialize"))
+        .find(|macro_info| {
+            macro_info.is_procedure
+                && macro_info.name.eq_ignore_ascii_case(".Initialize")
+        })
         .map(|macro_info| macro_info.name.clone())
 }
 
@@ -768,10 +816,12 @@ fn runtime_value_from_field(value: &PanDataValue) -> PanRuntimeValue {
             Ok(n) => PanRuntimeValue::Integer(n),
             Err(_) => PanRuntimeValue::String(number.clone()),
         },
-        PanDataValue::Fixed(number) | PanDataValue::Float(number) => match number.parse::<f64>() {
-            Ok(f) => PanRuntimeValue::Float(f),
-            Err(_) => PanRuntimeValue::String(number.clone()),
-        },
+        PanDataValue::Fixed(number) | PanDataValue::Float(number) => {
+            match number.parse::<f64>() {
+                Ok(f) => PanRuntimeValue::Float(f),
+                Err(_) => PanRuntimeValue::String(number.clone()),
+            }
+        }
         PanDataValue::Date { pan_date_mdy, .. } => match pan_date_mdy {
             Some(value) => PanRuntimeValue::String(value.clone()),
             None => PanRuntimeValue::String(String::new()),
@@ -795,9 +845,9 @@ mod tests {
     use super::*;
 
     use crate::parser::{
-        PanCapitalization, PanData, PanDataFieldValue, PanDataRecord, PanFieldType,
-        PanJustification, PanMacroInfo, PanPrelude, PanSchema, PanSchemaField,
-        PanSection,
+        PanCapitalization, PanData, PanDataFieldValue, PanDataRecord,
+        PanFieldType, PanJustification, PanMacroInfo, PanPrelude, PanSchema,
+        PanSchemaField, PanSection,
     };
 
     fn sample_document() -> PanDocument {
@@ -821,7 +871,9 @@ mod tests {
                 },
                 PanStatement::Assignment {
                     target: "dbName".to_string(),
-                    value: PanExpr::StringLiteral("Programming Reference".to_string()),
+                    value: PanExpr::StringLiteral(
+                        "Programming Reference".to_string(),
+                    ),
                 },
                 PanStatement::Call {
                     procedure_name: ".Setup".to_string(),
@@ -829,7 +881,9 @@ mod tests {
                 },
                 PanStatement::Command {
                     name: "openform".to_string(),
-                    arguments: vec![PanExpr::StringLiteral("Reference".to_string())],
+                    arguments: vec![PanExpr::StringLiteral(
+                        "Reference".to_string(),
+                    )],
                 },
                 PanStatement::Command {
                     name: "drawmenus".to_string(),
@@ -925,7 +979,9 @@ mod tests {
         let runtime = PanRuntimeState::from_document(sample_document());
 
         ensure!(runtime.current_form.as_deref() == Some("Splash"));
-        ensure!(runtime.startup_procedure_name.as_deref() == Some(".Initialize"));
+        ensure!(
+            runtime.startup_procedure_name.as_deref() == Some(".Initialize")
+        );
         ensure!(runtime.data_state.record_count == 1);
         ensure!(runtime.data_state.field_names == vec!["Topic".to_string()]);
         ensure!(runtime.startup_procedure_ast().is_some());
@@ -937,24 +993,32 @@ mod tests {
         let mut runtime = PanRuntimeState::from_document(sample_document());
         let report = runtime.run_startup_procedure()?;
 
-        ensure!(report.executed_procedures == vec![
-            ".Initialize".to_string(),
-            ".Setup".to_string(),
-        ]);
+        ensure!(
+            report.executed_procedures
+                == vec![".Initialize".to_string(), ".Setup".to_string(),]
+        );
         ensure!(report.opened_forms == vec!["Reference".to_string()]);
         ensure!(report.pending_operations.is_empty());
         ensure!(runtime.current_form.as_deref() == Some("Reference"));
         ensure!(runtime.menu_bar_needs_redraw);
-        ensure!(runtime.permanents.get("dbName")
-            == Some(&PanRuntimeValue::String("Programming Reference".to_string())));
-        ensure!(runtime.globals.get("currentTopic")
-            == Some(&PanRuntimeValue::String("Intro".to_string())));
+        ensure!(
+            runtime.permanents.get("dbName")
+                == Some(&PanRuntimeValue::String(
+                    "Programming Reference".to_string()
+                ))
+        );
+        ensure!(
+            runtime.globals.get("currentTopic")
+                == Some(&PanRuntimeValue::String("Intro".to_string()))
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
     fn programming_reference_startup_procedure_runs_cleanly() -> Result<()> {
-        let path = std::path::Path::new("/workspaces/ctoolbox/old/Panorama/Wizards/Documentation/Programming Reference.pan");
+        let path = std::path::Path::new(
+            "/workspaces/ctoolbox/old/Panorama/Wizards/Documentation/Programming Reference.pan",
+        );
         if !path.exists() {
             return Ok(());
         }
@@ -962,14 +1026,28 @@ mod tests {
         let pan_bytes = std::fs::read(path)?;
         let mut runtime = PanRuntimeState::from_pan_bytes(&pan_bytes)?;
 
-        ensure!(runtime.startup_procedure_name.as_deref() == Some(".Initialize"));
+        ensure!(
+            runtime.startup_procedure_name.as_deref() == Some(".Initialize")
+        );
         ensure!(runtime.data_state.record_count > 900);
 
         let report = runtime.run_startup_procedure()?;
 
-        ensure!(report.executed_procedures.contains(&".Initialize".to_string()));
-        ensure!(report.executed_procedures.contains(&"ChangeTopic".to_string()));
-        ensure!(report.executed_procedures.contains(&"MakeMenus".to_string()));
+        ensure!(
+            report
+                .executed_procedures
+                .contains(&".Initialize".to_string())
+        );
+        ensure!(
+            report
+                .executed_procedures
+                .contains(&"ChangeTopic".to_string())
+        );
+        ensure!(
+            report
+                .executed_procedures
+                .contains(&"MakeMenus".to_string())
+        );
 
         ensure!(runtime.window_name.as_deref() == Some("Panorama Reference"));
         ensure!(runtime.file_globals.contains_key("CurrentTopic"));
@@ -980,17 +1058,32 @@ mod tests {
         ensure!(runtime.file_globals.contains_key("CurrentTopicName"));
         ensure!(runtime.file_globals.contains_key("CurrentTopicVersion"));
 
-        let current_topic = runtime.file_globals.get("CurrentTopic").map(|v| v.as_string());
+        let current_topic = runtime
+            .file_globals
+            .get("CurrentTopic")
+            .map(super::PanRuntimeValue::as_string);
         ensure!(current_topic == Some(" INTRODUCTION".to_string()));
 
-        let selected_topics = runtime.file_globals.get("SelectedTopics").map(|v| v.as_string()).unwrap_or_default();
+        let selected_topics = runtime
+            .file_globals
+            .get("SelectedTopics")
+            .map(super::PanRuntimeValue::as_string)
+            .unwrap_or_default();
         ensure!(selected_topics.contains("ABS("));
         ensure!(selected_topics.contains("ARRAY("));
 
-        let current_topic_path = runtime.file_globals.get("CurrentTopicPath").map(|v| v.as_string()).unwrap_or_default();
+        let current_topic_path = runtime
+            .file_globals
+            .get("CurrentTopicPath")
+            .map(super::PanRuntimeValue::as_string)
+            .unwrap_or_default();
         ensure!(current_topic_path == "OTHER");
 
-        let current_topic_text = runtime.file_globals.get("CurrentTopicText").map(|v| v.as_string()).unwrap_or_default();
+        let current_topic_text = runtime
+            .file_globals
+            .get("CurrentTopicText")
+            .map(super::PanRuntimeValue::as_string)
+            .unwrap_or_default();
         ensure!(current_topic_text.is_empty());
 
         Ok(())

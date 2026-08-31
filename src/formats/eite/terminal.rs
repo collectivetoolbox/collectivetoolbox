@@ -19,9 +19,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Terminal input and output handling for EITE documents.
 
-use crate::utilities::*;
 use crate::dc::data::dc_data_filter_by_value;
 use crate::formats::is_supported_output_format;
+use crate::utilities::*;
 
 pub fn list_terminal_types() -> Result<Vec<String>> {
     dc_data_filter_by_value("formats", 6, "terminal", 1)

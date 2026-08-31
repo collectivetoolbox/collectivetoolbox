@@ -244,26 +244,29 @@ impl Node {
         let package_bytes = self.to_packaged_node()?;
 
         let (allocated_id, global_checksum) = if cfg!(test) || is_in_test() {
-            let allocated_id = crate::models::graph::get_global_graph().import_node(
-                session_token,
-                &package_bytes,
-                target_id,
-            )?;
+            let allocated_id = crate::models::graph::get_global_graph()
+                .import_node(session_token, &package_bytes, target_id)?;
             let global_node = Node::get(session_token, 0, allocated_id)?
-                .ok_or_else(|| anyhow::anyhow!("Global node not found after publish"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Global node not found after publish")
+                })?;
             // Reason for fallback: unchecksummed node missing checksum field defaults to empty byte slice
-            let checksum = bin2hex(global_node.checksum.as_deref().unwrap_or(&[]));
+            let checksum =
+                bin2hex(global_node.checksum.as_deref().unwrap_or(&[]));
             (allocated_id, checksum)
         } else {
             let global_token = global_session_token
                 .ok_or_else(|| anyhow::anyhow!("Global graph user session is not initialized. Please ensure the deploy setup ran."))?;
-            let allocated_id = ctb_api_client::ApiClient::publish_packaged_node(
-                global_token,
-                &package_bytes,
-                target_id,
-            )
-            .await?;
-            let checksum = ctb_api_client::ApiClient::fetch_node_checksum(allocated_id).await?;
+            let allocated_id =
+                ctb_api_client::ApiClient::publish_packaged_node(
+                    global_token,
+                    &package_bytes,
+                    target_id,
+                )
+                .await?;
+            let checksum =
+                ctb_api_client::ApiClient::fetch_node_checksum(allocated_id)
+                    .await?;
             (allocated_id, checksum)
         };
 
@@ -274,7 +277,8 @@ impl Node {
         }
 
         let redirect_text = format!("@1114409@@{allocated_id}@");
-        let converted_data = ctb_formats_dctext::dctext_to_dcutf(redirect_text.into_bytes());
+        let converted_data =
+            ctb_formats_dctext::dctext_to_dcutf(redirect_text.into_bytes());
 
         self.set_node_type(session_token, NodeType::System)?;
         self.set_data(session_token, &converted_data)?;

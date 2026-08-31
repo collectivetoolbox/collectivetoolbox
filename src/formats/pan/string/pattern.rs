@@ -578,13 +578,10 @@ mod tests {
             pattern(42.125, "§ and ¢¢¢/1000")?,
             "Forty two and 125/1000"
         );
-        assert_eq!(
-            pattern(100.0, "§ and ¢¢/100")?,
-            "One hundred and 00/100"
-        );
+        assert_eq!(pattern(100.0, "§ and ¢¢/100")?, "One hundred and 00/100");
 
         // Multiple distinct runs of ¢ are disallowed in Panorama patterns
-        assert!(pattern(42.29, "§ ¢¢ and ¢¢").is_err());
+        pattern(42.29, "§ ¢¢ and ¢¢").unwrap_err();
         Ok(())
     }
 }

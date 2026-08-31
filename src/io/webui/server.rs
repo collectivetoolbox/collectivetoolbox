@@ -79,11 +79,13 @@ async fn redirect_www_to_non_www_middleware(
         return next.run(req).await;
     }
 
-    #[allow(
+    #[expect(
         clippy::expect_used,
         reason = "host_header established to start with www. (4 ASCII bytes) above"
     )]
-    let host_without_www = host_header.get(4..).expect("Checked starts with www. above");
+    let host_without_www = host_header
+        .get(4..)
+        .expect("Checked starts with www. above");
     if host_without_www.is_empty() {
         return next.run(req).await;
     }
@@ -220,7 +222,7 @@ pub fn start_webui_server() -> u16 {
     } else {
         current_settings.get_u16(&pc_settings::PcSettingU16Key::FixedHttpsPort)
     };
-    let port: u16 = if let Some(port) = relevant_port {
+    let _port: u16 = if let Some(port) = relevant_port {
         log!("Using fixed port from settings: {}", port);
         port
     } else if let Some(port) = pick_unused_port() {
@@ -229,17 +231,17 @@ pub fn start_webui_server() -> u16 {
         warn!("No ports free; not starting web UI.");
         return 0;
     };
-     let port: u16 = if let Some(port) = relevant_port {
-         log!("Using fixed port from settings: {}", port);
-         port
-     } else {
+    let port: u16 = if let Some(port) = relevant_port {
+        log!("Using fixed port from settings: {}", port);
+        port
+    } else {
         // Intentionally panicking here
         #[expect(
             clippy::expect_used,
             reason = "There's no elegant way to recover in this case if the user's expecting the webUI to come up."
         )]
         pick_unused_port().expect("No ports free")
-     };
+    };
     let bind_to_ip =
         current_settings.get_str(&pc_settings::PcSettingStrKey::BindToIp);
     let bind_to_ip = if let Some(s) = bind_to_ip {

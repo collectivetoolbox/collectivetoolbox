@@ -508,7 +508,8 @@ pub fn list_variants_for_format(format: &str) -> Result<Vec<String>> {
     for f in all {
         let ftype = get_format_type(&f)?;
         if ftype.starts_with("v:") {
-            let mut variant_type = ftype.get(2..).expect("ftype starts with v:").to_string();
+            let mut variant_type =
+                ftype.get(2..).expect("ftype starts with v:").to_string();
             // Normalize
             if variant_type == "unicodePua" {
                 variant_type = "unicode".to_string();

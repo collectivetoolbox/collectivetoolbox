@@ -81,8 +81,10 @@ pub fn convert_legacy_cdce_to_dc(
                     .context("codepoints index out of bounds")?;
                 if (0x31..=0x39).contains(&next_cp) {
                     // '1'..='9'
-                    let digit_char = char::from_u32(next_cp)
-                        .ok_or_else(|| anyhow::anyhow!("Invalid codepoint 0x{next_cp:X}"))?;
+                    let digit_char =
+                        char::from_u32(next_cp).ok_or_else(|| {
+                            anyhow::anyhow!("Invalid codepoint 0x{next_cp:X}")
+                        })?;
                     txt.push_str(&format!("{digit_char},"));
                     i = i.saturating_add(3);
                     matched_1char = true;

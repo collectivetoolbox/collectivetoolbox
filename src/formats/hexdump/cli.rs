@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI execution helpers for hex2bin, bin2hex, hexdump, and xxd.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -196,12 +196,14 @@ where
         if out_path.as_path() == Path::new("-") {
             Ok(Some(encoded.into_bytes()))
         } else {
-            std::fs::write(out_path, encoded.as_bytes()).with_context(|| {
-                format!(
-                    "Failed to write output file: {path_display}",
-                    path_display = out_path.display()
-                )
-            })?;
+            std::fs::write(out_path, encoded.as_bytes()).with_context(
+                || {
+                    format!(
+                        "Failed to write output file: {path_display}",
+                        path_display = out_path.display()
+                    )
+                },
+            )?;
             Ok(None)
         }
     } else {
@@ -296,7 +298,7 @@ where
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -323,13 +325,7 @@ mod tests {
 
         let cmd2 = Hex2BinArgs::augment_args(Command::new("hex2bin"));
         let matches2 = cmd2
-            .try_get_matches_from([
-                "hex2bin",
-                "-f",
-                "in.hex",
-                "-o",
-                "out.bin",
-            ])
+            .try_get_matches_from(["hex2bin", "-f", "in.hex", "-o", "out.bin"])
             .expect("Parse hex2bin with flags");
         let parsed_flags = Hex2BinArgs::from_arg_matches(&matches2).unwrap();
         assert_eq!(parsed_flags.file, Some(PathBuf::from("in.hex")));
@@ -353,12 +349,7 @@ mod tests {
         let cmd_hd = Bin2HexArgs::augment_args(Command::new("bin2hex"));
         let matches_hd = cmd_hd
             .try_get_matches_from([
-                "bin2hex",
-                "-f",
-                "in.bin",
-                "-o",
-                "out.hex",
-                "--hd",
+                "bin2hex", "-f", "in.bin", "-o", "out.hex", "--hd",
             ])
             .expect("Parse bin2hex with --hd");
         let parsed_hd = Bin2HexArgs::from_arg_matches(&matches_hd).unwrap();
@@ -388,17 +379,13 @@ mod tests {
 
         // Flags should conflict
         let cmd_conflict = Bin2HexArgs::augment_args(Command::new("bin2hex"));
-        assert!(
-            cmd_conflict
-                .try_get_matches_from(["bin2hex", "--hd", "--hf"])
-                .is_err()
-        );
+        cmd_conflict
+            .try_get_matches_from(["bin2hex", "--hd", "--hf"])
+            .unwrap_err();
         let cmd_conflict2 = Bin2HexArgs::augment_args(Command::new("bin2hex"));
-        assert!(
-            cmd_conflict2
-                .try_get_matches_from(["bin2hex", "--hd", "--xxd"])
-                .is_err()
-        );
+        cmd_conflict2
+            .try_get_matches_from(["bin2hex", "--hd", "--xxd"])
+            .unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -416,7 +403,8 @@ mod tests {
         let matches_hd_plain = cmd_hd_plain
             .try_get_matches_from(["hexdump", "--plain", "Hello"])
             .expect("Parse hexdump --plain");
-        let parsed_hd_plain = HexDumpArgs::from_arg_matches(&matches_hd_plain).unwrap();
+        let parsed_hd_plain =
+            HexDumpArgs::from_arg_matches(&matches_hd_plain).unwrap();
         assert!(parsed_hd_plain.plain);
         assert!(!parsed_hd_plain.xxd);
 
@@ -424,16 +412,16 @@ mod tests {
         let matches_hd_xxd = cmd_hd_xxd
             .try_get_matches_from(["hexdump", "--xxd", "Hello"])
             .expect("Parse hexdump --xxd");
-        let parsed_hd_xxd = HexDumpArgs::from_arg_matches(&matches_hd_xxd).unwrap();
+        let parsed_hd_xxd =
+            HexDumpArgs::from_arg_matches(&matches_hd_xxd).unwrap();
         assert!(!parsed_hd_xxd.plain);
         assert!(parsed_hd_xxd.xxd);
 
-        let cmd_hd_conflict = HexDumpArgs::augment_args(Command::new("hexdump"));
-        assert!(
-            cmd_hd_conflict
-                .try_get_matches_from(["hexdump", "--plain", "--xxd", "Hello"])
-                .is_err()
-        );
+        let cmd_hd_conflict =
+            HexDumpArgs::augment_args(Command::new("hexdump"));
+        cmd_hd_conflict
+            .try_get_matches_from(["hexdump", "--plain", "--xxd", "Hello"])
+            .unwrap_err();
 
         let cmd_xxd = XxdArgs::augment_args(Command::new("xxd"));
         let matches_xxd = cmd_xxd
@@ -448,7 +436,8 @@ mod tests {
         let matches_xxd_plain = cmd_xxd_plain
             .try_get_matches_from(["xxd", "--plain", "Hello"])
             .expect("Parse xxd --plain");
-        let parsed_xxd_plain = XxdArgs::from_arg_matches(&matches_xxd_plain).unwrap();
+        let parsed_xxd_plain =
+            XxdArgs::from_arg_matches(&matches_xxd_plain).unwrap();
         assert!(parsed_xxd_plain.plain);
         assert!(!parsed_xxd_plain.fancy);
     }
@@ -511,7 +500,8 @@ mod tests {
             xxd: false,
         };
         let out_hd_default =
-            execute_cli_hexdump(args_hd_default, |_| Ok(data.to_vec())).unwrap();
+            execute_cli_hexdump(args_hd_default, |_| Ok(data.to_vec()))
+                .unwrap();
         assert_eq!(
             out_hd_default,
             Some(crate::to_fancy_hex_dump(data).into_bytes())
@@ -527,10 +517,7 @@ mod tests {
         };
         let out_hd_plain =
             execute_cli_hexdump(args_hd_plain, |_| Ok(data.to_vec())).unwrap();
-        assert_eq!(
-            out_hd_plain,
-            Some(crate::to_hex_dump(data).into_bytes())
-        );
+        assert_eq!(out_hd_plain, Some(crate::to_hex_dump(data).into_bytes()));
 
         // Hexdump --xxd
         let args_hd_xxd = HexDumpArgs {
@@ -542,10 +529,7 @@ mod tests {
         };
         let out_hd_xxd =
             execute_cli_hexdump(args_hd_xxd, |_| Ok(data.to_vec())).unwrap();
-        assert_eq!(
-            out_hd_xxd,
-            Some(crate::to_xxd_hex_dump(data).into_bytes())
-        );
+        assert_eq!(out_hd_xxd, Some(crate::to_xxd_hex_dump(data).into_bytes()));
 
         // Xxd default is xxd format
         let args_xxd_default = XxdArgs {

@@ -19,7 +19,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! HTML parsing, plain text rendering, and HTML table extraction utilities.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use crate::get_html_data;
@@ -82,7 +86,10 @@ pub struct EntityTable {
     max_entity_len: usize,
 }
 
-fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable> {
+fn parse_entity_table(
+    set: EntitySet,
+    records: &CsvTable,
+) -> Result<EntityTable> {
     let mut char_to_entity = HashMap::new();
     let mut entity_to_text = HashMap::new();
 
@@ -97,7 +104,7 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
         match set {
             EntitySet::Html32 | EntitySet::Netscape1999 => {
                 // Format: Col 0 = Char, Col 1 = Numeric (&#...;), Col 2 = Named (&...;)
-                if let (Some(col0), Some(col2)) = (row.get(0), row.get(2)) {
+                if let (Some(col0), Some(col2)) = (row.first(), row.get(2)) {
                     let char_str = col0.clone();
                     let named_entity = col2.clone();
                     if !char_str.is_empty() && !named_entity.is_empty() {
@@ -110,8 +117,10 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
             }
             EntitySet::Xml | EntitySet::Html4 => {
                 // Format: Col 0 = Decimal codepoint, Col 1 = name (without & or ;)
-                if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
-                    if let Ok(ch) = crate::utilities::string::parse_dec_char(col0) {
+                if let (Some(col0), Some(col1)) = (row.first(), row.get(1)) {
+                    if let Ok(ch) =
+                        crate::utilities::string::parse_dec_char(col0)
+                    {
                         let char_str = ch.to_string();
                         let named_entity = format!("&{col1};");
                         char_to_entity
@@ -123,16 +132,19 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
             }
             EntitySet::Html5 => {
                 // Format: Col 0 = Hex codepoints space-separated, Col 1 = name (with or without ;)
-                if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
+                if let (Some(col0), Some(col1)) = (row.first(), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        if let Ok(ch) = crate::utilities::string::parse_hex_char(part) {
+                        if let Ok(ch) =
+                            crate::utilities::string::parse_hex_char(part)
+                        {
                             text.push(ch);
                         }
                     }
                     if !text.is_empty() {
                         let named_entity = format!("&{col1}");
-                        entity_to_text.insert(named_entity.clone(), text.clone());
+                        entity_to_text
+                            .insert(named_entity.clone(), text.clone());
                         if named_entity.ends_with(';') {
                             char_to_entity.entry(text).or_insert(named_entity);
                         }
@@ -141,11 +153,10 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
             }
             EntitySet::MathMl => {
                 // Format: Col 0 = Codepoints space-separated (decimal or hex), Col 1 = name (without & or ;)
-                if let (Some(col0), Some(col1)) = (row.get(0), row.get(1)) {
+                if let (Some(col0), Some(col1)) = (row.first(), row.get(1)) {
                     let mut text = String::new();
                     for part in col0.split_whitespace() {
-                        let ch_opt = if col0.starts_with('x')
-                        {
+                        let ch_opt = if col0.starts_with('x') {
                             crate::utilities::string::parse_hex_char(part).ok()
                         } else {
                             crate::utilities::string::parse_dec_char(part).ok()
@@ -156,7 +167,8 @@ fn parse_entity_table(set: EntitySet, records: &CsvTable) -> Result<EntityTable>
                     }
                     if !text.is_empty() {
                         let named_entity = format!("&{col1};");
-                        entity_to_text.insert(named_entity.clone(), text.clone());
+                        entity_to_text
+                            .insert(named_entity.clone(), text.clone());
                         char_to_entity.entry(text).or_insert(named_entity);
                     }
                 }
@@ -237,8 +249,9 @@ fn core_char_for_entity(entity: &str) -> Option<char> {
 fn decode_numeric_entity(entity: &str) -> Option<char> {
     let numeric = entity.strip_prefix("&#")?.strip_suffix(';')?;
 
-    let (radix, digits) = if let Some(hex) =
-        numeric.strip_prefix('x').or_else(|| numeric.strip_prefix('X'))
+    let (radix, digits) = if let Some(hex) = numeric
+        .strip_prefix('x')
+        .or_else(|| numeric.strip_prefix('X'))
     {
         (16, hex)
     } else {
@@ -307,7 +320,8 @@ pub fn from_entities(input: String, set: EntitySet) -> Result<String> {
         let max_search = table.max_entity_len.min(rest.len());
         let mut matched = false;
 
-        if let Some(semi_pos) = rest.get(..max_search).and_then(|s| s.find(';')) {
+        if let Some(semi_pos) = rest.get(..max_search).and_then(|s| s.find(';'))
+        {
             if let Some(candidate) = rest.get(..=semi_pos) {
                 if let Some(ch) = core_char_for_entity(candidate) {
                     out.push(ch);

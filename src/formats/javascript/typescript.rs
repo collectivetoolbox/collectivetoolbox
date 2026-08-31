@@ -302,16 +302,19 @@ pub fn ts_check_files(
             // Reason for fallback: Regex capture group 1 match fallback to empty string if absent.
             let file_path_str = captures.get(1).map_or("", |m| m.as_str());
             // Reason for fallback: Regex capture group 2 match fallback to 0 if absent or unparseable.
-            let line_num: usize =
-                captures.get(2).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            let line_num: usize = captures
+                .get(2)
+                .map_or(0, |m| m.as_str().parse().unwrap_or(0));
             // Reason for fallback: Regex capture group 3 match fallback to 0 if absent or unparseable.
-            let col_num: usize =
-                captures.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            let col_num: usize = captures
+                .get(3)
+                .map_or(0, |m| m.as_str().parse().unwrap_or(0));
             // Reason for fallback: Regex capture group 4 match fallback to empty string if absent.
             let code_str = captures.get(4).map_or("", |m| m.as_str());
             // Reason for fallback: Regex capture group 5 match fallback to empty String if absent.
-            let message =
-                captures.get(5).map_or_else(String::new, |m| m.as_str().to_string());
+            let message = captures
+                .get(5)
+                .map_or_else(String::new, |m| m.as_str().to_string());
 
             let file_path = PathBuf::from(file_path_str);
             let mut suffix_components = Vec::new();

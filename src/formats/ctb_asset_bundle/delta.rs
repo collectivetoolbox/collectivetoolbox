@@ -56,7 +56,8 @@ pub fn encode_delta(base: &[u8], target: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     out.extend_from_slice(DELTA_MAGIC);
 
-    let target_len = u64::try_from(target.len()).context("target length overflow")?;
+    let target_len =
+        u64::try_from(target.len()).context("target length overflow")?;
     out.extend_from_slice(&target_len.to_le_bytes());
 
     let target_crc = compute_crc32(target);
@@ -68,7 +69,9 @@ pub fn encode_delta(base: &[u8], target: &[u8]) -> Result<Vec<u8>> {
         let max_idx = base.len().saturating_sub(CHUNK_SIZE);
         let mut idx = 0;
         while idx <= max_idx {
-            if let Some(chunk_slice) = base.get(idx..idx.saturating_add(CHUNK_SIZE)) {
+            if let Some(chunk_slice) =
+                base.get(idx..idx.saturating_add(CHUNK_SIZE))
+            {
                 let mut chunk = [0_u8; CHUNK_SIZE];
                 chunk.copy_from_slice(chunk_slice);
                 chunk_map.entry(chunk).or_insert(idx);
@@ -99,8 +102,9 @@ pub fn encode_delta(base: &[u8], target: &[u8]) -> Result<Vec<u8>> {
                         let target_byte = target
                             .get(target_idx.saturating_add(match_len))
                             .copied();
-                        let base_byte =
-                            base.get(base_idx.saturating_add(match_len)).copied();
+                        let base_byte = base
+                            .get(base_idx.saturating_add(match_len))
+                            .copied();
                         if target_byte != base_byte || target_byte.is_none() {
                             break;
                         }
@@ -259,7 +263,11 @@ pub fn decode_delta(base: &[u8], delta: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Encodes a delta container payload containing the base asset path and delta bytes.
-pub fn encode_delta_payload(base_path: &str, base: &[u8], target: &[u8]) -> Result<Vec<u8>> {
+pub fn encode_delta_payload(
+    base_path: &str,
+    base: &[u8],
+    target: &[u8],
+) -> Result<Vec<u8>> {
     let base_path_bytes = base_path.as_bytes();
     let base_path_len = u16::try_from(base_path_bytes.len())
         .context("Base asset path length exceeds u16::MAX")?;
@@ -322,7 +330,8 @@ mod tests {
 
     #[test]
     fn test_delta_roundtrip_empty_and_small() -> Result<()> {
-        let base = b"Hello, World! This is a test string for delta compression.";
+        let base =
+            b"Hello, World! This is a test string for delta compression.";
         let target = b"Hello, Rust World! This is a test string for delta compression with extra data.";
 
         let delta = encode_delta(base, target)?;

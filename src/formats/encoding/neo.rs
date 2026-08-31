@@ -24,9 +24,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! area (0x00..=0x1F) uses graphical symbols (the common device character set),
 //! with an optional control character mode available. Documentation of the
 //! control character encoding (with graphical 0x0) was found commented out in
-//! the AlphaSync driver.
+//! the `AlphaSync` driver.
 //!
-//! AlphaWord uses a more complex file format/encoding. FIXME update this comment with details from AlphaSync.
+//! `AlphaWord` uses a more complex file format/encoding. FIXME update this comment with details from `AlphaSync`.
 
 #[expect(
     unused_imports,
@@ -35,16 +35,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::collections::HashMap;
-use std::sync::LazyLock;
 use ctb_utilities::anyhow::anyhow;
 use ctb_utilities::string::parse_hex_codepoints;
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::mapping::SingleByteMapping;
 pub use ctb_formats_utilities::encoding::{LowArea, NeoRegion};
 
 /// Loads a `SingleByteMapping` table for the specified region and low-area mode.
-pub fn try_load_mapping(region: NeoRegion, low_area: LowArea) -> Result<SingleByteMapping> {
+pub fn try_load_mapping(
+    region: NeoRegion,
+    low_area: LowArea,
+) -> Result<SingleByteMapping> {
     let low_file = match low_area {
         LowArea::Graphical => "neo/low-graphical.csv",
         LowArea::Control => "neo/low-control.csv",
@@ -57,8 +60,9 @@ pub fn try_load_mapping(region: NeoRegion, low_area: LowArea) -> Result<SingleBy
 
     let low_bytes = crate::get_encoding_data(low_file)
         .ok_or_else(|| anyhow!("Missing Neo low-area data file: {low_file}"))?;
-    let high_bytes = crate::get_encoding_data(high_file)
-        .ok_or_else(|| anyhow!("Missing Neo high-area data file: {high_file}"))?;
+    let high_bytes = crate::get_encoding_data(high_file).ok_or_else(|| {
+        anyhow!("Missing Neo high-area data file: {high_file}")
+    })?;
 
     let low_str = std::str::from_utf8(&low_bytes)?;
     let high_str = std::str::from_utf8(&high_bytes)?;
@@ -110,42 +114,50 @@ pub(crate) static NEO_US: LazyLock<SingleByteMapping> = LazyLock::new(|| {
 
 /// Static instance for Neo US layout with control low area (graphical 0x0 byte).
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static NEO_US_CONTROL: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(NeoRegion::Us, LowArea::Control)
-        .expect("Failed to load Neo US (Control) mapping")
-});
+pub(crate) static NEO_US_CONTROL: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(NeoRegion::Us, LowArea::Control)
+            .expect("Failed to load Neo US (Control) mapping")
+    });
 
 /// Static instance for Neo Ukrainian Mac layout with graphical low area.
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static NEO_UA_MAC: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(NeoRegion::UaMac, LowArea::Graphical)
-        .expect("Failed to load Neo UA-Mac (Graphical) mapping")
-});
+pub(crate) static NEO_UA_MAC: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(NeoRegion::UaMac, LowArea::Graphical)
+            .expect("Failed to load Neo UA-Mac (Graphical) mapping")
+    });
 
 /// Static instance for Neo Ukrainian Mac layout with control low area.
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static NEO_UA_MAC_CONTROL: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(NeoRegion::UaMac, LowArea::Control)
-        .expect("Failed to load Neo UA-Mac (Control) mapping")
-});
+pub(crate) static NEO_UA_MAC_CONTROL: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(NeoRegion::UaMac, LowArea::Control)
+            .expect("Failed to load Neo UA-Mac (Control) mapping")
+    });
 
 /// Static instance for Neo Ukrainian PC layout with graphical low area.
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static NEO_UA_PC: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(NeoRegion::UaPc, LowArea::Graphical)
-        .expect("Failed to load Neo UA-PC (Graphical) mapping")
-});
+pub(crate) static NEO_UA_PC: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(NeoRegion::UaPc, LowArea::Graphical)
+            .expect("Failed to load Neo UA-PC (Graphical) mapping")
+    });
 
 /// Static instance for Neo Ukrainian PC layout with control low area.
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static NEO_UA_PC_CONTROL: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(NeoRegion::UaPc, LowArea::Control)
-        .expect("Failed to load Neo UA-PC (Control) mapping")
-});
+pub(crate) static NEO_UA_PC_CONTROL: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(NeoRegion::UaPc, LowArea::Control)
+            .expect("Failed to load Neo UA-PC (Control) mapping")
+    });
 
 /// Returns the static `SingleByteMapping` for the specified region and low area.
 #[must_use]
-pub(crate) fn get_mapping(region: NeoRegion, low_area: LowArea) -> &'static SingleByteMapping {
+pub(crate) fn get_mapping(
+    region: NeoRegion,
+    low_area: LowArea,
+) -> &'static SingleByteMapping {
     match (region, low_area) {
         (NeoRegion::Us, LowArea::Graphical) => &NEO_US,
         (NeoRegion::Us, LowArea::Control) => &NEO_US_CONTROL,

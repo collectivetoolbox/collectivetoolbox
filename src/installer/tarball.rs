@@ -274,18 +274,23 @@ impl StreamingTarball {
                         .len();
 
                     if chunk.hash.len() < 4 {
-                        bail!("Invalid chunk SHA-256 hash length: {}", chunk.hash);
+                        bail!(
+                            "Invalid chunk SHA-256 hash length: {}",
+                            chunk.hash
+                        );
                     }
                     #[allow(
                         clippy::expect_used,
                         reason = "chunk.hash.len() >= 4 checked above"
                     )]
-                    let prefix1 = chunk.hash.get(0..2).expect("hash.len() >= 4");
+                    let prefix1 =
+                        chunk.hash.get(0..2).expect("hash.len() >= 4");
                     #[allow(
                         clippy::expect_used,
                         reason = "chunk.hash.len() >= 4 checked above"
                     )]
-                    let prefix2 = chunk.hash.get(2..4).expect("hash.len() >= 4");
+                    let prefix2 =
+                        chunk.hash.get(2..4).expect("hash.len() >= 4");
                     let chunk_name = format!(
                         "{chunks_subdir_name}/{prefix1}/{prefix2}/{}.br",
                         chunk.hash

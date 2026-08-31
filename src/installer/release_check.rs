@@ -166,12 +166,14 @@ pub fn verify_release(
                     clippy::expect_used,
                     reason = "hash.len() >= 4 is guaranteed by preceding condition"
                 )]
-                let prefix1 = chunk_info.hash.get(0..2).expect("hash.len() >= 4");
+                let prefix1 =
+                    chunk_info.hash.get(0..2).expect("hash.len() >= 4");
                 #[expect(
                     clippy::expect_used,
                     reason = "hash.len() >= 4 is guaranteed by preceding condition"
                 )]
-                let prefix2 = chunk_info.hash.get(2..4).expect("hash.len() >= 4");
+                let prefix2 =
+                    chunk_info.hash.get(2..4).expect("hash.len() >= 4");
                 chunks_dir
                     .join(prefix1)
                     .join(prefix2)
@@ -181,7 +183,8 @@ pub fn verify_release(
             };
 
             // Reason for fallback: slice bounds check for hash prefix formatting defaults to full hash string
-            let short_hash = chunk_info.hash.get(..16).unwrap_or(&chunk_info.hash);
+            let short_hash =
+                chunk_info.hash.get(..16).unwrap_or(&chunk_info.hash);
             if !chunk_path.exists() {
                 errors.push(format!(
                     "Missing chunk {short_hash} for file {}",
@@ -221,7 +224,8 @@ pub fn verify_release(
                     let computed_hash = compute_sha256_hex(&data);
                     if computed_hash != chunk_info.hash {
                         // Reason for fallback: slice bounds check for hash prefix formatting defaults to full hash string
-                        let short_computed = computed_hash.get(..16).unwrap_or(&computed_hash);
+                        let short_computed =
+                            computed_hash.get(..16).unwrap_or(&computed_hash);
                         errors.push(format!(
                             "Chunk {short_hash} has wrong hash: expected {}, got {short_computed}",
                             chunk_info.hash

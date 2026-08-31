@@ -24,7 +24,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! station arms (directly or relative to a reference datum), and calculate the
 //! loaded center of gravity across empty weight, occupants, and ballast.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// Inputs for aircraft center of gravity and moment calculations.
@@ -96,7 +100,10 @@ pub fn rear_pilot_arm_from_datum(datum: f64, distance_behind: f64) -> f64 {
 
 /// Calculates the loaded center of gravity from total moment and total weight.
 /// Returns an error if total weight is zero or non-finite.
-pub fn calculate_loaded_cg(total_moment: f64, total_weight: f64) -> Result<f64> {
+pub fn calculate_loaded_cg(
+    total_moment: f64,
+    total_weight: f64,
+) -> Result<f64> {
     if total_weight == 0.0 {
         bail!("Total weight cannot be zero");
     }
@@ -141,10 +148,8 @@ pub fn calculate_center_of_gravity(
     let ballast_moment =
         calculate_moment(input.ballast_weight, input.ballast_arm);
 
-    let total_moment = empty_moment
-        + front_pilot_moment
-        + rear_pilot_moment
-        + ballast_moment;
+    let total_moment =
+        empty_moment + front_pilot_moment + rear_pilot_moment + ballast_moment;
     let total_weight = input.empty_weight
         + input.front_pilot_weight
         + input.rear_pilot_weight
@@ -194,7 +199,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_calculate_loaded_cg() {
         assert_eq!(calculate_loaded_cg(10000.0, 100.0).unwrap(), 100.0);
-        assert!(calculate_loaded_cg(10000.0, 0.0).is_err());
+        calculate_loaded_cg(10000.0, 0.0).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -265,7 +270,7 @@ mod tests {
             ballast_weight: 50.0,
             ballast_arm: 40.0,
         };
-        assert!(calculate_center_of_gravity(&input_no_arms).is_err());
+        calculate_center_of_gravity(&input_no_arms).unwrap_err();
 
         // Datum provided but missing relative distances
         let input_missing_rel = CenterOfGravityInput {
@@ -281,7 +286,7 @@ mod tests {
             ballast_weight: 50.0,
             ballast_arm: 40.0,
         };
-        assert!(calculate_center_of_gravity(&input_missing_rel).is_err());
+        calculate_center_of_gravity(&input_missing_rel).unwrap_err();
 
         // Zero total weight
         let input_zero_weight = CenterOfGravityInput {
@@ -297,6 +302,6 @@ mod tests {
             ballast_weight: 0.0,
             ballast_arm: 0.0,
         };
-        assert!(calculate_center_of_gravity(&input_zero_weight).is_err());
+        calculate_center_of_gravity(&input_zero_weight).unwrap_err();
     }
 }

@@ -46,18 +46,26 @@ pub fn global_buf() -> &'static Mutex<Vec<u8>> {
 ///
 /// This function should usually not be used directly, instead use the `logs_contain(val: &str)`
 /// function injected by the [`#[traced_test]`](attr.traced_test.html) macro.
-#[expect(clippy::expect_used, reason="I think it is OK to panic in test macro")]
+#[expect(
+    clippy::expect_used,
+    reason = "I think it is OK to panic in test macro"
+)]
 pub fn logs_with_scope_contain(scope: &str, val: &str) -> bool {
-    let logs =
-        String::from_utf8(global_buf().lock().expect("Could not acquire lock").to_vec()).expect("Could not decode string");
+    let logs = String::from_utf8(
+        global_buf()
+            .lock()
+            .expect("Could not acquire lock")
+            .to_vec(),
+    )
+    .expect("Could not decode string");
     for line in logs.split('\n') {
-    // let Ok(buf) = global_buf().lock() else {
-    //     return false;
-    // };
-    // let Ok(logs) = std::str::from_utf8(&buf) else {
-    //     return false;
-    // };
-    // for line in logs.lines() {
+        // let Ok(buf) = global_buf().lock() else {
+        //     return false;
+        // };
+        // let Ok(logs) = std::str::from_utf8(&buf) else {
+        //     return false;
+        // };
+        // for line in logs.lines() {
         if line.contains(&format!(" {scope}:")) && line.contains(val) {
             return true;
         }

@@ -19,19 +19,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Schema validator and facet splitter for Document Character category tables (`src/formats/dctext/data/categories/*.csv`).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use std::collections::{HashMap, HashSet};
-use include_dir::Dir;
 use crate::report::ValidationReport;
 use crate::shared::{
     validate_bidi_class, validate_combining_class, validate_general_category,
 };
+use include_dir::Dir;
+use std::collections::{HashMap, HashSet};
 
 pub const DC_REGION_START: u128 = 1_114_112;
 pub const DC_REGION_END: u128 = 2_228_223;
@@ -151,32 +151,30 @@ pub fn validate_dc_category_file(
             continue;
         }
 
-        let short_id = match short_str.parse::<u32>() {
-            Ok(v) => v,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Short"),
-                    format!("Invalid Short Dc ID integer: '{short_str}'"),
-                    Some("Must be a non-negative integer"),
-                );
-                continue;
-            }
+        let short_id = if let Ok(v) = short_str.parse::<u32>() {
+            v
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Short"),
+                format!("Invalid Short Dc ID integer: '{short_str}'"),
+                Some("Must be a non-negative integer"),
+            );
+            continue;
         };
 
-        let dc_id = match dc_str.parse::<u128>() {
-            Ok(v) => v,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Dc"),
-                    format!("Invalid Global Dc ID integer: '{dc_str}'"),
-                    Some("Must be an integer within Document Character region"),
-                );
-                continue;
-            }
+        let dc_id = if let Ok(v) = dc_str.parse::<u128>() {
+            v
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Dc"),
+                format!("Invalid Global Dc ID integer: '{dc_str}'"),
+                Some("Must be an integer within Document Character region"),
+            );
+            continue;
         };
 
         let expected_dc = DC_REGION_START.saturating_add(u128::from(short_id));
@@ -192,7 +190,7 @@ pub fn validate_dc_category_file(
             );
         }
 
-        if dc_id < DC_REGION_START || dc_id > DC_REGION_END {
+        if !(DC_REGION_START..=DC_REGION_END).contains(&dc_id) {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -250,21 +248,18 @@ pub fn validate_dc_category_file(
             Some(bidi_str)
         };
 
-        let casing_partner = if !casing_str.is_empty() {
-            match casing_str.parse::<u32>() {
-                Ok(v) => Some(v),
-                Err(_) => {
-                    report.add_error(
-                        file_path,
-                        Some(line_no),
-                        Some("Aa"),
-                        format!("Invalid Casing partner ID integer: '{casing_str}'"),
-                        Some("Must be a short Dc ID integer if present"),
-                    );
-                    None
-                }
-            }
+        let casing_partner = if casing_str.is_empty() {
+            None
+        } else if let Ok(v) = casing_str.parse::<u32>() {
+            Some(v)
         } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aa"),
+                format!("Invalid Casing partner ID integer: '{casing_str}'"),
+                Some("Must be a short Dc ID integer if present"),
+            );
             None
         };
 
@@ -314,7 +309,9 @@ fn validate_target_token(
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
 ) {
-    let clean = token.trim().trim_matches(|c| c == '(' || c == ')' || c == '>' || c == '<');
+    let clean = token
+        .trim()
+        .trim_matches(|c| c == '(' || c == ')' || c == '>' || c == '<');
     if clean.is_empty() {
         return;
     }
@@ -350,7 +347,9 @@ fn validate_target_token(
     }
 
     // Unicode target reference: "u12AB" or "U+12AB"
-    if let Some(hex_str) = clean.strip_prefix('u').or_else(|| clean.strip_prefix("U+")) {
+    if let Some(hex_str) =
+        clean.strip_prefix('u').or_else(|| clean.strip_prefix("U+"))
+    {
         if let Ok(cp) = u32::from_str_radix(hex_str, 16) {
             if !ctb_formats_unicode::is_assigned_unicode(cp) {
                 report.add_error(
@@ -393,14 +392,19 @@ where
     let mut short_id_map: HashMap<u32, (String, usize)> = HashMap::new();
 
     for (path_str, contents) in files {
-        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") || path_str.ends_with(".generated.csv") {
+        if !path_str.ends_with(".csv")
+            || path_str.ends_with("schema.csv")
+            || path_str.ends_with(".generated.csv")
+        {
             continue;
         }
 
         let rows = validate_dc_category_file(contents, path_str, report);
 
         for row in rows {
-            if let Some((prev_file, prev_line)) = short_id_map.get(&row.short_id) {
+            if let Some((prev_file, prev_line)) =
+                short_id_map.get(&row.short_id)
+            {
                 report.add_error(
                     &row.source_file,
                     Some(row.line_number),
@@ -422,7 +426,8 @@ where
         }
     }
 
-    let known_dc_ids: HashSet<u32> = all_rows.iter().map(|r| r.short_id).collect();
+    let known_dc_ids: HashSet<u32> =
+        all_rows.iter().map(|r| r.short_id).collect();
 
     // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
     if let Some(&max_id) = known_dc_ids.iter().max() {
@@ -516,7 +521,12 @@ pub fn validate_all_dc_files(
             files.push((path_str, f.contents()));
         }
     }
-    validate_dc_files_data(files, "src/formats/dctext/data/categories/", known_format_ids, report)
+    validate_dc_files_data(
+        files,
+        "src/formats/dctext/data/categories/",
+        known_format_ids,
+        report,
+    )
 }
 
 /// Discovers and validates all Dc category files from an on-disk directory.
@@ -530,7 +540,10 @@ pub fn validate_all_dc_files_from_disk(
             &dc_dir.display().to_string(),
             None,
             None,
-            format!("Could not read Dc categories directory at {}", dc_dir.display()),
+            format!(
+                "Could not read Dc categories directory at {}",
+                dc_dir.display()
+            ),
             None,
         );
         return Vec::new();

@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI execution helpers for Unicode character descriptions.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -39,17 +39,17 @@ pub enum CliDescriptionMode {
     /// Standard enhanced format: concise reserved/PUA/surrogates, multi-alias annotations, Unihan readings.
     #[default]
     Standard,
-    /// Exact WUC compatibility format (matches unicode_untrimmed_descriptions.txt).
+    /// Exact WUC compatibility format (matches `unicode_untrimmed_descriptions.txt`).
     WucCompat,
 }
 
 /// Control character name formatting style for CLI selection.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CliControlNameFormat {
-    /// Official UCD NameAliases (e.g. ALERT [BEL], END OF LINE [EOL]).
+    /// Official UCD `NameAliases` (e.g. ALERT [BEL], END OF LINE [EOL]).
     #[default]
     NameAliases,
-    /// Legacy NamesList names (e.g. BELL [BEL], LINE FEED [LF], [EOM]).
+    /// Legacy `NamesList` names (e.g. BELL [BEL], LINE FEED [LF], [EOM]).
     NamesList,
     /// "What Unicode Character is This" format
     Wuc,
@@ -73,7 +73,7 @@ pub enum CliUnicodeVersion {
     V15_0,
 }
 
-/// Execution arguments for the character_description CLI tool.
+/// Execution arguments for the `character_description` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description -f input.txt -o output.txt\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\""
@@ -117,13 +117,12 @@ pub struct CharacterDescriptionArgs {
 
 impl From<&CharacterDescriptionArgs> for DescriptionOptions {
     fn from(args: &CharacterDescriptionArgs) -> Self {
-        let mode = if args.wuc_compat
-            || args.mode == CliDescriptionMode::WucCompat
-        {
-            DescriptionMode::WucCompat
-        } else {
-            DescriptionMode::Standard
-        };
+        let mode =
+            if args.wuc_compat || args.mode == CliDescriptionMode::WucCompat {
+                DescriptionMode::WucCompat
+            } else {
+                DescriptionMode::Standard
+            };
 
         let control_name_format = if args.wuc_compat {
             ControlNameFormat::Wuc
@@ -144,8 +143,11 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
             CliUnicodeVersion::V15_0 => UnicodeVersion::V15_0,
         };
 
-        let include_unihan_readings =
-            if args.wuc_compat { false } else { !args.no_unihan_readings };
+        let include_unihan_readings = if args.wuc_compat {
+            false
+        } else {
+            !args.no_unihan_readings
+        };
 
         DescriptionOptions {
             mode,
@@ -156,7 +158,7 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
     }
 }
 
-/// Executes character_description CLI command logic.
+/// Executes `character_description` CLI command logic.
 ///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
@@ -206,7 +208,7 @@ where
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -260,11 +262,26 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_codepoints() {
-        assert_eq!(crate::utilities::string::parse_hex_u32("U+0041").unwrap(), 0x41);
-        assert_eq!(crate::utilities::string::parse_hex_u32("u+1f602").unwrap(), 0x1F602);
-        assert_eq!(crate::utilities::string::parse_hex_u32("0x41").unwrap(), 0x41);
-        assert_eq!(crate::utilities::string::parse_hex_u32("0X1F602").unwrap(), 0x1F602);
-        assert_eq!(crate::utilities::string::parse_hex_u32("41").unwrap(), 0x41);
+        assert_eq!(
+            crate::utilities::string::parse_hex_u32("U+0041").unwrap(),
+            0x41
+        );
+        assert_eq!(
+            crate::utilities::string::parse_hex_u32("u+1f602").unwrap(),
+            0x1F602
+        );
+        assert_eq!(
+            crate::utilities::string::parse_hex_u32("0x41").unwrap(),
+            0x41
+        );
+        assert_eq!(
+            crate::utilities::string::parse_hex_u32("0X1F602").unwrap(),
+            0x1F602
+        );
+        assert_eq!(
+            crate::utilities::string::parse_hex_u32("41").unwrap(),
+            0x41
+        );
     }
 
     #[crate::ctb_test]
@@ -273,8 +290,8 @@ mod tests {
             input: Some("A".to_string()),
             ..Default::default()
         };
-        let out =
-            execute_cli_character_description(args, |_| Ok(Vec::new())).unwrap();
+        let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
+            .unwrap();
         let text = String::from_utf8(out.unwrap()).unwrap();
         assert_eq!(text, "U+0041 : LATIN CAPITAL LETTER A\n");
     }
@@ -285,8 +302,8 @@ mod tests {
             codepoint: Some("U+1F602".to_string()),
             ..Default::default()
         };
-        let out =
-            execute_cli_character_description(args, |_| Ok(Vec::new())).unwrap();
+        let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
+            .unwrap();
         let text = String::from_utf8(out.unwrap()).unwrap();
         assert_eq!(text, "U+1F602 : FACE WITH TEARS OF JOY\n");
     }
@@ -320,8 +337,8 @@ mod tests {
             wuc_compat: true,
             ..Default::default()
         };
-        let out =
-            execute_cli_character_description(args, |_| Ok(Vec::new())).unwrap();
+        let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
+            .unwrap();
         let text = String::from_utf8(out.unwrap()).unwrap();
         assert_eq!(text, "U+0000 : <control> NULL [NUL]\n");
     }

@@ -186,7 +186,9 @@ impl ReleaseManifest {
                         let est_comp_f64 = uncomp_f64 * 0.45;
                         let est_comp_u64 = f64_to_u64_approx(est_comp_f64)
                             .context("Estimated filesize does not approximate to u64")?;
-                        total_compressed_chunk_bytes = total_compressed_chunk_bytes.saturating_add(est_comp_u64);
+                        total_compressed_chunk_bytes =
+                            total_compressed_chunk_bytes
+                                .saturating_add(est_comp_u64);
                     }
                 }
             }

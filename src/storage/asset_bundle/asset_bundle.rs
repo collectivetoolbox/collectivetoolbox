@@ -308,14 +308,22 @@ impl ResourceBundle {
         // Try loading separate v86_images.rsrc if present
         let v86_path = bundle_path.with_file_name("v86_images.rsrc");
         if v86_path.is_file() {
-            let v86_file = open_resource_bundle_file(&v86_path).with_context(|| {
-                format!("Failed to open v86 resource bundle {}", v86_path.display())
-            })?;
+            let v86_file =
+                open_resource_bundle_file(&v86_path).with_context(|| {
+                    format!(
+                        "Failed to open v86 resource bundle {}",
+                        v86_path.display()
+                    )
+                })?;
             #[expect(unsafe_code, reason = "Mmap requires unsafe")]
             // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
-            let v86_mmap = unsafe { Mmap::map(&v86_file) }.with_context(|| {
-                format!("Failed to map v86 resource bundle {}", v86_path.display())
-            })?;
+            let v86_mmap =
+                unsafe { Mmap::map(&v86_file) }.with_context(|| {
+                    format!(
+                        "Failed to map v86 resource bundle {}",
+                        v86_path.display()
+                    )
+                })?;
             let parsed_v86 = asset_bundle_format::parse_asset_bundle(&v86_mmap)
                 .with_context(|| {
                     format!(
@@ -377,10 +385,12 @@ impl ResourceBundle {
             asset_bundle_format::delta::decode_delta_payload(raw_slice).ok()?;
         let base_bytes = self.get_asset_vec(base_path)?;
         let target_bytes =
-            asset_bundle_format::delta::decode_delta(&base_bytes, delta_bytes).ok()?;
+            asset_bundle_format::delta::decode_delta(&base_bytes, delta_bytes)
+                .ok()?;
 
         if let Ok(mut cache) = self.delta_cache.write() {
-            cache.insert(normalized.to_string(), Arc::new(target_bytes.clone()));
+            cache
+                .insert(normalized.to_string(), Arc::new(target_bytes.clone()));
         }
 
         Some(target_bytes)

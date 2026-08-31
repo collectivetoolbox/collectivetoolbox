@@ -33,7 +33,15 @@ pub async fn handle_calculator_call(
     func: &str,
     args: &[Value],
 ) -> anyhow::Result<Value> {
-    use ctb_formats_math::calculator_classic::*;
+    use ctb_formats_math::calculator_classic::{
+        CONST_E, CONST_PI, RpsOutcome, SquareRootResult, add,
+        celsius_to_fahrenheit, circle_area, divide, evaluate_basic_op,
+        evaluate_expression, fahrenheit_to_celsius, format_square_root,
+        generate_scaled_random_table, generate_unique_random_triplet,
+        integer_divide, modulo, multiply, play_rps, power, rectangle_area,
+        rectangle_perimeter, rps_choice_from_int, scaled_random, square_root,
+        subtract, verify_prime_and_factors,
+    };
 
     match func {
         "evaluateExpression" => {
@@ -46,10 +54,11 @@ pub async fn handle_calculator_call(
         }
         "getRandomScaleTable" => {
             // Reason for fallback: default to uniform random scale in 0.0..1.0 if raw argument omitted.
-            let raw = args.first().and_then(Value::as_f64).unwrap_or_else(|| {
-                use rand::Rng;
-                rand::rng().random_range(0.0..1.0)
-            });
+            let raw =
+                args.first().and_then(Value::as_f64).unwrap_or_else(|| {
+                    use rand::Rng;
+                    rand::rng().random_range(0.0..1.0)
+                });
             let table = generate_scaled_random_table(raw);
             Ok(serde_json::to_value(table)?)
         }

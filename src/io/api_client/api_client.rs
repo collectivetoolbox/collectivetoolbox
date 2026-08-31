@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! API Client library for communicating with remote global graph servers.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -33,7 +33,7 @@ pub use graph::GraphApiClient;
 pub use node::{ApiClient, NodeApiClient};
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

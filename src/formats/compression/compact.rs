@@ -577,7 +577,7 @@ pub fn compress_compact_stream<R: Read, W: Write>(
             break;
         }
 
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "bytes_read <= buf.len() guaranteed by std::io::Read"
         )]

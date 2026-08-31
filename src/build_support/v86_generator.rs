@@ -277,7 +277,7 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
                     "custom" => enc.custom = val == "1",
                     "block_boundary" => enc.block_boundary = val == "1",
                     "no_next_instruction" => {
-                        enc.no_next_instruction = val == "1"
+                        enc.no_next_instruction = val == "1";
                     }
                     "no_block_boundary_in_interpreted" => {
                         enc.no_block_boundary_in_interpreted = val == "1";
@@ -301,7 +301,7 @@ pub fn parse_x86_table(content: &str) -> Result<Vec<Encoding>> {
                     "mem_ud" => enc.mem_ud = val == "1",
                     "ignore_mod" => enc.ignore_mod = val == "1",
                     "custom_modrm_resolve" => {
-                        enc.custom_modrm_resolve = val == "1"
+                        enc.custom_modrm_resolve = val == "1";
                     }
                     "custom_sti" => enc.custom_sti = val == "1",
                     "task_switch_test" => enc.task_switch_test = val == "1",
@@ -1750,7 +1750,7 @@ mod tests {
                 "Mismatch in {filename} line count: generated={}, fixture={}",
                 lines_gen.len(),
                 lines_fix.len()
-            )
+            );
         }
     }
 }

@@ -26,8 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::collections::HashMap;
 use ctb_utilities::anyhow::anyhow;
+use std::collections::HashMap;
 
 pub use ctb_formats_utilities::encoding::{
     CharEncoding, LineEndingFormat, LineEndingKind, LineEndingOption, LowArea,
@@ -89,7 +89,9 @@ impl SingleByteMapping {
             if let Some(&byte) = self.encode_table.get(&c) {
                 result.push(byte);
             } else {
-                return Err(anyhow!("Encoding error: unmappable character '{c}'"));
+                return Err(anyhow!(
+                    "Encoding error: unmappable character '{c}'"
+                ));
             }
         }
         Ok(result)
@@ -183,7 +185,11 @@ pub fn decode_with_options(
     line_ending_opt: LineEndingOption,
 ) -> Result<String> {
     let decoded = mapping(enc).decode(input)?;
-    crate::line_endings::apply_line_ending_option(&decoded, enc, line_ending_opt)
+    crate::line_endings::apply_line_ending_option(
+        &decoded,
+        enc,
+        line_ending_opt,
+    )
 }
 
 /// Transcodes bytes from one character encoding to another with optional line ending conversion.
@@ -246,24 +252,26 @@ mod tests {
         let unix_text = "Hello\nWorld\n";
 
         // encode with EncodingDefault on MacRoman should produce CR line endings (0x0D)
-        let mac_bytes =
-            encode_with_options(mac, unix_text, LineEndingOption::EncodingDefault)?;
+        let mac_bytes = encode_with_options(
+            mac,
+            unix_text,
+            LineEndingOption::EncodingDefault,
+        )?;
         assert_eq!(mac_bytes, b"Hello\rWorld\r");
 
         // decode with EncodingDefault on Windows1252 should convert to CRLF
         let win = CharEncoding::windows_1252();
-        let win_text =
-            decode_with_options(win, b"Hello\nWorld\n", LineEndingOption::EncodingDefault)?;
+        let win_text = decode_with_options(
+            win,
+            b"Hello\nWorld\n",
+            LineEndingOption::EncodingDefault,
+        )?;
         assert_eq!(win_text, "Hello\r\nWorld\r\n");
 
         // Transcode from Windows-1252 (with CRLF) to MacRoman with EncodingDefault -> CR (0x0D)
         let win_bytes = b"Hello\r\nWorld\r\n";
-        let transcoded = transcode(
-            win_bytes,
-            win,
-            mac,
-            LineEndingOption::EncodingDefault,
-        )?;
+        let transcoded =
+            transcode(win_bytes, win, mac, LineEndingOption::EncodingDefault)?;
         assert_eq!(transcoded, b"Hello\rWorld\r");
 
         Ok(())

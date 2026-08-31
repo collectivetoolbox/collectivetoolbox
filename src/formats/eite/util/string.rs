@@ -107,17 +107,16 @@ pub fn substring_bug_compatible(
     if length < 0 {
         // Negative length: JS code adjusts to (str.length + 1 + length)
         // Example: length = -1 => take (len + 1 - 1) = len chars (effectively whole string)
-        let len_isize = isize::try_from(s.len()).context("String length exceeds isize::MAX")?;
+        let len_isize = isize::try_from(s.len())
+            .context("String length exceeds isize::MAX")?;
         let adj = usize::try_from(
-            len_isize
-                .saturating_add(1)
-                .saturating_add(length)
-                .max(0),
+            len_isize.saturating_add(1).saturating_add(length).max(0),
         )
         .context("Adjusted length failed conversion to usize")?;
         Ok(s.chars().skip(start).take(adj).collect())
     } else {
-        let take_len = usize::try_from(length).context("Length failed conversion to usize")?;
+        let take_len = usize::try_from(length)
+            .context("Length failed conversion to usize")?;
         Ok(s.chars().skip(start).take(take_len).collect())
     }
 }

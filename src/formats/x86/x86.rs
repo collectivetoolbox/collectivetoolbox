@@ -46,6 +46,6 @@ mod tests {
     #[crate::ctb_test]
     fn test_reexport() {
         let invalid = b"invalid";
-        assert!(extract_instruction_sets(invalid).is_err());
+        extract_instruction_sets(invalid).unwrap_err();
     }
 }

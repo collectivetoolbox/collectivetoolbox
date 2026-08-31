@@ -38,10 +38,10 @@ use include_dir::{Dir, include_dir};
 pub mod array;
 /// Date formatting and parsing helpers.
 pub mod date;
-/// Miscellaneous helpers.
-pub mod functions;
 /// Built-in function dispatcher.
 pub mod function_dispatch;
+/// Miscellaneous helpers.
+pub mod functions;
 /// Math and numeric helpers.
 pub mod math;
 /// Output parsed database to other formats.

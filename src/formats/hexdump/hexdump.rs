@@ -109,7 +109,7 @@ pub fn to_fancy_hex_dump(data: &[u8]) -> String {
     out
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "CP437 mapping is defined for all u8 byte values 0..=255"
 )]
@@ -249,7 +249,8 @@ mod tests {
 
         let partial = b"Hello";
         let partial_dump = to_xxd_hex_dump(partial);
-        let expected_partial = "00000000: 4865 6c6c 6f                             Hello\n";
+        let expected_partial =
+            "00000000: 4865 6c6c 6f                             Hello\n";
         assert_eq!(partial_dump, expected_partial);
     }
 

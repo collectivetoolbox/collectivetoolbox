@@ -1159,7 +1159,11 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                     clippy::expect_used,
                     reason = "i < bytes.len() guaranteed by preceding is_some check"
                 )]
-                let c = char::from(*bytes.get(i).expect("i < bytes.len() guaranteed by is_some check"));
+                let c = char::from(
+                    *bytes
+                        .get(i)
+                        .expect("i < bytes.len() guaranteed by is_some check"),
+                );
                 match c {
                     'f' => {
                         if let Some(&b2) = bytes.get(i.saturating_add(1)) {
@@ -1282,9 +1286,10 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
                                 clippy::expect_used,
                                 reason = "i + 1 <= j < bytes.len() established by bracket scan"
                             )]
-                            let token_bytes = bytes
-                                .get(i.saturating_add(1)..j)
-                                .expect("i + 1 <= j < bytes.len() in bracket scan");
+                            let token_bytes =
+                                bytes.get(i.saturating_add(1)..j).expect(
+                                    "i + 1 <= j < bytes.len() in bracket scan",
+                                );
                             match token_bytes {
                                 b"aq" => {
                                     let _ = write!(w, "'");
@@ -1388,14 +1393,14 @@ fn man_puts(state: &mut State, s: &str, w: &mut impl Write) {
             } else {
                 i = i.saturating_add(1);
             }
-        } else if ({
+        } else if {
             #[allow(
                 clippy::expect_used,
                 reason = "i < bytes.len() guaranteed by loop condition"
             )]
             let rem = bytes.get(i..).expect("i < bytes.len() in loop");
             starts_with_url(rem)
-        }) {
+        } {
             flush_fragment(fragment_start, i, w, bytes);
             #[allow(
                 clippy::expect_used,

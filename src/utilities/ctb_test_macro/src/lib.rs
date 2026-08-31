@@ -227,7 +227,9 @@ fn registered_scopes() -> &'static Mutex<Vec<String>> {
 /// counter is appended to make it unique. In the end, a unique scope is returned.
 fn get_free_scope(mut test_fn_name: String) -> String {
     // Reason for fallback: poisoned mutex lock recovers guard via PoisonError::into_inner
-    let mut vec = registered_scopes().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut vec = registered_scopes()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut counter = 1_usize;
     let len = test_fn_name.len();
     while vec.contains(&test_fn_name) {

@@ -49,11 +49,11 @@ pub use dc_number::{
     SHORT_DC_BEGIN_NUMBER, SHORT_DC_END_NUMBER, SHORT_DC_NEGATIVE,
     SHORT_DC_POSITIVE, SHORT_ID_FORMAT_199, base64_char_to_global_dc,
     base64_char_to_short_dc, base64_str_to_global_dcs, base64_str_to_short_dcs,
-    global_dc_to_base64_char, global_dcs_to_base64_str, i128_to_dc_number_global,
-    i128_to_dc_number_short, integer_to_dc_number_global,
-    integer_to_dc_number_short, natural_to_dc_number_global,
-    natural_to_dc_number_short, parse_dc_number_global,
-    parse_dc_number_global_i128, parse_dc_number_short,
+    global_dc_to_base64_char, global_dcs_to_base64_str,
+    i128_to_dc_number_global, i128_to_dc_number_short,
+    integer_to_dc_number_global, integer_to_dc_number_short,
+    natural_to_dc_number_global, natural_to_dc_number_short,
+    parse_dc_number_global, parse_dc_number_global_i128, parse_dc_number_short,
     parse_dc_number_short_i128, read_dc_number_global, read_dc_number_short,
     short_dc_to_base64_char, short_dcs_to_base64_str, u128_to_dc_number_global,
     u128_to_dc_number_short,
@@ -101,14 +101,19 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
     let mut i = 0usize;
 
     while i < document.len() {
-        let Some(slice) = document.get(i..) else { break };
-        let Some(&first_byte) = slice.first() else { break };
+        let Some(slice) = document.get(i..) else {
+            break;
+        };
+        let Some(&first_byte) = slice.first() else {
+            break;
+        };
 
         if first_byte == b'@' {
             if let Some(rest) = slice.get(1..) {
                 if let Some(end_rel) = rest.iter().position(|&b| b == b'@') {
                     if let Some(token_bytes) = rest.get(..end_rel) {
-                        if let Ok(token_str) = std::str::from_utf8(token_bytes) {
+                        if let Ok(token_str) = std::str::from_utf8(token_bytes)
+                        {
                             let mut dcid_str = token_str;
                             let mut is_l = false;
 
@@ -121,12 +126,17 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                             }
 
                             if is_l {
-                                if let Ok(int_val) = dcid_str.parse::<malachite::Integer>() {
-                                    match integer_to_dc_number_global(&int_val) {
+                                if let Ok(int_val) =
+                                    dcid_str.parse::<malachite::Integer>()
+                                {
+                                    match integer_to_dc_number_global(&int_val)
+                                    {
                                         Ok(dc_num_gids) => {
                                             list.push(1_114_408u128);
                                             list.extend(dc_num_gids);
-                                            i = i.saturating_add(2).saturating_add(end_rel);
+                                            i = i
+                                                .saturating_add(2)
+                                                .saturating_add(end_rel);
                                             continue;
                                         }
                                         Err(e) => {
@@ -217,7 +227,9 @@ pub fn dcutf_to_dclist(document: &[u8]) -> DcList {
     let mut list = Vec::new();
     let mut i = 0;
     while i < document.len() {
-        let Some(slice) = document.get(i..) else { break };
+        let Some(slice) = document.get(i..) else {
+            break;
+        };
         if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
             list.push(codepoint);
             i = i.saturating_add(size);

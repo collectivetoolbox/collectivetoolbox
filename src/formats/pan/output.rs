@@ -105,7 +105,8 @@ pub fn pan_to_csv_with_options(
     options: &PanCsvOptions,
 ) -> anyhow::Result<Vec<u8>> {
     let pan = if options.run_startup_procedure {
-        let mut runtime = crate::runtime::PanRuntimeState::from_pan_bytes(pan_file)?;
+        let mut runtime =
+            crate::runtime::PanRuntimeState::from_pan_bytes(pan_file)?;
         let _ = runtime.run_startup_procedure();
         runtime.document
     } else {
@@ -264,7 +265,8 @@ pub fn pan_file_to_macro_with_encoding_stdout(
             pan_file_display = pan_file.display()
         )
     })?;
-    let macro_code = pan_to_macro_with_encoding(&pan_data, macro_name, encoding)?;
+    let macro_code =
+        pan_to_macro_with_encoding(&pan_data, macro_name, encoding)?;
     Ok(macro_code.into_bytes())
 }
 
@@ -305,18 +307,14 @@ pub fn encode_ast_json_output(
     output_encoding: PanCsvEncoding,
 ) -> anyhow::Result<Vec<u8>> {
     match output_encoding {
-        PanCsvEncoding::Windows => {
-            ctb_formats_encoding::encode(
-                ctb_formats_encoding::CharEncoding::windows_1252(),
-                ast_json,
-            )
-        }
-        PanCsvEncoding::MacRoman => {
-            ctb_formats_encoding::encode(
-                ctb_formats_encoding::CharEncoding::mac_roman(),
-                ast_json,
-            )
-        }
+        PanCsvEncoding::Windows => ctb_formats_encoding::encode(
+            ctb_formats_encoding::CharEncoding::windows_1252(),
+            ast_json,
+        ),
+        PanCsvEncoding::MacRoman => ctb_formats_encoding::encode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            ast_json,
+        ),
         PanCsvEncoding::Utf8 | PanCsvEncoding::Utf8Windows => {
             Ok(ast_json.as_bytes().to_vec())
         }
@@ -333,10 +331,7 @@ pub fn pan_to_ast_with_encoding(
 }
 
 /// Extract and parse a macro/procedure into an AST JSON string.
-pub fn pan_to_ast(
-    pan_file: &[u8],
-    macro_name: &str,
-) -> anyhow::Result<String> {
+pub fn pan_to_ast(pan_file: &[u8], macro_name: &str) -> anyhow::Result<String> {
     pan_to_ast_with_encoding(pan_file, macro_name, PanCsvEncoding::Windows)
 }
 
@@ -376,7 +371,9 @@ fn format_procedure_code(
         PanCsvEncoding::Utf8 => String::from_utf8(input_bytes.to_vec())
             .context("Procedure code is not valid UTF-8")?,
         PanCsvEncoding::Utf8Windows | PanCsvEncoding::Windows => {
-            ctb_formats_encoding::altura::mac_roman_to_utf8_windows(input_bytes)?
+            ctb_formats_encoding::altura::mac_roman_to_utf8_windows(
+                input_bytes,
+            )?
         }
         PanCsvEncoding::MacRoman => ctb_formats_encoding::decode(
             ctb_formats_encoding::CharEncoding::mac_roman(),
@@ -398,7 +395,8 @@ fn csv_field_bytes(
 ) -> anyhow::Result<Vec<u8>> {
     match &field.value {
         parser::PanDataValue::Text(text) => {
-            let is_tabs_no_quotes = options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
+            let is_tabs_no_quotes =
+                options.delimiter == PanExportDelimiter::TabsWithoutQuotes;
             if options.encoding == PanCsvEncoding::Windows {
                 let double_pass = options.replicate_double_encoding;
                 let mut mapped = field
@@ -414,7 +412,9 @@ fn csv_field_bytes(
                     })
                     .collect::<Vec<u8>>();
                 if options.output_patterns && options.truncate_multiline {
-                    if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
+                    if let Some(pos) =
+                        mapped.iter().position(|&b| b == b'\r' || b == b'\n')
+                    {
                         mapped.truncate(pos);
                     }
                 } else if is_tabs_no_quotes {
@@ -426,12 +426,15 @@ fn csv_field_bytes(
                 }
                 Ok(mapped)
             } else if options.encoding == PanCsvEncoding::Utf8Windows {
-                let decoded = ctb_formats_encoding::altura::mac_roman_to_utf8_windows(
-                    &field.raw_bytes,
-                )?;
+                let decoded =
+                    ctb_formats_encoding::altura::mac_roman_to_utf8_windows(
+                        &field.raw_bytes,
+                    )?;
                 let mut mapped = decoded.into_bytes();
                 if options.output_patterns && options.truncate_multiline {
-                    if let Some(pos) = mapped.iter().position(|&b| b == b'\r' || b == b'\n') {
+                    if let Some(pos) =
+                        mapped.iter().position(|&b| b == b'\r' || b == b'\n')
+                    {
                         mapped.truncate(pos);
                     }
                 } else if is_tabs_no_quotes {
@@ -445,28 +448,29 @@ fn csv_field_bytes(
             } else if options.encoding == PanCsvEncoding::MacRoman {
                 let mut raw = field.raw_bytes.clone();
                 if options.output_patterns && options.truncate_multiline {
-                    if let Some(pos) = raw.iter().position(|&b| b == b'\r' || b == b'\n') {
+                    if let Some(pos) =
+                        raw.iter().position(|&b| b == b'\r' || b == b'\n')
+                    {
                         raw.truncate(pos);
                     }
                 }
                 Ok(raw)
+            } else if options.output_patterns && options.truncate_multiline {
+                let first_line = text
+                    .split(['\r', '\n'])
+                    .next()
+                    // Reason for fallback: split always yields at least one item
+                    .unwrap_or("");
+                Ok(first_line.as_bytes().to_vec())
+            } else if is_tabs_no_quotes {
+                let replaced =
+                    text.replace("\r\n", "\x0b").replace(['\r', '\n'], "\x0b");
+                Ok(replaced.into_bytes())
+            } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                let norm = text.replace("\r\n", "\n").replace('\r', "\n");
+                Ok(norm.into_bytes())
             } else {
-                if options.output_patterns && options.truncate_multiline {
-                    let first_line = text
-                        .split(['\r', '\n'])
-                        .next()
-                        // Reason for fallback: split always yields at least one item
-                        .unwrap_or("");
-                    Ok(first_line.as_bytes().to_vec())
-                } else if is_tabs_no_quotes {
-                    let replaced = text.replace("\r\n", "\x0b").replace(['\r', '\n'], "\x0b");
-                    Ok(replaced.into_bytes())
-                } else if options.delimiter == PanExportDelimiter::WordPerfect {
-                    let norm = text.replace("\r\n", "\n").replace('\r', "\n");
-                    Ok(norm.into_bytes())
-                } else {
-                    Ok(text.as_bytes().to_vec())
-                }
+                Ok(text.as_bytes().to_vec())
             }
         }
         parser::PanDataValue::Integer(integer) => {
@@ -475,7 +479,9 @@ fn csv_field_bytes(
                     return Ok(formatted.as_bytes().to_vec());
                 }
             }
-            if options.encoding == PanCsvEncoding::MacRoman && integer.is_empty() {
+            if options.encoding == PanCsvEncoding::MacRoman
+                && integer.is_empty()
+            {
                 return Ok(b"0".to_vec());
             }
             Ok(integer.as_bytes().to_vec())
@@ -486,7 +492,8 @@ fn csv_field_bytes(
                     return Ok(formatted.as_bytes().to_vec());
                 }
             }
-            if options.encoding == PanCsvEncoding::MacRoman && fixed.is_empty() {
+            if options.encoding == PanCsvEncoding::MacRoman && fixed.is_empty()
+            {
                 return Ok(b"0".to_vec());
             }
             Ok(fixed.as_bytes().to_vec())
@@ -508,8 +515,12 @@ fn csv_field_bytes(
             } else if options.output_patterns {
                 if let Some(formatted) = field.formatted_value.as_ref() {
                     Ok(formatted.as_bytes().to_vec())
-                } else if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
-                    if let Ok(formatted) = crate::date::datepattern(*raw_serial, "MM/DD/YYYY") {
+                } else if options.encoding == PanCsvEncoding::Windows
+                    || options.encoding == PanCsvEncoding::Utf8Windows
+                {
+                    if let Ok(formatted) =
+                        crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
+                    {
                         Ok(formatted.into_bytes())
                     } else if let Some(mdy) = pan_date_mdy.as_deref() {
                         Ok(mdy.as_bytes().to_vec())
@@ -525,8 +536,12 @@ fn csv_field_bytes(
                 } else {
                     Ok(Vec::new())
                 }
-            } else if options.encoding == PanCsvEncoding::Windows || options.encoding == PanCsvEncoding::Utf8Windows {
-                if let Ok(formatted) = crate::date::datepattern(*raw_serial, "MM/DD/YYYY") {
+            } else if options.encoding == PanCsvEncoding::Windows
+                || options.encoding == PanCsvEncoding::Utf8Windows
+            {
+                if let Ok(formatted) =
+                    crate::date::datepattern(*raw_serial, "MM/DD/YYYY")
+                {
                     Ok(formatted.into_bytes())
                 } else if let Some(mdy) = pan_date_mdy.as_deref() {
                     Ok(mdy.as_bytes().to_vec())
@@ -547,14 +562,18 @@ fn csv_field_bytes(
     }
 }
 
-fn format_export_cell(cell_bytes: &[u8], delimiter: PanExportDelimiter) -> Vec<u8> {
+fn format_export_cell(
+    cell_bytes: &[u8],
+    delimiter: PanExportDelimiter,
+) -> Vec<u8> {
     match delimiter {
         PanExportDelimiter::Commas => {
-            let needs_quote = cell_bytes
-                .iter()
-                .any(|&b| b == b',' || b == b'"' || b == b'\r' || b == b'\n' || b == b'\t');
+            let needs_quote = cell_bytes.iter().any(|&b| {
+                b == b',' || b == b'"' || b == b'\r' || b == b'\n' || b == b'\t'
+            });
             if needs_quote {
-                let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
+                let mut out =
+                    Vec::with_capacity(cell_bytes.len().saturating_add(2));
                 out.push(b'"');
                 for &b in cell_bytes {
                     if b == b'"' {
@@ -571,11 +590,12 @@ fn format_export_cell(cell_bytes: &[u8], delimiter: PanExportDelimiter) -> Vec<u
             }
         }
         PanExportDelimiter::Tabs => {
-            let needs_quote = cell_bytes
-                .iter()
-                .any(|&b| b == b',' || b == b'\t' || b == b'"' || b == b'\r' || b == b'\n');
+            let needs_quote = cell_bytes.iter().any(|&b| {
+                b == b',' || b == b'\t' || b == b'"' || b == b'\r' || b == b'\n'
+            });
             if needs_quote {
-                let mut out = Vec::with_capacity(cell_bytes.len().saturating_add(2));
+                let mut out =
+                    Vec::with_capacity(cell_bytes.len().saturating_add(2));
                 out.push(b'"');
                 for &b in cell_bytes {
                     if b == b'"' {
@@ -591,9 +611,8 @@ fn format_export_cell(cell_bytes: &[u8], delimiter: PanExportDelimiter) -> Vec<u
                 cell_bytes.to_vec()
             }
         }
-        PanExportDelimiter::TabsWithoutQuotes | PanExportDelimiter::WordPerfect => {
-            cell_bytes.to_vec()
-        }
+        PanExportDelimiter::TabsWithoutQuotes
+        | PanExportDelimiter::WordPerfect => cell_bytes.to_vec(),
     }
 }
 
@@ -618,7 +637,8 @@ fn write_csv_bytes(
             if let Some(header_fields) = header {
                 let mut header_cells = Vec::with_capacity(header_fields.len());
                 for name in header_fields {
-                    header_cells.push(format_export_cell(name.as_bytes(), delimiter));
+                    header_cells
+                        .push(format_export_cell(name.as_bytes(), delimiter));
                 }
                 out.extend(header_cells.join(&b","[..]));
                 out.extend_from_slice(line_ending);
@@ -637,7 +657,8 @@ fn write_csv_bytes(
             if let Some(header_fields) = header {
                 let mut header_cells = Vec::with_capacity(header_fields.len());
                 for name in header_fields {
-                    header_cells.push(format_export_cell(name.as_bytes(), delimiter));
+                    header_cells
+                        .push(format_export_cell(name.as_bytes(), delimiter));
                 }
                 out.extend(header_cells.join(&b"\t"[..]));
                 out.extend_from_slice(line_ending);
@@ -759,10 +780,8 @@ mod tests {
     fn test_write_csv_string_escapes_quotes_and_newlines() -> anyhow::Result<()>
     {
         let header = vec!["Name".to_string(), "Notes".to_string()];
-        let rows = vec![vec![
-            b"Alice \"A\"".to_vec(),
-            b"line1\nline2".to_vec(),
-        ]];
+        let rows =
+            vec![vec![b"Alice \"A\"".to_vec(), b"line1\nline2".to_vec()]];
 
         let csv_bytes = write_csv_bytes(
             Some(&header),
@@ -814,8 +833,14 @@ mod tests {
         let with_header_str = String::from_utf8(with_header)?;
         let no_header_str = String::from_utf8(no_header)?;
 
-        ensure!(with_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
-        ensure!(!no_header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
+        ensure!(
+            with_header_str
+                .starts_with("ExampleTextField,ExampleNumericFieldInt")
+        );
+        ensure!(
+            !no_header_str
+                .starts_with("ExampleTextField,ExampleNumericFieldInt")
+        );
 
         Ok(())
     }
@@ -832,7 +857,10 @@ mod tests {
             PanCsvEncoding::Utf8,
             PanExportDelimiter::Tabs,
         );
-        ensure!(String::from_utf8(tsv)? == "Name\tCity\n\"Alice\tSmith\"\tNew York\n");
+        ensure!(
+            String::from_utf8(tsv)?
+                == "Name\tCity\n\"Alice\tSmith\"\tNew York\n"
+        );
 
         let tsv_noq = write_csv_bytes(
             Some(&header),
@@ -841,7 +869,10 @@ mod tests {
             PanCsvEncoding::Utf8,
             PanExportDelimiter::TabsWithoutQuotes,
         );
-        ensure!(String::from_utf8(tsv_noq)? == "Name\tCity\nAlice\tSmith\tNew York\n");
+        ensure!(
+            String::from_utf8(tsv_noq)?
+                == "Name\tCity\nAlice\tSmith\tNew York\n"
+        );
 
         let wp = write_csv_bytes(
             Some(&header),
@@ -850,7 +881,10 @@ mod tests {
             PanCsvEncoding::Utf8,
             PanExportDelimiter::WordPerfect,
         );
-        ensure!(String::from_utf8(wp)? == "Name\x12\nCity\x05\nAlice\tSmith\x12\nNew York\x12\n\x05\n");
+        ensure!(
+            String::from_utf8(wp)?
+                == "Name\x12\nCity\x05\nAlice\tSmith\x12\nNew York\x12\n\x05\n"
+        );
 
         Ok(())
     }
@@ -881,7 +915,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_sample_windows_export_fixtures_all_variants() -> anyhow::Result<()> {
+    fn test_sample_windows_export_fixtures_all_variants() -> anyhow::Result<()>
+    {
         let pan_data = crate::get_pan_data("fixtures/SAMPLE.pan")
             .context("Could not load fixtures/SAMPLE.pan")?;
 
@@ -895,13 +930,23 @@ mod tests {
         for (delim_name, delim) in delimiters {
             for header in [true, false] {
                 for patterns in [true, false] {
-                    let header_slug = if header { "field-names" } else { "no-field-names" };
-                    let patterns_slug = if patterns { "output-patterns" } else { "no-output-patterns" };
+                    let header_slug = if header {
+                        "field-names"
+                    } else {
+                        "no-field-names"
+                    };
+                    let patterns_slug = if patterns {
+                        "output-patterns"
+                    } else {
+                        "no-output-patterns"
+                    };
                     let fixture_name = format!(
                         "fixtures/SAMPLE-windows-{delim_name}-{header_slug}-{patterns_slug}.txt"
                     );
                     let expected = crate::get_pan_data(&fixture_name)
-                        .with_context(|| format!("Could not load {fixture_name}"))?;
+                        .with_context(|| {
+                            format!("Could not load {fixture_name}")
+                        })?;
 
                     let options = PanCsvOptions {
                         include_header: header,
@@ -928,27 +973,49 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_sample_with_patterns_v2_export_fixtures_all_variants() -> anyhow::Result<()> {
-        let pan_data = crate::get_pan_data("fixtures/Sample with patterns v2.pan")
-            .context("Could not load fixtures/Sample with patterns v2.pan")?;
+    fn test_sample_with_patterns_v2_export_fixtures_all_variants()
+    -> anyhow::Result<()> {
+        let pan_data =
+            crate::get_pan_data("fixtures/Sample with patterns v2.pan")
+                .context(
+                    "Could not load fixtures/Sample with patterns v2.pan",
+                )?;
 
         let delimiters = [
             ("commas", "commas", PanExportDelimiter::Commas),
             ("tabs", "tabs", PanExportDelimiter::Tabs),
-            ("tabs no quotes", "tabs no quotes", PanExportDelimiter::TabsWithoutQuotes),
-            ("WordPerfect", "WordPerfect", PanExportDelimiter::WordPerfect),
+            (
+                "tabs no quotes",
+                "tabs no quotes",
+                PanExportDelimiter::TabsWithoutQuotes,
+            ),
+            (
+                "WordPerfect",
+                "WordPerfect",
+                PanExportDelimiter::WordPerfect,
+            ),
         ];
 
         for (_, delim_label, delim) in delimiters {
             for header in [true, false] {
                 for patterns in [true, false] {
-                    let header_slug = if header { "field names" } else { "no field names" };
-                    let patterns_slug = if patterns { "output patterns" } else { "no output patterns" };
+                    let header_slug = if header {
+                        "field names"
+                    } else {
+                        "no field names"
+                    };
+                    let patterns_slug = if patterns {
+                        "output patterns"
+                    } else {
+                        "no output patterns"
+                    };
                     let fixture_name = format!(
                         "fixtures/Sample with patterns v2 Windows, {delim_label}, {header_slug}, {patterns_slug}.txt"
                     );
                     let expected = crate::get_pan_data(&fixture_name)
-                        .with_context(|| format!("Could not load {fixture_name}"))?;
+                        .with_context(|| {
+                            format!("Could not load {fixture_name}")
+                        })?;
 
                     let options = PanCsvOptions {
                         include_header: header,
@@ -995,7 +1062,9 @@ mod tests {
             .context("Empty CSV output")?;
         let header_str = std::str::from_utf8(first_line)?;
         ensure!(!header_str.contains('\r'));
-        ensure!(header_str.starts_with("ExampleTextField,ExampleNumericFieldInt"));
+        ensure!(
+            header_str.starts_with("ExampleTextField,ExampleNumericFieldInt")
+        );
         Ok(())
     }
 
@@ -1064,4 +1133,3 @@ mod tests {
         Ok(())
     }
 }
-

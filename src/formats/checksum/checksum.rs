@@ -46,7 +46,7 @@ pub enum HashAlgorithm {
     Sha256,
 }
 
-#[allow(
+#[expect(
     non_upper_case_globals,
     reason = "Alias constant matches enum variant naming"
 )]

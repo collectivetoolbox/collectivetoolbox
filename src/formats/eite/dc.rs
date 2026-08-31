@@ -28,9 +28,8 @@ use anyhow::{Result, anyhow, ensure};
 use crate::dc::data::{
     DCDATA_BIDI_CLASS_COL, DCDATA_CASING_COL, DCDATA_COMBINING_CLASS_COL,
     DCDATA_COMPLEX_TRAITS_COL, DCDATA_DESCRIPTION_COL, DCDATA_ID_COL,
-    DCDATA_NAME_COL, DCDATA_SCRIPT_COL, DCDATA_TYPE_COL,
-    dc_data_lookup_by_id, dc_data_lookup_by_value, dc_dataset_length,
-    is_dc_dataset,
+    DCDATA_NAME_COL, DCDATA_SCRIPT_COL, DCDATA_TYPE_COL, dc_data_lookup_by_id,
+    dc_data_lookup_by_value, dc_dataset_length, is_dc_dataset,
 };
 use crate::util::string::substring_bug_compatible;
 use ctb_formats_base64::{
@@ -62,8 +61,7 @@ pub fn is_known_dc(v: u32) -> Result<bool> {
 
 pub fn maximum_known_dc() -> Result<usize> {
     let len = dc_dataset_length("DcData")?;
-    len.checked_sub(1)
-        .context("Failed to get maximum known Dc")
+    len.checked_sub(1).context("Failed to get maximum known Dc")
 }
 
 /// Return true if Dc should be treated as a newline (coarse heuristic).
@@ -113,20 +111,15 @@ pub fn dc_get_el_class(dc: u32) -> Result<String> {
 /// Generic field fetch (dataset “`DcData`”, by numeric Dc id and original JS field number).
 pub fn dc_get_field(dc: u32, field_number: usize) -> Result<String> {
     let dc_str = dc.to_string();
-    dc_data_lookup_by_value(
-        "DcData",
-        DCDATA_ID_COL,
-        &dc_str,
-        field_number,
-    )
-    .or_else(|_| {
-        dc_data_lookup_by_id(
-            "DcData",
-            usize::try_from(dc).context("Could not get usize from Dc")?,
-            field_number,
-        )
-    })
-    .map_err(|e| anyhow!("dc_get_field: {e}"))
+    dc_data_lookup_by_value("DcData", DCDATA_ID_COL, &dc_str, field_number)
+        .or_else(|_| {
+            dc_data_lookup_by_id(
+                "DcData",
+                usize::try_from(dc).context("Could not get usize from Dc")?,
+                field_number,
+            )
+        })
+        .map_err(|e| anyhow!("dc_get_field: {e}"))
 }
 
 /// Name (field 1).
@@ -263,7 +256,10 @@ pub fn describe_dc(dc_id: u32) -> Result<String> {
         lines.push(format!("Combining class: {combining}"));
     }
     if !dc_type.is_empty() {
-        lines.push(format!("Type: {expanded}", expanded = format_dc_type(&dc_type)));
+        lines.push(format!(
+            "Type: {expanded}",
+            expanded = format_dc_type(&dc_type)
+        ));
     }
     if !casing.is_empty() {
         lines.push(format!("Casing: {casing}"));
@@ -295,13 +291,22 @@ pub fn describe_dc(dc_id: u32) -> Result<String> {
             lines.push(format!("Syntax: {syn}", syn = syntax_items.join(", ")));
         }
         if !alias_items.is_empty() {
-            lines.push(format!("Aliases: {aliases}", aliases = alias_items.join(", ")));
+            lines.push(format!(
+                "Aliases: {aliases}",
+                aliases = alias_items.join(", ")
+            ));
         }
         if !xref_items.is_empty() {
-            lines.push(format!("Cross-references: {xrefs}", xrefs = xref_items.join(", ")));
+            lines.push(format!(
+                "Cross-references: {xrefs}",
+                xrefs = xref_items.join(", ")
+            ));
         }
         if !decomp_items.is_empty() {
-            lines.push(format!("Decomposition: {decomps}", decomps = decomp_items.join(", ")));
+            lines.push(format!(
+                "Decomposition: {decomps}",
+                decomps = decomp_items.join(", ")
+            ));
         }
     }
 

@@ -171,8 +171,7 @@ async fn run_rust_migration(
                 .await?;
         }
         (DbSchemaType::Nodes, m2026_08_06_1_add_node_timestamp::NAME) => {
-            m2026_08_06_1_add_node_timestamp::run_rust_migration(conn)
-                .await?;
+            m2026_08_06_1_add_node_timestamp::run_rust_migration(conn).await?;
         }
         (DbSchemaType::Sync, m2026_07_05_2_create_server_sync_tables::NAME) => {
             m2026_07_05_2_create_server_sync_tables::run_rust_migration(conn)

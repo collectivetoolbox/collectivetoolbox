@@ -26,9 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use anyhow::Result;
 
 /// Detailed metadata record for a format from format category CSV files.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -124,30 +124,33 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
     }
 }
 
-static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
-    let mut map = HashMap::new();
-    if let Some(file) =
-        crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.generated.csv")
-    {
-        parse_format_csv_data(file.contents(), &mut map);
-    } else if let Some(file) =
-        crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.csv")
-    {
-        parse_format_csv_data(file.contents(), &mut map);
-    }
-    if map.is_empty() {
-        if let Some(dir) = crate::FORMATS_UTILITIES_DATA_DIR.get_dir("formats") {
-            for file in dir.files() {
-                if file.path().extension().and_then(|ext| ext.to_str())
-                    == Some("csv")
-                {
-                    parse_format_csv_data(file.contents(), &mut map);
+static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> =
+    LazyLock::new(|| {
+        let mut map = HashMap::new();
+        if let Some(file) =
+            crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.generated.csv")
+        {
+            parse_format_csv_data(file.contents(), &mut map);
+        } else if let Some(file) =
+            crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.csv")
+        {
+            parse_format_csv_data(file.contents(), &mut map);
+        }
+        if map.is_empty() {
+            if let Some(dir) =
+                crate::FORMATS_UTILITIES_DATA_DIR.get_dir("formats")
+            {
+                for file in dir.files() {
+                    if file.path().extension().and_then(|ext| ext.to_str())
+                        == Some("csv")
+                    {
+                        parse_format_csv_data(file.contents(), &mut map);
+                    }
                 }
             }
         }
-    }
-    map
-});
+        map
+    });
 
 /// Look up a `FormatInfo` record by short Format ID.
 pub fn get_format_info(fmt_id: usize) -> Option<FormatInfo> {
@@ -249,7 +252,7 @@ pub fn describe_format(fmt_id: usize) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

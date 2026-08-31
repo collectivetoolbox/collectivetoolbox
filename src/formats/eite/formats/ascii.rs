@@ -158,7 +158,11 @@ pub fn dca_to_ascii_safe_subset(
     let mut out: Vec<u8> = Vec::new();
     let mut input_index = 0usize;
 
-    fn warn_unmappable(log: &mut FormatLog, input_index: usize, dc: u32) -> Result<()> {
+    fn warn_unmappable(
+        log: &mut FormatLog,
+        input_index: usize,
+        dc: u32,
+    ) -> Result<()> {
         let index = u64::try_from(input_index)
             .map_err(|e| anyhow!("Failed to convert input_index: {e}"))?;
         log.export_warning_unmappable(index, dc, "asciiSafeSubset");
@@ -173,14 +177,13 @@ pub fn dca_to_ascii_safe_subset(
         // Found ambiguous cr, lf in a row, so only output one crlf
         if dc == 121 {
             let next_dc = if input_index.saturating_add(1) < len {
-                #[allow(
+                #[expect(
                     clippy::expect_used,
                     reason = "input_index + 1 < len check guarantees in-bounds access"
                 )]
-                dc_array
-                    .get(input_index.saturating_add(1))
-                    .copied()
-                    .expect("input_index + 1 < len check guarantees in-bounds access")
+                dc_array.get(input_index.saturating_add(1)).copied().expect(
+                    "input_index + 1 < len check guarantees in-bounds access",
+                )
             } else {
                 0
             };
@@ -211,13 +214,12 @@ pub fn dca_to_ascii_safe_subset(
                 input_index = input_index.saturating_add(1);
                 continue;
             }
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "enc.is_empty() check on line 185 guarantees enc is non-empty"
             )]
-            let first_enc = *enc
-                .first()
-                .expect("enc is non-empty checked on line 185");
+            let first_enc =
+                *enc.first().expect("enc is non-empty checked on line 185");
             if enc.len() == 1
                 && is_ascii_safe_subset_char(first_enc)
                 && !dc_is_newline(dc)

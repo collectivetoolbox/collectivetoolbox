@@ -27,7 +27,8 @@ pub const DB_TYPE: DbSchemaType = DbSchemaType::Nodes;
 pub const NAME: &str = "2026_08_06_1_add_node_timestamp";
 pub const DESCRIPTION: &str =
     "Add high-resolution timestamp column to nodes table";
-pub const UP_SQL: Option<&str> = Some("ALTER TABLE nodes ADD COLUMN timestamp BLOB");
+pub const UP_SQL: Option<&str> =
+    Some("ALTER TABLE nodes ADD COLUMN timestamp BLOB");
 
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
     let now = std::time::SystemTime::now()

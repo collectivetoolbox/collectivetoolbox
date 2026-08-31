@@ -211,7 +211,8 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
             clippy::expect_used,
             reason = "Shift of 8 bits fits within usize width (32/64 bit)"
         )]
-        let pcidata = pci1 | (pci2.checked_shl(8).expect("8-bit shift fits in usize"));
+        let pcidata =
+            pci1 | (pci2.checked_shl(8).expect("8-bit shift fits in usize"));
         if pcidata != 0 && data.len() >= pcidata.saturating_add(18) {
             #[expect(
                 clippy::expect_used,

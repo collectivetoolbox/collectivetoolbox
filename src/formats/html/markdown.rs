@@ -136,7 +136,11 @@ impl TreeSink for DomSink {
         Node::new(NodeData::Comment(()))
     }
 
-    fn create_pi(&self, _target: StrTendril, _data: StrTendril) -> Self::Handle {
+    fn create_pi(
+        &self,
+        _target: StrTendril,
+        _data: StrTendril,
+    ) -> Self::Handle {
         Node::new(NodeData::Comment(()))
     }
 
@@ -604,8 +608,7 @@ fn render_element(
             let mut inner = String::new();
             let mut bq_ctx = ctx.clone();
             bq_ctx.in_blockquote = true;
-            bq_ctx.blockquote_depth =
-                bq_ctx.blockquote_depth.saturating_add(1);
+            bq_ctx.blockquote_depth = bq_ctx.blockquote_depth.saturating_add(1);
             render_children(node, &mut inner, &bq_ctx)?;
 
             let trimmed_inner = inner.trim();
@@ -628,17 +631,17 @@ fn render_element(
             ensure_blank_lines(out, 1);
             let mut list_ctx = ctx.clone();
             list_ctx.list_depth = ctx.list_depth.saturating_add(1);
-            let start: usize = match get_attr(attrs, "start").and_then(|s| s.parse::<usize>().ok()) {
-                Some(s) => s,
-                None => 1,
-            };
+            let start: usize = get_attr(attrs, "start")
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(1);
             list_ctx.ordered_index = Some(start);
             render_children(node, out, &list_ctx)?;
             ensure_blank_lines(out, 1);
         }
         "li" => {
             ensure_blank_lines(out, 1);
-            let indent_spaces = ctx.list_depth.saturating_sub(1).saturating_mul(2);
+            let indent_spaces =
+                ctx.list_depth.saturating_sub(1).saturating_mul(2);
             for _ in 0..indent_spaces {
                 out.push(' ');
             }
@@ -673,14 +676,8 @@ fn render_element(
             }
         }
         "img" => {
-            let src = match get_attr(attrs, "src") {
-                Some(s) => s,
-                None => String::new(),
-            };
-            let alt = match get_attr(attrs, "alt") {
-                Some(s) => s,
-                None => String::new(),
-            };
+            let src = get_attr(attrs, "src").unwrap_or_default();
+            let alt = get_attr(attrs, "alt").unwrap_or_default();
             let title = get_attr(attrs, "title");
             if let Some(t) = title {
                 out.push_str(&format!("![{alt}]({src} \"{t}\")"));
@@ -693,7 +690,8 @@ fn render_element(
             render_table(node, out)?;
             ensure_blank_lines(out, 2);
         }
-        "div" | "article" | "section" | "main" | "header" | "footer" | "nav" => {
+        "div" | "article" | "section" | "main" | "header" | "footer"
+        | "nav" => {
             ensure_blank_lines(out, 1);
             render_children(node, out, ctx)?;
             ensure_blank_lines(out, 1);
@@ -707,11 +705,7 @@ fn render_element(
 
 fn collect_table_rows(node: &Rc<Node>, rows: &mut Vec<TableRow>) -> Result<()> {
     for child in node.children.borrow().iter() {
-        if let NodeData::Element {
-            ref name,
-            ..
-        } = child.data
-        {
+        if let NodeData::Element { ref name, .. } = child.data {
             let tag = name.local.as_ref();
             match tag {
                 "tr" => {
@@ -738,9 +732,8 @@ fn collect_table_rows(node: &Rc<Node>, rows: &mut Vec<TableRow>) -> Result<()> {
                                     &cell_ctx,
                                 )?;
                                 // Clean cell content: replace newlines with space, escape pipes
-                                let cleaned = sanitize_cell_content(
-                                    cell_content.trim(),
-                                );
+                                let cleaned =
+                                    sanitize_cell_content(cell_content.trim());
                                 cells.push(TableCell {
                                     content: cleaned,
                                     is_header,
@@ -822,20 +815,15 @@ fn render_table(table_node: &Rc<Node>, out: &mut String) -> Result<()> {
         }
     }
 
-    let first_row_is_header =
-        rows.first().is_some_and(|r| r.cells.iter().any(|c| c.is_header));
+    let first_row_is_header = rows
+        .first()
+        .is_some_and(|r| r.cells.iter().any(|c| c.is_header));
 
     let (header_cells, data_rows_start) = if first_row_is_header {
-        (
-            rows.first().map(|r| &r.cells),
-            1usize,
-        )
+        (rows.first().map(|r| &r.cells), 1usize)
     } else {
         // If no explicit <th> in the table, use first row as header
-        (
-            rows.first().map(|r| &r.cells),
-            1usize,
-        )
+        (rows.first().map(|r| &r.cells), 1usize)
     };
 
     // Header row
@@ -965,7 +953,9 @@ mod tests {
         let md_str = String::from_utf8(md)?;
         assert!(md_str.contains("# Heading 1"));
         assert!(md_str.contains("## Heading 2"));
-        assert!(md_str.contains("```rust\nfn main() {\n    println!(\"Hello\");\n}\n```"));
+        assert!(md_str.contains(
+            "```rust\nfn main() {\n    println!(\"Hello\");\n}\n```"
+        ));
         Ok(())
     }
 

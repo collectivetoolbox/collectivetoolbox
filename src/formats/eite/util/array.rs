@@ -57,7 +57,8 @@ pub fn js_compat_array_slice<T: Clone>(
     start: i64,
     end_exclusive: i64,
 ) -> Result<Option<Vec<T>>> {
-    let len = i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
+    let len =
+        i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
 
     // Convert negative indices relative to length
     let mut s = if start < 0 {
@@ -90,8 +91,10 @@ pub fn js_compat_array_slice<T: Clone>(
         return Ok(None);
     }
 
-    let s_u = usize::try_from(s).context("Start index failed conversion to usize")?;
-    let e_u = usize::try_from(e).context("End index failed conversion to usize")?;
+    let s_u =
+        usize::try_from(s).context("Start index failed conversion to usize")?;
+    let e_u =
+        usize::try_from(e).context("End index failed conversion to usize")?;
     let slice = a.get(s_u..e_u).context("Slice range out of bounds")?;
 
     Ok(Some(slice.to_vec()))
@@ -103,7 +106,8 @@ pub fn subset<T: Clone>(
     mut start: i64,
     mut end: i64,
 ) -> Result<Option<Vec<T>>> {
-    let count_len = i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
+    let count_len =
+        i64::try_from(a.len()).context("Array length exceeds i64::MAX")?;
 
     if start < 0 {
         start = start.saturating_add(count_len);
@@ -140,7 +144,8 @@ pub fn subset<T: Clone>(
     let mut i = i128::from(start);
     let count_i128 = i128::from(end_count);
     while i <= count_i128 {
-        let u_idx = usize::try_from(i).context("Index failed conversion to usize")?;
+        let u_idx =
+            usize::try_from(i).context("Index failed conversion to usize")?;
         if let Some(item) = a.get(u_idx) {
             res.push(item.clone());
         } else {
@@ -154,7 +159,7 @@ pub fn subset<T: Clone>(
 
 /// JS pop(array) -> subset(array, 0, -2) meaning drop last element.
 /// We replicate safe behavior (no negative wrap).
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "non-empty slice check guarantees a.len() - 1 is within slice bounds"
 )]
@@ -169,7 +174,7 @@ pub fn pop<T: Clone>(a: &[T]) -> Vec<T> {
 }
 
 /// shift(array) -> subset(array, 1, -1) => drop first element
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "slice length check > 1 guarantees index 1 is within slice bounds"
 )]
@@ -196,8 +201,13 @@ pub fn last<T: Clone>(a: &[T]) -> Option<T> {
 /// setElement(array, index, value) – panics if out of range except allowing
 /// index == len (append) in the original? JS code forbade index > length.
 /// If index == len we append.
-pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) -> Result<()> {
-    let len = isize::try_from(a.len()).context("Array length exceeds isize::MAX")?;
+pub fn set_element<T: Clone>(
+    a: &mut Vec<T>,
+    index: isize,
+    value: T,
+) -> Result<()> {
+    let len =
+        isize::try_from(a.len()).context("Array length exceeds isize::MAX")?;
     let mut idx = index;
     if idx < 0 {
         idx = idx.saturating_add(len);
@@ -222,7 +232,11 @@ pub fn set_element<T: Clone>(a: &mut Vec<T>, index: isize, value: T) -> Result<(
 // These treat the end as inclusive, and allow negative indexes.
 // ===============
 
-fn normalize_bounds(len: usize, start: isize, end: isize) -> Result<(usize, usize)> {
+fn normalize_bounds(
+    len: usize,
+    start: isize,
+    end: isize,
+) -> Result<(usize, usize)> {
     let l = isize::try_from(len).context("Array length exceeds isize::MAX")?;
     let s = if start < 0 {
         l.saturating_add(start)
@@ -232,12 +246,18 @@ fn normalize_bounds(len: usize, start: isize, end: isize) -> Result<(usize, usiz
     let e = if end < 0 { l.saturating_add(end) } else { end };
     let s = s.clamp(0, l.max(0));
     let e = e.clamp(0, l.max(0));
-    let s_u = usize::try_from(s).context("Start index failed conversion to usize")?;
-    let e_u = usize::try_from(e).context("End index failed conversion to usize")?;
+    let s_u =
+        usize::try_from(s).context("Start index failed conversion to usize")?;
+    let e_u =
+        usize::try_from(e).context("End index failed conversion to usize")?;
     Ok((s_u, e_u))
 }
 
-pub fn slice_inclusive_bool(a: &[bool], start: isize, end: isize) -> Result<Vec<bool>> {
+pub fn slice_inclusive_bool(
+    a: &[bool],
+    start: isize,
+    end: isize,
+) -> Result<Vec<bool>> {
     if a.is_empty() {
         return Ok(Vec::new());
     }
@@ -251,7 +271,11 @@ pub fn slice_inclusive_bool(a: &[bool], start: isize, end: isize) -> Result<Vec<
     Ok(slice.to_vec())
 }
 
-pub fn slice_inclusive_i32(a: &[i32], start: isize, end: isize) -> Result<Vec<i32>> {
+pub fn slice_inclusive_i32(
+    a: &[i32],
+    start: isize,
+    end: isize,
+) -> Result<Vec<i32>> {
     if a.is_empty() {
         return Ok(Vec::new());
     }

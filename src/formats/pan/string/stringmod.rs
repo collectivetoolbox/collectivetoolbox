@@ -138,7 +138,7 @@ pub fn fixedwidth(text: &str, width: usize) -> String {
 }
 
 /// Right-aligns `text` to `width`, truncating from the left if needed.
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start = chars.len() - width < chars.len() guaranteed by chars.len() > width"
 )]
@@ -164,7 +164,7 @@ pub fn fixedwidthright(text: &str, width: usize) -> String {
     out
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start = chars.len() - width < chars.len() guaranteed by chars.len() > width"
 )]
@@ -191,7 +191,7 @@ pub fn padzero(text: &str, width: usize) -> String {
 }
 
 /// Removes empty lines and normalizes line breaks to `\n`.
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "Infallible byte indexing and ASCII character boundary slice ranges in linestrip"
 )]
@@ -419,7 +419,7 @@ pub fn batchreplace(
             continue;
         }
         let mut parts = row.splitn(2, subsep);
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "row is non-empty so splitn yields at least one part"
         )]

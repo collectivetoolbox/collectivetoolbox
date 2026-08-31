@@ -44,7 +44,9 @@ use crate::utilities::*;
 
 use super::Feed;
 use chrono::Utc;
-use ctb_formats_html::entities::{to_entities_html32, to_entities_netscape_1999};
+use ctb_formats_html::entities::{
+    to_entities_html32, to_entities_netscape_1999,
+};
 use ctb_formats_utf8::to_ascii_translit;
 
 const TIME_FMT: &str = "%a, %d %b %Y %H:%M:%S GMT";

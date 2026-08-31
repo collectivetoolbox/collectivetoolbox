@@ -33,7 +33,10 @@ pub async fn handle_center_of_gravity_call(
     func: &str,
     args: &[Value],
 ) -> anyhow::Result<Value> {
-    use ctb_formats_math::center_of_gravity::*;
+    use ctb_formats_math::center_of_gravity::{
+        CenterOfGravityInput, calculate_center_of_gravity, calculate_loaded_cg,
+        calculate_moment,
+    };
 
     match func {
         "calculateCenterOfGravity" => {
@@ -122,14 +125,14 @@ pub async fn handle_center_of_gravity_call(
             Ok(serde_json::to_value(calculate_moment(weight, arm))?)
         }
         "calculateLoadedCg" => {
-            let total_moment = args
-                .first()
-                .and_then(Value::as_f64)
-                .ok_or_else(|| anyhow::anyhow!("Missing arg 0: total_moment"))?;
-            let total_weight = args
-                .get(1)
-                .and_then(Value::as_f64)
-                .ok_or_else(|| anyhow::anyhow!("Missing arg 1: total_weight"))?;
+            let total_moment =
+                args.first().and_then(Value::as_f64).ok_or_else(|| {
+                    anyhow::anyhow!("Missing arg 0: total_moment")
+                })?;
+            let total_weight =
+                args.get(1).and_then(Value::as_f64).ok_or_else(|| {
+                    anyhow::anyhow!("Missing arg 1: total_weight")
+                })?;
             Ok(serde_json::to_value(calculate_loaded_cg(
                 total_moment,
                 total_weight,

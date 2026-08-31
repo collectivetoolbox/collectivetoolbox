@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    and encoded as Base64 encapsulation Dcs (127..=190)
 //! 5. Dc 7 (`End number`)
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -101,7 +101,9 @@ pub fn base64_char_to_short_dc(c: char) -> Result<u32> {
         '+' => Ok(189),
         '/' => Ok(190),
         '=' => Ok(SHORT_DC_BASE64_PADDING),
-        _ => bail!("Character '{c}' is not a valid standard Base64 digit or padding character"),
+        _ => bail!(
+            "Character '{c}' is not a valid standard Base64 digit or padding character"
+        ),
     }
 }
 
@@ -112,22 +114,27 @@ pub fn short_dc_to_base64_char(dc: u32) -> Result<char> {
         127..=152 => {
             let offset = dc.saturating_sub(127);
             let code = u32::from(b'A').saturating_add(offset);
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         153..=178 => {
             let offset = dc.saturating_sub(153);
             let code = u32::from(b'a').saturating_add(offset);
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         179..=188 => {
             let offset = dc.saturating_sub(179);
             let code = u32::from(b'0').saturating_add(offset);
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         189 => Ok('+'),
         190 => Ok('/'),
         195 => Ok('='),
-        _ => bail!("Dc ID {dc} is not a valid Base64 encapsulation Dc (127..=190, 195)"),
+        _ => bail!(
+            "Dc ID {dc} is not a valid Base64 encapsulation Dc (127..=190, 195)"
+        ),
     }
 }
 
@@ -162,7 +169,8 @@ pub fn base64_char_to_global_dc(c: char) -> Result<u128> {
 /// its corresponding standard Base64 character or padding character (`=`).
 pub fn global_dc_to_base64_char(gid: u128) -> Result<char> {
     ensure!(
-        (GID_BASE64_START..=GID_BASE64_END).contains(&gid) || gid == GID_BASE64_PADDING,
+        (GID_BASE64_START..=GID_BASE64_END).contains(&gid)
+            || gid == GID_BASE64_PADDING,
         "Global ID {gid} is not a valid Base64 encapsulation Dc"
     );
     let short_dc = u32::try_from(gid.saturating_sub(DC_REGION_START))
@@ -197,7 +205,10 @@ pub fn global_dcs_to_base64_str(gids: &[u128]) -> Result<String> {
 ///
 /// Structure:
 /// `[Dc 6, Format 199, (optional Dc 11 if negative), ...Base64 encapsulation Dcs..., Dc 7]`
-pub fn natural_to_dc_number_short(val: &Natural, is_negative: bool) -> Result<Vec<u32>> {
+pub fn natural_to_dc_number_short(
+    val: &Natural,
+    is_negative: bool,
+) -> Result<Vec<u32>> {
     let b64_base = Base::new(64)?;
     let b64_str = format_natural(val, b64_base, 0)?;
     let digit_dcs = base64_str_to_short_dcs(&b64_str)?;
@@ -218,7 +229,10 @@ pub fn natural_to_dc_number_short(val: &Natural, is_negative: bool) -> Result<Ve
 ///
 /// Structure:
 /// `[GID 1114118 (Dc 6), GID 2228423 (Format 199), (optional GID 1114123 if negative), ...Base64 encapsulation GIDs..., GID 1114119 (Dc 7)]`
-pub fn natural_to_dc_number_global(val: &Natural, is_negative: bool) -> Result<Vec<u128>> {
+pub fn natural_to_dc_number_global(
+    val: &Natural,
+    is_negative: bool,
+) -> Result<Vec<u128>> {
     let short_dcs = natural_to_dc_number_short(val, is_negative)?;
     let mut gids = Vec::with_capacity(short_dcs.len());
     for dc in short_dcs {
@@ -272,13 +286,19 @@ pub fn u128_to_dc_number_global(val: u128) -> Result<Vec<u128>> {
 /// Reads a single Dc number from a slice of short Document Characters (Dcs),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
-    let first = dcs.first().copied().ok_or_else(|| anyhow!("Empty Dc stream"))?;
+    let first = dcs
+        .first()
+        .copied()
+        .ok_or_else(|| anyhow!("Empty Dc stream"))?;
     ensure!(
         first == SHORT_DC_BEGIN_NUMBER,
         "Expected Dc 6 (Begin number), found Dc {first}"
     );
 
-    let second = dcs.get(1).copied().ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
+    let second = dcs
+        .get(1)
+        .copied()
+        .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     ensure!(
         second == SHORT_ID_FORMAT_199,
         "Expected format 199 indicator after Dc 6, found Dc {second}"
@@ -313,11 +333,15 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
     }
 
     ensure!(found_end, "Missing Dc 7 (End number) terminating Dc number");
-    ensure!(!b64_str.is_empty(), "Dc number contains no digit characters");
+    ensure!(
+        !b64_str.is_empty(),
+        "Dc number contains no digit characters"
+    );
 
     let b64_base = Base::new(64)?;
-    let nat = parse_natural(&b64_str, b64_base)
-        .with_context(|| format!("Failed to parse Base64 number string '{b64_str}'"))?;
+    let nat = parse_natural(&b64_str, b64_base).with_context(|| {
+        format!("Failed to parse Base64 number string '{b64_str}'")
+    })?;
 
     let int_val = Integer::from_sign_and_abs(!is_negative, nat);
 
@@ -327,13 +351,19 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
 /// Reads a single Dc number from a slice of Global Graph IDs (`DcList`),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
-    let first = gids.first().copied().ok_or_else(|| anyhow!("Empty GID stream"))?;
+    let first = gids
+        .first()
+        .copied()
+        .ok_or_else(|| anyhow!("Empty GID stream"))?;
     ensure!(
         first == GID_BEGIN_NUMBER || first == u128::from(SHORT_DC_BEGIN_NUMBER),
         "Expected GID 1114118 / Dc 6 (Begin number), found {first}"
     );
 
-    let second = gids.get(1).copied().ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
+    let second = gids
+        .get(1)
+        .copied()
+        .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     ensure!(
         second == GID_FORMAT_199,
         "Expected format 199 indicator after Dc 6, found {second}"
@@ -346,7 +376,9 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         if third == GID_NEGATIVE || third == u128::from(SHORT_DC_NEGATIVE) {
             is_negative = true;
             idx = idx.saturating_add(1);
-        } else if third == GID_POSITIVE || third == u128::from(SHORT_DC_POSITIVE) {
+        } else if third == GID_POSITIVE
+            || third == u128::from(SHORT_DC_POSITIVE)
+        {
             idx = idx.saturating_add(1);
         }
     }
@@ -363,10 +395,13 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
             break;
         }
 
-        let ch = if (GID_BASE64_START..=GID_BASE64_END).contains(&gid) || gid == GID_BASE64_PADDING {
+        let ch = if (GID_BASE64_START..=GID_BASE64_END).contains(&gid)
+            || gid == GID_BASE64_PADDING
+        {
             global_dc_to_base64_char(gid)?
         } else if let Ok(short_dc) = u32::try_from(gid)
-            && ((SHORT_DC_BASE64_START..=SHORT_DC_BASE64_END).contains(&short_dc)
+            && ((SHORT_DC_BASE64_START..=SHORT_DC_BASE64_END)
+                .contains(&short_dc)
                 || short_dc == SHORT_DC_BASE64_PADDING)
         {
             short_dc_to_base64_char(short_dc)?
@@ -377,12 +412,19 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         b64_str.push(ch);
     }
 
-    ensure!(found_end, "Missing GID 1114119 / Dc 7 (End number) terminating Dc number");
-    ensure!(!b64_str.is_empty(), "Dc number contains no digit characters");
+    ensure!(
+        found_end,
+        "Missing GID 1114119 / Dc 7 (End number) terminating Dc number"
+    );
+    ensure!(
+        !b64_str.is_empty(),
+        "Dc number contains no digit characters"
+    );
 
     let b64_base = Base::new(64)?;
-    let nat = parse_natural(&b64_str, b64_base)
-        .with_context(|| format!("Failed to parse Base64 number string '{b64_str}'"))?;
+    let nat = parse_natural(&b64_str, b64_base).with_context(|| {
+        format!("Failed to parse Base64 number string '{b64_str}'")
+    })?;
 
     let int_val = Integer::from_sign_and_abs(!is_negative, nat);
 
@@ -414,17 +456,19 @@ pub fn parse_dc_number_global(gids: &[u128]) -> Result<Integer> {
 /// Parses an entire sequence of short Document Characters (Dcs) as an `i128`.
 pub fn parse_dc_number_short_i128(dcs: &[u32]) -> Result<i128> {
     let val = parse_dc_number_short(dcs)?;
-    i128::try_from(&val).map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
+    i128::try_from(&val)
+        .map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
 }
 
 /// Parses an entire sequence of Global Graph IDs (`DcList`) as an `i128`.
 pub fn parse_dc_number_global_i128(gids: &[u128]) -> Result<i128> {
     let val = parse_dc_number_global(gids)?;
-    i128::try_from(&val).map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
+    i128::try_from(&val)
+        .map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -449,7 +493,7 @@ mod tests {
         assert_eq!(base64_char_to_short_dc('+').unwrap(), 189);
         assert_eq!(base64_char_to_short_dc('/').unwrap(), 190);
         assert_eq!(base64_char_to_short_dc('=').unwrap(), 195);
-        assert!(base64_char_to_short_dc('$').is_err());
+        base64_char_to_short_dc('$').unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -464,8 +508,8 @@ mod tests {
         assert_eq!(short_dc_to_base64_char(189).unwrap(), '+');
         assert_eq!(short_dc_to_base64_char(190).unwrap(), '/');
         assert_eq!(short_dc_to_base64_char(195).unwrap(), '=');
-        assert!(short_dc_to_base64_char(191).is_err());
-        assert!(short_dc_to_base64_char(126).is_err());
+        short_dc_to_base64_char(191).unwrap_err();
+        short_dc_to_base64_char(126).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -511,7 +555,10 @@ mod tests {
 
         // -42: [GID 1114118, GID 2228423, GID 1114123 (neg), GID 1114281, GID 1114119]
         let gids_neg = i128_to_dc_number_global(-42).unwrap();
-        assert_eq!(gids_neg, vec![1_114_118, 2_228_423, 1_114_123, 1_114_281, 1_114_119]);
+        assert_eq!(
+            gids_neg,
+            vec![1_114_118, 2_228_423, 1_114_123, 1_114_281, 1_114_119]
+        );
         assert_eq!(parse_dc_number_global_i128(&gids_neg).unwrap(), -42);
 
         // Read stream with trailing tokens

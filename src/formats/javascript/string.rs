@@ -110,7 +110,7 @@ fn len_as_i64(s: &JsString) -> Result<i64> {
 ///
 /// Negative indices are relative to the end of the string. Indices are
 /// clamped into `[0, len]`. If `end` is `None`, it defaults to `len`.
-/// https://tc39.es/ecma262/#sec-string.prototype.slice
+/// <https://tc39.es/ecma262/#sec-string.prototype.slice>
 pub fn slice_j(s: &JsString, start: i64, end: Option<i64>) -> Result<JsString> {
     let len = len_as_i64(s)?;
 

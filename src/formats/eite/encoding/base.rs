@@ -32,9 +32,8 @@ pub use ctb_formats_math::base::{
     NumeralSystem, base_to_base_string, casefold_base_chars_in_string,
     char_from_hex_byte, dec_to_hex_single, dec_to_hex_string,
     format_base_string, get_digits_needed, hex_to_dec_single,
-    hex_to_dec_string, int_from_base_str_big,
-    int_from_base_str_big_alphabet, int_from_base_str_u32,
-    int_from_base_str_u128, int_to_base_str,
+    hex_to_dec_string, int_from_base_str_big, int_from_base_str_big_alphabet,
+    int_from_base_str_u32, int_from_base_str_u128, int_to_base_str,
     int_to_base_str_big_alphabet, is_base_digit, is_base_digit_alphabet,
     is_base_str, is_base_str_alphabet,
     is_supported_base_with_default_alphabet as is_supported_base,
@@ -446,16 +445,28 @@ mod tests {
 
         // Base > 36 fails if Standard alphabet is configured
         let standard_settings = BaseStringFormatSettings::default();
-        assert!(base_to_base_string("255", 10, 64, &standard_settings).is_err());
+        assert!(
+            base_to_base_string("255", 10, 64, &standard_settings).is_err()
+        );
 
         // Base 1 (unary) tests with Standard alphabet
         assert_string_ok_eq_no_warnings(
             "00000",
-            base_to_base_string("5", 10, 1, &BaseStringFormatSettings::default()),
+            base_to_base_string(
+                "5",
+                10,
+                1,
+                &BaseStringFormatSettings::default(),
+            ),
         );
         assert_string_ok_eq_no_warnings(
             "5",
-            base_to_base_string("00000", 1, 10, &BaseStringFormatSettings::default()),
+            base_to_base_string(
+                "00000",
+                1,
+                10,
+                &BaseStringFormatSettings::default(),
+            ),
         );
 
         // Base 1 (unary) tests with Base64Standard alphabet

@@ -35,7 +35,11 @@ use crate::utilities::*;
 use crate::procedure_parser::PanExpr;
 use crate::runtime::{PanRuntimeState, PanRuntimeValue};
 
-fn ensure_max_args(name: &str, args: &[PanRuntimeValue], max: usize) -> anyhow::Result<()> {
+fn ensure_max_args(
+    name: &str,
+    args: &[PanRuntimeValue],
+    max: usize,
+) -> anyhow::Result<()> {
     if args.len() > max {
         bail!(
             "Function '{name}' expected at most {max} argument(s), but received {}",
@@ -227,14 +231,12 @@ pub fn dispatch_function_call(
     eval_arg: &mut dyn FnMut(&PanExpr) -> PanRuntimeValue,
 ) -> anyhow::Result<PanRuntimeValue> {
     let lower_name = name.to_ascii_lowercase();
-    let eval_args: Vec<PanRuntimeValue> = arguments.iter().map(|a| eval_arg(a)).collect();
+    let eval_args: Vec<PanRuntimeValue> =
+        arguments.iter().map(eval_arg).collect();
 
     let fn_ctx = crate::functions::PanFunctionContext {
         databasename: "Programming Reference",
-        current_form: match state.current_form.as_deref() {
-            Some(form) => form,
-            None => "",
-        },
+        current_form: state.current_form.as_deref().unwrap_or_default(),
     };
 
     match lower_name.as_str() {
@@ -300,11 +302,13 @@ pub fn dispatch_function_call(
                 Some(v) => v.as_string(),
                 None => "\n".to_string(),
             };
-            Ok(PanRuntimeValue::String(crate::functions::tagparameterarray(
-                &arg_str(&eval_args, 0),
-                &arg_str(&eval_args, 1),
-                &delim,
-            )))
+            Ok(PanRuntimeValue::String(
+                crate::functions::tagparameterarray(
+                    &arg_str(&eval_args, 0),
+                    &arg_str(&eval_args, 1),
+                    &delim,
+                ),
+            ))
         }
         "?" => {
             ensure_max_args(name, &eval_args, 3)?;
@@ -344,11 +348,15 @@ pub fn dispatch_function_call(
         }
         "menu" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::functions::menu(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::functions::menu(&arg_str(
+                &eval_args, 0,
+            ))))
         }
         "menuitems" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::functions::menuitems(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::functions::menuitems(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "checkedarraymenu" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -359,7 +367,9 @@ pub fn dispatch_function_call(
         }
         "columnmenu" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::functions::columnmenu(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::functions::columnmenu(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "standardviewmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
@@ -371,11 +381,15 @@ pub fn dispatch_function_call(
         }
         "standardfieldsmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
-            Ok(PanRuntimeValue::String(crate::functions::standardfieldsmenu()))
+            Ok(PanRuntimeValue::String(
+                crate::functions::standardfieldsmenu(),
+            ))
         }
         "standardsearchmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
-            Ok(PanRuntimeValue::String(crate::functions::standardsearchmenu()))
+            Ok(PanRuntimeValue::String(
+                crate::functions::standardsearchmenu(),
+            ))
         }
         "standardsortmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
@@ -387,7 +401,9 @@ pub fn dispatch_function_call(
         }
         "standardsetupmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
-            Ok(PanRuntimeValue::String(crate::functions::standardsetupmenu()))
+            Ok(PanRuntimeValue::String(
+                crate::functions::standardsetupmenu(),
+            ))
         }
         "standardtextmenu" => {
             ensure_max_args(name, &eval_args, 0)?;
@@ -551,7 +567,9 @@ pub fn dispatch_function_call(
         // --- Math module (`crate::math::*`) ---
         "abs" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::Float(crate::math::abs(arg_f64(&eval_args, 0))))
+            Ok(PanRuntimeValue::Float(crate::math::abs(arg_f64(
+                &eval_args, 0,
+            ))))
         }
         "fix" => {
             ensure_max_args(name, &eval_args, 1)?;
@@ -727,7 +745,9 @@ pub fn dispatch_function_call(
         }
         "dayofweek" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::Integer(crate::date::dayofweek(arg_i64(&eval_args, 0))))
+            Ok(PanRuntimeValue::Integer(crate::date::dayofweek(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "daystr" => {
             ensure_max_args(name, &eval_args, 1)?;
@@ -735,15 +755,21 @@ pub fn dispatch_function_call(
         }
         "dayvalue" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_u32_to_i64(crate::date::dayvalue(arg_i64(&eval_args, 0))))
+            Ok(res_u32_to_i64(crate::date::dayvalue(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "monthvalue" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_u32_to_i64(crate::date::monthvalue(arg_i64(&eval_args, 0))))
+            Ok(res_u32_to_i64(crate::date::monthvalue(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "yearvalue" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_i32_to_i64(crate::date::yearvalue(arg_i64(&eval_args, 0))))
+            Ok(res_i32_to_i64(crate::date::yearvalue(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "month1st" => {
             ensure_max_args(name, &eval_args, 1)?;
@@ -766,11 +792,15 @@ pub fn dispatch_function_call(
         }
         "quartervalue" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_u32_to_i64(crate::date::quartervalue(arg_i64(&eval_args, 0))))
+            Ok(res_u32_to_i64(crate::date::quartervalue(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "week1st" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::Integer(crate::date::week1st(arg_i64(&eval_args, 0))))
+            Ok(PanRuntimeValue::Integer(crate::date::week1st(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "year1st" => {
             ensure_max_args(name, &eval_args, 1)?;
@@ -790,7 +820,9 @@ pub fn dispatch_function_call(
         }
         "completedatestr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::date::completedatestr(arg_i64(&eval_args, 0))))
+            Ok(res_str(crate::date::completedatestr(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "naturaldatestr" => {
             ensure_max_args(name, &eval_args, 1)?;
@@ -828,7 +860,9 @@ pub fn dispatch_function_call(
         }
         "superdatesecondsstr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::date::superdatesecondsstr(arg_i64(&eval_args, 0))))
+            Ok(res_str(crate::date::superdatesecondsstr(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "superdatepattern" => {
             ensure_max_args(name, &eval_args, 3)?;
@@ -861,7 +895,9 @@ pub fn dispatch_function_call(
         }
         "time24" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::Integer(crate::time::time24(arg_i64(&eval_args, 0))))
+            Ok(PanRuntimeValue::Integer(crate::time::time24(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "timedifference" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -1018,18 +1054,24 @@ pub fn dispatch_function_call(
         }
         "crtovtab" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::crtovtab(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::crtovtab(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "vtabtocr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::vtabtocr(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::vtabtocr(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "defaulttext" => {
             ensure_max_args(name, &eval_args, 2)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::defaulttext(
-                &arg_str(&eval_args, 0),
-                &arg_str(&eval_args, 1),
-            )))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::defaulttext(
+                    &arg_str(&eval_args, 0),
+                    &arg_str(&eval_args, 1),
+                ),
+            ))
         }
         "extract" => {
             ensure_max_args(name, &eval_args, 3)?;
@@ -1046,17 +1088,21 @@ pub fn dispatch_function_call(
         }
         "fixedwidth" => {
             ensure_max_args(name, &eval_args, 2)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::fixedwidth(
-                &arg_str(&eval_args, 0),
-                arg_usize(&eval_args, 1, 0),
-            )))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::fixedwidth(
+                    &arg_str(&eval_args, 0),
+                    arg_usize(&eval_args, 1, 0),
+                ),
+            ))
         }
         "fixedwidthright" => {
             ensure_max_args(name, &eval_args, 2)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::fixedwidthright(
-                &arg_str(&eval_args, 0),
-                arg_usize(&eval_args, 1, 0),
-            )))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::fixedwidthright(
+                    &arg_str(&eval_args, 0),
+                    arg_usize(&eval_args, 1, 0),
+                ),
+            ))
         }
         "padzero" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -1067,38 +1113,56 @@ pub fn dispatch_function_call(
         }
         "linestrip" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::linestrip(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::linestrip(&arg_str(&eval_args, 0)),
+            ))
         }
         "lower" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::lower(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::lower(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "upper" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::upper(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::upper(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "upperword" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::upperword(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::upperword(&arg_str(&eval_args, 0)),
+            ))
         }
         "obscuredigits" => {
             ensure_max_args(name, &eval_args, 2)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::obscuredigits(
-                &arg_str(&eval_args, 0),
-                arg_usize(&eval_args, 1, 4),
-            )))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::obscuredigits(
+                    &arg_str(&eval_args, 0),
+                    arg_usize(&eval_args, 1, 4),
+                ),
+            ))
         }
         "onespace" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::onespace(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::onespace(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "onewhitespace" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::onewhitespace(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::onewhitespace(&arg_str(
+                    &eval_args, 0,
+                )),
+            ))
         }
         "quoted" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::quoted(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::quoted(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "rep" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -1127,7 +1191,9 @@ pub fn dispatch_function_call(
         }
         "strip" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::strip(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::stringmod::strip(
+                &arg_str(&eval_args, 0),
+            )))
         }
         "stripchar" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -1138,67 +1204,103 @@ pub fn dispatch_function_call(
         }
         "striphtmltags" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::striphtmltags(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::striphtmltags(&arg_str(
+                    &eval_args, 0,
+                )),
+            ))
         }
         "stripprintable" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::stripprintable(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::stripprintable(&arg_str(
+                    &eval_args, 0,
+                )),
+            ))
         }
         "striptoalpha" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::striptoalpha(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::striptoalpha(&arg_str(&eval_args, 0)),
+            ))
         }
         "striptonum" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::stringmod::striptonum(&arg_str(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(
+                crate::string::stringmod::striptonum(&arg_str(&eval_args, 0)),
+            ))
         }
         "chr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::chr(arg_u8(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::chr(
+                arg_u8(&eval_args, 0),
+            )))
         }
         "asc" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_opt_u8_to_i64(crate::string::numeric::asc(&arg_str(&eval_args, 0))))
+            Ok(res_opt_u8_to_i64(crate::string::numeric::asc(&arg_str(
+                &eval_args, 0,
+            ))))
         }
         "bytepattern" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::string::numeric::bytepattern(arg_i64(&eval_args, 0))))
+            Ok(res_str(crate::string::numeric::bytepattern(arg_i64(
+                &eval_args, 0,
+            ))))
         }
         "commastr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::commastr(arg_i64(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::commastr(
+                arg_i64(&eval_args, 0),
+            )))
         }
         "dollarsandcents" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::string::numeric::dollarsandcents(arg_f64(&eval_args, 0))))
+            Ok(res_str(crate::string::numeric::dollarsandcents(arg_f64(
+                &eval_args, 0,
+            ))))
         }
         "money" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::string::numeric::money(arg_f64(&eval_args, 0))))
+            Ok(res_str(crate::string::numeric::money(arg_f64(
+                &eval_args, 0,
+            ))))
         }
         "hex" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_opt_u64_to_i64(crate::string::numeric::hex(&arg_str(&eval_args, 0))))
+            Ok(res_opt_u64_to_i64(crate::string::numeric::hex(&arg_str(
+                &eval_args, 0,
+            ))))
         }
         "hexbyte" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::hexbyte(arg_u8(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::hexbyte(
+                arg_u8(&eval_args, 0),
+            )))
         }
         "hexlong" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::hexlong(arg_u32(&eval_args, 0, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::hexlong(
+                arg_u32(&eval_args, 0, 0),
+            )))
         }
         "hexstr" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::hexstr(arg_u64(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::hexstr(
+                arg_u64(&eval_args, 0),
+            )))
         }
         "hexword" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::hexword(arg_u16(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::hexword(
+                arg_u16(&eval_args, 0),
+            )))
         }
         "nth" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(PanRuntimeValue::String(crate::string::numeric::nth(arg_i64(&eval_args, 0))))
+            Ok(PanRuntimeValue::String(crate::string::numeric::nth(
+                arg_i64(&eval_args, 0),
+            )))
         }
         "places" => {
             ensure_max_args(name, &eval_args, 2)?;
@@ -1209,15 +1311,21 @@ pub fn dispatch_function_call(
         }
         "scientificnotation" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::string::numeric::scientificnotation(arg_f64(&eval_args, 0))))
+            Ok(res_str(crate::string::numeric::scientificnotation(
+                arg_f64(&eval_args, 0),
+            )))
         }
         "str" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_str(crate::string::numeric::str_(arg_f64(&eval_args, 0))))
+            Ok(res_str(crate::string::numeric::str_(arg_f64(
+                &eval_args, 0,
+            ))))
         }
         "val" => {
             ensure_max_args(name, &eval_args, 1)?;
-            Ok(res_opt_i64(crate::string::numeric::val(&arg_str(&eval_args, 0))))
+            Ok(res_opt_i64(crate::string::numeric::val(&arg_str(
+                &eval_args, 0,
+            ))))
         }
         "pattern" => {
             ensure_max_args(name, &eval_args, 2)?;

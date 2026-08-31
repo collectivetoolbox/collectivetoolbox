@@ -26,10 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use axum::{
-    extract::State,
-    response::Response,
-};
+use axum::{extract::State, response::Response};
 
 use crate::json_value;
 use crate::session_auth::AuthenticatedUser;

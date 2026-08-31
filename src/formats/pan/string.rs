@@ -85,7 +85,7 @@ fn byte_index_at_char(s: &str, char_pos: usize) -> usize {
     s.len()
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start_b and end_b are valid character boundary byte indices <= s.len()"
 )]
@@ -101,7 +101,7 @@ fn slice_chars(s: &str, start_char: usize, len_chars: usize) -> String {
         .to_string()
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start_b is a valid character boundary byte index <= s.len()"
 )]
@@ -112,7 +112,7 @@ fn slice_chars_from(s: &str, start_char: usize) -> String {
         .to_string()
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "end_b is a valid character boundary byte index <= s.len()"
 )]
@@ -126,7 +126,7 @@ fn slice_chars_to(s: &str, end_char: usize) -> String {
 /// Returns the substring after the first occurrence of `tag`.
 ///
 /// Returns an empty string if `tag` is empty or not found.
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start = pos + tag.len() is a valid character boundary byte index <= text.len()"
 )]
@@ -143,7 +143,7 @@ pub fn after(text: &str, tag: &str) -> String {
         .to_string()
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "pos from text.find(tag) is a valid character boundary byte index <= text.len()"
 )]
@@ -283,7 +283,7 @@ pub fn snip(text: &str, startposition: usize, count: i64) -> String {
 }
 
 /// Returns the substring after `tag`, or `text` when not found.
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "start = pos + tag.len() is a valid character boundary byte index <= text.len()"
 )]
@@ -300,7 +300,7 @@ pub fn textafter(text: &str, tag: &str) -> String {
         .to_string()
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "pos from text.find(tag) is a valid character boundary byte index <= text.len()"
 )]
@@ -396,7 +396,7 @@ pub fn rangematch(text: &str, therange: &str) -> bool {
 }
 
 /// Returns the 1-based character index of `phrase`, or 0 if missing.
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "byte_pos from text.find(phrase) is a valid character boundary byte index <= text.len()"
 )]

@@ -354,12 +354,12 @@ pub async fn create_user(user: UserDto) -> Result<()> {
             user.wrapped_dek.clone().into(),
             user.pubkey.clone().into(),
             user.subscription_expiry
-                .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                .map(<i64 as TryFrom<_>>::try_from)
                 .transpose()
                 .context("subscription expiry did not fit into i64")?
                 .into(),
             user.token_quota
-                .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                .map(<i64 as TryFrom<_>>::try_from)
                 .transpose()
                 .context("token quota did not fit into i64")?
                 .into(),
@@ -391,7 +391,7 @@ pub async fn update_user(user: UserDto) -> Result<()> {
             (
                 Users::SubscriptionExpiry,
                 user.subscription_expiry
-                    .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                    .map(<i64 as TryFrom<_>>::try_from)
                     .transpose()
                     .context("subscription expiry did not fit into i64")?
                     .into(),
@@ -399,7 +399,7 @@ pub async fn update_user(user: UserDto) -> Result<()> {
             (
                 Users::TokenQuota,
                 user.token_quota
-                    .map(|v| <i64 as TryFrom<_>>::try_from(v))
+                    .map(<i64 as TryFrom<_>>::try_from)
                     .transpose()
                     .context("token quota did not fit into i64")?
                     .into(),

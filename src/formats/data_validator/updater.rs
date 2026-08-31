@@ -20,16 +20,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Automatic ID assignment, in-place category CSV updater, and merged table
 //! generator for Document Characters (Dcs) and Formats.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::{Context, Result, bail};
 
 pub const DC_REGION_START: u128 = 1_114_112;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
@@ -93,7 +93,8 @@ pub fn find_repository_root() -> Result<PathBuf> {
         }
     }
 
-    let mut cur = std::env::current_dir().context("Failed to get current dir")?;
+    let mut cur =
+        std::env::current_dir().context("Failed to get current dir")?;
     loop {
         if cur.join("Cargo.toml").is_file()
             && cur.join("src").join("formats").is_dir()
@@ -147,8 +148,9 @@ pub fn write_csv_file(
 ) -> Result<()> {
     let mut wtr = csv::WriterBuilder::new().from_writer(Vec::new());
 
-    wtr.write_record(header)
-        .with_context(|| format!("Failed to write header to {}", path.display()))?;
+    wtr.write_record(header).with_context(|| {
+        format!("Failed to write header to {}", path.display())
+    })?;
 
     for row in rows {
         wtr.write_record(row).with_context(|| {
@@ -156,9 +158,9 @@ pub fn write_csv_file(
         })?;
     }
 
-    let bytes = wtr
-        .into_inner()
-        .with_context(|| format!("Failed to flush CSV for {}", path.display()))?;
+    let bytes = wtr.into_inner().with_context(|| {
+        format!("Failed to flush CSV for {}", path.display())
+    })?;
 
     fs::write(path, bytes)
         .with_context(|| format!("Failed to save CSV to {}", path.display()))?;
@@ -171,7 +173,9 @@ pub fn write_csv_file(
 ///
 /// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
 /// monotonically without backfilling any preexisting gaps.
-pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateStats> {
+pub fn assign_and_update_dc_categories(
+    repo_root: &Path,
+) -> Result<TableUpdateStats> {
     let categories_dir = repo_root.join("src/formats/dctext/data/categories");
     if !categories_dir.is_dir() {
         bail!(
@@ -185,7 +189,8 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+            else {
                 continue;
             };
             if file_name.ends_with(".csv")
@@ -258,7 +263,8 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
 
                 let new_short = max_short_id.saturating_add(1);
                 max_short_id = new_short;
-                let new_dc = DC_REGION_START.saturating_add(u128::from(new_short));
+                let new_dc =
+                    DC_REGION_START.saturating_add(u128::from(new_short));
 
                 if let Some(cell) = row.get_mut(0) {
                     *cell = new_dc.to_string();
@@ -267,13 +273,14 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
                     *cell = new_short.to_string();
                 }
 
-                stats.new_ids_assigned = stats.new_ids_assigned.saturating_add(1);
+                stats.new_ids_assigned =
+                    stats.new_ids_assigned.saturating_add(1);
                 modified = true;
             } else if let Some(short_str) = row.get(1) {
                 if let Ok(s_id) = short_str.trim().parse::<u32>() {
                     let expected_dc =
                         DC_REGION_START.saturating_add(u128::from(s_id));
-                    let current_dc = match row.get(0) {
+                    let current_dc = match row.first() {
                         Some(s) => s.trim(),
                         None => "",
                     };
@@ -320,7 +327,8 @@ pub fn assign_and_update_format_categories(
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+            else {
                 continue;
             };
             if file_name.ends_with(".csv")
@@ -405,15 +413,17 @@ pub fn assign_and_update_format_categories(
                     *cell = new_short.to_string();
                 }
 
-                stats.new_ids_assigned = stats.new_ids_assigned.saturating_add(1);
+                stats.new_ids_assigned =
+                    stats.new_ids_assigned.saturating_add(1);
                 modified = true;
             } else if let Some(short_str) = row.get(1) {
                 if let Ok(s_id) = short_str.trim().parse::<usize>() {
                     let Ok(s_id_u128) = u128::try_from(s_id) else {
                         bail!("Format Short ID exceeds u128 limit");
                     };
-                    let expected_dc = FORMAT_REGION_START.saturating_add(s_id_u128);
-                    let current_dc = match row.get(0) {
+                    let expected_dc =
+                        FORMAT_REGION_START.saturating_add(s_id_u128);
+                    let current_dc = match row.first() {
                         Some(s) => s.trim(),
                         None => "",
                     };
@@ -447,18 +457,24 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     // 1. Generate DcList.generated.csv
     {
         let schema_path = repo_root.join("src/formats/dctext/data/schema.csv");
-        let (canonical_header, _) = read_csv_file(&schema_path).with_context(|| {
-            format!("Failed to read Dc schema header from {}", schema_path.display())
-        })?;
+        let (canonical_header, _) =
+            read_csv_file(&schema_path).with_context(|| {
+                format!(
+                    "Failed to read Dc schema header from {}",
+                    schema_path.display()
+                )
+            })?;
 
-        let categories_dir = repo_root.join("src/formats/dctext/data/categories");
+        let categories_dir =
+            repo_root.join("src/formats/dctext/data/categories");
         let mut all_dc_rows = Vec::new();
 
         for entry in fs::read_dir(&categories_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+                else {
                     continue;
                 };
                 if file_name.ends_with(".csv")
@@ -476,31 +492,34 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_dc_rows.sort_by(|a, b| {
-            let id_a = match a.first().and_then(|s| s.trim().parse::<u128>().ok()) {
-                Some(id) => id,
-                None => u128::MAX,
-            };
-            let id_b = match b.first().and_then(|s| s.trim().parse::<u128>().ok()) {
-                Some(id) => id,
-                None => u128::MAX,
-            };
+            let id_a = a
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
+            let id_b = b
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
             id_a.cmp(&id_b)
         });
 
-        let target_path = repo_root.join("src/formats/dctext/data/DcList.generated.csv");
+        let target_path =
+            repo_root.join("src/formats/dctext/data/DcList.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
         stats.dc_records_merged = all_dc_rows.len();
     }
 
     // 2. Generate formats.generated.csv
     {
-        let schema_path = repo_root.join("src/formats/utilities/data/schema.csv");
-        let (canonical_header, _) = read_csv_file(&schema_path).with_context(|| {
-            format!(
-                "Failed to read formats schema header from {}",
-                schema_path.display()
-            )
-        })?;
+        let schema_path =
+            repo_root.join("src/formats/utilities/data/schema.csv");
+        let (canonical_header, _) =
+            read_csv_file(&schema_path).with_context(|| {
+                format!(
+                    "Failed to read formats schema header from {}",
+                    schema_path.display()
+                )
+            })?;
 
         let formats_dir = repo_root.join("src/formats/utilities/data/formats");
         let mut all_format_rows = Vec::new();
@@ -509,7 +528,8 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             let entry = entry?;
             let path = entry.path();
             if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+                else {
                     continue;
                 };
                 if file_name.ends_with(".csv")
@@ -527,14 +547,14 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_format_rows.sort_by(|a, b| {
-            let id_a = match a.first().and_then(|s| s.trim().parse::<u128>().ok()) {
-                Some(id) => id,
-                None => u128::MAX,
-            };
-            let id_b = match b.first().and_then(|s| s.trim().parse::<u128>().ok()) {
-                Some(id) => id,
-                None => u128::MAX,
-            };
+            let id_a = a
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
+            let id_b = b
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
             id_a.cmp(&id_b)
         });
 
@@ -548,7 +568,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -582,7 +602,8 @@ mod tests {
     fn test_no_hole_backfilling_invariant() {
         // Create simulated category files with IDs [0, 10, 20] and one "AUTO" entry
         let temp_dir = tempfile::tempdir().unwrap();
-        let cat_dir = temp_dir.path().join("src/formats/dctext/data/categories");
+        let cat_dir =
+            temp_dir.path().join("src/formats/dctext/data/categories");
         fs::create_dir_all(&cat_dir).unwrap();
 
         let header = vec![
@@ -605,11 +626,11 @@ mod tests {
                 "Null".to_string(),
                 "0".to_string(),
                 "BN".to_string(),
-                "".to_string(),
+                String::new(),
                 "Cc".to_string(),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
             ],
             vec![
                 "1114132".to_string(),
@@ -617,23 +638,23 @@ mod tests {
                 "Twenty".to_string(),
                 "0".to_string(),
                 "BN".to_string(),
-                "".to_string(),
+                String::new(),
                 "Po".to_string(),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
             ],
             vec![
-                "".to_string(),
+                String::new(),
                 "AUTO".to_string(),
                 "NewItem".to_string(),
                 "0".to_string(),
                 "BN".to_string(),
-                "".to_string(),
+                String::new(),
                 "Po".to_string(),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
             ],
         ];
 

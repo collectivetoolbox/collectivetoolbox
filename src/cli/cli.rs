@@ -163,10 +163,7 @@ pub struct Cli {
     )]
     pub use_system_tls_validator: bool,
 
-    #[arg(
-        long,
-        help = "Skip CRLite revocation checking for this run only"
-    )]
+    #[arg(long, help = "Skip CRLite revocation checking for this run only")]
     pub insecure_skip_crlite_check: bool,
 
     #[command(subcommand)]
@@ -307,7 +304,8 @@ pub fn generate_cli_markdown_docs() -> String {
                 let _ = warcat_cmd.write_help(&mut warcat_help_buf);
                 let warcat_help_str = String::from_utf8_lossy(&warcat_help_buf);
 
-                let _ = writeln!(doc, "```text\n{}\n```\n", warcat_help_str.trim());
+                let _ =
+                    writeln!(doc, "```text\n{}\n```\n", warcat_help_str.trim());
 
                 render_subcommands(doc, &warcat_cmd, &full_name);
             } else {
@@ -366,7 +364,8 @@ mod tests {
 
         // If running in repository workspace, ensure docs/cli/commands.md is written / up to date
         if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-            let path = std::path::Path::new(&manifest_dir).join("../../docs/cli/commands.md");
+            let path = std::path::Path::new(&manifest_dir)
+                .join("../../docs/cli/commands.md");
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
@@ -535,21 +534,24 @@ $my_test_array = array('a' => '1', 'b' => '2');
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(
                     stdout,
-                    ctb_formats_hexdump::to_fancy_hex_dump(b"Hello").into_bytes()
+                    ctb_formats_hexdump::to_fancy_hex_dump(b"Hello")
+                        .into_bytes()
                 );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_hd_plain = Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
-            value: Some("Hello".to_string()),
-            file: None,
-            output: None,
-            plain: true,
-            xxd: false,
-        });
-        let result_hd_plain =
-            run_lightweight_command(&cmd_hd_plain).await.expect("Run hexdump --plain");
+        let cmd_hd_plain =
+            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+                value: Some("Hello".to_string()),
+                file: None,
+                output: None,
+                plain: true,
+                xxd: false,
+            });
+        let result_hd_plain = run_lightweight_command(&cmd_hd_plain)
+            .await
+            .expect("Run hexdump --plain");
         match result_hd_plain {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(
@@ -560,15 +562,17 @@ $my_test_array = array('a' => '1', 'b' => '2');
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_hd_xxd = Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
-            value: Some("Hello".to_string()),
-            file: None,
-            output: None,
-            plain: false,
-            xxd: true,
-        });
-        let result_hd_xxd =
-            run_lightweight_command(&cmd_hd_xxd).await.expect("Run hexdump --xxd");
+        let cmd_hd_xxd =
+            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+                value: Some("Hello".to_string()),
+                file: None,
+                output: None,
+                plain: false,
+                xxd: true,
+            });
+        let result_hd_xxd = run_lightweight_command(&cmd_hd_xxd)
+            .await
+            .expect("Run hexdump --xxd");
         match result_hd_xxd {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(
@@ -633,7 +637,9 @@ $my_test_array = array('a' => '1', 'b' => '2');
                 let lines: Vec<&str> = s.lines().collect();
                 assert_eq!(lines.len(), 3);
                 assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-                assert!(lines[1].starts_with("1114408 : <Dc> Next number is a Dc-equivalent reference"));
+                assert!(lines[1].starts_with(
+                    "1114408 : <Dc> Next number is a Dc-equivalent reference"
+                ));
                 assert!(lines[2].starts_with("2228304 : String"));
             }
             _ => panic!("Expected Immediate ToolResult"),
@@ -650,7 +656,10 @@ $my_test_array = array('a' => '1', 'b' => '2');
             .expect("Run short-dc");
         match res_dc {
             ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "1114408\n");
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "1114408\n"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -667,7 +676,9 @@ $my_test_array = array('a' => '1', 'b' => '2');
         match res_dc_i {
             ToolResult::Immediate { stdout, .. } => {
                 let s = String::from_utf8(stdout).expect("UTF-8");
-                assert!(s.starts_with("1114408\nNext number is a Dc-equivalent reference"));
+                assert!(s.starts_with(
+                    "1114408\nNext number is a Dc-equivalent reference"
+                ));
                 assert!(s.contains("Type: !Cx (Control: Dc special)"));
                 assert!(s.contains("Syntax: :~ [number]"));
             }
@@ -685,7 +696,10 @@ $my_test_array = array('a' => '1', 'b' => '2');
             .expect("Run short-fmt");
         match res_fmt {
             ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "2228304\n");
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "2228304\n"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -718,7 +732,10 @@ $my_test_array = array('a' => '1', 'b' => '2');
             .expect("Run gid --s");
         match res_gid_short {
             ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(String::from_utf8(stdout).expect("UTF-8"), "dc:296\n");
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "dc:296\n"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -735,7 +752,9 @@ $my_test_array = array('a' => '1', 'b' => '2');
         match res_gid_info {
             ToolResult::Immediate { stdout, .. } => {
                 let s = String::from_utf8(stdout).expect("UTF-8");
-                assert!(s.starts_with("1114408\nNext number is a Dc-equivalent reference"));
+                assert!(s.starts_with(
+                    "1114408\nNext number is a Dc-equivalent reference"
+                ));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -749,7 +768,8 @@ $my_test_array = array('a' => '1', 'b' => '2');
             "hex2dec".to_string(),
             "1A 2B".to_string(),
         ];
-        let invocation = parse_invocation(Some(args)).expect("parse invocation");
+        let invocation =
+            parse_invocation(Some(args)).expect("parse invocation");
         let cli = invocation.expect_cli().expect("expect cli");
         assert!(cli.insecure_skip_crlite_check);
         assert!(cli.command.is_some());

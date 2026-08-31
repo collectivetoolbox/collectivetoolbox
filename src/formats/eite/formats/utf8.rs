@@ -199,19 +199,19 @@ pub fn dca_to_utf8(
             if truncated {
                 // Determine slice to reprocess (excluding the invalid char, if any).
                 let end_exclusive = j.min(len);
-                #[allow(
+                #[expect(
                     clippy::expect_used,
                     reason = "start_index <= j and end_exclusive <= len is in bounds"
                 )]
-                let subseq = dc_array
-                    .get(start_index..end_exclusive)
-                    .expect("start_index <= j and end_exclusive <= len is in bounds");
+                let subseq = dc_array.get(start_index..end_exclusive).expect(
+                    "start_index <= j and end_exclusive <= len is in bounds",
+                );
                 if j >= len {
                     log.warn(&format!(
                         "Truncated encapsulated UTF-8 sequence at index {start_index} (missing end marker)"
                     ));
                 } else {
-                    #[allow(
+                    #[expect(
                         clippy::expect_used,
                         reason = "j < len checked by else branch"
                     )]
@@ -219,8 +219,7 @@ pub fn dca_to_utf8(
                         .get(j)
                         .expect("j < len checked by else branch");
                     log.warn(&format!(
-                        "Invalid character {char_dc} inside encapsulated UTF-8 sequence starting at index {} (treating as truncated)",
-                        start_index
+                        "Invalid character {char_dc} inside encapsulated UTF-8 sequence starting at index {start_index} (treating as truncated)"
                     ));
                 }
 
@@ -250,7 +249,7 @@ pub fn dca_to_utf8(
                 // Valid sequence: dc_array[i] == start, dc_array[j] == end.
                 // Inner slice excludes start and end markers.
                 let inner = if j > i.saturating_add(1) {
-                    #[allow(
+                    #[expect(
                         clippy::expect_used,
                         reason = "i < j < len established by marker search loop"
                     )]
@@ -288,7 +287,7 @@ pub fn dca_to_utf8(
                     }
                     Err(e) => {
                         // Fallback: reprocess entire sequence (including markers) with embedding disabled.
-                        #[allow(
+                        #[expect(
                             clippy::expect_used,
                             reason = "markers i and j established in range (i <= j < len) by marker search loop"
                         )]
@@ -296,8 +295,7 @@ pub fn dca_to_utf8(
                             .get(i..=j)
                             .expect("markers i and j established in range");
                         log.warn(&format!(
-                            "Failed to decode encapsulated UTF-8 sequence {:?} at {}..{}: {} (fallback to plain processing)",
-                            subseq, i, j, e
+                            "Failed to decode encapsulated UTF-8 sequence {subseq:?} at {i}..{j}: {e} (fallback to plain processing)"
                         ));
                         let mut retry_settings = settings.clone();
                         retry_settings.utf8_base64_embed_enabled = false;
@@ -470,17 +468,15 @@ pub fn dca_from_utf8(
                         remaining
                     );
                     while fragment_consumed < remaining.len() {
-                        #[allow(
+                        #[expect(
                             clippy::expect_used,
                             reason = "fragment_consumed < remaining.len() guaranteed by while loop"
                         )]
-                        let rem_slice = remaining
-                            .get(fragment_consumed..)
-                            .expect("fragment_consumed < remaining.len() in loop");
-                        log!(
-                            "Consumed, remaining {:?}",
-                            rem_slice
-                        );
+                        let rem_slice =
+                            remaining.get(fragment_consumed..).expect(
+                                "fragment_consumed < remaining.len() in loop",
+                            );
+                        log!("Consumed, remaining {:?}", rem_slice);
                         let first_char = first_char_of_utf8_string(rem_slice);
                         if first_char.is_err() {
                             log!("Char errored, {:?}", first_char);
@@ -506,13 +502,13 @@ pub fn dca_from_utf8(
                 if let Some(end_pos) = end_pos {
                     // `end_pos` is the index where the end marker starts
                     let section = if settings.dc_basenb_fragment_enabled {
-                        #[allow(
+                        #[expect(
                             clippy::expect_used,
                             reason = "end_pos <= remaining.len() guaranteed by fragment scan"
                         )]
-                        remaining
-                            .get(..end_pos)
-                            .expect("end_pos <= remaining.len() in fragment scan")
+                        remaining.get(..end_pos).expect(
+                            "end_pos <= remaining.len() in fragment scan",
+                        )
                     } else {
                         // bytes after the start marker and before the end marker
                         // Reason for fallback: 32..end_pos slices payload between 32-byte header and end_pos; fallback to empty slice safely handles truncated sections under 32 bytes without panic.
@@ -604,7 +600,12 @@ pub fn dca_from_utf8(
             // Reason for fallback: dc.is_err() check guarantees dc is Err variant; map_or_else formats error chain with fallback string if err ref is empty.
             let err_msg = dc.as_ref().err().map_or_else(
                 || "Unknown error".to_string(),
-                |e| e.chain().map(std::string::ToString::to_string).collect::<Vec<_>>().join(": "),
+                |e| {
+                    e.chain()
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(": ")
+                },
             );
             log.error(&format!(
                 "Failed to import UTF-8 character at offset {consumed}: {err_msg}"
@@ -667,13 +668,13 @@ pub fn dca_from_utf8(
         }
 
         // Advance remaining window by consumed bytes
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "consumed <= remaining.len() guaranteed by UTF-8 char decode"
         )]
-        let next_remaining = remaining
-            .get(consumed..)
-            .expect("consumed <= remaining.len() guaranteed by UTF-8 char decode");
+        let next_remaining = remaining.get(consumed..).expect(
+            "consumed <= remaining.len() guaranteed by UTF-8 char decode",
+        );
         remaining = next_remaining;
     }
 

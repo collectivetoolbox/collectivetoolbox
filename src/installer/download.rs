@@ -473,15 +473,9 @@ impl ChunkDownloader {
         if hash.len() < 4 {
             bail!("Invalid chunk hash length: {hash}");
         }
-        #[allow(
-            clippy::expect_used,
-            reason = "hash.len() >= 4 checked above"
-        )]
+        #[allow(clippy::expect_used, reason = "hash.len() >= 4 checked above")]
         let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
-        #[allow(
-            clippy::expect_used,
-            reason = "hash.len() >= 4 checked above"
-        )]
+        #[allow(clippy::expect_used, reason = "hash.len() >= 4 checked above")]
         let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
         let url = format!(
             "{}/releases/chunks/{}/{}/{}",

@@ -68,20 +68,20 @@ pub mod testing;
 pub mod ui;
 pub mod workspace_path_resolution;
 
+pub use crate::cli::{OutputChunk, ToolResult};
+pub use crate::math::approx_eq;
+pub use crate::string::format_bytes_decimal;
+pub use crate::ui::progress::Progress;
 pub use crate::utilities_json_json as json;
 pub use anyhow;
 pub use anyhow::{Context, Result, bail, ensure};
 use circular_dep_unicode::scalars_to_string_lossy;
-pub use crate::cli::{OutputChunk, ToolResult};
-pub use crate::ui::progress::Progress;
 pub use ctb_ipc_macro::ipc_client_trait;
 pub use ctb_ipc_macro::ipc_dto;
 pub use ctb_ipc_macro::ipc_method;
 pub use ctb_ipc_macro::ipc_service;
 pub use ctb_ipc_macro::ipc_service_client;
 pub use ctb_test_macro::ctb_test;
-pub use crate::math::approx_eq;
-pub use crate::string::format_bytes_decimal;
 pub use hex;
 use include_dir::{Dir, include_dir};
 pub use inventory;
@@ -570,7 +570,7 @@ pub fn upgrade_in_place(
 
 pub fn fork(path: &PathBuf, args: Vec<&str>) {
     if let Ok(Fork::Child) = daemon(false, false) {
-        if let Err(e) = Command::new(path).args(args).output() {
+        if let Err(_e) = Command::new(path).args(args).output() {
             log!("failed to execute process: {e:?}");
         }
     }
@@ -786,7 +786,8 @@ where
             thread_handle.join()
         });
 
-        let res = result.map_err(|e| anyhow::anyhow!("unasync thread panicked: {e:?}"))??;
+        let res = result
+            .map_err(|e| anyhow::anyhow!("unasync thread panicked: {e:?}"))??;
         Ok(res)
     } else {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -814,7 +815,8 @@ pub fn default_url() -> String {
 }
 
 pub fn get_all_bytes() -> Result<Vec<u8>> {
-    get_utilities_data("all_bytes.bin").ok_or_else(|| anyhow::anyhow!("Failed to get all_bytes"))
+    get_utilities_data("all_bytes.bin")
+        .ok_or_else(|| anyhow::anyhow!("Failed to get all_bytes"))
 }
 
 #[derive(Serialize)]

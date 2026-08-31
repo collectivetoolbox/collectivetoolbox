@@ -117,9 +117,9 @@ pub fn compute_file_sha256_hex(path: &Path) -> Result<String> {
         if bytes_read == 0 {
             break;
         }
-        let slice = buffer
-            .get(..bytes_read)
-            .context("bytes_read returned by std::io::Read exceeded buffer size")?;
+        let slice = buffer.get(..bytes_read).context(
+            "bytes_read returned by std::io::Read exceeded buffer size",
+        )?;
         hasher.update(slice);
     }
 

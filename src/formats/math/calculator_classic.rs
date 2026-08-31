@@ -22,7 +22,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! error solvers, the `6r2` unique random number generator, and the `R.P.S.`
 //! sidecar game.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub use crate::constant::{CONST_E, CONST_PI};
@@ -294,7 +298,8 @@ pub fn rps_choice_from_int(val: i32) -> Result<RpsChoice> {
 }
 
 /// Standard scale multipliers for random table generation.
-pub const RANDOM_SCALES: [f64; 8] = [1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0];
+pub const RANDOM_SCALES: [f64; 8] =
+    [1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0];
 
 /// Generates a table of 8 scaled random numbers from a given base raw random value ($0 \dots 1$).
 pub fn generate_scaled_random_table(raw: f64) -> [f64; 8] {
@@ -375,10 +380,7 @@ mod tests {
         assert_eq!(square_root(-4.0), SquareRootResult::Imaginary(2.0));
         assert_eq!(format_square_root(9.0), "3");
         assert_eq!(format_square_root(-4.0), "2i");
-        assert_eq!(
-            square_root(13.0),
-            SquareRootResult::Real(13.0f64.sqrt())
-        );
+        assert_eq!(square_root(13.0), SquareRootResult::Real(13.0f64.sqrt()));
     }
 
     #[crate::ctb_test]

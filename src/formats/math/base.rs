@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Base definitions and utilities for number base representation and conversion.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -92,32 +92,46 @@ impl BaseAlphabet {
                 let uc = c.to_ascii_uppercase();
                 match uc {
                     '0'..='9' => {
-                        let offset = u8::try_from(u32::from(uc).saturating_sub(u32::from(b'0')))?;
+                        let offset = u8::try_from(
+                            u32::from(uc).saturating_sub(u32::from(b'0')),
+                        )?;
                         Ok(offset)
                     }
                     'A'..='Z' => {
-                        let offset = u8::try_from(u32::from(uc).saturating_sub(u32::from(b'A')))?;
+                        let offset = u8::try_from(
+                            u32::from(uc).saturating_sub(u32::from(b'A')),
+                        )?;
                         Ok(10u8.saturating_add(offset))
                     }
-                    _ => bail!("Character '{c}' is not a valid digit in standard alphabet"),
+                    _ => bail!(
+                        "Character '{c}' is not a valid digit in standard alphabet"
+                    ),
                 }
             }
             Self::Base64Standard => match c {
                 'A'..='Z' => {
-                    let offset = u8::try_from(u32::from(c).saturating_sub(u32::from(b'A')))?;
+                    let offset = u8::try_from(
+                        u32::from(c).saturating_sub(u32::from(b'A')),
+                    )?;
                     Ok(offset)
                 }
                 'a'..='z' => {
-                    let offset = u8::try_from(u32::from(c).saturating_sub(u32::from(b'a')))?;
+                    let offset = u8::try_from(
+                        u32::from(c).saturating_sub(u32::from(b'a')),
+                    )?;
                     Ok(26u8.saturating_add(offset))
                 }
                 '0'..='9' => {
-                    let offset = u8::try_from(u32::from(c).saturating_sub(u32::from(b'0')))?;
+                    let offset = u8::try_from(
+                        u32::from(c).saturating_sub(u32::from(b'0')),
+                    )?;
                     Ok(52u8.saturating_add(offset))
                 }
                 '+' => Ok(62),
                 '/' => Ok(63),
-                _ => bail!("Character '{c}' is not a valid digit in Base64Standard alphabet"),
+                _ => bail!(
+                    "Character '{c}' is not a valid digit in Base64Standard alphabet"
+                ),
             },
         }
     }
@@ -133,7 +147,9 @@ impl BaseAlphabet {
                     let code = b'A'.saturating_add(digit.saturating_sub(10));
                     Ok(char::from(code))
                 } else {
-                    bail!("Digit {digit} out of range for standard alphabet (0..=35)")
+                    bail!(
+                        "Digit {digit} out of range for standard alphabet (0..=35)"
+                    )
                 }
             }
             Self::Base64Standard => {
@@ -151,7 +167,9 @@ impl BaseAlphabet {
                 } else if digit == 63 {
                     Ok('/')
                 } else {
-                    bail!("Digit {digit} out of range for base64 alphabet (0..=63)")
+                    bail!(
+                        "Digit {digit} out of range for base64 alphabet (0..=63)"
+                    )
                 }
             }
         }
@@ -280,17 +298,17 @@ impl From<Base> for NumeralSystem {
 }
 
 impl Base {
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Unary: Self = Self(1);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Binary: Self = Self(2);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Octal: Self = Self(8);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Decimal: Self = Self(10);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Hex: Self = Self(16);
-    #[allow(non_upper_case_globals, reason = "Base name alias constants")]
+    #[expect(non_upper_case_globals, reason = "Base name alias constants")]
     pub const Hexadecimal: Self = Self(16);
 
     /// Creates a `Base` with range validation (1..=64).
@@ -336,17 +354,17 @@ impl Base {
     }
 }
 
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Unary: Base = Base::Unary;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Binary: Base = Base::Binary;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Octal: Base = Base::Octal;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Decimal: Base = Base::Decimal;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Hex: Base = Base::Hex;
-#[allow(non_upper_case_globals, reason = "Base name alias constants")]
+#[expect(non_upper_case_globals, reason = "Base name alias constants")]
 pub const Hexadecimal: Base = Base::Hexadecimal;
 
 impl TryFrom<u8> for Base {
@@ -407,7 +425,10 @@ pub fn parse_natural_system(s: &str, system: NumeralSystem) -> Result<Natural> {
             .unwrap_or(s),
         _ => s,
     };
-    ensure!(!s.is_empty(), "Cannot parse empty number string after prefix");
+    ensure!(
+        !s.is_empty(),
+        "Cannot parse empty number string after prefix"
+    );
     let mut acc = Natural::ZERO;
     let base_nat = Natural::from(radix);
     for ch in s.chars() {
@@ -437,8 +458,9 @@ pub fn format_natural_system(
         if *n == Natural::ZERO {
             String::new()
         } else {
-            let count = usize::try_from(n)
-                .map_err(|e| anyhow!("Value too large for base 1 format: {e:?}"))?;
+            let count = usize::try_from(n).map_err(|e| {
+                anyhow!("Value too large for base 1 format: {e:?}")
+            })?;
             std::iter::repeat_n(system.zero_char(), count).collect()
         }
     } else if *n == Natural::ZERO {
@@ -662,8 +684,9 @@ pub fn int_to_base_str_big_alphabet(
         if n == 0 {
             return Ok(String::new());
         }
-        let count = usize::try_from(&n)
-            .map_err(|e| anyhow!("Value too large for base 1 conversion: {e:?}"))?;
+        let count = usize::try_from(&n).map_err(|e| {
+            anyhow!("Value too large for base 1 conversion: {e:?}")
+        })?;
         return Ok(std::iter::repeat_n(alphabet.zero_char(), count).collect());
     }
     if n == 0 {
@@ -716,7 +739,6 @@ pub fn int_to_base_str(n: u32, base: u8) -> Result<String> {
     Ok(out.chars().rev().collect())
     */
 }
-
 
 pub fn hex_to_dec_single(s: &str) -> Result<u32> {
     int_from_base_str_u32(s, 16)
@@ -801,7 +823,8 @@ pub fn format_base_string(
     )?;
     let (out, mut log) = parsed;
 
-    let formatted = _format_base_string(out, base, settings, settings.output_alphabet)?;
+    let formatted =
+        _format_base_string(out, base, settings, settings.output_alphabet)?;
     log.merge(&formatted.1);
 
     Ok((formatted.0, log))
@@ -831,13 +854,16 @@ pub fn base_to_base_string(
 
     let (res, mut log) = converted;
 
-    let (formatted_res, formatted_log) =
-        _format_base_string(res, to_base, format_settings, format_settings.output_alphabet)?;
+    let (formatted_res, formatted_log) = _format_base_string(
+        res,
+        to_base,
+        format_settings,
+        format_settings.output_alphabet,
+    )?;
     log.merge(&formatted_log);
 
     Ok((formatted_res, log))
 }
-
 
 /// Converts all characters that match the requested base into the target base.
 /// It will leave other characters alone, so you can convert a list of numbers.
@@ -868,7 +894,8 @@ fn _parse_base_string(
     let mut in_num = false;
     let mut num_chars: String = String::new();
     let mut out: Vec<String> = Vec::new();
-    let max_digits = get_digits_needed(Natural::from(limit), from_base, from_alphabet)?;
+    let max_digits =
+        get_digits_needed(Natural::from(limit), from_base, from_alphabet)?;
     let max_digits: usize = usize::try_from(&max_digits).map_err(|e| {
         anyhow!(
             "Base conversion length of digits greater than usize, limited by String.len(): {e:?}"
@@ -904,8 +931,13 @@ fn _parse_base_string(
         {
             *num_chars = num_chars.trim_start_matches(base_prefix).to_string();
         }
-        let nat = int_from_base_str_big_alphabet(num_chars, from_base, from_alphabet)?;
-        let formatted = int_to_base_str_big_alphabet(nat, to_base, to_alphabet)?;
+        let nat = int_from_base_str_big_alphabet(
+            num_chars,
+            from_base,
+            from_alphabet,
+        )?;
+        let formatted =
+            int_to_base_str_big_alphabet(nat, to_base, to_alphabet)?;
         out.push(formatted);
         Ok(())
     };
@@ -1019,7 +1051,8 @@ fn _format_base_string(
     let num_prefix = &settings.prefix;
 
     let padded_width: u32 = if pad.pad_fit {
-        let max_digits = get_digits_needed(Natural::from(limit), base, to_alphabet)?;
+        let max_digits =
+            get_digits_needed(Natural::from(limit), base, to_alphabet)?;
         u32::try_from(&max_digits)
             .map_err(|e| anyhow!("Padding to more than 32 bits of digits is not supported just because it seems unnecessary, but could be increased: {e:?}"))?
     } else {
@@ -1054,7 +1087,8 @@ fn _format_base_string(
             } else {
                 ""
             };
-            let pad_len = usize::try_from(padded_width)?.saturating_sub(token.chars().count());
+            let pad_len = usize::try_from(padded_width)?
+                .saturating_sub(token.chars().count());
             let padding = to_alphabet.zero_char().to_string().repeat(pad_len);
             format!("{num_prefix}{padding}{token}{separator}")
         } else {
@@ -1139,7 +1173,7 @@ pub fn char_from_hex_byte(hex: &str) -> Result<char> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -1165,8 +1199,8 @@ mod tests {
             let b = Base::from_radix(r).unwrap();
             assert_eq!(b.radix(), r);
         }
-        assert!(Base::from_radix(0).is_err());
-        assert!(Base::from_radix(65).is_err());
+        Base::from_radix(0).unwrap_err();
+        Base::from_radix(65).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1174,13 +1208,13 @@ mod tests {
         let unary = NumeralSystem::UNARY;
         assert_eq!(unary.radix.radix(), 1);
         assert_eq!(unary.char_for_digit(0).unwrap(), '0');
-        assert!(unary.char_for_digit(1).is_err());
+        unary.char_for_digit(1).unwrap_err();
 
         let dec = NumeralSystem::DECIMAL;
         assert_eq!(dec.radix.radix(), 10);
         assert_eq!(dec.alphabet, BaseAlphabet::Standard);
         assert_eq!(dec.char_for_digit(9).unwrap(), '9');
-        assert!(dec.char_for_digit(10).is_err());
+        dec.char_for_digit(10).unwrap_err();
 
         let hex = NumeralSystem::HEX;
         assert_eq!(hex.char_for_digit(15).unwrap(), 'F');
@@ -1191,10 +1225,14 @@ mod tests {
         assert_eq!(b64.digit_for_char('/').unwrap(), 63);
 
         // Custom base 30 with Base64 alphabet
-        let b30_b64 = NumeralSystem::new(Base::new(30).unwrap(), BaseAlphabet::Base64Standard).unwrap();
+        let b30_b64 = NumeralSystem::new(
+            Base::new(30).unwrap(),
+            BaseAlphabet::Base64Standard,
+        )
+        .unwrap();
         assert_eq!(b30_b64.char_for_digit(0).unwrap(), 'A');
         assert_eq!(b30_b64.char_for_digit(20).unwrap(), 'U');
-        assert!(b30_b64.char_for_digit(30).is_err());
+        b30_b64.char_for_digit(30).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1204,7 +1242,7 @@ mod tests {
         assert_eq!(char_to_digit('a', Base::Hex).unwrap(), 10);
         assert_eq!(char_to_digit('A', Base::Hex).unwrap(), 10);
         assert_eq!(char_to_digit('F', Base::Hex).unwrap(), 15);
-        assert!(char_to_digit('G', Base::Hex).is_err());
+        char_to_digit('G', Base::Hex).unwrap_err();
 
         let b64_base = Base::new(64).unwrap();
         assert_eq!(digit_to_char(0, b64_base).unwrap(), 'A');
@@ -1240,7 +1278,11 @@ mod tests {
         assert_eq!(format_natural(&b64_n, b64_base, 3).unwrap(), "ABA");
 
         // Format and parse with custom NumeralSystem
-        let b30_b64 = NumeralSystem::new(Base::new(30).unwrap(), BaseAlphabet::Base64Standard).unwrap();
+        let b30_b64 = NumeralSystem::new(
+            Base::new(30).unwrap(),
+            BaseAlphabet::Base64Standard,
+        )
+        .unwrap();
         let val = Natural::from(25516010u32);
         let s = format_natural_system(&val, b30_b64, 0).unwrap();
         assert_eq!(s, "BBPBDU");
@@ -1254,10 +1296,13 @@ mod tests {
         let un_parsed = parse_natural(&un_str, Base::Unary).unwrap();
         assert_eq!(un_parsed, un_val);
 
-        let un_b64_sys = NumeralSystem::new(Base::Unary, BaseAlphabet::Base64Standard).unwrap();
+        let un_b64_sys =
+            NumeralSystem::new(Base::Unary, BaseAlphabet::Base64Standard)
+                .unwrap();
         let un_b64_str = format_natural_system(&un_val, un_b64_sys, 0).unwrap();
         assert_eq!(un_b64_str, "AAAAA");
-        let un_b64_parsed = parse_natural_system(&un_b64_str, un_b64_sys).unwrap();
+        let un_b64_parsed =
+            parse_natural_system(&un_b64_str, un_b64_sys).unwrap();
         assert_eq!(un_b64_parsed, un_val);
     }
 }

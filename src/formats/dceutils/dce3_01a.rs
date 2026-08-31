@@ -35,10 +35,7 @@ use crate::dce_convert;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
-pub fn convert_3_01a_to_dc(
-    data: &[u8],
-    log: &mut FormatLog,
-) -> Result<String> {
+pub fn convert_3_01a_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
     let hex = bin2hex(data);
     if !hex.starts_with("444345650201") {
         log.error("This document is not stored using the specified format.");

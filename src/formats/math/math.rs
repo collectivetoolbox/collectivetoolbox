@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Mathematical computation, base conversion, and calculator utilities.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -35,11 +35,11 @@ pub mod parsing;
 pub mod range_generator;
 
 pub use cli::{
-    BaseArgs, BaseToBaseArgs, CliBaseAlphabet, run_base2base, run_base_convert,
+    BaseArgs, BaseToBaseArgs, CliBaseAlphabet, run_base_convert, run_base2base,
 };
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

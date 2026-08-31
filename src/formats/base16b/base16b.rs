@@ -73,7 +73,6 @@ use ctb_utilities::circular_dep_unicode::{
     js_like_slice_utf16, string_to_scalars, ucs2encode,
 };
 
-
 #[derive(Debug, Clone, Copy)]
 struct CpValue {
     value: u32,

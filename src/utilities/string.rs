@@ -32,9 +32,7 @@ use anyhow::{Result, anyhow, bail};
 use crate::bail_if_none;
 
 pub mod bytes;
-pub use bytes::{
-    format_bytes_binary, format_bytes_both, format_bytes_decimal,
-};
+pub use bytes::{format_bytes_binary, format_bytes_both, format_bytes_decimal};
 
 /// Remove the line at the specified index from the given string.
 pub fn remove_line(s: &str, idx_to_remove: usize) -> String {
@@ -116,7 +114,8 @@ pub fn parse_hex_u32(s: &str) -> Result<u32> {
 /// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
 pub fn parse_hex_usize(s: &str) -> Result<usize> {
     let val = parse_hex_u64(s)?;
-    usize::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds platform word size: {e}"))
+    usize::try_from(val)
+        .map_err(|e| anyhow!("Hex value '{s}' exceeds platform word size: {e}"))
 }
 
 /// Forgivingly parses a hexadecimal string into a `char`.
@@ -125,7 +124,9 @@ pub fn parse_hex_usize(s: &str) -> Result<usize> {
 /// `U+`, `u+`, or `#` (e.g. `"0x1F"`, `"U+0041"`, `"#FF"`, `"1a2b"`).
 pub fn parse_hex_char(s: &str) -> Result<char> {
     let val = parse_hex_u32(s)?;
-    char::try_from(val).map_err(|e| anyhow!("Hex value '{s}' is an invalid Unicode scalar value: {e}"))
+    char::try_from(val).map_err(|e| {
+        anyhow!("Hex value '{s}' is an invalid Unicode scalar value: {e}")
+    })
 }
 
 /// Forgivingly parses a decimal string into a `u32`.
@@ -142,7 +143,9 @@ pub fn parse_dec_u32(s: &str) -> Result<u32> {
 /// Trims whitespace.
 pub fn parse_dec_char(s: &str) -> Result<char> {
     let val = parse_dec_u32(s)?;
-    char::try_from(val).map_err(|e| anyhow!("Decimal value '{s}' is an invalid Unicode scalar value: {e}"))
+    char::try_from(val).map_err(|e| {
+        anyhow!("Decimal value '{s}' is an invalid Unicode scalar value: {e}")
+    })
 }
 
 /// Forgivingly parses a hexadecimal string into a `u8`.
@@ -151,7 +154,8 @@ pub fn parse_dec_char(s: &str) -> Result<char> {
 /// `U+`, `u+`, or `#` (e.g. `"0xFF"`, `"0x1a"`, `"#A0"`).
 pub fn parse_hex_u8(s: &str) -> Result<u8> {
     let val = parse_hex_u32(s)?;
-    u8::try_from(val).map_err(|e| anyhow!("Hex value '{s}' exceeds byte range: {e}"))
+    u8::try_from(val)
+        .map_err(|e| anyhow!("Hex value '{s}' exceeds byte range: {e}"))
 }
 
 /// Forgivingly parses space-separated hex Unicode codepoints into a vector of characters.
@@ -375,7 +379,7 @@ fn split_escaped_internal(
                 break;
             }
             // Replace trailing '\' with separator
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "segment ends with ASCII backslash '\\' so segment.len() - 1 is an infallible UTF-8 character boundary"
             )]
@@ -599,7 +603,7 @@ mod tests {
         assert_eq!(parse_hex_char("U+03b4")?, 'δ');
         assert_eq!(parse_dec_u32("65")?, 65);
         assert_eq!(parse_dec_char("65")?, 'A');
-        assert!(parse_hex_u8("0x100").is_err());
+        parse_hex_u8("0x100").unwrap_err();
 
         let codepoints = parse_hex_codepoints("25a0 U+03b4 0x0394")?;
         assert_eq!(codepoints, vec!['■', 'δ', 'Δ']);

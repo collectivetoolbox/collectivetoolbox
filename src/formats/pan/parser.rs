@@ -39,12 +39,12 @@ use crate::utilities::*;
 /// Serde helper for serializing `Vec<u8>` as MacRoman-decoded UTF-8 string
 /// and deserializing from either a string or a byte sequence.
 pub mod serde_pan_bytes {
-    use std::fmt;
     use ctb_formats_encoding::CharEncoding;
     use serde::{
-        de::{self, Visitor},
         Deserializer, Serializer,
+        de::{self, Visitor},
     };
+    use std::fmt;
 
     /// Serializes byte slices into a MacRoman-decoded UTF-8 string.
     pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -194,7 +194,9 @@ pub struct PanMacroInfo {
     pub payload: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default,
+)]
 pub enum PanJustification {
     #[default]
     Left,
@@ -202,7 +204,9 @@ pub enum PanJustification {
     Center,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default,
+)]
 pub enum PanCapitalization {
     #[default]
     None,
@@ -283,9 +287,11 @@ impl PanDataValue {
     #[must_use]
     pub fn to_display_string(&self) -> String {
         match self {
-            Self::Text(s) | Self::Integer(s) | Self::Fixed(s) | Self::Float(s) | Self::Unknown(s) => {
-                s.clone()
-            }
+            Self::Text(s)
+            | Self::Integer(s)
+            | Self::Fixed(s)
+            | Self::Float(s)
+            | Self::Unknown(s) => s.clone(),
             Self::Date {
                 pan_date_mdy,
                 raw_serial,
@@ -605,7 +611,9 @@ fn extract_data_from_sections(
         let section_name = data_section_name(&section.name, &header_bytes)?;
         let non_zero_count =
             trailing_bytes.iter().filter(|byte| **byte != 0).count();
-        if non_zero_count > 0 && !(trailing_bytes.len() <= 2 && non_zero_count <= 1) {
+        if non_zero_count > 0
+            && !(trailing_bytes.len() <= 2 && non_zero_count <= 1)
+        {
             parse_warnings.push(format!(
                 "DATA section at offset {offset:#x} ({name}) has {non_zero_count} non-zero trailing bytes after parsed records",
                 offset = section.offset,
@@ -667,7 +675,12 @@ fn parse_data_payload(
     let mut selected = None;
     let mut last_error = None;
     for &start_candidate in candidate_starts {
-        match select_data_record_format(payload, start_candidate, schema, section_offset) {
+        match select_data_record_format(
+            payload,
+            start_candidate,
+            schema,
+            section_offset,
+        ) {
             Ok(fmt) => {
                 selected = Some((start_candidate, fmt));
                 break;
@@ -683,7 +696,9 @@ fn parse_data_payload(
         None => {
             return Err(
                 // Reason for fallback: last_error holds candidate parse failure
-                last_error.unwrap_or_else(|| anyhow::anyhow!("Could not determine DATA record format")),
+                last_error.unwrap_or_else(|| {
+                    anyhow::anyhow!("Could not determine DATA record format")
+                }),
             );
         }
     };
@@ -926,7 +941,7 @@ fn parse_data_record_headers(
             let b0 = *payload
                 .get(cursor)
                 .context("DATA record length is truncated")?;
-            if b0 < 0xfe && b0 >= 2 {
+            if (2..0xfe).contains(&b0) {
                 let mut candidates = Vec::new();
                 let mut dedupe = Vec::new();
                 add_data_record_header_candidate(
@@ -949,8 +964,9 @@ fn parse_data_record_headers(
     let mut candidates = Vec::new();
     let mut dedupe = Vec::new();
 
-    let b0 =
-        *payload.get(cursor).context("Could not read DATA record byte 0")?;
+    let b0 = *payload
+        .get(cursor)
+        .context("Could not read DATA record byte 0")?;
 
     let len16_high_byte = payload
         .get(cursor.saturating_add(1))
@@ -975,9 +991,11 @@ fn parse_data_record_headers(
         )?;
     }
 
-    if b0 < 0xfe && b0 >= 2 {
+    if (2..0xfe).contains(&b0) {
         let b0_usize = usize::from(b0);
-        if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) == Some(&b0) {
+        if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1))
+            == Some(&b0)
+        {
             add_data_record_header_candidate(
                 &mut candidates,
                 &mut dedupe,
@@ -1152,11 +1170,13 @@ fn parse_data_record_header_for_format(
                 .get(cursor)
                 .copied()
                 .context("DATA Byte8 record byte is missing")?;
-            if b0 >= 0xfe || b0 < 2 {
+            if !(2..0xfe).contains(&b0) {
                 bail!("DATA Byte8 record size is outside 2..=0xfd")
             }
             let b0_usize = usize::from(b0);
-            if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1)) != Some(&b0) {
+            if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1))
+                != Some(&b0)
+            {
                 bail!("DATA Byte8 record trailer mismatch")
             }
             Ok((b0_usize, 4))
@@ -1300,17 +1320,17 @@ fn parse_data_record_at_cursor(
         );
     }
 
-    let trailer_len = if format == PanDataRecordFormat::Byte8WithStatus
-        && record_header_size == 3
-        && payload.get(record_end.saturating_sub(1)) == payload.get(cursor)
-    {
-        1usize
-    } else {
-        0usize
-    };
+    let trailer_len = usize::from(
+        format == PanDataRecordFormat::Byte8WithStatus
+            && record_header_size == 3
+            && payload.get(record_end.saturating_sub(1)) == payload.get(cursor),
+    );
 
     let row_payload = payload
-        .get(cursor.saturating_add(record_header_size)..record_end.saturating_sub(trailer_len))
+        .get(
+            cursor.saturating_add(record_header_size)
+                ..record_end.saturating_sub(trailer_len),
+        )
         .context("Could not read DATA row payload")?;
     let row = parse_data_record(
         row_payload,
@@ -1481,7 +1501,8 @@ fn parse_data_record(
         bail!("Cannot parse DATA records without schema fields");
     }
 
-    let raw_slices = extract_raw_field_slices(row_payload, schema, record_format);
+    let raw_slices =
+        extract_raw_field_slices(row_payload, schema, record_format);
     if !raw_slices.is_empty() {
         let mut values = Vec::with_capacity(schema.fields.len());
         for (field_position, field) in schema.fields.iter().enumerate() {
@@ -1662,7 +1683,9 @@ fn decode_data_field_value(
     match field.field_type {
         PanFieldType::Text => {
             if is_date_field && raw_bytes.len() == 2 {
-                if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
+                if let Ok((serial, pan_date_mdy)) =
+                    decode_pan_date_field(raw_bytes)
+                {
                     if serial > 2_400_000 && serial < 2_600_000 {
                         return Ok(PanDataValue::Date {
                             raw_serial: serial,
@@ -1751,7 +1774,8 @@ fn decode_data_field_value(
             Ok(PanDataValue::Float(float.to_string()))
         }
         PanFieldType::Date => {
-            if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes) {
+            if let Ok((serial, pan_date_mdy)) = decode_pan_date_field(raw_bytes)
+            {
                 return Ok(PanDataValue::Date {
                     raw_serial: serial,
                     pan_date_mdy,
@@ -2033,13 +2057,11 @@ fn parse_prelude_entries(
                 )?;
                 Some(value)
             }
-            0x02 | 0x03 => {
-                parse_prelude_kind_2_or_3_value(
-                    pan_file,
-                    &mut value_cursor,
-                    is_be,
-                )?
-            }
+            0x02 | 0x03 => parse_prelude_kind_2_or_3_value(
+                pan_file,
+                &mut value_cursor,
+                is_be,
+            )?,
             _ => bail!(
                 "Unsupported prelude entry kind {kind:#x} at offset {cursor:#x}"
             ),
@@ -2378,9 +2400,9 @@ fn parse_section_at_with_size(
         ctb_formats_encoding::CharEncoding::mac_roman(),
         &name_raw,
     )
-    .with_context(
-        || format!("Invalid MacRoman section name at offset {offset:#x}"),
-    )?;
+    .with_context(|| {
+        format!("Invalid MacRoman section name at offset {offset:#x}")
+    })?;
 
     let payload = pan_file
         .get(name_end..section_end)
@@ -2589,10 +2611,10 @@ fn build_schema_from_names_section(
         return Ok(None);
     }
 
-    let output_patterns = if let Some(using_section) = remaining_sections
-        .iter()
-        .find(|candidate| candidate.name == "USING" || candidate.name == "PATTERNS")
-    {
+    let output_patterns = if let Some(using_section) =
+        remaining_sections.iter().find(|candidate| {
+            candidate.name == "USING" || candidate.name == "PATTERNS"
+        }) {
         parse_string_array_payload(&using_section.payload, field_count)?
     } else {
         vec![None; field_count]
@@ -2749,9 +2771,15 @@ fn parse_names_payload(
         return Ok(Vec::new());
     }
 
-    let names_bytes = if payload.len() >= 7 && payload.get(0..2) == Some(&[0x00, 0xfe]) {
-        let len_hi = *payload.get(2).context("NAMES BE16 length high byte missing")?;
-        let len_lo = *payload.get(3).context("NAMES BE16 length low byte missing")?;
+    let names_bytes = if payload.len() >= 7
+        && payload.get(0..2) == Some(&[0x00, 0xfe])
+    {
+        let len_hi = *payload
+            .get(2)
+            .context("NAMES BE16 length high byte missing")?;
+        let len_lo = *payload
+            .get(3)
+            .context("NAMES BE16 length low byte missing")?;
         let declared_bytes = usize::from(u16::from_be_bytes([len_hi, len_lo]));
         if declared_bytes < 7 {
             bail!("NAMES BE16 framed byte count is smaller than header size")
@@ -2889,11 +2917,12 @@ fn parse_types_payload(
         payload
     };
 
-    let payload = if payload.len() > expected_count && payload.first() == Some(&0) {
-        payload.get(1..).context("Invalid TYPES payload range")?
-    } else {
-        payload
-    };
+    let payload =
+        if payload.len() > expected_count && payload.first() == Some(&0) {
+            payload.get(1..).context("Invalid TYPES payload range")?
+        } else {
+            payload
+        };
 
     if payload.len() < expected_count {
         bail!("TYPES payload has fewer values than NAMES")
@@ -2913,9 +2942,15 @@ fn parse_string_array_payload(
         return Ok(vec![None; expected_count]);
     }
 
-    let array_bytes = if payload.len() >= 7 && payload.get(0..2) == Some(&[0x00, 0xfe]) {
-        let len_hi = *payload.get(2).context("String array BE16 length high byte missing")?;
-        let len_lo = *payload.get(3).context("String array BE16 length low byte missing")?;
+    let array_bytes = if payload.len() >= 7
+        && payload.get(0..2) == Some(&[0x00, 0xfe])
+    {
+        let len_hi = *payload
+            .get(2)
+            .context("String array BE16 length high byte missing")?;
+        let len_lo = *payload
+            .get(3)
+            .context("String array BE16 length low byte missing")?;
         let declared_bytes = usize::from(u16::from_be_bytes([len_hi, len_lo]));
         let end = declared_bytes.min(payload.len());
         match payload.get(7..end) {
@@ -2938,7 +2973,9 @@ fn parse_string_array_payload(
             Some(slice) => slice,
             None => &[],
         }
-    } else if payload.len() >= 4 && payload.get(1..4) == Some(&[0x00, 0x00, 0x00]) {
+    } else if payload.len() >= 4
+        && payload.get(1..4) == Some(&[0x00, 0x00, 0x00])
+    {
         let first_byte = match payload.first() {
             Some(&b) => b,
             None => 0,
@@ -2985,7 +3022,9 @@ fn parse_string_array_payload(
                 Some(&b) => b,
                 None => 0,
             };
-            let total = (usize::from(b1) << 16) | (usize::from(b2) << 8) | usize::from(b3);
+            let total = (usize::from(b1) << 16)
+                | (usize::from(b2) << 8)
+                | usize::from(b3);
             (4usize, total.saturating_sub(4))
         } else {
             let total = usize::from(len_b);
@@ -3026,11 +3065,12 @@ fn parse_bytes_payload(
     payload: &[u8],
     expected_count: usize,
 ) -> anyhow::Result<Vec<u8>> {
-    let payload = if payload.len() > expected_count && payload.first() == Some(&0) {
-        payload.get(1..).context("Invalid bytes payload range")?
-    } else {
-        payload
-    };
+    let payload =
+        if payload.len() > expected_count && payload.first() == Some(&0) {
+            payload.get(1..).context("Invalid bytes payload range")?
+        } else {
+            payload
+        };
 
     let mut result = Vec::with_capacity(expected_count);
     for i in 0..expected_count {
@@ -3051,18 +3091,27 @@ fn parse_launch_payload(payload: &[u8]) -> Option<String> {
     if last_len > 0 && last_len < payload.len() {
         let start = payload.len().saturating_sub(last_len);
         let name_bytes = payload.get(start..)?;
-        if name_bytes.iter().all(|&b| b.is_ascii_graphic() || b == b' ') {
+        if name_bytes
+            .iter()
+            .all(|&b| b.is_ascii_graphic() || b == b' ')
+        {
             return String::from_utf8(name_bytes.to_vec()).ok();
         }
     }
     if payload.len() >= 8 {
         for offset in (20..payload.len().saturating_sub(2)).rev() {
             let slen = usize::from(*payload.get(offset)?);
-            if slen >= 3 && slen <= 32 && offset.saturating_add(1).saturating_add(slen) <= payload.len() {
+            if (3..=32).contains(&slen)
+                && offset.saturating_add(1).saturating_add(slen)
+                    <= payload.len()
+            {
                 let start = offset.saturating_add(1);
                 let end = start.saturating_add(slen);
                 let name_bytes = payload.get(start..end)?;
-                if name_bytes.iter().all(|&b| b.is_ascii_graphic() || b == b' ') {
+                if name_bytes
+                    .iter()
+                    .all(|&b| b.is_ascii_graphic() || b == b' ')
+                {
                     return String::from_utf8(name_bytes.to_vec()).ok();
                 }
             }
@@ -3075,16 +3124,12 @@ fn parse_rc_payload(payload: &[u8]) -> Option<usize> {
     if payload.len() < 4 {
         return None;
     }
-    let b0 = *payload.get(0)?;
+    let b0 = *payload.first()?;
     let b1 = *payload.get(1)?;
     let b2 = *payload.get(2)?;
     let b3 = *payload.get(3)?;
     let val_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).ok()?;
-    if val_le > 0 {
-        Some(val_le)
-    } else {
-        None
-    }
+    if val_le > 0 { Some(val_le) } else { None }
 }
 
 fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
@@ -3117,7 +3162,10 @@ fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
     Some(result)
 }
 
-pub fn extract_macro_code_bytes(macro_bytes: &[u8], name_len: usize) -> Option<&[u8]> {
+pub fn extract_macro_code_bytes(
+    macro_bytes: &[u8],
+    name_len: usize,
+) -> Option<&[u8]> {
     let body = macro_bytes.get(6usize.saturating_add(name_len)..)?;
     if body.len() < 3 {
         return None;
@@ -3165,14 +3213,16 @@ pub fn extract_macro_code_bytes(macro_bytes: &[u8], name_len: usize) -> Option<&
             body.get(pos.saturating_sub(2)),
             body.get(pos.saturating_sub(1)),
         ) {
-            let l_be = match usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])) {
-                Ok(l) => l,
-                Err(_) => 0,
-            };
-            let l_le = match usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])) {
-                Ok(l) => l,
-                Err(_) => 0,
-            };
+            let l_be =
+                match usize::try_from(u32::from_be_bytes([b0, b1, b2, b3])) {
+                    Ok(l) => l,
+                    Err(_) => 0,
+                };
+            let l_le =
+                match usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])) {
+                    Ok(l) => l,
+                    Err(_) => 0,
+                };
 
             for len in [l_be, l_le] {
                 if len > 0
@@ -3268,7 +3318,8 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                     Err(_) => String::from_utf8_lossy(raw_name).into_owned(),
                 };
 
-                let chosen_size = if cursor.saturating_add(s_le) <= payload.len()
+                let chosen_size = if cursor.saturating_add(s_le)
+                    <= payload.len()
                     && s_le >= 6usize.saturating_add(nlen)
                 {
                     s_le
@@ -3281,14 +3332,16 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                 };
 
                 if chosen_size > 0 {
-                    let raw_macro = match payload.get(cursor..cursor.saturating_add(chosen_size)) {
+                    let raw_macro = match payload
+                        .get(cursor..cursor.saturating_add(chosen_size))
+                    {
                         Some(slice) => slice,
                         None => &[],
                     };
                     let code = extract_macro_code(raw_macro, nlen);
-                    let ast = code
-                        .as_deref()
-                        .and_then(|c| crate::procedure_parser::parse_procedure(c).ok());
+                    let ast = code.as_deref().and_then(|c| {
+                        crate::procedure_parser::parse_procedure(c).ok()
+                    });
                     let is_procedure = name.starts_with('.');
 
                     macros.push(PanMacroInfo {
@@ -3743,7 +3796,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_format_data_field_value_cents_and_words_pattern() -> anyhow::Result<()> {
+    fn test_format_data_field_value_cents_and_words_pattern()
+    -> anyhow::Result<()> {
         let field = PanSchemaField {
             index: 0,
             name: "Amount".to_string(),
@@ -3757,7 +3811,9 @@ mod tests {
 
         let val_42 = PanDataValue::Fixed("42.29".to_string());
         let formatted_42 = format_data_field_value(&field, &val_42)?;
-        ensure!(formatted_42.as_deref() == Some("Forty two dollars and 29/100"));
+        ensure!(
+            formatted_42.as_deref() == Some("Forty two dollars and 29/100")
+        );
 
         let val_1 = PanDataValue::Fixed("1.05".to_string());
         let formatted_1 = format_data_field_value(&field, &val_1)?;
@@ -3765,7 +3821,9 @@ mod tests {
 
         let val_int = PanDataValue::Integer("100".to_string());
         let formatted_int = format_data_field_value(&field, &val_int)?;
-        ensure!(formatted_int.as_deref() == Some("One hundred dollars and 00/100"));
+        ensure!(
+            formatted_int.as_deref() == Some("One hundred dollars and 00/100")
+        );
 
         let val_empty = PanDataValue::Fixed(String::new());
         let formatted_empty = format_data_field_value(&field, &val_empty)?;
@@ -3795,7 +3853,8 @@ mod tests {
 
         let payload = vec![
             0, 0, 0, 0, 0, 0, // DATA section header bytes
-            0xfe, 0x00, 0x09, 0x00, 0x00, // FE + BE16 record length + 2-byte marker
+            0xfe, 0x00, 0x09, 0x00,
+            0x00, // FE + BE16 record length + 2-byte marker
             0x01, // per-record status byte
             0x03, b'A', b'B', // single text field, length-prefixed
             0, 0, // trailing zeros
@@ -3935,7 +3994,8 @@ mod tests {
 
         let payload = vec![
             0, 0, 0, 0, 0, 0, // DATA section header bytes
-            0xfe, 0x00, 0x0b, 0x00, 0x00, // FE + BE16 record length + 2-byte marker
+            0xfe, 0x00, 0x0b, 0x00,
+            0x00, // FE + BE16 record length + 2-byte marker
             0x01, // per-record status byte
             0x00, // empty field using zero-length entry
             0x04, b'A', b'B', b'C', // non-empty text field
@@ -4172,8 +4232,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_parse_prelude_terminator_aligns_to_even_word_boundary(
-    ) -> anyhow::Result<()> {
+    fn test_parse_prelude_terminator_aligns_to_even_word_boundary()
+    -> anyhow::Result<()> {
         let mut pan_file = Vec::new();
         pan_file.extend_from_slice(&0x6613_u32.to_le_bytes()); // magic 4 bytes (0x00..0x04)
 
@@ -4209,9 +4269,12 @@ mod tests {
         // NAMES with 0x53 0x00 2-byte tag header
         let names_payload = vec![
             0x53, 0x00, // framed tag header
-            0x14, 0x00, 0x00, 0x00, // declared byte count = 20 (6 header + 14 data)
-            0x07, b'F', b'i', b'e', b'l', b'd', b'A', // 7 bytes (1 len + 6 chars)
-            0x07, b'F', b'i', b'e', b'l', b'd', b'B', // 7 bytes (1 len + 6 chars)
+            0x14, 0x00, 0x00,
+            0x00, // declared byte count = 20 (6 header + 14 data)
+            0x07, b'F', b'i', b'e', b'l', b'd',
+            b'A', // 7 bytes (1 len + 6 chars)
+            0x07, b'F', b'i', b'e', b'l', b'd',
+            b'B', // 7 bytes (1 len + 6 chars)
         ];
         let names = parse_names_payload(&names_payload, 2)?;
         ensure!(names == vec!["FieldA", "FieldB"]);
@@ -4237,8 +4300,10 @@ mod tests {
         // USING with 0x47 0x00 2-byte tag header
         let using_payload = vec![
             0x47, 0x00, // framed tag header
-            0x0c, 0x00, 0x00, 0x00, // declared byte count = 12 (6 header + 6 data)
-            0x06, b'$', b'#', b'.', b'#', b'#', // 6 bytes (1 len + 5 chars)
+            0x0c, 0x00, 0x00,
+            0x00, // declared byte count = 12 (6 header + 6 data)
+            0x06, b'$', b'#', b'.', b'#',
+            b'#', // 6 bytes (1 len + 5 chars)
         ];
         let using = parse_using_payload(&using_payload, 1)?;
         ensure!(using.len() == 1);
@@ -4248,8 +4313,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_byte8_with_status_4byte_header(
-    ) -> anyhow::Result<()> {
+    fn test_parse_data_payload_byte8_with_status_4byte_header()
+    -> anyhow::Result<()> {
         let schema = PanSchema {
             names_section_offset: 0,
             widths_section_offset: 0,
@@ -4286,7 +4351,8 @@ mod tests {
         // Field 1: len=3 (1 + 2 bytes "UT") -> "UT"
         // Total record bytes = 4 (header) + 6 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x10) = 16
         payload.extend_from_slice(&[
-            0x10, 0x80, 0x00, 0x01, // 4-byte header: sz=16, flag=0x80, status=0x00, 0x01
+            0x10, 0x80, 0x00,
+            0x01, // 4-byte header: sz=16, flag=0x80, status=0x00, 0x01
             0x06, b'Z', b'i', b'o', b'n', b' ', // Field 0
             0x03, b'U', b'T', // Field 1
             0x00, 0x00, // padding within declared sz
@@ -4298,14 +4364,16 @@ mod tests {
         // Field 1: len=3 (1 + 2 bytes "ME") -> "ME"
         // Total record bytes = 4 (header) + 7 (f0) + 3 (f1) + 2 (pad) + 1 (trailer 0x11) = 17
         payload.extend_from_slice(&[
-            0x11, 0x80, 0x00, 0x07, // 4-byte header: sz=17, flag=0x80, status=0x00, 0x07
+            0x11, 0x80, 0x00,
+            0x07, // 4-byte header: sz=17, flag=0x80, status=0x00, 0x07
             0x07, b'A', b'c', b'a', b'd', b'i', b'a', // Field 0
             0x03, b'M', b'E', // Field 1
             0x00, 0x00, // padding within declared sz
             0x11, // 1-byte trailer matching sz
         ]);
 
-        let (records, _, trailing) = parse_data_payload(&payload, 0x1000, &schema)?;
+        let (records, _, trailing) =
+            parse_data_payload(&payload, 0x1000, &schema)?;
         ensure!(records.len() == 2);
         ensure!(trailing.is_empty());
 
@@ -4323,8 +4391,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_fe_be16_5byte_header_field_alignment(
-    ) -> anyhow::Result<()> {
+    fn test_parse_data_payload_fe_be16_5byte_header_field_alignment()
+    -> anyhow::Result<()> {
         let schema = PanSchema {
             names_section_offset: 0,
             widths_section_offset: 0,
@@ -4364,19 +4432,25 @@ mod tests {
             0xfe, 0x00, 0x12, 0x00, 0x00, // 5-byte BE16 header
             0x01, // status byte
             0x03, b'?', b'(', // Field 0 ("Token")
-            0x09, b'P', b'A', b'R', b'A', b'M', b'1', b',', b'P', // Field 1 ("Params")
+            0x09, b'P', b'A', b'R', b'A', b'M', b'1', b',',
+            b'P', // Field 1 ("Params")
         ]);
 
         let (records, _, _) = parse_data_payload(&payload, 0x2000, &schema)?;
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "?("));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "PARAM1,P"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "?(")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "PARAM1,P")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_fe_be16_with_nonzero_flags() -> anyhow::Result<()> {
+    fn test_parse_data_payload_fe_be16_with_nonzero_flags() -> anyhow::Result<()>
+    {
         let schema = PanSchema {
             names_section_offset: 0x1000,
             types_section_offset: 0x1050,
@@ -4414,22 +4488,29 @@ mod tests {
         // Field 1: len=4 -> "Tim" (1 len byte + 3 chars)
         // Total = 5 (header) + 1 (status) + 8 (f0) + 4 (f1) = 18 (0x12)
         payload.extend_from_slice(&[
-            0xfe, 0x00, 0x12, 0x06, 0xf8, // 5-byte BE16 header with non-zero flags
+            0xfe, 0x00, 0x12, 0x06,
+            0xf8, // 5-byte BE16 header with non-zero flags
             0xe0, // status byte
-            0x08, b'S', b'e', b'n', b'a', b't', b'o', b'r', // Field 0 ("Title")
+            0x08, b'S', b'e', b'n', b'a', b't', b'o',
+            b'r', // Field 0 ("Title")
             0x04, b'T', b'i', b'm', // Field 1 ("Name")
         ]);
 
         let (records, _, _) = parse_data_payload(&payload, 0x1000, &schema)?;
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Senator"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Tim"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Senator")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Tim")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_le24_starting_at_offset_2() -> anyhow::Result<()> {
+    fn test_parse_data_payload_le24_starting_at_offset_2() -> anyhow::Result<()>
+    {
         let schema = PanSchema {
             names_section_offset: 0x1000,
             types_section_offset: 0x1050,
@@ -4464,14 +4545,19 @@ mod tests {
         payload.extend_from_slice(&[
             0x14, 0x00, 0x00, // 3-byte LE24 size
             0x01, // status byte
-            0x0e, b'B', b'r', b'i', b't', b'i', b's', b'h', b' ', b'P', b'o', b'u', b'n', b'd', // Field 0
+            0x0e, b'B', b'r', b'i', b't', b'i', b's', b'h', b' ', b'P', b'o',
+            b'u', b'n', b'd', // Field 0
             0x02, b'$', // Field 1
         ]);
 
         let (records, _, _) = parse_data_payload(&payload, 0x1000, &schema)?;
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "British Pound"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "$"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "British Pound")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "$")
+        );
 
         Ok(())
     }
@@ -4513,20 +4599,27 @@ mod tests {
             0x0e, 0x00, 0x00, // 3-byte LE24 size
             0x00, // status byte
             0x03, 0xe8, 0x03, // Field 0: Integer 1000
-            0x07, b'D', b'e', b'a', b'l', b'e', b'r', // Field 1: Text "Dealer"
+            0x07, b'D', b'e', b'a', b'l', b'e',
+            b'r', // Field 1: Text "Dealer"
         ]);
 
-        let (records, header_bytes, _) = parse_data_payload(&payload, 0x2000, &schema)?;
+        let (records, header_bytes, _) =
+            parse_data_payload(&payload, 0x2000, &schema)?;
         ensure!(header_bytes.len() == 6);
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Integer(i) if i == "1000"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Dealer"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Integer(i) if i == "1000")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Dealer")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_6byte_le_length_prefix_fe_be16() -> anyhow::Result<()> {
+    fn test_parse_data_payload_6byte_le_length_prefix_fe_be16()
+    -> anyhow::Result<()> {
         let schema = PanSchema {
             names_section_offset: 0x3000,
             types_section_offset: 0x3050,
@@ -4562,21 +4655,29 @@ mod tests {
             0xfe, 0x00, 0x25, // FE prefix + BE16 size (37)
             0x00, 0x00, // flags
             0x00, // status byte
-            0x0d, b'8', b'2', b'9', b'1', b'7', b'7', b'3', b'9', b'3', b'1', b'3', b'6', // Field 0
-            0x12, b'D', b'e', b'l', b'i', b'v', b'e', b'r', b'y', b' ', b'C', b'o', b'm', b'p', b'l', b'e', b't', b'e', // Field 1
+            0x0d, b'8', b'2', b'9', b'1', b'7', b'7', b'3', b'9', b'3', b'1',
+            b'3', b'6', // Field 0
+            0x12, b'D', b'e', b'l', b'i', b'v', b'e', b'r', b'y', b' ', b'C',
+            b'o', b'm', b'p', b'l', b'e', b't', b'e', // Field 1
         ]);
 
-        let (records, header_bytes, _) = parse_data_payload(&payload, 0x3000, &schema)?;
+        let (records, header_bytes, _) =
+            parse_data_payload(&payload, 0x3000, &schema)?;
         ensure!(header_bytes.len() == 6);
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "829177393136"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Delivery Complete"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "829177393136")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "Delivery Complete")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_6byte_tag_prefix_sample_structure() -> anyhow::Result<()> {
+    fn test_parse_data_payload_6byte_tag_prefix_sample_structure()
+    -> anyhow::Result<()> {
         let schema = PanSchema {
             names_section_offset: 0x4000,
             types_section_offset: 0x4050,
@@ -4615,12 +4716,17 @@ mod tests {
             0x02, 0x2a, // Field 1: Integer 42
         ]);
 
-        let (records, header_bytes, _) = parse_data_payload(&payload, 0x4000, &schema)?;
+        let (records, header_bytes, _) =
+            parse_data_payload(&payload, 0x4000, &schema)?;
         ensure!(header_bytes.len() == 6);
         ensure!(header_bytes[0] == b'S');
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Alice"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Integer(i) if i == "42"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "Alice")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Integer(i) if i == "42")
+        );
 
         Ok(())
     }
@@ -4663,23 +4769,28 @@ mod tests {
         // Trailer: 1 byte [0x1a] -> total = 4 + 6 + 15 + 1 = 26
         let mut payload = vec![0x56, 0x11, 0x03, 0x00, 0x00, 0x00];
         payload.extend_from_slice(&[
-            0x1a, 0x00, 0x00, 0x01,
-            0x06, b'm', b'o', b'n', b'e', b'y',
-            0x0f, b'p', b'a', b't', b't', b'e', b'r', b'n', b'(', b'n', b'u', b'm', b'b', b'e', b'r',
-            0x1a,
+            0x1a, 0x00, 0x00, 0x01, 0x06, b'm', b'o', b'n', b'e', b'y', 0x0f,
+            b'p', b'a', b't', b't', b'e', b'r', b'n', b'(', b'n', b'u', b'm',
+            b'b', b'e', b'r', 0x1a,
         ]);
 
-        let (records, header_bytes, _) = parse_data_payload(&payload, 0x5000, &schema)?;
+        let (records, header_bytes, _) =
+            parse_data_payload(&payload, 0x5000, &schema)?;
         ensure!(header_bytes.len() == 6);
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "money"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "pattern(number"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "money")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "pattern(number")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_data_payload_c0_compressed_control_byte() -> anyhow::Result<()> {
+    fn test_parse_data_payload_c0_compressed_control_byte() -> anyhow::Result<()>
+    {
         let schema = PanSchema {
             names_section_offset: 0x6000,
             types_section_offset: 0x6050,
@@ -4716,25 +4827,29 @@ mod tests {
         // Field 1: control byte 0xc0 followed by [0x04, 'A', 'K'] -> 4 bytes
         // Trailer: [0x0f] -> total = 4 + 5 + 4 + 1 = 14 (+ 1 status/pad = 15)
         payload.extend_from_slice(&[
-            0x0f, 0x00, 0x00, 0x01,
-            0x05, b'1', b'9', b'7', b'6',
-            0xc0, 0x04, b'A', b'K',
-            0x00,
-            0x0f,
+            0x0f, 0x00, 0x00, 0x01, 0x05, b'1', b'9', b'7', b'6', 0xc0, 0x04,
+            b'A', b'K', 0x00, 0x0f,
         ]);
 
         let (records, _, _) = parse_data_payload(&payload, 0x6000, &schema)?;
         ensure!(records.len() == 1);
-        ensure!(matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "1976"));
-        ensure!(matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "AK"));
+        ensure!(
+            matches!(&records[0].fields[0].value, PanDataValue::Text(t) if t == "1976")
+        );
+        ensure!(
+            matches!(&records[0].fields[1].value, PanDataValue::Text(t) if t == "AK")
+        );
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_types_payload_strips_leading_zero_padding() -> anyhow::Result<()> {
+    fn test_parse_types_payload_strips_leading_zero_padding()
+    -> anyhow::Result<()> {
         // Example: Phone Bill.pan with leading 0x00 pad followed by 9 field types
-        let payload = vec![0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x08, 0x00, 0x49];
+        let payload = vec![
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x08, 0x00, 0x49,
+        ];
         let types = parse_types_payload(&payload, 9)?;
         ensure!(types.len() == 9);
         ensure!(types[0] == 0x04); // Date
@@ -4749,7 +4864,11 @@ mod tests {
         // 1-byte signed offset from 1984-01-24:
         // Offset 5 -> 1984-01-29
         let (jdn5, mdy5) = decode_pan_date_field(&[5])?;
-        ensure!(mdy5.as_deref() == Some("1/29/84") || mdy5.as_deref() == Some("01/29/1984") || jdn5 > 0);
+        ensure!(
+            mdy5.as_deref() == Some("1/29/84")
+                || mdy5.as_deref() == Some("01/29/1984")
+                || jdn5 > 0
+        );
         let datestr5 = crate::date::datestr(jdn5)?;
         ensure!(datestr5 == "1/29/84");
 
@@ -4763,19 +4882,30 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_equations_and_design_attributes() -> anyhow::Result<()> {
-        let pan_file = crate::get_pan_data("fixtures/Sample with patterns v2.pan")
-            .context("Could not load fixtures/Sample with patterns v2.pan")?;
+        let pan_file =
+            crate::get_pan_data("fixtures/Sample with patterns v2.pan")
+                .context(
+                    "Could not load fixtures/Sample with patterns v2.pan",
+                )?;
 
         let parsed = parse_pan(&pan_file)?;
         let schema = parsed.schema.context("Expected schema to be parsed")?;
         ensure!(schema.fields.len() == 9);
 
         // Check field defaults and patterns
-        let date_field = schema.fields.iter().find(|f| f.name == "ExampleDateField").context("ExampleDateField missing")?;
+        let date_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "ExampleDateField")
+            .context("ExampleDateField missing")?;
         ensure!(date_field.default_value.as_deref() == Some("today"));
         ensure!(date_field.output_pattern.as_deref() == Some("MM-DD-YYYY"));
 
-        let fixed2_field = schema.fields.iter().find(|f| f.name == "ExampleNumericFieldFixed2").context("ExampleNumericFieldFixed2 missing")?;
+        let fixed2_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "ExampleNumericFieldFixed2")
+            .context("ExampleNumericFieldFixed2 missing")?;
         ensure!(fixed2_field.output_pattern.as_deref() == Some("#,.## oz"));
         ensure!(fixed2_field.digits == 3);
         ensure!(fixed2_field.justification == PanJustification::Right);
@@ -4822,7 +4952,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_serde_pan_bytes_roundtrip() -> anyhow::Result<()> {
-        let original_bytes = vec![0x00, 0x00, 0x06, 0x84, b'.', b'I', b'n', b'i', b't'];
+        let original_bytes =
+            vec![0x00, 0x00, 0x06, 0x84, b'.', b'I', b'n', b'i', b't'];
         let section = PanSection {
             offset: 10,
             declared_size: 20,
@@ -4841,6 +4972,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-

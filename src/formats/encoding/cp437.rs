@@ -115,9 +115,10 @@ fn try_load_mapping(
                 if let (Some(r0), Some(r1)) = (row.first(), row.get(1)) {
                     let byte = ctb_utilities::string::parse_hex_u8(r0)?;
                     let uni_code = ctb_utilities::string::parse_hex_u32(r1)?;
-                    let character = char::from_u32(uni_code).ok_or_else(|| {
-                        anyhow!("Invalid Unicode code point '{r1}'")
-                    })?;
+                    let character =
+                        char::from_u32(uni_code).ok_or_else(|| {
+                            anyhow!("Invalid Unicode code point '{r1}'")
+                        })?;
 
                     // Variants only extend the encode_table, do not overwrite the decode_table
                     encode_table.insert(character, byte);
@@ -130,46 +131,45 @@ fn try_load_mapping(
 }
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static CP437_DINGBATS: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(
-        "cp437/cp437_dingbats/values.tsv",
-        Some("cp437/cp437_dingbats/variants.tsv"),
-        false,
-    )
-    .expect("Failed to load CP437 dingbats mapping")
-});
+pub(crate) static CP437_DINGBATS: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(
+            "cp437/cp437_dingbats/values.tsv",
+            Some("cp437/cp437_dingbats/variants.tsv"),
+            false,
+        )
+        .expect("Failed to load CP437 dingbats mapping")
+    });
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static CP437_DINGBATS_BASE: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(
-        "cp437/cp437_dingbats/values.tsv",
-        None,
-        false,
-    )
-    .expect("Failed to load CP437 dingbats base mapping")
-});
+pub(crate) static CP437_DINGBATS_BASE: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping("cp437/cp437_dingbats/values.tsv", None, false)
+            .expect("Failed to load CP437 dingbats base mapping")
+    });
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static CP437_CONTROL: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(
-        "cp437/cp437_control/values.tsv",
-        Some("cp437/cp437_control/variants.tsv"),
-        true,
-    )
-    .expect("Failed to load CP437 control mapping")
-});
+pub(crate) static CP437_CONTROL: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping(
+            "cp437/cp437_control/values.tsv",
+            Some("cp437/cp437_control/variants.tsv"),
+            true,
+        )
+        .expect("Failed to load CP437 control mapping")
+    });
 
 #[expect(clippy::expect_used, reason = "Better to fail early here")]
-pub(crate) static CP437_CONTROL_BASE: LazyLock<SingleByteMapping> = LazyLock::new(|| {
-    try_load_mapping(
-        "cp437/cp437_control/values.tsv",
-        None,
-        true,
-    )
-    .expect("Failed to load CP437 control base mapping")
-});
+pub(crate) static CP437_CONTROL_BASE: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        try_load_mapping("cp437/cp437_control/values.tsv", None, true)
+            .expect("Failed to load CP437 control base mapping")
+    });
 
-pub(crate) fn get_mapping(low_area: LowArea, include_variants: bool) -> &'static SingleByteMapping {
+pub(crate) fn get_mapping(
+    low_area: LowArea,
+    include_variants: bool,
+) -> &'static SingleByteMapping {
     match (low_area, include_variants) {
         (LowArea::Graphical, true) => &CP437_DINGBATS,
         (LowArea::Graphical, false) => &CP437_DINGBATS_BASE,

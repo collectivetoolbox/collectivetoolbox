@@ -59,7 +59,6 @@ pub const UNICODE_HISTORIC_MAX: u32 = 0x7FFFFFFF; // UTF-8 0xFDBFBFBFBFBF
 /// Combines surrogate pairs in an iterator of code units into Unicode scalar values.
 /// Unpaired surrogates are left as-is.
 pub fn combine_surrogates<I>(input: I) -> Vec<u32>
-
 where
     I: IntoIterator,
     I::Item: Into<u32> + Copy,
@@ -142,7 +141,6 @@ pub fn scalars_to_unpaired_surrogates(codepoints: &[u32]) -> Result<Vec<u32>> {
 }
 
 pub fn scalars_to_string_lossy(scalars: &[u32]) -> String {
-
     combine_surrogates(scalars.to_vec())
         .iter()
         // Reason for fallback: U+FFFD replacement character is the standard Unicode fallback for invalid codepoint values in lossy string conversion
@@ -168,7 +166,10 @@ pub fn js_like_slice_utf16(input: &str, start: usize, len: usize) -> Vec<u16> {
     if start >= end {
         Vec::new()
     } else {
-        utf16.get(start..end).expect("start < end <= utf16.len()").to_vec()
+        utf16
+            .get(start..end)
+            .expect("start < end <= utf16.len()")
+            .to_vec()
     }
 }
 

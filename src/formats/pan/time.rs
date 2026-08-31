@@ -372,7 +372,7 @@ fn split_short_meridiem(t: &str) -> Option<(&str, Meridiem)> {
     }
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "suffix is ASCII so t.len() - suffix.len() is an infallible UTF-8 character boundary in t"
 )]

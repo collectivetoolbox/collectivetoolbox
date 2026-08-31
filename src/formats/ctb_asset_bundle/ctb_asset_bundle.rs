@@ -452,7 +452,10 @@ pub fn create_test_fixture_entries(
     lzma2_file: &[u8],
 ) -> Vec<AssetBundleSourceEntry> {
     vec![
-        AssetBundleSourceEntry::raw("example2 with lemurs.pan", pan_file.to_vec()),
+        AssetBundleSourceEntry::raw(
+            "example2 with lemurs.pan",
+            pan_file.to_vec(),
+        ),
         AssetBundleSourceEntry::raw(
             "test directory/test directory 2/example2 with lemurs.pan.lzma2",
             lzma2_file.to_vec(),
@@ -471,7 +474,10 @@ pub fn create_test_fixture_entries_v4(
         edited_bin_file,
     )?;
     Ok(vec![
-        AssetBundleSourceEntry::raw("example2 with lemurs.pan", pan_file.to_vec()),
+        AssetBundleSourceEntry::raw(
+            "example2 with lemurs.pan",
+            pan_file.to_vec(),
+        ),
         AssetBundleSourceEntry::delta(
             "example2 with lemurs-edited.bin",
             delta_payload,
@@ -614,10 +620,10 @@ fn parse_asset_bundle_header_inner(
                     version,
                     entry_count,
                     bundle_uuid: read_uuid(bytes, UUID_OFFSET)?,
-                    content_sha256: read_fixed_bytes::<RESOURCE_BUNDLE_SHA256_SIZE>(
-                        bytes,
-                        SHA256_OFFSET,
-                        "sha256",
+                    content_sha256: read_fixed_bytes::<
+                        RESOURCE_BUNDLE_SHA256_SIZE,
+                    >(
+                        bytes, SHA256_OFFSET, "sha256"
                     )?,
                     created_at_unix_secs: read_u64(bytes, TIMESTAMP_OFFSET)?,
                 },
@@ -645,7 +651,8 @@ pub fn get_bundle_asset(
         return Some(raw_slice.to_vec());
     }
 
-    let (base_path, delta_bytes) = delta::decode_delta_payload(raw_slice).ok()?;
+    let (base_path, delta_bytes) =
+        delta::decode_delta_payload(raw_slice).ok()?;
     let base_data = get_bundle_asset(bytes, entries, base_path)?;
     delta::decode_delta(&base_data, delta_bytes).ok()
 }
@@ -704,10 +711,14 @@ pub fn extract_asset_bundle(
         fs::create_dir_all(parent).with_context(|| {
             format!("Failed to create {}", parent.display())
         })?;
-        let data = get_bundle_asset(&bundle_bytes, &bundle.entries, &entry.path)
-            .ok_or_else(|| {
-                anyhow::anyhow!("Failed to retrieve asset data for {}", entry.path)
-            })?;
+        let data =
+            get_bundle_asset(&bundle_bytes, &bundle.entries, &entry.path)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Failed to retrieve asset data for {}",
+                        entry.path
+                    )
+                })?;
         fs::write(&asset_path, data).with_context(|| {
             format!("Failed to write {}", asset_path.display())
         })?;
@@ -893,9 +904,12 @@ mod tests {
     use super::*;
 
     fn raw_test_files() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-        let pan_bytes =
-            get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan")
-                .expect("fixtures/example2 with lemurs.pan missing from embedded assets");
+        let pan_bytes = get_ctb_asset_bundle_data(
+            "fixtures/example2 with lemurs.pan",
+        )
+        .expect(
+            "fixtures/example2 with lemurs.pan missing from embedded assets",
+        );
         let lzma2_bytes = get_ctb_asset_bundle_data(
             "fixtures/example2 with lemurs.pan.lzma2",
         )
@@ -913,17 +927,29 @@ mod tests {
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc").is_some());
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc").is_some());
         assert!(get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc").is_some());
-        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan").is_some());
-        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan.lzma2").is_some());
-        assert!(get_ctb_asset_bundle_data("fixtures/example2 with lemurs-edited.bin").is_some());
+        assert!(
+            get_ctb_asset_bundle_data("fixtures/example2 with lemurs.pan")
+                .is_some()
+        );
+        assert!(
+            get_ctb_asset_bundle_data(
+                "fixtures/example2 with lemurs.pan.lzma2"
+            )
+            .is_some()
+        );
+        assert!(
+            get_ctb_asset_bundle_data(
+                "fixtures/example2 with lemurs-edited.bin"
+            )
+            .is_some()
+        );
     }
 
     #[test]
     fn test_unpack_v1_bundle() -> Result<()> {
         let (raw_pan, raw_lzma2, _) = raw_test_files();
-        let bundle_bytes =
-            get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc")
-                .context("bundle_v1.rsrc missing from embedded assets")?;
+        let bundle_bytes = get_ctb_asset_bundle_data("fixtures/bundle_v1.rsrc")
+            .context("bundle_v1.rsrc missing from embedded assets")?;
 
         let parsed = parse_asset_bundle(&bundle_bytes)?;
         assert_eq!(parsed.header.version, RESOURCE_BUNDLE_VERSION_V1);
@@ -953,9 +979,8 @@ mod tests {
     #[test]
     fn test_unpack_v2_bundle() -> Result<()> {
         let (raw_pan, raw_lzma2, _) = raw_test_files();
-        let bundle_bytes =
-            get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc")
-                .context("bundle_v2.rsrc missing from embedded assets")?;
+        let bundle_bytes = get_ctb_asset_bundle_data("fixtures/bundle_v2.rsrc")
+            .context("bundle_v2.rsrc missing from embedded assets")?;
 
         let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
         let expected_uuid = compute_v2_resource_bundle_uuid(&entries)?;
@@ -988,9 +1013,8 @@ mod tests {
     #[test]
     fn test_unpack_v3_bundle() -> Result<()> {
         let (raw_pan, raw_lzma2, _) = raw_test_files();
-        let bundle_bytes =
-            get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc")
-                .context("bundle_v3.rsrc missing from embedded assets")?;
+        let bundle_bytes = get_ctb_asset_bundle_data("fixtures/bundle_v3.rsrc")
+            .context("bundle_v3.rsrc missing from embedded assets")?;
 
         let entries = create_test_fixture_entries(&raw_pan, &raw_lzma2);
         let expected_sha = compute_asset_bundle_content_sha256(&entries)?;
@@ -1023,15 +1047,11 @@ mod tests {
     #[test]
     fn test_unpack_v4_bundle_with_delta() -> Result<()> {
         let (raw_pan, raw_lzma2, raw_edited) = raw_test_files();
-        let bundle_bytes =
-            get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc")
-                .context("bundle_v4.rsrc missing from embedded assets")?;
+        let bundle_bytes = get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc")
+            .context("bundle_v4.rsrc missing from embedded assets")?;
 
-        let entries = create_test_fixture_entries_v4(
-            &raw_pan,
-            &raw_lzma2,
-            &raw_edited,
-        )?;
+        let entries =
+            create_test_fixture_entries_v4(&raw_pan, &raw_lzma2, &raw_edited)?;
         let expected_sha = compute_asset_bundle_content_sha256(&entries)?;
 
         let parsed = parse_asset_bundle(&bundle_bytes)?;
@@ -1055,9 +1075,12 @@ mod tests {
         assert_eq!(parsed.entries[2].flags, ASSET_FLAG_RAW);
 
         // Verify transparent retrieval of delta-encoded and raw entries
-        let extracted_pan =
-            get_bundle_asset(&bundle_bytes, &parsed.entries, "example2 with lemurs.pan")
-                .context("get_bundle_asset failed for pan")?;
+        let extracted_pan = get_bundle_asset(
+            &bundle_bytes,
+            &parsed.entries,
+            "example2 with lemurs.pan",
+        )
+        .context("get_bundle_asset failed for pan")?;
         assert_eq!(extracted_pan, raw_pan);
 
         let extracted_edited = get_bundle_asset(
@@ -1082,10 +1105,8 @@ mod tests {
     #[test]
     fn test_extract_asset_bundle_all_versions() -> Result<()> {
         let (raw_pan, raw_lzma2, raw_edited) = raw_test_files();
-        let tmp_root = std::env::temp_dir().join(format!(
-            "ctb_asset_bundle_test_{}",
-            Uuid::new_v4()
-        ));
+        let tmp_root = std::env::temp_dir()
+            .join(format!("ctb_asset_bundle_test_{}", Uuid::new_v4()));
         fs::create_dir_all(&tmp_root)?;
 
         let versions = [
@@ -1096,15 +1117,13 @@ mod tests {
         ];
 
         for (fixture_name, version) in versions {
-            let bundle_bytes = get_ctb_asset_bundle_data(&format!(
-                "fixtures/{fixture_name}"
-            ))
-            .context("fixture missing")?;
+            let bundle_bytes =
+                get_ctb_asset_bundle_data(&format!("fixtures/{fixture_name}"))
+                    .context("fixture missing")?;
             let bundle_path = tmp_root.join(fixture_name);
             fs::write(&bundle_path, &bundle_bytes)?;
 
-            let extracted_dir =
-                extract_asset_bundle(&bundle_path, &tmp_root)?;
+            let extracted_dir = extract_asset_bundle(&bundle_path, &tmp_root)?;
             let assets_dir = extracted_dir.join("assets");
             let pan_extracted =
                 fs::read(assets_dir.join("example2 with lemurs.pan"))?;
@@ -1116,16 +1135,16 @@ mod tests {
             assert_eq!(lzma2_extracted, raw_lzma2);
 
             let expected_count = if version == RESOURCE_BUNDLE_VERSION_V4 {
-                let edited_extracted =
-                    fs::read(assets_dir.join("example2 with lemurs-edited.bin"))?;
+                let edited_extracted = fs::read(
+                    assets_dir.join("example2 with lemurs-edited.bin"),
+                )?;
                 assert_eq!(edited_extracted, raw_edited);
                 3
             } else {
                 2
             };
 
-            let metadata_bytes =
-                fs::read(extracted_dir.join("metadata.json"))?;
+            let metadata_bytes = fs::read(extracted_dir.join("metadata.json"))?;
             let metadata: serde_json::Value =
                 serde_json::from_slice(&metadata_bytes)?;
             assert_eq!(metadata["version"], version);
@@ -1182,11 +1201,8 @@ mod tests {
         let fixed_v4_uuid =
             Uuid::parse_str("4c059cbb-98f6-4ef1-a4b7-db80efd12345")?;
         let fixed_v4_ts = 1_700_000_000_u64;
-        let entries_v4 = create_test_fixture_entries_v4(
-            &raw_pan,
-            &raw_lzma2,
-            &raw_edited,
-        )?;
+        let entries_v4 =
+            create_test_fixture_entries_v4(&raw_pan, &raw_lzma2, &raw_edited)?;
         let (v4_bytes, v4_header) = build_asset_bundle_v4_with_details(
             &entries_v4,
             fixed_v4_uuid,

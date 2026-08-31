@@ -1113,8 +1113,8 @@ mod auth_controller_tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn test_post_api_user_register_enforces_registration_setting(
-    ) -> Result<()> {
+    async fn test_post_api_user_register_enforces_registration_setting()
+    -> Result<()> {
         use crate::json::maybe_value::MaybeValue;
         use crate::pc_settings::PcSettings;
         use axum::http::HeaderMap;

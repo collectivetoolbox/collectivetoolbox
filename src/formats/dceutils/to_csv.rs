@@ -54,8 +54,10 @@ pub fn php_to_csvs(bytes: &[u8]) -> Result<HashMap<String, Vec<u8>>> {
                     clippy::expect_used,
                     reason = "arrow_idx is returned by find_arrow, guaranteeing a valid char boundary"
                 )]
-                let key_part =
-                    elem_trimmed.get(..arrow_idx).expect("arrow_idx is returned by find_arrow").trim();
+                let key_part = elem_trimmed
+                    .get(..arrow_idx)
+                    .expect("arrow_idx is returned by find_arrow")
+                    .trim();
                 let arrow_idx_plus_2 = arrow_idx
                     .checked_add(2)
                     .ok_or_else(|| anyhow!("Index overflow"))?;

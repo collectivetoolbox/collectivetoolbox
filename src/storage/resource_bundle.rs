@@ -27,6 +27,5 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 pub use ctb_storage_asset_bundle::{
-    find_assets, find_resource_bundle_path, get_asset, get_asset_utf8,
-    is_cargo_target_binary, validate_resource_bundle,
+    find_assets, get_asset, get_asset_utf8, validate_resource_bundle,
 };

@@ -19,15 +19,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Shared validation primitives for identifiers, MIME types, extensions, and schema constraints.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use std::collections::HashMap;
 use crate::report::ValidationReport;
+use std::collections::HashMap;
 
 const RUST_KEYWORDS: &[&str] = &[
     "as", "break", "const", "continue", "crate", "else", "enum", "extern",
@@ -35,12 +35,13 @@ const RUST_KEYWORDS: &[&str] = &[
     "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct",
     "super", "trait", "true", "type", "unsafe", "use", "where", "while",
     "async", "await", "dyn", "abstract", "become", "box", "do", "final",
-    "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
+    "macro", "override", "priv", "typeof", "unsized", "virtual", "yield",
+    "try",
 ];
 
 const VALID_BIDI_CLASSES: &[&str] = &[
-    "L", "R", "AL", "EN", "ES", "ET", "AN", "CS", "NSM", "BN", "B", "S",
-    "WS", "ON", "LRE", "LRO", "RLE", "RLO", "PDF", "LRI", "RLI", "FSI", "PDI",
+    "L", "R", "AL", "EN", "ES", "ET", "AN", "CS", "NSM", "BN", "B", "S", "WS",
+    "ON", "LRE", "LRO", "RLE", "RLO", "PDF", "LRI", "RLI", "FSI", "PDI",
 ];
 
 const VALID_GENERAL_CATEGORIES: &[&str] = &[
@@ -88,10 +89,10 @@ pub fn validate_extension_entry(entry: &str) -> Result<()> {
         bail!("Extension entry cannot be blank");
     }
 
-    if trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2 {
-        let pattern = if let Some(stripped) = trimmed
-            .strip_prefix('~')
-            .and_then(|s| s.strip_suffix('~'))
+    if trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2
+    {
+        let pattern = if let Some(stripped) =
+            trimmed.strip_prefix('~').and_then(|s| s.strip_suffix('~'))
         {
             stripped
         } else {
@@ -149,7 +150,9 @@ pub fn validate_mime_field(field: &str) -> Result<()> {
             None => item_trimmed,
         };
         let Some((typ, subtyp)) = mime_base.split_once('/') else {
-            bail!("MIME type '{item_trimmed}' missing '/' separator (expected 'type/subtype')");
+            bail!(
+                "MIME type '{item_trimmed}' missing '/' separator (expected 'type/subtype')"
+            );
         };
         if typ.trim().is_empty() || subtyp.trim().is_empty() {
             bail!("MIME type '{item_trimmed}' has empty type or subtype");
@@ -193,7 +196,9 @@ pub fn validate_bidi_class(bidi: &str) -> Result<()> {
         return Ok(());
     }
     if !VALID_BIDI_CLASSES.contains(&trimmed) {
-        bail!("Invalid Bidi Class '{trimmed}' (expected standard Unicode bidi class or empty)");
+        bail!(
+            "Invalid Bidi Class '{trimmed}' (expected standard Unicode bidi class or empty)"
+        );
     }
     Ok(())
 }
@@ -204,9 +209,9 @@ pub fn validate_combining_class(cls: &str) -> Result<u8> {
     if trimmed.is_empty() {
         return Ok(0);
     }
-    let val = trimmed
-        .parse::<u8>()
-        .with_context(|| format!("Invalid combining class integer '{trimmed}'"))?;
+    let val = trimmed.parse::<u8>().with_context(|| {
+        format!("Invalid combining class integer '{trimmed}'")
+    })?;
     if val > 254 {
         bail!("Combining class {val} out of valid Unicode range (0..=254)");
     }
@@ -263,7 +268,8 @@ pub fn validate_cross_table_uniqueness(
                 Some("Ensure all Format labels are distinct"),
             );
         } else {
-            fmt_label_map.insert(key.clone(), (short_id, file_path.to_string()));
+            fmt_label_map
+                .insert(key.clone(), (short_id, file_path.to_string()));
         }
 
         // Cross-table check: Format label cannot collide with a Dc name

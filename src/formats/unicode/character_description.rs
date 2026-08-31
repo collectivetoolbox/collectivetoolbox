@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Independent reimplementation of Andrew West's "What Unicode Character is This" tool.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -50,21 +50,25 @@ const JAMO_V_TABLE: [&str; 21] = [
 ];
 const JAMO_T_TABLE: [&str; 28] = [
     "", "G", "GG", "GS", "N", "NJ", "NH", "D", "L", "LG", "LM", "LB", "LS",
-    "LT", "LP", "LH", "M", "B", "BS", "S", "SS", "NG", "J", "C", "K", "T",
-    "P", "H",
+    "LT", "LP", "LH", "M", "B", "BS", "S", "SS", "NG", "J", "C", "K", "T", "P",
+    "H",
 ];
 
 /// Computes the algorithmic Hangul syllable name for a code point if applicable.
 fn hangul_syllable_name(cp: u32) -> Option<String> {
-    if (HANGUL_S_BASE..HANGUL_S_BASE.saturating_add(HANGUL_S_COUNT)).contains(&cp)
+    if (HANGUL_S_BASE..HANGUL_S_BASE.saturating_add(HANGUL_S_COUNT))
+        .contains(&cp)
     {
         let s_index = cp.saturating_sub(HANGUL_S_BASE);
-        let l_index = usize::try_from(s_index.checked_div(HANGUL_N_COUNT)?).ok()?;
+        let l_index =
+            usize::try_from(s_index.checked_div(HANGUL_N_COUNT)?).ok()?;
         let v_index = usize::try_from(
-            (s_index.checked_rem(HANGUL_N_COUNT)?).checked_div(HANGUL_T_COUNT)?,
+            (s_index.checked_rem(HANGUL_N_COUNT)?)
+                .checked_div(HANGUL_T_COUNT)?,
         )
         .ok()?;
-        let t_index = usize::try_from(s_index.checked_rem(HANGUL_T_COUNT)?).ok()?;
+        let t_index =
+            usize::try_from(s_index.checked_rem(HANGUL_T_COUNT)?).ok()?;
         let l = JAMO_L_TABLE.get(l_index)?;
         let v = JAMO_V_TABLE.get(v_index)?;
         let t = JAMO_T_TABLE.get(t_index)?;
@@ -87,17 +91,17 @@ pub enum DescriptionMode {
     /// Standard enhanced format: concise reserved/PUA/surrogates, multi-alias annotations, Unihan readings.
     #[default]
     Standard,
-    /// Exact WUC compatibility format (matches unicode_untrimmed_descriptions.txt).
+    /// Exact WUC compatibility format (matches `unicode_untrimmed_descriptions.txt`).
     WucCompat,
 }
 
 /// Format for control character names and abbreviations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ControlNameFormat {
-    /// Official UCD NameAliases (e.g. ALERT [BEL], END OF LINE [EOL]).
+    /// Official UCD `NameAliases` (e.g. ALERT [BEL], END OF LINE [EOL]).
     #[default]
     NameAliases,
-    /// Legacy NamesList names (e.g. BELL [BEL], LINE FEED [LF], [EOM]).
+    /// Legacy `NamesList` names (e.g. BELL [BEL], LINE FEED [LF], [EOM]).
     NamesList,
     /// "What Unicode Character is This" format
     Wuc,
@@ -210,22 +214,24 @@ pub fn describe_codepoint_with_options(
             ControlNameFormat::Wuc => {
                 let name = char_info
                     .and_then(|info| info.nameslist_control_name.as_deref());
-                let ab = if matches!(
-                    cp,
-                    0x000B | 0x001C | 0x001D | 0x001E | 0x001F
-                ) {
-                    None
-                } else if cp == 0x0009 {
-                    Some("TAB")
-                } else if cp == 0x0019 {
-                    Some("EOM")
-                } else {
-                    char_info
-                        .and_then(|info| info.nameslist_control_abbr.as_deref())
-                        .or_else(|| {
-                            alias_entry.and_then(|a| a.abbreviation.as_deref())
-                        })
-                };
+                let ab =
+                    if matches!(cp, 0x000B | 0x001C | 0x001D | 0x001E | 0x001F)
+                    {
+                        None
+                    } else if cp == 0x0009 {
+                        Some("TAB")
+                    } else if cp == 0x0019 {
+                        Some("EOM")
+                    } else {
+                        char_info
+                            .and_then(|info| {
+                                info.nameslist_control_abbr.as_deref()
+                            })
+                            .or_else(|| {
+                                alias_entry
+                                    .and_then(|a| a.abbreviation.as_deref())
+                            })
+                    };
                 (name, ab)
             }
             ControlNameFormat::NamesList => {
@@ -373,17 +379,23 @@ pub fn describe_codepoint_with_options(
             cp,
             0x0616 | 0x1BBD | 0x12327 | 0x1680B | 0x1E899 | 0x1E89A
         ) {
-            if let Some(alias) = alias_entry.and_then(|a| a.correction.as_deref()) {
+            if let Some(alias) =
+                alias_entry.and_then(|a| a.correction.as_deref())
+            {
                 result.push_str(&format!(" (alias {alias})"));
             }
         }
-    } else if let Some(alias) = alias_entry.and_then(|a| a.correction.as_deref()) {
+    } else if let Some(alias) =
+        alias_entry.and_then(|a| a.correction.as_deref())
+    {
         result.push_str(&format!(" (alias {alias})"));
     }
 
     // 9. Tangut Source Reference
-    if let Some(src) =
-        tables.tangut_data.get(&cp).and_then(|t| t.source_ref.as_deref())
+    if let Some(src) = tables
+        .tangut_data
+        .get(&cp)
+        .and_then(|t| t.source_ref.as_deref())
     {
         result.push_str(&format!(" ({src})"));
     }
@@ -507,7 +519,10 @@ pub fn describe(input: &str) -> String {
 }
 
 /// Describes each character in a Unicode string line by line with given options.
-pub fn describe_with_options(input: &str, options: DescriptionOptions) -> String {
+pub fn describe_with_options(
+    input: &str,
+    options: DescriptionOptions,
+) -> String {
     let mut out = String::new();
     for ch in input.chars() {
         let cp = u32::from(ch);
@@ -519,7 +534,7 @@ pub fn describe_with_options(input: &str, options: DescriptionOptions) -> String
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -544,11 +559,19 @@ mod tests {
         assert!(out.contains("U+0020 : SPACE [SP]"));
         assert!(out.contains("U+1F602 : FACE WITH TEARS OF JOY"));
         assert!(out.contains("U+0004 : <control> END OF TRANSMISSION [EOT]"));
-        assert!(out.contains("U+17FFC : TANGUT IDEOGRAPH-17FFC (L2008-2262) {bird}"));
+        assert!(
+            out.contains(
+                "U+17FFC : TANGUT IDEOGRAPH-17FFC (L2008-2262) {bird}"
+            )
+        );
         assert!(out.contains("U+C120 : HANGUL SYLLABLE SEON"));
-        assert!(out.contains("U+18B9D : KHITAN SMALL SCRIPT CHARACTER-18B9D {GOLD}"));
+        assert!(
+            out.contains(
+                "U+18B9D : KHITAN SMALL SCRIPT CHARACTER-18B9D {GOLD}"
+            )
+        );
 
-        let input = "द्ध्र्य︘ꡀ𓉔A字😂\u{0004}𗿼선𘮝狀";
+        let input = "द्ध्र्य︘ꡀ𓉔A字😂\u{0004}𗿼선𘮝狀";
         let expected = "U+0926 : DEVANAGARI LETTER DA
 U+094D : DEVANAGARI SIGN VIRAMA {halant (the preferred Hindi name)}
 U+0927 : DEVANAGARI LETTER DHA
@@ -569,7 +592,6 @@ U+18B9D : KHITAN SMALL SCRIPT CHARACTER-18B9D {GOLD}
 U+F9FA : CJK COMPATIBILITY IDEOGRAPH-F9FA = U+72C0 + VS1 {def: form; appearance; shape; official; Korean: 장:0}
 ";
         assert_eq!(describe(input), expected);
-
     }
 
     #[crate::ctb_test]
@@ -621,249 +643,244 @@ U+F9FA : CJK COMPATIBILITY IDEOGRAPH-F9FA = U+72C0 + VS1 {def: form; appearance;
     fn test_wuc_mode_descriptions() {
         let wuc_opts = DescriptionOptions::wuc_compat();
 
-    // 1. Control characters in legacy NamesList format
-    assert_eq!(
-        describe_codepoint_with_options(0x0000, wuc_opts),
-        "U+0000 : <control> NULL [NUL]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0007, wuc_opts),
-        "U+0007 : <control> BELL [BEL]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0009, wuc_opts),
-        "U+0009 : <control> CHARACTER TABULATION [TAB] {horizontal tabulation (HT); tab}"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x000A, wuc_opts),
-        "U+000A : <control> LINE FEED [LF] {new line (NL); end of line (EOL)}"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0019, wuc_opts),
-        "U+0019 : <control> END OF MEDIUM [EOM]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0080, wuc_opts),
-        "U+0080 : <control>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0082, wuc_opts),
-        "U+0082 : <control> BREAK PERMITTED HERE [BPH]"
-    );
+        // 1. Control characters in legacy NamesList format
+        assert_eq!(
+            describe_codepoint_with_options(0x0000, wuc_opts),
+            "U+0000 : <control> NULL [NUL]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0007, wuc_opts),
+            "U+0007 : <control> BELL [BEL]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0009, wuc_opts),
+            "U+0009 : <control> CHARACTER TABULATION [TAB] {horizontal tabulation (HT); tab}"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x000A, wuc_opts),
+            "U+000A : <control> LINE FEED [LF] {new line (NL); end of line (EOL)}"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0019, wuc_opts),
+            "U+0019 : <control> END OF MEDIUM [EOM]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0080, wuc_opts),
+            "U+0080 : <control>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0082, wuc_opts),
+            "U+0082 : <control> BREAK PERMITTED HERE [BPH]"
+        );
 
-    // 2. Graphic abbreviations
-    assert_eq!(
-        describe_codepoint_with_options(0x0020, wuc_opts),
-        "U+0020 : SPACE [SP]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x00A0, wuc_opts),
-        "U+00A0 : NO-BREAK SPACE [NBSP]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x00AD, wuc_opts),
-        "U+00AD : SOFT HYPHEN [SHY] {discretionary hyphen}"
-    );
+        // 2. Graphic abbreviations
+        assert_eq!(
+            describe_codepoint_with_options(0x0020, wuc_opts),
+            "U+0020 : SPACE [SP]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x00A0, wuc_opts),
+            "U+00A0 : NO-BREAK SPACE [NBSP]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x00AD, wuc_opts),
+            "U+00AD : SOFT HYPHEN [SHY] {discretionary hyphen}"
+        );
 
-    // 3. Informative alias joining
-    assert_eq!(
-        describe_codepoint_with_options(0x0021, wuc_opts),
-        "U+0021 : EXCLAMATION MARK {factorial; bang}"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0023, wuc_opts),
-        "U+0023 : NUMBER SIGN {pound sign (weight); hashtag, hash; crosshatch, octothorpe}"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0027, wuc_opts),
-        "U+0027 : APOSTROPHE {single quote; APL quote}"
-    );
+        // 3. Informative alias joining
+        assert_eq!(
+            describe_codepoint_with_options(0x0021, wuc_opts),
+            "U+0021 : EXCLAMATION MARK {factorial; bang}"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0023, wuc_opts),
+            "U+0023 : NUMBER SIGN {pound sign (weight); hashtag, hash; crosshatch, octothorpe}"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0027, wuc_opts),
+            "U+0027 : APOSTROPHE {single quote; APL quote}"
+        );
 
-    // 4. Surrogates, Noncharacters, Reserved, PUA in WUC compat mode
-    assert_eq!(
-        describe_codepoint_with_options(0xD800, wuc_opts),
-        "U+D800 : <surrogate>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0xDC00, wuc_opts),
-        "U+DC00 : <surrogate>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0xFDD0, wuc_opts),
-        "U+FDD0 : <noncharacter>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x0378, wuc_opts),
-        "U+0378 : <reserved>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0xE000, wuc_opts),
-        "U+E000 : <private-use>"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0xF0000, wuc_opts),
-        "U+F0000 : <private-use>"
-    );
+        // 4. Surrogates, Noncharacters, Reserved, PUA in WUC compat mode
+        assert_eq!(
+            describe_codepoint_with_options(0xD800, wuc_opts),
+            "U+D800 : <surrogate>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0xDC00, wuc_opts),
+            "U+DC00 : <surrogate>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0xFDD0, wuc_opts),
+            "U+FDD0 : <noncharacter>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x0378, wuc_opts),
+            "U+0378 : <reserved>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0xE000, wuc_opts),
+            "U+E000 : <private-use>"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0xF0000, wuc_opts),
+            "U+F0000 : <private-use>"
+        );
 
-    // 5. CJK Compatibility Ideographs in WUC compat mode
-    assert_eq!(
-        describe_codepoint_with_options(0xFA0E, wuc_opts),
-        "U+FA0E : CJK COMPATIBILITY IDEOGRAPH-FA0E"
-    );
-}
-
-#[crate::ctb_test]
-fn test_standard_mode_descriptions() {
-    let std_opts = DescriptionOptions::standard();
-
-    // 1. Surrogates with high/low designation
-    assert_eq!(
-        describe_codepoint_with_options(0xD800, std_opts),
-        "U+D800 : <surrogate> (high surrogate)"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0xDC00, std_opts),
-        "U+DC00 : <surrogate> (low surrogate)"
-    );
-
-    // 2. Noncharacters
-    assert_eq!(
-        describe_codepoint_with_options(0xFDD0, std_opts),
-        "U+FDD0 : <noncharacter>"
-    );
-
-    // 3. Reserved with block name or unassigned region
-    assert_eq!(
-        describe_codepoint_with_options(0x0378, std_opts),
-        "U+0378 : <reserved> (Greek and Coptic block)"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x35000, std_opts),
-        "U+35000 : <reserved> (unassigned region)"
-    );
-
-    // 4. Private Use Area with block name
-    assert_eq!(
-        describe_codepoint_with_options(0xE000, std_opts),
-        "U+E000 : <private-use> (Private Use Area block)"
-    );
-
-    // 5. Official UCD control names
-    assert_eq!(
-        describe_codepoint_with_options(0x0007, std_opts),
-        "U+0007 : <control> ALERT [BEL]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x000A, std_opts),
-        "U+000A : <control> END OF LINE [EOL] {new line (NL); end of line (EOL)}"
-    );
-
-    // 6. CJK Unified Ideograph with Unihan readings
-    let desc_3400 = describe_codepoint_with_options(0x3400, std_opts);
-    assert!(desc_3400.starts_with("U+3400 : CJK UNIFIED IDEOGRAPH-3400"));
-    assert!(desc_3400.contains("def: (same as 丘) hillock or mound"));
-    assert!(desc_3400.contains("Mandarin: qiū"));
-    assert!(desc_3400.contains("Cantonese: jau1"));
-
-    // 7. CJK Unified Ideograph in compatibility range (U+FA0E)
-    let desc_fa0e = describe_codepoint_with_options(0xFA0E, std_opts);
-    assert!(desc_fa0e.starts_with("U+FA0E : CJK UNIFIED IDEOGRAPH-FA0E"));
-}
-
-#[crate::ctb_test]
-fn test_options_configurations() {
-    let mut custom_opts = DescriptionOptions::standard();
-    custom_opts.control_name_format = ControlNameFormat::NamesList;
-    custom_opts.include_unihan_readings = false;
-
-    assert_eq!(
-        describe_codepoint_with_options(0x0007, custom_opts),
-        "U+0007 : <control> BELL [BEL]"
-    );
-    assert_eq!(
-        describe_codepoint_with_options(0x3400, custom_opts),
-        "U+3400 : CJK UNIFIED IDEOGRAPH-3400"
-    );
-
-    let multiline = describe_with_options("\u{0007}A", custom_opts);
-    assert_eq!(
-        multiline,
-        "U+0007 : <control> BELL [BEL]\nU+0041 : LATIN CAPITAL LETTER A\n"
-    );
-
-    let default_multiline = describe("A");
-    assert_eq!(default_multiline, "U+0041 : LATIN CAPITAL LETTER A\n");
-
-    // Test UnicodeDataTables derived_age & block lookup & dynamic ideograph lookup
-    let tables_v17 = get_tables(UnicodeVersion::V17_0);
-    assert!(tables_v17.is_age("1.1", 0x0041));
-    assert!(tables_v17.is_age("16.0", 0x1FA89)); // HARP
-    assert!(tables_v17.is_v17_or_later(0x088F));
-    assert!(!tables_v17.is_v17_or_later(0x0041));
-    assert!(tables_v17.is_cjk_unified_ideograph(0x3400));
-    assert!(tables_v17.is_tangut_ideograph(0x17000));
-    assert!(tables_v17.is_khitan_character(0x18B00));
-
-    assert_eq!(
-        crate::find_block(0x0041),
-        Some("Basic Latin")
-    );
-
-    // Test V15.0 and V15.1 tables loading and data-derived ideographs
-    let tables_v15 = get_tables(UnicodeVersion::V15_0);
-    assert!(!tables_v15.blocks.is_empty());
-    assert!(tables_v15.is_cjk_unified_ideograph(0x4E00));
-    assert!(tables_v15.is_tangut_ideograph(0x17000));
-    assert!(tables_v15.is_khitan_character(0x18B00));
-
-    let tables_v15_1 = get_tables(UnicodeVersion::V15_1);
-    assert!(!tables_v15_1.blocks.is_empty());
-    assert!(tables_v15_1.is_cjk_unified_ideograph(0x4E00));
-}
-
-// #[crate::ctb_test]
-// fn test_full_file_regeneration_matches_fixture() {
-//     let manifest_dir = std::path::PathBuf::from(
-//         std::env::var("CARGO_MANIFEST_DIR")
-//             .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
-//     );
-//     // This test should pass, but I'm not including the fixture now that it's working.
-//     let fixture_path = manifest_dir
-//         .join("tests")
-//         .join("fixtures")
-//         .join("unicode_untrimmed_descriptions.txt");
-
-//     let expected = std::fs::read_to_string(&fixture_path)
-//         .expect("read unicode_untrimmed_descriptions.txt fixture");
-//     let wuc_opts = DescriptionOptions::wuc_compat();
-
-//     let mut generated = String::with_capacity(expected.len());
-//     for cp in 0..=0x10FFFF {
-//         let line = describe_codepoint_with_options(cp, wuc_opts);
-//         generated.push_str(&line);
-//         generated.push('\n');
-//     }
-
-//     assert_eq!(generated, expected);
-// }
-
-#[crate::ctb_test]
-fn test_full_file_regeneration_matches_expected() {
-    let expected = "2b1fc9126e2c9b2f7ee7398b96581db58d4f46bdc768264b198734d25d068be8";
-    let wuc_opts = DescriptionOptions::wuc_compat();
-
-    let mut generated = String::with_capacity(expected.len());
-    for cp in 0..=0x10FFFF {
-        let line = describe_codepoint_with_options(cp, wuc_opts);
-        generated.push_str(&line);
-        generated.push('\n');
+        // 5. CJK Compatibility Ideographs in WUC compat mode
+        assert_eq!(
+            describe_codepoint_with_options(0xFA0E, wuc_opts),
+            "U+FA0E : CJK COMPATIBILITY IDEOGRAPH-FA0E"
+        );
     }
 
-    assert_eq!(
-        ctb_formats_checksum::sha256_hex(&generated),
-        expected
-    );
-}
+    #[crate::ctb_test]
+    fn test_standard_mode_descriptions() {
+        let std_opts = DescriptionOptions::standard();
+
+        // 1. Surrogates with high/low designation
+        assert_eq!(
+            describe_codepoint_with_options(0xD800, std_opts),
+            "U+D800 : <surrogate> (high surrogate)"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0xDC00, std_opts),
+            "U+DC00 : <surrogate> (low surrogate)"
+        );
+
+        // 2. Noncharacters
+        assert_eq!(
+            describe_codepoint_with_options(0xFDD0, std_opts),
+            "U+FDD0 : <noncharacter>"
+        );
+
+        // 3. Reserved with block name or unassigned region
+        assert_eq!(
+            describe_codepoint_with_options(0x0378, std_opts),
+            "U+0378 : <reserved> (Greek and Coptic block)"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x35000, std_opts),
+            "U+35000 : <reserved> (unassigned region)"
+        );
+
+        // 4. Private Use Area with block name
+        assert_eq!(
+            describe_codepoint_with_options(0xE000, std_opts),
+            "U+E000 : <private-use> (Private Use Area block)"
+        );
+
+        // 5. Official UCD control names
+        assert_eq!(
+            describe_codepoint_with_options(0x0007, std_opts),
+            "U+0007 : <control> ALERT [BEL]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x000A, std_opts),
+            "U+000A : <control> END OF LINE [EOL] {new line (NL); end of line (EOL)}"
+        );
+
+        // 6. CJK Unified Ideograph with Unihan readings
+        let desc_3400 = describe_codepoint_with_options(0x3400, std_opts);
+        assert!(desc_3400.starts_with("U+3400 : CJK UNIFIED IDEOGRAPH-3400"));
+        assert!(desc_3400.contains("def: (same as 丘) hillock or mound"));
+        assert!(desc_3400.contains("Mandarin: qiū"));
+        assert!(desc_3400.contains("Cantonese: jau1"));
+
+        // 7. CJK Unified Ideograph in compatibility range (U+FA0E)
+        let desc_fa0e = describe_codepoint_with_options(0xFA0E, std_opts);
+        assert!(desc_fa0e.starts_with("U+FA0E : CJK UNIFIED IDEOGRAPH-FA0E"));
+    }
+
+    #[crate::ctb_test]
+    fn test_options_configurations() {
+        let mut custom_opts = DescriptionOptions::standard();
+        custom_opts.control_name_format = ControlNameFormat::NamesList;
+        custom_opts.include_unihan_readings = false;
+
+        assert_eq!(
+            describe_codepoint_with_options(0x0007, custom_opts),
+            "U+0007 : <control> BELL [BEL]"
+        );
+        assert_eq!(
+            describe_codepoint_with_options(0x3400, custom_opts),
+            "U+3400 : CJK UNIFIED IDEOGRAPH-3400"
+        );
+
+        let multiline = describe_with_options("\u{0007}A", custom_opts);
+        assert_eq!(
+            multiline,
+            "U+0007 : <control> BELL [BEL]\nU+0041 : LATIN CAPITAL LETTER A\n"
+        );
+
+        let default_multiline = describe("A");
+        assert_eq!(default_multiline, "U+0041 : LATIN CAPITAL LETTER A\n");
+
+        // Test UnicodeDataTables derived_age & block lookup & dynamic ideograph lookup
+        let tables_v17 = get_tables(UnicodeVersion::V17_0);
+        assert!(tables_v17.is_age("1.1", 0x0041));
+        assert!(tables_v17.is_age("16.0", 0x1FA89)); // HARP
+        assert!(tables_v17.is_v17_or_later(0x088F));
+        assert!(!tables_v17.is_v17_or_later(0x0041));
+        assert!(tables_v17.is_cjk_unified_ideograph(0x3400));
+        assert!(tables_v17.is_tangut_ideograph(0x17000));
+        assert!(tables_v17.is_khitan_character(0x18B00));
+
+        assert_eq!(crate::find_block(0x0041), Some("Basic Latin"));
+
+        // Test V15.0 and V15.1 tables loading and data-derived ideographs
+        let tables_v15 = get_tables(UnicodeVersion::V15_0);
+        assert!(!tables_v15.blocks.is_empty());
+        assert!(tables_v15.is_cjk_unified_ideograph(0x4E00));
+        assert!(tables_v15.is_tangut_ideograph(0x17000));
+        assert!(tables_v15.is_khitan_character(0x18B00));
+
+        let tables_v15_1 = get_tables(UnicodeVersion::V15_1);
+        assert!(!tables_v15_1.blocks.is_empty());
+        assert!(tables_v15_1.is_cjk_unified_ideograph(0x4E00));
+    }
+
+    // #[crate::ctb_test]
+    // fn test_full_file_regeneration_matches_fixture() {
+    //     let manifest_dir = std::path::PathBuf::from(
+    //         std::env::var("CARGO_MANIFEST_DIR")
+    //             .unwrap_or_else(|_| "/workspaces/ctoolbox/src/formats/unicode".to_string()),
+    //     );
+    //     // This test should pass, but I'm not including the fixture now that it's working.
+    //     let fixture_path = manifest_dir
+    //         .join("tests")
+    //         .join("fixtures")
+    //         .join("unicode_untrimmed_descriptions.txt");
+
+    //     let expected = std::fs::read_to_string(&fixture_path)
+    //         .expect("read unicode_untrimmed_descriptions.txt fixture");
+    //     let wuc_opts = DescriptionOptions::wuc_compat();
+
+    //     let mut generated = String::with_capacity(expected.len());
+    //     for cp in 0..=0x10FFFF {
+    //         let line = describe_codepoint_with_options(cp, wuc_opts);
+    //         generated.push_str(&line);
+    //         generated.push('\n');
+    //     }
+
+    //     assert_eq!(generated, expected);
+    // }
+
+    #[crate::ctb_test]
+    fn test_full_file_regeneration_matches_expected() {
+        let expected =
+            "2b1fc9126e2c9b2f7ee7398b96581db58d4f46bdc768264b198734d25d068be8";
+        let wuc_opts = DescriptionOptions::wuc_compat();
+
+        let mut generated = String::with_capacity(expected.len());
+        for cp in 0..=0x10FFFF {
+            let line = describe_codepoint_with_options(cp, wuc_opts);
+            generated.push_str(&line);
+            generated.push('\n');
+        }
+
+        assert_eq!(ctb_formats_checksum::sha256_hex(&generated), expected);
+    }
 }
 
 /*

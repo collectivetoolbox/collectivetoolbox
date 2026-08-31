@@ -320,7 +320,13 @@ pub fn download(
     original: bool,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    download_with_client(&LiveArchiveClient, target, output_dir, original, progress)
+    download_with_client(
+        &LiveArchiveClient,
+        target,
+        output_dir,
+        original,
+        progress,
+    )
 }
 
 pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
@@ -395,7 +401,11 @@ fn download_with_client(
             })?;
         }
         let idx = i.saturating_add(1);
-        progress.start_step(idx, total_files, &format!("Downloading {file_name}"));
+        progress.start_step(
+            idx,
+            total_files,
+            &format!("Downloading {file_name}"),
+        );
         let bytes = client
             .fetch_download_bytes(&archive_target.identifier, file_name)?;
         fs::write(&destination, &bytes).with_context(|| {
@@ -423,7 +433,13 @@ pub fn checkeddl(
     original: bool,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    checkeddl_with_client(&LiveArchiveClient, target, output_dir, original, progress)
+    checkeddl_with_client(
+        &LiveArchiveClient,
+        target,
+        output_dir,
+        original,
+        progress,
+    )
 }
 
 fn checkeddl_with_client(
@@ -447,10 +463,8 @@ fn checkeddl_with_client(
     progress.message("Verifying downloaded files...");
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
-    let files_xml_path = item_directory.join(format!(
-        "{}{FILES_XML_SUFFIX}",
-        archive_target.identifier
-    ));
+    let files_xml_path = item_directory
+        .join(format!("{}{FILES_XML_SUFFIX}", archive_target.identifier));
     if !files_xml_path.exists() {
         let _ = fs::write(&files_xml_path, &live_files_xml_bytes);
     }
@@ -458,30 +472,31 @@ fn checkeddl_with_client(
         &archive_target.identifier,
         &live_files_xml_bytes,
     )?;
-    let selected_files = if let Some(file_name) = archive_target.archive_path.clone() {
-        let mut files = BTreeSet::new();
-        if !original
-            || manifest
-                .entries
-                .get(&file_name)
-                .and_then(|entry| entry.source.as_deref())
-                == Some("original")
-        {
-            files.insert(file_name);
-        }
-        Some(files)
-    } else if original {
-        Some(
-            manifest
-                .entries
-                .values()
-                .filter(|entry| entry.source.as_deref() == Some("original"))
-                .map(|entry| entry.name.clone())
-                .collect(),
-        )
-    } else {
-        None
-    };
+    let selected_files =
+        if let Some(file_name) = archive_target.archive_path.clone() {
+            let mut files = BTreeSet::new();
+            if !original
+                || manifest
+                    .entries
+                    .get(&file_name)
+                    .and_then(|entry| entry.source.as_deref())
+                    == Some("original")
+            {
+                files.insert(file_name);
+            }
+            Some(files)
+        } else if original {
+            Some(
+                manifest
+                    .entries
+                    .values()
+                    .filter(|entry| entry.source.as_deref() == Some("original"))
+                    .map(|entry| entry.name.clone())
+                    .collect(),
+            )
+        } else {
+            None
+        };
     let verification = verify_against_manifest(
         &item_directory,
         &archive_target.identifier,
@@ -1111,17 +1126,16 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
         bail!("An Internet Archive identifier is required");
     }
 
-    let url_candidate = if trimmed.starts_with("http://")
-        || trimmed.starts_with("https://")
-    {
-        Some(trimmed.to_string())
-    } else if trimmed.starts_with("archive.org/")
-        || trimmed.starts_with("www.archive.org/")
-    {
-        Some(format!("https://{trimmed}"))
-    } else {
-        None
-    };
+    let url_candidate =
+        if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+            Some(trimmed.to_string())
+        } else if trimmed.starts_with("archive.org/")
+            || trimmed.starts_with("www.archive.org/")
+        {
+            Some(format!("https://{trimmed}"))
+        } else {
+            None
+        };
 
     if let Some(url_str) = url_candidate {
         if let Ok(url) = reqwest::Url::parse(&url_str)
@@ -1162,10 +1176,9 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
                     (*first, path_slice)
                 };
 
-                let ident =
-                    percent_encoding::percent_decode_str(ident_segment)
-                        .decode_utf8()
-                        .context("Invalid UTF-8 in identifier")?;
+                let ident = percent_encoding::percent_decode_str(ident_segment)
+                    .decode_utf8()
+                    .context("Invalid UTF-8 in identifier")?;
                 if !is_probable_identifier(&ident) {
                     bail!(
                         "{ident} is not a plausible Internet Archive identifier"
@@ -1793,8 +1806,7 @@ mod tests {
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, Some("sub/file.pdf".to_string()));
 
-        let download_url =
-            "https://archive.org/download/populationschedu1331unix/01%20Track%2001.m4a";
+        let download_url = "https://archive.org/download/populationschedu1331unix/01%20Track%2001.m4a";
         let target = parse_archive_target(download_url).unwrap();
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, Some("01 Track 01.m4a".to_string()));
@@ -1820,8 +1832,7 @@ mod tests {
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, None);
 
-        let www_http_query =
-            "http://www.archive.org/details/populationschedu1331unix?query=1#frag";
+        let www_http_query = "http://www.archive.org/details/populationschedu1331unix?query=1#frag";
         let target = parse_archive_target(www_http_query).unwrap();
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, None);
@@ -1841,8 +1852,8 @@ mod tests {
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, Some("01 Track 01.m4a".to_string()));
 
-        assert!(parse_archive_target("").is_err());
-        assert!(parse_archive_target("https://archive.org/details/").is_err());
-        assert!(parse_archive_target("https://archive.org/").is_err());
+        parse_archive_target("").unwrap_err();
+        parse_archive_target("https://archive.org/details/").unwrap_err();
+        parse_archive_target("https://archive.org/").unwrap_err();
     }
 }

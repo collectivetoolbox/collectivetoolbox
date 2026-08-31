@@ -101,8 +101,8 @@ impl BzipCrc {
         reason = "Bitwise mask fits in u8 and XOR of u8 values is within CRC_TABLE bounds"
     )]
     pub fn update_byte(&mut self, byte: u8) {
-        let shift_val =
-            u8::try_from((self.0 >> 24) & 0xFF).expect("masked byte fits in u8");
+        let shift_val = u8::try_from((self.0 >> 24) & 0xFF)
+            .expect("masked byte fits in u8");
         let idx = usize::from(shift_val ^ byte);
         let entry = CRC_TABLE
             .get(idx)
@@ -141,7 +141,11 @@ pub struct Model {
 
 impl Model {
     /// Initializes a probability model.
-    pub fn new(num_symbols: usize, inc_value: u32, no_exceed: u32) -> Result<Self> {
+    pub fn new(
+        num_symbols: usize,
+        inc_value: u32,
+        no_exceed: u32,
+    ) -> Result<Self> {
         let mut freq = vec![0u32; num_symbols.saturating_add(1)];
         let tot_freq = if inc_value == 0 {
             for slot in freq.iter_mut().skip(1) {
@@ -264,7 +268,10 @@ impl<R: Read> BitReader<R> {
     pub fn read_bit(&mut self) -> Result<u32> {
         if self.bits_left == 0 {
             let mut buf = [0u8; 1];
-            let n = self.reader.read(&mut buf).context("Failed to read from bitstream")?;
+            let n = self
+                .reader
+                .read(&mut buf)
+                .context("Failed to read from bitstream")?;
             if n == 0 {
                 return Ok(0); // Zero-padding on stream termination
             }
@@ -332,7 +339,9 @@ impl<W: Write> BitWriter<W> {
             self.current_byte = 0;
             self.bits_in_buf = 0;
         }
-        self.writer.flush().context("Failed to flush underlying writer")?;
+        self.writer
+            .flush()
+            .context("Failed to flush underlying writer")?;
         Ok(())
     }
 }
@@ -362,32 +371,37 @@ impl<W: Write> ArithEncoder<W> {
         clippy::unwrap_in_result,
         reason = "Validated symbol index bounds and non-zero total frequency invariant"
     )]
-    pub fn encode_symbol(&mut self, model: &mut Model, symbol: usize) -> Result<()> {
+    pub fn encode_symbol(
+        &mut self,
+        model: &mut Model,
+        symbol: usize,
+    ) -> Result<()> {
         if symbol == 0 || symbol > model.num_symbols {
-            bail!("Symbol index {symbol} out of range for model of size {}", model.num_symbols);
+            bail!(
+                "Symbol index {symbol} out of range for model of size {}",
+                model.num_symbols
+            );
         }
 
-        let (l_s, h_s) = if model.inc_value == 0 {
-            let l = u32::try_from(symbol.saturating_sub(1))
-                .expect("symbol bounded by num_symbols <= 256 fits in u32");
-            (l, l.saturating_add(1))
-        } else {
-            let mut l = 0u32;
-            for i in 1..symbol {
-                let f = model
-                    .freq
-                    .get(i)
-                    .copied()
-                    .expect("i is within 1..symbol bound of model.freq");
-                l = l.saturating_add(f);
-            }
-            let freq_s = model
-                .freq
-                .get(symbol)
-                .copied()
-                .expect("symbol is within 1..=num_symbols bound of model.freq");
-            (l, l.saturating_add(freq_s))
-        };
+        let (l_s, h_s) =
+            if model.inc_value == 0 {
+                let l = u32::try_from(symbol.saturating_sub(1))
+                    .expect("symbol bounded by num_symbols <= 256 fits in u32");
+                (l, l.saturating_add(1))
+            } else {
+                let mut l = 0u32;
+                for i in 1..symbol {
+                    let f =
+                        model.freq.get(i).copied().expect(
+                            "i is within 1..symbol bound of model.freq",
+                        );
+                    l = l.saturating_add(f);
+                }
+                let freq_s = model.freq.get(symbol).copied().expect(
+                    "symbol is within 1..=num_symbols bound of model.freq",
+                );
+                (l, l.saturating_add(freq_s))
+            };
         let t = model.tot_freq;
         if t == 0 {
             bail!("Arithmetic encoder total frequency is zero");
@@ -432,13 +446,21 @@ impl<W: Write> ArithEncoder<W> {
     }
 
     /// Encodes a raw 8-bit byte via `bogusModel`.
-    pub fn encode_byte(&mut self, byte: u8, bogus_model: &mut Model) -> Result<()> {
+    pub fn encode_byte(
+        &mut self,
+        byte: u8,
+        bogus_model: &mut Model,
+    ) -> Result<()> {
         let sym = usize::from(byte).saturating_add(1);
         self.encode_symbol(bogus_model, sym)
     }
 
     /// Encodes a 32-bit integer as 4 big-endian bytes via `bogusModel`.
-    pub fn encode_u32(&mut self, val: u32, bogus_model: &mut Model) -> Result<()> {
+    pub fn encode_u32(
+        &mut self,
+        val: u32,
+        bogus_model: &mut Model,
+    ) -> Result<()> {
         for b in val.to_be_bytes() {
             self.encode_byte(b, bogus_model)?;
         }
@@ -518,11 +540,10 @@ impl<R: Read> ArithDecoder<R> {
             let mut h = 0u32;
 
             for i in 1..=model.num_symbols {
-                let f = model
-                    .freq
-                    .get(i)
-                    .copied()
-                    .expect("i is within 1..=num_symbols bound of model.freq");
+                let f =
+                    model.freq.get(i).copied().expect(
+                        "i is within 1..=num_symbols bound of model.freq",
+                    );
                 let next_cum = cum.saturating_add(f);
                 if target < next_cum {
                     sym = i;
@@ -555,7 +576,8 @@ impl<R: Read> ArithDecoder<R> {
     /// Decodes a raw 8-bit byte via `bogusModel`.
     pub fn decode_byte(&mut self, bogus_model: &mut Model) -> Result<u8> {
         let sym = self.decode_symbol(bogus_model)?;
-        u8::try_from(sym.saturating_sub(1)).context("Byte decoding conversion error")
+        u8::try_from(sym.saturating_sub(1))
+            .context("Byte decoding conversion error")
     }
 
     /// Decodes a 32-bit integer as 4 big-endian bytes via `bogusModel`.
@@ -614,9 +636,9 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
         }
 
         sa.sort_unstable_by_key(|&idx| {
-            keys.get(idx)
-                .copied()
-                .expect("idx is an element of sa (0..n), within bounds of keys vector")
+            keys.get(idx).copied().expect(
+                "idx is an element of sa (0..n), within bounds of keys vector",
+            )
         });
 
         let mut cur_rank = 0u32;
@@ -645,7 +667,9 @@ pub fn forward_bwt(block: &[u8]) -> Result<(Vec<u8>, usize)> {
             }
         }
         rank.copy_from_slice(&new_rank);
-        if usize::try_from(cur_rank).expect("cur_rank <= n fits in usize") == n.saturating_sub(1) {
+        if usize::try_from(cur_rank).expect("cur_rank <= n fits in usize")
+            == n.saturating_sub(1)
+        {
             break;
         }
         k = k.saturating_mul(2);
@@ -720,17 +744,15 @@ pub fn inverse_bwt(l: &[u8], orig_ptr: usize) -> Result<Vec<u8>> {
     let mut block = vec![0u8; n];
     let mut curr = orig_ptr;
     for j in (0..n).rev() {
-        let ch = l
-            .get(curr)
-            .copied()
-            .ok_or_else(|| anyhow!("Index out of bounds in BWT reconstruction"))?;
+        let ch = l.get(curr).copied().ok_or_else(|| {
+            anyhow!("Index out of bounds in BWT reconstruction")
+        })?;
         if let Some(slot) = block.get_mut(j) {
             *slot = ch;
         }
-        curr = t
-            .get(curr)
-            .copied()
-            .ok_or_else(|| anyhow!("Index out of bounds in BWT pointer vector"))?;
+        curr = t.get(curr).copied().ok_or_else(|| {
+            anyhow!("Index out of bounds in BWT pointer vector")
+        })?;
     }
     Ok(block)
 }
@@ -764,7 +786,8 @@ pub fn apply_spotting_compression(block: &mut [u8]) {
             _ => 1,
         };
         delta = newdelta;
-        let step = 8000i32.saturating_add(17i32.saturating_mul(delta.saturating_sub(5)));
+        let step = 8000i32
+            .saturating_add(17i32.saturating_mul(delta.saturating_sub(5)));
         let step_usize = if step <= 0 {
             1usize
         } else {
@@ -803,7 +826,8 @@ pub fn apply_spotting_decompression(block: &mut [u8]) {
             _ => 1,
         };
         delta = newdelta;
-        let step = 8000i32.saturating_add(17i32.saturating_mul(delta.saturating_sub(5)));
+        let step = 8000i32
+            .saturating_add(17i32.saturating_mul(delta.saturating_sub(5)));
         let step_usize = if step <= 0 {
             1usize
         } else {
@@ -827,7 +851,7 @@ fn encode_zero_run<W: Write>(
     let mut num_tokens = 0u32;
     while k != 0 {
         num_tokens = num_tokens.saturating_add(1);
-        bits = bits << 1;
+        bits <<= 1;
         k = k.saturating_sub(1);
         if (k & 1) == 1 {
             bits |= 1;
@@ -963,7 +987,7 @@ pub fn decode_mtf_block<R: Read>(
             loop {
                 n = n.saturating_mul(2);
                 if token == VAL_RUNA {
-                    n = n | 1;
+                    n |= 1;
                 }
                 n = n.saturating_add(1);
 
@@ -976,9 +1000,12 @@ pub fn decode_mtf_block<R: Read>(
                         .copied()
                         .expect("yy is a fixed-size 256-byte array, first byte always exists");
                     if l_column.len().saturating_add(n) > block_limit {
-                        bail!("Decoded block size exceeded limit {block_limit}");
+                        bail!(
+                            "Decoded block size exceeded limit {block_limit}"
+                        );
                     }
-                    l_column.resize(l_column.len().saturating_add(n), head_byte);
+                    l_column
+                        .resize(l_column.len().saturating_add(n), head_byte);
                     next_sym = peek;
                     break;
                 }
@@ -1074,8 +1101,9 @@ pub fn rle1_encode(data: &[u8]) -> Vec<u8> {
             out.push(b);
             out.push(b);
             out.push(b);
-            let count_byte = u8::try_from(run_len.saturating_sub(4))
-                .expect("run_len is bounded by 4..=255, so run_len - 4 fits in u8");
+            let count_byte = u8::try_from(run_len.saturating_sub(4)).expect(
+                "run_len is bounded by 4..=255, so run_len - 4 fits in u8",
+            );
             out.push(count_byte);
         }
         i = i.saturating_add(run_len);
@@ -1127,26 +1155,23 @@ pub fn rle1_decode(
             .get(i)
             .copied()
             .ok_or_else(|| anyhow!("Index out of bounds in RLE1 decode"))?;
-        output.write_all(&[ch]).context("Failed to write decompressed byte")?;
+        output
+            .write_all(&[ch])
+            .context("Failed to write decompressed byte")?;
         crc.update_byte(ch);
         bytes_emitted = bytes_emitted.saturating_add(1);
 
-        if ch_prev != Some(ch) {
-            count = 1;
-            ch_prev = Some(ch);
-        } else {
+        if ch_prev == Some(ch) {
             count = count.saturating_add(1);
             if count == 4 {
                 let rep_idx = i.saturating_add(1);
                 if rep_idx >= limit {
                     bail!("Truncated RLE1 repetition count in block");
                 }
-                let rep = usize::from(
-                    block
-                        .get(rep_idx)
-                        .copied()
-                        .ok_or_else(|| anyhow!("Missing RLE1 repetition byte"))?,
-                );
+                let rep =
+                    usize::from(block.get(rep_idx).copied().ok_or_else(
+                        || anyhow!("Missing RLE1 repetition byte"),
+                    )?);
                 i = rep_idx;
                 if rep > 0 {
                     let fill = vec![ch; rep];
@@ -1154,11 +1179,16 @@ pub fn rle1_decode(
                         .write_all(&fill)
                         .context("Failed to write repeated bytes")?;
                     crc.update(&fill);
-                    bytes_emitted = bytes_emitted
-                        .saturating_add(u64::try_from(rep).expect("rep is at most 255, fits in u64"));
+                    bytes_emitted = bytes_emitted.saturating_add(
+                        u64::try_from(rep)
+                            .expect("rep is at most 255, fits in u64"),
+                    );
                 }
                 count = 0;
             }
+        } else {
+            count = 1;
+            ch_prev = Some(ch);
         }
         i = i.saturating_add(1);
     }
@@ -1167,7 +1197,10 @@ pub fn rle1_decode(
 }
 
 /// Compresses a stream from `reader` into `writer` using the original `bzip` 0.21 format.
-pub fn compress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Result<u64> {
+pub fn compress_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
     compress_stream_with_block_size(reader, writer, DEFAULT_BLOCK_SIZE_100K)
 }
 
@@ -1183,7 +1216,9 @@ pub fn compress_stream_with_block_size(
     block_size_100k: u8,
 ) -> Result<u64> {
     if !(1..=9).contains(&block_size_100k) {
-        bail!("Invalid bzip block size indicator: {block_size_100k}, must be 1..=9");
+        bail!(
+            "Invalid bzip block size indicator: {block_size_100k}, must be 1..=9"
+        );
     }
 
     // Write 4-byte plaintext header: "BZ0" + ('0' + block_size_100k)
@@ -1220,7 +1255,8 @@ pub fn compress_stream_with_block_size(
         apply_spotting_compression(block);
         let (l_col, orig_ptr) = forward_bwt(block)?;
 
-        let orig_i32 = i32::try_from(orig_ptr).context("origPtr conversion overflow")?;
+        let orig_i32 =
+            i32::try_from(orig_ptr).context("origPtr conversion overflow")?;
         let v = if is_final {
             0i32.saturating_sub(orig_i32.saturating_add(1))
         } else {
@@ -1245,20 +1281,18 @@ pub fn compress_stream_with_block_size(
             .expect("i < n verified by loop condition");
         let mut run_len = 1usize;
         while i.saturating_add(run_len) < n
-            && uncompressed_data.get(i.saturating_add(run_len)).copied() == Some(b)
+            && uncompressed_data.get(i.saturating_add(run_len)).copied()
+                == Some(b)
             && run_len < 255
         {
             run_len = run_len.saturating_add(1);
         }
 
-        let run_bytes = if run_len < 4 {
-            run_len
-        } else {
-            5
-        };
+        let run_bytes = if run_len < 4 { run_len } else { 5 };
 
         if !current_block.is_empty()
-            && current_block.len().saturating_add(run_bytes) > allowable_block_size
+            && current_block.len().saturating_add(run_bytes)
+                > allowable_block_size
         {
             encode_block(
                 &mut current_block,
@@ -1286,22 +1320,21 @@ pub fn compress_stream_with_block_size(
         i = i.saturating_add(run_len);
     }
 
-    encode_block(
-        &mut current_block,
-        true,
-        &mut encoder,
-        &mut bogus_model,
-    )?;
+    encode_block(&mut current_block, true, &mut encoder, &mut bogus_model)?;
 
     // Stream CRC-32 written via bogusModel
     encoder.encode_u32(final_crc, &mut bogus_model)?;
     encoder.finish()?;
 
-    u64::try_from(uncompressed_data.len()).map_err(|e| anyhow!("Data length overflow: {e}"))
+    u64::try_from(uncompressed_data.len())
+        .map_err(|e| anyhow!("Data length overflow: {e}"))
 }
 
 /// Decompresses a stream from `reader` into `writer` using the original `bzip` 0.21 format.
-pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Result<u64> {
+pub fn decompress_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
     let mut header = [0u8; 4];
     reader
         .read_exact(&mut header)
@@ -1321,10 +1354,7 @@ pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Res
     };
     if h0 != BZIP_MAGIC[0] || h1 != BZIP_MAGIC[1] || h2 != BZIP_MAGIC[2] {
         bail!(
-            "Invalid bzip magic header: expected 'BZ0', got {:02X}{:02X}{:02X}",
-            h0,
-            h1,
-            h2
+            "Invalid bzip magic header: expected 'BZ0', got {h0:02X}{h1:02X}{h2:02X}"
         );
     }
 
@@ -1352,7 +1382,8 @@ pub fn decompress_stream(reader: &mut impl Read, writer: &mut impl Write) -> Res
             .context("origPtr calculation overflow")?;
 
         let mut models = MtfModelSuite::new()?;
-        let l_column = decode_mtf_block(&mut decoder, &mut models, block_limit)?;
+        let l_column =
+            decode_mtf_block(&mut decoder, &mut models, block_limit)?;
         let n = l_column.len();
 
         if n == 0 {
@@ -1512,7 +1543,8 @@ mod tests {
         )
         .unwrap();
         let mut decompressed = Vec::new();
-        decompress_stream(&mut compressed.as_slice(), &mut decompressed).unwrap();
+        decompress_stream(&mut compressed.as_slice(), &mut decompressed)
+            .unwrap();
         assert_eq!(decompressed, data);
     }
 
@@ -1537,7 +1569,8 @@ mod tests {
         .unwrap();
 
         let mut decompressed = Vec::new();
-        decompress_stream(&mut compressed.as_slice(), &mut decompressed).unwrap();
+        decompress_stream(&mut compressed.as_slice(), &mut decompressed)
+            .unwrap();
         assert_eq!(decompressed, data);
     }
 }

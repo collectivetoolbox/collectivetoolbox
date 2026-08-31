@@ -933,10 +933,17 @@ fn test_legacy_conversions() {
 fn test_dceutils_format_log_error_detection() {
     // 1. Test convert_dc_to_dc_output logging on non-digit payload
     let mut log = crate::FormatLog::default();
-    let dc_out = crate::convert_dc_to_dc_output("114,57,86,93,93,96,18… CDCE decoding error!", &mut log);
+    let dc_out = crate::convert_dc_to_dc_output(
+        "114,57,86,93,93,96,18… CDCE decoding error!",
+        &mut log,
+    );
     assert_eq!(dc_out, "114,57,86,93,93,96,18… CDCE decoding error!");
     assert!(log.has_errors());
-    assert!(log.get_errors().iter().any(|e| e.contains("Non-digit character")));
+    assert!(
+        log.get_errors()
+            .iter()
+            .any(|e| e.contains("Non-digit character"))
+    );
 
     // 2. Test dce_convert_with_log on strict CDCE error
     let (res, log2) = crate::dce_convert_with_log(
@@ -952,23 +959,13 @@ fn test_dceutils_format_log_error_detection() {
     assert!(log2.has_errors());
 
     // 3. Test dce_convert_with_log on invalid format header
-    let err_result = crate::dce_convert_with_log(
-        b"not a dce document",
-        "dce",
-        "dc",
-    );
-    assert!(err_result.is_err());
+    let err_result =
+        crate::dce_convert_with_log(b"not a dce document", "dce", "dc");
+    err_result.unwrap_err();
 
     // 4. Test dce_convert_with_log on valid conversion
-    let (res3, log3) = crate::dce_convert_with_log(
-        b"Hello World!",
-        "utf8",
-        "dc",
-    )
-    .unwrap();
-    assert_eq!(
-        res3,
-        b"114,57,86,93,93,96,18,72,96,99,93,85,19,115"
-    );
+    let (res3, log3) =
+        crate::dce_convert_with_log(b"Hello World!", "utf8", "dc").unwrap();
+    assert_eq!(res3, b"114,57,86,93,93,96,18,72,96,99,93,85,19,115");
     assert!(log3.has_no_errors());
 }

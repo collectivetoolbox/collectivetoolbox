@@ -37,12 +37,7 @@ pub struct CliCompressArgs {
     #[arg(default_value = "-")]
     pub file: PathBuf,
     /// Output file path or - for stdout. Defaults to stdout when input is stdin, or appends the format extension (`<file>.<ext>`) for file input.
-    #[arg(
-        short = 'o',
-        long = "output",
-        alias = "file",
-        value_name = "OUTPUT"
-    )]
+    #[arg(short = 'o', long = "output", alias = "file", value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
     /// Force overwrite existing destination file without confirmation.
     #[arg(long = "force")]
@@ -100,8 +95,8 @@ pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
     let known_exts = [
         ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2",
         ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl", ".lz4", ".lzma2",
-        ".lzma", ".lzip", ".lz", ".xzip", ".xz", ".zstd", ".zst", ".lzo",
-        ".Z", ".z", ".C",
+        ".lzma", ".lzip", ".lz", ".xzip", ".xz", ".zstd", ".zst", ".lzo", ".Z",
+        ".z", ".C",
     ];
     for &ext in &known_exts {
         let is_case_sensitive = ext == ".Z"
@@ -353,8 +348,8 @@ mod tests {
 
     #[ctb_test]
     fn test_cli_compress_execution() {
-        let sample_data = b"Hello, world! This is a test for CLI compression."
-            .to_vec();
+        let sample_data =
+            b"Hello, world! This is a test for CLI compression.".to_vec();
         let read_mock = |_path: &Path| Ok(sample_data.clone());
         let overwrite_mock = |_path: &Path, _force: bool| Ok(true);
 
@@ -405,4 +400,3 @@ mod tests {
         }
     }
 }
-

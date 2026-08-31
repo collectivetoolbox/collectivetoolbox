@@ -17,12 +17,12 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Altura Mac2Win character translation tables.
+//! Altura `Mac2Win` character translation tables.
 //!
-//! Altura Mac2Win is/was a cross-platform compatibility runtime used by
+//! Altura `Mac2Win` is/was a cross-platform compatibility runtime used by
 //! applications such as Panorama for Windows. Internal data in `.pan` files is
 //! stored in Mac OS Roman across platforms; when running on Windows, Altura
-//! Mac2Win uses 128-byte lookup tables (covering bytes `0x80`..=`0xFF`) to
+//! `Mac2Win` uses 128-byte lookup tables (covering bytes `0x80`..=`0xFF`) to
 //! translate between Mac OS Roman and Windows ANSI (Windows-1252).
 //! Some characters that are not shared between the encodings are changed to
 //! different characters when files are transferred between operating systems.
@@ -41,12 +41,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::sync::LazyLock;
 use ctb_utilities::anyhow::anyhow;
+use std::sync::LazyLock;
 
 fn parse_hex_table(file_path: &str) -> Result<[u8; 128]> {
-    let bytes = crate::get_encoding_data(file_path)
-        .ok_or_else(|| anyhow!("Missing Altura Mac2Win data file: {file_path}"))?;
+    let bytes = crate::get_encoding_data(file_path).ok_or_else(|| {
+        anyhow!("Missing Altura Mac2Win data file: {file_path}")
+    })?;
     let text = String::from_utf8(bytes)
         .with_context(|| format!("Data file {file_path} is not valid UTF-8"))?;
 
@@ -59,11 +60,10 @@ fn parse_hex_table(file_path: &str) -> Result<[u8; 128]> {
     );
 
     for (index, token) in tokens.iter().enumerate() {
-        let val = u8::from_str_radix(token, 16)
-            .with_context(|| format!("Invalid hex token '{token}' in {file_path}"))?;
-        let slot = table
-            .get_mut(index)
-            .context("Table index out of bounds")?;
+        let val = u8::from_str_radix(token, 16).with_context(|| {
+            format!("Invalid hex token '{token}' in {file_path}")
+        })?;
+        let slot = table.get_mut(index).context("Table index out of bounds")?;
         *slot = val;
     }
 
@@ -97,10 +97,7 @@ pub fn mac_roman_to_ansi_byte(b: u8) -> u8 {
     } else {
         let idx = usize::from(b.saturating_sub(0x80));
         // Reason for fallback: only the 128 high bytes are remapped; retain others
-        MAC_ROMAN_TO_ANSI
-            .get(idx)
-            .copied()
-            .unwrap_or(b)
+        MAC_ROMAN_TO_ANSI.get(idx).copied().unwrap_or(b)
     }
 }
 
@@ -113,29 +110,20 @@ pub fn ansi_to_mac_roman_byte(b: u8) -> u8 {
     } else {
         let idx = usize::from(b.saturating_sub(0x80));
         // Reason for fallback: only the 128 high bytes are remapped; retain others
-        ANSI_TO_MAC_ROMAN
-            .get(idx)
-            .copied()
-            .unwrap_or(b)
+        ANSI_TO_MAC_ROMAN.get(idx).copied().unwrap_or(b)
     }
 }
 
 /// Translates a slice of Mac OS Roman bytes to Altura Windows ANSI bytes.
 #[must_use]
 pub fn mac_roman_to_ansi(bytes: &[u8]) -> Vec<u8> {
-    bytes
-        .iter()
-        .map(|&b| mac_roman_to_ansi_byte(b))
-        .collect()
+    bytes.iter().map(|&b| mac_roman_to_ansi_byte(b)).collect()
 }
 
 /// Translates a slice of Altura Windows ANSI bytes to Mac OS Roman bytes.
 #[must_use]
 pub fn ansi_to_mac_roman(bytes: &[u8]) -> Vec<u8> {
-    bytes
-        .iter()
-        .map(|&b| ansi_to_mac_roman_byte(b))
-        .collect()
+    bytes.iter().map(|&b| ansi_to_mac_roman_byte(b)).collect()
 }
 
 /// Converts Mac OS Roman bytes into a UTF-8 string from the Windows user

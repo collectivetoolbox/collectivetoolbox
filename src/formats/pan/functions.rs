@@ -104,9 +104,14 @@ pub fn listfiles(_folder: &str, _file_type: &str) -> String {
     String::new()
 }
 
-/// Extracts text between start_tag and end_tag for the N-th occurrence (1-indexed).
+/// Extracts text between `start_tag` and `end_tag` for the N-th occurrence (1-indexed).
 #[must_use]
-pub fn tagdata(text: &str, start_tag: &str, end_tag: &str, occurrence: usize) -> String {
+pub fn tagdata(
+    text: &str,
+    start_tag: &str,
+    end_tag: &str,
+    occurrence: usize,
+) -> String {
     if occurrence == 0 || start_tag.is_empty() {
         return String::new();
     }
@@ -115,7 +120,9 @@ pub fn tagdata(text: &str, start_tag: &str, end_tag: &str, occurrence: usize) ->
     let mut count = 0usize;
 
     while cursor < text.len() {
-        let Some(rel_start) = text.get(cursor..).and_then(|sub| sub.find(start_tag)) else {
+        let Some(rel_start) =
+            text.get(cursor..).and_then(|sub| sub.find(start_tag))
+        else {
             break;
         };
         let tag_start = cursor.saturating_add(rel_start);
@@ -144,9 +151,14 @@ pub fn tagdata(text: &str, start_tag: &str, end_tag: &str, occurrence: usize) ->
     String::new()
 }
 
-/// Extracts all matches between start_tag and end_tag, joined by delim.
+/// Extracts all matches between `start_tag` and `end_tag`, joined by delim.
 #[must_use]
-pub fn tagarray(text: &str, start_tag: &str, end_tag: &str, delim: &str) -> String {
+pub fn tagarray(
+    text: &str,
+    start_tag: &str,
+    end_tag: &str,
+    delim: &str,
+) -> String {
     if start_tag.is_empty() {
         return String::new();
     }
@@ -155,7 +167,9 @@ pub fn tagarray(text: &str, start_tag: &str, end_tag: &str, delim: &str) -> Stri
     let mut cursor = 0usize;
 
     while cursor < text.len() {
-        let Some(rel_start) = text.get(cursor..).and_then(|sub| sub.find(start_tag)) else {
+        let Some(rel_start) =
+            text.get(cursor..).and_then(|sub| sub.find(start_tag))
+        else {
             break;
         };
         let tag_start = cursor.saturating_add(rel_start);
@@ -175,7 +189,9 @@ pub fn tagarray(text: &str, start_tag: &str, end_tag: &str, delim: &str) -> Stri
                 None => "",
             };
             results.push(matched.to_string());
-            cursor = content_start.saturating_add(rel_end).saturating_add(end_tag.len());
+            cursor = content_start
+                .saturating_add(rel_end)
+                .saturating_add(end_tag.len());
         } else {
             results.push(rest.to_string());
             break;
@@ -226,7 +242,12 @@ pub fn replace(text: &str, find: &str, replacement: &str) -> String {
 
 /// Replaces multiple target patterns with their replacements.
 #[must_use]
-pub fn replacemultiple(text: &str, find_list: &str, repl_list: &str, delim: &str) -> String {
+pub fn replacemultiple(
+    text: &str,
+    find_list: &str,
+    repl_list: &str,
+    delim: &str,
+) -> String {
     let finds: Vec<&str> = find_list.split(delim).collect();
     let repls: Vec<&str> = repl_list.split(delim).collect();
 
@@ -352,10 +373,17 @@ pub fn lookup(
         for record in &data.records {
             let match_found = record.fields.iter().any(|f| {
                 f.field_name.eq_ignore_ascii_case(key_field)
-                    && f.value.to_display_string().trim().eq_ignore_ascii_case(key_val.trim())
+                    && f.value
+                        .to_display_string()
+                        .trim()
+                        .eq_ignore_ascii_case(key_val.trim())
             });
             if match_found {
-                if let Some(res_field) = record.fields.iter().find(|f| f.field_name.eq_ignore_ascii_case(result_field)) {
+                if let Some(res_field) = record
+                    .fields
+                    .iter()
+                    .find(|f| f.field_name.eq_ignore_ascii_case(result_field))
+                {
                     return res_field.value.to_display_string();
                 }
             }

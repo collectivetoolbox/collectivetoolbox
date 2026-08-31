@@ -72,10 +72,7 @@ pub fn prefers_markdown(headers: &HeaderMap) -> bool {
                 Some((m, p)) => (m.trim().to_ascii_lowercase(), p),
                 None => (item.trim().to_ascii_lowercase(), ""),
             };
-            let q = match parse_qvalue(params) {
-                Some(v) => v,
-                None => 1.0,
-            };
+            let q = parse_qvalue(params).unwrap_or(1.0);
 
             if mime == "text/markdown" || mime == "text/x-markdown" {
                 markdown_q = Some(match markdown_q {
@@ -106,7 +103,10 @@ pub fn prefers_markdown(headers: &HeaderMap) -> bool {
 fn is_html_response(headers: &HeaderMap) -> bool {
     if let Some(ct) = headers.get(header::CONTENT_TYPE) {
         if let Ok(ct_str) = ct.to_str() {
-            return ct_str.trim_start().to_ascii_lowercase().starts_with("text/html");
+            return ct_str
+                .trim_start()
+                .to_ascii_lowercase()
+                .starts_with("text/html");
         }
     }
     false
@@ -137,7 +137,9 @@ fn build_markdown_response(
     let mut vary_has_accept = false;
     for vary_val in headers.get_all(header::VARY) {
         if let Ok(v) = vary_val.to_str() {
-            if v.split(',').any(|p| p.trim().eq_ignore_ascii_case("accept")) {
+            if v.split(',')
+                .any(|p| p.trim().eq_ignore_ascii_case("accept"))
+            {
                 vary_has_accept = true;
                 break;
             }
@@ -162,7 +164,9 @@ pub async fn markdown_negotiation_middleware(
         return resp;
     }
 
-    if let Some(original_md) = resp.extensions().get::<crate::OriginalMarkdown>() {
+    if let Some(original_md) =
+        resp.extensions().get::<crate::OriginalMarkdown>()
+    {
         return build_markdown_response(
             resp.status(),
             resp.headers(),
@@ -171,10 +175,13 @@ pub async fn markdown_negotiation_middleware(
     }
 
     let (parts, body) = resp.into_parts();
-    let body_bytes = match axum::body::to_bytes(body, MAX_HTML_BODY_BYTES).await {
+    let body_bytes = match axum::body::to_bytes(body, MAX_HTML_BODY_BYTES).await
+    {
         Ok(bytes) => bytes,
         Err(e) => {
-            warn_fmt!("Failed reading HTML response body for Markdown negotiation: {e}");
+            warn_fmt!(
+                "Failed reading HTML response body for Markdown negotiation: {e}"
+            );
             // Reason for fallback: Response builder produces default response if empty body cannot be constructed.
             return Response::builder()
                 .status(parts.status)
@@ -186,7 +193,9 @@ pub async fn markdown_negotiation_middleware(
     let md_bytes = match html2md(body_bytes.to_vec()) {
         Ok(md) => md,
         Err(e) => {
-            warn_fmt!("Failed converting HTML to Markdown in negotiation middleware: {e}");
+            warn_fmt!(
+                "Failed converting HTML to Markdown in negotiation middleware: {e}"
+            );
             body_bytes.to_vec()
         }
     };
@@ -208,8 +217,8 @@ mod tests {
     use axum::body::Body;
     use axum::http::Request;
     use axum::response::Html;
-    use axum::routing::get;
     use axum::response::IntoResponse;
+    use axum::routing::get;
     use axum::{Router, middleware};
     use tower::ServiceExt;
 
@@ -218,7 +227,10 @@ mod tests {
         let mut h = HeaderMap::new();
         assert!(!prefers_markdown(&h));
 
-        h.insert(header::ACCEPT, HeaderValue::from_static("text/html,application/xhtml+xml"));
+        h.insert(
+            header::ACCEPT,
+            HeaderValue::from_static("text/html,application/xhtml+xml"),
+        );
         assert!(!prefers_markdown(&h));
 
         h.insert(header::ACCEPT, HeaderValue::from_static("text/markdown"));
@@ -227,23 +239,37 @@ mod tests {
         h.insert(header::ACCEPT, HeaderValue::from_static("text/x-markdown"));
         assert!(prefers_markdown(&h));
 
-        h.insert(header::ACCEPT, HeaderValue::from_static("text/markdown;q=0.9, text/html;q=0.8"));
+        h.insert(
+            header::ACCEPT,
+            HeaderValue::from_static("text/markdown;q=0.9, text/html;q=0.8"),
+        );
         assert!(prefers_markdown(&h));
 
-        h.insert(header::ACCEPT, HeaderValue::from_static("text/html;q=1.0, text/markdown;q=0.5"));
+        h.insert(
+            header::ACCEPT,
+            HeaderValue::from_static("text/html;q=1.0, text/markdown;q=0.5"),
+        );
         assert!(!prefers_markdown(&h));
 
-        h.insert(header::ACCEPT, HeaderValue::from_static("text/markdown;q=0.0"));
+        h.insert(
+            header::ACCEPT,
+            HeaderValue::from_static("text/markdown;q=0.0"),
+        );
         assert!(!prefers_markdown(&h));
     }
 
     async fn html_endpoint() -> Html<&'static str> {
-        Html("<h1>Title</h1><p>Paragraph with <a href=\"https://example.com\">link</a>.</p>")
+        Html(
+            "<h1>Title</h1><p>Paragraph with <a href=\"https://example.com\">link</a>.</p>",
+        )
     }
 
     async fn md_origin_endpoint() -> Response {
-        let mut resp = Html("<h1>Privacy Policy</h1><p>Rendered HTML</p>").into_response();
-        resp.extensions_mut().insert(crate::OriginalMarkdown(b"# Privacy Policy\n\nOriginal MD".to_vec()));
+        let mut resp =
+            Html("<h1>Privacy Policy</h1><p>Rendered HTML</p>").into_response();
+        resp.extensions_mut().insert(crate::OriginalMarkdown(
+            b"# Privacy Policy\n\nOriginal MD".to_vec(),
+        ));
         resp
     }
 
@@ -299,7 +325,14 @@ mod tests {
             resp.headers().get(header::CONTENT_TYPE).unwrap(),
             "text/markdown; charset=utf-8"
         );
-        assert!(resp.headers().get(header::VARY).unwrap().to_str().unwrap().contains("Accept"));
+        assert!(
+            resp.headers()
+                .get(header::VARY)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("Accept")
+        );
         let body = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
         let text = String::from_utf8(body.to_vec()).unwrap();
         assert!(text.contains("# Title"));

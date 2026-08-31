@@ -160,14 +160,14 @@ pub fn dclist_to_utf8(
                     if classic_dc == DC_START_ENCAPSULATION_UTF8 {
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
-                        #[allow(
+                        #[expect(
                             clippy::expect_used,
                             reason = "j is bounded by dclist.len() loop condition, so dclist.get(j) is in bounds"
                         )]
                         while j < dclist.len() {
-                            let cur_dc = *dclist
-                                .get(j)
-                                .expect("j < dclist.len() guarantees in-bounds access");
+                            let cur_dc = *dclist.get(j).expect(
+                                "j < dclist.len() guarantees in-bounds access",
+                            );
                             if cur_dc >= CLASSIC_DC_OFFSET {
                                 let cur_diff =
                                     cur_dc.saturating_sub(CLASSIC_DC_OFFSET);
@@ -457,12 +457,12 @@ pub fn dclist_from_utf8(
                         } else {
                             remaining = &[];
                         }
+                    } else if let Some(rem) =
+                        remaining.get(pos.saturating_add(end_uuid.len())..)
+                    {
+                        remaining = rem;
                     } else {
-                        if let Some(rem) = remaining.get(pos.saturating_add(end_uuid.len())..) {
-                            remaining = rem;
-                        } else {
-                            remaining = &[];
-                        }
+                        remaining = &[];
                     }
                     continue;
                 }

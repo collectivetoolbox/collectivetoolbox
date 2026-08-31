@@ -63,11 +63,12 @@ pub fn timecode(frames: i64, framerate: i64) -> Result<String> {
     let fps_u = u128::try_from(fps).context("fps")?;
     let total = u128::try_from(frames).context("frames")?;
 
-    let total_seconds = total
-        .checked_div(fps_u)
-        .context("division by fps failed")?;
+    let total_seconds =
+        total.checked_div(fps_u).context("division by fps failed")?;
     let f = i64::try_from(
-        total.checked_rem(fps_u).context("remainder by fps failed")?,
+        total
+            .checked_rem(fps_u)
+            .context("remainder by fps failed")?,
     )
     .context("frame number did not fit into i64")?;
 

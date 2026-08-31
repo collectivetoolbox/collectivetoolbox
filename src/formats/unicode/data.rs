@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Unicode character database querying, property lookup, and dataset loader.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -42,30 +42,36 @@ pub enum UnicodeVersion {
 }
 
 /// Returns the string contents of a file in the UCD asset directory for a given version.
-fn get_ucd_file_for_version(version: UnicodeVersion, name: &str) -> Option<String> {
+fn get_ucd_file_for_version(
+    version: UnicodeVersion,
+    name: &str,
+) -> Option<String> {
     match version {
-        UnicodeVersion::V17_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
-            "data/Unicode/Unicode-17.0.0/UCD/{name}"
-        ))
+        UnicodeVersion::V17_0 => ctb_storage_asset_bundle::get_asset_utf8(
+            &format!("data/Unicode/Unicode-17.0.0/UCD/{name}"),
+        )
         .ok(),
-        UnicodeVersion::V16_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
-            "data/Unicode/Unicode-16.0.0/UCD/{name}"
-        ))
+        UnicodeVersion::V16_0 => ctb_storage_asset_bundle::get_asset_utf8(
+            &format!("data/Unicode/Unicode-16.0.0/UCD/{name}"),
+        )
         .ok(),
-        UnicodeVersion::V15_1 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
-            "data/Unicode/Unicode-15.1.0/UCD/{name}"
-        ))
+        UnicodeVersion::V15_1 => ctb_storage_asset_bundle::get_asset_utf8(
+            &format!("data/Unicode/Unicode-15.1.0/UCD/{name}"),
+        )
         .ok(),
-        UnicodeVersion::V15_0 => ctb_storage_asset_bundle::get_asset_utf8(&format!(
-            "data/Unicode/Unicode-15.0.0/UCD/{name}"
-        ))
+        UnicodeVersion::V15_0 => ctb_storage_asset_bundle::get_asset_utf8(
+            &format!("data/Unicode/Unicode-15.0.0/UCD/{name}"),
+        )
         .ok(),
     }
 }
 
-/// Returns the string contents of a file in the character_descriptions asset directory.
+/// Returns the string contents of a file in the `character_descriptions` asset directory.
 fn get_character_descriptions_file(name: &str) -> Option<String> {
-    ctb_storage_asset_bundle::get_asset_utf8(&format!("data/character_descriptions/{name}")).ok()
+    ctb_storage_asset_bundle::get_asset_utf8(&format!(
+        "data/character_descriptions/{name}"
+    ))
+    .ok()
 }
 
 /// A parsed Unicode block range.
@@ -163,7 +169,10 @@ impl UnicodeDataTables {
     /// Returns true if a code point is an assigned character in Unicode.
     #[must_use]
     pub fn is_assigned(&self, cp: u32) -> bool {
-        if cp > 0x10_FFFF || is_noncharacter(cp) || (0xD800..=0xDFFF).contains(&cp) {
+        if cp > 0x10_FFFF
+            || is_noncharacter(cp)
+            || (0xD800..=0xDFFF).contains(&cp)
+        {
             return false;
         }
         self.char_data.contains_key(&cp)
@@ -209,7 +218,8 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
 
     // 2. Parse NameAliases.txt
     let mut name_aliases: HashMap<u32, NameAliasEntry> = HashMap::new();
-    if let Some(content) = get_ucd_file_for_version(version, "NameAliases.txt") {
+    if let Some(content) = get_ucd_file_for_version(version, "NameAliases.txt")
+    {
         for line in content.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -229,7 +239,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             };
             let entry = name_aliases.entry(cp).or_default();
             match kind.trim() {
-                "correction" => entry.correction = Some(alias.trim().to_string()),
+                "correction" => {
+                    entry.correction = Some(alias.trim().to_string())
+                }
                 "control" => entry.control = Some(alias.trim().to_string()),
                 "abbreviation" => {
                     entry.abbreviation = Some(alias.trim().to_string());
@@ -243,7 +255,8 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
 
     // 3. Parse UnicodeData.txt and NamesList.txt
     let mut char_data: HashMap<u32, UnicodeCharInfo> = HashMap::new();
-    if let Some(content) = get_ucd_file_for_version(version, "UnicodeData.txt") {
+    if let Some(content) = get_ucd_file_for_version(version, "UnicodeData.txt")
+    {
         for line in content.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -317,8 +330,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                     if let Ok(cp) = u32::from_str_radix(hex_str.trim(), 16) {
                         current_cp = Some(cp);
                         let entry = char_data.entry(cp).or_default();
-                        if entry.name.is_empty()
-                            || entry.name.starts_with('<')
+                        if entry.name.is_empty() || entry.name.starts_with('<')
                         {
                             entry.name = name.trim().to_string();
                         }
@@ -367,7 +379,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             };
 
             let desc = desc_part.trim();
-            if let Some(comp_name) = desc.strip_prefix("CJK COMPATIBILITY IDEOGRAPH-") {
+            if let Some(comp_name) =
+                desc.strip_prefix("CJK COMPATIBILITY IDEOGRAPH-")
+            {
                 let comp_hex = comp_name.trim().trim_end_matches(';');
                 if let Ok(comp_cp) = u32::from_str_radix(comp_hex, 16) {
                     let vs_num = if (0xFE00..=0xFE0F).contains(&vs_cp) {
@@ -425,7 +439,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
 
     // 6. Parse Tangut data
     let mut tangut_data: HashMap<u32, TangutEntry> = HashMap::new();
-    if let Some(content) = get_ucd_file_for_version(version, "TangutSources.txt") {
+    if let Some(content) =
+        get_ucd_file_for_version(version, "TangutSources.txt")
+    {
         for line in content.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -453,7 +469,8 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
         }
     }
 
-    if let Some(content) = get_character_descriptions_file("TangutMeanings.csv") {
+    if let Some(content) = get_character_descriptions_file("TangutMeanings.csv")
+    {
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .flexible(true)
@@ -476,7 +493,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
         }
     }
 
-    if let Some(content) = get_character_descriptions_file("TangutSupplementMeanings.csv") {
+    if let Some(content) =
+        get_character_descriptions_file("TangutSupplementMeanings.csv")
+    {
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .flexible(true)
@@ -506,7 +525,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
 
     // 7. Parse DerivedAge.txt to map age version string -> set of code points
     let mut derived_age: HashMap<String, HashSet<u32>> = HashMap::new();
-    if let Some(content) = get_ucd_file_for_version(UnicodeVersion::V17_0, "DerivedAge.txt") {
+    if let Some(content) =
+        get_ucd_file_for_version(UnicodeVersion::V17_0, "DerivedAge.txt")
+    {
         for line in content.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -519,7 +540,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let age_val = rest.split('#').next().unwrap_or("").trim();
             if !age_val.is_empty() {
                 let set = derived_age.entry(age_val.to_string()).or_default();
-                if let Some((start_hex, end_hex)) = range_part.trim().split_once("..") {
+                if let Some((start_hex, end_hex)) =
+                    range_part.trim().split_once("..")
+                {
                     if let (Ok(start), Ok(end)) = (
                         u32::from_str_radix(start_hex.trim(), 16),
                         u32::from_str_radix(end_hex.trim(), 16),
@@ -528,7 +551,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                             set.insert(cp);
                         }
                     }
-                } else if let Ok(cp) = u32::from_str_radix(range_part.trim(), 16) {
+                } else if let Ok(cp) =
+                    u32::from_str_radix(range_part.trim(), 16)
+                {
                     set.insert(cp);
                 }
             }
@@ -549,7 +574,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             // Reason for fallback: line with no comment delimiter uses entire rest segment as property name.
             let prop = rest.split('#').next().unwrap_or("").trim();
             if prop == "Unified_Ideograph" {
-                if let Some((start_hex, end_hex)) = range_part.trim().split_once("..") {
+                if let Some((start_hex, end_hex)) =
+                    range_part.trim().split_once("..")
+                {
                     if let (Ok(start), Ok(end)) = (
                         u32::from_str_radix(start_hex.trim(), 16),
                         u32::from_str_radix(end_hex.trim(), 16),
@@ -558,7 +585,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                             unified_ideographs.insert(cp);
                         }
                     }
-                } else if let Ok(cp) = u32::from_str_radix(range_part.trim(), 16) {
+                } else if let Ok(cp) =
+                    u32::from_str_radix(range_part.trim(), 16)
+                {
                     unified_ideographs.insert(cp);
                 }
             }
@@ -578,13 +607,16 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                 continue;
             };
             // Reason for fallback: line with no comment delimiter has no comment part, using entire rest as script.
-            let (script_part, comment) = rest.split_once('#').unwrap_or((rest, ""));
+            let (script_part, comment) =
+                rest.split_once('#').unwrap_or((rest, ""));
             let script = script_part.trim();
             let comment_trimmed = comment.trim();
 
             if script == "Tangut" {
                 if comment_trimmed.contains("TANGUT IDEOGRAPH-") {
-                    if let Some((start_hex, end_hex)) = range_part.trim().split_once("..") {
+                    if let Some((start_hex, end_hex)) =
+                        range_part.trim().split_once("..")
+                    {
                         if let (Ok(start), Ok(end)) = (
                             u32::from_str_radix(start_hex.trim(), 16),
                             u32::from_str_radix(end_hex.trim(), 16),
@@ -593,14 +625,18 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                                 tangut_ideographs.insert(cp);
                             }
                         }
-                    } else if let Ok(cp) = u32::from_str_radix(range_part.trim(), 16) {
+                    } else if let Ok(cp) =
+                        u32::from_str_radix(range_part.trim(), 16)
+                    {
                         tangut_ideographs.insert(cp);
                     }
                 }
             } else if script == "Khitan_Small_Script"
                 && comment_trimmed.contains("KHITAN SMALL SCRIPT CHARACTER-")
             {
-                if let Some((start_hex, end_hex)) = range_part.trim().split_once("..") {
+                if let Some((start_hex, end_hex)) =
+                    range_part.trim().split_once("..")
+                {
                     if let (Ok(start), Ok(end)) = (
                         u32::from_str_radix(start_hex.trim(), 16),
                         u32::from_str_radix(end_hex.trim(), 16),
@@ -609,7 +645,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                             khitan_characters.insert(cp);
                         }
                     }
-                } else if let Ok(cp) = u32::from_str_radix(range_part.trim(), 16) {
+                } else if let Ok(cp) =
+                    u32::from_str_radix(range_part.trim(), 16)
+                {
                     khitan_characters.insert(cp);
                 }
             }
@@ -650,7 +688,8 @@ pub fn get_tables(version: UnicodeVersion) -> &'static UnicodeDataTables {
 
 /// Table of Khitan Small Script character meanings from KhitanMeanings.csv.
 pub static KHITAN_DATA: LazyLock<HashMap<u32, String>> = LazyLock::new(|| {
-    let Some(content) = get_character_descriptions_file("KhitanMeanings.csv") else {
+    let Some(content) = get_character_descriptions_file("KhitanMeanings.csv")
+    else {
         return HashMap::new();
     };
     let mut map = HashMap::new();
@@ -675,7 +714,7 @@ pub static KHITAN_DATA: LazyLock<HashMap<u32, String>> = LazyLock::new(|| {
     map
 });
 
-/// Unihan reading and definition data from Unihan_Readings.txt.
+/// Unihan reading and definition data from `Unihan_Readings.txt`.
 #[derive(Debug, Default, Clone)]
 pub struct UnihanReadingEntry {
     pub definition: Option<String>,
@@ -718,7 +757,9 @@ pub static UNIHAN_DATA: LazyLock<HashMap<u32, UnihanReadingEntry>> =
             };
             let entry = map.entry(cp).or_default();
             match key.trim() {
-                "kDefinition" => entry.definition = Some(val.trim().to_string()),
+                "kDefinition" => {
+                    entry.definition = Some(val.trim().to_string())
+                }
                 "kMandarin" => entry.mandarin = Some(val.trim().to_string()),
                 "kCantonese" => entry.cantonese = Some(val.trim().to_string()),
                 "kJapanese" | "kJapaneseKun" | "kJapaneseOn" => {
@@ -731,7 +772,9 @@ pub static UNIHAN_DATA: LazyLock<HashMap<u32, UnihanReadingEntry>> =
                         entry.korean = Some(val.trim().to_string());
                     }
                 }
-                "kVietnamese" => entry.vietnamese = Some(val.trim().to_string()),
+                "kVietnamese" => {
+                    entry.vietnamese = Some(val.trim().to_string())
+                }
                 _ => {}
             }
         }

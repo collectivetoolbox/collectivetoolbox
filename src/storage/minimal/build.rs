@@ -29,10 +29,9 @@ use std::path::PathBuf;
     reason = "It is a build script, so panicking seems like an OK way to handle errors."
 )]
 fn main() {
-    let manifest = PathBuf::from(
-        env::var("CARGO_MANIFEST_DIR")
-            .expect("CARGO_MANIFEST_DIR environment variable must be set by Cargo"),
-    );
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect(
+        "CARGO_MANIFEST_DIR environment variable must be set by Cargo",
+    ));
     let workspace = manifest
         .join("../../../")
         .canonicalize()

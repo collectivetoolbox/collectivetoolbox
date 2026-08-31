@@ -495,7 +495,8 @@ impl User {
     }
 
     pub fn local_config(&self) -> Result<UserLocalConfig> {
-        let cache_dir = get_storage_dir().context("Failed to resolve storage directory")?;
+        let cache_dir =
+            get_storage_dir().context("Failed to resolve storage directory")?;
         let user_cache_dir = std::path::Path::new(&cache_dir).join(self.name());
         std::fs::create_dir_all(&user_cache_dir)
             .context("Failed to create per-user cache directory")?;
@@ -512,7 +513,8 @@ impl User {
         }
         let json = std::fs::read_to_string(&config_path)
             .context("Failed to read local_config")?;
-        serde_json::from_str(&json).context("Failed to deserialize local_config")
+        serde_json::from_str(&json)
+            .context("Failed to deserialize local_config")
     }
 
     pub fn create_graph(&mut self, label: &str) -> Result<&Graph> {
@@ -970,8 +972,8 @@ mod tests {
         let password = Password::from_string(TEST_USER_PASS);
 
         // By default, allow_local_account_creation is false
-        let mut settings =
-            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        let mut settings = crate::utilities::pc_settings::PcSettings::load()
+            .unwrap_or_default();
         settings.allow_local_account_creation =
             ctb_utilities::json::maybe_value::MaybeValue::Value(false);
         settings.save()?;
@@ -989,8 +991,8 @@ mod tests {
         User::delete_by_name(name).ok();
         let password = Password::from_string(TEST_USER_PASS);
 
-        let mut settings =
-            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        let mut settings = crate::utilities::pc_settings::PcSettings::load()
+            .unwrap_or_default();
         settings.allow_local_account_creation =
             ctb_utilities::json::maybe_value::MaybeValue::Value(true);
         settings.save()?;
@@ -1005,8 +1007,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_add_non_admin_user_rejects_admin_and_global() -> Result<()> {
-        let mut settings =
-            crate::utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        let mut settings = crate::utilities::pc_settings::PcSettings::load()
+            .unwrap_or_default();
         settings.allow_local_account_creation =
             ctb_utilities::json::maybe_value::MaybeValue::Value(true);
         settings.save()?;

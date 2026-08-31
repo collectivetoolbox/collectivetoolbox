@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Generator for ranges of numbers in various number bases.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -166,7 +166,7 @@ pub fn range_cli_handler(args: &RangeGenArgs) -> Result<String> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -188,8 +188,7 @@ mod tests {
             vec!["0A", "0B", "0C", "0D", "0E", "0F", "10", "11", "12"]
         );
 
-        let formatted =
-            range_format(&range(base::Hex, "0A", "12", "1")?, ", ");
+        let formatted = range_format(&range(base::Hex, "0A", "12", "1")?, ", ");
         assert_eq!(formatted, "0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12");
         Ok(())
     }
@@ -209,10 +208,8 @@ mod tests {
             range_trailing(&range(base::Decimal, "9", "12", "1")?, "\n");
         assert_eq!(formatted, "9\n10\n11\n12\n");
 
-        let formatted2 = range_format_trailing(
-            &range(base::Decimal, "9", "12", "1")?,
-            "\n",
-        );
+        let formatted2 =
+            range_format_trailing(&range(base::Decimal, "9", "12", "1")?, "\n");
         assert_eq!(formatted2, "9\n10\n11\n12\n");
         Ok(())
     }

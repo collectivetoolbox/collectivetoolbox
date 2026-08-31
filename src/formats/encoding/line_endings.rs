@@ -118,13 +118,12 @@ pub fn split_lines_universal(input: &str) -> Vec<&str> {
                 2
             } else if rem.starts_with(NEL) {
                 NEL.len()
-            } else if rem.starts_with(LF)
-                || rem.starts_with(CR)
-                || rem.starts_with(RS)
-            {
-                1
             } else {
-                0
+                usize::from(
+                    rem.starts_with(LF)
+                        || rem.starts_with(CR)
+                        || rem.starts_with(RS),
+                )
             }
         } else {
             0
@@ -163,7 +162,9 @@ pub fn convert_line_endings(input: &str, format: LineEndingFormat) -> String {
     match format.mode {
         TerminationMode::Terminated => {
             let mut result = String::with_capacity(
-                input.len().saturating_add(lines.len().saturating_mul(delim.len())),
+                input
+                    .len()
+                    .saturating_add(lines.len().saturating_mul(delim.len())),
             );
             for line in lines {
                 result.push_str(line);
@@ -178,7 +179,10 @@ pub fn convert_line_endings(input: &str, format: LineEndingFormat) -> String {
 /// Normalizes all line endings in the string to standard POSIX LF (`\n`).
 #[must_use]
 pub fn normalize_to_lf(input: &str) -> String {
-    convert_line_endings(input, LineEndingFormat::terminated(LineEndingKind::Lf))
+    convert_line_endings(
+        input,
+        LineEndingFormat::terminated(LineEndingKind::Lf),
+    )
 }
 
 /// Converts line endings in a string according to a `LineEndingOption` and target encoding.
@@ -348,7 +352,7 @@ mod tests {
                 LineEndingKind::Nl,
             )),
         );
-        assert!(err.is_err());
+        err.unwrap_err();
 
         Ok(())
     }

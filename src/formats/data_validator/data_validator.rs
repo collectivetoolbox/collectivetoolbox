@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Comprehensive table validators and facet splitters for Document Characters (Dcs),
 //! Formats, and Global Graph Layout datasets.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -63,9 +63,9 @@ pub use updater::{
     write_csv_file,
 };
 
+use include_dir::{Dir, include_dir};
 use std::collections::HashSet;
 use std::path::Path;
-use include_dir::{Dir, include_dir};
 
 pub static DCTEXT_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../dctext/data/categories");
@@ -87,7 +87,9 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     let mut report = ValidationReport::new();
 
     // 1. Validate Global Graph Layout table
-    if let Some(file) = STORAGE_MINIMAL_DATA_DIR.get_file("global-graph-layout.csv") {
+    if let Some(file) =
+        STORAGE_MINIMAL_DATA_DIR.get_file("global-graph-layout.csv")
+    {
         validate_layout_table(
             file.contents(),
             "storage/minimal/data/global-graph-layout.csv",
@@ -104,8 +106,10 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     }
 
     // 2. Validate Formats category files
-    let format_rows = validate_all_format_files(&FORMATS_CATEGORIES_DIR, &mut report);
-    let known_format_ids: HashSet<usize> = format_rows.iter().map(|r| r.short_id).collect();
+    let format_rows =
+        validate_all_format_files(&FORMATS_CATEGORIES_DIR, &mut report);
+    let known_format_ids: HashSet<usize> =
+        format_rows.iter().map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
     let dc_rows = validate_all_dc_files(
@@ -131,11 +135,14 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
 }
 
 /// Runs validation directly against live files in a repository directory.
-pub fn validate_all_data_tables_from_repo(repo_root: &Path) -> ValidationReport {
+pub fn validate_all_data_tables_from_repo(
+    repo_root: &Path,
+) -> ValidationReport {
     let mut report = ValidationReport::new();
 
     // 1. Validate Global Graph Layout table
-    let layout_path = repo_root.join("src/storage/minimal/data/global-graph-layout.csv");
+    let layout_path =
+        repo_root.join("src/storage/minimal/data/global-graph-layout.csv");
     if let Ok(bytes) = std::fs::read(&layout_path) {
         validate_layout_table(
             &bytes,
@@ -154,8 +161,10 @@ pub fn validate_all_data_tables_from_repo(repo_root: &Path) -> ValidationReport 
 
     // 2. Validate Formats category files
     let formats_dir = repo_root.join("src/formats/utilities/data/formats");
-    let format_rows = validate_all_format_files_from_disk(&formats_dir, &mut report);
-    let known_format_ids: HashSet<usize> = format_rows.iter().map(|r| r.short_id).collect();
+    let format_rows =
+        validate_all_format_files_from_disk(&formats_dir, &mut report);
+    let known_format_ids: HashSet<usize> =
+        format_rows.iter().map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
     let dc_dir = repo_root.join("src/formats/dctext/data/categories");
@@ -182,7 +191,7 @@ pub fn validate_all_data_tables_from_repo(repo_root: &Path) -> ValidationReport 
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
@@ -198,16 +207,18 @@ mod tests {
     #[crate::ctb_test]
     fn test_validate_all_data_tables_repository() {
         let report = validate_all_data_tables();
-        if report.has_errors() {
-            panic!("Data table validation failed:\n{}", report.format_report());
-        }
+        assert!(
+            !report.has_errors(),
+            "Data table validation failed:\n{}",
+            report.format_report()
+        )
     }
 
     #[crate::ctb_test]
     fn test_validate_rust_identifier() {
-        assert!(validate_rust_identifier("Utf8").is_ok());
-        assert!(validate_rust_identifier("_Valid123").is_ok());
-        assert!(validate_rust_identifier("MyFormat").is_ok());
+        validate_rust_identifier("Utf8").unwrap();
+        validate_rust_identifier("_Valid123").unwrap();
+        validate_rust_identifier("MyFormat").unwrap();
 
         assert!(validate_rust_identifier("").is_err());
         assert!(validate_rust_identifier("123abc").is_err());
@@ -219,13 +230,13 @@ mod tests {
     #[crate::ctb_test]
     fn test_validate_extension_rules() {
         // Plain extensions must have leading dots
-        assert!(validate_extension_entry(".txt").is_ok());
-        assert!(validate_extension_entry(".tar.gz").is_ok());
+        validate_extension_entry(".txt").unwrap();
+        validate_extension_entry(".tar.gz").unwrap();
         assert!(validate_extension_entry("txt").is_err());
 
         // Regex patterns with ~...~
-        assert!(validate_extension_entry(r"~^\._~").is_ok());
-        assert!(validate_extension_entry(r"~/\.AppleDouble/~").is_ok());
+        validate_extension_entry(r"~^\._~").unwrap();
+        validate_extension_entry(r"~/\.AppleDouble/~").unwrap();
         assert!(validate_extension_entry(r"~[invalid regex(+~").is_err());
     }
 
@@ -240,7 +251,8 @@ mod tests {
         assert!(syntax.is_none());
 
         let raw_syntax = ":~ [^248 255]+ 248";
-        let (aliases_s, xrefs_s, decomps_s, syntax_s) = split_dc_aliases_column(raw_syntax);
+        let (aliases_s, xrefs_s, decomps_s, syntax_s) =
+            split_dc_aliases_column(raw_syntax);
         assert!(aliases_s.is_empty());
         assert!(xrefs_s.is_empty());
         assert!(decomps_s.is_empty());
@@ -265,11 +277,16 @@ mod tests {
 
         // Create a simulated in-memory category with gap: Short IDs 0 and 2 (missing 1)
         let csv_data = b"Dc,Short,Name (!=deprecated),comb,bidi,Aa,Type,Script,Aliases,Description,\n1114112,0,Null,0,BN,,Cc,,,, \n1114114,2,Two,0,BN,,Po,,,, \n";
-        let rows = validate_dc_category_file(csv_data, "test/categories/test.csv", &mut report);
+        let rows = validate_dc_category_file(
+            csv_data,
+            "test/categories/test.csv",
+            &mut report,
+        );
         assert_eq!(rows.len(), 2);
 
         // Run gap validation logic
-        let known_dc_ids: HashSet<u32> = rows.iter().map(|r| r.short_id).collect();
+        let known_dc_ids: HashSet<u32> =
+            rows.iter().map(|r| r.short_id).collect();
         if let Some(&max_id) = known_dc_ids.iter().max() {
             let mut missing_ids = Vec::new();
             for id in 0..=max_id {
@@ -314,9 +331,14 @@ mod tests {
             "Script".to_string(),
             "Aliases; >=xref, <=decompos., :=Dc syntax".to_string(),
             "Description".to_string(),
-            "".to_string(),
+            String::new(),
         ];
-        write_csv_file(&repo.join("src/formats/dctext/data/schema.csv"), &dc_schema_header, &[]).unwrap();
+        write_csv_file(
+            &repo.join("src/formats/dctext/data/schema.csv"),
+            &dc_schema_header,
+            &[],
+        )
+        .unwrap();
 
         let fmt_schema_header = vec![
             "Dc".to_string(),
@@ -337,20 +359,95 @@ mod tests {
             "Comments".to_string(),
             "References".to_string(),
         ];
-        write_csv_file(&repo.join("src/formats/utilities/data/schema.csv"), &fmt_schema_header, &[]).unwrap();
+        write_csv_file(
+            &repo.join("src/formats/utilities/data/schema.csv"),
+            &fmt_schema_header,
+            &[],
+        )
+        .unwrap();
 
         // Write category files with AUTO IDs
         let dc_rows = vec![
-            vec!["1114112".to_string(), "0".to_string(), "Null".to_string(), "0".to_string(), "BN".to_string(), "".to_string(), "Cc".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string()],
-            vec!["".to_string(), "AUTO".to_string(), "CustomDc".to_string(), "0".to_string(), "BN".to_string(), "".to_string(), "Po".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string()],
+            vec![
+                "1114112".to_string(),
+                "0".to_string(),
+                "Null".to_string(),
+                "0".to_string(),
+                "BN".to_string(),
+                String::new(),
+                "Cc".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
+            vec![
+                String::new(),
+                "AUTO".to_string(),
+                "CustomDc".to_string(),
+                "0".to_string(),
+                "BN".to_string(),
+                String::new(),
+                "Po".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
         ];
-        write_csv_file(&dc_cats.join("custom.csv"), &dc_schema_header, &dc_rows).unwrap();
+        write_csv_file(
+            &dc_cats.join("custom.csv"),
+            &dc_schema_header,
+            &dc_rows,
+        )
+        .unwrap();
 
         let fmt_rows = vec![
-            vec!["2228224".to_string(), "0".to_string(), "FormatZero".to_string(), "Format Zero".to_string(), "document".to_string(), "".to_string(), ".fz".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "3".to_string(), "3".to_string(), "1".to_string(), "".to_string(), "".to_string(), "".to_string()],
-            vec!["".to_string(), "AUTO".to_string(), "FormatOne".to_string(), "Format One".to_string(), "document".to_string(), "".to_string(), ".fo".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "3".to_string(), "3".to_string(), "1".to_string(), "".to_string(), "".to_string(), "".to_string()],
+            vec![
+                "2228224".to_string(),
+                "0".to_string(),
+                "FormatZero".to_string(),
+                "Format Zero".to_string(),
+                "document".to_string(),
+                String::new(),
+                ".fz".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                "3".to_string(),
+                "3".to_string(),
+                "1".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
+            vec![
+                String::new(),
+                "AUTO".to_string(),
+                "FormatOne".to_string(),
+                "Format One".to_string(),
+                "document".to_string(),
+                String::new(),
+                ".fo".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                "3".to_string(),
+                "3".to_string(),
+                "1".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
         ];
-        write_csv_file(&fmt_cats.join("doc.csv"), &fmt_schema_header, &fmt_rows).unwrap();
+        write_csv_file(
+            &fmt_cats.join("doc.csv"),
+            &fmt_schema_header,
+            &fmt_rows,
+        )
+        .unwrap();
 
         // Run auto assignment
         let dc_stats = assign_and_update_dc_categories(repo).unwrap();
@@ -367,7 +464,10 @@ mod tests {
         assert_eq!(gen_stats.format_records_merged, 2);
 
         // Verify generated DcList.generated.csv contents and order
-        let (dc_gen_hdr, dc_gen_rows) = read_csv_file(&repo.join("src/formats/dctext/data/DcList.generated.csv")).unwrap();
+        let (dc_gen_hdr, dc_gen_rows) = read_csv_file(
+            &repo.join("src/formats/dctext/data/DcList.generated.csv"),
+        )
+        .unwrap();
         assert_eq!(dc_gen_hdr, dc_schema_header);
         assert_eq!(dc_gen_rows.len(), 2);
         assert_eq!(dc_gen_rows[0][0], "1114112");
@@ -376,7 +476,10 @@ mod tests {
         assert_eq!(dc_gen_rows[1][1], "1");
 
         // Verify generated formats.generated.csv contents and order
-        let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(&repo.join("src/formats/utilities/data/formats.generated.csv")).unwrap();
+        let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(
+            &repo.join("src/formats/utilities/data/formats.generated.csv"),
+        )
+        .unwrap();
         assert_eq!(fmt_gen_hdr, fmt_schema_header);
         assert_eq!(fmt_gen_rows.len(), 2);
         assert_eq!(fmt_gen_rows[0][0], "2228224");

@@ -33,7 +33,6 @@ use anyhow::{Context, Result};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-
 fn main() -> Result<()> {
     let repo_root = get_repo_root()?;
     let src_dir = repo_root.join("src");
@@ -111,14 +110,18 @@ fn main() -> Result<()> {
     }
 
     if !unverified_occurrences.is_empty() {
-        println!("\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:");
+        println!(
+            "\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:"
+        );
         for (file, line_num, code) in &unverified_occurrences {
             println!("  {file}:{line_num}: {}", code.trim());
         }
         println!("\nError: Unverified unwrap_or fallbacks found!");
         std::process::exit(1);
     } else {
-        println!("\nSuccess: All unwrap_or fallbacks are verified with domain rationale comments.");
+        println!(
+            "\nSuccess: All unwrap_or fallbacks are verified with domain rationale comments."
+        );
         Ok(())
     }
 }
@@ -155,11 +158,8 @@ impl<'a> FallbackVisitor<'a> {
             .copied()
             .unwrap_or((line_num, line_num));
 
-        let parent_stmt_starts: Vec<usize> = self
-            .stmt_stack
-            .iter()
-            .map(|(start, _)| *start)
-            .collect();
+        let parent_stmt_starts: Vec<usize> =
+            self.stmt_stack.iter().map(|(start, _)| *start).collect();
 
         let call_text = if line_num >= 1 && line_num <= self.lines.len() {
             self.lines[line_num - 1].trim().to_string()
@@ -251,7 +251,6 @@ impl<'ast, 'a> Visit<'ast> for FallbackVisitor<'a> {
         self.stmt_stack.pop();
     }
 
-
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let method_name = node.method.to_string();
         if is_fallback_name(&method_name) {
@@ -326,7 +325,11 @@ fn has_test_attribute(attrs: &[syn::Attribute]) -> bool {
 fn is_fallback_name(name: &str) -> bool {
     matches!(
         name,
-        "unwrap_or" | "unwrap_or_default" | "unwrap_or_else" | "map_or" | "map_or_else"
+        "unwrap_or"
+            | "unwrap_or_default"
+            | "unwrap_or_else"
+            | "map_or"
+            | "map_or_else"
     )
 }
 
@@ -372,8 +375,7 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
     false
 }
 
-const WITHIN_BOUNDS_WARNING: &str =
-    "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar should be used instead.";
+const WITHIN_BOUNDS_WARNING: &str = "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar should be used instead.";
 
 fn check_fallback_warnings(
     rel_path: &str,
@@ -417,7 +419,9 @@ fn is_fallback_reason_start(line: &str) -> bool {
 }
 
 fn contains_within_bounds(text: &str) -> bool {
-    text.to_lowercase().contains("within bounds") || text.to_lowercase().contains("within the bounds") || text.to_lowercase().contains("verified")
+    text.to_lowercase().contains("within bounds")
+        || text.to_lowercase().contains("within the bounds")
+        || text.to_lowercase().contains("verified")
 }
 
 fn has_domain_comment(line: &str) -> bool {
@@ -491,5 +495,3 @@ mod tests {
         assert!(warnings.is_empty());
     }
 }
-
-

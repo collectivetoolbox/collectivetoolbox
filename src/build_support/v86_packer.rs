@@ -335,7 +335,8 @@ fn collect_v86_entries(
         let contents = fs::read(&path)?;
         entries.push(
             ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry::raw(
-                bundle_path, contents,
+                bundle_path,
+                contents,
             ),
         );
     }
@@ -1016,7 +1017,8 @@ mod tests {
         fs::write(temp.join("guix/guix-fs.json"), b"{}").unwrap();
 
         let mut entries = Vec::new();
-        collect_v86_entries(&temp, &temp, &mut entries).expect("collect entries");
+        collect_v86_entries(&temp, &temp, &mut entries)
+            .expect("collect entries");
 
         assert!(
             !entries.iter().any(|e| e.path.contains("arch")),

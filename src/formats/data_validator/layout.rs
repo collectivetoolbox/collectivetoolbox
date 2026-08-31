@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Schema parser and validator for the global graph layout partition table.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -91,50 +91,48 @@ pub fn validate_layout_table(
         let block_name = get_str(3);
         let description = get_str(4);
 
-        if first_str.is_empty() && last_str.is_empty() && block_name.is_empty() {
+        if first_str.is_empty() && last_str.is_empty() && block_name.is_empty()
+        {
             continue;
         }
 
-        let first_id = match first_str.parse::<u128>() {
-            Ok(val) => val,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("First ID in region"),
-                    format!("Invalid integer for First ID: '{first_str}'"),
-                    Some("Must be a non-negative integer"),
-                );
-                continue;
-            }
+        let first_id = if let Ok(val) = first_str.parse::<u128>() {
+            val
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("First ID in region"),
+                format!("Invalid integer for First ID: '{first_str}'"),
+                Some("Must be a non-negative integer"),
+            );
+            continue;
         };
 
-        let last_id = match last_str.parse::<u128>() {
-            Ok(val) => val,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Last ID in region"),
-                    format!("Invalid integer for Last ID: '{last_str}'"),
-                    Some("Must be a non-negative integer"),
-                );
-                continue;
-            }
+        let last_id = if let Ok(val) = last_str.parse::<u128>() {
+            val
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Last ID in region"),
+                format!("Invalid integer for Last ID: '{last_str}'"),
+                Some("Must be a non-negative integer"),
+            );
+            continue;
         };
 
-        let count = match count_str.parse::<u128>() {
-            Ok(val) => val,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Count of IDs in region"),
-                    format!("Invalid integer for Count: '{count_str}'"),
-                    Some("Must be a positive integer"),
-                );
-                continue;
-            }
+        let count = if let Ok(val) = count_str.parse::<u128>() {
+            val
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Count of IDs in region"),
+                format!("Invalid integer for Count: '{count_str}'"),
+                Some("Must be a positive integer"),
+            );
+            continue;
         };
 
         if block_name.is_empty() {
@@ -143,7 +141,9 @@ pub fn validate_layout_table(
                 Some(line_no),
                 Some("Block name"),
                 "Block name cannot be empty",
-                Some("Provide a descriptive name for the graph partition region"),
+                Some(
+                    "Provide a descriptive name for the graph partition region",
+                ),
             );
         }
 
@@ -198,7 +198,9 @@ pub fn validate_layout_table(
 
     // Verify key landmark regions
     if let Some(unicode_row) = rows.first() {
-        if unicode_row.first_id != EXPECTED_UNICODE_START || unicode_row.last_id != EXPECTED_UNICODE_END {
+        if unicode_row.first_id != EXPECTED_UNICODE_START
+            || unicode_row.last_id != EXPECTED_UNICODE_END
+        {
             report.add_error(
                 file_path,
                 Some(unicode_row.line_number),
@@ -213,7 +215,9 @@ pub fn validate_layout_table(
     }
 
     if let Some(dc_row) = rows.get(1) {
-        if dc_row.first_id != EXPECTED_DC_START || dc_row.last_id != EXPECTED_DC_END {
+        if dc_row.first_id != EXPECTED_DC_START
+            || dc_row.last_id != EXPECTED_DC_END
+        {
             report.add_error(
                 file_path,
                 Some(dc_row.line_number),
@@ -228,7 +232,9 @@ pub fn validate_layout_table(
     }
 
     if let Some(fmt_row) = rows.get(2) {
-        if fmt_row.first_id != EXPECTED_FORMAT_START || fmt_row.last_id != EXPECTED_FORMAT_END {
+        if fmt_row.first_id != EXPECTED_FORMAT_START
+            || fmt_row.last_id != EXPECTED_FORMAT_END
+        {
             report.add_error(
                 file_path,
                 Some(fmt_row.line_number),

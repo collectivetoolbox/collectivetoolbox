@@ -222,10 +222,7 @@ pub(crate) fn encodings<'a>(
         .filter_map(move |v| {
             let mut v = v.splitn(2, ';');
             let coding = v.next()?.trim();
-            let encoding = match Encoding::parse(
-                coding,
-                supported_encoding,
-            ) {
+            let encoding = match Encoding::parse(coding, supported_encoding) {
                 Some(encoding) => encoding,
                 None => return None, // ignore unknown encodings
             };

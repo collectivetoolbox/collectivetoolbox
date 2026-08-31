@@ -19,7 +19,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! HTML parsing, plain text rendering, and HTML table extraction utilities.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// A plain-text decorator for html2text that renders links and text without
@@ -38,7 +42,10 @@ impl PlainTextDecorator {
 impl html2text::render::TextDecorator for PlainTextDecorator {
     type Annotation = ();
 
-    fn decorate_link_start(&mut self, _url: &str) -> (String, Self::Annotation) {
+    fn decorate_link_start(
+        &mut self,
+        _url: &str,
+    ) -> (String, Self::Annotation) {
         (String::new(), ())
     }
 
@@ -82,7 +89,11 @@ impl html2text::render::TextDecorator for PlainTextDecorator {
 
     fn decorate_preformat_cont(&self) -> Self::Annotation {}
 
-    fn decorate_image(&mut self, _src: &str, title: &str) -> (String, Self::Annotation) {
+    fn decorate_image(
+        &mut self,
+        _src: &str,
+        title: &str,
+    ) -> (String, Self::Annotation) {
         (title.to_string(), ())
     }
 

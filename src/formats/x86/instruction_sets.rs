@@ -30,7 +30,9 @@ pub(crate) use ctb_utilities::*;
 
 use iced_x86::{Code, Decoder, DecoderOptions};
 use object::read::archive::ArchiveFile;
-use object::{Architecture, File, FileKind, Object, ObjectSection, SectionKind};
+use object::{
+    Architecture, File, FileKind, Object, ObjectSection, SectionKind,
+};
 use std::collections::BTreeSet;
 
 /// Extracts a sorted, deduplicated list of CPU instruction set names (e.g.
@@ -49,36 +51,34 @@ pub fn extract_instruction_sets(data: &[u8]) -> Result<Vec<String>> {
 fn process_data(data: &[u8], features: &mut BTreeSet<String>) -> Result<()> {
     let kind = FileKind::parse(data).context("Failed to parse file format")?;
 
-    match kind {
-        FileKind::Archive => {
-            let archive =
-                ArchiveFile::parse(data).context("Failed to parse archive header")?;
-            for member_result in archive.members() {
-                if let Ok(member) = member_result {
-                    if let Ok(member_data) = member.data(data) {
-                        let _ = process_data(member_data, features);
-                    }
-                }
+    if kind == FileKind::Archive {
+        let archive = ArchiveFile::parse(data)
+            .context("Failed to parse archive header")?;
+        for member in archive.members().flatten() {
+            if let Ok(member_data) = member.data(data) {
+                let _ = process_data(member_data, features);
             }
         }
-        _ => {
-            let file = File::parse(data).context("Failed to parse object file")?;
-            let bitness = match file.architecture() {
-                Architecture::X86_64 | Architecture::X86_64_X32 => 64_u32,
-                Architecture::I386 => 32_u32,
-                _ => return Ok(()),
-            };
+    } else {
+        let file = File::parse(data).context("Failed to parse object file")?;
+        let bitness = match file.architecture() {
+            Architecture::X86_64 | Architecture::X86_64_X32 => 64_u32,
+            Architecture::I386 => 32_u32,
+            _ => return Ok(()),
+        };
 
-            for section in file.sections() {
-                if section.kind() == SectionKind::Text {
-                    if let Ok(section_data) = section.uncompressed_data() {
-                        let decoder =
-                            Decoder::new(bitness, &section_data, DecoderOptions::NONE);
-                        for instr in decoder {
-                            if instr.code() != Code::INVALID {
-                                for cpuid in instr.cpuid_features() {
-                                    features.insert(format!("{cpuid:?}"));
-                                }
+        for section in file.sections() {
+            if section.kind() == SectionKind::Text {
+                if let Ok(section_data) = section.uncompressed_data() {
+                    let decoder = Decoder::new(
+                        bitness,
+                        &section_data,
+                        DecoderOptions::NONE,
+                    );
+                    for instr in decoder {
+                        if instr.code() != Code::INVALID {
+                            for cpuid in instr.cpuid_features() {
+                                features.insert(format!("{cpuid:?}"));
                             }
                         }
                     }
@@ -185,7 +185,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_invalid_file_data() {
         let invalid_data = b"not a valid binary or archive";
-        assert!(extract_instruction_sets(invalid_data).is_err());
+        extract_instruction_sets(invalid_data).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -221,4 +221,3 @@ mod tests {
         assert!(result.contains(&"AVX2".to_string()));
     }
 }
-

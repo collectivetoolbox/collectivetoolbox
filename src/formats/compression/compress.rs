@@ -160,8 +160,9 @@ impl<W: Write> LzwBitWriter<W> {
             clippy::expect_used,
             reason = "Division by constant 8 is non-zero and cannot fail"
         )]
-        let final_bytes =
-            (self.posbits.saturating_add(7)).checked_div(8).expect("8 is non-zero");
+        let final_bytes = (self.posbits.saturating_add(7))
+            .checked_div(8)
+            .expect("8 is non-zero");
         self.buffer.truncate(final_bytes);
         self.writer
             .write_all(&self.buffer)
@@ -192,7 +193,7 @@ impl<'a> LzwBitReader<'a> {
         }
     }
 
-    #[allow(
+    #[expect(
         clippy::expect_used,
         reason = "Infallible constant divisor, range bounds, and shift range invariants in read_code"
     )]
@@ -202,7 +203,12 @@ impl<'a> LzwBitReader<'a> {
             return Ok(None);
         }
 
-        let b0 = u64::from(*self.data.get(byte_pos).expect("byte_pos < self.data.len() checked above"));
+        let b0 = u64::from(
+            *self
+                .data
+                .get(byte_pos)
+                .expect("byte_pos < self.data.len() checked above"),
+        );
         // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
         let b1 =
             u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
@@ -214,8 +220,13 @@ impl<'a> LzwBitReader<'a> {
             u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
 
         let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        let shift = u32::try_from(self.posbits.checked_rem(8).expect("divisor 8 is non-zero"))?;
-        let mask = (1u64.checked_shl(n_bits).expect("n_bits <= 16 is in u64 shift range")).saturating_sub(1);
+        let shift = u32::try_from(
+            self.posbits.checked_rem(8).expect("divisor 8 is non-zero"),
+        )?;
+        let mask = (1u64
+            .checked_shl(n_bits)
+            .expect("n_bits <= 16 is in u64 shift range"))
+        .saturating_sub(1);
 
         let code = u32::try_from((val >> shift) & mask)?;
         let n_bits_usize = usize::try_from(n_bits)?;
@@ -289,7 +300,7 @@ pub fn compress_lzw_stream(
     let mut maxcode = (1u32
         .checked_shl(n_bits)
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-        .saturating_sub(1);
+    .saturating_sub(1);
 
     let mut total_in = 0u64;
     let mut ent: Option<u32> = None;
@@ -304,7 +315,7 @@ pub fn compress_lzw_stream(
         }
         total_in = total_in.saturating_add(u64::try_from(bytes_read)?);
 
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "bytes_read <= buf.len() guaranteed by std::io::Read"
         )]
@@ -328,13 +339,19 @@ pub fn compress_lzw_stream(
                             dict.insert(key, free_ent);
                             free_ent = free_ent.saturating_add(1);
 
-                            if free_ent > maxcode.saturating_add(1) && n_bits < maxbits {
+                            if free_ent > maxcode.saturating_add(1)
+                                && n_bits < maxbits
+                            {
                                 bit_writer.align_block(n_bits)?;
                                 n_bits = n_bits.saturating_add(1);
                                 maxcode = (1u32
                                     .checked_shl(n_bits)
-                                    .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-                                    .saturating_sub(1);
+                                    .ok_or_else(|| {
+                                        anyhow::anyhow!(
+                                            "n_bits {n_bits} exceeds 31 bits"
+                                        )
+                                    })?)
+                                .saturating_sub(1);
                             }
                         } else if block_mode {
                             bit_writer.write_code(CLEAR_CODE, n_bits)?;
@@ -342,10 +359,14 @@ pub fn compress_lzw_stream(
                             dict.clear();
                             free_ent = FIRST_FREE_BLOCK;
                             n_bits = INIT_BITS;
-                            maxcode = (1u32
-                                .checked_shl(n_bits)
-                                .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-                                .saturating_sub(1);
+                            maxcode = (1u32.checked_shl(n_bits).ok_or_else(
+                                || {
+                                    anyhow::anyhow!(
+                                        "n_bits {n_bits} exceeds 31 bits"
+                                    )
+                                },
+                            )?)
+                            .saturating_sub(1);
                         }
 
                         ent = Some(u32::from(byte));
@@ -452,7 +473,7 @@ pub fn decompress_lzw_stream(
     let mut maxcode = (1u32
         .checked_shl(n_bits)
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-        .saturating_sub(1);
+    .saturating_sub(1);
 
     let mut oldcode: i32 = -1;
     let mut finchar: u8 = 0;
@@ -487,10 +508,10 @@ pub fn decompress_lzw_stream(
             free_ent = FIRST_FREE_BLOCK;
             bit_reader.align_block(n_bits)?;
             n_bits = INIT_BITS;
-            maxcode = (1u32
-                .checked_shl(n_bits)
-                .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-                .saturating_sub(1);
+            maxcode = (1u32.checked_shl(n_bits).ok_or_else(|| {
+                anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits")
+            })?)
+            .saturating_sub(1);
             oldcode = -1;
             continue;
         }
@@ -562,10 +583,10 @@ pub fn decompress_lzw_stream(
             if free_ent > maxcode && n_bits < maxbits {
                 bit_reader.align_block(n_bits)?;
                 n_bits = n_bits.saturating_add(1);
-                maxcode = (1u32
-                    .checked_shl(n_bits)
-                    .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-                    .saturating_sub(1);
+                maxcode = (1u32.checked_shl(n_bits).ok_or_else(|| {
+                    anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits")
+                })?)
+                .saturating_sub(1);
             }
         }
 
@@ -620,7 +641,7 @@ mod tests {
                     format,
                     sample.len(),
                     decompressed.len()
-                )
+                );
             }
         }
     }

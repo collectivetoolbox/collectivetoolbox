@@ -35,14 +35,12 @@ use ctb_formats_stagel::convert::run_stagel_bootstrap_convert;
 use ctb_utilities::json::maybe_value::MaybeOption;
 use std::path::PathBuf;
 
-use ctb_formats_math::cli::{
-    BaseArgs, run_base2base, run_base_convert,
-};
 use crate::utilities::{
     fork, get_this_executable, upgrade_in_place,
     wait_for_ctoolbox_exit_and_clean_up,
 };
 use crate::{StringInput, generate_help_bytes};
+use ctb_formats_math::cli::{BaseArgs, run_base_convert, run_base2base};
 
 /// Return true if this is a command that can be run without booting.
 pub fn is_lightweight_command(command: &str) -> bool {
@@ -283,7 +281,7 @@ pub enum Command {
         #[arg(long)]
         port: u16,
     },
-    /// Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
+    /// Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
     #[command(
         name = "base2base",
         after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --output-alphabet base64_standard\n  A B / BA D/"
@@ -391,9 +389,7 @@ pub enum Command {
         alias = "chardesc",
         after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
     )]
-    CharacterDescription(
-        ctb_formats_dctext::cli::CharacterDescriptionArgs,
-    ),
+    CharacterDescription(ctb_formats_dctext::cli::CharacterDescriptionArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
@@ -482,18 +478,22 @@ pub enum Command {
         /// Name of the macro/procedure to extract
         macro_name: String,
     },
-    /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
+    /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if `macro_name` is provided) and write to stdout
     #[command(name = "panmacro2ast")]
     PanMacro2Ast {
         /// Input character encoding (utf-8, macroman, win-1252 / windows)
-        #[arg(long = "input-encoding", short = 'i', default_value = "macroman")]
+        #[arg(
+            long = "input-encoding",
+            short = 'i',
+            default_value = "macroman"
+        )]
         input_encoding: String,
         /// Output character encoding (utf-8, macroman, win-1252 / windows)
         #[arg(long = "output-encoding", short = 'o', default_value = "utf-8")]
         output_encoding: String,
-        /// Input file path (macro code file, or PAN database file if macro_name is given, or - for stdin)
+        /// Input file path (macro code file, or PAN database file if `macro_name` is given, or - for stdin)
         input_file: PathBuf,
-        /// Optional name of the macro/procedure (if provided, input_file is parsed as a whole .pan database)
+        /// Optional name of the macro/procedure (if provided, `input_file` is parsed as a whole .pan database)
         macro_name: Option<String>,
     },
     /// Convert a PDF file to text output
@@ -909,36 +909,30 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::Hex2Dec {
             string_input,
             base_args,
-        } => {
-            run_base_convert(
-                &Some(16),
-                &Some(10),
-                &string_input.input,
-                base_args,
-            )
-        }
+        } => run_base_convert(
+            &Some(16),
+            &Some(10),
+            &string_input.input,
+            base_args,
+        ),
         Command::Dec2Hex {
             string_input,
             base_args,
-        } => {
-            run_base_convert(
-                &Some(10),
-                &Some(16),
-                &string_input.input,
-                base_args,
-            )
-        }
+        } => run_base_convert(
+            &Some(10),
+            &Some(16),
+            &string_input.input,
+            base_args,
+        ),
         Command::Hexfmt {
             string_input,
             base_args,
-        } => {
-            run_base_convert(
-                &Some(16),
-                &Some(16),
-                &string_input.input,
-                base_args,
-            )
-        }
+        } => run_base_convert(
+            &Some(16),
+            &Some(16),
+            &string_input.input,
+            base_args,
+        ),
         Command::Hex2Bin(args) => {
             let out = ctb_formats_hexdump::cli::execute_cli_hex2bin(
                 args.clone(),
@@ -985,12 +979,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::ShortDc(args) => {
             let output =
-                ctb_formats_dctext::cli_identifiers::execute_cli_short_dc(args)?;
+                ctb_formats_dctext::cli_identifiers::execute_cli_short_dc(
+                    args,
+                )?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::ShortFmt(args) => {
             let output =
-                ctb_formats_dctext::cli_identifiers::execute_cli_short_fmt(args)?;
+                ctb_formats_dctext::cli_identifiers::execute_cli_short_fmt(
+                    args,
+                )?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::Gid(args) => {
@@ -999,14 +997,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::RangeGen(args) => {
-            let output = ctb_formats_math::range_generator::range_cli_handler(args)?;
+            let output =
+                ctb_formats_math::range_generator::range_cli_handler(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::CharacterDescription(args) => {
-            let out = ctb_formats_dctext::cli::execute_cli_character_description(
-                args.clone(),
-                read_file_or_stdin,
-            )?;
+            let out =
+                ctb_formats_dctext::cli::execute_cli_character_description(
+                    args.clone(),
+                    read_file_or_stdin,
+                )?;
             let bytes = match out {
                 Some(b) => b,
                 None => Vec::new(),
@@ -1089,7 +1089,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(
+                        *progress,
+                        *no_progress,
+                    );
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download(
                         target,
@@ -1111,7 +1114,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(
+                        *progress,
+                        *no_progress,
+                    );
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download_here(
                         target,
@@ -1128,7 +1134,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 no_progress,
             } => {
                 let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(*progress, *no_progress);
+                    ctb_utilities::ui::progress::Progress::from_flags(
+                        *progress,
+                        *no_progress,
+                    );
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::checkeddl(
                         target,
@@ -1157,7 +1166,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
-                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                "win" | "windows" | "win1252" | "windows-1252"
+                | "panwindows" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
                 "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
@@ -1205,7 +1215,11 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             })?;
             let filename = input_file
                 .file_stem()
-                .ok_or_else(|| anyhow::anyhow!("Input file path {:?} has no valid file stem", input_file))?
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Input file path {input_file:?} has no valid file stem"
+                    )
+                })?
                 .to_string_lossy();
             let output = ctb_formats_stagel::parse::parse(&data, &filename)?;
             Ok(ToolResult::immediate_ok(output))
@@ -1242,7 +1256,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
-                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                "win" | "windows" | "win1252" | "windows-1252"
+                | "panwindows" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
                 "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
@@ -1251,9 +1266,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
             };
             let output = ctb_formats_pan::output::pan_to_macro_with_encoding(
-                &data,
-                &macro_name,
-                enc,
+                &data, macro_name, enc,
             )?
             .into_bytes();
             Ok(ToolResult::immediate_ok(output))
@@ -1266,14 +1279,16 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         } => {
             let data = read_file_or_stdin(input_file.as_path())?;
             let in_enc = match input_encoding.to_ascii_lowercase().as_str() {
-                "utf-8" | "utf8" => ctb_formats_pan::output::PanCsvEncoding::Utf8,
+                "utf-8" | "utf8" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Utf8
+                }
                 "win" | "windows" | "win1252" | "win-1252" | "windows-1252" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
                 _ => ctb_formats_pan::output::PanCsvEncoding::MacRoman,
             };
             let out_enc = match output_encoding.to_ascii_lowercase().as_str() {
-// FIXME: use short names from formats data library instead of this
+                // FIXME: use short names from formats data library instead of this
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
@@ -1289,8 +1304,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 in_enc,
             )?;
             let output = ctb_formats_pan::output::encode_ast_json_output(
-                &ast_json,
-                out_enc,
+                &ast_json, out_enc,
             )?;
             Ok(ToolResult::immediate_ok(output))
         }
@@ -1621,8 +1635,9 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(escaped.into_bytes()))
         }
         Command::X86InstructionSets { path } => {
-            let data = std::fs::read(path)
-                .with_context(|| format!("Failed to read file: {}", path.display()))?;
+            let data = std::fs::read(path).with_context(|| {
+                format!("Failed to read file: {}", path.display())
+            })?;
             let sets = ctb_formats_x86::extract_instruction_sets(&data)?;
             let mut output = sets.join("\n");
             if !output.is_empty() {
@@ -1674,9 +1689,7 @@ mod tests {
         let sample_file = temp_dir.path().join("dummy.bin");
         std::fs::write(&sample_file, b"not a binary").unwrap();
 
-        let cmd = Command::X86InstructionSets {
-            path: sample_file,
-        };
+        let cmd = Command::X86InstructionSets { path: sample_file };
         assert!(run_lightweight_command(&cmd).await.is_err());
     }
 
@@ -1701,10 +1714,9 @@ mod tests {
 
         // Note: Password comes from stdin or add_non_admin_user directly.
         // Let's test calling add_non_admin_user
-        let password =
-            ctb_utilities::password::Password::from_string(
-                ctb_utilities::password::TEST_USER_PASS,
-            );
+        let password = ctb_utilities::password::Password::from_string(
+            ctb_utilities::password::TEST_USER_PASS,
+        );
         let user = ctb_storage::user::add_non_admin_user(&username, &password)?;
         assert_eq!(user.name(), username);
         assert!(!user.is_admin());

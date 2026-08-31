@@ -114,7 +114,11 @@ impl EiteData {
         Ok(rows.len().saturating_sub(2))
     }
 
-    fn dc_data_get_column(&self, dataset: &str, col_num: usize) -> Result<Vec<String>> {
+    fn dc_data_get_column(
+        &self,
+        dataset: &str,
+        col_num: usize,
+    ) -> Result<Vec<String>> {
         let rows = self
             .data
             .get(dataset)
@@ -266,7 +270,10 @@ pub fn dc_dataset_length(dataset: &str) -> Result<usize> {
     get_eite_data()?.dc_dataset_length(dataset)
 }
 
-pub fn dc_data_get_column(dataset: &str, col_num: usize) -> Result<Vec<String>> {
+pub fn dc_data_get_column(
+    dataset: &str,
+    col_num: usize,
+) -> Result<Vec<String>> {
     get_eite_data()?.dc_data_get_column(dataset, col_num)
 }
 

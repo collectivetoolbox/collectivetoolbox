@@ -111,7 +111,6 @@ pub fn get_asset_utf8(key: &str) -> Result<String> {
     resource_bundle::get_asset_utf8(key)
 }
 
-
 fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
     fn normalize_path(p: &Path) -> PathBuf {
         let mut stack = Vec::new();
@@ -377,7 +376,8 @@ mod tests {
     #[crate::ctb_test]
     fn can_get_help_troff() -> Result<()> {
         assert!(
-            String::from_utf8_lossy(&get_help_troff()?).contains(".SH SYNOPSIS")
+            String::from_utf8_lossy(&get_help_troff()?)
+                .contains(".SH SYNOPSIS")
         );
         Ok(())
     }
@@ -394,8 +394,7 @@ mod tests {
     #[crate::ctb_test]
     fn can_get_help_for_tty() -> Result<()> {
         assert!(
-            String::from_utf8_lossy(&get_help_for_tty(8)?)
-                .contains("## iptio")
+            String::from_utf8_lossy(&get_help_for_tty(8)?).contains("## iptio")
         );
         Ok(())
     }

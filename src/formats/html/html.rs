@@ -101,5 +101,4 @@ mod tests {
         assert!(text_str.contains("> Quote text"));
         Ok(())
     }
-
 }

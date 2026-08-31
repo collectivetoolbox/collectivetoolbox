@@ -29,7 +29,7 @@ SOFTWARE.
 //! Panorama procedures, including variable declarations, assignments,
 //! control flow constructs, commands, function calls, and expressions.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -123,10 +123,7 @@ pub enum PanStatement {
         names: Vec<String>,
     },
     /// Assignment statement: `target = value`
-    Assignment {
-        target: String,
-        value: PanExpr,
-    },
+    Assignment { target: String, value: PanExpr },
     /// If-then-else construct
     If {
         condition: PanExpr,
@@ -265,7 +262,9 @@ fn tokenize(input: &str) -> anyhow::Result<Vec<Token>> {
 
         // Newline
         if c == '\n' || c == '\r' {
-            if c == '\r' && chars.get(idx.saturating_add(1)).copied() == Some('\n') {
+            if c == '\r'
+                && chars.get(idx.saturating_add(1)).copied() == Some('\n')
+            {
                 idx = idx.saturating_add(1);
             }
             if !tokens.last().is_some_and(|t| matches!(t, Token::Newline)) {
@@ -344,11 +343,10 @@ fn tokenize(input: &str) -> anyhow::Result<Vec<Token>> {
                 tokens.push(Token::LessThanOrEqual);
                 idx = idx.saturating_add(2);
                 continue;
-            } else {
-                tokens.push(Token::LessThan);
-                idx = idx.saturating_add(1);
-                continue;
             }
+            tokens.push(Token::LessThan);
+            idx = idx.saturating_add(1);
+            continue;
         }
         if c == '>' {
             let next = chars.get(idx.saturating_add(1)).copied();
@@ -356,11 +354,10 @@ fn tokenize(input: &str) -> anyhow::Result<Vec<Token>> {
                 tokens.push(Token::GreaterThanOrEqual);
                 idx = idx.saturating_add(2);
                 continue;
-            } else {
-                tokens.push(Token::GreaterThan);
-                idx = idx.saturating_add(1);
-                continue;
             }
+            tokens.push(Token::GreaterThan);
+            idx = idx.saturating_add(1);
+            continue;
         }
         if c == '!' && chars.get(idx.saturating_add(1)).copied() == Some('=') {
             tokens.push(Token::NotEquals);
@@ -751,15 +748,14 @@ impl ProcedureParser {
                     }
                     "call" => {
                         self.advance();
-                        let proc_name = if let Some(Token::Identifier(p)) =
-                            self.peek()
-                        {
-                            let name = p.clone();
-                            self.advance();
-                            name
-                        } else {
-                            String::new()
-                        };
+                        let proc_name =
+                            if let Some(Token::Identifier(p)) = self.peek() {
+                                let name = p.clone();
+                                self.advance();
+                                name
+                            } else {
+                                String::new()
+                            };
                         let mut args = Vec::new();
                         while let Some(Token::Comma) = self.peek() {
                             self.advance();
@@ -771,7 +767,9 @@ impl ProcedureParser {
                         }))
                     }
                     _ => {
-                        if let Some(Token::Equals) = self.tokens.get(self.pos.saturating_add(1)) {
+                        if let Some(Token::Equals) =
+                            self.tokens.get(self.pos.saturating_add(1))
+                        {
                             self.advance(); // consume ident
                             self.advance(); // consume '='
                             let value = self.parse_expression()?;
@@ -896,14 +894,22 @@ impl ProcedureParser {
                 Token::LessThan => Some(PanBinaryOp::LessThan),
                 Token::LessThanOrEqual => Some(PanBinaryOp::LessThanOrEqual),
                 Token::GreaterThan => Some(PanBinaryOp::GreaterThan),
-                Token::GreaterThanOrEqual => Some(PanBinaryOp::GreaterThanOrEqual),
-                Token::Identifier(id) if id.eq_ignore_ascii_case("contains") => {
+                Token::GreaterThanOrEqual => {
+                    Some(PanBinaryOp::GreaterThanOrEqual)
+                }
+                Token::Identifier(id)
+                    if id.eq_ignore_ascii_case("contains") =>
+                {
                     Some(PanBinaryOp::Contains)
                 }
-                Token::Identifier(id) if id.eq_ignore_ascii_case("beginswith") => {
+                Token::Identifier(id)
+                    if id.eq_ignore_ascii_case("beginswith") =>
+                {
                     Some(PanBinaryOp::BeginsWith)
                 }
-                Token::Identifier(id) if id.eq_ignore_ascii_case("endswith") => {
+                Token::Identifier(id)
+                    if id.eq_ignore_ascii_case("endswith") =>
+                {
                     Some(PanBinaryOp::EndsWith)
                 }
                 Token::Identifier(id) if id.eq_ignore_ascii_case("matches") => {
@@ -1104,7 +1110,10 @@ until count <= 2
 message "Computed Fibonacci Sequence: " + sequenceOutput
 "#;
         let ast = parse_procedure(code)?;
-        ensure!(!ast.statements.is_empty(), "AST statements should not be empty");
+        ensure!(
+            !ast.statements.is_empty(),
+            "AST statements should not be empty"
+        );
 
         // Verify variable declaration
         let has_decl = ast.statements.iter().any(|s| {
@@ -1116,7 +1125,10 @@ message "Computed Fibonacci Sequence: " + sequenceOutput
                 } if names.len() == 5 && names[0] == "count"
             )
         });
-        ensure!(has_decl, "Expected local variable declaration for fibonacci");
+        ensure!(
+            has_decl,
+            "Expected local variable declaration for fibonacci"
+        );
 
         // Verify loop with until condition
         let has_loop = ast.statements.iter().any(|s| {
@@ -1206,7 +1218,10 @@ endcase
                 } if cases.len() == 2
             )
         });
-        ensure!(has_case, "Expected case statement with 2 cases and default branch");
+        ensure!(
+            has_case,
+            "Expected case statement with 2 cases and default branch"
+        );
 
         Ok(())
     }

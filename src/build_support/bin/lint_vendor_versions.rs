@@ -131,7 +131,9 @@ fn main() -> Result<()> {
         );
     }
     println!();
-    println!("Please consider updating these patched dependencies when appropriate.");
+    println!(
+        "Please consider updating these patched dependencies when appropriate."
+    );
     println!(
         "================================================================================"
     );
@@ -169,8 +171,9 @@ fn parse_args() -> Result<(PathBuf, bool)> {
 /// `ctb-vendored` and `upstream-for-reference`.
 fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
     let mut results = Vec::new();
-    let entries = fs::read_dir(vendor_dir)
-        .with_context(|| format!("failed to read directory {}", vendor_dir.display()))?;
+    let entries = fs::read_dir(vendor_dir).with_context(|| {
+        format!("failed to read directory {}", vendor_dir.display())
+    })?;
 
     for entry in entries {
         let entry = entry?;
@@ -192,7 +195,9 @@ fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
         }
 
         if let Ok(manifest) = parse_manifest(&cargo_toml) {
-            if let Some(pkg_table) = manifest.get("package").and_then(Value::as_table) {
+            if let Some(pkg_table) =
+                manifest.get("package").and_then(Value::as_table)
+            {
                 let name = pkg_table
                     .get("name")
                     .and_then(Value::as_str)
@@ -214,8 +219,9 @@ fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
 }
 
 fn parse_manifest(path: &Path) -> Result<Table> {
-    let text = fs::read_to_string(path)
-        .with_context(|| format!("failed to read manifest {}", path.display()))?;
+    let text = fs::read_to_string(path).with_context(|| {
+        format!("failed to read manifest {}", path.display())
+    })?;
     text.parse::<Table>()
         .with_context(|| format!("failed to parse TOML in {}", path.display()))
 }
@@ -241,7 +247,8 @@ fn fetch_crates_io_version(crate_name: &str) -> Option<String> {
         return None;
     }
 
-    let Ok(resp) = serde_json::from_slice::<CrateResponse>(&output.stdout) else {
+    let Ok(resp) = serde_json::from_slice::<CrateResponse>(&output.stdout)
+    else {
         return None;
     };
 

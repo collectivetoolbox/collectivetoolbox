@@ -61,11 +61,12 @@ pub fn parse_subprocess_cli(
     // Split at POSIX arg separator.
     let (ipc_args, remaining) = match args.iter().position(|a| a == "--") {
         Some(idx) => (
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "idx is index of -- element, so ..idx is in bounds"
             )]
-            args.get(..idx).expect("idx <= args.len() guaranteed by position search"),
+            args.get(..idx)
+                .expect("idx <= args.len() guaranteed by position search"),
             // Reason for fallback:  idx + 1 may exceed args length if "--" is the last element, returning an empty slice for remaining arguments.
             args.get(idx.saturating_add(1)..).unwrap_or(&[]).to_vec(),
         ),

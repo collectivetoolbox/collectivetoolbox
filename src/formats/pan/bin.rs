@@ -77,14 +77,18 @@ enum Command {
     /// Parse a macro to AST JSON and print to stdout.
     Ast {
         /// Input character encoding (utf-8, macroman, win-1252 / windows)
-        #[arg(long = "input-encoding", short = 'i', default_value = "macroman")]
+        #[arg(
+            long = "input-encoding",
+            short = 'i',
+            default_value = "macroman"
+        )]
         input_encoding: String,
         /// Output character encoding (utf-8, macroman, win-1252 / windows)
         #[arg(long = "output-encoding", short = 'o', default_value = "utf-8")]
         output_encoding: String,
-        /// Input file path (macro code file, or PAN database file if macro_name is given)
+        /// Input file path (macro code file, or PAN database file if `macro_name` is given)
         input_file: PathBuf,
-        /// Macro name (optional; if provided, input_file is parsed as a whole .pan database)
+        /// Macro name (optional; if provided, `input_file` is parsed as a whole .pan database)
         macro_name: Option<String>,
     },
 }
@@ -103,10 +107,11 @@ fn main() -> Result<()> {
                 run_startup_procedure,
                 ..Default::default()
             };
-            let output = ctb_formats_pan::output::pan_file_to_csv_with_options_stdout(
-                pan_file.as_path(),
-                &options,
-            )?;
+            let output =
+                ctb_formats_pan::output::pan_file_to_csv_with_options_stdout(
+                    pan_file.as_path(),
+                    &options,
+                )?;
             io::stdout().lock().write_all(&output)?;
         }
         Command::ParseJson { pan_file } => {
@@ -125,7 +130,8 @@ fn main() -> Result<()> {
                 "mac" | "macroman" | "mac-roman" | "macintosh" => {
                     ctb_formats_pan::output::PanCsvEncoding::MacRoman
                 }
-                "win" | "windows" | "win1252" | "windows-1252" | "panwindows" => {
+                "win" | "windows" | "win1252" | "windows-1252"
+                | "panwindows" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
                 _ => ctb_formats_pan::output::PanCsvEncoding::Windows,
@@ -144,7 +150,9 @@ fn main() -> Result<()> {
             macro_name,
         } => {
             let in_enc = match input_encoding.to_ascii_lowercase().as_str() {
-                "utf-8" | "utf8" => ctb_formats_pan::output::PanCsvEncoding::Utf8,
+                "utf-8" | "utf8" => {
+                    ctb_formats_pan::output::PanCsvEncoding::Utf8
+                }
                 "win" | "windows" | "win1252" | "win-1252" | "windows-1252" => {
                     ctb_formats_pan::output::PanCsvEncoding::Windows
                 }
@@ -159,20 +167,20 @@ fn main() -> Result<()> {
                 }
                 _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
             };
-            let input_data = fs::read(input_file.as_path()).with_context(|| {
-                format!(
-                    "Could not read input file: {input_file_display}",
-                    input_file_display = input_file.display()
-                )
-            })?;
+            let input_data =
+                fs::read(input_file.as_path()).with_context(|| {
+                    format!(
+                        "Could not read input file: {input_file_display}",
+                        input_file_display = input_file.display()
+                    )
+                })?;
             let ast_json = ctb_formats_pan::output::panmacro_to_ast_json(
                 &input_data,
                 macro_name.as_deref(),
                 in_enc,
             )?;
             let output = ctb_formats_pan::output::encode_ast_json_output(
-                &ast_json,
-                out_enc,
+                &ast_json, out_enc,
             )?;
             io::stdout().lock().write_all(&output)?;
         }

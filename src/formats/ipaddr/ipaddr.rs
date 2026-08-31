@@ -135,13 +135,16 @@ fn get_regex(regex_type: &RegexType, options: Option<&Options>) -> String {
 
 fn normalize_v6(v6: &str) -> String {
     // remove //... to end-of-line (enable multiline mode so $ matches end of line)
-    static RE_COMMENTS: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        // Reason for fallback: static regex literal r"(?m)\s*//.*$" is provably valid, fallback to "$" matches end of string if compilation fails.
-        Regex::new(r"(?m)\s*//.*$").unwrap_or_else(|_| match Regex::new("$") {
-            Ok(r) => r,
-            Err(_) => unreachable!(),
-        })
-    });
+    static RE_COMMENTS: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| {
+            // Reason for fallback: static regex literal r"(?m)\s*//.*$" is provably valid, fallback to "$" matches end of string if compilation fails.
+            Regex::new(r"(?m)\s*//.*$").unwrap_or_else(|_| {
+                match Regex::new("$") {
+                    Ok(r) => r,
+                    Err(_) => unreachable!(),
+                }
+            })
+        });
     let v6 = RE_COMMENTS.replace_all(v6, "").to_string();
     // remove newlines
     let v6 = v6.replace('\n', "");

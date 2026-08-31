@@ -105,10 +105,7 @@ struct InstallerCli {
     )]
     use_system_tls_validator: bool,
 
-    #[arg(
-        long,
-        help = "Skip CRLite revocation checking for this run only"
-    )]
+    #[arg(long, help = "Skip CRLite revocation checking for this run only")]
     insecure_skip_crlite_check: bool,
 }
 

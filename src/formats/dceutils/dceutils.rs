@@ -279,8 +279,7 @@ fn dce_convert_internal(
                     "This document is not stored using the specified format."
                 )
             })?;
-            let res_bytes =
-                dce_convert_internal(&bin, "3_01a_raw", "dc", log)?;
+            let res_bytes = dce_convert_internal(&bin, "3_01a_raw", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
         "legacy_cdce" => cdce::convert_legacy_cdce_to_dc(data, false, log)?,
@@ -323,9 +322,7 @@ fn dce_convert_internal(
         }
         "dce" => dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned, log),
         "3_0a" => dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned, log),
-        "3_0a_raw" => {
-            dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log)
-        }
+        "3_0a_raw" => dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log),
         "hex_3_0a_raw" => {
             let raw_bytes =
                 dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log)?;
@@ -391,19 +388,21 @@ pub fn convert_dc_to_dc_output(data: &str, log: &mut FormatLog) -> String {
     let first_char = data.chars().next();
     let last_char = data.chars().last();
     // Reason for fallback: empty or non-digit first character evaluates to 0 to mirror PHP casting.
-    let first_val = first_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
-        if let Some(c) = first_char {
-            log.error(&format!("Non-digit character '{c}' in Dc payload"));
-        }
-        0
-    });
+    let first_val =
+        first_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
+            if let Some(c) = first_char {
+                log.error(&format!("Non-digit character '{c}' in Dc payload"));
+            }
+            0
+        });
     // Reason for fallback: empty or non-digit last character evaluates to 0 to mirror PHP casting.
-    let last_val = last_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
-        if let Some(c) = last_char {
-            log.error(&format!("Non-digit character '{c}' in Dc payload"));
-        }
-        0
-    });
+    let last_val =
+        last_char.and_then(|c| c.to_digit(10)).unwrap_or_else(|| {
+            if let Some(c) = last_char {
+                log.error(&format!("Non-digit character '{c}' in Dc payload"));
+            }
+            0
+        });
 
     if !data.starts_with("114") && first_val != 0 && last_val != 0 {
         format!("114,{data},115")
@@ -413,4 +412,3 @@ pub fn convert_dc_to_dc_output(data: &str, log: &mut FormatLog) -> String {
         data.to_string()
     }
 }
-

@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
-//! JSDoc comment parser and documentation extraction utilities.
+//! `JSDoc` comment parser and documentation extraction utilities.
 
 use deno_ast::ParsedSource;
 use deno_ast::SourceRange;
@@ -252,13 +252,17 @@ fn parse_jsdoc_tags(text: &str) -> Vec<ParsedTag> {
                     clippy::expect_used,
                     reason = "first_space_idx is returned by tag_line.find, guaranteeing valid char boundary"
                 )]
-                let name = tag_line.get(..first_space_idx).expect("first_space_idx is returned by tag_line.find");
+                let name = tag_line
+                    .get(..first_space_idx)
+                    .expect("first_space_idx is returned by tag_line.find");
                 current_tag_name = name.to_string();
                 #[expect(
                     clippy::expect_used,
                     reason = "first_space_idx is returned by tag_line.find, guaranteeing valid char boundary"
                 )]
-                let val_slice = tag_line.get(first_space_idx..).expect("first_space_idx is returned by tag_line.find");
+                let val_slice = tag_line
+                    .get(first_space_idx..)
+                    .expect("first_space_idx is returned by tag_line.find");
                 current_tag_value = val_slice.trim().to_string();
             } else {
                 current_tag_name = tag_line.to_string();
@@ -327,7 +331,9 @@ fn get_param_name_from_tag_value(value: &str) -> String {
             clippy::expect_used,
             reason = "eq_idx is returned by param_name.find('=')"
         )]
-        let prefix = param_name.get(..eq_idx).expect("eq_idx is returned by find('=')");
+        let prefix = param_name
+            .get(..eq_idx)
+            .expect("eq_idx is returned by find('=')");
         param_name = prefix;
     }
     param_name.to_string()

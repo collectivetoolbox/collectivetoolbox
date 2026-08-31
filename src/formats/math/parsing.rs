@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Mathematical expression and numeric string tokenization, analysis, and parsing.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -87,10 +87,12 @@ impl PartialEq for NumberValue {
         match (self, other) {
             (Self::Rational(a), Self::Rational(b)) => a == b,
             (Self::Pi, Self::Pi) | (Self::E, Self::E) => true,
-            (Self::Infinity, Self::Infinity) | (Self::NegativeInfinity, Self::NegativeInfinity) => true,
+            (Self::Infinity, Self::Infinity)
+            | (Self::NegativeInfinity, Self::NegativeInfinity) => true,
             (Self::ImaginaryI, Self::ImaginaryI) => true,
             (Self::Imaginary(a), Self::Imaginary(b)) => a == b,
-            (Self::ImaginaryI, Self::Imaginary(b)) | (Self::Imaginary(b), Self::ImaginaryI) => {
+            (Self::ImaginaryI, Self::Imaginary(b))
+            | (Self::Imaginary(b), Self::ImaginaryI) => {
                 b == &Rational::from(1u8)
             }
             _ => false,
@@ -152,9 +154,7 @@ impl NumberValue {
     #[must_use]
     pub fn to_f64(&self) -> f64 {
         match self {
-            Self::Rational(r) => {
-                f64::rounding_from(r, RoundingMode::Nearest).0
-            }
+            Self::Rational(r) => f64::rounding_from(r, RoundingMode::Nearest).0,
             Self::Pi => CONST_PI,
             Self::E => CONST_E,
             Self::Infinity => f64::INFINITY,
@@ -204,7 +204,10 @@ impl ParsedNumber {
                 (false, trimmed)
             };
 
-        ensure!(!s_no_sign.is_empty(), "Cannot parse empty number string after sign");
+        ensure!(
+            !s_no_sign.is_empty(),
+            "Cannot parse empty number string after sign"
+        );
 
         if s_no_sign.eq_ignore_ascii_case("pi") || s_no_sign == "π" {
             return Ok(Self {
@@ -228,7 +231,10 @@ impl ParsedNumber {
                 unit_suffix: None,
             });
         }
-        if s_no_sign == "∞" || s_no_sign.eq_ignore_ascii_case("inf") || s_no_sign.eq_ignore_ascii_case("infinity") {
+        if s_no_sign == "∞"
+            || s_no_sign.eq_ignore_ascii_case("inf")
+            || s_no_sign.eq_ignore_ascii_case("infinity")
+        {
             let val = if is_negative {
                 NumberValue::NegativeInfinity
             } else {
@@ -269,7 +275,8 @@ impl ParsedNumber {
             if !trimmed_coeff.is_empty() {
                 let parsed_coeff = Self::parse(trimmed_coeff, base)?;
                 if let Some(r) = parsed_coeff.to_rational() {
-                    let signed_r = if is_negative { -r.clone() } else { r.clone() };
+                    let signed_r =
+                        if is_negative { -r.clone() } else { r.clone() };
                     return Ok(Self {
                         value: NumberValue::Imaginary(signed_r),
                         base,
@@ -317,10 +324,13 @@ impl ParsedNumber {
             }
         }
 
-        let rational_mag: Rational = if let Some((idx, (num, den))) = vulgar_frac {
+        let rational_mag: Rational = if let Some((idx, (num, den))) =
+            vulgar_frac
+        {
             // Reason for fallback: vulgar fraction starting at index 0 has empty integer prefix.
             let prefix = num_part.get(..idx).unwrap_or("").trim();
-            let frac_rat = Rational::from_naturals(Natural::from(num), Natural::from(den));
+            let frac_rat =
+                Rational::from_naturals(Natural::from(num), Natural::from(den));
             if prefix.is_empty() {
                 int_width = 0;
                 frac_rat
@@ -332,7 +342,10 @@ impl ParsedNumber {
         } else if let Some((prefix, den_str)) = num_part.split_once('⅟') {
             // Fraction numerator one ⅟ (e.g. "⅟2" or "3 ⅟2")
             let den_nat = parse_natural(den_str.trim(), base)?;
-            ensure!(den_nat > Natural::ZERO, "Fraction denominator cannot be zero");
+            ensure!(
+                den_nat > Natural::ZERO,
+                "Fraction denominator cannot be zero"
+            );
             let frac_rat = Rational::from_naturals(Natural::from(1u8), den_nat);
             let trimmed_prefix = prefix.trim();
             if trimmed_prefix.is_empty() {
@@ -346,23 +359,30 @@ impl ParsedNumber {
         } else if base.radix() != 64
             && (num_part.contains('/') || num_part.contains('⁄'))
         {
-            let (num_str, den_str) = if let Some(parts) = num_part.split_once('⁄') {
-                parts
-            } else if let Some(parts) = num_part.split_once('/') {
-                parts
-            } else {
-                unreachable!("contains verified");
-            };
+            let (num_str, den_str) =
+                if let Some(parts) = num_part.split_once('⁄') {
+                    parts
+                } else if let Some(parts) = num_part.split_once('/') {
+                    parts
+                } else {
+                    unreachable!("contains verified");
+                };
 
             let den_nat = parse_natural(den_str.trim(), base)?;
-            ensure!(den_nat > Natural::ZERO, "Fraction denominator cannot be zero");
+            ensure!(
+                den_nat > Natural::ZERO,
+                "Fraction denominator cannot be zero"
+            );
 
             let trimmed_num = num_str.trim();
-            if let Some((int_str, frac_num_str)) = trimmed_num.rsplit_once([' ', '-']) {
+            if let Some((int_str, frac_num_str)) =
+                trimmed_num.rsplit_once([' ', '-'])
+            {
                 let int_nat = parse_natural(int_str.trim(), base)?;
                 let f_num_nat = parse_natural(frac_num_str.trim(), base)?;
                 int_width = int_str.trim().len();
-                Rational::from(int_nat) + Rational::from_naturals(f_num_nat, den_nat)
+                Rational::from(int_nat)
+                    + Rational::from_naturals(f_num_nat, den_nat)
             } else {
                 let f_num_nat = parse_natural(trimmed_num, base)?;
                 int_width = 0;
@@ -392,7 +412,8 @@ impl ParsedNumber {
                 scale_pow *= &radix_nat;
             }
 
-            let fraction_rational = Rational::from_naturals(frac_nat, scale_pow);
+            let fraction_rational =
+                Rational::from_naturals(frac_nat, scale_pow);
             Rational::from(int_nat) + fraction_rational
         } else {
             // Pure integer
@@ -448,11 +469,7 @@ impl ParsedNumber {
                 let (num, den) = scaled.into_numerator_and_denominator();
                 let int_nat = &num / &den;
                 let int_val = Integer::from(int_nat);
-                if is_neg {
-                    Ok(-int_val)
-                } else {
-                    Ok(int_val)
-                }
+                if is_neg { Ok(-int_val) } else { Ok(int_val) }
             }
             _ => {
                 bail!("Cannot convert symbolic constant to scaled integer")
@@ -477,7 +494,9 @@ fn separate_unit_suffix(s: &str, base: Base) -> (&str, Option<String>) {
         let is_fraction_part = trimmed_unit.contains('/')
             || trimmed_unit.contains('⁄')
             || trimmed_unit.starts_with('⅟')
-            || trimmed_unit.chars().all(|c| c.is_ascii_digit() || unicode_vulgar_fraction(c).is_some());
+            || trimmed_unit.chars().all(|c| {
+                c.is_ascii_digit() || unicode_vulgar_fraction(c).is_some()
+            });
         if !trimmed_unit.is_empty() && !is_fraction_part {
             return (num.trim(), Some(trimmed_unit.to_owned()));
         }
@@ -547,7 +566,10 @@ pub fn analyze_input(s: &str) -> ParsedInput {
         }
     } else {
         // Reason for fallback: unsigned numeric strings retain original representation.
-        let s_clean = s.strip_prefix('+').or_else(|| s.strip_prefix('-')).unwrap_or(s);
+        let s_clean = s
+            .strip_prefix('+')
+            .or_else(|| s.strip_prefix('-'))
+            .unwrap_or(s);
         if let Some((int_part, frac_part)) = s_clean.split_once('.') {
             ParsedInput {
                 int_width: int_part.len(),
@@ -648,10 +670,18 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             chars.next();
             continue;
         }
-        if c.is_ascii_digit() || c == '.' || unicode_vulgar_fraction(c).is_some() || c == '⅟' {
+        if c.is_ascii_digit()
+            || c == '.'
+            || unicode_vulgar_fraction(c).is_some()
+            || c == '⅟'
+        {
             let mut num_str = String::new();
             while let Some(&nc) = chars.peek() {
-                if nc.is_ascii_digit() || nc == '.' || unicode_vulgar_fraction(nc).is_some() || nc == '⅟' {
+                if nc.is_ascii_digit()
+                    || nc == '.'
+                    || unicode_vulgar_fraction(nc).is_some()
+                    || nc == '⅟'
+                {
                     num_str.push(nc);
                     chars.next();
                 } else {
@@ -674,7 +704,8 @@ pub fn tokenize_expression(expr: &str) -> Result<Vec<MathToken>> {
             }
             if word.eq_ignore_ascii_case("mod") {
                 tokens.push(MathToken::Modulo);
-            } else if let Ok(parsed) = ParsedNumber::parse(&word, Base::Decimal) {
+            } else if let Ok(parsed) = ParsedNumber::parse(&word, Base::Decimal)
+            {
                 tokens.push(MathToken::Number(parsed));
             } else {
                 bail!("Unknown identifier in expression: {word}");
@@ -849,7 +880,7 @@ pub fn evaluate_expression(expr: &str) -> Result<f64> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -225,7 +225,8 @@ pub unsafe extern "C" fn kill(pid: c_int, sig: c_int) -> c_int {
         return 0;
     }
     // SAFETY: Calling kill syscall.
-    let res = unsafe { syscall2(SYS_KILL, c_long::from(pid), c_long::from(sig)) };
+    let res =
+        unsafe { syscall2(SYS_KILL, c_long::from(pid), c_long::from(sig)) };
     // Reason for fallback: Out-of-range syscall return value defaults to -1 errno.
     c_int::try_from(res).unwrap_or(-1)
 }
@@ -388,9 +389,7 @@ pub unsafe extern "C" fn setresgid(
 )]
 pub unsafe extern "C" fn seteuid(euid: core::ffi::c_uint) -> c_int {
     // SAFETY: Calling setresuid syscall with -1 for ruid and suid.
-    let res = unsafe {
-        syscall3(SYS_SETRESUID, -1, c_long::from(euid), -1)
-    };
+    let res = unsafe { syscall3(SYS_SETRESUID, -1, c_long::from(euid), -1) };
     if res < 0 {
         return 0;
     }
@@ -409,9 +408,7 @@ pub unsafe extern "C" fn seteuid(euid: core::ffi::c_uint) -> c_int {
 )]
 pub unsafe extern "C" fn setegid(egid: core::ffi::c_uint) -> c_int {
     // SAFETY: Calling setresgid syscall with -1 for rgid and sgid.
-    let res = unsafe {
-        syscall3(SYS_SETRESGID, -1, c_long::from(egid), -1)
-    };
+    let res = unsafe { syscall3(SYS_SETRESGID, -1, c_long::from(egid), -1) };
     if res < 0 {
         return 0;
     }
@@ -444,7 +441,7 @@ pub unsafe extern "C" fn setgroups(
     0
 }
 
-/// Intercept `chmod` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `chmod` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -468,7 +465,7 @@ pub unsafe extern "C" fn chmod(
     0
 }
 
-/// Intercept `fchmod` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `fchmod` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -480,16 +477,15 @@ pub unsafe extern "C" fn chmod(
 )]
 pub unsafe extern "C" fn fchmod(fd: c_int, mode: core::ffi::c_uint) -> c_int {
     // SAFETY: Calling fchmod syscall.
-    let res = unsafe {
-        syscall2(SYS_FCHMOD, c_long::from(fd), c_long::from(mode))
-    };
+    let res =
+        unsafe { syscall2(SYS_FCHMOD, c_long::from(fd), c_long::from(mode)) };
     if res < 0 {
         return 0;
     }
     0
 }
 
-/// Intercept `fchmodat` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `fchmodat` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -523,7 +519,7 @@ pub unsafe extern "C" fn fchmodat(
     0
 }
 
-/// Intercept `chown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `chown` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -555,7 +551,7 @@ pub unsafe extern "C" fn chown(
     0
 }
 
-/// Intercept `fchown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `fchown` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -585,7 +581,7 @@ pub unsafe extern "C" fn fchown(
     0
 }
 
-/// Intercept `lchown` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `lchown` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///
@@ -617,7 +613,7 @@ pub unsafe extern "C" fn lchown(
     0
 }
 
-/// Intercept `fchownat` syscall to ignore `EPERM`/`EACCES` AppArmor errors.
+/// Intercept `fchownat` syscall to ignore `EPERM`/`EACCES` `AppArmor` errors.
 ///
 /// # Safety
 ///

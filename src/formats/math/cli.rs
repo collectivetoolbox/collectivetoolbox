@@ -41,7 +41,11 @@ pub enum CliBaseAlphabet {
     Standard,
     /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51, 0-9 = 52..61, + = 62, / = 63),
     /// supporting bases up to 64.
-    #[value(name = "base64_standard", alias = "base64-standard", alias = "base64")]
+    #[value(
+        name = "base64_standard",
+        alias = "base64-standard",
+        alias = "base64"
+    )]
     Base64Standard,
 }
 
@@ -146,11 +150,11 @@ pub struct BaseArgs {
     #[arg(short = 'P', long, default_value_t = 1, conflicts_with("pad"))]
     pub pad_l: u32,
 
-    /// Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard.
+    /// Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard`.
     #[arg(long, value_enum, default_value = "standard")]
     pub input_alphabet: CliBaseAlphabet,
 
-    /// Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard.
+    /// Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard`.
     #[arg(long, value_enum, default_value = "standard")]
     pub output_alphabet: CliBaseAlphabet,
 
@@ -283,8 +287,7 @@ pub fn run_base2base(
             args.get(1)
                 .ok_or_else(|| anyhow!("Missing to_base"))?
                 .parse::<u8>(),
-        )
-    {
+        ) {
         if !(1..=input_max_base).contains(&from) {
             let err_msg = if from > 36 {
                 format!(

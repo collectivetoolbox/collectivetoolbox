@@ -19,7 +19,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! UI Abstractions and Progress Indicators
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 pub mod progress;

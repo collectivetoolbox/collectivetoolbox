@@ -26,9 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::mapping::SingleByteMapping;
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use crate::mapping::SingleByteMapping;
 
 /// Builds a `SingleByteMapping` table from an `encoding_rs::Encoding`.
 pub(crate) fn build_mapping_from_encoding_rs(
@@ -79,7 +79,10 @@ mod tests {
         let encoded = crate::encode(enc, original).unwrap();
         let decoded = crate::decode(enc, &encoded).unwrap();
         assert_eq!(original, decoded);
-        assert_eq!(crate::encode(enc, "caf\u{e9}").unwrap(), vec![99, 97, 102, 142]);
+        assert_eq!(
+            crate::encode(enc, "caf\u{e9}").unwrap(),
+            vec![99, 97, 102, 142]
+        );
     }
 
     #[crate::ctb_test]

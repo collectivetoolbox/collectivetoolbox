@@ -65,7 +65,9 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
 pub fn convert_utf32_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
     let unicode_bytes = ctb_formats_encoding::unicode::utf32be_to_utf8(data)
         .map_err(|_| {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             anyhow!("This document is not stored using the specified format.")
         })?;
 
@@ -88,7 +90,9 @@ pub fn convert_utf8_base64_to_dc(
     })?;
     let decoded =
         ctb_formats_base64::base64_decode(data_str).map_err(|_| {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             anyhow!("This document is not stored using the specified format.")
         })?;
     let dc_bytes = dce_convert(&decoded, "utf8", "dc")?;
@@ -119,7 +123,9 @@ pub fn convert_utf8_dc64_to_dc(
         }
         let b64_bytes =
             ctb_formats_base64::base64_decode(&dcb64).map_err(|_| {
-                log.error("This document is not stored using the specified format.");
+                log.error(
+                    "This document is not stored using the specified format.",
+                );
                 anyhow!(
                     "This document is not stored using the specified format."
                 )
@@ -215,7 +221,9 @@ pub fn convert_utf8_dc64_bin_enc_to_dc(
             .get(2..hex.len().saturating_sub(2))
             .context("substring slice")?;
         let inner_bytes = hex2bin(inner_hex).map_err(|_| {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             anyhow!("This document is not stored using the specified format.")
         })?;
         let dc_bytes = dce_convert(&inner_bytes, "utf8_dc64_bin", "dc")?;

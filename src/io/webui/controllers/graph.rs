@@ -540,7 +540,6 @@ pub async fn post_nodes_publish(
     crate::controllers::base::redirect_temporary(req.is_js_request, &view_url)
 }
 
-
 pub async fn post_publish_node(
     State(state): State<AppState>,
     req: RequestState,
@@ -690,7 +689,15 @@ pub async fn get_nodes_download(
         }
     };
 
-    download_node_response(&state, &req, &token, graph_id, node_id, q.format.as_deref()).await
+    download_node_response(
+        &state,
+        &req,
+        &token,
+        graph_id,
+        node_id,
+        q.format.as_deref(),
+    )
+    .await
 }
 
 pub async fn get_nodes_download_path(
@@ -708,7 +715,15 @@ pub async fn get_nodes_download_path(
         return error_400(&state, &req, "No active session token");
     };
 
-    download_node_response(&state, &req, &token, graph_id, node_id, q.format.as_deref()).await
+    download_node_response(
+        &state,
+        &req,
+        &token,
+        graph_id,
+        node_id,
+        q.format.as_deref(),
+    )
+    .await
 }
 
 async fn download_node_response(
@@ -723,11 +738,7 @@ async fn download_node_response(
         Ok(Some(n)) => n,
         Ok(None) => return error_400(state, req, "Node not found"),
         Err(e) => {
-            return error_400(
-                state,
-                req,
-                format!("Failed to fetch node: {e}"),
-            );
+            return error_400(state, req, format!("Failed to fetch node: {e}"));
         }
     };
 
@@ -758,7 +769,9 @@ async fn download_node_response(
     )) {
         headers.insert(axum::http::header::CONTENT_DISPOSITION, disposition);
     }
-    if let Ok(len_val) = axum::http::HeaderValue::from_str(&bytes.len().to_string()) {
+    if let Ok(len_val) =
+        axum::http::HeaderValue::from_str(&bytes.len().to_string())
+    {
         headers.insert(axum::http::header::CONTENT_LENGTH, len_val);
     }
 

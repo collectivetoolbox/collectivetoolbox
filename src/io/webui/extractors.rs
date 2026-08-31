@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Request extractors and parameter parsers for WebUI endpoints.
+//! Request extractors and parameter parsers for `WebUI` endpoints.
 
 pub mod pagination;
 pub mod request_state;

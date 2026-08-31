@@ -411,7 +411,8 @@ fn print_num(mut val: isize) {
             clippy::expect_used,
             reason = "val.rem_euclid(10) is 0..=9 which always fits in u8"
         )]
-        let digit = u8::try_from(val.rem_euclid(10)).expect("rem_euclid(10) fits in u8");
+        let digit = u8::try_from(val.rem_euclid(10))
+            .expect("rem_euclid(10) fits in u8");
         if let Some(slot) = buf.get_mut(i) {
             *slot = b'0'.saturating_add(digit);
         }

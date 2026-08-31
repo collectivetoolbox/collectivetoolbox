@@ -71,7 +71,7 @@ fn split_spec(spec: &str) -> (String, String, Separator) {
         }
         if !in_quotes && (ch == ',' || ch == ';') {
             let (a, b) = spec.split_at(i);
-            #[allow(
+            #[expect(
                 clippy::expect_used,
                 reason = "b starts with delimiter character ch, so b[ch.len_utf8()..] is in bounds"
             )]
@@ -266,7 +266,7 @@ fn resolve_end_index(n: i64, len: usize) -> Option<usize> {
     Some(len.saturating_sub(1).saturating_sub(back_usize))
 }
 
-#[allow(
+#[expect(
     clippy::expect_used,
     reason = "Caller guarantees start < chars.len(); 1 <= start < chars.len() guarantees in-bounds indexing for start, start - 1, and start - 2"
 )]
@@ -276,7 +276,9 @@ fn adjust_start_for_negated_alnum_run(chars: &[char], start: usize) -> usize {
         return 0;
     }
 
-    let cur = *chars.get(start).expect("start < chars.len() asserted above");
+    let cur = *chars
+        .get(start)
+        .expect("start < chars.len() asserted above");
     if !cur.is_ascii_digit() {
         return start;
     }
@@ -291,9 +293,9 @@ fn adjust_start_for_negated_alnum_run(chars: &[char], start: usize) -> usize {
     let preceded_by_delim = if start < 2 {
         true
     } else {
-        let before_prev = *chars
-            .get(start.saturating_sub(2))
-            .expect("2 <= start < chars.len() guarantees start - 2 is in bounds");
+        let before_prev = *chars.get(start.saturating_sub(2)).expect(
+            "2 <= start < chars.len() guarantees start - 2 is in bounds",
+        );
         before_prev.is_ascii_whitespace() || before_prev == ','
     };
 
