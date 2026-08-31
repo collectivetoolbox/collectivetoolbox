@@ -104,6 +104,12 @@ struct InstallerCli {
         help = "Use the system certificate store for this run only"
     )]
     use_system_tls_validator: bool,
+
+    #[arg(
+        long,
+        help = "Skip CRLite revocation checking for this run only"
+    )]
+    insecure_skip_crlite_check: bool,
 }
 
 /// Entry point for the standalone installer binary.

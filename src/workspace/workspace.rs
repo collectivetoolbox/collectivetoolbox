@@ -179,6 +179,7 @@ impl Default for CtbWorkspace {
                 no_update: false,
                 use_bundled_tls_validator: false,
                 use_system_tls_validator: false,
+                insecure_skip_crlite_check: false,
                 command: None,
             },
         }

@@ -30,6 +30,8 @@ use std::sync::{OnceLock, RwLock};
 
 pub const USE_BUNDLED_TLS_VALIDATOR_FLAG: &str = "--use-bundled-tls-validator";
 pub const USE_SYSTEM_TLS_VALIDATOR_FLAG: &str = "--use-system-tls-validator";
+pub const INSECURE_SKIP_CRLITE_CHECK_FLAG: &str =
+    "--insecure-skip-crlite-check";
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TlsValidatorOverride {
@@ -40,6 +42,7 @@ pub enum TlsValidatorOverride {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub struct InvocationSettings {
     pub tls_validator_override: Option<TlsValidatorOverride>,
+    pub insecure_skip_crlite_check: bool,
 }
 
 fn invocation_settings_lock() -> &'static RwLock<InvocationSettings> {
@@ -80,6 +83,9 @@ impl InvocationSettings {
                         TlsValidatorOverride::System,
                     )?;
                 }
+                INSECURE_SKIP_CRLITE_CHECK_FLAG => {
+                    settings.insecure_skip_crlite_check = true;
+                }
                 _ => {}
             }
         }
@@ -88,7 +94,7 @@ impl InvocationSettings {
     }
 
     pub fn command_line_args(self) -> Vec<String> {
-        match self.tls_validator_override {
+        let mut args = match self.tls_validator_override {
             Some(TlsValidatorOverride::Bundled) => {
                 vec![USE_BUNDLED_TLS_VALIDATOR_FLAG.to_string()]
             }
@@ -96,7 +102,11 @@ impl InvocationSettings {
                 vec![USE_SYSTEM_TLS_VALIDATOR_FLAG.to_string()]
             }
             None => Vec::new(),
+        };
+        if self.insecure_skip_crlite_check {
+            args.push(INSECURE_SKIP_CRLITE_CHECK_FLAG.to_string());
         }
+        args
     }
 
     fn set_tls_validator_override(
@@ -127,4 +137,48 @@ pub fn apply_command_line_args(args: &[String]) -> Result<InvocationSettings> {
 
 pub fn get_settings() -> InvocationSettings {
     *read_settings()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        InvocationSettings, TlsValidatorOverride,
+    };
+
+    #[crate::ctb_test]
+    fn test_invocation_settings_skip_crlite_flag() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "--insecure-skip-crlite-check".to_string(),
+        ];
+        let settings =
+            InvocationSettings::from_command_line_args(&args).unwrap();
+        assert!(settings.insecure_skip_crlite_check);
+        assert_eq!(settings.tls_validator_override, None);
+
+        let roundtrip_args = settings.command_line_args();
+        assert_eq!(roundtrip_args, vec!["--insecure-skip-crlite-check"]);
+    }
+
+    #[crate::ctb_test]
+    fn test_invocation_settings_combined_flags() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "--use-bundled-tls-validator".to_string(),
+            "--insecure-skip-crlite-check".to_string(),
+        ];
+        let settings =
+            InvocationSettings::from_command_line_args(&args).unwrap();
+        assert!(settings.insecure_skip_crlite_check);
+        assert_eq!(
+            settings.tls_validator_override,
+            Some(TlsValidatorOverride::Bundled)
+        );
+
+        let roundtrip_args = settings.command_line_args();
+        assert_eq!(
+            roundtrip_args,
+            vec!["--use-bundled-tls-validator", "--insecure-skip-crlite-check"]
+        );
+    }
 }

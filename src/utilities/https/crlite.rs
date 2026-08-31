@@ -783,6 +783,19 @@ pub fn record_refresh_time() {
 static CRLITE_REFRESH_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
 
 pub fn ensure_crlite_cache_ready_sync() -> Result<CRLiteCacheManifest> {
+    if crate::invocation_settings::get_settings().insecure_skip_crlite_check {
+        if let Some(manifest) = load_crlite_manifest()? {
+            return Ok(manifest);
+        }
+        return Ok(CRLiteCacheManifest {
+            source: resolve_crlite_source(),
+            channel: DEFAULT_CRLITE_CHANNEL.to_string(),
+            last_updated_unix_seconds: 0,
+            current_filter: None,
+            deltas: Vec::new(),
+        });
+    }
+
     let mut is_corrupted = false;
 
     if let Some(manifest) = load_crlite_manifest()? {
@@ -926,6 +939,9 @@ fn crlite_lookup_status_from_chain(
     end_entity: &CertificateDer<'_>,
     intermediates: &[CertificateDer<'_>],
 ) -> Result<CRLiteLookupStatus> {
+    if crate::invocation_settings::get_settings().insecure_skip_crlite_check {
+        return Ok(CRLiteLookupStatus::NoFilter);
+    }
     let _manifest = ensure_crlite_cache_ready_sync()?;
     let timestamps = parse_crlite_timestamp_entries(end_entity.as_ref())?;
     let serial_number = end_entity_serial_number(end_entity)?;

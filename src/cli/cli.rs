@@ -60,6 +60,7 @@ impl Default for Invocation {
             no_update: false,
             use_bundled_tls_validator: false,
             use_system_tls_validator: false,
+            insecure_skip_crlite_check: false,
             command: None,
         })
     }
@@ -163,6 +164,12 @@ pub struct Cli {
         help = "Use the system certificate store for this run only"
     )]
     pub use_system_tls_validator: bool,
+
+    #[arg(
+        long,
+        help = "Skip CRLite revocation checking for this run only"
+    )]
+    pub insecure_skip_crlite_check: bool,
 
     #[command(subcommand)]
     pub command: Option<Command>,

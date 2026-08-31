@@ -70,6 +70,7 @@ Options:
       --no-update                              Skip automatic update checks on startup
       --use-bundled-tls-validator              Use bundled certificate roots for this run only
       --use-system-tls-validator               Use the system certificate store for this run only
+      --insecure-skip-crlite-check             Skip CRLite revocation checking for this run only
   -h, --help                                   Print help
   -V, --version                                Print version
 ```

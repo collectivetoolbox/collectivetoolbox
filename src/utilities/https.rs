@@ -94,16 +94,20 @@ pub fn tls_certificate_source() -> TlsCertificateSource {
 }
 
 pub fn async_client(options: ClientOptions) -> Result<AsyncClient> {
+    let skip_crlite =
+        invocation_settings::get_settings().insecure_skip_crlite_check;
     Ok(AsyncClient {
         inner: build_async_client(options)?,
-        skip_crlite_ready_check: false,
+        skip_crlite_ready_check: skip_crlite,
     })
 }
 
 pub fn blocking_client(options: ClientOptions) -> Result<BlockingClient> {
+    let skip_crlite =
+        invocation_settings::get_settings().insecure_skip_crlite_check;
     Ok(BlockingClient {
         inner: build_blocking_client(options)?,
-        skip_crlite_ready_check: false,
+        skip_crlite_ready_check: skip_crlite,
     })
 }
 
@@ -420,6 +424,9 @@ fn configure_blocking_tls(
 }
 
 fn build_rustls_client_config() -> Result<ClientConfig> {
+    if invocation_settings::get_settings().insecure_skip_crlite_check {
+        return build_rustls_client_config_no_crlite();
+    }
     match tls_certificate_source() {
         TlsCertificateSource::OperatingSystem => {
             build_platform_rustls_client_config()
