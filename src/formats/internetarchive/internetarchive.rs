@@ -318,7 +318,7 @@ pub fn download(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     download_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
@@ -330,7 +330,7 @@ pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
 pub fn download_here(
     target: &str,
     output_dir: Option<&Path>,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
 }
@@ -340,7 +340,7 @@ fn download_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -420,7 +420,7 @@ pub fn checkeddl(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     checkeddl_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
@@ -430,7 +430,7 @@ fn checkeddl_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -512,7 +512,7 @@ fn download_here_with_client(
     client: &dyn ArchiveClient,
     target: &str,
     output_dir: Option<&Path>,
-    progress: CliProgress,
+    progress: Progress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let Some(file_name) = archive_target.archive_path.clone() else {
@@ -1662,7 +1662,7 @@ mod tests {
             &fixture_client(),
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
-            CliProgress::new(false),
+            Progress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1682,7 +1682,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             false,
-            CliProgress::new(false),
+            Progress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1709,7 +1709,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
-            CliProgress::new(false),
+            Progress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1735,7 +1735,7 @@ mod tests {
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
             false,
-            CliProgress::new(false),
+            Progress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1756,7 +1756,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
-            CliProgress::new(false),
+            Progress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
