@@ -1090,71 +1090,79 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
     };
 
     if let Some(url_str) = url_candidate {
-        if let Ok(url) = reqwest::Url::parse(&url_str) {
-            let host = url.host_str().unwrap_or("");
-            if host == "archive.org" || host == "www.archive.org" {
-                let segments: Vec<&str> = url
-                    .path_segments()
-                    // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
-                    .map(|segs| {
-                        segs.filter(|segment| !segment.is_empty()).collect()
-                    })
-                    .unwrap_or_default();
+        if let Ok(url) = reqwest::Url::parse(&url_str)
+            && let Some(host) = url.host_str()
+            && (host == "archive.org" || host == "www.archive.org")
+        {
+            let segments: Vec<&str> = url
+                .path_segments()
+                // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
+                .map(|segs| {
+                    segs.filter(|segment| !segment.is_empty()).collect()
+                })
+                .unwrap_or_default();
 
-                if let Some(first) = segments.first() {
-                    let (ident_segment, path_slice) = if matches!(
-                        *first,
-                        "details"
-                            | "download"
-                            | "metadata"
-                            | "stream"
-                            | "embed"
-                            | "items"
-                    ) {
-                        let Some(ident_raw) = segments.get(1) else {
-                            bail!("An Internet Archive identifier is required");
-                        };
-                        (*ident_raw, segments.get(2..).unwrap_or(&[]))
-                    } else {
-                        (*first, segments.get(1..).unwrap_or(&[]))
+            if let Some(first) = segments.first() {
+                let (ident_segment, path_slice) = if matches!(
+                    *first,
+                    "details"
+                        | "download"
+                        | "metadata"
+                        | "stream"
+                        | "embed"
+                        | "items"
+                ) {
+                    let Some(ident_raw) = segments.get(1) else {
+                        bail!("An Internet Archive identifier is required");
                     };
+                    let path_slice = match segments.get(2..) {
+                        Some(slice) => slice,
+                        None => &[],
+                    };
+                    (*ident_raw, path_slice)
+                } else {
+                    let path_slice = match segments.get(1..) {
+                        Some(slice) => slice,
+                        None => &[],
+                    };
+                    (*first, path_slice)
+                };
 
-                    let ident =
-                        percent_encoding::percent_decode_str(ident_segment)
-                            .decode_utf8()
-                            .context("Invalid UTF-8 in identifier")?;
-                    if !is_probable_identifier(&ident) {
-                        bail!(
-                            "{ident} is not a plausible Internet Archive identifier"
-                        );
+                let ident =
+                    percent_encoding::percent_decode_str(ident_segment)
+                        .decode_utf8()
+                        .context("Invalid UTF-8 in identifier")?;
+                if !is_probable_identifier(&ident) {
+                    bail!(
+                        "{ident} is not a plausible Internet Archive identifier"
+                    );
+                }
+
+                let archive_path = if path_slice.is_empty() {
+                    None
+                } else {
+                    let mut parts = Vec::new();
+                    for part in path_slice {
+                        let decoded =
+                            percent_encoding::percent_decode_str(part)
+                                .decode_utf8()
+                                .context("Invalid UTF-8 in archive path")?;
+                        parts.push(decoded.into_owned());
                     }
-
-                    let archive_path = if path_slice.is_empty() {
+                    let path_str = parts.join("/");
+                    if path_str.is_empty() {
                         None
                     } else {
-                        let mut parts = Vec::new();
-                        for part in path_slice {
-                            let decoded =
-                                percent_encoding::percent_decode_str(part)
-                                    .decode_utf8()
-                                    .context("Invalid UTF-8 in archive path")?;
-                            parts.push(decoded.into_owned());
-                        }
-                        let path_str = parts.join("/");
-                        if path_str.is_empty() {
-                            None
-                        } else {
-                            Some(path_str)
-                        }
-                    };
+                        Some(path_str)
+                    }
+                };
 
-                    return Ok(ArchiveTarget {
-                        identifier: ident.into_owned(),
-                        archive_path,
-                    });
-                }
-                bail!("An Internet Archive identifier is required");
+                return Ok(ArchiveTarget {
+                    identifier: ident.into_owned(),
+                    archive_path,
+                });
             }
+            bail!("An Internet Archive identifier is required");
         }
     }
 

@@ -200,6 +200,11 @@ if [[ -z "$build_docs" ]]; then
     fi
 fi
 
+# Run lint script
+if [[ "$lints" == "true" ]]; then
+    ./scripts/lint ${offline} || exit 1
+fi
+
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
 
@@ -207,11 +212,6 @@ if [[ "$build_docs" == "true" ]]; then
     cargo doc --workspace --offline --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
     mkdir -p built/docs
     cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
-fi
-
-# Run lint script
-if [[ "$lints" == "true" ]]; then
-    ./scripts/lint ${offline} || exit 1
 fi
 
 supported_platforms=(
