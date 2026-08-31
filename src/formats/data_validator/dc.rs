@@ -379,22 +379,25 @@ fn validate_target_token(
     }
 }
 
-/// Discovers and validates all Dc category files in a directory.
-pub fn validate_all_dc_files(
-    dc_dir: &Dir,
+/// Validates a sequence of Dc category files.
+pub fn validate_dc_files_data<'a, I>(
+    files: I,
+    category_dir_label: &str,
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
-) -> Vec<ParsedDcRow> {
+) -> Vec<ParsedDcRow>
+where
+    I: IntoIterator<Item = (&'a str, &'a [u8])>,
+{
     let mut all_rows = Vec::new();
     let mut short_id_map: HashMap<u32, (String, usize)> = HashMap::new();
 
-    for file in dc_dir.files() {
-        let path_str = file.path().to_string_lossy();
-        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") {
+    for (path_str, contents) in files {
+        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") || path_str.ends_with(".generated.csv") {
             continue;
         }
 
-        let rows = validate_dc_category_file(file.contents(), &path_str, report);
+        let rows = validate_dc_category_file(contents, path_str, report);
 
         for row in rows {
             if let Some((prev_file, prev_line)) = short_id_map.get(&row.short_id) {
@@ -449,7 +452,7 @@ pub fn validate_all_dc_files(
                 )
             };
             report.add_error(
-                "src/formats/dctext/data/categories/",
+                category_dir_label,
                 None,
                 Some("Short"),
                 format!(
@@ -499,4 +502,84 @@ pub fn validate_all_dc_files(
     }
 
     all_rows
+}
+
+/// Discovers and validates all Dc category files from an embedded directory.
+pub fn validate_all_dc_files(
+    dc_dir: &Dir,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) -> Vec<ParsedDcRow> {
+    let files: Vec<(&str, &[u8])> = dc_dir
+        .files()
+        .map(|f| (f.path().to_str().unwrap_or(""), f.contents()))
+        .collect();
+    validate_dc_files_data(files, "src/formats/dctext/data/categories/", known_format_ids, report)
+}
+
+/// Discovers and validates all Dc category files from an on-disk directory.
+pub fn validate_all_dc_files_from_disk(
+    dc_dir: &std::path::Path,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) -> Vec<ParsedDcRow> {
+    let Ok(entries) = std::fs::read_dir(dc_dir) else {
+        report.add_error(
+            &dc_dir.display().to_string(),
+            None,
+            None,
+            format!("Could not read Dc categories directory at {}", dc_dir.display()),
+            None,
+        );
+        return Vec::new();
+    };
+
+    let mut paths = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() {
+            let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if file_name.ends_with(".csv")
+                && file_name != "schema.csv"
+                && !file_name.ends_with(".generated.csv")
+            {
+                paths.push(p);
+            }
+        }
+    }
+    paths.sort();
+
+    let mut file_data = Vec::new();
+    for p in &paths {
+        if let Ok(bytes) = std::fs::read(p) {
+            let file_name = p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("dc.csv")
+                .to_string();
+            file_data.push((file_name, bytes));
+        } else {
+            report.add_error(
+                &p.display().to_string(),
+                None,
+                None,
+                format!("Failed to read file {}", p.display()),
+                None,
+            );
+        }
+    }
+
+    let files_iter: Vec<(&str, &[u8])> = file_data
+        .iter()
+        .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+        .collect();
+
+    validate_dc_files_data(
+        files_iter,
+        &dc_dir.display().to_string(),
+        known_format_ids,
+        report,
+    )
 }

@@ -36,11 +36,13 @@ pub mod updater;
 
 pub use dc::{
     DC_REGION_END, DC_REGION_START, ParsedDcRow, split_dc_aliases_column,
-    validate_all_dc_files, validate_dc_category_file,
+    validate_all_dc_files, validate_all_dc_files_from_disk,
+    validate_dc_category_file, validate_dc_files_data,
 };
 pub use format::{
     FORMAT_REGION_END, FORMAT_REGION_START, ParsedFormatRow,
-    validate_all_format_files, validate_formats_category_file,
+    validate_all_format_files, validate_all_format_files_from_disk,
+    validate_format_files_data, validate_formats_category_file,
 };
 pub use layout::{
     EXPECTED_DC_END, EXPECTED_DC_START, EXPECTED_FORMAT_END,
@@ -62,6 +64,7 @@ pub use updater::{
 };
 
 use std::collections::HashSet;
+use std::path::Path;
 use include_dir::{Dir, include_dir};
 
 pub static DCTEXT_CATEGORIES_DIR: Dir =
@@ -74,7 +77,18 @@ pub static STORAGE_MINIMAL_DATA_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../../storage/minimal/data");
 
 /// Runs comprehensive validation across all repository data tables.
+/// Automatically validates the live on-disk files if the repository root is
+/// found, otherwise validates the embedded snapshots.
 pub fn validate_all_data_tables() -> ValidationReport {
+    if let Ok(repo_root) = find_repository_root() {
+        validate_all_data_tables_from_repo(&repo_root)
+    } else {
+        validate_all_data_tables_embedded()
+    }
+}
+
+/// Runs validation using the embedded directory snapshots.
+pub fn validate_all_data_tables_embedded() -> ValidationReport {
     let mut report = ValidationReport::new();
 
     // 1. Validate Global Graph Layout table
@@ -101,6 +115,57 @@ pub fn validate_all_data_tables() -> ValidationReport {
     // 3. Validate Document Characters category files
     let dc_rows = validate_all_dc_files(
         &DCTEXT_CATEGORIES_DIR,
+        &known_format_ids,
+        &mut report,
+    );
+
+    // 4. Validate Cross-Table Name / Label Uniqueness
+    let dc_names: Vec<(u32, &str, &str)> = dc_rows
+        .iter()
+        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .collect();
+
+    let format_labels: Vec<(usize, &str, &str)> = format_rows
+        .iter()
+        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
+        .collect();
+
+    validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
+
+    report
+}
+
+/// Runs validation directly against live files in a repository directory.
+pub fn validate_all_data_tables_from_repo(repo_root: &Path) -> ValidationReport {
+    let mut report = ValidationReport::new();
+
+    // 1. Validate Global Graph Layout table
+    let layout_path = repo_root.join("src/storage/minimal/data/global-graph-layout.csv");
+    if let Ok(bytes) = std::fs::read(&layout_path) {
+        validate_layout_table(
+            &bytes,
+            "storage/minimal/data/global-graph-layout.csv",
+            &mut report,
+        );
+    } else {
+        report.add_error(
+            "storage/minimal/data/global-graph-layout.csv",
+            None,
+            None,
+            "Could not locate global-graph-layout.csv on disk",
+            Some("Ensure file exists in storage/minimal/data/"),
+        );
+    }
+
+    // 2. Validate Formats category files
+    let formats_dir = repo_root.join("src/formats/utilities/data/formats");
+    let format_rows = validate_all_format_files_from_disk(&formats_dir, &mut report);
+    let known_format_ids: HashSet<usize> = format_rows.iter().map(|r| r.short_id).collect();
+
+    // 3. Validate Document Characters category files
+    let dc_dir = repo_root.join("src/formats/dctext/data/categories");
+    let dc_rows = validate_all_dc_files_from_disk(
+        &dc_dir,
         &known_format_ids,
         &mut report,
     );

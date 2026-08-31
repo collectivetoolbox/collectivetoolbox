@@ -332,18 +332,22 @@ pub fn validate_formats_category_file(
     rows
 }
 
-/// Discovers all format category files from a directory and validates uniqueness across files.
-pub fn validate_all_format_files(
-    formats_dir: &Dir,
+/// Validates a sequence of format category files.
+pub fn validate_format_files_data<'a, I>(
+    files: I,
+    category_dir_label: &str,
     report: &mut ValidationReport,
-) -> Vec<ParsedFormatRow> {
+) -> Vec<ParsedFormatRow>
+where
+    I: IntoIterator<Item = (&'a str, &'a [u8])> + Clone,
+{
     let mut variant_categories = HashSet::new();
 
     // First pass: discover all category file names (including "v.*" variant category files and standard categories)
-    for file in formats_dir.files() {
-        let path_str = file.path().to_string_lossy();
+    for (path_str, _) in files.clone() {
         if path_str.ends_with(".csv") {
-            let Some(stem) = file.path().file_stem().and_then(|s| s.to_str()) else {
+            let path = std::path::Path::new(path_str);
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
             variant_categories.insert(stem.to_string());
@@ -357,15 +361,14 @@ pub fn validate_all_format_files(
     let mut short_id_map: HashMap<usize, (String, usize)> = HashMap::new();
     let mut ident_map: HashMap<String, (String, usize)> = HashMap::new();
 
-    for file in formats_dir.files() {
-        let path_str = file.path().to_string_lossy();
-        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") {
+    for (path_str, contents) in files {
+        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") || path_str.ends_with(".generated.csv") {
             continue;
         }
 
         let rows = validate_formats_category_file(
-            file.contents(),
-            &path_str,
+            contents,
+            path_str,
             &variant_categories,
             report,
         );
@@ -442,7 +445,7 @@ pub fn validate_all_format_files(
                 )
             };
             report.add_error(
-                "src/formats/utilities/data/formats/",
+                category_dir_label,
                 None,
                 Some("Short"),
                 format!(
@@ -455,4 +458,81 @@ pub fn validate_all_format_files(
     }
 
     all_rows
+}
+
+/// Discovers all format category files from an embedded directory and validates uniqueness across files.
+pub fn validate_all_format_files(
+    formats_dir: &Dir,
+    report: &mut ValidationReport,
+) -> Vec<ParsedFormatRow> {
+    let files: Vec<(&str, &[u8])> = formats_dir
+        .files()
+        .map(|f| (f.path().to_str().unwrap_or(""), f.contents()))
+        .collect();
+    validate_format_files_data(files, "src/formats/utilities/data/formats/", report)
+}
+
+/// Discovers all format category files from an on-disk directory and validates uniqueness across files.
+pub fn validate_all_format_files_from_disk(
+    formats_dir: &std::path::Path,
+    report: &mut ValidationReport,
+) -> Vec<ParsedFormatRow> {
+    let Ok(entries) = std::fs::read_dir(formats_dir) else {
+        report.add_error(
+            &formats_dir.display().to_string(),
+            None,
+            None,
+            format!("Could not read Formats directory at {}", formats_dir.display()),
+            None,
+        );
+        return Vec::new();
+    };
+
+    let mut paths = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() {
+            let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if file_name.ends_with(".csv")
+                && file_name != "schema.csv"
+                && !file_name.ends_with(".generated.csv")
+            {
+                paths.push(p);
+            }
+        }
+    }
+    paths.sort();
+
+    let mut file_data = Vec::new();
+    for p in &paths {
+        if let Ok(bytes) = std::fs::read(p) {
+            let file_name = p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("fmt.csv")
+                .to_string();
+            file_data.push((file_name, bytes));
+        } else {
+            report.add_error(
+                &p.display().to_string(),
+                None,
+                None,
+                format!("Failed to read file {}", p.display()),
+                None,
+            );
+        }
+    }
+
+    let files_iter: Vec<(&str, &[u8])> = file_data
+        .iter()
+        .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+        .collect();
+
+    validate_format_files_data(
+        files_iter,
+        &formats_dir.display().to_string(),
+        report,
+    )
 }
