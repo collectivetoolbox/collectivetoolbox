@@ -89,10 +89,14 @@ pub fn validate_extension_entry(entry: &str) -> Result<()> {
     }
 
     if trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2 {
-        let pattern = trimmed
+        let pattern = if let Some(stripped) = trimmed
             .strip_prefix('~')
             .and_then(|s| s.strip_suffix('~'))
-            .unwrap_or(trimmed);
+        {
+            stripped
+        } else {
+            trimmed
+        };
         if pattern.is_empty() {
             bail!("Regex extension pattern '~...~' cannot be empty");
         }
@@ -140,7 +144,10 @@ pub fn validate_mime_field(field: &str) -> Result<()> {
         if item_trimmed.is_empty() {
             continue;
         }
-        let mime_base = item_trimmed.split(';').next().unwrap_or(item_trimmed).trim();
+        let mime_base = match item_trimmed.split(';').next() {
+            Some(base) => base.trim(),
+            None => item_trimmed,
+        };
         let Some((typ, subtyp)) = mime_base.split_once('/') else {
             bail!("MIME type '{item_trimmed}' missing '/' separator (expected 'type/subtype')");
         };
@@ -214,7 +221,11 @@ pub fn validate_cross_table_uniqueness(
 ) {
     let mut dc_name_map: HashMap<String, (u32, String)> = HashMap::new();
     for &(short_id, raw_name, file_path) in dc_names {
-        let clean_name = raw_name.strip_prefix('!').unwrap_or(raw_name).trim();
+        let clean_name = if let Some(stripped) = raw_name.strip_prefix('!') {
+            stripped.trim()
+        } else {
+            raw_name.trim()
+        };
         if clean_name.is_empty() {
             continue;
         }

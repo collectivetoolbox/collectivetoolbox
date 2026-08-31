@@ -150,7 +150,18 @@ pub fn validate_formats_category_file(
             }
         };
 
-        let expected_dc = FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0));
+        let Ok(short_id_u128) = u128::try_from(short_id) else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Short"),
+                format!("Short ID {short_id} exceeds u128 range"),
+                Some("Short IDs must fit within numeric limits"),
+            );
+            continue;
+        };
+
+        let expected_dc = FORMAT_REGION_START.saturating_add(short_id_u128);
         if dc_id != expected_dc {
             report.add_error(
                 file_path,
@@ -332,11 +343,9 @@ pub fn validate_all_format_files(
     for file in formats_dir.files() {
         let path_str = file.path().to_string_lossy();
         if path_str.ends_with(".csv") {
-            let stem = file
-                .path()
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let Some(stem) = file.path().file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
             variant_categories.insert(stem.to_string());
             if let Some(variant_name) = stem.strip_prefix("v.") {
                 variant_categories.insert(variant_name.to_string());

@@ -53,6 +53,9 @@ echo "=== Checking for unsafe file writes in tests ==="
 echo "=== Checking file headers and module docblocks ==="
 ./scripts/lint-headers || exit 1
 
+echo "=== Validating data tables ==="
+./scripts/validate-data-tables ${offline} || exit 1
+
 echo "=== Checking for idiosyncratic styling ==="
 ./scripts/lint-encrecss || exit 1
 

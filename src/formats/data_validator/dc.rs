@@ -215,7 +215,11 @@ pub fn validate_dc_category_file(
         }
 
         let is_deprecated = raw_name.starts_with('!');
-        let name = raw_name.strip_prefix('!').unwrap_or(&raw_name).trim().to_string();
+        let name = if let Some(stripped) = raw_name.strip_prefix('!') {
+            stripped.trim().to_string()
+        } else {
+            raw_name.trim().to_string()
+        };
 
         let combining_class = match validate_combining_class(&combining_str) {
             Ok(val) => val,
@@ -420,7 +424,11 @@ pub fn validate_all_dc_files(
     // Second pass: Validate cross-references and decomposition targets
     for row in &all_rows {
         for xref in &row.cross_references {
-            let target = xref.strip_prefix('>').unwrap_or(xref);
+            let target = if let Some(stripped) = xref.strip_prefix('>') {
+                stripped
+            } else {
+                xref
+            };
             validate_target_token(
                 target,
                 &row.source_file,
