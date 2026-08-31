@@ -29,7 +29,7 @@ pub(crate) use ctb_utilities::*;
 use anyhow::{Context, Result, anyhow, bail};
 use md5::{Digest as _, Md5};
 use serde::{Deserialize, Serialize};
-use sha1::{Digest as _, Sha1};
+use sha1::Sha1;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
@@ -527,7 +527,8 @@ fn resolve_identifier(
     identifier: Option<&str>,
 ) -> Result<String> {
     if let Some(identifier) = identifier {
-        return Ok(identifier.to_string());
+        let archive_target = parse_archive_target(identifier)?;
+        return Ok(archive_target.identifier);
     }
     guess_identifer_from_path(item_path).ok_or_else(|| {
         anyhow!("Could not determine Internet Archive identifier")
@@ -1071,19 +1072,93 @@ fn parse_files_manifest(
 }
 
 fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
-    if let Some(stripped) = target
-        .strip_prefix("https://archive.org/download/")
-        .or_else(|| target.strip_prefix("http://archive.org/download/"))
-    {
-        return parse_archive_target_path(stripped);
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        bail!("An Internet Archive identifier is required");
     }
-    if let Some(stripped) = target
-        .strip_prefix("https://archive.org/metadata/")
-        .or_else(|| target.strip_prefix("http://archive.org/metadata/"))
+
+    let url_candidate = if trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
     {
-        return parse_archive_target_path(stripped);
+        Some(trimmed.to_string())
+    } else if trimmed.starts_with("archive.org/")
+        || trimmed.starts_with("www.archive.org/")
+    {
+        Some(format!("https://{trimmed}"))
+    } else {
+        None
+    };
+
+    if let Some(url_str) = url_candidate {
+        if let Ok(url) = reqwest::Url::parse(&url_str) {
+            let host = url.host_str().unwrap_or("");
+            if host == "archive.org" || host == "www.archive.org" {
+                let segments: Vec<&str> = url
+                    .path_segments()
+                    // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
+                    .map(|segs| {
+                        segs.filter(|segment| !segment.is_empty()).collect()
+                    })
+                    .unwrap_or_default();
+
+                if let Some(first) = segments.first() {
+                    let (ident_segment, path_slice) = if matches!(
+                        *first,
+                        "details"
+                            | "download"
+                            | "metadata"
+                            | "stream"
+                            | "embed"
+                            | "items"
+                    ) {
+                        let Some(ident_raw) = segments.get(1) else {
+                            bail!("An Internet Archive identifier is required");
+                        };
+                        (*ident_raw, segments.get(2..).unwrap_or(&[]))
+                    } else {
+                        (*first, segments.get(1..).unwrap_or(&[]))
+                    };
+
+                    let ident =
+                        percent_encoding::percent_decode_str(ident_segment)
+                            .decode_utf8()
+                            .context("Invalid UTF-8 in identifier")?;
+                    if !is_probable_identifier(&ident) {
+                        bail!(
+                            "{ident} is not a plausible Internet Archive identifier"
+                        );
+                    }
+
+                    let archive_path = if path_slice.is_empty() {
+                        None
+                    } else {
+                        let mut parts = Vec::new();
+                        for part in path_slice {
+                            let decoded =
+                                percent_encoding::percent_decode_str(part)
+                                    .decode_utf8()
+                                    .context("Invalid UTF-8 in archive path")?;
+                            parts.push(decoded.into_owned());
+                        }
+                        let path_str = parts.join("/");
+                        if path_str.is_empty() {
+                            None
+                        } else {
+                            Some(path_str)
+                        }
+                    };
+
+                    return Ok(ArchiveTarget {
+                        identifier: ident.into_owned(),
+                        archive_path,
+                    });
+                }
+                bail!("An Internet Archive identifier is required");
+            }
+        }
     }
-    parse_archive_target_path(target)
+
+    parse_archive_target_path(trimmed)
 }
 
 fn parse_archive_target_path(target: &str) -> Result<ArchiveTarget> {
@@ -1649,5 +1724,78 @@ mod tests {
         assert!(checked.contains(&serde_json::json!(format!(
             "{TEST_IDENTIFIER}{FILES_XML_SUFFIX}"
         ))));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_archive_target_urls() {
+        let details_url =
+            "https://archive.org/details/populationschedu1331unix";
+        let target = parse_archive_target(details_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let details_slash =
+            "https://archive.org/details/populationschedu1331unix/";
+        let target = parse_archive_target(details_slash).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let details_with_file =
+            "https://archive.org/details/populationschedu1331unix/sub/file.pdf";
+        let target = parse_archive_target(details_with_file).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, Some("sub/file.pdf".to_string()));
+
+        let download_url =
+            "https://archive.org/download/populationschedu1331unix/01%20Track%2001.m4a";
+        let target = parse_archive_target(download_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, Some("01 Track 01.m4a".to_string()));
+
+        let metadata_url =
+            "https://archive.org/metadata/populationschedu1331unix";
+        let target = parse_archive_target(metadata_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let stream_url = "https://archive.org/stream/populationschedu1331unix";
+        let target = parse_archive_target(stream_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let embed_url = "https://archive.org/embed/populationschedu1331unix";
+        let target = parse_archive_target(embed_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let items_url = "https://archive.org/items/populationschedu1331unix";
+        let target = parse_archive_target(items_url).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let www_http_query =
+            "http://www.archive.org/details/populationschedu1331unix?query=1#frag";
+        let target = parse_archive_target(www_http_query).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let no_scheme = "archive.org/details/populationschedu1331unix";
+        let target = parse_archive_target(no_scheme).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let plain_ident = "populationschedu1331unix";
+        let target = parse_archive_target(plain_ident).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, None);
+
+        let plain_with_path = "populationschedu1331unix/01 Track 01.m4a";
+        let target = parse_archive_target(plain_with_path).unwrap();
+        assert_eq!(target.identifier, "populationschedu1331unix");
+        assert_eq!(target.archive_path, Some("01 Track 01.m4a".to_string()));
+
+        assert!(parse_archive_target("").is_err());
+        assert!(parse_archive_target("https://archive.org/details/").is_err());
+        assert!(parse_archive_target("https://archive.org/").is_err());
     }
 }
