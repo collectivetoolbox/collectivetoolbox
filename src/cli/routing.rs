@@ -1088,14 +1088,14 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 progress,
                 no_progress,
             } => {
-                let show_progress =
-                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
+                let progress_reporter =
+                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download(
                         target,
                         output_dir.as_deref(),
                         *original,
-                        show_progress,
+                        progress_reporter,
                     )?,
                 ))
             }
@@ -1110,13 +1110,13 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 progress,
                 no_progress,
             } => {
-                let show_progress =
-                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
+                let progress_reporter =
+                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download_here(
                         target,
                         output_dir.as_deref(),
-                        show_progress,
+                        progress_reporter,
                     )?,
                 ))
             }
@@ -1127,14 +1127,14 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 progress,
                 no_progress,
             } => {
-                let show_progress =
-                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
+                let progress_reporter =
+                    ctb_utilities::cli::CliProgress::from_flags(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::checkeddl(
                         target,
                         output_dir.as_deref(),
                         *original,
-                        show_progress,
+                        progress_reporter,
                     )?,
                 ))
             }

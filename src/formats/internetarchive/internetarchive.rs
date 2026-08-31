@@ -318,7 +318,7 @@ pub fn download(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     download_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
@@ -330,7 +330,7 @@ pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
 pub fn download_here(
     target: &str,
     output_dir: Option<&Path>,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
 }
@@ -340,7 +340,7 @@ fn download_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -349,13 +349,11 @@ fn download_with_client(
         format!("Failed to create {}", item_directory.display())
     })?;
 
-    if progress {
-        eprintln!(
-            "Downloading item '{}' to {}",
-            archive_target.identifier,
-            item_directory.display()
-        );
-    }
+    progress.message(&format!(
+        "Downloading item '{}' to {}",
+        archive_target.identifier,
+        item_directory.display()
+    ));
 
     let file_names = if original {
         let metadata_files =
@@ -396,23 +394,17 @@ fn download_with_client(
                 )
             })?;
         }
-        if progress {
-            use std::io::{Write, stderr};
-            let idx = i.saturating_add(1);
-            eprint!("[{idx}/{total_files}] Downloading {file_name}... ");
-            let _ = stderr().flush();
-        }
+        let idx = i.saturating_add(1);
+        progress.start_step(idx, total_files, &format!("Downloading {file_name}"));
         let bytes = client
             .fetch_download_bytes(&archive_target.identifier, file_name)?;
         fs::write(&destination, &bytes).with_context(|| {
             format!("Failed to write downloaded file {}", destination.display())
         })?;
-        if progress {
-            let size_str = format_bytes_decimal(
-                u64::try_from(bytes.len()).unwrap_or(0),
-            );
-            eprintln!("done ({size_str}).");
-        }
+        let size_str = format_bytes_decimal(
+            u64::try_from(bytes.len()).unwrap_or(0),
+        );
+        progress.finish_step(Some(&size_str));
         downloaded_files.push(file_name.clone());
     }
 
@@ -428,7 +420,7 @@ pub fn checkeddl(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     checkeddl_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
@@ -438,7 +430,7 @@ fn checkeddl_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -451,9 +443,7 @@ fn checkeddl_with_client(
         original,
         progress,
     )?;
-    if progress {
-        eprintln!("Verifying downloaded files...");
-    }
+    progress.message("Verifying downloaded files...");
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
     let files_xml_path = item_directory.join(format!(
@@ -503,9 +493,7 @@ fn checkeddl_with_client(
             )),
         },
     )?;
-    if progress {
-        eprintln!("Verification complete.");
-    }
+    progress.message("Verification complete.");
     pretty_json_bytes(&verification)
 }
 
@@ -524,7 +512,7 @@ fn download_here_with_client(
     client: &dyn ArchiveClient,
     target: &str,
     output_dir: Option<&Path>,
-    progress: bool,
+    progress: CliProgress,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let Some(file_name) = archive_target.archive_path.clone() else {
@@ -538,22 +526,16 @@ fn download_here_with_client(
             anyhow!("Could not determine local file name for {file_name}")
         })?;
     let output_path = base_output_dir.join(leaf_name);
-    if progress {
-        use std::io::{Write, stderr};
-        eprint!("Downloading {file_name}... ");
-        let _ = stderr().flush();
-    }
+    progress.start_step(0, 0, &format!("Downloading {file_name}"));
     let bytes =
         client.fetch_download_bytes(&archive_target.identifier, &file_name)?;
     fs::write(&output_path, &bytes).with_context(|| {
         format!("Failed to write {}", output_path.display())
     })?;
-    if progress {
-        let size_str = format_bytes_decimal(
-            u64::try_from(bytes.len()).unwrap_or(0),
-        );
-        eprintln!("done ({size_str}).");
-    }
+    let size_str = format_bytes_decimal(
+        u64::try_from(bytes.len()).unwrap_or(0),
+    );
+    progress.finish_step(Some(&size_str));
     let result = DownloadHereResult {
         identifier: archive_target.identifier,
         output_path: output_path.display().to_string(),
@@ -1680,7 +1662,7 @@ mod tests {
             &fixture_client(),
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
-            false,
+            CliProgress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1700,7 +1682,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             false,
-            false,
+            CliProgress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1727,7 +1709,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
-            false,
+            CliProgress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1753,7 +1735,7 @@ mod tests {
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
             false,
-            false,
+            CliProgress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1774,7 +1756,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
-            false,
+            CliProgress::new(false),
         )
         .unwrap();
         let result_json: serde_json::Value =

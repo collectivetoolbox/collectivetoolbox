@@ -245,10 +245,10 @@ fn current_build_identity_for_update_checks() -> Result<BuildIdentity> {
     })
 }
 
-async fn query_server_update_status(
+fn build_update_status_url(
     server_url: &str,
     current: &BuildIdentity,
-) -> Result<ServerUpdateStatusResponse> {
+) -> Result<String> {
     let api_url =
         format!("{}/api/update-status", server_url.trim_end_matches('/'));
     let current_version = current.version.to_string();
@@ -259,7 +259,14 @@ async fn query_server_update_status(
         .append_pair("version", &current_version)
         .append_pair("build_date", &current_build_date);
 
-    let url_str = url.to_string();
+    Ok(url.to_string())
+}
+
+async fn query_server_update_status(
+    server_url: &str,
+    current: &BuildIdentity,
+) -> Result<ServerUpdateStatusResponse> {
+    let url_str = build_update_status_url(server_url, current)?;
     let body_bytes =
         utilities::https::get_success_with_backoff(&url_str, 10).await?;
     let body = String::from_utf8(body_bytes)
@@ -276,17 +283,7 @@ async fn query_server_update_status_fast(
     let client = utilities::https::async_client(
         utilities::https::ClientOptions::startup(),
     )?;
-    let api_url =
-        format!("{}/api/update-status", server_url.trim_end_matches('/'));
-    let current_version = current.version.to_string();
-    let current_build_date = current.build_date.to_rfc3339();
-
-    let mut url = reqwest::Url::parse(&api_url)?;
-    url.query_pairs_mut()
-        .append_pair("version", &current_version)
-        .append_pair("build_date", &current_build_date);
-
-    let url_str = url.to_string();
+    let url_str = build_update_status_url(server_url, current)?;
     let response = client.get(&url_str).await?;
     let body = response.text().await?;
 

@@ -71,7 +71,7 @@ pub use crate::utilities_json_json as json;
 pub use anyhow;
 pub use anyhow::{Context, Result, bail, ensure};
 use circular_dep_unicode::scalars_to_string_lossy;
-pub use crate::cli::{OutputChunk, ToolResult};
+pub use crate::cli::{CliProgress, OutputChunk, ToolResult};
 pub use ctb_ipc_macro::ipc_client_trait;
 pub use ctb_ipc_macro::ipc_dto;
 pub use ctb_ipc_macro::ipc_method;
