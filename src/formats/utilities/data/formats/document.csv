@@ -71,7 +71,7 @@ Import/export/tests support columns meaning:
 2228502,278,Mime,Multipurpose Internet Mail Extensions,document,"message/rfc822, multipart/mixed",".eml, .mim, .mime",,,,,,,,,,
 2228518,294,OutlookMsg,Microsoft Outlook Email,document,application/vnd.ms-outlook,.msg,,,,,,,,,,
 2228539,315,AppleSingle,AppleSingle,document,application/applefile,.as,,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
-2228540,316,AppleDouble (RFC 1740),AppleDouble,document,multipart/appledouble,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+2228540,316,AppleDouble,AppleDouble (RFC 1740),document,multipart/appledouble,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
 2228541,317,CtbNode,Collective Toolbox serialized node package,document,,.ctbn,,,,,,,,,,
 2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,,.ctbn,,,,CtbNode,,,,,,
 2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,,.ctbn,,,,CtbNode,,,,,,

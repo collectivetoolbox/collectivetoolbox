@@ -39,4 +39,4 @@ Import/export/tests support columns meaning:
 2228530,306,Orz,orz (optimized reduced offset Lempel-Ziv),compression,,,,,,,,,,,,
 2228531,307,Lzfse,LZFSE (Lempel–Ziv Finite State Entropy),compression,,,,,,,,,,,,
 2228544,320,Lzma,LZMA (Lempel–Ziv–Markov chain algorithm),compression,,.lzma,,,lzma,,,,,,,
-2228545,321,Lzma2,LZMA container format,compression,,".lzma, .lzma2",,,lzma2,,Lzma,,,,,
+2228545,321,Lzma2,LZMA container format,compression,,".lzma, .lzma2",,,lzma2,Lzma,,,,,,

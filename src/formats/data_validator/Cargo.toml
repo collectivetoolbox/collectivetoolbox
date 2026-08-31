@@ -1,0 +1,18 @@
+[package]
+name = "ctb-formats-data-validator"
+edition = "2024"
+
+[lib]
+path="data_validator.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-unicode = { path = "../unicode" }
+ctb-storage-minimal = { path = "../../storage/minimal" }
+include_dir = { version = "0.7.4", features = ["glob"] }
+regex = "1.12.2"
+
+[lints]
+workspace = true

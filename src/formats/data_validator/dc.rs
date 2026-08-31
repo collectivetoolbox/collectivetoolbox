@@ -1,0 +1,454 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Schema validator and facet splitter for Document Character category tables (`src/formats/dctext/data/categories/*.csv`).
+
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+
+use std::collections::{HashMap, HashSet};
+use include_dir::Dir;
+use crate::report::ValidationReport;
+use crate::shared::{
+    validate_bidi_class, validate_combining_class, validate_general_category,
+};
+
+pub const DC_REGION_START: u128 = 1_114_112;
+pub const DC_REGION_END: u128 = 2_228_223;
+
+/// Validated and split Document Character record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedDcRow {
+    pub dc_id: u128,
+    pub short_id: u32,
+    pub name: String,
+    pub is_deprecated: bool,
+    pub combining_class: u8,
+    pub bidi_class: Option<String>,
+    pub casing_partner: Option<u32>,
+    pub general_category: String,
+    pub script: String,
+    pub aliases: Vec<String>,
+    pub cross_references: Vec<String>,
+    pub decompositions: Vec<String>,
+    pub dc_syntax: Option<String>,
+    pub description: String,
+    pub source_file: String,
+    pub line_number: usize,
+}
+
+/// Splits the composite aliases/cross-reference/decomposition/syntax column.
+pub fn split_dc_aliases_column(
+    raw: &str,
+) -> (Vec<String>, Vec<String>, Vec<String>, Option<String>) {
+    let mut aliases = Vec::new();
+    let mut cross_references = Vec::new();
+    let mut decompositions = Vec::new();
+    let mut dc_syntax: Option<String> = None;
+
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return (aliases, cross_references, decompositions, dc_syntax);
+    }
+
+    // If the entire cell or an entry begins with a syntax declaration `:`, isolate it.
+    if trimmed.starts_with(':') {
+        dc_syntax = Some(trimmed.to_string());
+        return (aliases, cross_references, decompositions, dc_syntax);
+    }
+
+    // Parse comma-separated items outside of syntax definitions
+    for item in trimmed.split(',') {
+        let item_trimmed = item.trim();
+        if item_trimmed.is_empty() {
+            continue;
+        }
+
+        if item_trimmed.starts_with(':') {
+            dc_syntax = Some(item_trimmed.to_string());
+        } else if item_trimmed.starts_with('>') {
+            cross_references.push(item_trimmed.to_string());
+        } else if item_trimmed.starts_with('<') && item_trimmed.contains('>') {
+            decompositions.push(item_trimmed.to_string());
+        } else {
+            aliases.push(item_trimmed.to_string());
+        }
+    }
+
+    (aliases, cross_references, decompositions, dc_syntax)
+}
+
+/// Parses and validates a single Dc category CSV file.
+pub fn validate_dc_category_file(
+    csv_bytes: &[u8],
+    file_path: &str,
+    report: &mut ValidationReport,
+) -> Vec<ParsedDcRow> {
+    let vec_bytes = csv_bytes.to_vec();
+    let table = match csv_tools::parse_csv_reader(
+        &vec_bytes,
+        csv_tools::CsvParseOptions {
+            has_header: true,
+            ..Default::default()
+        },
+    ) {
+        Ok(t) => t,
+        Err(e) => {
+            report.add_error(
+                file_path,
+                None,
+                None,
+                format!("Failed to parse CSV: {e}"),
+                Some("Verify CSV syntax and formatting"),
+            );
+            return Vec::new();
+        }
+    };
+
+    let mut rows = Vec::new();
+
+    for i in 0..table.row_count() {
+        let line_no = i.saturating_add(2);
+        let get_str = |col: usize| -> String {
+            match table.cell(i, col) {
+                Some(s) => s.trim().to_string(),
+                None => String::new(),
+            }
+        };
+
+        let dc_str = get_str(0);
+        let short_str = get_str(1);
+        let raw_name = get_str(2);
+        let combining_str = get_str(3);
+        let bidi_str = get_str(4);
+        let casing_str = get_str(5);
+        let general_cat_str = get_str(6);
+        let script = get_str(7);
+        let raw_aliases = get_str(8);
+        let description = get_str(9);
+
+        if dc_str.is_empty() && short_str.is_empty() && raw_name.is_empty() {
+            continue;
+        }
+
+        let short_id = match short_str.parse::<u32>() {
+            Ok(v) => v,
+            Err(_) => {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Short"),
+                    format!("Invalid Short Dc ID integer: '{short_str}'"),
+                    Some("Must be a non-negative integer"),
+                );
+                continue;
+            }
+        };
+
+        let dc_id = match dc_str.parse::<u128>() {
+            Ok(v) => v,
+            Err(_) => {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Dc"),
+                    format!("Invalid Global Dc ID integer: '{dc_str}'"),
+                    Some("Must be an integer within Document Character region"),
+                );
+                continue;
+            }
+        };
+
+        let expected_dc = DC_REGION_START.saturating_add(u128::from(short_id));
+        if dc_id != expected_dc {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Dc"),
+                format!(
+                    "Global Dc ID ({dc_id}) does not match DC_REGION_START + Short ID ({expected_dc})"
+                ),
+                Some("Ensure Dc ID is offset from Short ID by 1114112"),
+            );
+        }
+
+        if dc_id < DC_REGION_START || dc_id > DC_REGION_END {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Dc"),
+                format!(
+                    "Dc ID {dc_id} is out of the Document Characters region bounds ({DC_REGION_START}..={DC_REGION_END})"
+                ),
+                Some("Verify region boundaries"),
+            );
+        }
+
+        if raw_name.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Name"),
+                "Dc Name cannot be empty",
+                Some("Provide a character name"),
+            );
+        }
+
+        let is_deprecated = raw_name.starts_with('!');
+        let name = raw_name.strip_prefix('!').unwrap_or(&raw_name).trim().to_string();
+
+        let combining_class = match validate_combining_class(&combining_str) {
+            Ok(val) => val,
+            Err(e) => {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("◌"),
+                    format!("Invalid combining class: {e}"),
+                    Some("Must be integer 0..=254"),
+                );
+                0
+            }
+        };
+
+        if let Err(e) = validate_bidi_class(&bidi_str) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("⇆"),
+                format!("Invalid Bidi Class: {e}"),
+                Some("Use standard Unicode Bidi class abbreviation or leave empty"),
+            );
+        }
+        let bidi_class = if bidi_str.is_empty() {
+            None
+        } else {
+            Some(bidi_str)
+        };
+
+        let casing_partner = if !casing_str.is_empty() {
+            match casing_str.parse::<u32>() {
+                Ok(v) => Some(v),
+                Err(_) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Aa"),
+                        format!("Invalid Casing partner ID integer: '{casing_str}'"),
+                        Some("Must be a short Dc ID integer if present"),
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        if let Err(e) = validate_general_category(&general_cat_str) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Type"),
+                format!("Invalid General Category: {e}"),
+                Some("Use standard Unicode category or '!Cx'"),
+            );
+        }
+
+        let (aliases, cross_references, decompositions, dc_syntax) =
+            split_dc_aliases_column(&raw_aliases);
+
+        rows.push(ParsedDcRow {
+            dc_id,
+            short_id,
+            name,
+            is_deprecated,
+            combining_class,
+            bidi_class,
+            casing_partner,
+            general_category: general_cat_str,
+            script,
+            aliases,
+            cross_references,
+            decompositions,
+            dc_syntax,
+            description,
+            source_file: file_path.to_string(),
+            line_number: line_no,
+        });
+    }
+
+    rows
+}
+
+/// Validates target references (Dc short IDs, Unicode `uXXXX`, Formats `fXX`).
+fn validate_target_token(
+    token: &str,
+    source_file: &str,
+    line_no: usize,
+    col_name: &str,
+    known_dc_ids: &HashSet<u32>,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) {
+    let clean = token.trim().trim_matches(|c| c == '(' || c == ')' || c == '>' || c == '<');
+    if clean.is_empty() {
+        return;
+    }
+
+    // Format target reference: "f80" or "format 80"
+    if let Some(fmt_str) = clean.strip_prefix('f') {
+        if let Ok(fmt_id) = fmt_str.parse::<usize>() {
+            if !known_format_ids.contains(&fmt_id) {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Referenced Format ID 'f{fmt_id}' does not exist in formats registry"),
+                    Some("Ensure referenced format ID is defined in formats category files"),
+                );
+            }
+            return;
+        }
+    }
+    if let Some(fmt_str) = clean.strip_prefix("format ") {
+        if let Ok(fmt_id) = fmt_str.parse::<usize>() {
+            if !known_format_ids.contains(&fmt_id) {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Referenced Format ID 'format {fmt_id}' does not exist in formats registry"),
+                    Some("Ensure referenced format ID is defined in formats category files"),
+                );
+            }
+            return;
+        }
+    }
+
+    // Unicode target reference: "u12AB" or "U+12AB"
+    if let Some(hex_str) = clean.strip_prefix('u').or_else(|| clean.strip_prefix("U+")) {
+        if let Ok(cp) = u32::from_str_radix(hex_str, 16) {
+            if !ctb_formats_unicode::is_assigned_unicode(cp) {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Referenced Unicode codepoint 'u{hex_str}' (U+{cp:04X}) is not an assigned Unicode character"),
+                    Some("Ensure referenced Unicode character exists in Unicode 17.0 standard"),
+                );
+            }
+            return;
+        }
+    }
+
+    // Numeric Dc target reference: e.g. "32", "240"
+    if let Ok(target_dc) = clean.parse::<u32>() {
+        if !known_dc_ids.contains(&target_dc) {
+            report.add_error(
+                source_file,
+                Some(line_no),
+                Some(col_name),
+                format!("Referenced Dc ID '{target_dc}' does not exist in Document Characters registry"),
+                Some("Ensure referenced Dc ID is defined in a Dc category file"),
+            );
+        }
+    }
+}
+
+/// Discovers and validates all Dc category files in a directory.
+pub fn validate_all_dc_files(
+    dc_dir: &Dir,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) -> Vec<ParsedDcRow> {
+    let mut all_rows = Vec::new();
+    let mut short_id_map: HashMap<u32, (String, usize)> = HashMap::new();
+
+    for file in dc_dir.files() {
+        let path_str = file.path().to_string_lossy();
+        if !path_str.ends_with(".csv") || path_str.ends_with("schema.csv") {
+            continue;
+        }
+
+        let rows = validate_dc_category_file(file.contents(), &path_str, report);
+
+        for row in rows {
+            if let Some((prev_file, prev_line)) = short_id_map.get(&row.short_id) {
+                report.add_error(
+                    &row.source_file,
+                    Some(row.line_number),
+                    Some("Short"),
+                    format!(
+                        "Duplicate Short Dc ID {} already defined in {prev_file}:{prev_line}",
+                        row.short_id
+                    ),
+                    Some("Assign a unique Short ID to each Document Character"),
+                );
+            } else {
+                short_id_map.insert(
+                    row.short_id,
+                    (row.source_file.clone(), row.line_number),
+                );
+            }
+
+            all_rows.push(row);
+        }
+    }
+
+    let known_dc_ids: HashSet<u32> = all_rows.iter().map(|r| r.short_id).collect();
+
+    // Second pass: Validate cross-references and decomposition targets
+    for row in &all_rows {
+        for xref in &row.cross_references {
+            let target = xref.strip_prefix('>').unwrap_or(xref);
+            validate_target_token(
+                target,
+                &row.source_file,
+                row.line_number,
+                "Aliases (cross-reference)",
+                &known_dc_ids,
+                known_format_ids,
+                report,
+            );
+        }
+
+        for decomp in &row.decompositions {
+            let Some((_tag, payload)) = decomp.split_once('>') else {
+                continue;
+            };
+            for token in payload.split_whitespace() {
+                validate_target_token(
+                    token,
+                    &row.source_file,
+                    row.line_number,
+                    "Aliases (decomposition)",
+                    &known_dc_ids,
+                    known_format_ids,
+                    report,
+                );
+            }
+        }
+    }
+
+    all_rows
+}

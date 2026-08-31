@@ -25,4 +25,4 @@ Import/export/tests support columns meaning:
 2228458,234,Btih,Torrent info hash,identifier,,,,,,,,,,,,
 2228459,235,Magnet,Magnet URI,identifier,,,,,,Uri,,,,,,
 2228460,236,IaIdentifier,Internet Archive item identifier,identifier,,,,,,,,,,,,
-2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,application/x-bittorrent,_archive.torrent,,,,Torrent,,,,,,
+2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,application/x-bittorrent,~_archive\.torrent$~,,,,Torrent,,,,,,

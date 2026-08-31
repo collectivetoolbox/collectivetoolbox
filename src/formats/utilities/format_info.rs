@@ -30,19 +30,18 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use anyhow::Result;
 
-/// Detailed metadata record for a format from `formats.csv`.
+/// Detailed metadata record for a format from format category CSV files.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FormatInfo {
+    pub dc_id: u128,
     pub id: usize,
     pub ident: String,
     pub label: String,
     pub category: String,
-    pub layer: String,
     pub mime: String,
     pub extensions: String,
     pub uti: String,
     pub apple_type: String,
-    pub magic: String,
     pub nicknames: String,
     pub base_format: String,
     pub import_support: String,
@@ -74,42 +73,44 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             }
         };
 
-        let id_str = get_str(0);
+        let dc_str = get_str(0);
+        let Ok(dc_id) = dc_str.parse::<u128>() else {
+            continue;
+        };
+
+        let id_str = get_str(1);
         let Ok(id) = id_str.parse::<usize>() else {
             continue;
         };
 
-        let ident = get_str(1);
-        let label = get_str(2);
-        let category = get_str(3);
-        let layer = get_str(4);
+        let ident = get_str(2);
+        let label = get_str(3);
+        let category = get_str(4);
         let mime = get_str(5);
         let extensions = get_str(6);
         let uti = get_str(7);
         let apple_type = get_str(8);
-        let magic = get_str(9);
-        let nicknames = get_str(10);
-        let base_format = get_str(11);
-        let import_support = get_str(12);
-        let export_support = get_str(13);
-        let tests = get_str(14);
-        let variant_types = get_str(15);
-        let comments = get_str(16);
-        let references = get_str(17);
+        let nicknames = get_str(9);
+        let base_format = get_str(10);
+        let import_support = get_str(11);
+        let export_support = get_str(12);
+        let tests = get_str(13);
+        let variant_types = get_str(14);
+        let comments = get_str(15);
+        let references = get_str(16);
 
         map.insert(
             id,
             FormatInfo {
+                dc_id,
                 id,
                 ident,
                 label,
                 category,
-                layer,
                 mime,
                 extensions,
                 uti,
                 apple_type,
-                magic,
                 nicknames,
                 base_format,
                 import_support,
@@ -164,7 +165,11 @@ pub fn describe_format(fmt_id: usize) -> Result<String> {
     let info = get_format_info(fmt_id)
         .ok_or_else(|| anyhow::anyhow!("Unknown Format ID: {fmt_id}"))?;
 
-    let gid = 2_228_224_u128.saturating_add(u128::try_from(fmt_id)?);
+    let gid = if info.dc_id != 0 {
+        info.dc_id
+    } else {
+        2_228_224_u128.saturating_add(u128::try_from(fmt_id)?)
+    };
     let title = if !info.label.is_empty() {
         &info.label
     } else if !info.ident.is_empty() {
@@ -184,9 +189,6 @@ pub fn describe_format(fmt_id: usize) -> Result<String> {
     if !info.category.is_empty() {
         lines.push(format!("Category: {cat}", cat = info.category));
     }
-    if !info.layer.is_empty() {
-        lines.push(format!("Layer: {layer}", layer = info.layer));
-    }
     if !info.mime.is_empty() {
         lines.push(format!("MIME: {mime}", mime = info.mime));
     }
@@ -198,9 +200,6 @@ pub fn describe_format(fmt_id: usize) -> Result<String> {
     }
     if !info.apple_type.is_empty() {
         lines.push(format!("Apple Type code: {at}", at = info.apple_type));
-    }
-    if !info.magic.is_empty() {
-        lines.push(format!("Magic: {magic}", magic = info.magic));
     }
     if !info.nicknames.is_empty() {
         lines.push(format!("Nicknames: {nick}", nick = info.nicknames));

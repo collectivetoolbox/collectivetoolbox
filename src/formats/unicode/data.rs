@@ -159,6 +159,22 @@ impl UnicodeDataTables {
     pub fn is_khitan_character(&self, cp: u32) -> bool {
         self.khitan_characters.contains(&cp)
     }
+
+    /// Returns true if a code point is an assigned character in Unicode.
+    #[must_use]
+    pub fn is_assigned(&self, cp: u32) -> bool {
+        if cp > 0x10_FFFF || is_noncharacter(cp) || (0xD800..=0xDFFF).contains(&cp) {
+            return false;
+        }
+        self.char_data.contains_key(&cp)
+            || self.is_cjk_unified_ideograph(cp)
+            || self.is_tangut_ideograph(cp)
+            || self.is_khitan_character(cp)
+            || (0xAC00..=0xD7A3).contains(&cp)
+            || (0xE000..=0xF8FF).contains(&cp)
+            || (0xF0000..=0xFFFFD).contains(&cp)
+            || (0x100000..=0x10FFFD).contains(&cp)
+    }
 }
 
 fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
@@ -748,4 +764,9 @@ pub fn find_block_with_version(
 /// Finds the block name for a codepoint in Unicode 17.0.
 pub fn find_block(cp: u32) -> Option<&'static str> {
     find_block_with_version(UnicodeVersion::V17_0, cp)
+}
+
+/// Checks if a codepoint is an assigned character in Unicode 17.0.
+pub fn is_assigned_unicode(cp: u32) -> bool {
+    get_tables(UnicodeVersion::V17_0).is_assigned(cp)
 }

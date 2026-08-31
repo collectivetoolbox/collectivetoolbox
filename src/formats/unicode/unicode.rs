@@ -38,7 +38,10 @@ pub use character_description::{
     describe, describe_codepoint, describe_codepoint_with_options,
     describe_with_options,
 };
-pub use data::{UnicodeDataTables, find_block, find_block_with_version, get_tables};
+pub use data::{
+    UnicodeDataTables, find_block, find_block_with_version, get_tables,
+    is_assigned_unicode,
+};
 
 // Re-export all Unicode scalar/surrogate and UCS-2 helpers inlined for rustdoc.
 #[doc(inline)]
