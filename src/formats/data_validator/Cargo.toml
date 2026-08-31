@@ -6,6 +6,10 @@ edition = "2024"
 path="data_validator.rs"
 crate-type = ["lib"]
 
+[[bin]]
+name = "validate-data-tables"
+path = "bin/validate_data_tables.rs"
+
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
