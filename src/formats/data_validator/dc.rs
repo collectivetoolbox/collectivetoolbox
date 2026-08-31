@@ -421,6 +421,46 @@ pub fn validate_all_dc_files(
 
     let known_dc_ids: HashSet<u32> = all_rows.iter().map(|r| r.short_id).collect();
 
+    // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
+    if let Some(&max_id) = known_dc_ids.iter().max() {
+        let mut missing_ids = Vec::new();
+        for id in 0..=max_id {
+            if !known_dc_ids.contains(&id) {
+                missing_ids.push(id);
+            }
+        }
+        if !missing_ids.is_empty() {
+            let missing_str = if missing_ids.len() <= 10 {
+                missing_ids
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                format!(
+                    "{} (and {} more)",
+                    missing_ids
+                        .iter()
+                        .take(10)
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    missing_ids.len().saturating_sub(10)
+                )
+            };
+            report.add_error(
+                "src/formats/dctext/data/categories/",
+                None,
+                Some("Short"),
+                format!(
+                    "Document Character Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={max_id}",
+                    missing_ids.len()
+                ),
+                Some("Ensure Short Dc IDs are contiguous with no missing numbers"),
+            );
+        }
+    }
+
     // Second pass: Validate cross-references and decomposition targets
     for row in &all_rows {
         for xref in &row.cross_references {

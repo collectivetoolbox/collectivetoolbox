@@ -2751,12 +2751,14 @@ dependencies = [
 name = "ctb-formats-data-validator"
 version = "0.0.0"
 dependencies = [
+ "csv",
  "ctb-formats-unicode",
  "ctb-formats-utilities",
  "ctb-storage-minimal",
  "ctb-utilities",
  "include_dir",
  "regex",
+ "tempfile",
 ]
 
 [[package]]

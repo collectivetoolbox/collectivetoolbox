@@ -126,13 +126,23 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
 
 static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> = LazyLock::new(|| {
     let mut map = HashMap::new();
-    if let Some(file) = crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.csv") {
+    if let Some(file) =
+        crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.generated.csv")
+    {
+        parse_format_csv_data(file.contents(), &mut map);
+    } else if let Some(file) =
+        crate::FORMATS_UTILITIES_DATA_DIR.get_file("formats.csv")
+    {
         parse_format_csv_data(file.contents(), &mut map);
     }
-    if let Some(dir) = crate::FORMATS_UTILITIES_DATA_DIR.get_dir("formats") {
-        for file in dir.files() {
-            if file.path().extension().and_then(|ext| ext.to_str()) == Some("csv") {
-                parse_format_csv_data(file.contents(), &mut map);
+    if map.is_empty() {
+        if let Some(dir) = crate::FORMATS_UTILITIES_DATA_DIR.get_dir("formats") {
+            for file in dir.files() {
+                if file.path().extension().and_then(|ext| ext.to_str())
+                    == Some("csv")
+                {
+                    parse_format_csv_data(file.contents(), &mut map);
+                }
             }
         }
     }

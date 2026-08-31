@@ -17,6 +17,9 @@ ctb-formats-unicode = { path = "../unicode" }
 ctb-storage-minimal = { path = "../../storage/minimal" }
 include_dir = { version = "0.7.4", features = ["glob"] }
 regex = "1.12.2"
+tempfile = "3.24.0"
+csv = "1.4.0"
 
 [lints]
 workspace = true
+

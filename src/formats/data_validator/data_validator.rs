@@ -32,6 +32,7 @@ pub mod format;
 pub mod layout;
 pub mod report;
 pub mod shared;
+pub mod updater;
 
 pub use dc::{
     DC_REGION_END, DC_REGION_START, ParsedDcRow, split_dc_aliases_column,
@@ -52,6 +53,12 @@ pub use shared::{
     validate_cross_table_uniqueness, validate_extension_entry,
     validate_extensions_field, validate_general_category, validate_mime_field,
     validate_rust_identifier, validate_support_level,
+};
+pub use updater::{
+    MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,
+    assign_and_update_format_categories, find_repository_root,
+    generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
+    write_csv_file,
 };
 
 use std::collections::HashSet;
@@ -189,5 +196,132 @@ mod tests {
         validate_cross_table_uniqueness(&dc_names, &fmt_labels, &mut report);
         assert!(report.has_errors());
         assert!(report.format_report().contains("collides with Dc name"));
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_gap_detection() {
+        let mut report = ValidationReport::new();
+        let _known_formats: HashSet<usize> = HashSet::new();
+
+        // Create a simulated in-memory category with gap: Short IDs 0 and 2 (missing 1)
+        let csv_data = b"Dc,Short,Name (!=deprecated),comb,bidi,Aa,Type,Script,Aliases,Description,\n1114112,0,Null,0,BN,,Cc,,,, \n1114114,2,Two,0,BN,,Po,,,, \n";
+        let rows = validate_dc_category_file(csv_data, "test/categories/test.csv", &mut report);
+        assert_eq!(rows.len(), 2);
+
+        // Run gap validation logic
+        let known_dc_ids: HashSet<u32> = rows.iter().map(|r| r.short_id).collect();
+        if let Some(&max_id) = known_dc_ids.iter().max() {
+            let mut missing_ids = Vec::new();
+            for id in 0..=max_id {
+                if !known_dc_ids.contains(&id) {
+                    missing_ids.push(id);
+                }
+            }
+            if !missing_ids.is_empty() {
+                report.add_error(
+                    "test/categories/",
+                    None,
+                    Some("Short"),
+                    format!("Missing IDs: {missing_ids:?}"),
+                    None,
+                );
+            }
+        }
+
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("Missing IDs: [1]"));
+    }
+
+    #[crate::ctb_test]
+    fn test_end_to_end_assign_and_merge_cycle() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let repo = temp_dir.path();
+
+        let dc_cats = repo.join("src/formats/dctext/data/categories");
+        let fmt_cats = repo.join("src/formats/utilities/data/formats");
+        std::fs::create_dir_all(&dc_cats).unwrap();
+        std::fs::create_dir_all(&fmt_cats).unwrap();
+
+        // Write schema.csv files
+        let dc_schema_header = vec![
+            "Dc".to_string(),
+            "Short".to_string(),
+            "Name (!=deprecated)".to_string(),
+            "◌".to_string(),
+            "⇆".to_string(),
+            "Aa".to_string(),
+            "Type".to_string(),
+            "Script".to_string(),
+            "Aliases; >=xref, <=decompos., :=Dc syntax".to_string(),
+            "Description".to_string(),
+            "".to_string(),
+        ];
+        write_csv_file(&repo.join("src/formats/dctext/data/schema.csv"), &dc_schema_header, &[]).unwrap();
+
+        let fmt_schema_header = vec![
+            "Dc".to_string(),
+            "Short".to_string(),
+            "Ident (Rust-friendly)".to_string(),
+            "Label".to_string(),
+            "Category".to_string(),
+            "MIME".to_string(),
+            "Extensions".to_string(),
+            "UTI".to_string(),
+            "Apple Type".to_string(),
+            "Nicknames".to_string(),
+            "BaseFormat".to_string(),
+            "Import".to_string(),
+            "Export".to_string(),
+            "Tests".to_string(),
+            "Variants".to_string(),
+            "Comments".to_string(),
+            "References".to_string(),
+        ];
+        write_csv_file(&repo.join("src/formats/utilities/data/schema.csv"), &fmt_schema_header, &[]).unwrap();
+
+        // Write category files with AUTO IDs
+        let dc_rows = vec![
+            vec!["1114112".to_string(), "0".to_string(), "Null".to_string(), "0".to_string(), "BN".to_string(), "".to_string(), "Cc".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string()],
+            vec!["".to_string(), "AUTO".to_string(), "CustomDc".to_string(), "0".to_string(), "BN".to_string(), "".to_string(), "Po".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string()],
+        ];
+        write_csv_file(&dc_cats.join("custom.csv"), &dc_schema_header, &dc_rows).unwrap();
+
+        let fmt_rows = vec![
+            vec!["2228224".to_string(), "0".to_string(), "FormatZero".to_string(), "Format Zero".to_string(), "document".to_string(), "".to_string(), ".fz".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "3".to_string(), "3".to_string(), "1".to_string(), "".to_string(), "".to_string(), "".to_string()],
+            vec!["".to_string(), "AUTO".to_string(), "FormatOne".to_string(), "Format One".to_string(), "document".to_string(), "".to_string(), ".fo".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "3".to_string(), "3".to_string(), "1".to_string(), "".to_string(), "".to_string(), "".to_string()],
+        ];
+        write_csv_file(&fmt_cats.join("doc.csv"), &fmt_schema_header, &fmt_rows).unwrap();
+
+        // Run auto assignment
+        let dc_stats = assign_and_update_dc_categories(repo).unwrap();
+        assert_eq!(dc_stats.new_ids_assigned, 1);
+        assert_eq!(dc_stats.max_short_id, 1);
+
+        let fmt_stats = assign_and_update_format_categories(repo).unwrap();
+        assert_eq!(fmt_stats.new_ids_assigned, 1);
+        assert_eq!(fmt_stats.max_short_id, 1);
+
+        // Run merge generation
+        let gen_stats = generate_merged_csvs(repo).unwrap();
+        assert_eq!(gen_stats.dc_records_merged, 2);
+        assert_eq!(gen_stats.format_records_merged, 2);
+
+        // Verify generated DcList.generated.csv contents and order
+        let (dc_gen_hdr, dc_gen_rows) = read_csv_file(&repo.join("src/formats/dctext/data/DcList.generated.csv")).unwrap();
+        assert_eq!(dc_gen_hdr, dc_schema_header);
+        assert_eq!(dc_gen_rows.len(), 2);
+        assert_eq!(dc_gen_rows[0][0], "1114112");
+        assert_eq!(dc_gen_rows[0][1], "0");
+        assert_eq!(dc_gen_rows[1][0], "1114113");
+        assert_eq!(dc_gen_rows[1][1], "1");
+
+        // Verify generated formats.generated.csv contents and order
+        let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(&repo.join("src/formats/utilities/data/formats.generated.csv")).unwrap();
+        assert_eq!(fmt_gen_hdr, fmt_schema_header);
+        assert_eq!(fmt_gen_rows.len(), 2);
+        assert_eq!(fmt_gen_rows[0][0], "2228224");
+        assert_eq!(fmt_gen_rows[0][1], "0");
+        assert_eq!(fmt_gen_rows[1][0], "2228225");
+        assert_eq!(fmt_gen_rows[1][1], "1");
     }
 }

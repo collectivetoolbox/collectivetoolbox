@@ -413,5 +413,46 @@ pub fn validate_all_format_files(
         }
     }
 
+    // Validate that Short Format IDs form a contiguous sequence starting from 0 with no gaps/holes
+    let known_fmt_ids: HashSet<usize> = all_rows.iter().map(|r| r.short_id).collect();
+    if let Some(&max_id) = known_fmt_ids.iter().max() {
+        let mut missing_ids = Vec::new();
+        for id in 0..=max_id {
+            if !known_fmt_ids.contains(&id) {
+                missing_ids.push(id);
+            }
+        }
+        if !missing_ids.is_empty() {
+            let missing_str = if missing_ids.len() <= 10 {
+                missing_ids
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                format!(
+                    "{} (and {} more)",
+                    missing_ids
+                        .iter()
+                        .take(10)
+                        .map(std::string::ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    missing_ids.len().saturating_sub(10)
+                )
+            };
+            report.add_error(
+                "src/formats/utilities/data/formats/",
+                None,
+                Some("Short"),
+                format!(
+                    "Format Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={max_id}",
+                    missing_ids.len()
+                ),
+                Some("Ensure Format Short IDs are contiguous with no missing numbers"),
+            );
+        }
+    }
+
     all_rows
 }
