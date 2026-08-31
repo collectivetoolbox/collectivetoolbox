@@ -68,3 +68,34 @@ impl ToolResult {
         }
     }
 }
+
+use std::io::IsTerminal;
+
+/// Returns true if standard error is connected to an interactive terminal.
+pub fn is_stderr_interactive() -> bool {
+    std::io::stderr().is_terminal()
+}
+
+/// Resolves whether progress updates should be displayed based on CLI flags
+/// `--progress` and `--no-progress`, falling back to whether standard error is interactive.
+pub fn should_show_progress(progress: bool, no_progress: bool) -> bool {
+    if no_progress {
+        false
+    } else if progress {
+        true
+    } else {
+        is_stderr_interactive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_show_progress;
+
+    #[crate::ctb_test]
+    fn test_should_show_progress_logic() {
+        assert!(!should_show_progress(false, true));
+        assert!(should_show_progress(true, false));
+        assert!(!should_show_progress(true, true)); // no_progress takes precedence
+    }
+}

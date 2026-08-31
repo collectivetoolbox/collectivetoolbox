@@ -318,8 +318,9 @@ pub fn download(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
+    progress: bool,
 ) -> Result<Vec<u8>> {
-    download_with_client(&LiveArchiveClient, target, output_dir, original)
+    download_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
 
 pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
@@ -329,8 +330,9 @@ pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
 pub fn download_here(
     target: &str,
     output_dir: Option<&Path>,
+    progress: bool,
 ) -> Result<Vec<u8>> {
-    download_here_with_client(&LiveArchiveClient, target, output_dir)
+    download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
 }
 
 fn download_with_client(
@@ -338,6 +340,7 @@ fn download_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
+    progress: bool,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
@@ -345,6 +348,14 @@ fn download_with_client(
     fs::create_dir_all(&item_directory).with_context(|| {
         format!("Failed to create {}", item_directory.display())
     })?;
+
+    if progress {
+        eprintln!(
+            "Downloading item '{}' to {}",
+            archive_target.identifier,
+            item_directory.display()
+        );
+    }
 
     let file_names = if original {
         let metadata_files =
@@ -373,9 +384,10 @@ fn download_with_client(
             .collect()
     };
 
+    let total_files = file_names.len();
     let mut downloaded_files = Vec::new();
-    for file_name in file_names {
-        let destination = item_directory.join(Path::new(&file_name));
+    for (i, file_name) in file_names.iter().enumerate() {
+        let destination = item_directory.join(Path::new(file_name));
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).with_context(|| {
                 format!(
@@ -384,12 +396,24 @@ fn download_with_client(
                 )
             })?;
         }
+        if progress {
+            use std::io::{Write, stderr};
+            let idx = i.saturating_add(1);
+            eprint!("[{idx}/{total_files}] Downloading {file_name}... ");
+            let _ = stderr().flush();
+        }
         let bytes = client
-            .fetch_download_bytes(&archive_target.identifier, &file_name)?;
+            .fetch_download_bytes(&archive_target.identifier, file_name)?;
         fs::write(&destination, &bytes).with_context(|| {
             format!("Failed to write downloaded file {}", destination.display())
         })?;
-        downloaded_files.push(file_name);
+        if progress {
+            let size_str = format_bytes_decimal(
+                u64::try_from(bytes.len()).unwrap_or(0),
+            );
+            eprintln!("done ({size_str}).");
+        }
+        downloaded_files.push(file_name.clone());
     }
 
     let result = DownloadResult {
@@ -404,8 +428,9 @@ pub fn checkeddl(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
+    progress: bool,
 ) -> Result<Vec<u8>> {
-    checkeddl_with_client(&LiveArchiveClient, target, output_dir, original)
+    checkeddl_with_client(&LiveArchiveClient, target, output_dir, original, progress)
 }
 
 fn checkeddl_with_client(
@@ -413,12 +438,22 @@ fn checkeddl_with_client(
     target: &str,
     output_dir: Option<&Path>,
     original: bool,
+    progress: bool,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
     let item_directory = base_output_dir.join(&archive_target.identifier);
 
-    let _ = download_with_client(client, target, Some(&base_output_dir), original)?;
+    let _ = download_with_client(
+        client,
+        target,
+        Some(&base_output_dir),
+        original,
+        progress,
+    )?;
+    if progress {
+        eprintln!("Verifying downloaded files...");
+    }
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
     let files_xml_path = item_directory.join(format!(
@@ -468,6 +503,9 @@ fn checkeddl_with_client(
             )),
         },
     )?;
+    if progress {
+        eprintln!("Verification complete.");
+    }
     pretty_json_bytes(&verification)
 }
 
@@ -486,6 +524,7 @@ fn download_here_with_client(
     client: &dyn ArchiveClient,
     target: &str,
     output_dir: Option<&Path>,
+    progress: bool,
 ) -> Result<Vec<u8>> {
     let archive_target = parse_archive_target(target)?;
     let Some(file_name) = archive_target.archive_path.clone() else {
@@ -499,11 +538,22 @@ fn download_here_with_client(
             anyhow!("Could not determine local file name for {file_name}")
         })?;
     let output_path = base_output_dir.join(leaf_name);
+    if progress {
+        use std::io::{Write, stderr};
+        eprint!("Downloading {file_name}... ");
+        let _ = stderr().flush();
+    }
     let bytes =
         client.fetch_download_bytes(&archive_target.identifier, &file_name)?;
     fs::write(&output_path, &bytes).with_context(|| {
         format!("Failed to write {}", output_path.display())
     })?;
+    if progress {
+        let size_str = format_bytes_decimal(
+            u64::try_from(bytes.len()).unwrap_or(0),
+        );
+        eprintln!("done ({size_str}).");
+    }
     let result = DownloadHereResult {
         identifier: archive_target.identifier,
         output_path: output_path.display().to_string(),
@@ -1630,6 +1680,7 @@ mod tests {
             &fixture_client(),
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1648,6 +1699,7 @@ mod tests {
             &fixture_client(),
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
+            false,
             false,
         )
         .unwrap();
@@ -1675,6 +1727,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1700,6 +1753,7 @@ mod tests {
             &format!("{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"),
             Some(temp_dir.path()),
             false,
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =
@@ -1720,6 +1774,7 @@ mod tests {
             TEST_IDENTIFIER,
             Some(temp_dir.path()),
             true,
+            false,
         )
         .unwrap();
         let result_json: serde_json::Value =

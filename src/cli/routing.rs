@@ -189,6 +189,12 @@ pub enum IACommand {
         /// Only download files with source="original".
         #[arg(long)]
         original: bool,
+        /// Show progress during download
+        #[arg(long, overrides_with = "no_progress")]
+        progress: bool,
+        /// Suppress progress during download
+        #[arg(long, overrides_with = "progress")]
+        no_progress: bool,
     },
     /// Download a single file and write it to stdout.
     #[command(name = "downloadAsStream")]
@@ -204,6 +210,12 @@ pub enum IACommand {
         /// Destination directory. Defaults to the current directory.
         #[arg(long)]
         output_dir: Option<PathBuf>,
+        /// Show progress during download
+        #[arg(long, overrides_with = "no_progress")]
+        progress: bool,
+        /// Suppress progress during download
+        #[arg(long, overrides_with = "progress")]
+        no_progress: bool,
     },
     /// Download an item or file, then verify the downloaded content.
     Checkeddl {
@@ -215,6 +227,12 @@ pub enum IACommand {
         /// Only download and verify files with source="original".
         #[arg(long)]
         original: bool,
+        /// Show progress during download
+        #[arg(long, overrides_with = "no_progress")]
+        progress: bool,
+        /// Suppress progress during download
+        #[arg(long, overrides_with = "progress")]
+        no_progress: bool,
     },
 }
 
@@ -1067,12 +1085,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 target,
                 output_dir,
                 original,
+                progress,
+                no_progress,
             } => {
+                let show_progress =
+                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download(
                         target,
                         output_dir.as_deref(),
                         *original,
+                        show_progress,
                     )?,
                 ))
             }
@@ -1081,11 +1104,19 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                     ctb_formats_internetarchive::download_as_stream(target)?,
                 ))
             }
-            IACommand::DownloadHere { target, output_dir } => {
+            IACommand::DownloadHere {
+                target,
+                output_dir,
+                progress,
+                no_progress,
+            } => {
+                let show_progress =
+                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::download_here(
                         target,
                         output_dir.as_deref(),
+                        show_progress,
                     )?,
                 ))
             }
@@ -1093,12 +1124,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 target,
                 output_dir,
                 original,
+                progress,
+                no_progress,
             } => {
+                let show_progress =
+                    ctb_utilities::cli::should_show_progress(*progress, *no_progress);
                 Ok(ToolResult::immediate_ok(
                     ctb_formats_internetarchive::checkeddl(
                         target,
                         output_dir.as_deref(),
                         *original,
+                        show_progress,
                     )?,
                 ))
             }

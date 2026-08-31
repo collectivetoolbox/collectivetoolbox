@@ -79,6 +79,7 @@ pub use ctb_ipc_macro::ipc_service;
 pub use ctb_ipc_macro::ipc_service_client;
 pub use ctb_test_macro::ctb_test;
 pub use crate::math::approx_eq;
+pub use crate::string::format_bytes_decimal;
 pub use hex;
 use include_dir::{Dir, include_dir};
 pub use inventory;

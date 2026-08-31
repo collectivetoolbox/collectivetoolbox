@@ -35,9 +35,7 @@ use ctb_utilities::ipc::{ChildKind, format_child_kind};
 use futures::StreamExt;
 use std::env;
 
-use crate::routing::{
-    Command, is_lightweight_command, run_lightweight_command,
-};
+use crate::routing::{Command, run_lightweight_command};
 use ctb_storage::get_help_for_tty;
 
 pub mod routing;
@@ -187,12 +185,6 @@ pub async fn maybe_run_lightweight(cli: &Cli) -> Result<Option<i32>> {
     let Some(cmd) = &cli.command else {
         return Ok(None); // no command => proceed to full app
     };
-
-    let args: Vec<String> = std::env::args().collect();
-    match args.get(1).map(String::as_str) {
-        Some(first) if !is_lightweight_command(first) => return Ok(None),
-        _ => {}
-    }
 
     let result = run_lightweight_command(cmd).await?;
     let exit_code = dispatch_tool_result(result).await?;
@@ -747,5 +739,25 @@ $my_test_array = array('a' => '1', 'b' => '2');
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_maybe_run_lightweight_with_options() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "--insecure-skip-crlite-check".to_string(),
+            "hex2dec".to_string(),
+            "1A 2B".to_string(),
+        ];
+        let invocation = parse_invocation(Some(args)).expect("parse invocation");
+        let cli = invocation.expect_cli().expect("expect cli");
+        assert!(cli.insecure_skip_crlite_check);
+        assert!(cli.command.is_some());
+
+        let exit_code = maybe_run_lightweight(cli)
+            .await
+            .expect("maybe_run_lightweight")
+            .expect("should return exit code for subcommand");
+        assert_eq!(exit_code, 0);
     }
 }

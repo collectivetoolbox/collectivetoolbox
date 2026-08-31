@@ -34,6 +34,9 @@ use crate::pc_settings::{PcSettingBoolKey, get_bool_setting};
 pub mod crlite;
 
 pub const BASE_RETRY_DELAY_MS: u64 = 500;
+pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+pub const STARTUP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+pub const STARTUP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 use include_dir::{Dir, include_dir};
 
@@ -43,10 +46,31 @@ pub(crate) fn get_https_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&HTTPS_DATA_DIR, key)
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ClientOptions {
+    pub connect_timeout: Option<Duration>,
     pub timeout: Option<Duration>,
     pub user_agent: Option<String>,
+}
+
+impl Default for ClientOptions {
+    fn default() -> Self {
+        Self {
+            connect_timeout: Some(DEFAULT_CONNECT_TIMEOUT),
+            timeout: None,
+            user_agent: None,
+        }
+    }
+}
+
+impl ClientOptions {
+    pub fn startup() -> Self {
+        Self {
+            connect_timeout: Some(STARTUP_CONNECT_TIMEOUT),
+            timeout: Some(STARTUP_REQUEST_TIMEOUT),
+            user_agent: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -381,6 +405,9 @@ fn configure_async_builder(
     mut builder: reqwest::ClientBuilder,
     options: ClientOptions,
 ) -> Result<reqwest::ClientBuilder> {
+    if let Some(connect_timeout) = options.connect_timeout {
+        builder = builder.connect_timeout(connect_timeout);
+    }
     if let Some(timeout) = options.timeout {
         builder = builder.timeout(timeout);
     }
@@ -397,6 +424,9 @@ fn configure_blocking_builder(
     mut builder: reqwest::blocking::ClientBuilder,
     options: ClientOptions,
 ) -> Result<reqwest::blocking::ClientBuilder> {
+    if let Some(connect_timeout) = options.connect_timeout {
+        builder = builder.connect_timeout(connect_timeout);
+    }
     if let Some(timeout) = options.timeout {
         builder = builder.timeout(timeout);
     }

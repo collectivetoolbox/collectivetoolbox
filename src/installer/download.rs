@@ -325,6 +325,7 @@ impl ChunkDownloader {
                 "ctoolbox-installer/{}",
                 environment::ctb_version()
             )),
+            ..https::ClientOptions::default()
         })
         .context("Failed to create HTTP client")?;
 

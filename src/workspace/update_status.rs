@@ -269,6 +269,31 @@ async fn query_server_update_status(
         .context("Failed to parse update-status API response")
 }
 
+async fn query_server_update_status_fast(
+    server_url: &str,
+    current: &BuildIdentity,
+) -> Result<ServerUpdateStatusResponse> {
+    let client = utilities::https::async_client(
+        utilities::https::ClientOptions::startup(),
+    )?;
+    let api_url =
+        format!("{}/api/update-status", server_url.trim_end_matches('/'));
+    let current_version = current.version.to_string();
+    let current_build_date = current.build_date.to_rfc3339();
+
+    let mut url = reqwest::Url::parse(&api_url)?;
+    url.query_pairs_mut()
+        .append_pair("version", &current_version)
+        .append_pair("build_date", &current_build_date);
+
+    let url_str = url.to_string();
+    let response = client.get(&url_str).await?;
+    let body = response.text().await?;
+
+    serde_json::from_str(&body)
+        .context("Failed to parse update-status API response")
+}
+
 /// Calculates how many seconds to wait until the scheduled update check time.
 ///
 /// If the scheduled time has already passed today, returns 0 (check immediately).
@@ -633,7 +658,7 @@ async fn quick_update_check() -> StartupUpdateResult {
     .unwrap_or_else(default_url);
 
     let Ok(api_status) =
-        query_server_update_status(&server_url, &current_build).await
+        query_server_update_status_fast(&server_url, &current_build).await
     else {
         return StartupUpdateResult::NoPendingUpdate;
     };
@@ -642,12 +667,17 @@ async fn quick_update_check() -> StartupUpdateResult {
         return StartupUpdateResult::NoPendingUpdate;
     }
 
-    // Quick manifest check
-    let downloader =
-        match ChunkDownloader::new(&server_url, no_progress_callback()) {
-            Ok(d) => d,
-            Err(_) => return StartupUpdateResult::NoPendingUpdate,
-        };
+    // Quick manifest check with fast startup client
+    let Ok(http_client) = utilities::https::async_client(
+        utilities::https::ClientOptions::startup(),
+    ) else {
+        return StartupUpdateResult::NoPendingUpdate;
+    };
+    let downloader = ChunkDownloader::with_client(
+        &server_url,
+        http_client,
+        no_progress_callback(),
+    );
 
     let manifest = if let Ok(m) = downloader
         .download_manifest(&current_platform(), None)

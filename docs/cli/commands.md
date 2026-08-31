@@ -722,6 +722,8 @@ Arguments:
 Options:
       --output-dir <OUTPUT_DIR>  Destination directory. Defaults to the current directory
       --original                 Only download and verify files with source="original"
+      --progress                 Show progress during download
+      --no-progress              Suppress progress during download
   -h, --help                     Print help
 ```
 
@@ -753,6 +755,8 @@ Arguments:
 Options:
       --output-dir <OUTPUT_DIR>  Destination directory. Defaults to the current directory
       --original                 Only download files with source="original"
+      --progress                 Show progress during download
+      --no-progress              Suppress progress during download
   -h, --help                     Print help
 ```
 
@@ -782,6 +786,8 @@ Arguments:
 
 Options:
       --output-dir <OUTPUT_DIR>  Destination directory. Defaults to the current directory
+      --progress                 Show progress during download
+      --no-progress              Suppress progress during download
   -h, --help                     Print help
 ```
 
