@@ -1,0 +1,6 @@
+@Overview:
+    This file describes lang.types.ResourceCapability.
+
+@Type:
+    C ResourceCapability
+    A ResourceCapability is an ability that a resource can have (e.g. output a String).

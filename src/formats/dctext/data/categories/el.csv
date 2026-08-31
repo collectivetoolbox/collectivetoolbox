@@ -21,7 +21,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114374,262,Begin type definition,0,BN,,!Cx,EL Syntax,:~ [264] 263,,
 1114375,263,End type definition,0,BN,,!Cx,EL Syntax,:262 [264] ~,,
 1114376,264,Built-in type identifier: String,0,BN,,!Cx,EL Types,<approx>(f80),A specific case of “String” as a format (short-style format ID 80),
-1114377,265,!void lang.invoke(String),0,BN,,!Cx,EL Routines,<prefer>TBD,Invoke the routine with the given name,
+1114377,265,!void lang.invoke(String),0,BN,,!Cx,EL Routines,<prefer>307,Invoke the routine with the given name,
 1114378,266,void lang.block,0,BN,,!Cx,EL Routines,,Indicates a division between blocks of statements,
 1114379,267,Whitespace in source,0,BN,,!Cx,EL Miscellaneous,:([statement] ~) | (~ ~) | (~ [statement]),"Indicates that in source form, there is FIXME: following amount of whitespace.", a blank line should be present here
 1114380,268,"void lang.assign(identifier, value)",0,BN,,!Cx,EL Routines,,,
@@ -38,4 +38,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114391,279,Routine invocation,0,BN,,!Cx,EL Miscellaneous,:~ [identifier],"Invoke the specified routine (unlike lang.invoke, this form of invocation is not shown in the EM source form of the document FIXME: clarify this??)",
 1114392,280,Built-in type identifier: Routine,0,BN,,!Cx,EL Types,Routine,,
 1114418,306,Built-in type identifier: Routine name,0,BN,,!Cx,EL Types,RoutineName,Subtype of string,
-1114419,307,void lang.invoke(Routine | RoutineName),,,,,,,,
+1114419,307,void lang.invoke(Routine | RoutineName),0,BN,,!Cx,EL Routines,,,

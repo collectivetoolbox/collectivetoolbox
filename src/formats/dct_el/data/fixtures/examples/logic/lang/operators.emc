@@ -1,0 +1,31 @@
+@Overview:
+    This file describes lang.operators().
+
+@Routine:
+    B operators
+    Set up the standard language operators.
+    @Throws:
+        @Exception:
+            !noStringOutputResourceAvailable
+            Shows that there is no available resource for outputting this string.
+        @Exception:
+            !stringChangedForDisplay
+            There was no suitable output resource, so the string was altered to be shown to the user.
+    @Visibility:
+        Project
+        Only other code in the Ember Language implementation can see/use this routine. By default, routines in the Ember Language are public.
+    @Returns:
+        @Void:
+            This routine does not have a return value.
+    @Implementation:
+        foreach FuzzyList[1 List [1 LanguageProfile, 1 String, 1 Routine] & Type]$operator in
+            List[1 List [1 LanguageProfile, 1 Type, 1 String, 1 Routine] & Type] <-
+                [ Core, 'print', lang.print() ], String
+                Any, [ Core, '=', lang.compare() ], Any
+                Boolean, [ Core, '|', lang.xor() ], Boolean
+                Boolean, [ Core, '||', lang.ior() ], Boolean
+                Trait, [ Core, '<-', lang.set() ], Any
+                Routine, [ Core, 'otherwise', lang.otherwise() ], Routine
+                [ Core, 'foreach', lang.foreach() ], FuzzyList[Trait], Token['in'], List
+                [ Core, 'foreach', lang.foreach() ], FuzzyList[Trait], Token['at'], FuzzyList[Trait[Natural]], Token['in'], List
+            lang.defineOperator($operator)

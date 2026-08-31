@@ -76,15 +76,10 @@ pub static FORMATS_CATEGORIES_DIR: Dir =
 pub static STORAGE_MINIMAL_DATA_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../../storage/minimal/data");
 
-/// Runs comprehensive validation across all repository data tables.
-/// Automatically validates the live on-disk files if the repository root is
-/// found, otherwise validates the embedded snapshots.
+/// Runs comprehensive validation across all repository data tables strictly in memory
+/// using the embedded directory asset bundles.
 pub fn validate_all_data_tables() -> ValidationReport {
-    if let Ok(repo_root) = find_repository_root() {
-        validate_all_data_tables_from_repo(&repo_root)
-    } else {
-        validate_all_data_tables_embedded()
-    }
+    validate_all_data_tables_embedded()
 }
 
 /// Runs validation using the embedded directory snapshots.

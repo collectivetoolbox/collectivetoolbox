@@ -1,0 +1,14 @@
+@Overview:
+    This file describes lang.new().
+
+@Routine:
+    C new
+    Creates a new instance of the Type passed to it. FIXME: Determinism depends on the type's constructor, if any.
+    @Parameters:
+        @Type:
+            type
+            The type to return a new instance of
+    @Returns:
+        The <- operator can be used to indicate a dynamic return signature (which must be a subset of the return signature's possible types)
+        @Any <- $type:
+            This routine returns a new instance of the Type passed to it.

@@ -1,0 +1,21 @@
+@Overview:
+    This file describes lang.ior().
+
+@Routine:
+    C ior
+    Boolean inclusive or of the parameters.
+    @Parameters:
+        @Boolean | List[Boolean]:
+            value1
+            One of the two parameters to ior
+        @Boolean | List[Boolean]:
+            value2
+            One of the two parameters to ior
+    @Returns:
+        @Boolean | List[Boolean] <-
+            if $value1.Type = Boolean & $value2.Type = Boolean:
+                Boolean
+            else:
+                List[Boolean]
+        :
+            This routine returns the Boolean inclusive or of the two parameters.

@@ -1,0 +1,18 @@
+@Overview:
+    This file describes lang.not().
+
+@Routine:
+    C not
+    Boolean not of the parameter
+    @Parameters:
+        @Boolean | List[Boolean]:
+            value
+            The parameter to not
+    @Returns:
+        @Boolean | List[Boolean] <-
+            if $value.Type = Boolean:
+                Boolean
+            else:
+                List[Boolean]
+        :
+            This routine returns the Boolean not of the parameter.

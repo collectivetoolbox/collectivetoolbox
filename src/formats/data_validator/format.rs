@@ -465,10 +465,12 @@ pub fn validate_all_format_files(
     formats_dir: &Dir,
     report: &mut ValidationReport,
 ) -> Vec<ParsedFormatRow> {
-    let files: Vec<(&str, &[u8])> = formats_dir
-        .files()
-        .map(|f| (f.path().to_str().unwrap_or(""), f.contents()))
-        .collect();
+    let mut files = Vec::new();
+    for f in formats_dir.files() {
+        if let Some(path_str) = f.path().to_str() {
+            files.push((path_str, f.contents()));
+        }
+    }
     validate_format_files_data(files, "src/formats/utilities/data/formats/", report)
 }
 
@@ -507,13 +509,11 @@ pub fn validate_all_format_files_from_disk(
 
     let mut file_data = Vec::new();
     for p in &paths {
+        let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
         if let Ok(bytes) = std::fs::read(p) {
-            let file_name = p
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("fmt.csv")
-                .to_string();
-            file_data.push((file_name, bytes));
+            file_data.push((file_name.to_string(), bytes));
         } else {
             report.add_error(
                 &p.display().to_string(),

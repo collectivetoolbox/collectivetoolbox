@@ -1,9 +1,9 @@
 [package]
-name = "ctb-formats-x86"
+name = "ctb-formats-dct-el"
 edition = "2024"
 
 [lib]
-path="x86.rs"
+path="dct_el.rs"
 crate-type = ["lib"]
 
 [dependencies]

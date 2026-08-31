@@ -1,0 +1,21 @@
+@Overview:
+    This file describes lang.and().
+
+@Routine:
+    C ior
+    Boolean and of the parameters.
+    @Parameters:
+        @Boolean | List[Boolean]:
+            value1
+            One of the two parameters to and
+        @Boolean | List[Boolean]:
+            value2
+            One of the two parameters to and
+    @Returns:
+        @Boolean | List[Boolean] <-
+            if $value1.Type = Boolean & $value2.Type = Boolean:
+                Boolean
+            else:
+                List[Boolean]
+        :
+            This routine returns the Boolean and of the two parameters.

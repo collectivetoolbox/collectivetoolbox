@@ -510,10 +510,12 @@ pub fn validate_all_dc_files(
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
 ) -> Vec<ParsedDcRow> {
-    let files: Vec<(&str, &[u8])> = dc_dir
-        .files()
-        .map(|f| (f.path().to_str().unwrap_or(""), f.contents()))
-        .collect();
+    let mut files = Vec::new();
+    for f in dc_dir.files() {
+        if let Some(path_str) = f.path().to_str() {
+            files.push((path_str, f.contents()));
+        }
+    }
     validate_dc_files_data(files, "src/formats/dctext/data/categories/", known_format_ids, report)
 }
 
@@ -553,13 +555,11 @@ pub fn validate_all_dc_files_from_disk(
 
     let mut file_data = Vec::new();
     for p in &paths {
+        let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
         if let Ok(bytes) = std::fs::read(p) {
-            let file_name = p
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("dc.csv")
-                .to_string();
-            file_data.push((file_name, bytes));
+            file_data.push((file_name.to_string(), bytes));
         } else {
             report.add_error(
                 &p.display().to_string(),

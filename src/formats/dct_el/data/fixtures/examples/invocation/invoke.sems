@@ -1,0 +1,16 @@
+270 264 87 96 96 258 264 259 258 264 270 98 102 105 273 259 258 275 274 259 269 # String foo(String, String qux?, *):
+256 258 276 270 19 97 82 99 277 270 262 278 263 35 271 271 276 270 19 97 82 99 277 270 262 278 263 36 271 271 276 270 262 264 263 98 102 105 271 272 #     say $!par[1]$!par[2]$qux
+267 # 
+247 18 69 86 100 101 18 100 90 94 97 93 86 18 90 95 103 96 84 82 101 90 96 95 248 # # Test simple invocation
+279 276 270 262 264 263 271 258 260 262 264 263 83 82 99 261 259 258 260 262 264 263 83 82 107 261 259 # foo("bar" "baz")
+ # foo("bar" 6 "qux") # qux is 6, param 0 is bar, param 1 is 6, and param 2 is qux
+ # foo(qux=6 "bar") # qux is still 6, but now parameter 0 is 6 and 1 is bar
+ # 
+ # # Test simple invocation, parenthesis-less style
+ # foo "bar" "baz"
+ # foo "bar" 6 "qux" # qux is 6, param 0 is bar, param 1 is 6, and param 2 is qux
+ # foo qux=6 "bar" # qux is still 6, but now parameter 0 is 6 and 1 is bar
+ # 
+ # # Test invocation with "invoke"
+ # routineName="foo"
+ # invoke $routineName "bar" "baz"

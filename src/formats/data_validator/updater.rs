@@ -221,7 +221,10 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
 
     let mut stats = TableUpdateStats {
         files_scanned: files_data.len(),
-        max_short_id: usize::try_from(max_short_id).unwrap_or(0),
+        max_short_id: match usize::try_from(max_short_id) {
+            Ok(v) => v,
+            Err(_) => 0,
+        },
         ..Default::default()
     };
 
@@ -245,7 +248,10 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
             };
 
             if short_unassigned {
-                let name = row.get(2).map(std::string::String::as_str).unwrap_or("");
+                let name = match row.get(2) {
+                    Some(s) => s.as_str(),
+                    None => "",
+                };
                 if name.is_empty() && is_empty_row(row) {
                     continue;
                 }
@@ -267,7 +273,10 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
                 if let Ok(s_id) = short_str.trim().parse::<u32>() {
                     let expected_dc =
                         DC_REGION_START.saturating_add(u128::from(s_id));
-                    let current_dc = row.get(0).map(|s| s.trim()).unwrap_or("");
+                    let current_dc = match row.get(0) {
+                        Some(s) => s.trim(),
+                        None => "",
+                    };
                     if current_dc != expected_dc.to_string() {
                         if let Some(cell) = row.get_mut(0) {
                             *cell = expected_dc.to_string();
@@ -286,7 +295,10 @@ pub fn assign_and_update_dc_categories(repo_root: &Path) -> Result<TableUpdateSt
         }
     }
 
-    stats.max_short_id = usize::try_from(max_short_id).unwrap_or(0);
+    stats.max_short_id = match usize::try_from(max_short_id) {
+        Ok(v) => v,
+        Err(_) => 0,
+    };
     Ok(stats)
 }
 
@@ -367,8 +379,14 @@ pub fn assign_and_update_format_categories(
             };
 
             if short_unassigned {
-                let ident = row.get(2).map(std::string::String::as_str).unwrap_or("");
-                let label = row.get(3).map(std::string::String::as_str).unwrap_or("");
+                let ident = match row.get(2) {
+                    Some(s) => s.as_str(),
+                    None => "",
+                };
+                let label = match row.get(3) {
+                    Some(s) => s.as_str(),
+                    None => "",
+                };
                 if ident.is_empty() && label.is_empty() && is_empty_row(row) {
                     continue;
                 }
@@ -395,7 +413,10 @@ pub fn assign_and_update_format_categories(
                         bail!("Format Short ID exceeds u128 limit");
                     };
                     let expected_dc = FORMAT_REGION_START.saturating_add(s_id_u128);
-                    let current_dc = row.get(0).map(|s| s.trim()).unwrap_or("");
+                    let current_dc = match row.get(0) {
+                        Some(s) => s.trim(),
+                        None => "",
+                    };
                     if current_dc != expected_dc.to_string() {
                         if let Some(cell) = row.get_mut(0) {
                             *cell = expected_dc.to_string();
@@ -455,8 +476,14 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_dc_rows.sort_by(|a, b| {
-            let id_a = a.first().and_then(|s| s.trim().parse::<u128>().ok()).unwrap_or(u128::MAX);
-            let id_b = b.first().and_then(|s| s.trim().parse::<u128>().ok()).unwrap_or(u128::MAX);
+            let id_a = match a.first().and_then(|s| s.trim().parse::<u128>().ok()) {
+                Some(id) => id,
+                None => u128::MAX,
+            };
+            let id_b = match b.first().and_then(|s| s.trim().parse::<u128>().ok()) {
+                Some(id) => id,
+                None => u128::MAX,
+            };
             id_a.cmp(&id_b)
         });
 
@@ -500,8 +527,14 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_format_rows.sort_by(|a, b| {
-            let id_a = a.first().and_then(|s| s.trim().parse::<u128>().ok()).unwrap_or(u128::MAX);
-            let id_b = b.first().and_then(|s| s.trim().parse::<u128>().ok()).unwrap_or(u128::MAX);
+            let id_a = match a.first().and_then(|s| s.trim().parse::<u128>().ok()) {
+                Some(id) => id,
+                None => u128::MAX,
+            };
+            let id_b = match b.first().and_then(|s| s.trim().parse::<u128>().ok()) {
+                Some(id) => id,
+                None => u128::MAX,
+            };
             id_a.cmp(&id_b)
         });
 

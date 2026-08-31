@@ -1,0 +1,17 @@
+@Overview:
+    This file describes system.resources.getCapability().
+
+@Routine:
+    C nd!default
+    Gets the ResourceCapability specified by the parameters, such as 'output', String for being able to send a String to the user.
+    @Throws:
+        @Exception:
+            !noSuchResourceCapability
+            Shows that there is no matching ResourceCapability.
+    @Parameters:
+        @FuzzyList[1 String, 1 Resource] | String:
+            capabilitySpecification
+            The specification to use to find a ResourceCapability.
+    @Returns:
+        @ResourceCapability:
+            The matching ResourceCapability.

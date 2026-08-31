@@ -1,0 +1,6 @@
+@Overview:
+    This file describes lang.types.Token.
+
+@Type:
+    C Token
+    A Token, which can have a String, is a type for matching arbitrary, otherwise-unspecified words in the Ember Language.

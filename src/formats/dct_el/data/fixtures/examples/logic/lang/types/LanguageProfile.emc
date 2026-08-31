@@ -1,0 +1,6 @@
+@Overview:
+    This file describes lang.types.LanguageProfile.
+
+@Type:
+    C LanguageProfile
+    A LanguageProfile can be any of 'Core', 'Basic', or 'Dangerous'.

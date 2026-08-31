@@ -1,0 +1,15 @@
+@Overview:
+    This file describes lang.max().
+
+@Routine:
+    max
+    Return the maximum of the provided numbers
+    @Parameters:
+        @FuzzyList[Number]:
+            numberList
+            List of the numbers to find the maximum of
+    @Returns:
+        @Number:
+            This routine returns the maximum number found within the provided set.
+    @Implementation:
+        return numberList.sort[-1]
