@@ -28,7 +28,7 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Checking for unused dependencies: `cd ~/ctoolbox || exit 1; cargo shear`
 - Checking dependencies for license issues: `cd ~/ctoolbox || exit 1; cargo deny check`
 - Checking what cat dragged in what unwanted dependency: `cd ~/ctoolbox; cargo tree --invert (dependency-name)` or for unwanted features `cd ~/ctoolbox || exit 1; cargo tree -e features --invert (dependency-name)`
-- Automatically fix some lints (may need `cargo clippy --workspace --fix --broken-code`): `~/ctoolbox/scripts/format`
+- Automatically fix some lints (may need `cargo clippy --workspace --fix --broken-code`): `cd ~/ctoolbox || exit 1; ~/ctoolbox/scripts/format`
 - Saving dependencies: `cd ~/ctoolbox/vendor/ctb-vendored || exit 1; ~/ctoolbox/scripts/vendor-dependencies`
 - Update Guix package: `cd ~/ctoolbox || exit 1; cp packaging/guix/rust-crates.tmpl packaging/guix/generated/ctb-workspace-rust-crates.scm; guix import --insert=packaging/guix/generated/ctb-workspace-rust-crates.scm crate --lockfile=Cargo.lock ctb-workspace`
 - Build with Guix: `cd ~/ctoolbox || exit 1; ./packaging/guix-build`
