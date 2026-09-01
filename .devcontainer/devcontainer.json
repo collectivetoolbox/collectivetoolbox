@@ -11,7 +11,6 @@
   ],
   "remoteUser": "root",
   "containerEnv": {
-    "DEVCONTAINER": "true",
     "PLAYWRIGHT_CHROMIUM_ARGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
     "CHROMIUM_FLAGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
     "BASH_ENV": "/etc/profile.d/umask.sh"
