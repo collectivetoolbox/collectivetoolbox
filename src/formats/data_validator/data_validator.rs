@@ -32,6 +32,7 @@ pub mod format;
 pub mod layout;
 pub mod report;
 pub mod shared;
+pub mod syntax;
 pub mod updater;
 
 pub use dc::{
@@ -55,6 +56,12 @@ pub use shared::{
     validate_cross_table_uniqueness, validate_extension_entry,
     validate_extensions_field, validate_general_category, validate_mime_field,
     validate_rust_identifier, validate_support_level,
+};
+pub use syntax::{
+    ActionArg, CharTarget, DcSyntaxRule, MatchContext, MatchOutcome,
+    Quantifier, SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    match_pattern, match_syntax_rule, parse_dc_syntax, parse_target_token,
+    validate_dc_syntax,
 };
 pub use updater::{
     MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,
@@ -487,4 +494,178 @@ mod tests {
         assert_eq!(fmt_gen_rows[1][0], "2228225");
         assert_eq!(fmt_gen_rows[1][1], "1");
     }
+
+    #[crate::ctb_test]
+    fn test_strict_target_token_rules() {
+        // Valid Short Dc IDs
+        assert_eq!(parse_target_token("246"), Some(CharTarget::Dc(246)));
+        assert_eq!(parse_target_token("0"), Some(CharTarget::Dc(0)));
+
+        // Valid Format IDs
+        assert_eq!(parse_target_token("f80"), Some(CharTarget::Format(80)));
+        assert_eq!(parse_target_token("f0"), Some(CharTarget::Format(0)));
+
+        // Valid Unicode codepoints (lowercase hex only)
+        assert_eq!(parse_target_token("u0020"), Some(CharTarget::Unicode(0x20)));
+        assert_eq!(parse_target_token("u12ab"), Some(CharTarget::Unicode(0x12ab)));
+        assert_eq!(parse_target_token("u0"), Some(CharTarget::Unicode(0)));
+
+        // Rejected format variants
+        assert_eq!(parse_target_token("format 80"), None);
+        assert_eq!(parse_target_token("format80"), None);
+        assert_eq!(parse_target_token("F80"), None);
+        assert_eq!(parse_target_token("fmt80"), None);
+
+        // Rejected Unicode variants (uppercase, U+, u+)
+        assert_eq!(parse_target_token("U+12AB"), None);
+        assert_eq!(parse_target_token("U+12ab"), None);
+        assert_eq!(parse_target_token("u12AB"), None);
+        assert_eq!(parse_target_token("u+0020"), None);
+        assert_eq!(parse_target_token("U0020"), None);
+        assert_eq!(parse_target_token("u1234567"), None); // Too long
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_dsl_parser() {
+        // Comment rule: :~ [^248 255]+ 248
+        let rule1 = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
+        assert!(rule1.action.is_none());
+        if let SyntaxPattern::Sequence(elements) = &rule1.pattern {
+            assert_eq!(elements.len(), 3);
+            assert_eq!(elements[0].term, SyntaxTerm::SelfChar);
+            assert_eq!(
+                elements[1].term,
+                SyntaxTerm::CharSet {
+                    negated: true,
+                    members: vec![CharTarget::Dc(248), CharTarget::Dc(255)],
+                }
+            );
+            assert_eq!(elements[1].quantifier, Quantifier::OneOrMore);
+            assert_eq!(elements[2].term, SyntaxTerm::CharRef(CharTarget::Dc(248)));
+        } else {
+            panic!("Expected sequence pattern");
+        }
+
+        // Rule with optional macro expansion: :~ [260:] 259
+        let rule2 = parse_dc_syntax(":~ [260:] 259").unwrap();
+        if let SyntaxPattern::Sequence(elements) = &rule2.pattern {
+            assert_eq!(elements.len(), 3);
+            assert_eq!(
+                elements[1].term,
+                SyntaxTerm::RuleRef {
+                    target: CharTarget::Dc(260)
+                }
+            );
+            assert_eq!(elements[1].quantifier, Quantifier::Optional);
+        } else {
+            panic!("Expected sequence pattern");
+        }
+
+        // Rule with named constructs and action invocation:
+        // :[identifier $ident] ~ [value $val] : lang.assign($ident, $val)
+        let rule3 = parse_dc_syntax(
+            ":[identifier $ident] ~ [value $val] : lang.assign($ident, $val)",
+        )
+        .unwrap();
+        assert!(rule3.action.is_some());
+        let action = rule3.action.unwrap();
+        assert_eq!(action.method, "lang.assign");
+        assert_eq!(
+            action.args,
+            vec![
+                ActionArg::Variable("ident".to_string()),
+                ActionArg::Variable("val".to_string()),
+            ]
+        );
+
+        // Grouped alternation: :([statement] ~) | (~ ~)
+        let rule4 = parse_dc_syntax(":([statement] ~) | (~ ~)").unwrap();
+        if let SyntaxPattern::Alternation(branches) = &rule4.pattern {
+            assert_eq!(branches.len(), 2);
+        } else {
+            panic!("Expected alternation pattern");
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_validator_checks() {
+        let mut report = ValidationReport::new();
+        let known_dcs: HashSet<u32> = [246, 248, 255, 260].into_iter().collect();
+        let known_fmts: HashSet<usize> = [80].into_iter().collect();
+
+        // Valid rule
+        let valid_rule = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
+        validate_dc_syntax(
+            &valid_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &mut report,
+            "test/syntax.csv",
+            10,
+        );
+        assert!(!report.has_errors());
+
+        // Unknown Dc reference: 9999
+        let invalid_rule = parse_dc_syntax(":~ 9999").unwrap();
+        validate_dc_syntax(
+            &invalid_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &mut report,
+            "test/syntax.csv",
+            11,
+        );
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("Referenced Dc ID '9999'"));
+
+        // Unbound variable in action
+        let mut report2 = ValidationReport::new();
+        let unbound_action_rule =
+            parse_dc_syntax(":[identifier $ident] ~ : lang.assign($ident, $unbound)").unwrap();
+        validate_dc_syntax(
+            &unbound_action_rule,
+            269,
+            &known_dcs,
+            &known_fmts,
+            &mut report2,
+            "test/syntax.csv",
+            12,
+        );
+        assert!(report2.has_errors());
+        assert!(report2.format_report().contains("Variable '$unbound'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_matcher_resilient_tag_soup() {
+        // Test matching single line comment: :~ [^248 255]+ 248
+        let rule = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
+
+        // Exact match with Dc 246 (self), content [65, 66], closing Dc 248
+        let stream = vec![246, 65, 66, 248];
+        let (outcome, ctx) = match_syntax_rule(&stream, &rule, Some(246));
+        assert_eq!(outcome, MatchOutcome::Matched { consumed: 4 });
+        assert!(ctx.warnings.is_empty());
+
+        // Resilient tag-soup recovery: Unclosed comment at EOF [246, 65, 66] (missing 248)
+        let unclosed_stream = vec![246, 65, 66];
+        let (outcome_rec, ctx_rec) =
+            match_syntax_rule(&unclosed_stream, &rule, Some(246));
+        assert!(outcome_rec.is_matched());
+        assert_eq!(outcome_rec.consumed_tokens(), 3);
+        assert!(!ctx_rec.warnings.is_empty());
+        assert!(ctx_rec.warnings[0].contains("Unclosed syntax structure"));
+
+        // Variable capture test
+        let assign_rule =
+            parse_dc_syntax(":[identifier $ident] ~ [value $val]").unwrap();
+        let assign_stream = vec![100, 269, 200];
+        let (outcome_assign, ctx_assign) =
+            match_syntax_rule(&assign_stream, &assign_rule, Some(269));
+        assert_eq!(outcome_assign, MatchOutcome::Matched { consumed: 3 });
+        assert_eq!(ctx_assign.captured_vars.get("ident"), Some(&vec![100]));
+        assert_eq!(ctx_assign.captured_vars.get("val"), Some(&vec![200]));
+    }
 }
+

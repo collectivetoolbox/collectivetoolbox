@@ -30,6 +30,10 @@ use crate::report::ValidationReport;
 use crate::shared::{
     validate_bidi_class, validate_combining_class, validate_general_category,
 };
+use crate::syntax::{
+    CharTarget, DcSyntaxRule, parse_dc_syntax, parse_target_token,
+    validate_dc_syntax,
+};
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
 
@@ -51,7 +55,7 @@ pub struct ParsedDcRow {
     pub aliases: Vec<String>,
     pub cross_references: Vec<String>,
     pub decompositions: Vec<String>,
-    pub dc_syntax: Option<String>,
+    pub dc_syntax: Option<DcSyntaxRule>,
     pub description: String,
     pub source_file: String,
     pub line_number: usize,
@@ -273,8 +277,26 @@ pub fn validate_dc_category_file(
             );
         }
 
-        let (aliases, cross_references, decompositions, dc_syntax) =
+        let (aliases, cross_references, decompositions, raw_dc_syntax) =
             split_dc_aliases_column(&raw_aliases);
+
+        let dc_syntax = if let Some(raw_syn) = &raw_dc_syntax {
+            match parse_dc_syntax(raw_syn) {
+                Ok(rule) => Some(rule),
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Aliases (syntax)"),
+                        format!("Failed to parse Dc syntax DSL rule: {e}"),
+                        Some("Verify Dc syntax DSL grammar"),
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         rows.push(ParsedDcRow {
             dc_id,
@@ -299,7 +321,7 @@ pub fn validate_dc_category_file(
     rows
 }
 
-/// Validates target references (Dc short IDs, Unicode `uXXXX`, Formats `fXX`).
+/// Validates target references strictly (Dc short IDs, lowercase Unicode `uXXXX`, Formats `fXX`).
 fn validate_target_token(
     token: &str,
     source_file: &str,
@@ -316,9 +338,21 @@ fn validate_target_token(
         return;
     }
 
-    // Format target reference: "f80" or "format 80"
-    if let Some(fmt_str) = clean.strip_prefix('f') {
-        if let Ok(fmt_id) = fmt_str.parse::<usize>() {
+    let Some(target) = parse_target_token(clean) else {
+        report.add_error(
+            source_file,
+            Some(line_no),
+            Some(col_name),
+            format!(
+                "Invalid target reference token '{clean}': must be a Short Dc ID (e.g. 240), format ID (e.g. f80), or lowercase Unicode hex (e.g. u12ab)"
+            ),
+            Some("Use canonical format IDs (f80), lowercase Unicode hex (u0020), or Short Dc IDs (240)"),
+        );
+        return;
+    };
+
+    match target {
+        CharTarget::Format(fmt_id) => {
             if !known_format_ids.contains(&fmt_id) {
                 report.add_error(
                     source_file,
@@ -328,52 +362,30 @@ fn validate_target_token(
                     Some("Ensure referenced format ID is defined in formats category files"),
                 );
             }
-            return;
         }
-    }
-    if let Some(fmt_str) = clean.strip_prefix("format ") {
-        if let Ok(fmt_id) = fmt_str.parse::<usize>() {
-            if !known_format_ids.contains(&fmt_id) {
-                report.add_error(
-                    source_file,
-                    Some(line_no),
-                    Some(col_name),
-                    format!("Referenced Format ID 'format {fmt_id}' does not exist in formats registry"),
-                    Some("Ensure referenced format ID is defined in formats category files"),
-                );
-            }
-            return;
-        }
-    }
-
-    // Unicode target reference: "u12AB" or "U+12AB"
-    if let Some(hex_str) =
-        clean.strip_prefix('u').or_else(|| clean.strip_prefix("U+"))
-    {
-        if let Ok(cp) = u32::from_str_radix(hex_str, 16) {
+        CharTarget::Unicode(cp) => {
             if !ctb_formats_unicode::is_assigned_unicode(cp) {
                 report.add_error(
                     source_file,
                     Some(line_no),
                     Some(col_name),
-                    format!("Referenced Unicode codepoint 'u{hex_str}' (U+{cp:04X}) is not an assigned Unicode character"),
-                    Some("Ensure referenced Unicode character exists in Unicode 17.0 standard"),
+                    format!(
+                        "Referenced Unicode codepoint 'u{cp:04x}' (U+{cp:04X}) is not an assigned Unicode character"
+                    ),
+                    Some("Ensure referenced Unicode character exists in Unicode standard"),
                 );
             }
-            return;
         }
-    }
-
-    // Numeric Dc target reference: e.g. "32", "240"
-    if let Ok(target_dc) = clean.parse::<u32>() {
-        if !known_dc_ids.contains(&target_dc) {
-            report.add_error(
-                source_file,
-                Some(line_no),
-                Some(col_name),
-                format!("Referenced Dc ID '{target_dc}' does not exist in Document Characters registry"),
-                Some("Ensure referenced Dc ID is defined in a Dc category file"),
-            );
+        CharTarget::Dc(target_dc) => {
+            if !known_dc_ids.contains(&target_dc) {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Referenced Dc ID '{target_dc}' does not exist in Document Characters registry"),
+                    Some("Ensure referenced Dc ID is defined in a Dc category file"),
+                );
+            }
         }
     }
 }
@@ -469,7 +481,7 @@ where
         }
     }
 
-    // Second pass: Validate cross-references and decomposition targets
+    // Second pass: Validate cross-references, decompositions, and syntax rules
     for row in &all_rows {
         for xref in &row.cross_references {
             let target = if let Some(stripped) = xref.strip_prefix('>') {
@@ -503,6 +515,18 @@ where
                     report,
                 );
             }
+        }
+
+        if let Some(syntax_rule) = &row.dc_syntax {
+            validate_dc_syntax(
+                syntax_rule,
+                row.short_id,
+                &known_dc_ids,
+                known_format_ids,
+                report,
+                &row.source_file,
+                row.line_number,
+            );
         }
     }
 
