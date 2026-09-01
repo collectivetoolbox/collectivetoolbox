@@ -240,7 +240,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let entry = name_aliases.entry(cp).or_default();
             match kind.trim() {
                 "correction" => {
-                    entry.correction = Some(alias.trim().to_string())
+                    entry.correction = Some(alias.trim().to_string());
                 }
                 "control" => entry.control = Some(alias.trim().to_string()),
                 "abbreviation" => {
@@ -758,7 +758,7 @@ pub static UNIHAN_DATA: LazyLock<HashMap<u32, UnihanReadingEntry>> =
             let entry = map.entry(cp).or_default();
             match key.trim() {
                 "kDefinition" => {
-                    entry.definition = Some(val.trim().to_string())
+                    entry.definition = Some(val.trim().to_string());
                 }
                 "kMandarin" => entry.mandarin = Some(val.trim().to_string()),
                 "kCantonese" => entry.cantonese = Some(val.trim().to_string()),
@@ -773,7 +773,7 @@ pub static UNIHAN_DATA: LazyLock<HashMap<u32, UnihanReadingEntry>> =
                     }
                 }
                 "kVietnamese" => {
-                    entry.vietnamese = Some(val.trim().to_string())
+                    entry.vietnamese = Some(val.trim().to_string());
                 }
                 _ => {}
             }

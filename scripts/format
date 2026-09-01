@@ -2,15 +2,22 @@
 
 set -euxo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 commit() {
-    pushd ~/ctoolbox/vendor || exit 1
+    pushd "$REPO_ROOT" || exit 1
     git add . || true
     git commit -m 'style: Format automatically' || true
     popd || exit 1
-    pushd ~/ctoolbox || exit 1
-    git add . || true
-    git commit -m 'style: Format automatically' || true
-    popd || exit 1
+}
+
+cleanup_vendor() {
+    if [[ -d "$REPO_ROOT/vendor/.git" || -f "$REPO_ROOT/vendor/.git" ]]; then
+        pushd "$REPO_ROOT/vendor" || exit 1
+        git checkout -- . || true
+        git clean -fd || true
+        popd || exit 1
+    fi
 }
 
 quick=false
@@ -18,28 +25,39 @@ if [[ "${1-}" == "--quick" ]]; then
     quick=true
 fi
 
-trap 'echo "ERROR: Aborting"; pushd ~/ctoolbox; git checkout origin/main -- vendor; git commit -m "deps: Revert vendor directory changes";' EXIT;
-pushd ~/ctoolbox || exit 1
+trap 'echo "ERROR: Aborting"; cleanup_vendor;' EXIT;
+pushd "$REPO_ROOT" || exit 1
+
+# Collect all vendor package names to exclude from cargo fix and cargo clippy
+vendor_excludes=()
+for pkg in $(cargo metadata --format-version 1 | jq -r '.packages[] | select(.manifest_path | contains("/vendor/")) | .name' | sort -u); do
+    vendor_excludes+=("--exclude" "$pkg")
+done
+
+# Collect all non-vendor packages to format with cargo fmt
+workspace_packages=()
+for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.manifest_path | contains("/vendor/") | not) | .name'); do
+    workspace_packages+=("-p" "$pkg")
+done
 
 if [[ "$quick" == false ]]; then
-    cargo fix --workspace ||  { echo "ERROR: cargo fix --workspace failed"; exit 1; }
+    cargo fix --workspace "${vendor_excludes[@]}" || { echo "ERROR: cargo fix --workspace failed"; exit 1; }
     commit
-    cargo fix --workspace --lib -p ctoolbox --tests ||  { echo "ERROR: cargo fix --lib -p ctoolbox --tests failed"; exit 1; }
+    cargo fix --workspace "${vendor_excludes[@]}" --lib -p ctoolbox --tests || { echo "ERROR: cargo fix --lib -p ctoolbox --tests failed"; exit 1; }
     commit
-    cargo fix --workspace --lib -p ctoolbox ||  { echo "ERROR: cargo fix --lib -p ctoolbox failed"; exit 1; }
+    cargo fix --workspace "${vendor_excludes[@]}" --lib -p ctoolbox || { echo "ERROR: cargo fix --lib -p ctoolbox failed"; exit 1; }
     commit
-    cargo clippy --workspace --fix || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
+    cargo clippy --workspace --fix "${vendor_excludes[@]}" || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
     commit
-    cargo clippy --workspace --fix --lib -p ctoolbox --tests || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox --tests failed"; exit 1; }
+    cargo clippy --workspace --fix "${vendor_excludes[@]}" --lib -p ctoolbox --tests || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox --tests failed"; exit 1; }
     commit
-    cargo clippy --workspace --fix --lib -p ctoolbox || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox failed"; exit 1; }
+    cargo clippy --workspace --fix "${vendor_excludes[@]}" --lib -p ctoolbox || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox failed"; exit 1; }
 fi
 
 commit
-cargo fmt --all ||  { echo "ERROR: cargo fmt --all failed"; exit 1; }
+cargo fmt "${workspace_packages[@]}" || { echo "ERROR: cargo fmt failed"; exit 1; }
 commit
 
-git checkout origin/main -- vendor
-git commit -m "deps: Revert vendor directory changes"
+cleanup_vendor
 popd
 trap - EXIT

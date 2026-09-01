@@ -2,17 +2,6 @@
 
 set -euxo pipefail
 
-commit() {
-    pushd ~/ctoolbox/vendor || exit 1
-    git add . || true
-    git commit -m 'style: Commit before formatting automatically' || true
-    popd || exit 1
-    pushd ~/ctoolbox || exit 1
-    git add . || true
-    git commit -m 'style: Format automatically' || true
-    popd || exit 1
-}
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$REPO_ROOT/scripts/format" --quick "$@"
 
-commit
-cargo fmt --all ||  { echo "ERROR: cargo fmt --all failed"; exit 1; }
-commit

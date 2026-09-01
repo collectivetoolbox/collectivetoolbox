@@ -211,7 +211,7 @@ mod tests {
             !report.has_errors(),
             "Data table validation failed:\n{}",
             report.format_report()
-        )
+        );
     }
 
     #[crate::ctb_test]
