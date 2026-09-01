@@ -2638,6 +2638,7 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-data-validator",
  "ctb-formats-dceutils",
+ "ctb-formats-dct-el",
  "ctb-formats-dctext",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
@@ -2771,6 +2772,15 @@ dependencies = [
  "ctb-formats-hexdump",
  "ctb-formats-utilities",
  "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-dct-el"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
@@ -3608,6 +3618,7 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-data-validator",
  "ctb-formats-dceutils",
+ "ctb-formats-dct-el",
  "ctb-formats-dctext",
  "ctb-formats-dpkg",
  "ctb-formats-eite",

@@ -91,6 +91,7 @@ ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
 ctb-formats-data-validator = { path = "src/formats/data_validator" }
 ctb-formats-dceutils = { path = "src/formats/dceutils" }
 ctb-formats-dctext = { path = "src/formats/dctext" }
+ctb-formats-dct-el = { path = "src/formats/dct_el" }
 ctb-formats-dpkg = { path = "src/formats/dpkg" }
 ctb-formats-eite = { path = "src/formats/eite" }
 ctb-formats-encoding = { path = "src/formats/encoding" }

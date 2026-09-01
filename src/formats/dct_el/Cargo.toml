@@ -9,8 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
-
-use include_dir::{Dir, include_dir};
+include_dir = { version = "0.7.4", features = ["glob"] }
 
 [lints]
 workspace = true

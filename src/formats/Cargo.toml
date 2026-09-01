@@ -18,6 +18,7 @@ ctb-formats-ctb-asset-bundle = { path = "ctb_asset_bundle" }
 ctb-formats-data-validator = { path = "data_validator" }
 ctb-formats-dceutils = { path = "dceutils" }
 ctb-formats-dctext = { path = "dctext" }
+ctb-formats-dct-el = { path = "dct_el" }
 ctb-formats-dpkg = { path = "dpkg" }
 ctb-formats-eite = { path = "eite" }
 ctb-formats-encoding = { path = "encoding" }

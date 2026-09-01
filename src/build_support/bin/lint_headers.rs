@@ -17,8 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Lint tool to check license headers and docblocks in Rust and Scheme source
-//! files.
+//! Lint tool to check license headers, module docblocks, and module file naming
+//! in Rust and Scheme source files.
 
 use std::env;
 use std::fs;
@@ -526,6 +526,15 @@ fn check_module_docblock(
 
 /// Lint a single file and record violations.
 fn lint_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
+    if file_path.file_name().and_then(|n| n.to_str()) == Some("mod.rs") {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: "mod.rs is not allowed; modules must use the module name and be located in the enclosing directory (e.g. `foo.rs` alongside `foo/` directory)"
+                .to_string(),
+        });
+    }
+
     let content = fs::read_to_string(file_path)
         .with_context(|| format!("failed to read {}", file_path.display()))?;
 

@@ -26,7 +26,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-pub mod instruction_sets;
+use include_dir::{Dir, include_dir};
+
+static DCT_EL_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+pub(crate) fn get_dct_el_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&DCT_EL_DATA_DIR, key)
+}
 
 #[cfg(test)]
 #[expect(

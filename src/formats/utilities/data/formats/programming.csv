@@ -33,3 +33,5 @@ Import/export/tests support columns meaning:
 2228358,134,StageLParseResult,StageL parse result,programming,,,,,,,,,,,,
 2228562,338,Jq,jq programming language,programming,,,,,,,,,,,,
 2228563,339,JqJaq,jq programming language as implemented by jaq,programming,,,,,,Jq,,,,,,
+,,StageL2,StageL 2,programming,,.sl,,,,StageL,,,,,,
+,,StageL2Intermediate,Normalized StageL 2,programming,,.sli,,,,StageL2,,,,,,
