@@ -338,7 +338,6 @@ mod tests {
             "Script".to_string(),
             "Aliases; >=xref, <=decompos., :=Dc syntax".to_string(),
             "Description".to_string(),
-            String::new(),
         ];
         write_csv_file(
             &repo.join("src/formats/dctext/data/schema.csv"),
@@ -386,7 +385,6 @@ mod tests {
                 String::new(),
                 String::new(),
                 String::new(),
-                String::new(),
             ],
             vec![
                 String::new(),
@@ -396,7 +394,6 @@ mod tests {
                 "BN".to_string(),
                 String::new(),
                 "Po".to_string(),
-                String::new(),
                 String::new(),
                 String::new(),
                 String::new(),
@@ -666,6 +663,53 @@ mod tests {
         assert_eq!(outcome_assign, MatchOutcome::Matched { consumed: 3 });
         assert_eq!(ctx_assign.captured_vars.get("ident"), Some(&vec![100]));
         assert_eq!(ctx_assign.captured_vars.get("val"), Some(&vec![200]));
+    }
+
+    #[crate::ctb_test]
+    fn test_column_count_mismatch_validation() {
+        let mut report = ValidationReport::default();
+
+        // 1. Dc category with row having 9 columns instead of 10
+        let invalid_dc_csv = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Null,0,BN,,Cc,Controls,\n";
+        validate_dc_category_file(invalid_dc_csv, "invalid_dc.csv", &mut report);
+        assert!(report.has_errors());
+        assert!(
+            report
+                .format_report()
+                .contains("Row has 9 columns, expected 10")
+        );
+
+        // 2. Format category with row having 16 columns instead of 17
+        let mut fmt_report = ValidationReport::default();
+        let invalid_fmt_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,MIME,Extensions,UTI,Apple Type,Nicknames,BaseFormat,Import,Export,Tests,Variants,Comments,References\n2228224,0,FmtZero,Format Zero,document,,.fz,,,,3,3,1,,,\n";
+        let valid_variants = HashSet::new();
+        validate_formats_category_file(
+            invalid_fmt_csv,
+            "invalid_fmt.csv",
+            &valid_variants,
+            &mut fmt_report,
+        );
+        assert!(fmt_report.has_errors());
+        assert!(
+            fmt_report
+                .format_report()
+                .contains("Row has 16 columns, expected 17")
+        );
+
+        // 3. Layout table with row having 4 columns instead of 5
+        let mut layout_report = ValidationReport::default();
+        let invalid_layout_csv = b"Partition Name,First ID,Last ID,Count,Description\n0,1114111,1114112,Unicode\n";
+        validate_layout_table(
+            invalid_layout_csv,
+            "invalid_layout.csv",
+            &mut layout_report,
+        );
+        assert!(layout_report.has_errors());
+        assert!(
+            layout_report
+                .format_report()
+                .contains("Row has 4 columns, expected 5")
+        );
     }
 }
 

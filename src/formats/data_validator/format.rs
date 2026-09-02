@@ -91,8 +91,42 @@ pub fn validate_formats_category_file(
 
     let mut rows = Vec::new();
 
+    if let Some(header) = table.header() {
+        if header.len() != 17 {
+            report.add_error(
+                file_path,
+                Some(1),
+                None,
+                format!(
+                    "CSV header has {} columns, expected 17 columns",
+                    header.len()
+                ),
+                Some("Ensure CSV header has exactly 17 columns matching schema.csv"),
+            );
+        }
+    }
+
     for i in 0..table.row_count() {
         let line_no = i.saturating_add(2);
+
+        if let Some(row_slice) = table.row(i) {
+            if row_slice.iter().all(|s| s.trim().is_empty()) {
+                continue;
+            }
+            if row_slice.len() != 17 {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    None,
+                    format!(
+                        "Row has {} columns, expected 17 columns (mismatched field count)",
+                        row_slice.len()
+                    ),
+                    Some("Check for unquoted commas, missing commas, or extra columns to avoid misaligned data"),
+                );
+            }
+        }
+
         let get_str = |col: usize| -> String {
             match table.cell(i, col) {
                 Some(s) => s.trim().to_string(),

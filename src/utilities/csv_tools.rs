@@ -175,6 +175,7 @@ pub fn parse_csv_reader(
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(options.has_header)
         .delimiter(options.delimiter)
+        .flexible(true)
         // .quoting(options.quoting)
         .from_reader(reader);
 

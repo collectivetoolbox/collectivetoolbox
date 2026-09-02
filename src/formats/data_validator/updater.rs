@@ -138,6 +138,23 @@ pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
     }
 
     let header = rows.remove(0);
+
+    for (idx, row) in rows.iter().enumerate() {
+        if is_empty_row(row) {
+            continue;
+        }
+        let line_no = idx.saturating_add(2);
+        ensure!(
+            row.len() == header.len(),
+            "Mismatched column count in {}:{}: found {} columns, expected {} (header has {} columns)",
+            path.display(),
+            line_no,
+            row.len(),
+            header.len(),
+            header.len()
+        );
+    }
+
     Ok((header, rows))
 }
 
@@ -148,24 +165,24 @@ pub fn write_csv_file(
     rows: &[Vec<String>],
 ) -> Result<()> {
     let mut wtr = csv::WriterBuilder::new()
-        .flexible(true)
+        .flexible(false)
         .from_writer(Vec::new());
 
     wtr.write_record(header).with_context(|| {
         format!("Failed to write header to {}", path.display())
     })?;
 
-    for row in rows {
-        let mut row_norm = row.clone();
-        if !header.is_empty() {
-            while row_norm.len() < header.len() {
-                row_norm.push(String::new());
-            }
-            if row_norm.len() > header.len() {
-                row_norm.truncate(header.len());
-            }
-        }
-        wtr.write_record(&row_norm).with_context(|| {
+    for (idx, row) in rows.iter().enumerate() {
+        let line_no = idx.saturating_add(2);
+        ensure!(
+            row.len() == header.len(),
+            "Cannot write row {} with {} columns to {} (header has {} columns)",
+            line_no,
+            row.len(),
+            path.display(),
+            header.len()
+        );
+        wtr.write_record(row).with_context(|| {
             format!("Failed to write row to {}", path.display())
         })?;
     }
@@ -504,10 +521,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_dc_rows.sort_by(|a, b| {
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
             let id_a = a
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -559,10 +578,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_format_rows.sort_by(|a, b| {
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
             let id_a = a
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())

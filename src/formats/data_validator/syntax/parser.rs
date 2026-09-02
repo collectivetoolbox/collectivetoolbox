@@ -317,6 +317,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
                 "Unclosed parenthesis in pattern: '{trimmed}'"
             );
 
+            // Reason for fallback: slice bounds checked by depth parser, empty substring defaults to empty string
             let inner: String = chars
                 .get(start..end)
                 .map(|s| s.iter().collect())
@@ -353,6 +354,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             }
             ensure!(depth == 0, "Unclosed bracket in pattern: '{trimmed}'");
 
+            // Reason for fallback: slice bounds checked by depth parser, empty substring defaults to empty string
             let inner: String = chars
                 .get(start..end)
                 .map(|s| s.iter().collect())
@@ -382,6 +384,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             idx = idx.saturating_add(1);
         }
 
+        // Reason for fallback: bounds checked by token scan, empty slice defaults to empty string
         let token_str: String = chars
             .get(start..idx)
             .map(|s| s.iter().collect())
@@ -433,6 +436,7 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) 
 
 /// Parses a complete Dc syntax rule declaration string (e.g. `":~ [^248 255]+ 248"`).
 pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
+    // Reason for fallback: declaration without leading colon defaults to unchanged trimmed string
     let clean = raw.trim().strip_prefix(':').unwrap_or(raw.trim()).trim();
     ensure!(!clean.is_empty(), "Empty Dc syntax declaration");
 
@@ -452,11 +456,13 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
             ']' => depth_bracket = depth_bracket.saturating_sub(1),
             ':' if depth_paren == 0 && depth_bracket == 0 => {
                 // Ensure this ':' is followed by an action expression like ' lang.action('
+                // Reason for fallback: bounds checked by iteration, missing slice defaults to empty string
                 let after: String = chars
                     .get(i.saturating_add(1)..)
                     .map(|s| s.iter().collect())
                     .unwrap_or_default();
                 if after.contains('(') && after.contains(')') {
+                    // Reason for fallback: bounds checked by iteration, missing slice defaults to empty string
                     let before: String = chars
                         .get(..i)
                         .map(|s| s.iter().collect())

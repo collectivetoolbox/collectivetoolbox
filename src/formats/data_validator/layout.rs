@@ -76,8 +76,42 @@ pub fn validate_layout_table(
     let mut rows = Vec::new();
     let mut expected_next_first: Option<u128> = Some(0);
 
+    if let Some(header) = table.header() {
+        if header.len() != 5 {
+            report.add_error(
+                file_path,
+                Some(1),
+                None,
+                format!(
+                    "CSV header has {} columns, expected 5 columns",
+                    header.len()
+                ),
+                Some("Ensure CSV header has exactly 5 columns matching schema"),
+            );
+        }
+    }
+
     for i in 0..table.row_count() {
         let line_no = i.saturating_add(2); // 1-indexed header + data row
+
+        if let Some(row_slice) = table.row(i) {
+            if row_slice.iter().all(|s| s.trim().is_empty()) {
+                continue;
+            }
+            if row_slice.len() != 5 {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    None,
+                    format!(
+                        "Row has {} columns, expected 5 columns (mismatched field count)",
+                        row_slice.len()
+                    ),
+                    Some("Check for unquoted commas, missing commas, or extra columns to avoid misaligned data"),
+                );
+            }
+        }
+
         let get_str = |col: usize| -> String {
             match table.cell(i, col) {
                 Some(s) => s.trim().to_string(),
