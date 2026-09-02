@@ -81,6 +81,7 @@ fn try_load_mapping(
             CsvParseOptions {
                 has_header: true,
                 delimiter: b'\t',
+                ..Default::default()
             },
         )?;
 
@@ -108,6 +109,7 @@ fn try_load_mapping(
                 CsvParseOptions {
                     has_header: true,
                     delimiter: b'\t',
+                    ..Default::default()
                 },
             )?;
 

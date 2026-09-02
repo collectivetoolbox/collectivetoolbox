@@ -69,12 +69,12 @@ pub fn describe_graph_id(id: u128, options: DescriptionOptions) -> String {
 }
 
 fn describe_dc_id(gid: u128, short_dc: u32) -> String {
-    let is_known = ctb_formats_eite::dc::dc_get_name(short_dc).is_ok();
-    let name = match ctb_formats_eite::dc::dc_get_name(short_dc) {
-        Ok(n) => n,
-        Err(_) => format!("<unknown Dc {short_dc}>"),
+    let (is_known, name) = match ctb_formats_eite::dc::dc_get_name(short_dc) {
+        Ok(n) => (true, n),
+        Err(_) => (false, format!("<unknown Dc {short_dc}>")),
     };
 
+    // Reason for fallback: Dc characters without registered complex traits have no annotations
     let aliases_raw = ctb_formats_eite::dc::dc_get_complex_traits(short_dc)
         .unwrap_or_default();
 

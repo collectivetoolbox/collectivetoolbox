@@ -631,6 +631,7 @@ fn render_element(
             ensure_blank_lines(out, 1);
             let mut list_ctx = ctx.clone();
             list_ctx.list_depth = ctx.list_depth.saturating_add(1);
+            // Reason for fallback: HTML <ol> elements default to starting count at 1 if start attribute is omitted or non-numeric
             let start: usize = get_attr(attrs, "start")
                 .and_then(|s| s.parse::<usize>().ok())
                 .unwrap_or(1);
@@ -676,7 +677,9 @@ fn render_element(
             }
         }
         "img" => {
+            // Reason for fallback: img elements without src attribute default to empty string
             let src = get_attr(attrs, "src").unwrap_or_default();
+            // Reason for fallback: img elements without alt attribute default to empty string
             let alt = get_attr(attrs, "alt").unwrap_or_default();
             let title = get_attr(attrs, "title");
             if let Some(t) = title {

@@ -57,6 +57,7 @@ pub fn validate_layout_table(
         &vec_bytes,
         csv_tools::CsvParseOptions {
             has_header: true,
+            flexible: true,
             ..Default::default()
         },
     ) {

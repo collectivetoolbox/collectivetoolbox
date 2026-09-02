@@ -116,7 +116,7 @@ fn main() -> Result<()> {
         for (file, line_num, code) in &unverified_occurrences {
             println!("  {file}:{line_num}: {}", code.trim());
         }
-        println!("\nError: Unverified unwrap_or fallbacks found!");
+        println!("\nError: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that \"unwrap_or\" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because \"unwrap_or\" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say \"please make sure the way you're using it makes sense\".");
         std::process::exit(1);
     } else {
         println!(

@@ -76,15 +76,13 @@ impl PanRuntimeValue {
     pub fn as_i64(&self) -> i64 {
         match self {
             Self::Integer(n) => *n,
-            Self::Float(f) => match f.to_string().parse::<i64>() {
-                Ok(val) => val,
-                Err(_) => 0,
-            },
+            // Reason for fallback: non-convertible floats coerce to 0 in Panorama runtime
+            Self::Float(f) => {
+                math::approx_float::f64_to_i64_approx(*f).unwrap_or(0)
+            }
             Self::Boolean(b) => i64::from(*b),
-            Self::String(s) => match s.trim().parse::<i64>() {
-                Ok(val) => val,
-                Err(_) => 0,
-            },
+            // Reason for fallback: unparseable numeric strings coerce to 0 in Panorama runtime
+            Self::String(s) => s.trim().parse::<i64>().unwrap_or(0),
             Self::Empty | Self::UnresolvedExpression(_) => 0,
         }
     }
@@ -93,7 +91,10 @@ impl PanRuntimeValue {
     pub fn as_f64(&self) -> f64 {
         match self {
             Self::Float(f) => *f,
-            Self::Integer(n) => n.to_string().parse::<f64>().unwrap_or(0.0),
+            // Reason for fallback: integer overflow during float conversion coerces to 0.0 in Panorama runtime
+            Self::Integer(n) => {
+                math::approx_float::i64_to_f64_approx(*n).unwrap_or(0.0)
+            }
             Self::Boolean(b) => {
                 if *b {
                     1.0
@@ -101,6 +102,7 @@ impl PanRuntimeValue {
                     0.0
                 }
             }
+            // Reason for fallback: unparseable numeric strings coerce to 0.0 in Panorama runtime
             Self::String(s) => s.trim().parse::<f64>().unwrap_or(0.0),
             Self::Empty | Self::UnresolvedExpression(_) => 0.0,
         }
@@ -513,6 +515,7 @@ impl PanRuntimeState {
             }
             "gotorecord" => {
                 if let Some(arg) = arguments.first() {
+                    // Reason for fallback: invalid or negative record numbers default to 1st record in Panorama gotorecord command
                     let rec_num = usize::try_from(
                         self.evaluate_expr(arg, report).as_i64(),
                     )

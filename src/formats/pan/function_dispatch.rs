@@ -236,6 +236,7 @@ pub fn dispatch_function_call(
 
     let fn_ctx = crate::functions::PanFunctionContext {
         databasename: "Programming Reference",
+        // Reason for fallback: runtime state without an active form defaults to empty string context
         current_form: state.current_form.as_deref().unwrap_or_default(),
     };
 

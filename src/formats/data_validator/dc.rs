@@ -113,6 +113,7 @@ pub fn validate_dc_category_file(
         &vec_bytes,
         csv_tools::CsvParseOptions {
             has_header: true,
+            flexible: true,
             ..Default::default()
         },
     ) {

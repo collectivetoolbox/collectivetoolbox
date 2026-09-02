@@ -317,11 +317,10 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
                 "Unclosed parenthesis in pattern: '{trimmed}'"
             );
 
-            // Reason for fallback: slice bounds checked by depth parser, empty substring defaults to empty string
-            let inner: String = chars
-                .get(start..end)
-                .map(|s| s.iter().collect())
-                .unwrap_or_default();
+            let Some(slice) = chars.get(start..end) else {
+                bail!("Invalid parenthesis slice bounds in pattern: '{trimmed}'");
+            };
+            let inner: String = slice.iter().collect();
             let sub_pattern = parse_pattern_expression(&inner)?;
             idx = end.saturating_add(1);
 
@@ -354,11 +353,10 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             }
             ensure!(depth == 0, "Unclosed bracket in pattern: '{trimmed}'");
 
-            // Reason for fallback: slice bounds checked by depth parser, empty substring defaults to empty string
-            let inner: String = chars
-                .get(start..end)
-                .map(|s| s.iter().collect())
-                .unwrap_or_default();
+            let Some(slice) = chars.get(start..end) else {
+                bail!("Invalid bracket slice bounds in pattern: '{trimmed}'");
+            };
+            let inner: String = slice.iter().collect();
             let mut element = parse_bracket_content(&inner)?;
             idx = end.saturating_add(1);
 
@@ -384,11 +382,10 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             idx = idx.saturating_add(1);
         }
 
-        // Reason for fallback: bounds checked by token scan, empty slice defaults to empty string
-        let token_str: String = chars
-            .get(start..idx)
-            .map(|s| s.iter().collect())
-            .unwrap_or_default();
+        let Some(token_slice) = chars.get(start..idx) else {
+            bail!("Invalid token slice bounds {start}..{idx} in pattern: '{trimmed}'");
+        };
+        let token_str: String = token_slice.iter().collect();
         let token_trim = token_str.trim();
 
         if let Some(rule_tok) = token_trim.strip_suffix(':') {
@@ -436,7 +433,7 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) 
 
 /// Parses a complete Dc syntax rule declaration string (e.g. `":~ [^248 255]+ 248"`).
 pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
-    // Reason for fallback: declaration without leading colon defaults to unchanged trimmed string
+    // Reason for fallback: Dc syntax declarations optionally omit the leading colon prefix
     let clean = raw.trim().strip_prefix(':').unwrap_or(raw.trim()).trim();
     ensure!(!clean.is_empty(), "Empty Dc syntax declaration");
 
@@ -456,17 +453,15 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
             ']' => depth_bracket = depth_bracket.saturating_sub(1),
             ':' if depth_paren == 0 && depth_bracket == 0 => {
                 // Ensure this ':' is followed by an action expression like ' lang.action('
-                // Reason for fallback: bounds checked by iteration, missing slice defaults to empty string
-                let after: String = chars
-                    .get(i.saturating_add(1)..)
-                    .map(|s| s.iter().collect())
-                    .unwrap_or_default();
+                let Some(after_slice) = chars.get(i.saturating_add(1)..) else {
+                    bail!("Missing action slice after colon in syntax rule: '{clean}'");
+                };
+                let after: String = after_slice.iter().collect();
                 if after.contains('(') && after.contains(')') {
-                    // Reason for fallback: bounds checked by iteration, missing slice defaults to empty string
-                    let before: String = chars
-                        .get(..i)
-                        .map(|s| s.iter().collect())
-                        .unwrap_or_default();
+                    let Some(before_slice) = chars.get(..i) else {
+                        bail!("Missing pattern slice before colon in syntax rule: '{clean}'");
+                    };
+                    let before: String = before_slice.iter().collect();
                     pattern_str = before.trim().to_string();
                     action_opt = Some(parse_syntax_action(&after)?);
                     break;

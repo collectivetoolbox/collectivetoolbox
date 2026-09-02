@@ -521,12 +521,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_dc_rows.sort_by(|a, b| {
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_a = a
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -578,12 +578,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         }
 
         all_format_rows.sort_by(|a, b| {
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_a = a
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the table
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())

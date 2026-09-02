@@ -31,6 +31,8 @@ pub struct CsvParseOptions {
     pub has_header: bool,
     /// Delimiter byte (defaults to `b','`).
     pub delimiter: u8,
+    /// Allow variable-length records (flexible field counts across rows).
+    pub flexible: bool,
     /*
     /// Whether to use RFC-4180-style quoting.
     ///
@@ -44,6 +46,7 @@ impl Default for CsvParseOptions {
         Self {
             has_header: false,
             delimiter: b',',
+            flexible: false,
         }
     }
 }
@@ -175,7 +178,7 @@ pub fn parse_csv_reader(
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(options.has_header)
         .delimiter(options.delimiter)
-        .flexible(true)
+        .flexible(options.flexible)
         // .quoting(options.quoting)
         .from_reader(reader);
 

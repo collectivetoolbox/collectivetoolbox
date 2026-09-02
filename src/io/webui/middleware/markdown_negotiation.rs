@@ -72,6 +72,7 @@ pub fn prefers_markdown(headers: &HeaderMap) -> bool {
                 Some((m, p)) => (m.trim().to_ascii_lowercase(), p),
                 None => (item.trim().to_ascii_lowercase(), ""),
             };
+            // Reason for fallback: HTTP Accept headers default to q=1.0 when q-value parameter is omitted or invalid per RFC 9110
             let q = parse_qvalue(params).unwrap_or(1.0);
 
             if mime == "text/markdown" || mime == "text/x-markdown" {
