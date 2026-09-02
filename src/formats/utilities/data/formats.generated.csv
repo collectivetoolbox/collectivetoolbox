@@ -68,8 +68,8 @@ Import/export/tests support columns meaning:
 2228275,51,BaseString,Numbers/data encoded using an alphabet,semantic,,,,,,,,,,,,
 2228276,52,Base64,The standard Base64 encoding,armor,,".b64, .base64",,,,BaseString,,,,,,
 2228277,53,Hexadecimal,"Hexadecimal, lowercase (output) or case-insensitive (input)",armor,,.hex,,,,,,,,,,
-2228278,54,Hexadecimal0xPrefix,"Hexadecimal, lowercase (output) or case-insensitive (input), prefixed with 0x",armor,,,,,,,,,,,,
-2228279,55,HexdumpPlain,Classic hexdump format,armor,,,,,,Hexdump,,,,,,
+2228278,54,Hexadecimal0xPrefix,"Hexadecimal, lowercase (output) or case-insensitive (input), prefixed with 0x",armor,,,,,,Hexadecimal,,,,,,
+2228279,55,HexdumpPlain,Plain hexdump format,armor,,,,,,Hexdump,,,,,,
 2228280,56,HexdumpFancy437,Fancy hexdump format used in ctoolbox web UI,armor,,,,,,Hexdump,,,,,,
 2228281,57,Base16b,Modified Base16b family,armor,,,,,,,,,,,,
 2228282,58,Base16b_7,"Base16b, base 7",armor,,,,,,Base16b,,,,,,
@@ -322,7 +322,7 @@ Import/export/tests support columns meaning:
 2228529,305,Zpaq,ZPAQ,container,,,,,,,,,,,,
 2228530,306,Orz,orz (optimized reduced offset Lempel-Ziv),compression,,,,,,,,,,,,
 2228531,307,Lzfse,LZFSE (Lempel–Ziv Finite State Entropy),compression,,,,,,,,,,,,
-2228532,308,Hexdump,Family of formats of binary data represented as hexadecimal,semantic,,,,,,,,,,,,
+2228532,308,Hexdump,Family of formats of binary data represented as hexadecimal,armor,,,,,,Hexadecimal,,,,,,
 2228533,309,Pkcs8PrivateKey,PKCS#8 Private Key (RFC 5958 sec. 7.1) (Public Key Cryptography Standard 8),database,application/pkcs8,".p8, .key",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228534,310,Pkcs10Csr,PKCS#10 Certificate Signing Request (RFC 5967 sec. 3.1) (Public Key Cryptography Standard 10),database,application/pkcs10,".p10, .csr",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228535,311,PkixCert,X.509 Certificate (RFC 2585 sec. 4.1; RFC 5280 sec. 4),database,"application/pkix-cert, application/x-x509-ca-cert, application/x-x509-user-cert, application/x-x509-email-cert",".cer, .crt",,,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst https://nss-crypto.org/reference/_sources/security/nss/legacy/certificate_download_specification/index.rst.txt
@@ -355,3 +355,6 @@ Import/export/tests support columns meaning:
 2228562,338,Jq,jq programming language,programming,,,,,,,,,,,,
 2228563,339,JqJaq,jq programming language as implemented by jaq,programming,,,,,,Jq,,,,,,
 2228564,340,Dcal,Dc ASCII List,document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing new Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228565,341,HexdumpXxd,xxd-style hexdump,armor,,,,,,Hexadecimal,,,,,,
+2228566,342,StageL2,StageL 2,programming,,.sl,,,,StageL,,,,,,
+2228567,343,StageL2Intermediate,Normalized StageL 2,programming,,.sli,,,,StageL2,,,,,,

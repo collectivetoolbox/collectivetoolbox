@@ -59,4 +59,4 @@ Import/export/tests support columns meaning:
 2228521,297,NumericCharacterReferenceHex,Numeric Character Reference (hexadecimal),armor,,,,,,,,,,,,
 2228522,298,MimeBase64,"Base64 with separators, line length 76",armor,,,,,,,,,,,,
 2228523,299,Xxencode,xxencoding,armor,,".xxe, .xx",,,,,,,,,,
-,,HexdumpXxd,xxd-style hexdump,armor,,,,,,Hexadecimal,,,,,,
+2228565,341,HexdumpXxd,xxd-style hexdump,armor,,,,,,Hexadecimal,,,,,,

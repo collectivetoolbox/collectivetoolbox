@@ -117,6 +117,7 @@ pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
 
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
+        .flexible(true)
         .from_reader(content.as_bytes());
 
     let mut rows = Vec::new();
@@ -146,14 +147,25 @@ pub fn write_csv_file(
     header: &[String],
     rows: &[Vec<String>],
 ) -> Result<()> {
-    let mut wtr = csv::WriterBuilder::new().from_writer(Vec::new());
+    let mut wtr = csv::WriterBuilder::new()
+        .flexible(true)
+        .from_writer(Vec::new());
 
     wtr.write_record(header).with_context(|| {
         format!("Failed to write header to {}", path.display())
     })?;
 
     for row in rows {
-        wtr.write_record(row).with_context(|| {
+        let mut row_norm = row.clone();
+        if !header.is_empty() {
+            while row_norm.len() < header.len() {
+                row_norm.push(String::new());
+            }
+            if row_norm.len() > header.len() {
+                row_norm.truncate(header.len());
+            }
+        }
+        wtr.write_record(&row_norm).with_context(|| {
             format!("Failed to write row to {}", path.display())
         })?;
     }
