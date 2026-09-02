@@ -126,6 +126,11 @@ fn normalize_with_dialect(
                     NormalizerDialect::New => {
                         output.extend_from_slice(b":CHAR:");
                         for digit_byte in c.to_string().bytes() {
+                            /* Escape numbers - this should get the character
+                             * set for normalized StageL to 32 characters
+                             * (A-Z, /, :, space, newline) allowing it to be
+                             * encoded with 5 bits per character, if that's any
+                             * use. */
                             let shifted = digit_byte
                                 .checked_add(17)
                                 .context("Overflow shifting decimal digit")?;
