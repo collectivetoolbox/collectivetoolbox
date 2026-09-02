@@ -50,6 +50,7 @@ RUN set -eux; \
     echo "umask 0000" >> /etc/profile; \
     echo "umask 0000" > /etc/profile.d/umask.sh; \
     chmod +x /etc/profile.d/umask.sh; \
+    chmod 755 /root; \
     sed -i 's/UMASK\s*022/UMASK 0000/' /etc/login.defs
 
 RUN set -eux; \

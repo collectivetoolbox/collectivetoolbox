@@ -5,16 +5,22 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 recreate_builder=false
+clean_cache=false
+cache_dir="${CTOOLBOX_DOCKER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ctoolbox-docker-cache}"
 
 for arg in "$@"; do
   case "$arg" in
     --recreate|--clean|--reset)
       recreate_builder=true
       ;;
+    --clean-cache|--reset-cache)
+      clean_cache=true
+      ;;
     -h|--help)
-      echo "Usage: $0 [--recreate]"
+      echo "Usage: $0 [--recreate] [--clean-cache]"
       echo "Options:"
       echo "  --recreate, --clean, --reset  Remove and recreate the buildkit builder"
+      echo "  --clean-cache, --reset-cache  Clear host cache directory ($cache_dir)"
       exit 0
       ;;
     *)
@@ -27,6 +33,15 @@ done
 if [ "$recreate_builder" = true ] && docker buildx inspect buildkit >/dev/null 2>&1; then
   echo "Removing existing buildkit builder..."
   docker buildx rm buildkit >/dev/null 2>&1
+fi
+
+if [ "$clean_cache" = true ] && [ -d "$cache_dir" ]; then
+  echo "Clearing host docker build cache..."
+  rm -r "$cache_dir"
+fi
+
+if [ ! -d "$cache_dir" ]; then
+  mkdir -p "$cache_dir"
 fi
 
 if docker buildx inspect buildkit >/dev/null 2>&1; then
@@ -49,5 +64,7 @@ docker buildx build -f scripts/docker/Dockerfile . \
   --network=host \
   --allow network.host \
   --allow security.insecure \
+  --cache-to "type=local,dest=$cache_dir,mode=max" \
+  --cache-from "type=local,src=$cache_dir" \
   --load \
   --progress plain

@@ -355,6 +355,13 @@ start_guix_daemon() {
         chown root:guixbuild /gnu/store 2>/dev/null || true
         chmod -R 1777 /var/log/guix 2>/dev/null || true
         chmod 1775 /gnu/store /var/guix 2>/dev/null || true
+        chmod 755 /root 2>/dev/null || true
+        if [ -d /root/.config ]; then
+            chmod 755 /root/.config 2>/dev/null || true
+        fi
+        if [ -d /root/.config/guix ]; then
+            chmod -R a+rX /root/.config/guix 2>/dev/null || true
+        fi
     fi
 
     tmp_build_dir="$(mktemp -d)"
@@ -384,7 +391,10 @@ start_guix_daemon() {
                 real_daemon="$inner_elf"
             fi
         fi
-        cp -f "$real_daemon" /var/guix/bin/ctb-daemon
+        if [ -e /var/guix/bin/ctb-daemon ]; then
+            rm /var/guix/bin/ctb-daemon
+        fi
+        cp "$real_daemon" /var/guix/bin/ctb-daemon
         chmod 755 /var/guix/bin/ctb-daemon
         daemon_bin="/var/guix/bin/ctb-daemon"
         if command -v aa-exec >/dev/null 2>&1; then
@@ -394,6 +404,9 @@ start_guix_daemon() {
 
     local guix_cmd
     guix_cmd="$(type -p guix)"
+    if [ -n "$guix_cmd" ] && [ -e "$guix_cmd" ]; then
+        guix_cmd="$(readlink -f "$guix_cmd")"
+    fi
     daemon_env+=("GUIX=$guix_cmd" "GUIX_STATE_DIRECTORY=/var/guix" "GUIX_CONFIGURATION_DIRECTORY=/etc/guix" "NIX_STORE_DIR=/gnu/store")
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
@@ -542,6 +555,13 @@ case "$mode" in
             fi
         done
         echo "Guix pull complete."
+        chmod 755 /root 2>/dev/null || true
+        if [ -d /root/.config ]; then
+            chmod 755 /root/.config 2>/dev/null || true
+        fi
+        if [ -d /root/.config/guix ]; then
+            chmod -R a+rX /root/.config/guix 2>/dev/null || true
+        fi
         stop_guix_daemon
         ;;
 

@@ -358,3 +358,4 @@ Import/export/tests support columns meaning:
 2228565,341,HexdumpXxd,xxd-style hexdump,armor,,,,,,Hexadecimal,,,,,,
 2228566,342,StageL2,StageL 2,programming,,.sl,,,,StageL,,,,,,
 2228567,343,StageL2Intermediate,Normalized StageL 2,programming,,.sli,,,,StageL2,,,,,,
+2228568,344,Csdl,Comma-separated Dc list,document,,,,,,,,,,,"ASCII text containing list of integers representing new Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",

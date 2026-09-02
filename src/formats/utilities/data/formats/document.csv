@@ -77,3 +77,4 @@ Import/export/tests support columns meaning:
 2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,,.ctbn,,,,CtbNode,,,,,,
 2228557,333,AlphaWord,AlphaSmart AlphaWord file format,document,,,,,,,,,,,,
 2228564,340,Dcal,Dc ASCII List,document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing new Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228568,344,Csdl,Comma-separated Dc list,document,,,,,,,,,,,"ASCII text containing list of integers representing new Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",

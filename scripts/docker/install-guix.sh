@@ -80,6 +80,7 @@ mkdir -p /etc/guix /var/log/guix/drvs
 chown -R root:guixbuild /var/guix /var/log/guix /gnu/store
 chmod 1775 /gnu/store /var/guix
 chmod -R 1777 /var/log/guix
+chmod 755 /root
 
 # 5. Restore ACL configuration if provided
 if [[ -f "${KEYS_DIR}/acl" ]]; then
