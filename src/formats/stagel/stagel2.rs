@@ -30,8 +30,8 @@ use std::io::Write;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NormalizerDialect {
-    JavaScript,
-    C,
+    New,
+    Old,
 }
 
 /// Normalizes StageL v2 source bytes according to the StageL v2 JavaScript
@@ -46,7 +46,7 @@ enum NormalizerDialect {
 /// (shifted by +17 to reduce character set to 32 characters), and returns an
 /// error for any disallowed byte outside of comments.
 pub fn normalize(input: &[u8]) -> Result<Vec<u8>> {
-    normalize_with_dialect(input, NormalizerDialect::JavaScript)
+    normalize_with_dialect(input, NormalizerDialect::New)
 }
 
 /// Normalizes StageL v2 source bytes according to the C implementation of the
@@ -59,7 +59,7 @@ pub fn normalize(input: &[u8]) -> Result<Vec<u8>> {
 /// non-alphanumeric/non-symbol characters within comments as `:CHAR:<dec>:`,
 /// and returns an error for any disallowed byte outside of comments.
 pub fn normalize_old(input: &[u8]) -> Result<Vec<u8>> {
-    normalize_with_dialect(input, NormalizerDialect::C)
+    normalize_with_dialect(input, NormalizerDialect::Old)
 }
 
 fn normalize_with_dialect(
@@ -123,7 +123,7 @@ fn normalize_with_dialect(
         if !is_allowed {
             if comment {
                 match dialect {
-                    NormalizerDialect::JavaScript => {
+                    NormalizerDialect::New => {
                         output.extend_from_slice(b":CHAR:");
                         for digit_byte in c.to_string().bytes() {
                             let shifted = digit_byte
@@ -133,14 +133,14 @@ fn normalize_with_dialect(
                         }
                         output.push(b':');
                     }
-                    NormalizerDialect::C => {
+                    NormalizerDialect::Old => {
                         write!(&mut output, ":CHAR:{c}:")?;
                     }
                 }
             } else {
                 bail!("Disallowed byte in StageL v2 source: {c}");
             }
-        } else if c.is_ascii_digit() && dialect == NormalizerDialect::JavaScript
+        } else if c.is_ascii_digit() && dialect == NormalizerDialect::New
         {
             let shifted = c
                 .checked_add(17)
