@@ -18,6 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! StageL format compiler, tokenizer, and intermediate representation tools.
+//! Provides JS and Bash output to the degree that they were implemented. JS was the only target that saw significant use (I haven't confirmed if it works well). I wouldn't recommend using this transpiler for anything important; the generated JS is very slow. Eventually I hope to add conversion from StageL to DcText, and provide a more usable implementation in that way.
 
 #[expect(
     unused_imports,
