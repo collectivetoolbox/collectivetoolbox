@@ -59,6 +59,8 @@ impl Default for Invocation {
             use_bundled_tls_validator: false,
             use_system_tls_validator: false,
             insecure_skip_crlite_check: false,
+            retry_on_host_error:
+                invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
             command: None,
         })
     }
@@ -165,6 +167,13 @@ pub struct Cli {
 
     #[arg(long, help = "Skip CRLite revocation checking for this run only")]
     pub insecure_skip_crlite_check: bool,
+
+    #[arg(
+        long,
+        default_value_t = invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
+        help = "Number of retry attempts on DNS or host connection errors"
+    )]
+    pub retry_on_host_error: usize,
 
     #[command(subcommand)]
     pub command: Option<Command>,

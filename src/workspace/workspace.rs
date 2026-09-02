@@ -180,6 +180,8 @@ impl Default for CtbWorkspace {
                 use_bundled_tls_validator: false,
                 use_system_tls_validator: false,
                 insecure_skip_crlite_check: false,
+                retry_on_host_error:
+                    invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
                 command: None,
             },
         }

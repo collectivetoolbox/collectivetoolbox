@@ -83,6 +83,7 @@ pub enum TlsCertificateSource {
 pub struct AsyncClient {
     pub inner: reqwest::Client,
     skip_crlite_ready_check: bool,
+    timeout: Option<Duration>,
 }
 
 pub struct AsyncResponse {
@@ -93,6 +94,7 @@ pub struct AsyncResponse {
 pub struct BlockingClient {
     inner: reqwest::blocking::Client,
     skip_crlite_ready_check: bool,
+    timeout: Option<Duration>,
 }
 
 pub struct BlockingResponse {
@@ -120,18 +122,22 @@ pub fn tls_certificate_source() -> TlsCertificateSource {
 pub fn async_client(options: ClientOptions) -> Result<AsyncClient> {
     let skip_crlite =
         invocation_settings::get_settings().insecure_skip_crlite_check;
+    let timeout = options.timeout;
     Ok(AsyncClient {
         inner: build_async_client(options)?,
         skip_crlite_ready_check: skip_crlite,
+        timeout,
     })
 }
 
 pub fn blocking_client(options: ClientOptions) -> Result<BlockingClient> {
     let skip_crlite =
         invocation_settings::get_settings().insecure_skip_crlite_check;
+    let timeout = options.timeout;
     Ok(BlockingClient {
         inner: build_blocking_client(options)?,
         skip_crlite_ready_check: skip_crlite,
+        timeout,
     })
 }
 
@@ -152,6 +158,7 @@ pub fn blocking_client_no_crlite() -> Result<BlockingClient> {
             Ok(BlockingClient {
                 inner: client,
                 skip_crlite_ready_check: true,
+                timeout: None,
             })
         })
         .join()
@@ -205,13 +212,52 @@ impl AsyncClient {
 
     pub async fn get(&self, url: &str) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
-        let response = self
-            .inner
-            .get(url)
-            .send()
-            .await
-            .with_context(|| format!("Failed to GET {url}"))?;
-        Ok(AsyncResponse { inner: response })
+        let retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let start = std::time::Instant::now();
+        let mut attempt = 0;
+        loop {
+            let elapsed = start.elapsed();
+            let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
+            if let Some(rem) = remaining {
+                if rem.is_zero() {
+                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                }
+            }
+
+            let send_fut = self.inner.get(url).send();
+            let res = match remaining {
+                Some(rem) => match tokio::time::timeout(rem, send_fut).await {
+                    Ok(send_res) => send_res,
+                    Err(_) => {
+                        bail!(
+                            "Request to {url} timed out after {:?}",
+                            self.timeout
+                        );
+                    }
+                },
+                None => send_fut.await,
+            };
+
+            match res {
+                Ok(resp) => return Ok(AsyncResponse { inner: resp }),
+                Err(err) => {
+                    if is_transient_error(&err) && attempt < retry_limit {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::Error::from(err)
+                        .context(format!("Failed to GET {url}")));
+                }
+            }
+        }
     }
 
     pub async fn post(
@@ -221,15 +267,56 @@ impl AsyncClient {
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
-        let mut builder = self.inner.post(url).body(body);
-        if let Some(h) = headers {
-            builder = builder.headers(h);
+        let retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let start = std::time::Instant::now();
+        let mut attempt = 0;
+        loop {
+            let elapsed = start.elapsed();
+            let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
+            if let Some(rem) = remaining {
+                if rem.is_zero() {
+                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                }
+            }
+
+            let mut builder = self.inner.post(url).body(body.clone());
+            if let Some(ref h) = headers {
+                builder = builder.headers(h.clone());
+            }
+            let send_fut = builder.send();
+            let res = match remaining {
+                Some(rem) => match tokio::time::timeout(rem, send_fut).await {
+                    Ok(send_res) => send_res,
+                    Err(_) => {
+                        bail!(
+                            "Request to {url} timed out after {:?}",
+                            self.timeout
+                        );
+                    }
+                },
+                None => send_fut.await,
+            };
+
+            match res {
+                Ok(resp) => return Ok(AsyncResponse { inner: resp }),
+                Err(err) => {
+                    if is_transient_error(&err) && attempt < retry_limit {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::Error::from(err)
+                        .context(format!("Failed to POST {url}")));
+                }
+            }
         }
-        let response = builder
-            .send()
-            .await
-            .with_context(|| format!("Failed to POST {url}"))?;
-        Ok(AsyncResponse { inner: response })
     }
 
     pub async fn get_with_backoff(
@@ -238,9 +325,34 @@ impl AsyncClient {
         retry_count: usize,
     ) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
+        let host_retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
+        let start = std::time::Instant::now();
         let mut attempt = 0;
         loop {
-            let res = self.inner.get(url).send().await;
+            let elapsed = start.elapsed();
+            let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
+            if let Some(rem) = remaining {
+                if rem.is_zero() {
+                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                }
+            }
+
+            let send_fut = self.inner.get(url).send();
+            let res = match remaining {
+                Some(rem) => match tokio::time::timeout(rem, send_fut).await {
+                    Ok(send_res) => send_res,
+                    Err(_) => {
+                        bail!(
+                            "Request to {url} timed out after {:?}",
+                            self.timeout
+                        );
+                    }
+                },
+                None => send_fut.await,
+            };
+
             match res {
                 Ok(resp) => {
                     let status = resp.status();
@@ -248,16 +360,28 @@ impl AsyncClient {
                         && attempt < retry_count
                     {
                         attempt = attempt.saturating_add(1);
-                        tokio::time::sleep(backoff_delay(attempt)).await;
-                        continue;
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
                     }
                     return Ok(AsyncResponse { inner: resp });
                 }
                 Err(err) => {
-                    if is_transient_error(&err) && attempt < retry_count {
+                    if is_transient_error(&err) && attempt < max_host_retries {
                         attempt = attempt.saturating_add(1);
-                        tokio::time::sleep(backoff_delay(attempt)).await;
-                        continue;
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
                     }
                     return Err(anyhow::Error::from(err)
                         .context(format!("Failed to GET {url}")));
@@ -311,12 +435,31 @@ impl BlockingClient {
 
     pub fn get(&self, url: &str) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
-        let response = self
-            .inner
-            .get(url)
-            .send()
-            .with_context(|| format!("Failed to GET {url}"))?;
-        Ok(BlockingResponse { inner: response })
+        let retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let start = std::time::Instant::now();
+        let mut attempt = 0;
+        loop {
+            let res = self.inner.get(url).send();
+            match res {
+                Ok(resp) => return Ok(BlockingResponse { inner: resp }),
+                Err(err) => {
+                    if is_transient_error(&err) && attempt < retry_limit {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::Error::from(err)
+                        .context(format!("Failed to GET {url}")));
+                }
+            }
+        }
     }
 
     pub fn get_with_backoff(
@@ -325,6 +468,10 @@ impl BlockingClient {
         retry_count: usize,
     ) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
+        let host_retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
+        let start = std::time::Instant::now();
         let mut attempt = 0;
         loop {
             let res = self.inner.get(url).send();
@@ -333,16 +480,28 @@ impl BlockingClient {
                     let status = resp.status();
                     if status.is_server_error() && attempt < retry_count {
                         attempt = attempt.saturating_add(1);
-                        std::thread::sleep(backoff_delay(attempt));
-                        continue;
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
                     }
                     return Ok(BlockingResponse { inner: resp });
                 }
                 Err(err) => {
-                    if is_transient_error(&err) && attempt < retry_count {
+                    if is_transient_error(&err) && attempt < max_host_retries {
                         attempt = attempt.saturating_add(1);
-                        std::thread::sleep(backoff_delay(attempt));
-                        continue;
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
                     }
                     return Err(anyhow::Error::from(err)
                         .context(format!("Failed to GET {url}")));
@@ -606,4 +765,75 @@ fn backoff_delay(attempt: usize) -> Duration {
     let jitter_ms = u64::from(rand::random::<u8>().rem_euclid(100));
     let delay = Duration::from_millis(delay_ms.saturating_add(jitter_ms));
     std::cmp::min(delay, Duration::from_secs(10))
+}
+
+fn sleep_delay_bounded(
+    attempt: usize,
+    start: std::time::Instant,
+    timeout: Option<Duration>,
+) -> Option<Duration> {
+    let delay = backoff_delay(attempt);
+    if let Some(timeout) = timeout {
+        let elapsed = start.elapsed();
+        let remaining = timeout.saturating_sub(elapsed);
+        if remaining.is_zero() {
+            return None;
+        }
+        Some(std::cmp::min(delay, remaining))
+    } else {
+        Some(delay)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_sleep_delay_bounded_no_timeout() {
+        let start = std::time::Instant::now();
+        let delay = sleep_delay_bounded(1, start, None);
+        assert!(delay.is_some());
+        // Reason for fallback / expect: unwrap_or on infallible Some check
+        assert!(delay.unwrap_or_default() >= Duration::from_millis(500));
+    }
+
+    #[crate::ctb_test]
+    fn test_sleep_delay_bounded_expired() {
+        let start = std::time::Instant::now();
+        let delay = sleep_delay_bounded(1, start, Some(Duration::ZERO));
+        assert_eq!(delay, None);
+    }
+
+    #[crate::ctb_test]
+    fn test_sleep_delay_bounded_clamps_to_remaining() {
+        let start = std::time::Instant::now();
+        let timeout = Duration::from_millis(50);
+        let delay = sleep_delay_bounded(1, start, Some(timeout));
+        assert!(delay.is_some());
+        // Reason for fallback / expect: unwrap_or on infallible Some check
+        assert!(delay.unwrap_or_default() <= timeout);
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_async_client_zero_retry_on_invalid_host() {
+        let mut settings = invocation_settings::get_settings();
+        settings.retry_on_host_error = 0;
+        invocation_settings::set_settings(settings);
+
+        let options = ClientOptions {
+            connect_timeout: Some(Duration::from_millis(200)),
+            timeout: Some(Duration::from_millis(500)),
+            user_agent: None,
+        };
+        let Ok(client) = async_client(options) else {
+            return;
+        };
+        let start = std::time::Instant::now();
+        let res = client
+            .get("http://invalid.invalid-dns-test-domain.ctb-local")
+            .await;
+        assert!(res.is_err());
+        assert!(start.elapsed() < Duration::from_secs(4));
+    }
 }

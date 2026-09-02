@@ -14,7 +14,7 @@ Commands:
   waitshutdown               Wait for the provided PID to shutdown, then clean up
   waitrestart                Wait for the provided PID to shutdown, then start ctoolbox with the given port
   waitupgrade                Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
-  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
+  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
   hex2dec                    Convert from hexadecimal to decimal
   dec2hex                    Convert from decimal to hexadecimal
   hexfmt                     Reformat hexdumps
@@ -35,7 +35,7 @@ Commands:
   stagel-bootstrap-convert   Translate a StageL file using the bootstrap compiler
   pan2parsejson              Convert a .pan file to JSON of parse (writes to stdout)
   pan2macro                  Extract a macro/procedure from a .pan file (writes to stdout)
-  panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
+  panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if `macro_name` is provided) and write to stdout
   pdf2txt                    Convert a PDF file to text output
   pdf2json                   Convert a PDF file to JSON output
   pdf2md                     Convert a PDF file to Markdown output
@@ -66,13 +66,22 @@ Commands:
   json-escape                Escape a string to be a valid JSON string value (enclosed in double quotes)
 
 Options:
-      --ctoolbox-ipc-port <CTOOLBOX_IPC_PORT>  
-      --no-update                              Skip automatic update checks on startup
-      --use-bundled-tls-validator              Use bundled certificate roots for this run only
-      --use-system-tls-validator               Use the system certificate store for this run only
-      --insecure-skip-crlite-check             Skip CRLite revocation checking for this run only
-  -h, --help                                   Print help
-  -V, --version                                Print version
+      --ctoolbox-ipc-port <CTOOLBOX_IPC_PORT>
+          
+      --no-update
+          Skip automatic update checks on startup
+      --use-bundled-tls-validator
+          Use bundled certificate roots for this run only
+      --use-system-tls-validator
+          Use the system certificate store for this run only
+      --insecure-skip-crlite-check
+          Skip CRLite revocation checking for this run only
+      --retry-on-host-error <RETRY_ON_HOST_ERROR>
+          Number of retry attempts on DNS or host connection errors [default: 3]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 ## Subcommands
@@ -95,7 +104,7 @@ Options:
 ### `ctoolbox base2base`
 
 ```text
-Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet base64_standard)
+Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
 
 Usage: ctoolbox base2base [OPTIONS] <ARGS>...
 
@@ -128,9 +137,9 @@ Options:
   -P, --pad-l <PAD_L>
           Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
   -q, --quiet
           Suppress warning messages
   -h, --help
@@ -432,9 +441,9 @@ Options:
   -P, --pad-l <PAD_L>
           Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
   -q, --quiet
           Suppress warning messages
   -h, --help
@@ -586,9 +595,9 @@ Options:
   -P, --pad-l <PAD_L>
           Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
   -q, --quiet
           Suppress warning messages
   -h, --help
@@ -665,9 +674,9 @@ Options:
   -P, --pad-l <PAD_L>
           Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like base64_standard [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
   -q, --quiet
           Suppress warning messages
   -h, --help
@@ -1076,13 +1085,13 @@ Options:
 ### `ctoolbox panmacro2ast`
 
 ```text
-Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if macro_name is provided) and write to stdout
+Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if `macro_name` is provided) and write to stdout
 
 Usage: ctoolbox panmacro2ast [OPTIONS] <INPUT_FILE> [MACRO_NAME]
 
 Arguments:
-  <INPUT_FILE>  Input file path (macro code file, or PAN database file if macro_name is given, or - for stdin)
-  [MACRO_NAME]  Optional name of the macro/procedure (if provided, input_file is parsed as a whole .pan database)
+  <INPUT_FILE>  Input file path (macro code file, or PAN database file if `macro_name` is given, or - for stdin)
+  [MACRO_NAME]  Optional name of the macro/procedure (if provided, `input_file` is parsed as a whole .pan database)
 
 Options:
   -i, --input-encoding <INPUT_ENCODING>

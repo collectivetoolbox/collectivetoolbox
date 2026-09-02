@@ -32,6 +32,8 @@ pub const USE_BUNDLED_TLS_VALIDATOR_FLAG: &str = "--use-bundled-tls-validator";
 pub const USE_SYSTEM_TLS_VALIDATOR_FLAG: &str = "--use-system-tls-validator";
 pub const INSECURE_SKIP_CRLITE_CHECK_FLAG: &str =
     "--insecure-skip-crlite-check";
+pub const RETRY_ON_HOST_ERROR_FLAG: &str = "--retry-on-host-error";
+pub const DEFAULT_RETRY_ON_HOST_ERROR: usize = 3;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TlsValidatorOverride {
@@ -39,10 +41,21 @@ pub enum TlsValidatorOverride {
     System,
 }
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct InvocationSettings {
     pub tls_validator_override: Option<TlsValidatorOverride>,
     pub insecure_skip_crlite_check: bool,
+    pub retry_on_host_error: usize,
+}
+
+impl Default for InvocationSettings {
+    fn default() -> Self {
+        Self {
+            tls_validator_override: None,
+            insecure_skip_crlite_check: false,
+            retry_on_host_error: DEFAULT_RETRY_ON_HOST_ERROR,
+        }
+    }
 }
 
 fn invocation_settings_lock() -> &'static RwLock<InvocationSettings> {
@@ -71,7 +84,8 @@ impl InvocationSettings {
     pub fn from_command_line_args(args: &[String]) -> Result<Self> {
         let mut settings = Self::default();
 
-        for arg in args.iter().skip(1) {
+        let mut iter = args.iter().skip(1).peekable();
+        while let Some(arg) = iter.next() {
             match arg.as_str() {
                 USE_BUNDLED_TLS_VALIDATOR_FLAG => {
                     settings.set_tls_validator_override(
@@ -86,7 +100,31 @@ impl InvocationSettings {
                 INSECURE_SKIP_CRLITE_CHECK_FLAG => {
                     settings.insecure_skip_crlite_check = true;
                 }
-                _ => {}
+                RETRY_ON_HOST_ERROR_FLAG => {
+                    let Some(val_str) = iter.next() else {
+                        bail!("Missing value for {RETRY_ON_HOST_ERROR_FLAG}");
+                    };
+                    settings.retry_on_host_error = val_str
+                        .parse::<usize>()
+                        .with_context(|| {
+                            format!(
+                                "Invalid number for {RETRY_ON_HOST_ERROR_FLAG}: {val_str}"
+                            )
+                        })?;
+                }
+                _ => {
+                    if let Some(stripped) =
+                        arg.strip_prefix("--retry-on-host-error=")
+                    {
+                        settings.retry_on_host_error = stripped
+                            .parse::<usize>()
+                            .with_context(|| {
+                                format!(
+                                    "Invalid number for {RETRY_ON_HOST_ERROR_FLAG}: {stripped}"
+                                )
+                            })?;
+                    }
+                }
             }
         }
 
@@ -105,6 +143,10 @@ impl InvocationSettings {
         };
         if self.insecure_skip_crlite_check {
             args.push(INSECURE_SKIP_CRLITE_CHECK_FLAG.to_string());
+        }
+        if self.retry_on_host_error != DEFAULT_RETRY_ON_HOST_ERROR {
+            args.push(RETRY_ON_HOST_ERROR_FLAG.to_string());
+            args.push(self.retry_on_host_error.to_string());
         }
         args
     }
@@ -181,5 +223,37 @@ mod tests {
                 "--insecure-skip-crlite-check"
             ]
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_invocation_settings_retry_on_host_error_flag() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "--retry-on-host-error".to_string(),
+            "0".to_string(),
+        ];
+        let settings =
+            InvocationSettings::from_command_line_args(&args).unwrap();
+        assert_eq!(settings.retry_on_host_error, 0);
+
+        let roundtrip_args = settings.command_line_args();
+        assert_eq!(roundtrip_args, vec!["--retry-on-host-error", "0"]);
+
+        let args_equals = vec![
+            "ctoolbox".to_string(),
+            "--retry-on-host-error=5".to_string(),
+        ];
+        let settings_equals =
+            InvocationSettings::from_command_line_args(&args_equals).unwrap();
+        assert_eq!(settings_equals.retry_on_host_error, 5);
+
+        let roundtrip_equals = settings_equals.command_line_args();
+        assert_eq!(roundtrip_equals, vec!["--retry-on-host-error", "5"]);
+
+        let args_default = vec!["ctoolbox".to_string()];
+        let settings_default =
+            InvocationSettings::from_command_line_args(&args_default).unwrap();
+        assert_eq!(settings_default.retry_on_host_error, 3);
+        assert!(settings_default.command_line_args().is_empty());
     }
 }

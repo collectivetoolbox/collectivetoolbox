@@ -284,7 +284,7 @@ async fn query_server_update_status_fast(
         utilities::https::ClientOptions::startup(),
     )?;
     let url_str = build_update_status_url(server_url, current)?;
-    let response = client.get(&url_str).await?;
+    let response = client.get_with_backoff(&url_str, 3).await?;
     let body = response.text().await?;
 
     serde_json::from_str(&body)
