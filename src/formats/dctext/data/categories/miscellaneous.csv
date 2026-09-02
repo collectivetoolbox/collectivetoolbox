@@ -1,6 +1,6 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description,
-1114318,206,Unicode replacement character,0,ON,,So,Miscellaneous,,Used to replace an incoming character whose value is unknown or unrepresentable in Unicode,
-1114319,207,Replacement character for unavailable Dc,0,ON,,So,Miscellaneous,,Used to replace an incoming character whose value is not mapped to a Dc (document component),
+1114318,206,Unicode replacement character,0,ON,,So,Miscellaneous,<equiv>ufffd,Used to replace an incoming character whose value is unknown or unrepresentable in Unicode,
+1114319,207,Replacement character for unavailable Dc,0,ON,,So,Miscellaneous,<approx>ufffd,Used to replace an incoming character whose value is not mapped to a Dc (document component),
 1114367,255,Ignore following Dc,0,BN,,!Cx,Miscellaneous,,Indicates that the next character should be ignored.,
 1114408,296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,Miscellaneous,:~ [number],,
 1114409,297,Next number is a Dc-equivalent reference to a global node to which this local node was moved.,0,BN,,!Cx,Miscellaneous,:~ [number],,

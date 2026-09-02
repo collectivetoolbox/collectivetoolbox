@@ -29,6 +29,7 @@ pub(crate) use ctb_utilities::*;
 pub mod codegen;
 pub mod convert;
 pub mod parse;
+pub mod stagel2;
 
 #[cfg(test)]
 use include_dir::{Dir, include_dir};

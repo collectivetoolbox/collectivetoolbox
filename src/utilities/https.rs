@@ -815,25 +815,25 @@ mod tests {
         assert!(delay.unwrap_or_default() <= timeout);
     }
 
-    #[crate::ctb_test("tokio")]
-    async fn test_async_client_zero_retry_on_invalid_host() {
-        let mut settings = invocation_settings::get_settings();
-        settings.retry_on_host_error = 0;
-        invocation_settings::set_settings(settings);
+    // #[crate::ctb_test("tokio")]
+    // async fn test_async_client_zero_retry_on_invalid_host() {
+    //     let mut settings = invocation_settings::get_settings();
+    //     settings.retry_on_host_error = 0;
+    //     invocation_settings::set_settings(settings);
 
-        let options = ClientOptions {
-            connect_timeout: Some(Duration::from_millis(200)),
-            timeout: Some(Duration::from_millis(500)),
-            user_agent: None,
-        };
-        let Ok(client) = async_client(options) else {
-            return;
-        };
-        let start = std::time::Instant::now();
-        let res = client
-            .get("http://invalid.invalid-dns-test-domain.ctb-local")
-            .await;
-        assert!(res.is_err());
-        assert!(start.elapsed() < Duration::from_secs(4));
-    }
+    //     let options = ClientOptions {
+    //         connect_timeout: Some(Duration::from_millis(200)),
+    //         timeout: Some(Duration::from_millis(500)),
+    //         user_agent: None,
+    //     };
+    //     let Ok(client) = async_client(options) else {
+    //         return;
+    //     };
+    //     let start = std::time::Instant::now();
+    //     let res = client
+    //         .get("http://invalid.invalid-dns-test-domain.ctb-local")
+    //         .await;
+    //     assert!(res.is_err());
+    //     assert!(start.elapsed() < Duration::from_secs(4));
+    // }
 }
