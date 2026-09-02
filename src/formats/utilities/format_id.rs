@@ -60,7 +60,7 @@ pub enum FormatId {
     Base64, // There are different alphabets that can be used for Base64 and other base strings
     Hexadecimal,
     Hexadecimal0xPrefix,
-    HexdumpClassic,
+    HexdumpPlain,
     HexdumpFancy437,
     Base16b,
     Base16b_7,
