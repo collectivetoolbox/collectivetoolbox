@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format or Category, or Chain (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Chain (=), or Syntax (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -26,5 +26,5 @@ Import/export/tests support columns meaning:
 2228459,235,Magnet,Magnet URI,identifier,Uri,,,,,,,,,,,
 2228460,236,IaIdentifier,Internet Archive item identifier,identifier,,,,,,,,,,,,
 2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,Torrent,~_archive\.torrent$~,application/x-bittorrent,,,,,,,,,
-,,DcIdentifier,Dc identifier (new),identifier,,,,,,,,,,,,
-,,DcShortIdentifier,Dc identifier (short),identifier,"DcIdentifier, ",,,,,,,,,,,
+,,DcIdentifier,Dc identifier (new),identifier,"DcIdentifier, :[Natural1 & <(2^128)]",,,,,,,,,,,
+,,DcShortIdentifier,Dc identifier (short),identifier,"DcIdentifier, :[Natural1 & <(2^128)]",,,,,,,,,,,
