@@ -1224,31 +1224,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             output,
             force,
         } => {
-            let cli_output =
-                ctb_formats_compression::cli::execute_cli_decompress(
-                    ctb_formats_compression::cli::CliDecompressArgs {
-                        format: format.clone(),
-                        input_path: file.clone(),
-                        output_path: output.clone(),
-                        force: *force,
-                    },
-                    read_file_or_stdin,
-                    check_overwrite_prompt,
-                )?;
-            match cli_output {
-                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
-                    Ok(ToolResult::immediate_ok(bytes))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
-                    Ok(ToolResult::immediate_ok(Vec::new()))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
-                    Ok(ToolResult::immediate_err(
-                        "Operation cancelled.\n".as_bytes().to_vec(),
-                        1,
-                    ))
-                }
-            }
+
         }
         Command::Wfparser { file } => {
             let data = read_file_or_stdin(file.as_path())?;
