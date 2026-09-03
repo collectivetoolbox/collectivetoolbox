@@ -14,10 +14,10 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228423,199,Integer,Integer number,number,,,,,,,,,,,,
-2228424,200,Natural,Natural number,number,,,,,,,,,,,,
-2228425,201,Positive,Positive number,number,,,,,,,,,,,,
-2228426,202,Negative,Negative number,number,,,,,,,,,,,,
+2228423,199,Integer,Integer number,number_abstract,,,,,,,,,,,,
+2228424,200,Natural,Natural number,number_abstract,,,,,,,,,,,,
+2228425,201,Positive,Positive number,number_abstract,,,,,,,,,,,,
+2228426,202,Negative,Negative number,number_abstract,,,,,,,,,,,,
 2228427,203,U8,8-bit unsigned integer,number,,,,,,,,,,,,
 2228428,204,I8,8-bit signed integer,number,,,,,,,,,,,,
 2228429,205,U16,16-bit unsigned integer,number,,,,,,,,,,,,
@@ -31,3 +31,7 @@ Import/export/tests support columns meaning:
 2228437,213,Float,Floating-point number,number,,,,,,,,,,,,
 2228438,214,Fixed,Fixed-point number,number,,,,,,,,,,,,
 2228439,215,Pack32,Pack32 (encoded 32-bit value),number,,,,,,,,,,,,
+,,Rational,Rational number,number_abstract,,,,,,,,,,,,
+,,Real,Real number,number_abstract,,,,,,,,,,,,
+,,Complex,Complex number,number_abstract,,,,,,,,,,,,
+,,FloatIeee754,IEEE 754 floating-point number formats,number,,,,,,Float,,,,,,

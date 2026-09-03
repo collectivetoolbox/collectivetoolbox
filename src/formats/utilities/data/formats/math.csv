@@ -14,9 +14,4 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228225,1,DcArray,Internal: Classic Dc Array,semantic,,,,,,,-1,-1,-1,,"Array of classic (short) Dc ints, without a defined repreresentation - &[u32] in Rust; an in StageL",
-2228231,7,Unicode,Unicode,semantic,,,,,,,-1,-1,-1,,Array of ints representing Unicode characters. Might include things that aren’t valid unicode.,
-2228304,80,String,String,semantic,,,,,,,,,,,,
-2228442,218,DateString,A string representing a date,semantic,,,,,,,,,,,,
-2228443,219,TimeString,A string representing a time,semantic,,,,,,,,,,,,
-2228444,220,DateTimeString,A string representing a date and time,semantic,,,,,,,,,,,,
+2228448,224,MathExpression,Math expression,math,,,,,,,,,,,,
