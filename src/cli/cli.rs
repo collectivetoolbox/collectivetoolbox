@@ -417,5 +417,8 @@ mod tests {
         assert_eq!(exit_code, 0);
     }
 
+    // Don't add command-specific tests here! Any nontrivial logic should go in the associated crate, rather than this file and crate.
+// This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
+
 }
 

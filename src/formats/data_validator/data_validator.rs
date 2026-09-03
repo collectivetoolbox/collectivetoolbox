@@ -681,7 +681,7 @@ mod tests {
 
         // 2. Format category with row having 16 columns instead of 17
         let mut fmt_report = ValidationReport::default();
-        let invalid_fmt_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,MIME,Extensions,UTI,Apple Type,Nicknames,BaseFormat,Import,Export,Tests,Variants,Comments,References\n2228224,0,FmtZero,Format Zero,document,,.fz,,,,3,3,1,,,\n";
+        let invalid_fmt_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat,Extensions,MIME,UTI,Apple Type,Nicknames,Import,Export,Tests,Variants,Comments,References\n2228224,0,FmtZero,Format Zero,document,,.fz,,,,3,3,1,,,\n";
         let valid_variants = HashSet::new();
         validate_formats_category_file(
             invalid_fmt_csv,

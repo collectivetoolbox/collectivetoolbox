@@ -45,12 +45,12 @@ pub struct ParsedFormatRow {
     pub ident: String,
     pub label: String,
     pub category: String,
-    pub mime: String,
+    pub base_format: String,
     pub extensions: String,
+    pub mime: String,
     pub uti: String,
     pub apple_type: String,
     pub nicknames: String,
-    pub base_format: String,
     pub import_support: String,
     pub export_support: String,
     pub tests: String,
@@ -140,12 +140,12 @@ pub fn validate_formats_category_file(
         let ident = get_str(2);
         let label = get_str(3);
         let category = get_str(4);
-        let mime = get_str(5);
+        let base_format = get_str(5);
         let extensions = get_str(6);
-        let uti = get_str(7);
-        let apple_type = get_str(8);
-        let nicknames = get_str(9);
-        let base_format = get_str(10);
+        let mime = get_str(7);
+        let uti = get_str(8);
+        let apple_type = get_str(9);
+        let nicknames = get_str(10);
         let import_support = get_str(11);
         let export_support = get_str(12);
         let tests = get_str(13);
@@ -345,12 +345,12 @@ pub fn validate_formats_category_file(
             ident,
             label,
             category,
-            mime,
+            base_format,
             extensions,
+            mime,
             uti,
             apple_type,
             nicknames,
-            base_format,
             import_support,
             export_support,
             tests,

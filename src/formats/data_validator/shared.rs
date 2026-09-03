@@ -234,7 +234,7 @@ pub fn validate_cross_table_uniqueness(
         if clean_name.is_empty() {
             continue;
         }
-        let key = clean_name.to_lowercase();
+        let key = clean_name;
         if let Some((prev_id, prev_file)) = dc_name_map.get(&key) {
             report.add_error(
                 file_path,
@@ -256,8 +256,7 @@ pub fn validate_cross_table_uniqueness(
         if clean_label.is_empty() {
             continue;
         }
-        let key = clean_label.to_lowercase();
-        if let Some((prev_id, prev_file)) = fmt_label_map.get(&key) {
+        if let Some((prev_id, prev_file)) = fmt_label_map.get(clean_label) {
             report.add_error(
                 file_path,
                 None,
@@ -269,11 +268,12 @@ pub fn validate_cross_table_uniqueness(
             );
         } else {
             fmt_label_map
-                .insert(key.clone(), (short_id, file_path.to_string()));
+                .insert(clean_label.to_string(), (short_id, file_path.to_string()));
         }
 
         // Cross-table check: Format label cannot collide with a Dc name
-        if let Some((dc_id, dc_file)) = dc_name_map.get(&key) {
+        let dc_key = clean_label.to_lowercase();
+        if let Some((dc_id, dc_file)) = dc_name_map.get(&dc_key) {
             report.add_error(
                 file_path,
                 None,
