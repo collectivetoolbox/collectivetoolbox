@@ -36,7 +36,10 @@ Import/export/tests support columns meaning:
 2228571,347,Complex,Complex number,number_abstract,AbstractNumber,,,,,,,,,,,
 2228572,348,FloatIeee754,IEEE 754 floating-point number formats,number,Float,,,,,,,,,,,
 2228573,349,NumeralSystem,Format for representing numbers,number,,,,,,,,,,,,
-2228574,350,BaseNNumeral,Representation of a number in a given base,number,:~ [,,,,,,,,,,,
+2228574,350,BaseNNumeral,Representation of a number in a given base,number,:~ [354],,,,,,,,,,,
 2228575,351,Natural1,"Natural number, not including zero",number_abstract,AbstractNumber & Integer,,,,,,,,,,,
-2228578,354,Base,A radix in a number system,number,,,,,,,,,,,,
-2228579,355,AbstractNumber,Any number,number,,,,,,,,,,,,
+2228578,354,Base,A radix in a number system,number,:~ [number:f351],,,,,,,,,,,
+2228579,355,AbstractNumber,"Any number, but not in a specific representation",number_abstract,,,,,,,,,,,,
+,,DcNumber,"A number represented using Dcs, a sequence of Dcs between Dcs 6 and 7",number,,,,,,,,,,,,
+,,DcNumberB64Int,A DcNumber representing an integer expressed in base 64,number,DcNumber,,,,,,,,,,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start
+",
