@@ -425,4 +425,149 @@ mod tests {
         let desc = String::from_utf8(out).unwrap();
         println!("OUTPUT:\n{desc}");
     }
+
+    #[cfg(test)]
+    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+    mod tests {
+        use super::*;
+
+    #[crate::ctb_test]
+    fn
+    () {
+
+        let cmd3 = Command::CharacterDescription(
+            ctb_formats_dctext::cli::CharacterDescriptionArgs {
+                input: Some("A".to_string()),
+                ..Default::default()
+            },
+        );
+        let result3 = run_lightweight_command(&cmd3)
+            .await
+            .expect("Run character_description");
+        match result3 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8 stdout"),
+                    "U+0041 : LATIN CAPITAL LETTER A\n"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+    }
+
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+    mod tests {
+        use super::*;
+
+    #[crate::ctb_test]
+    fn
+    () {
+
+        let cmd3_dcal = Command::CharacterDescription(
+            ctb_formats_dctext::cli::CharacterDescriptionArgs {
+                input: Some("65 1114408 2228304".to_string()),
+                from: ctb_formats_dctext::cli::CharacterDescriptionInputFormat::Dcal,
+                ..Default::default()
+            },
+        );
+        let result3_dcal = run_lightweight_command(&cmd3_dcal)
+            .await
+            .expect("Run character_description --from dcal");
+        match result3_dcal {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8 stdout");
+                let lines: Vec<&str> = s.lines().collect();
+                assert_eq!(lines.len(), 3);
+                assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
+                assert!(lines[1].starts_with(
+                    "1114408 : <Dc> Next number is a Dc-equivalent reference"
+                ));
+                assert!(lines[2].starts_with("2228304 : String"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_dc = Command::ShortDc(
+            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
+                id: "296".to_string(),
+                info: false,
+            },
+        );
+        let res_dc = run_lightweight_command(&cmd_short_dc)
+            .await
+            .expect("Run short-dc");
+        match res_dc {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "1114408\n"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_dc_i = Command::ShortDc(
+            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
+                id: "296".to_string(),
+                info: true,
+            },
+        );
+        let res_dc_i = run_lightweight_command(&cmd_short_dc_i)
+            .await
+            .expect("Run short-dc -i");
+        match res_dc_i {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with(
+                    "1114408\nNext number is a Dc-equivalent reference"
+                ));
+                assert!(s.contains("Type: !Cx (Control: Dc special)"));
+                assert!(s.contains("Syntax: :~ [number]"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_fmt = Command::ShortFmt(
+            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
+                id: "80".to_string(),
+                info: false,
+            },
+        );
+        let res_fmt = run_lightweight_command(&cmd_short_fmt)
+            .await
+            .expect("Run short-fmt");
+        match res_fmt {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "2228304\n"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_short_fmt_i = Command::ShortFmt(
+            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
+                id: "80".to_string(),
+                info: true,
+            },
+        );
+        let res_fmt_i = run_lightweight_command(&cmd_short_fmt_i)
+            .await
+            .expect("Run short-fmt -i");
+        match res_fmt_i {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with("2228304\nString\n\nCategory: semantic"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+    }
+
+    }
 }

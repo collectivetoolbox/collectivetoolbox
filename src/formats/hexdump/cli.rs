@@ -561,4 +561,127 @@ mod tests {
             Some(crate::to_fancy_hex_dump(data).into_bytes())
         );
     }
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+mod tests {
+    use super::*;
+
+#[crate::ctb_test]
+fn () {
+        let cmd = Command::Hex2Bin(ctb_formats_hexdump::cli::Hex2BinArgs {
+            value: Some("48656c6c6f".to_string()),
+            file: None,
+            output: None,
+        });
+        let result = run_lightweight_command(&cmd).await.expect("Run hex2bin");
+        match result {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(stdout, b"Hello");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd2 = Command::Bin2Hex(ctb_formats_hexdump::cli::Bin2HexArgs {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            hd: false,
+            hf: false,
+            xxd: false,
+        });
+        let result2 =
+            run_lightweight_command(&cmd2).await.expect("Run bin2hex");
+        match result2 {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(stdout, b"48656c6c6f");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_hd = Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            plain: false,
+            xxd: false,
+        });
+        let result_hd =
+            run_lightweight_command(&cmd_hd).await.expect("Run hexdump");
+        match result_hd {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    stdout,
+                    ctb_formats_hexdump::to_fancy_hex_dump(b"Hello")
+                        .into_bytes()
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_hd_plain =
+            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+                value: Some("Hello".to_string()),
+                file: None,
+                output: None,
+                plain: true,
+                xxd: false,
+            });
+        let result_hd_plain = run_lightweight_command(&cmd_hd_plain)
+            .await
+            .expect("Run hexdump --plain");
+        match result_hd_plain {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    stdout,
+                    ctb_formats_hexdump::to_hex_dump(b"Hello").into_bytes()
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_hd_xxd =
+            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+                value: Some("Hello".to_string()),
+                file: None,
+                output: None,
+                plain: false,
+                xxd: true,
+            });
+        let result_hd_xxd = run_lightweight_command(&cmd_hd_xxd)
+            .await
+            .expect("Run hexdump --xxd");
+        match result_hd_xxd {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    stdout,
+                    ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes()
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_xxd = Command::Xxd(ctb_formats_hexdump::cli::XxdArgs {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            plain: false,
+            fancy: false,
+        });
+        let result_xxd =
+            run_lightweight_command(&cmd_xxd).await.expect("Run xxd");
+        match result_xxd {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    stdout,
+                    ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes()
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+}
+
+}
+
 }

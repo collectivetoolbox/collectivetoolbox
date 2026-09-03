@@ -338,4 +338,53 @@ mod tests {
         .expect("gid -i 65");
         assert!(out_uni_info.contains("LATIN CAPITAL LETTER A"));
     }
+
+    #[cfg(test)]
+    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+    mod tests {
+        use super::*;
+
+    #[crate::ctb_test]
+    fn () {
+
+        let cmd_gid_short =
+            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
+                id: "1114408".to_string(),
+                short: true,
+                info: false,
+            });
+        let res_gid_short = run_lightweight_command(&cmd_gid_short)
+            .await
+            .expect("Run gid --s");
+        match res_gid_short {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8(stdout).expect("UTF-8"),
+                    "dc:296\n"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_gid_info =
+            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
+                id: "1114408".to_string(),
+                short: false,
+                info: true,
+            });
+        let res_gid_info = run_lightweight_command(&cmd_gid_info)
+            .await
+            .expect("Run gid -i");
+        match res_gid_info {
+            ToolResult::Immediate { stdout, .. } => {
+                let s = String::from_utf8(stdout).expect("UTF-8");
+                assert!(s.starts_with(
+                    "1114408\nNext number is a Dc-equivalent reference"
+                ));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    }
 }

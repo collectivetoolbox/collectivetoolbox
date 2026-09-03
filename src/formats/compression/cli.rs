@@ -410,5 +410,26 @@ mod tests {
             "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
         ));
     }
+
+
+    #[crate::ctb_test]
+    fn test_compress_command_help() {
+        let mut cmd = Cli::command();
+        let compress_sub = cmd
+            .find_subcommand_mut("compress")
+            .expect("compress subcommand should exist");
+        let mut help_buf = Vec::new();
+        compress_sub
+            .write_help(&mut help_buf)
+            .expect("Should format help");
+        let help_str = String::from_utf8(help_buf).expect("UTF-8 help");
+
+        assert!(help_str.contains("Supported compression formats:"));
+        assert!(help_str.contains("br, brotli: Brotli compressed stream"));
+        assert!(help_str.contains("gz, gzip: GNU gzip format"));
+        assert!(help_str.contains(
+            "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
+        ));
+    }
 }
 

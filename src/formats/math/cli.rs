@@ -814,5 +814,100 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
+
+
+    #[crate::ctb_test("tokio")]
+    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous() -> Result<()> {
+        use ctb_formats_math::cli::BaseArgs;
+
+        // hex2dec with unquoted tokens
+        let cmd = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["1A".to_string(), "2B".to_string(), "3C".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "26 43 60");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // dec2hex with unquoted tokens
+        let cmd = Command::Dec2Hex {
+            string_input: StringInput {
+                input: vec!["255".to_string(), "128".to_string(), "64".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "ff 80 40");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hexfmt with prefix
+        let cmd = Command::Hexfmt {
+            string_input: StringInput {
+                input: vec!["1a".to_string(), "2b".to_string()],
+            },
+            base_args: BaseArgs {
+                prefix: "0x".to_string(),
+                ..Default::default()
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "0x1a 0x2b");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hex2dec continuous hex scalar vs bytes
+        let cmd_scalar = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res_scalar = run_lightweight_command(&cmd_scalar).await?;
+        match res_scalar {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "3735928559");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_bytes = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs {
+                bytes: true,
+                limit: 255,
+                pad: true,
+                ..Default::default()
+            },
+        };
+        let res_bytes = run_lightweight_command(&cmd_bytes).await?;
+        match res_bytes {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "222 173 190 239");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        Ok(())
+    }
 }
 
