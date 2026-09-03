@@ -28,20 +28,22 @@ use crate::utilities::*;
 
 use crate::report::ValidationReport;
 use crate::shared::{
-    validate_bidi_class, validate_combining_class, validate_general_category,
+    split_comma_separated_items, validate_bidi_class, validate_combining_class,
+    validate_general_category,
 };
 use crate::syntax::{
     CharTarget, DcSyntaxRule, parse_dc_syntax, parse_target_token,
     validate_dc_syntax,
 };
 use include_dir::Dir;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 pub const DC_REGION_START: u128 = 1_114_112;
 pub const DC_REGION_END: u128 = 2_228_223;
 
 /// Validated and split Document Character record.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParsedDcRow {
     pub dc_id: u128,
     pub short_id: u32,
@@ -75,14 +77,8 @@ pub fn split_dc_aliases_column(
         return (aliases, cross_references, decompositions, dc_syntax);
     }
 
-    // If the entire cell or an entry begins with a syntax declaration `:`, isolate it.
-    if trimmed.starts_with(':') {
-        dc_syntax = Some(trimmed.to_string());
-        return (aliases, cross_references, decompositions, dc_syntax);
-    }
-
-    // Parse comma-separated items outside of syntax definitions
-    for item in trimmed.split(',') {
+    let items = split_comma_separated_items(trimmed);
+    for item in items {
         let item_trimmed = item.trim();
         if item_trimmed.is_empty() {
             continue;

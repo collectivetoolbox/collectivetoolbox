@@ -1,0 +1,6633 @@
+[
+  {
+    "dc_id": 1114112,
+    "short_id": 0,
+    "name": "Null",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114113,
+    "short_id": 1,
+    "name": "At",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114114,
+    "short_id": 2,
+    "name": "Begin separator",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Begin a DCE separator string.",
+    "source_file": "semantic.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114115,
+    "short_id": 3,
+    "name": "End separator",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "End a DCE separator string.",
+    "source_file": "semantic.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114116,
+    "short_id": 4,
+    "name": "Range",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "The DCE range character. Used to represent ranges in DCE. See the wiki for more information.",
+    "source_file": "semantic.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114117,
+    "short_id": 5,
+    "name": "Record summation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Used to denote the union of two records. See the wiki for more information.",
+    "source_file": "semantic.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114118,
+    "short_id": 6,
+    "name": "Begin number",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Begin a DCE number.",
+    "source_file": "semantic.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114119,
+    "short_id": 7,
+    "name": "End number",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "End a DCE number.",
+    "source_file": "semantic.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114120,
+    "short_id": 8,
+    "name": "Unknown value",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Substitution character for an unknown value.",
+    "source_file": "semantic.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114121,
+    "short_id": 9,
+    "name": "Gregorian calendar identifier",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Internal DCE calendar identifier for the Gregorian calendar.",
+    "source_file": "semantic.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114122,
+    "short_id": 10,
+    "name": "Positive",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Positive value (syntactical representation — This is not the + character)",
+    "source_file": "semantic.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114123,
+    "short_id": 11,
+    "name": "Negative",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Negative (syntactical representation — This is not the − character)",
+    "source_file": "semantic.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114124,
+    "short_id": 12,
+    "name": "Decimal point",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [
+      "dot",
+      "point"
+    ],
+    "cross_references": [
+      ">32"
+    ],
+    "decompositions": [
+      "<approx>u2e"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114125,
+    "short_id": 13,
+    "name": "Full drop back",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Drop back to the core sheet (no meaning in EDF)",
+    "source_file": "dce.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114126,
+    "short_id": 14,
+    "name": "Drop back",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Drop back to the enclosing sheet (no meaning in EDF)",
+    "source_file": "dce.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114127,
+    "short_id": 15,
+    "name": "Begin DCE content",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Begins a DCE region (no meaning in EDF)",
+    "source_file": "dce.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114128,
+    "short_id": 16,
+    "name": "DCE Version Selectors",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE sheets",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114129,
+    "short_id": 17,
+    "name": "No mapping",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cn",
+    "script": "Noncharacters",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Processing use only (not for interchange)",
+    "source_file": "noncharacters.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114130,
+    "short_id": 18,
+    "name": "Space",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "WS",
+    "casing_partner": null,
+    "general_category": "Zs",
+    "script": "Punctuation",
+    "aliases": [
+      "word separator"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Sometimes used as a visible word separator, e.g. in Anoej",
+    "source_file": "punctuation.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114131,
+    "short_id": 19,
+    "name": "Exclamation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114132,
+    "short_id": 20,
+    "name": "Double quotation mark",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114133,
+    "short_id": 21,
+    "name": "Number sign",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ET",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [
+      "octothorpe",
+      "hash",
+      "crosshatch"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114134,
+    "short_id": 22,
+    "name": "Dollar",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ET",
+    "casing_partner": null,
+    "general_category": "Sc",
+    "script": "Financial",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "financial.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114135,
+    "short_id": 23,
+    "name": "Percent",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ET",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114136,
+    "short_id": 24,
+    "name": "And",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114137,
+    "short_id": 25,
+    "name": "Apostrophe",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114138,
+    "short_id": 26,
+    "name": "Left parenthesis",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Ps",
+    "script": "Punctuation",
+    "aliases": [
+      "left bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114139,
+    "short_id": 27,
+    "name": "Right parenthesis",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Pe",
+    "script": "Punctuation",
+    "aliases": [
+      "right bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114140,
+    "short_id": 28,
+    "name": "Asterisk",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [
+      "star"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114141,
+    "short_id": 29,
+    "name": "Plus",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ES",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u2b"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114142,
+    "short_id": 30,
+    "name": "Comma",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114143,
+    "short_id": 31,
+    "name": "Hyphen",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ES",
+    "casing_partner": null,
+    "general_category": "Pd",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114144,
+    "short_id": 32,
+    "name": "Full stop",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [
+      "period"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114145,
+    "short_id": 33,
+    "name": "Solidus",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [
+      "virgule",
+      "stroke",
+      "slash"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114146,
+    "short_id": 34,
+    "name": "Zero",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u30"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114147,
+    "short_id": 35,
+    "name": "One",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u31"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114148,
+    "short_id": 36,
+    "name": "Two",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u32"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114149,
+    "short_id": 37,
+    "name": "Three",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u33"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114150,
+    "short_id": 38,
+    "name": "Four",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u34"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114151,
+    "short_id": 39,
+    "name": "Five",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u35"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114152,
+    "short_id": 40,
+    "name": "Six",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u36"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114153,
+    "short_id": 41,
+    "name": "Seven",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u37"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114154,
+    "short_id": 42,
+    "name": "Eight",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u38"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114155,
+    "short_id": 43,
+    "name": "Nine",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "EN",
+    "casing_partner": null,
+    "general_category": "Nd",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u39"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114156,
+    "short_id": 44,
+    "name": "Colon",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114157,
+    "short_id": 45,
+    "name": "Semicolon",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114158,
+    "short_id": 46,
+    "name": "Less than",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u3c"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114159,
+    "short_id": 47,
+    "name": "Equals",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u3d"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114160,
+    "short_id": 48,
+    "name": "Greater than",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u3e"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114161,
+    "short_id": 49,
+    "name": "Question",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114162,
+    "short_id": 50,
+    "name": "Latin Letter Uppercase A",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 82,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u41"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114163,
+    "short_id": 51,
+    "name": "Latin Letter Uppercase B",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 83,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u42"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114164,
+    "short_id": 52,
+    "name": "Latin Letter Uppercase C",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 84,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u43"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114165,
+    "short_id": 53,
+    "name": "Latin Letter Uppercase D",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 85,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u44"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114166,
+    "short_id": 54,
+    "name": "Latin Letter Uppercase E",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 86,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u45"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114167,
+    "short_id": 55,
+    "name": "Latin Letter Uppercase F",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 87,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u46"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114168,
+    "short_id": 56,
+    "name": "Latin Letter Uppercase G",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 88,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u47"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114169,
+    "short_id": 57,
+    "name": "Latin Letter Uppercase H",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 89,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u48"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114170,
+    "short_id": 58,
+    "name": "Latin Letter Uppercase I",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 90,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u49"
+    ],
+    "dc_syntax": null,
+    "description": "Special casing considerations for Turkish",
+    "source_file": "latin.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114171,
+    "short_id": 59,
+    "name": "Latin Letter Uppercase J",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 91,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4a"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114172,
+    "short_id": 60,
+    "name": "Latin Letter Uppercase K",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 92,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4b"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114173,
+    "short_id": 61,
+    "name": "Latin Letter Uppercase L",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 93,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4c"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114174,
+    "short_id": 62,
+    "name": "Latin Letter Uppercase M",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 94,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4d"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114175,
+    "short_id": 63,
+    "name": "Latin Letter Uppercase N",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 95,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4e"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114176,
+    "short_id": 64,
+    "name": "Latin Letter Uppercase O",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 96,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u4f"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114177,
+    "short_id": 65,
+    "name": "Latin Letter Uppercase P",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 97,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u50"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114178,
+    "short_id": 66,
+    "name": "Latin Letter Uppercase Q",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 98,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u51"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114179,
+    "short_id": 67,
+    "name": "Latin Letter Uppercase R",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 99,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u52"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114180,
+    "short_id": 68,
+    "name": "Latin Letter Uppercase S",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 100,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u53"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114181,
+    "short_id": 69,
+    "name": "Latin Letter Uppercase T",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 101,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u54"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114182,
+    "short_id": 70,
+    "name": "Latin Letter Uppercase U",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 102,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u55"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114183,
+    "short_id": 71,
+    "name": "Latin Letter Uppercase V",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 103,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u56"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114184,
+    "short_id": 72,
+    "name": "Latin Letter Uppercase W",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 104,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u57"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114185,
+    "short_id": 73,
+    "name": "Latin Letter Uppercase X",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 105,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u58"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114186,
+    "short_id": 74,
+    "name": "Latin Letter Uppercase Y",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 106,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u59"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114187,
+    "short_id": 75,
+    "name": "Latin Letter Uppercase Z",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 107,
+    "general_category": "Lu",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u5a"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114188,
+    "short_id": 76,
+    "name": "Left bracket",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Ps",
+    "script": "Punctuation",
+    "aliases": [
+      "left square bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114189,
+    "short_id": 77,
+    "name": "Reversed solidus",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Symbols",
+    "aliases": [
+      "backslash"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114190,
+    "short_id": 78,
+    "name": "Right bracket",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Pe",
+    "script": "Punctuation",
+    "aliases": [
+      "right square bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114191,
+    "short_id": 79,
+    "name": "Spacing circumflex",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sk",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114192,
+    "short_id": 80,
+    "name": "Underscore",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Pc",
+    "script": "Symbols",
+    "aliases": [
+      "low line"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114193,
+    "short_id": 81,
+    "name": "Spacing grave",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sk",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114194,
+    "short_id": 82,
+    "name": "Latin Letter Lowercase A",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 50,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u61"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114195,
+    "short_id": 83,
+    "name": "Latin Letter Lowercase B",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 51,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u62"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114196,
+    "short_id": 84,
+    "name": "Latin Letter Lowercase C",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 52,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u63"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114197,
+    "short_id": 85,
+    "name": "Latin Letter Lowercase D",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 53,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u64"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 31
+  },
+  {
+    "dc_id": 1114198,
+    "short_id": 86,
+    "name": "Latin Letter Lowercase E",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 54,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u65"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 32
+  },
+  {
+    "dc_id": 1114199,
+    "short_id": 87,
+    "name": "Latin Letter Lowercase F",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 55,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u66"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 33
+  },
+  {
+    "dc_id": 1114200,
+    "short_id": 88,
+    "name": "Latin Letter Lowercase G",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 56,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u67"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 34
+  },
+  {
+    "dc_id": 1114201,
+    "short_id": 89,
+    "name": "Latin Letter Lowercase H",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 57,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u68"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 35
+  },
+  {
+    "dc_id": 1114202,
+    "short_id": 90,
+    "name": "Latin Letter Lowercase I",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 58,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u69"
+    ],
+    "dc_syntax": null,
+    "description": "Special casing considerations for Turkish",
+    "source_file": "latin.csv",
+    "line_number": 36
+  },
+  {
+    "dc_id": 1114203,
+    "short_id": 91,
+    "name": "Latin Letter Lowercase J",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 59,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6a"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 37
+  },
+  {
+    "dc_id": 1114204,
+    "short_id": 92,
+    "name": "Latin Letter Lowercase K",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 60,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6b"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 38
+  },
+  {
+    "dc_id": 1114205,
+    "short_id": 93,
+    "name": "Latin Letter Lowercase L",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 61,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6c"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 39
+  },
+  {
+    "dc_id": 1114206,
+    "short_id": 94,
+    "name": "Latin Letter Lowercase M",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 62,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6d"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 40
+  },
+  {
+    "dc_id": 1114207,
+    "short_id": 95,
+    "name": "Latin Letter Lowercase N",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 63,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6e"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 41
+  },
+  {
+    "dc_id": 1114208,
+    "short_id": 96,
+    "name": "Latin Letter Lowercase O",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 64,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u6f"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 42
+  },
+  {
+    "dc_id": 1114209,
+    "short_id": 97,
+    "name": "Latin Letter Lowercase P",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 65,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u70"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 43
+  },
+  {
+    "dc_id": 1114210,
+    "short_id": 98,
+    "name": "Latin Letter Lowercase Q",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 66,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u71"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 44
+  },
+  {
+    "dc_id": 1114211,
+    "short_id": 99,
+    "name": "Latin Letter Lowercase R",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 67,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u72"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 45
+  },
+  {
+    "dc_id": 1114212,
+    "short_id": 100,
+    "name": "Latin Letter Lowercase S",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 68,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u73"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 46
+  },
+  {
+    "dc_id": 1114213,
+    "short_id": 101,
+    "name": "Latin Letter Lowercase T",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 69,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u74"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 47
+  },
+  {
+    "dc_id": 1114214,
+    "short_id": 102,
+    "name": "Latin Letter Lowercase U",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 70,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u75"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 48
+  },
+  {
+    "dc_id": 1114215,
+    "short_id": 103,
+    "name": "Latin Letter Lowercase V",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 71,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u76"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 49
+  },
+  {
+    "dc_id": 1114216,
+    "short_id": 104,
+    "name": "Latin Letter Lowercase W",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 72,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u77"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 50
+  },
+  {
+    "dc_id": 1114217,
+    "short_id": 105,
+    "name": "Latin Letter Lowercase X",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 73,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u78"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 51
+  },
+  {
+    "dc_id": 1114218,
+    "short_id": 106,
+    "name": "Latin Letter Lowercase Y",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 74,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u79"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 52
+  },
+  {
+    "dc_id": 1114219,
+    "short_id": 107,
+    "name": "Latin Letter Lowercase Z",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "L",
+    "casing_partner": 75,
+    "general_category": "Ll",
+    "script": "Latin",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u7a"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "latin.csv",
+    "line_number": 53
+  },
+  {
+    "dc_id": 1114220,
+    "short_id": 108,
+    "name": "Left brace",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Ps",
+    "script": "Punctuation",
+    "aliases": [
+      "left curly bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114221,
+    "short_id": 109,
+    "name": "Vertical line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Symbols",
+    "aliases": [
+      "vertical bar",
+      "pipe"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114222,
+    "short_id": 110,
+    "name": "Right brace",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Pe",
+    "script": "Punctuation",
+    "aliases": [
+      "right curly bracket"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114223,
+    "short_id": 111,
+    "name": "Tilde punctuation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114224,
+    "short_id": 112,
+    "name": "DCE Version Selector 3.0a",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE versions",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114225,
+    "short_id": 113,
+    "name": "End DCE content",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114226,
+    "short_id": 114,
+    "name": "Begin unbounded content",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This denotes content that is not \"bound\" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it",
+    "source_file": "semantic.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114227,
+    "short_id": 115,
+    "name": "End unbounded content",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114228,
+    "short_id": 116,
+    "name": "Backspace",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114229,
+    "short_id": 117,
+    "name": "Horizontal tabulation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [
+      "character tabulation",
+      "tab"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114230,
+    "short_id": 118,
+    "name": "Ambiguous vertical tabulation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<ambiguous>257 119"
+    ],
+    "dc_syntax": null,
+    "description": "Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )",
+    "source_file": "punctuation.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114231,
+    "short_id": 119,
+    "name": "New line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [
+      "line feed",
+      "end of line"
+    ],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>240 239"
+    ],
+    "dc_syntax": null,
+    "description": "This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator.",
+    "source_file": "punctuation.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114232,
+    "short_id": 120,
+    "name": "Ambiguous line feed",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<ambiguous>119 239"
+    ],
+    "dc_syntax": null,
+    "description": "This is the ASCII/Unicode 10 (0x0A).",
+    "source_file": "punctuation.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114233,
+    "short_id": 121,
+    "name": "Ambiguous carriage return",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<ambiguous>119 240 294"
+    ],
+    "dc_syntax": null,
+    "description": "This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).",
+    "source_file": "punctuation.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114234,
+    "short_id": 122,
+    "name": "Variant Selector 1",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "NSM",
+    "casing_partner": null,
+    "general_category": "Mn",
+    "script": "Variant selectors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "variant_selectors.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114235,
+    "short_id": 123,
+    "name": "Variant Selector 2",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "NSM",
+    "casing_partner": null,
+    "general_category": "Mn",
+    "script": "Variant selectors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "variant_selectors.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114236,
+    "short_id": 124,
+    "name": "Variant Selector 3",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "NSM",
+    "casing_partner": null,
+    "general_category": "Mn",
+    "script": "Variant selectors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "variant_selectors.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114237,
+    "short_id": 125,
+    "name": "Variant Selector 4",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "NSM",
+    "casing_partner": null,
+    "general_category": "Mn",
+    "script": "Variant selectors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "variant_selectors.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114238,
+    "short_id": 126,
+    "name": "Variant Selector 5",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "NSM",
+    "casing_partner": null,
+    "general_category": "Mn",
+    "script": "Variant selectors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "variant_selectors.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114239,
+    "short_id": 127,
+    "name": "Base 64 encapsulation digit 0",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114240,
+    "short_id": 128,
+    "name": "Base 64 encapsulation digit 1",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114241,
+    "short_id": 129,
+    "name": "Base 64 encapsulation digit 2",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114242,
+    "short_id": 130,
+    "name": "Base 64 encapsulation digit 3",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114243,
+    "short_id": 131,
+    "name": "Base 64 encapsulation digit 4",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114244,
+    "short_id": 132,
+    "name": "Base 64 encapsulation digit 5",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114245,
+    "short_id": 133,
+    "name": "Base 64 encapsulation digit 6",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114246,
+    "short_id": 134,
+    "name": "Base 64 encapsulation digit 7",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114247,
+    "short_id": 135,
+    "name": "Base 64 encapsulation digit 8",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114248,
+    "short_id": 136,
+    "name": "Base 64 encapsulation digit 9",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114249,
+    "short_id": 137,
+    "name": "Base 64 encapsulation digit 10",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114250,
+    "short_id": 138,
+    "name": "Base 64 encapsulation digit 11",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114251,
+    "short_id": 139,
+    "name": "Base 64 encapsulation digit 12",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114252,
+    "short_id": 140,
+    "name": "Base 64 encapsulation digit 13",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114253,
+    "short_id": 141,
+    "name": "Base 64 encapsulation digit 14",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114254,
+    "short_id": 142,
+    "name": "Base 64 encapsulation digit 15",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114255,
+    "short_id": 143,
+    "name": "Base 64 encapsulation digit 16",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114256,
+    "short_id": 144,
+    "name": "Base 64 encapsulation digit 17",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114257,
+    "short_id": 145,
+    "name": "Base 64 encapsulation digit 18",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114258,
+    "short_id": 146,
+    "name": "Base 64 encapsulation digit 19",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114259,
+    "short_id": 147,
+    "name": "Base 64 encapsulation digit 20",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114260,
+    "short_id": 148,
+    "name": "Base 64 encapsulation digit 21",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114261,
+    "short_id": 149,
+    "name": "Base 64 encapsulation digit 22",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114262,
+    "short_id": 150,
+    "name": "Base 64 encapsulation digit 23",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114263,
+    "short_id": 151,
+    "name": "Base 64 encapsulation digit 24",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114264,
+    "short_id": 152,
+    "name": "Base 64 encapsulation digit 25",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114265,
+    "short_id": 153,
+    "name": "Base 64 encapsulation digit 26",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114266,
+    "short_id": 154,
+    "name": "Base 64 encapsulation digit 27",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114267,
+    "short_id": 155,
+    "name": "Base 64 encapsulation digit 28",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114268,
+    "short_id": 156,
+    "name": "Base 64 encapsulation digit 29",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 31
+  },
+  {
+    "dc_id": 1114269,
+    "short_id": 157,
+    "name": "Base 64 encapsulation digit 30",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 32
+  },
+  {
+    "dc_id": 1114270,
+    "short_id": 158,
+    "name": "Base 64 encapsulation digit 31",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 33
+  },
+  {
+    "dc_id": 1114271,
+    "short_id": 159,
+    "name": "Base 64 encapsulation digit 32",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 34
+  },
+  {
+    "dc_id": 1114272,
+    "short_id": 160,
+    "name": "Base 64 encapsulation digit 33",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 35
+  },
+  {
+    "dc_id": 1114273,
+    "short_id": 161,
+    "name": "Base 64 encapsulation digit 34",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 36
+  },
+  {
+    "dc_id": 1114274,
+    "short_id": 162,
+    "name": "Base 64 encapsulation digit 35",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 37
+  },
+  {
+    "dc_id": 1114275,
+    "short_id": 163,
+    "name": "Base 64 encapsulation digit 36",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 38
+  },
+  {
+    "dc_id": 1114276,
+    "short_id": 164,
+    "name": "Base 64 encapsulation digit 37",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 39
+  },
+  {
+    "dc_id": 1114277,
+    "short_id": 165,
+    "name": "Base 64 encapsulation digit 38",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 40
+  },
+  {
+    "dc_id": 1114278,
+    "short_id": 166,
+    "name": "Base 64 encapsulation digit 39",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 41
+  },
+  {
+    "dc_id": 1114279,
+    "short_id": 167,
+    "name": "Base 64 encapsulation digit 40",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 42
+  },
+  {
+    "dc_id": 1114280,
+    "short_id": 168,
+    "name": "Base 64 encapsulation digit 41",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 43
+  },
+  {
+    "dc_id": 1114281,
+    "short_id": 169,
+    "name": "Base 64 encapsulation digit 42",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 44
+  },
+  {
+    "dc_id": 1114282,
+    "short_id": 170,
+    "name": "Base 64 encapsulation digit 43",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 45
+  },
+  {
+    "dc_id": 1114283,
+    "short_id": 171,
+    "name": "Base 64 encapsulation digit 44",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 46
+  },
+  {
+    "dc_id": 1114284,
+    "short_id": 172,
+    "name": "Base 64 encapsulation digit 45",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 47
+  },
+  {
+    "dc_id": 1114285,
+    "short_id": 173,
+    "name": "Base 64 encapsulation digit 46",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 48
+  },
+  {
+    "dc_id": 1114286,
+    "short_id": 174,
+    "name": "Base 64 encapsulation digit 47",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 49
+  },
+  {
+    "dc_id": 1114287,
+    "short_id": 175,
+    "name": "Base 64 encapsulation digit 48",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 50
+  },
+  {
+    "dc_id": 1114288,
+    "short_id": 176,
+    "name": "Base 64 encapsulation digit 49",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 51
+  },
+  {
+    "dc_id": 1114289,
+    "short_id": 177,
+    "name": "Base 64 encapsulation digit 50",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 52
+  },
+  {
+    "dc_id": 1114290,
+    "short_id": 178,
+    "name": "Base 64 encapsulation digit 51",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 53
+  },
+  {
+    "dc_id": 1114291,
+    "short_id": 179,
+    "name": "Base 64 encapsulation digit 52",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 54
+  },
+  {
+    "dc_id": 1114292,
+    "short_id": 180,
+    "name": "Base 64 encapsulation digit 53",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 55
+  },
+  {
+    "dc_id": 1114293,
+    "short_id": 181,
+    "name": "Base 64 encapsulation digit 54",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 56
+  },
+  {
+    "dc_id": 1114294,
+    "short_id": 182,
+    "name": "Base 64 encapsulation digit 55",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 57
+  },
+  {
+    "dc_id": 1114295,
+    "short_id": 183,
+    "name": "Base 64 encapsulation digit 56",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 58
+  },
+  {
+    "dc_id": 1114296,
+    "short_id": 184,
+    "name": "Base 64 encapsulation digit 57",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 59
+  },
+  {
+    "dc_id": 1114297,
+    "short_id": 185,
+    "name": "Base 64 encapsulation digit 58",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 60
+  },
+  {
+    "dc_id": 1114298,
+    "short_id": 186,
+    "name": "Base 64 encapsulation digit 59",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 61
+  },
+  {
+    "dc_id": 1114299,
+    "short_id": 187,
+    "name": "Base 64 encapsulation digit 60",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 62
+  },
+  {
+    "dc_id": 1114300,
+    "short_id": 188,
+    "name": "Base 64 encapsulation digit 61",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 63
+  },
+  {
+    "dc_id": 1114301,
+    "short_id": 189,
+    "name": "Base 64 encapsulation digit 62",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 64
+  },
+  {
+    "dc_id": 1114302,
+    "short_id": 190,
+    "name": "Base 64 encapsulation digit 63",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 65
+  },
+  {
+    "dc_id": 1114303,
+    "short_id": 191,
+    "name": "Begin encapsulated UTF-8",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Begin Base 64 encapsulated UTF-8",
+    "source_file": "encapsulation.csv",
+    "line_number": 66
+  },
+  {
+    "dc_id": 1114304,
+    "short_id": 192,
+    "name": "End encapsulated UTF-8",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "End Base 64 encapsulated UTF-8",
+    "source_file": "encapsulation.csv",
+    "line_number": 67
+  },
+  {
+    "dc_id": 1114305,
+    "short_id": 193,
+    "name": "Form feed",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "WS",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114306,
+    "short_id": 194,
+    "name": "DCE Version Selector 3.01a",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE versions",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114307,
+    "short_id": 195,
+    "name": "Base 64 encapsulation padding character",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "encapsulation.csv",
+    "line_number": 68
+  },
+  {
+    "dc_id": 1114308,
+    "short_id": 196,
+    "name": "Variant Selectors",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE sheets",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114309,
+    "short_id": 197,
+    "name": "Semantic Records",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE sheets",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114310,
+    "short_id": 198,
+    "name": "Mathematics",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE sheets",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114311,
+    "short_id": 199,
+    "name": "Punctuation and Whitespace",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE sheets",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114312,
+    "short_id": 200,
+    "name": "Begin keyed embed fragment",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This Dc is used for embedding arbitrary keyed ID/data pairs in a document. Standard structure: Followed by base64-encoded data identifying a fragment, then Dc 202 (End keyed embed ID sequence), then by the base64-encoded fragment itself, then by Dc 201 (End keyed embed fragment).",
+    "source_file": "encapsulation.csv",
+    "line_number": 69
+  },
+  {
+    "dc_id": 1114313,
+    "short_id": 201,
+    "name": "End keyed embed fragment",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "See description for 200",
+    "source_file": "encapsulation.csv",
+    "line_number": 70
+  },
+  {
+    "dc_id": 1114314,
+    "short_id": 202,
+    "name": "End keyed embed ID sequence",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "See description for 200",
+    "source_file": "encapsulation.csv",
+    "line_number": 71
+  },
+  {
+    "dc_id": 1114315,
+    "short_id": 203,
+    "name": "Begin encapsulated binary data",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Arbitrary binary data (base64 encoded, no semantic significance assigned to it)",
+    "source_file": "encapsulation.csv",
+    "line_number": 72
+  },
+  {
+    "dc_id": 1114316,
+    "short_id": 204,
+    "name": "End encapsulated binary data",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Encapsulation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "See description for 203",
+    "source_file": "encapsulation.csv",
+    "line_number": 73
+  },
+  {
+    "dc_id": 1114317,
+    "short_id": 205,
+    "name": "DCE Version Selector 3.03a",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "DCE versions",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "dce.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114318,
+    "short_id": 206,
+    "name": "Unicode replacement character",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>ufffd"
+    ],
+    "dc_syntax": null,
+    "description": "Used to replace an incoming character whose value is unknown or unrepresentable in Unicode",
+    "source_file": "miscellaneous.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114319,
+    "short_id": 207,
+    "name": "Replacement character for unavailable Dc",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<approx>ufffd"
+    ],
+    "dc_syntax": null,
+    "description": "Used to replace an incoming character whose value is not mapped to a Dc (document component)",
+    "source_file": "miscellaneous.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114320,
+    "short_id": 208,
+    "name": "Start of heading",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114321,
+    "short_id": 209,
+    "name": "Start of text",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114322,
+    "short_id": 210,
+    "name": "End of text",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114323,
+    "short_id": 211,
+    "name": "End of transmission",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114324,
+    "short_id": 212,
+    "name": "Enquiry",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114325,
+    "short_id": 213,
+    "name": "Acknowledge",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114326,
+    "short_id": 214,
+    "name": "Bell",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114327,
+    "short_id": 215,
+    "name": "Shift out",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114328,
+    "short_id": 216,
+    "name": "Shift in",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114329,
+    "short_id": 217,
+    "name": "Data link escape",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114330,
+    "short_id": 218,
+    "name": "Device control one",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [
+      "xon",
+      "resume transmission"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114331,
+    "short_id": 219,
+    "name": "Device control two",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114332,
+    "short_id": 220,
+    "name": "Device control three",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [
+      "xoff",
+      "pause transmission"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114333,
+    "short_id": 221,
+    "name": "Device control four",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114334,
+    "short_id": 222,
+    "name": "Negative acknowledge",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114335,
+    "short_id": 223,
+    "name": "Synchronous idle",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114336,
+    "short_id": 224,
+    "name": "End of transmission block",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114337,
+    "short_id": 225,
+    "name": "Cancel",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114338,
+    "short_id": 226,
+    "name": "End of medium",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114339,
+    "short_id": 227,
+    "name": "Substitute",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114340,
+    "short_id": 228,
+    "name": "Escape",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114341,
+    "short_id": 229,
+    "name": "Information separator four",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114342,
+    "short_id": 230,
+    "name": "Information separator three",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114343,
+    "short_id": 231,
+    "name": "Information separator two",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114344,
+    "short_id": 232,
+    "name": "Information separator one",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "S",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114345,
+    "short_id": 233,
+    "name": "Hyphen-minus",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ES",
+    "casing_partner": null,
+    "general_category": "Pd",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<ambiguous>31 237"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114346,
+    "short_id": 234,
+    "name": "Delete",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Controls",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "controls.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114347,
+    "short_id": 235,
+    "name": "Begin document",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Beginning of a document",
+    "source_file": "semantic.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114348,
+    "short_id": 236,
+    "name": "End document",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114349,
+    "short_id": 237,
+    "name": "Minus",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ES",
+    "casing_partner": null,
+    "general_category": "Sm",
+    "script": "Mathematics",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<equiv>u2212"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "mathematics.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114350,
+    "short_id": 238,
+    "name": "Full stop/decimal point",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "casing_partner": null,
+    "general_category": "Po",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<ambiguous>12 32"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114351,
+    "short_id": 239,
+    "name": "Line feed",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This character instructs a terminal to move the cursor to the beginning of the line horizontally without advancing to the next line vertically. This character is not directly equivalent to ASCII line feed, because that is sometimes used for a combined new line and carriage return. For representing the ASCII line feed, use Dc 120.",
+    "source_file": "punctuation.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114352,
+    "short_id": 240,
+    "name": "Carriage return",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This character instructs a terminal to advance to the next line vertically without moving the cursor to the beginning of the line horizontally. This character is not directly equivalent to ASCII carriage return, because that is sometimes used for a combined new line and carriage return. For representing the ASCII carriage return, use Dc 121.",
+    "source_file": "punctuation.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114353,
+    "short_id": 241,
+    "name": "Switch to Document mode",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following contents expect a graphical raster display output.",
+    "source_file": "el.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114354,
+    "short_id": 242,
+    "name": "Switch to Library mode",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following contents provide resources (such as routine, class, or other definitions) for consumption by other documents.",
+    "source_file": "el.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114355,
+    "short_id": 243,
+    "name": "Switch to Structured mode",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following contents represent structured data.",
+    "source_file": "el.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114356,
+    "short_id": 244,
+    "name": "Switch to Terminal mode",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following contents expect a character-based terminal display output.",
+    "source_file": "el.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114357,
+    "short_id": 245,
+    "name": "Switch to Web mode",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following contents are designed to respond to a Web request (in a manner similar to a PHP or CGI script).",
+    "source_file": "el.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114358,
+    "short_id": 246,
+    "name": "Begin single-line source comment on current line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 248
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 248
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^248 255]+ 248"
+    },
+    "description": "Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment.",
+    "source_file": "el.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114359,
+    "short_id": 247,
+    "name": "Begin single-line source comment on new line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 248
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 248
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^248 255]+ 248"
+    },
+    "description": "As with 247, but starting on a new line in the source form.",
+    "source_file": "el.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114360,
+    "short_id": 248,
+    "name": "End single-line source comment",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharSet": {
+                "negated": false,
+                "members": [
+                  {
+                    "Dc": 246
+                  },
+                  {
+                    "Dc": 247
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 248
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":[246 247] [^248 255]+ ~"
+    },
+    "description": "Terminates a comment region begun by 246 or 247.",
+    "source_file": "el.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114361,
+    "short_id": 249,
+    "name": "Begin block source comment on current line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 251
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 251
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^251 255]+ 251"
+    },
+    "description": "As with 248, but creating a “/*  */”-style block comment.",
+    "source_file": "el.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114362,
+    "short_id": 250,
+    "name": "Begin block source comment on new line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 251
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 251
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^251 255]+ 251"
+    },
+    "description": "As with 250, but starting on a new line in the source form.",
+    "source_file": "el.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114363,
+    "short_id": 251,
+    "name": "End block source comment",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharSet": {
+                "negated": false,
+                "members": [
+                  {
+                    "Dc": 249
+                  },
+                  {
+                    "Dc": 250
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 251
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":[249 250] [^251 255]+ ~"
+    },
+    "description": "Terminates a comment region begun by 249 or 250.",
+    "source_file": "el.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114364,
+    "short_id": 252,
+    "name": "Join to next source line",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that a line break that would normally be present at this point in source form should be instead represented by a ;.",
+    "source_file": "el.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114365,
+    "short_id": 253,
+    "name": "Split source line here",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the current logical line should be split into two physical lines in source form, joined using \\.",
+    "source_file": "el.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114366,
+    "short_id": 254,
+    "name": "Braced block in source",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the following logical block of statements should be bundled onto a single line of the source, joined using ; and bundled using { and }.",
+    "source_file": "el.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114367,
+    "short_id": 255,
+    "name": "Ignore following Dc",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates that the next character should be ignored.",
+    "source_file": "miscellaneous.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114368,
+    "short_id": 256,
+    "name": "void lang.say(String)",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Routines",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Send the specified string to the current output context, adding a final line feed if one is not present",
+    "source_file": "el.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114369,
+    "short_id": 257,
+    "name": "Vertical tabulation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "aliases": [
+      "line tabulation"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "punctuation.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114370,
+    "short_id": 258,
+    "name": "Begin parameter",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Dc": 260
+                }
+              }
+            },
+            "quantifier": "Optional"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 259
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [260:] 259"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114371,
+    "short_id": 259,
+    "name": "End parameter",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 258
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Dc": 260
+                }
+              }
+            },
+            "quantifier": "Optional"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":258 [260:] ~"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114372,
+    "short_id": 260,
+    "name": "Begin literal value",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Dc": 262
+                }
+              }
+            },
+            "quantifier": "Optional"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 261
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 261
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [262:] [^261 255]+ 261"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114373,
+    "short_id": 261,
+    "name": "End literal value",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 260
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Dc": 262
+                }
+              }
+            },
+            "quantifier": "Optional"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 261
+                  },
+                  {
+                    "Dc": 255
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":260 [262:] [^261 255]+ ~"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114374,
+    "short_id": 262,
+    "name": "Begin type definition",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": false,
+                "members": [
+                  {
+                    "Dc": 264
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 263
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [264] 263"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114375,
+    "short_id": 263,
+    "name": "End type definition",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 262
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": false,
+                "members": [
+                  {
+                    "Dc": 264
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":262 [264] ~"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114376,
+    "short_id": 264,
+    "name": "Built-in type identifier: String",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Types",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<approx>(f80)"
+    ],
+    "dc_syntax": null,
+    "description": "A specific case of “String” as a format (short-style format ID 80)",
+    "source_file": "el.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114377,
+    "short_id": 265,
+    "name": "void lang.invoke(String)",
+    "is_deprecated": true,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Routines",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<prefer>307"
+    ],
+    "dc_syntax": null,
+    "description": "Invoke the routine with the given name",
+    "source_file": "el.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114378,
+    "short_id": 266,
+    "name": "void lang.block",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Routines",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates a division between blocks of statements",
+    "source_file": "el.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114379,
+    "short_id": 267,
+    "name": "Whitespace in source",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "statement",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": "SelfChar",
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": "SelfChar",
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": "SelfChar",
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": "SelfChar",
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "statement",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":([statement] ~) | (~ ~) | (~ [statement])"
+    },
+    "description": "Indicates that in source form, there is FIXME: following amount of whitespace., a blank line should be present here",
+    "source_file": "el.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114380,
+    "short_id": 268,
+    "name": "void lang.assign(identifier, value)",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Routines",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114381,
+    "short_id": 269,
+    "name": "Assignment operator",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Operators",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "identifier",
+                "subtype": null,
+                "capture_var": "ident"
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "value",
+                "subtype": null,
+                "capture_var": "val"
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": {
+        "method": "lang.assign",
+        "args": [
+          {
+            "Variable": "ident"
+          },
+          {
+            "Variable": "val"
+          }
+        ]
+      },
+      "raw": ":[identifier $ident] ~ [value $val] : lang.assign($ident, $val)"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114382,
+    "short_id": 270,
+    "name": "Begin identifier",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114383,
+    "short_id": 271,
+    "name": "End identifier",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114384,
+    "short_id": 272,
+    "name": "Leave block level",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Indicates the point at which an indented block is left and execution returns to the enclosing block",
+    "source_file": "el.csv",
+    "line_number": 31
+  },
+  {
+    "dc_id": 1114385,
+    "short_id": 273,
+    "name": "Parameter modifier: Parameter is optional",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 32
+  },
+  {
+    "dc_id": 1114386,
+    "short_id": 274,
+    "name": "Parameter modifier: Parameter should be slurpy",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 33
+  },
+  {
+    "dc_id": 1114387,
+    "short_id": 275,
+    "name": "Built-in type identifier: * (Object or any subtype)",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Types",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 34
+  },
+  {
+    "dc_id": 1114388,
+    "short_id": 276,
+    "name": "Reference named object",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": "SelfChar",
+                "quantifier": "ExactOne"
+              },
+              {
+                "term": {
+                  "NamedConstruct": {
+                    "name": "identifier",
+                    "subtype": null,
+                    "capture_var": null
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "type",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "identifier",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [identifier] | ( [type] [identifier] )"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 35
+  },
+  {
+    "dc_id": 1114389,
+    "short_id": 277,
+    "name": "Reference list element",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "list",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "identifier",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":( [list] | [string] ) ~ [identifier]"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 36
+  },
+  {
+    "dc_id": 1114390,
+    "short_id": 278,
+    "name": "Built-in type identifier: Number",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Types",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 37
+  },
+  {
+    "dc_id": 1114391,
+    "short_id": 279,
+    "name": "Routine invocation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "identifier",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [identifier]"
+    },
+    "description": "Invoke the specified routine (unlike lang.invoke, this form of invocation is not shown in the EM source form of the document FIXME: clarify this??)",
+    "source_file": "el.csv",
+    "line_number": 38
+  },
+  {
+    "dc_id": 1114392,
+    "short_id": 280,
+    "name": "Built-in type identifier: Routine",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Types",
+    "aliases": [
+      "Routine"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 39
+  },
+  {
+    "dc_id": 1114393,
+    "short_id": 281,
+    "name": "Association football",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Symbols",
+    "aliases": [
+      "soccer ball",
+      "foot ball"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114394,
+    "short_id": 282,
+    "name": "Association football, text style",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Symbols",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<style>281"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114395,
+    "short_id": 283,
+    "name": "Association football, emoji style",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Emoji",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<style>281"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114396,
+    "short_id": 284,
+    "name": "Association football, emoji style, bouncing",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Emoji",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<approx>283"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114397,
+    "short_id": 285,
+    "name": "Association football, emoji style, rolling",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "casing_partner": null,
+    "general_category": "So",
+    "script": "Emoji",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [
+      "<approx>283"
+    ],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "symbols.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114398,
+    "short_id": 286,
+    "name": "Begin italicized text",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Styling",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "styling.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114399,
+    "short_id": 287,
+    "name": "End italicized text",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Styling",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "styling.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114400,
+    "short_id": 288,
+    "name": "Red",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 1114401,
+    "short_id": 289,
+    "name": "Green",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 3
+  },
+  {
+    "dc_id": 1114402,
+    "short_id": 290,
+    "name": "Blue",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114403,
+    "short_id": 291,
+    "name": "Yellow",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114404,
+    "short_id": 292,
+    "name": "Black",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114405,
+    "short_id": 293,
+    "name": "White",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Colors",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 1114406,
+    "short_id": 294,
+    "name": "New line within paragraph",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "WS",
+    "casing_partner": null,
+    "general_category": "Zl",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph.",
+    "source_file": "punctuation.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114407,
+    "short_id": 295,
+    "name": "Paragraph separator",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "B",
+    "casing_partner": null,
+    "general_category": "Zp",
+    "script": "Punctuation",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "This is the Unicode U+2029.",
+    "source_file": "punctuation.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114408,
+    "short_id": 296,
+    "name": "Next number is a Dc-equivalent reference to a local node/document",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "",
+    "source_file": "miscellaneous.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114409,
+    "short_id": 297,
+    "name": "Next number is a Dc-equivalent reference to a global node to which this local node was moved.",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Miscellaneous",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "",
+    "source_file": "miscellaneous.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 1114410,
+    "short_id": 298,
+    "name": "Begin associativity group",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Equivalent to an opening parenthesis in many languages or in arithmetic expressions.",
+    "source_file": "semantic.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114411,
+    "short_id": 299,
+    "name": "End associativity group",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Equivalent to a closing parenthesis in many languages or in arithmetic expressions.",
+    "source_file": "semantic.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114412,
+    "short_id": 300,
+    "name": "Type union",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] [type]"
+    },
+    "description": "Indicates that two types are both applicable to data.",
+    "source_file": "semantic.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114413,
+    "short_id": 301,
+    "name": "Type transformation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": "transformation",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] [type:transformation]"
+    },
+    "description": "Describes a transformation operation as part of a type description. Only “transformation” formats would make sense to use with this.",
+    "source_file": "semantic.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114414,
+    "short_id": 302,
+    "name": "Type conversion",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] [type]"
+    },
+    "description": "Describes a conversion operation from one type to another.",
+    "source_file": "semantic.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114415,
+    "short_id": 303,
+    "name": "Type transmutation",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] [type]"
+    },
+    "description": "Describes a transmutation operation (reinterpreting one type as another without converting).",
+    "source_file": "semantic.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114416,
+    "short_id": 304,
+    "name": "Begin set text color",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Styling",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "styling.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 1114417,
+    "short_id": 305,
+    "name": "End set text color",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "Styling",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "styling.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 1114418,
+    "short_id": 306,
+    "name": "Built-in type identifier: Routine name",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Types",
+    "aliases": [
+      "RoutineName"
+    ],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "Subtype of string",
+    "source_file": "el.csv",
+    "line_number": 40
+  },
+  {
+    "dc_id": 1114419,
+    "short_id": 307,
+    "name": "void lang.invoke(Routine | RoutineName)",
+    "is_deprecated": false,
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "casing_partner": null,
+    "general_category": "!Cx",
+    "script": "EL Routines",
+    "aliases": [],
+    "cross_references": [],
+    "decompositions": [],
+    "dc_syntax": null,
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 41
+  }
+]

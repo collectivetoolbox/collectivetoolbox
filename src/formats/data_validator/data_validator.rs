@@ -352,12 +352,12 @@ mod tests {
             "Ident (Rust-friendly)".to_string(),
             "Label".to_string(),
             "Category".to_string(),
-            "MIME".to_string(),
+            "BaseFormat".to_string(),
             "Extensions".to_string(),
+            "MIME".to_string(),
             "UTI".to_string(),
             "Apple Type".to_string(),
             "Nicknames".to_string(),
-            "BaseFormat".to_string(),
             "Import".to_string(),
             "Export".to_string(),
             "Tests".to_string(),
@@ -490,6 +490,17 @@ mod tests {
         assert_eq!(fmt_gen_rows[0][1], "0");
         assert_eq!(fmt_gen_rows[1][0], "2228225");
         assert_eq!(fmt_gen_rows[1][1], "1");
+
+        // Verify generated JSON files
+        let dc_json_path = repo.join("src/formats/dctext/data/DcList.generated.json");
+        assert!(dc_json_path.exists());
+        let dc_json_str = std::fs::read_to_string(&dc_json_path).unwrap();
+        assert!(dc_json_str.contains("CustomDc"));
+
+        let fmt_json_path = repo.join("src/formats/utilities/data/formats.generated.json");
+        assert!(fmt_json_path.exists());
+        let fmt_json_str = std::fs::read_to_string(&fmt_json_path).unwrap();
+        assert!(fmt_json_str.contains("FormatOne"));
     }
 
     #[crate::ctb_test]

@@ -27,7 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::report::ValidationReport;
 use anyhow::{Context, Result, bail};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -483,65 +485,10 @@ pub fn assign_and_update_format_categories(
 pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     let mut stats = MergedGenerationStats::default();
 
-    // 1. Generate DcList.generated.csv
-    {
-        let schema_path = repo_root.join("src/formats/dctext/data/schema.csv");
-        let (canonical_header, _) =
-            read_csv_file(&schema_path).with_context(|| {
-                format!(
-                    "Failed to read Dc schema header from {}",
-                    schema_path.display()
-                )
-            })?;
-
-        let categories_dir =
-            repo_root.join("src/formats/dctext/data/categories");
-        let mut all_dc_rows = Vec::new();
-
-        for entry in fs::read_dir(&categories_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str())
-                else {
-                    continue;
-                };
-                if file_name.ends_with(".csv")
-                    && file_name != "schema.csv"
-                    && !file_name.ends_with(".generated.csv")
-                {
-                    let (_, rows) = read_csv_file(&path)?;
-                    for row in rows {
-                        if !is_empty_row(&row) {
-                            all_dc_rows.push(row);
-                        }
-                    }
-                }
-            }
-        }
-
-        all_dc_rows.sort_by(|a, b| {
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
-            let id_a = a
-                .first()
-                .and_then(|s| s.trim().parse::<u128>().ok())
-                .unwrap_or(u128::MAX);
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
-            let id_b = b
-                .first()
-                .and_then(|s| s.trim().parse::<u128>().ok())
-                .unwrap_or(u128::MAX);
-            id_a.cmp(&id_b)
-        });
-
-        let target_path =
-            repo_root.join("src/formats/dctext/data/DcList.generated.csv");
-        write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
-        stats.dc_records_merged = all_dc_rows.len();
-    }
-
-    // 2. Generate formats.generated.csv
-    {
+    // 1. Generate formats.generated.csv and formats.generated.json
+    let formats_dir = repo_root.join("src/formats/utilities/data/formats");
+    let mut parsed_formats = Vec::new();
+    if formats_dir.is_dir() {
         let schema_path =
             repo_root.join("src/formats/utilities/data/schema.csv");
         let (canonical_header, _) =
@@ -552,7 +499,6 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 )
             })?;
 
-        let formats_dir = repo_root.join("src/formats/utilities/data/formats");
         let mut all_format_rows = Vec::new();
 
         for entry in fs::read_dir(&formats_dir)? {
@@ -595,6 +541,97 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             repo_root.join("src/formats/utilities/data/formats.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_format_rows)?;
         stats.format_records_merged = all_format_rows.len();
+
+        let mut fmt_report = ValidationReport::new();
+        parsed_formats = crate::format::validate_all_format_files_from_disk(
+            &formats_dir,
+            &mut fmt_report,
+        );
+        parsed_formats.sort_by_key(|r| r.dc_id);
+
+        let json_target_path =
+            repo_root.join("src/formats/utilities/data/formats.generated.json");
+        let json_data = serde_json::to_string_pretty(&parsed_formats)
+            .context("Failed to serialize formats to JSON")?;
+        fs::write(&json_target_path, format!("{json_data}\n")).with_context(
+            || format!("Failed to save JSON to {}", json_target_path.display()),
+        )?;
+    }
+
+    // 2. Generate DcList.generated.csv and DcList.generated.json
+    let categories_dir =
+        repo_root.join("src/formats/dctext/data/categories");
+    if categories_dir.is_dir() {
+        let schema_path = repo_root.join("src/formats/dctext/data/schema.csv");
+        let (canonical_header, _) =
+            read_csv_file(&schema_path).with_context(|| {
+                format!(
+                    "Failed to read Dc schema header from {}",
+                    schema_path.display()
+                )
+            })?;
+
+        let mut all_dc_rows = Vec::new();
+
+        for entry in fs::read_dir(&categories_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+                else {
+                    continue;
+                };
+                if file_name.ends_with(".csv")
+                    && file_name != "schema.csv"
+                    && !file_name.ends_with(".generated.csv")
+                {
+                    let (_, rows) = read_csv_file(&path)?;
+                    for row in rows {
+                        if !is_empty_row(&row) {
+                            all_dc_rows.push(row);
+                        }
+                    }
+                }
+            }
+        }
+
+        all_dc_rows.sort_by(|a, b| {
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
+            let id_a = a
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
+            let id_b = b
+                .first()
+                .and_then(|s| s.trim().parse::<u128>().ok())
+                .unwrap_or(u128::MAX);
+            id_a.cmp(&id_b)
+        });
+
+        let target_path =
+            repo_root.join("src/formats/dctext/data/DcList.generated.csv");
+        write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
+        stats.dc_records_merged = all_dc_rows.len();
+
+        let known_format_ids: HashSet<usize> =
+            parsed_formats.iter().map(|r| r.short_id).collect();
+
+        let mut dc_report = ValidationReport::new();
+        let mut parsed_dcs = crate::dc::validate_all_dc_files_from_disk(
+            &categories_dir,
+            &known_format_ids,
+            &mut dc_report,
+        );
+        parsed_dcs.sort_by_key(|r| r.dc_id);
+
+        let json_target_path =
+            repo_root.join("src/formats/dctext/data/DcList.generated.json");
+        let json_data = serde_json::to_string_pretty(&parsed_dcs)
+            .context("Failed to serialize DcList to JSON")?;
+        fs::write(&json_target_path, format!("{json_data}\n")).with_context(
+            || format!("Failed to save JSON to {}", json_target_path.display()),
+        )?;
     }
 
     Ok(stats)

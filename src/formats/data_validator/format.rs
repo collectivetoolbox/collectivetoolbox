@@ -28,17 +28,19 @@ use crate::utilities::*;
 
 use crate::report::ValidationReport;
 use crate::shared::{
-    validate_extensions_field, validate_mime_field, validate_rust_identifier,
-    validate_support_level,
+    split_comma_separated_items, validate_extensions_field,
+    validate_mime_field, validate_rust_identifier, validate_support_level,
 };
+use crate::syntax::{DcSyntaxRule, parse_dc_syntax};
 use include_dir::Dir;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
 
 /// Validated format record from a category CSV file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParsedFormatRow {
     pub dc_id: u128,
     pub short_id: usize,
@@ -46,6 +48,7 @@ pub struct ParsedFormatRow {
     pub label: String,
     pub category: String,
     pub base_format: String,
+    pub syntax: Option<DcSyntaxRule>,
     pub extensions: String,
     pub mime: String,
     pub uti: String,
@@ -140,7 +143,7 @@ pub fn validate_formats_category_file(
         let ident = get_str(2);
         let label = get_str(3);
         let category = get_str(4);
-        let base_format = get_str(5);
+        let base_format_raw = get_str(5);
         let extensions = get_str(6);
         let mime = get_str(7);
         let uti = get_str(8);
@@ -339,6 +342,35 @@ pub fn validate_formats_category_file(
             }
         }
 
+        let items = split_comma_separated_items(&base_format_raw);
+        let mut base_parts = Vec::new();
+        let mut syntax_raw = None;
+        for item in items {
+            if item.starts_with(':') {
+                syntax_raw = Some(item);
+            } else {
+                base_parts.push(item);
+            }
+        }
+        let base_format = base_parts.join(", ");
+        let syntax = if let Some(raw_syn) = &syntax_raw {
+            match parse_dc_syntax(raw_syn) {
+                Ok(rule) => Some(rule),
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Base/Related Format (syntax)"),
+                        format!("Failed to parse Format syntax DSL rule: {e}"),
+                        Some("Verify syntax DSL grammar"),
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         rows.push(ParsedFormatRow {
             dc_id,
             short_id,
@@ -346,6 +378,7 @@ pub fn validate_formats_category_file(
             label,
             category,
             base_format,
+            syntax,
             extensions,
             mime,
             uti,

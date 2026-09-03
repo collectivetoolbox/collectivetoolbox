@@ -82,6 +82,50 @@ pub fn validate_rust_identifier(ident: &str) -> Result<()> {
     Ok(())
 }
 
+/// Splits a comma-separated string while respecting parentheses and brackets.
+pub fn split_comma_separated_items(raw: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut depth_paren = 0usize;
+    let mut depth_bracket = 0usize;
+    let mut current = String::new();
+
+    for ch in raw.chars() {
+        match ch {
+            '(' => {
+                depth_paren = depth_paren.saturating_add(1);
+                current.push(ch);
+            }
+            ')' => {
+                depth_paren = depth_paren.saturating_sub(1);
+                current.push(ch);
+            }
+            '[' => {
+                depth_bracket = depth_bracket.saturating_add(1);
+                current.push(ch);
+            }
+            ']' => {
+                depth_bracket = depth_bracket.saturating_sub(1);
+                current.push(ch);
+            }
+            ',' if depth_paren == 0 && depth_bracket == 0 => {
+                let trimmed = current.trim();
+                if !trimmed.is_empty() {
+                    items.push(trimmed.to_string());
+                }
+                current.clear();
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+    let trimmed = current.trim();
+    if !trimmed.is_empty() {
+        items.push(trimmed.to_string());
+    }
+    items
+}
+
 /// Validates a single extension entry or regex-delimited pattern (`~...~`).
 pub fn validate_extension_entry(entry: &str) -> Result<()> {
     let trimmed = entry.trim();
@@ -234,7 +278,7 @@ pub fn validate_cross_table_uniqueness(
         if clean_name.is_empty() {
             continue;
         }
-        let key = clean_name;
+        let key = clean_name.to_lowercase();
         if let Some((prev_id, prev_file)) = dc_name_map.get(&key) {
             report.add_error(
                 file_path,
@@ -256,7 +300,8 @@ pub fn validate_cross_table_uniqueness(
         if clean_label.is_empty() {
             continue;
         }
-        if let Some((prev_id, prev_file)) = fmt_label_map.get(clean_label) {
+        let key = clean_label.to_lowercase();
+        if let Some((prev_id, prev_file)) = fmt_label_map.get(&key) {
             report.add_error(
                 file_path,
                 None,
@@ -268,12 +313,11 @@ pub fn validate_cross_table_uniqueness(
             );
         } else {
             fmt_label_map
-                .insert(clean_label.to_string(), (short_id, file_path.to_string()));
+                .insert(key.clone(), (short_id, file_path.to_string()));
         }
 
         // Cross-table check: Format label cannot collide with a Dc name
-        let dc_key = clean_label.to_lowercase();
-        if let Some((dc_id, dc_file)) = dc_name_map.get(&dc_key) {
+        if let Some((dc_id, dc_file)) = dc_name_map.get(&key) {
             report.add_error(
                 file_path,
                 None,
