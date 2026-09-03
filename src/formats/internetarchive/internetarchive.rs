@@ -26,6 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod cli;
+
 use anyhow::{Context, Result, anyhow, bail};
 use md5::{Digest as _, Md5};
 use serde::{Deserialize, Serialize};

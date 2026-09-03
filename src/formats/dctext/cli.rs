@@ -32,6 +32,7 @@ use std::path::{Path, PathBuf};
 pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
+pub use crate as ctb_formats_dctext;
 
 use crate::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
@@ -426,14 +427,40 @@ mod tests {
         println!("OUTPUT:\n{desc}");
     }
 
-    #[cfg(test)]
-    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
-    mod tests {
-        use super::*;
+    enum Command {
+        CharacterDescription(CharacterDescriptionArgs),
+        ShortDc(crate::cli_identifiers::ShortDcArgs),
+        ShortFmt(crate::cli_identifiers::ShortFmtArgs),
+    }
 
-    #[crate::ctb_test]
-    fn
-    () {
+    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
+        match cmd {
+            Command::CharacterDescription(args) => {
+                let out = execute_cli_character_description(
+                    args.clone(),
+                    |p| Ok(std::fs::read(p)?),
+                )?;
+                let bytes = match out {
+                    Some(b) => b,
+                    None => Vec::new(),
+                };
+                Ok(ToolResult::immediate_ok(bytes))
+            }
+            Command::ShortDc(args) => {
+                let output =
+                    crate::cli_identifiers::execute_cli_short_dc(args)?;
+                Ok(ToolResult::immediate_ok(output.into_bytes()))
+            }
+            Command::ShortFmt(args) => {
+                let output =
+                    crate::cli_identifiers::execute_cli_short_fmt(args)?;
+                Ok(ToolResult::immediate_ok(output.into_bytes()))
+            }
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_character_description_command() {
 
         let cmd3 = Command::CharacterDescription(
             ctb_formats_dctext::cli::CharacterDescriptionArgs {
@@ -456,16 +483,8 @@ mod tests {
 
     }
 
-    }
-
-    #[cfg(test)]
-    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
-    mod tests {
-        use super::*;
-
-    #[crate::ctb_test]
-    fn
-    () {
+    #[crate::ctb_test("tokio")]
+    async fn test_character_description_dcal_and_short_commands() {
 
         let cmd3_dcal = Command::CharacterDescription(
             ctb_formats_dctext::cli::CharacterDescriptionArgs {
@@ -566,8 +585,6 @@ mod tests {
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
-
-    }
 
     }
 }

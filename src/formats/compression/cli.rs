@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
+pub use crate as ctb_formats_compression;
 
 /// Execution options for compressing a file via the CLI.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
@@ -232,7 +233,15 @@ where
         Ok(CliCompressionOutput::FileWritten(target_path))
     }
 }
-compress() -> ToolResult {
+pub fn run_compress<FRead, FOverwrite>(
+    args: CliCompressArgs,
+    read_file_or_stdin: FRead,
+    check_overwrite_prompt: FOverwrite,
+) -> Result<ToolResult>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+    FOverwrite: Fn(&Path, bool) -> Result<bool>,
+{
             let cli_output =
                 ctb_formats_compression::cli::execute_cli_compress(
                     args.clone(),
@@ -253,15 +262,27 @@ compress() -> ToolResult {
                     ))
                 }
             }
-        }
-        decompress() -> Tool Result{
+}
+
+pub fn run_decompress<FRead, FOverwrite>(
+    format: Option<String>,
+    file: PathBuf,
+    output: Option<PathBuf>,
+    force: bool,
+    read_file_or_stdin: FRead,
+    check_overwrite_prompt: FOverwrite,
+) -> Result<ToolResult>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+    FOverwrite: Fn(&Path, bool) -> Result<bool>,
+{
                         let cli_output =
                 ctb_formats_compression::cli::execute_cli_decompress(
                     ctb_formats_compression::cli::CliDecompressArgs {
                         format: format.clone(),
                         input_path: file.clone(),
                         output_path: output.clone(),
-                        force: *force,
+                        force: force,
                     },
                     read_file_or_stdin,
                     check_overwrite_prompt,
@@ -280,7 +301,7 @@ compress() -> ToolResult {
                     ))
                 }
             }
-        }
+}
 
 #[cfg(test)]
 #[expect(
@@ -460,6 +481,17 @@ mod tests {
         ));
     }
 
+
+    struct Cli;
+    impl Cli {
+        fn command() -> clap::Command {
+            use clap::Args;
+            let cmd = clap::Command::new("ctoolbox");
+            let compress_sub = CliCompressArgs::augment_args(clap::Command::new("compress"))
+                .after_help(crate::COMPRESSION_AFTER_HELP.as_str());
+            cmd.subcommand(compress_sub)
+        }
+    }
 
     #[crate::ctb_test]
     fn test_compress_command_help() {

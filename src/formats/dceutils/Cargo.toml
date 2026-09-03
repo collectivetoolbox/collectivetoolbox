@@ -14,6 +14,10 @@ ctb-formats-base64 = { path = "../base64" }
 ctb-formats-encoding = { path = "../encoding" }
 csv = "1.4.0"
 
+[dev-dependencies]
+tempfile = "3"
+tokio = "1"
+
 [lints]
 workspace = true
 

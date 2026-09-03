@@ -78,6 +78,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub mod cdce;
+pub mod cli;
 pub mod dce3_01a;
 pub mod dce3_0a;
 pub mod legacy;

@@ -32,6 +32,7 @@ use ctb_storage_minimal::global_graph_layout::{
     UNICODE_REGION_END, dc_to_gid, format_to_gid, get_block_name_for_id,
     gid_to_short,
 };
+pub use crate as ctb_formats_dctext;
 
 /// Arguments for the `short-dc` CLI command.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
@@ -339,13 +340,21 @@ mod tests {
         assert!(out_uni_info.contains("LATIN CAPITAL LETTER A"));
     }
 
-    #[cfg(test)]
-    #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
-    mod tests {
-        use super::*;
+    enum Command {
+        Gid(GidArgs),
+    }
 
-    #[crate::ctb_test]
-    fn () {
+    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
+        match cmd {
+            Command::Gid(args) => {
+                let output = execute_cli_gid(args)?;
+                Ok(ToolResult::immediate_ok(output.into_bytes()))
+            }
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_gid_command() {
 
         let cmd_gid_short =
             Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
@@ -384,7 +393,5 @@ mod tests {
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
-    }
-
     }
 }

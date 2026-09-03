@@ -34,6 +34,9 @@ pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
 
+/// CLI helpers for Panorama files.
+pub mod cli;
+
 /// Array-related formatting helpers.
 pub mod array;
 /// Date formatting and parsing helpers.

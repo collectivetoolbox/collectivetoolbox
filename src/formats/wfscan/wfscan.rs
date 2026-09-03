@@ -29,6 +29,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod cli;
+
 use include_dir::{Dir, include_dir};
 use regex::Regex;
 use std::path::Path;

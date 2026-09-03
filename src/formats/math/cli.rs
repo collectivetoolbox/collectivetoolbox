@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::{Result, anyhow};
+pub use crate as ctb_formats_math;
 
 use crate::base::{
     BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
@@ -816,8 +817,68 @@ mod tests {
     }
 
 
+    struct StringInput {
+        input: Vec<String>,
+    }
+    impl StringInput {
+        fn joined(&self) -> String {
+            self.input.join(" ")
+        }
+    }
+    enum Command {
+        Hex2Dec {
+            string_input: StringInput,
+            base_args: BaseArgs,
+        },
+        Dec2Hex {
+            string_input: StringInput,
+            base_args: BaseArgs,
+        },
+        Hexfmt {
+            string_input: StringInput,
+            base_args: BaseArgs,
+        },
+    }
+    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
+        match cmd {
+            Command::Hex2Dec {
+                string_input,
+                base_args,
+            } => {
+                super::run_base_convert(
+                    &Some(16),
+                    &Some(10),
+                    &string_input.joined(),
+                    base_args,
+                )
+            }
+            Command::Dec2Hex {
+                string_input,
+                base_args,
+            } => {
+                super::run_base_convert(
+                    &Some(10),
+                    &Some(16),
+                    &string_input.joined(),
+                    base_args,
+                )
+            }
+            Command::Hexfmt {
+                string_input,
+                base_args,
+            } => {
+                super::run_base_convert(
+                    &Some(16),
+                    &Some(16),
+                    &string_input.joined(),
+                    base_args,
+                )
+            }
+        }
+    }
+
     #[crate::ctb_test("tokio")]
-    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous() -> Result<()> {
+    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() -> Result<()> {
         use ctb_formats_math::cli::BaseArgs;
 
         // hex2dec with unquoted tokens

@@ -41,6 +41,7 @@ use crate::utilities::{
 };
 use crate::{StringInput, generate_help_bytes};
 use ctb_formats_math::cli::{BaseArgs, run_base_convert, run_base2base};
+pub use ctb_formats_internetarchive::cli::IACommand;
 
 /// Return true if this is a command that can be run without booting.
 pub fn is_lightweight_command(command: &str) -> bool {
@@ -105,133 +106,6 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "character-description"
             | "chardesc"
     )
-}
-
-#[derive(Subcommand, Debug)]
-pub enum IACommand {
-    /// Verify a local Internet Archive item directory against its files XML.
-    Verify {
-        /// Path to the item directory, or omit to use the current directory.
-        item_path: Option<PathBuf>,
-        /// Override the identifier if it cannot be inferred from the path.
-        #[arg(long)]
-        identifier: Option<String>,
-        /// Fetch the current files XML from archive.org instead of using a
-        /// local copy.
-        #[arg(long)]
-        check_live: bool,
-        /// Only verify files with source="original".
-        #[arg(long)]
-        original: bool,
-    },
-    /// Print the expected sha1 for a file in an Internet Archive item.
-    Sha1 {
-        /// A local file path, item/file path, or archive.org download URL.
-        target: String,
-        /// Override the identifier if it cannot be inferred from the path.
-        #[arg(long)]
-        identifier: Option<String>,
-        /// Fetch live metadata instead of reading a local files XML.
-        #[arg(long)]
-        check_live: bool,
-    },
-    /// Print the expected md5 for a file in an Internet Archive item.
-    Md5 {
-        /// A local file path, item/file path, or archive.org download URL.
-        target: String,
-        /// Override the identifier if it cannot be inferred from the path.
-        #[arg(long)]
-        identifier: Option<String>,
-        /// Fetch live metadata instead of reading a local files XML.
-        #[arg(long)]
-        check_live: bool,
-    },
-    /// Check whether an item contains a particular file.
-    #[command(name = "contains")]
-    Contains {
-        /// An item identifier, item/file path, or archive.org URL.
-        target: String,
-        /// File path inside the item to check for.
-        desired_file: String,
-    },
-    /// List item files one per line.
-    #[command(name = "listplain")]
-    ListPlain {
-        /// An item identifier or archive.org URL.
-        target: String,
-    },
-    /// Fetch live item metadata as pretty JSON.
-    Metadata {
-        /// An item identifier or archive.org URL.
-        target: String,
-    },
-    /// Fetch the live `_files.xml` document.
-    #[command(name = "filesxml")]
-    FilesXml {
-        /// An item identifier or archive.org URL.
-        target: String,
-    },
-    /// Fetch the live `_meta.xml` document.
-    #[command(name = "metaxml")]
-    MetaXml {
-        /// An item identifier or archive.org URL.
-        target: String,
-    },
-    /// Download an item or file from archive.org.
-    Download {
-        /// An item identifier, item/file path, or archive.org download URL.
-        target: String,
-        /// Destination directory. Defaults to the current directory.
-        #[arg(long)]
-        output_dir: Option<PathBuf>,
-        /// Only download files with source="original".
-        #[arg(long)]
-        original: bool,
-        /// Show progress during download
-        #[arg(long, overrides_with = "no_progress")]
-        progress: bool,
-        /// Suppress progress during download
-        #[arg(long, overrides_with = "progress")]
-        no_progress: bool,
-    },
-    /// Download a single file and write it to stdout.
-    #[command(name = "downloadAsStream")]
-    DownloadAsStream {
-        /// An item/file path or archive.org download URL.
-        target: String,
-    },
-    /// Download a single file into the current directory.
-    #[command(name = "downloadHere")]
-    DownloadHere {
-        /// An item/file path or archive.org download URL.
-        target: String,
-        /// Destination directory. Defaults to the current directory.
-        #[arg(long)]
-        output_dir: Option<PathBuf>,
-        /// Show progress during download
-        #[arg(long, overrides_with = "no_progress")]
-        progress: bool,
-        /// Suppress progress during download
-        #[arg(long, overrides_with = "progress")]
-        no_progress: bool,
-    },
-    /// Download an item or file, then verify the downloaded content.
-    Checkeddl {
-        /// An item identifier, item/file path, or archive.org download URL.
-        target: String,
-        /// Destination directory. Defaults to the current directory.
-        #[arg(long)]
-        output_dir: Option<PathBuf>,
-        /// Only download and verify files with source="original".
-        #[arg(long)]
-        original: bool,
-        /// Show progress during download
-        #[arg(long, overrides_with = "no_progress")]
-        progress: bool,
-        /// Suppress progress during download
-        #[arg(long, overrides_with = "progress")]
-        no_progress: bool,
-    },
 }
 
 macro_rules! note_continuous_hex {
@@ -887,9 +761,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::AddUser {
             username,
             password_stdin,
-        } => {
-
-        }
+        } => ctb_storage::cli::adduser(username, *password_stdin),
         Command::WaitShutdown { pid } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
             Ok(ToolResult::immediate_ok(Vec::new()))
@@ -1032,9 +904,9 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             )?;
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
-        Command::IA { command } => match command {
-
-        },
+        Command::IA { command } => {
+            ctb_formats_internetarchive::cli::run_internetarchive(command)
+        }
         Command::Pan2Csv {
             patterns,
             keep_multiline,
@@ -1046,9 +918,19 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             replicate_double_encoding,
             run_startup_procedure,
             pan_file,
-        } => {
-
-        }
+        } => ctb_formats_pan::cli::pan2csv(
+            pan_file,
+            header,
+            no_header,
+            encoding,
+            delimiter,
+            patterns,
+            keep_multiline,
+            crlf,
+            replicate_double_encoding,
+            run_startup_procedure,
+            read_file_or_stdin,
+        ),
         Command::StagelBootstrapParse { input_file } => {
             let data = std::fs::read(input_file).with_context(|| {
                 format!("Failed to read input file: {input_file:?}")
@@ -1212,33 +1094,40 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             algo,
             file,
             prefix_0x,
-        } => {
-
-        }
+        } => ctb_formats_checksum::cli::csum(
+            algo,
+            file,
+            prefix_0x,
+            read_file_or_stdin,
+        ),
         Command::Compress(args) => {
-
+            ctb_formats_compression::cli::run_compress(
+                args.clone(),
+                read_file_or_stdin,
+                check_overwrite_prompt,
+            )
         }
         Command::Decompress {
             format,
             file,
             output,
             force,
-        } => {
-
-        }
+        } => ctb_formats_compression::cli::run_decompress(
+            format.clone(),
+            file.clone(),
+            output.clone(),
+            *force,
+            read_file_or_stdin,
+            check_overwrite_prompt,
+        ),
         Command::Wfparser { file } => {
-            let data = read_file_or_stdin(file.as_path())?;
-            let output = ctb_formats_wfscan::wfparse(&data)?;
-            Ok(ToolResult::immediate_ok(output))
+            ctb_formats_wfscan::cli::wfparser(file.as_path(), read_file_or_stdin)
         }
         Command::Wfscan { file } => {
-            let data = read_file_or_stdin(file.as_path())?;
-            let output = ctb_formats_wfscan::wfscan(&data)?;
-            Ok(ToolResult::immediate_ok(output))
+            ctb_formats_wfscan::cli::wfscan(file.as_path(), read_file_or_stdin)
         }
         Command::DceutilsPhpToCsv { php_file } => {
-            ctb_formats_dceutils::to_csv::php_file_to_csv_files(php_file)?;
-            Ok(ToolResult::immediate_ok(Vec::new()))
+            ctb_formats_dceutils::cli::php_to_csv(php_file)
         }
         Command::Help => Ok(ToolResult::immediate_ok(generate_help_bytes())),
         Command::ShowNode { .. } => Err(anyhow!(
@@ -1425,15 +1314,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(escaped.into_bytes()))
         }
         Command::X86InstructionSets { path } => {
-            let data = std::fs::read(path).with_context(|| {
-                format!("Failed to read file: {}", path.display())
-            })?;
-            let sets = ctb_formats_x86::extract_instruction_sets(&data)?;
-            let mut output = sets.join("\n");
-            if !output.is_empty() {
-                output.push('\n');
-            }
-            Ok(ToolResult::immediate_ok(output.into_bytes()))
+            ctb_formats_x86::cli::instruction_sets(path)
         }
     }
 }

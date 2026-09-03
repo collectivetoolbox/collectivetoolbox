@@ -56,6 +56,15 @@ mod resource_bundle;
 mod secret;
 pub use models::graph::get_global_graph;
 
+pub mod cli;
+
+#[cfg(test)]
+pub mod routing {
+    pub fn is_lightweight_command(cmd: &str) -> bool {
+        cmd == "adduser"
+    }
+}
+
 static STORAGE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_storage_data(

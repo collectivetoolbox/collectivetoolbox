@@ -28,6 +28,7 @@ use crate::utilities::*;
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+pub use crate as ctb_formats_hexdump;
 
 /// Execution arguments for the hex2bin CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
@@ -562,13 +563,37 @@ mod tests {
         );
     }
 
-#[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
-mod tests {
-    use super::*;
+    #[crate::ctb_test("tokio")]
+    async fn test_hex2bin_and_bin2hex_commands() {
+        enum Command {
+            Hex2Bin(ctb_formats_hexdump::cli::Hex2BinArgs),
+            Bin2Hex(ctb_formats_hexdump::cli::Bin2HexArgs),
+            Hexdump(ctb_formats_hexdump::cli::HexDumpArgs),
+            Xxd(ctb_formats_hexdump::cli::XxdArgs),
+        }
 
-#[crate::ctb_test]
-fn () {
+        async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
+            let out = match cmd {
+                Command::Hex2Bin(args) => {
+                    execute_cli_hex2bin(args.clone(), |p| Ok(std::fs::read(p)?))?
+                }
+                Command::Bin2Hex(args) => {
+                    execute_cli_bin2hex(args.clone(), |p| Ok(std::fs::read(p)?))?
+                }
+                Command::Hexdump(args) => {
+                    execute_cli_hexdump(args.clone(), |p| Ok(std::fs::read(p)?))?
+                }
+                Command::Xxd(args) => {
+                    execute_cli_xxd(args.clone(), |p| Ok(std::fs::read(p)?))?
+                }
+            };
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+
         let cmd = Command::Hex2Bin(ctb_formats_hexdump::cli::Hex2BinArgs {
             value: Some("48656c6c6f".to_string()),
             file: None,
@@ -680,8 +705,5 @@ fn () {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-}
-
-}
-
+    }
 }

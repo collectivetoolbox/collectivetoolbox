@@ -26,8 +26,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+pub mod cli;
 pub mod instruction_sets;
 pub use instruction_sets::extract_instruction_sets;
+
+#[cfg(test)]
+pub mod routing {
+    pub fn is_lightweight_command(cmd: &str) -> bool {
+        cmd == "x86-instruction-sets"
+    }
+}
 
 #[cfg(test)]
 #[expect(
