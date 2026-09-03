@@ -193,7 +193,7 @@ RUN set -eux; \
         # automake \
         # bison \
         build-essential \
-        gcc-multilib \
+        gcc-i686-linux-gnu \
         # libexpat1-dev \
         # libexpat1-dev:i386 \
         # libffi-dev \
