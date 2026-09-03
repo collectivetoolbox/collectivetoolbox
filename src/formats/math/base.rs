@@ -216,10 +216,6 @@ impl NumeralSystem {
         radix: Base::Hex,
         alphabet: BaseAlphabet::Standard,
     };
-    pub const BASE64: Self = Self {
-        radix: Base::from_radix_const(64),
-        alphabet: BaseAlphabet::Base64Standard,
-    };
 
     /// Creates a new `NumeralSystem` with validation that the radix is supported by the alphabet.
     pub fn new(radix: Base, alphabet: BaseAlphabet) -> Result<Self> {
@@ -348,7 +344,6 @@ impl Base {
             "oct" | "octal" => Ok(Self::Octal),
             "dec" | "decimal" => Ok(Self::Decimal),
             "hex" | "hexadecimal" => Ok(Self::Hex),
-            "base64" | "b64" => Self::new(64),
             _ => bail!("Unknown or unsupported base: '{s}'"),
         }
     }

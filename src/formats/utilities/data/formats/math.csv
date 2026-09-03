@@ -14,4 +14,11 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228448,224,MathExpression,Math expression,math,,,,,,,,,,,,
+2228448,224,MathExpression,Math expression (not an equation/relation),math,,,,,,,,,,,,
+,,ArithmeticExpression,Arithmetic expression,math,MathExpression,,,,,,,,,,"e.g. ""(23 mod 2) + 6"", ""sin(pi/4)""",
+,,SymbolicExpression,Math expression with variables,math,MathExpression,,,,,,,,,,"e.g. ""1 + 2x"", ""x^2 - 4x + 4""",
+,,MathRelation,,math,,,,,,,,,,,,
+,,Equation,Predicate asserting equality,math,MathRelation,,,,,,,,,,"e.g. ""2x = 6"", ""E = mc^2"", ""1 lb = 16 oz""",
+,,Inequality,Predicate asserting ordering,math,MathRelation,,,,,,,,,,"e.g. ""x^2 + y^2 <= 1"", ""1 ≠ 2""",
+,,Approximation,Predicate asserting approximate equality,math,MathRelation,,,,,,,,,,"e.g. ""1 oz ~= 28 g""",
+,,EquationSystem,"A system of equations, inequalities, and/or approximations",math,,,,,,,,,,,"e.g. ""1 lb = 16 oz; 1 oz ~= 28 g; solve for x""",
