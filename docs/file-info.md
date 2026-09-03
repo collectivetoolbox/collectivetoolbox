@@ -20,6 +20,7 @@ The following types of features are relevant:
     -
   - Defining formats this way has
 - I wonder if it would be useful to use Kaitai Struct and the compatibly-licensed parts of its library of format definitions for some parsing?
+- Many of the formats already supported in this repository are represented in the format database and syntax, but some of the "custom formatting" ones are not - the base conversions from EITE in particular are very flexible and will need some sort of parametrized syntax.
 
 I'd like to find a way to make the database of formats as easy as possible to maintain: retaining uniqueness of IDs, checking validity of fields, and so on. The current formats.csv structure is not too bad - and I do like working in a spreadsheet for ease of editing - but it may be worth considering if some other structure would be better. At least adding automatic validation (maybe at build time?) for the CSV would be important.
 

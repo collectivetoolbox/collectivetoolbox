@@ -1215,7 +1215,7 @@ mod tests {
         assert_eq!(hex.char_for_digit(15).unwrap(), 'F');
         assert_eq!(hex.digit_for_char('f').unwrap(), 15);
 
-        let b64 = NumeralSystem::BASE64;
+        let b64 = NumeralSystem::base64(Base::new(64).unwrap()).unwrap();
         assert_eq!(b64.char_for_digit(63).unwrap(), '/');
         assert_eq!(b64.digit_for_char('/').unwrap(), 63);
 
