@@ -45,7 +45,7 @@
 - Avoid !important in CSS; prefer precedence corrections.
 - Any important or nontrivial code should have test coverage.
 - Prefer rem sizes, not px or em.
-- The CLI crate should not contain any nontrivial logic.
+- The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
 - Panicing unwrap, expect, etc. should not be introduced in new code.
 - Indexing that may panic is prohibited by Clippy lints.
 - Explicitly use checked or saturating arithmetic as appropriate; Clippy will deny the infix math operators.
