@@ -242,10 +242,19 @@ async fn dispatch_tool_result(result: ToolResult) -> Result<i32> {
 // Shared Arg Structures
 // ---------------------------
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 pub struct StringInput {
-    /// Input number or string
-    pub input: String,
+    /// Input number(s) or string (supports quoted strings or multiple tokens).
+    #[arg(required = true, num_args = 1..)]
+    pub input: Vec<String>,
+}
+
+impl StringInput {
+    /// Joins input tokens into a single whitespace-delimited string.
+    #[must_use]
+    pub fn joined(&self) -> String {
+        self.input.join(" ")
+    }
 }
 
 // Utilities

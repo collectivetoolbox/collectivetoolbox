@@ -966,7 +966,7 @@ pub fn format_base_string(
     Ok((formatted.0, log))
 }
 
-/// Parse a string contaning numbers in base 2 through 64, convert it to the
+/// Parse a string containing numbers in base 2 through 64, convert it to the
 /// target base, and print it formatted. Will warn for extra characters other
 /// than spaces and commas.
 pub fn base_to_base_string(

@@ -39,8 +39,14 @@ pub enum CliBaseAlphabet {
     /// Standard alphanumeric alphabet (0-9, a-z), supporting bases up to 36.
     #[default]
     Standard,
-    /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51, 0-9 = 52..61, + = 62, / = 63),
-    /// supporting bases up to 64.
+    /// Standard RFC 4648 Base64 alphabet (A-Z = 0..25, a-z = 26..51,
+    /// 0-9 = 52..61, + = 62, / = 63), supporting radix up to 64.
+    ///
+    /// NOTE: This is for mathematical positional place-value numerals (e.g. 64
+    /// is represented as "BA"), NOT RFC 4648 octet-stream data armoring (where
+    /// 0xFF encodes to "/w=="). For encoding binary files or raw byte streams,
+    /// use data armor tools like `hexdump`, `bin2hex`, or dedicated base64
+    /// commands.
     #[value(
         name = "base64_standard",
         alias = "base64-standard",
@@ -71,96 +77,199 @@ impl CliBaseAlphabet {
     reason = "clap CLI options mapping structure"
 )]
 pub struct BaseArgs {
-    /// Shortcut for -n -q --limit 255 --pad
-    #[arg(short, long, default_value_t = false)]
+    // ------------------------------------------------------------------------
+    // Padding & Chunking
+    // ------------------------------------------------------------------------
+
+    /// Shortcut for byte-sized conversion: chunks numbers into byte units
+    /// (`--limit 255 --pad`) and suppresses non-fatal warnings.
+    ///
+    /// Note: This is for chunking lists of numbers. To convert raw binary data
+    /// or files to/from hex streams, use `bin2hex` and `hex2bin`. See also
+    /// `hexdump`.
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help_heading = "Padding & Chunking"
+    )]
     pub bytes: bool,
 
-    /// Invalid unless using --bytes option. Turns off padding.
-    #[arg(long, default_value_t = false)]
+    /// Disables zero-padding when using the `--bytes` shortcut.
+    #[arg(
+        long,
+        default_value_t = false,
+        requires = "bytes",
+        help_heading = "Padding & Chunking"
+    )]
     pub no_pad: bool,
 
-    /// Add prefix to each output number (e.g. 0x)
-    #[arg(long, default_value = "")]
-    pub prefix: String,
-
-    /// Separator inserted after numeric output values (except the last one).
-    ///
-    /// An empty separator is not quite equivalent to not having had a separator
-    /// at all during the conversion — it concatenates their string
-    /// representations, which can produce different numeric results depending
-    /// on leading zeros.
-    ///
-    /// Examples:
-    /// - Hex bytes [0x1A, 0x08] with a separator -> "1A 08".
-    /// - Concatenating without a separator -> "1A08", which is still two
-    ///   numbers (decimal 26 and 8), not a single number 0x1A08 = 6664 decimal.
-    ///   - Consider that normalizing the input numbers first by removing their
-    ///     leading zeroes would yield a different number, 0x1A8 (decimal 424).
-    #[arg(short, long, default_value = " ")]
-    pub separator: String,
-
-    /// Output numbers in base 11+ using lowercase letters, rather than the
-    /// default of uppercase. Does not change the case of input characters that
-    /// are not parts of numbers.
-    #[arg(long, default_value_t = true)]
-    pub lowercase: bool,
-
-    /// Whether to filter out bytes that aren't digits in the input base.
-    #[arg(short, long, default_value_t = true)]
-    pub filter_chars: bool,
-
-    /// Should filtered characters be totally ignored for parsing numbers? E.g.
-    /// `10_000` would get the _ filtered out and be treated as 10000.
-    #[arg(short, long, default_value_t = false)]
-    pub collapse_filtered: bool,
-
-    /// A list of filtered characters to collapse, leaving others as spaces.
-    #[arg(long, default_value = "[]")]
-    pub collapse_only: Vec<String>,
-
-    /// Whether to interpret existing prefixes (e.g. 0x) in the input. If set to
-    /// false, it may produce silly results in some cases, like when converting
-    /// hex with 0x prefixes to another base. If you also ask it to add
-    /// prefixes, you'll get three prefixes for each number! (Because it will
-    /// take 0 as a number, then pass through x, then take the actual number.)
-    #[arg(long, default_value_t = true)]
-    pub parse_prefixes: bool,
-
-    /// Limit width for each number. Input numbers will be split up if longer
-    /// than this value (0x0404 would be read as 0x04 04). The value of this
-    /// argument should be the maximum value that you need to represent, and
-    /// the width in bytes will be derived from that dependent on the base.
-    /// Set to 0 to disable limiting.
-    #[arg(short, long, default_value_t = 0)]
+    /// Limit maximum value for number chunking. Input numbers longer than the
+    /// digit width needed to represent this value will be split into chunks
+    /// (e.g. limit 255 splits continuous hex into 2-digit byte chunks).
+    /// Set to 0 to disable chunking.
+    #[arg(
+        short,
+        long,
+        default_value_t = 0,
+        help_heading = "Padding & Chunking"
+    )]
     pub limit: u64,
 
-    /// Zero-pad the left of each number to the number of digits determined by
-    /// the limit argument. Requires a limit to be set.
+    /// Zero-pad the left of each number to the full digit width determined by
+    /// the `--limit` argument (e.g. 2 hex digits or 8 binary digits for 255).
+    /// Requires `--limit` to be set.
     #[arg(
         short,
         long,
         default_value_t = false,
         conflicts_with("pad_l"),
-        requires_if("true", "limit")
+        requires_if("true", "limit"),
+        help_heading = "Padding & Chunking"
     )]
     pub pad: bool,
 
-    /// Zero-pad the left of each number to at least this many digits. Set to 0
-    /// or 1 to turn off.
-    #[arg(short = 'P', long, default_value_t = 1, conflicts_with("pad"))]
+    /// Left-pad each number with leading zeros to at least this many digits.
+    /// Set to 0 or 1 to disable fixed padding.
+    #[arg(
+        short = 'P',
+        long,
+        default_value_t = 1,
+        conflicts_with("pad"),
+        help_heading = "Padding & Chunking"
+    )]
     pub pad_l: u32,
 
-    /// Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard`.
-    #[arg(long, value_enum, default_value = "standard")]
+    // ------------------------------------------------------------------------
+    // Formatting & Delimiters
+    // ------------------------------------------------------------------------
+
+    /// Prefix to prepend to each output number (e.g. "0x" for hexadecimal).
+    #[arg(
+        long,
+        default_value = "",
+        help_heading = "Formatting & Delimiters"
+    )]
+    pub prefix: String,
+
+    /// Delimiter string inserted between separate output numbers.
+    #[arg(
+        short,
+        long,
+        default_value = " ",
+        help_heading = "Formatting & Delimiters"
+    )]
+    pub separator: String,
+
+    /// Output letter digits in bases > 10 using lowercase letters instead of
+    /// uppercase. Does not change case of non-digit characters.
+    #[arg(
+        long,
+        default_value_t = true,
+        help_heading = "Formatting & Delimiters"
+    )]
+    pub lowercase: bool,
+
+    // ------------------------------------------------------------------------
+    // Input Parsing & Filtering
+    // ------------------------------------------------------------------------
+
+    /// Recognize and strip standard radix prefixes (such as "0x", "0b", "0o")
+    /// from input numbers.
+    #[arg(
+        long,
+        default_value_t = true,
+        help_heading = "Input Parsing & Filtering"
+    )]
+    pub parse_prefixes: bool,
+
+    /// Filter out non-digit characters between numbers in the formatted output.
+    /// If false, non-digit punctuation is echoed literally.
+    #[arg(
+        short,
+        long,
+        default_value_t = true,
+        help_heading = "Input Parsing & Filtering"
+    )]
+    pub filter_chars: bool,
+
+    /// Ignore non-digit characters inline while parsing numbers, preventing
+    /// them from splitting numbers (e.g. "10_000" parses as 10000).
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help_heading = "Input Parsing & Filtering"
+    )]
+    pub collapse_filtered: bool,
+
+    /// Specific non-digit characters to collapse inline silently without
+    /// emitting warnings (e.g. `--collapse-only "_"`).
+    #[arg(
+        long,
+        default_value = "[]",
+        help_heading = "Input Parsing & Filtering"
+    )]
+    pub collapse_only: Vec<String>,
+
+    // ------------------------------------------------------------------------
+    // Numeral Systems & Alphabets
+    // ------------------------------------------------------------------------
+
+    /// Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require
+    /// specifying an alphabet like `base64_standard`.
+    #[arg(
+        long,
+        value_enum,
+        default_value = "standard",
+        help_heading = "Numeral Systems & Alphabets"
+    )]
     pub input_alphabet: CliBaseAlphabet,
 
-    /// Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard`.
-    #[arg(long, value_enum, default_value = "standard")]
+    /// Alphabet to use for formatting output numbers. Bases > 36 (up to 64)
+    /// require specifying an alphabet like `base64_standard`.
+    #[arg(
+        long,
+        value_enum,
+        default_value = "standard",
+        help_heading = "Numeral Systems & Alphabets"
+    )]
     pub output_alphabet: CliBaseAlphabet,
 
-    /// Suppress warning messages
-    #[arg(short, long, default_value_t = false)]
+    // ------------------------------------------------------------------------
+    // Output Options
+    // ------------------------------------------------------------------------
+
+    /// Suppress non-fatal warning messages.
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help_heading = "Output Options"
+    )]
     pub quiet: bool,
+}
+
+impl Default for BaseArgs {
+    fn default() -> Self {
+        Self {
+            bytes: false,
+            no_pad: false,
+            prefix: String::new(),
+            separator: " ".to_string(),
+            lowercase: true,
+            filter_chars: true,
+            collapse_filtered: false,
+            collapse_only: Vec::new(),
+            parse_prefixes: true,
+            limit: 0,
+            pad: false,
+            pad_l: 1,
+            input_alphabet: CliBaseAlphabet::Standard,
+            output_alphabet: CliBaseAlphabet::Standard,
+            quiet: false,
+        }
+    }
 }
 
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
@@ -321,10 +430,146 @@ pub fn run_base2base(
         anyhow::bail!(
             "Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]"
         );
+    } else if args.len() == 2
+        && let (Ok(from), Ok(to)) = (
+            args.first().map_or(Err(()), |s| s.parse::<u8>().map_err(|_| ())),
+            args.get(1).map_or(Err(()), |s| s.parse::<u8>().map_err(|_| ())),
+        )
+    {
+        return Ok(ToolResult::immediate_err(
+            format!(
+                "Missing input string. Usage: base2base {from} {to} <INPUT...>\n"
+            )
+            .into_bytes(),
+            1,
+        ));
     } else {
         let input = args.join(" ");
         (input, None, None)
     };
 
     run_base_convert(&from_base, &to_base, &input, base_args)
+}
+
+#[cfg(test)]
+#[expect(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_base_args_default() {
+        let args = BaseArgs::default();
+        assert!(!args.bytes);
+        assert!(!args.no_pad);
+        assert_eq!(args.prefix, "");
+        assert_eq!(args.separator, " ");
+        assert!(args.lowercase);
+        assert!(args.filter_chars);
+        assert!(!args.collapse_filtered);
+        assert!(args.collapse_only.is_empty());
+        assert!(args.parse_prefixes);
+        assert_eq!(args.limit, 0);
+        assert!(!args.pad);
+        assert_eq!(args.pad_l, 1);
+        assert_eq!(args.input_alphabet, CliBaseAlphabet::Standard);
+        assert_eq!(args.output_alphabet, CliBaseAlphabet::Standard);
+        assert!(!args.quiet);
+    }
+
+    #[crate::ctb_test]
+    fn test_run_base2base_three_args() {
+        let args = vec!["16".to_string(), "10".to_string(), "1A".to_string()];
+        let base_args = BaseArgs::default();
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "26");
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_run_base2base_two_args_error() {
+        let args = vec!["16".to_string(), "10".to_string()];
+        let base_args = BaseArgs::default();
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stderr, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 1);
+                let err_msg = String::from_utf8(stderr).unwrap();
+                assert!(err_msg.contains("Missing input string"));
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_run_base2base_single_arg_identity() {
+        let args = vec!["10 20".to_string()];
+        let base_args = BaseArgs::default();
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "10 20");
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_run_base_convert_bytes_shortcut() {
+        let base_args = BaseArgs {
+            bytes: true,
+            ..Default::default()
+        };
+        let res = run_base_convert(&Some(10), &Some(16), "255 16", &base_args)
+            .unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "ff 10");
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_run_base_convert_no_pad_without_bytes_error() {
+        let base_args = BaseArgs {
+            no_pad: true,
+            ..Default::default()
+        };
+        let res =
+            run_base_convert(&Some(10), &Some(16), "255", &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stderr, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 1);
+                assert!(
+                    String::from_utf8(stderr)
+                        .unwrap()
+                        .contains("--no-pad is only valid with --bytes")
+                );
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
 }

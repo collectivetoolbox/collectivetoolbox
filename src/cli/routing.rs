@@ -281,10 +281,17 @@ pub enum Command {
         #[arg(long)]
         port: u16,
     },
-    /// Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
+    /// Convert delimited numbers between positional radix numeral systems
+    /// (bases 1..=36, or up to 64 with --output-alphabet base64_standard).
+    ///
+    /// NOTE: This performs mathematical place-value conversion on numbers,
+    /// not raw binary data armoring. For file or byte stream encoding, see
+    /// `bin2hex` and `hex2bin`. See also `hexdump`.
+    ///
+    /// NOTE: This command expects arguments and does not read standard input.
     #[command(
         name = "base2base",
-        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --output-alphabet base64_standard\n  A B / BA D/"
+        after_help = "Examples:\n  $ ctoolbox base2base 10 16 \"255 16 10\"\n  ff 10 a\n\n  $ ctoolbox base2base 10 16 255 16 10\n  ff 10 a\n\n  $ ctoolbox base2base 2 10 \"1101 1010\"\n  13 10\n\n  $ ctoolbox base2base 16 2 --prefix \"0b\" 1f 2a\n  0b11111 0b101010\n\n  $ ctoolbox base2base 10 16 --bytes 255 128\n  ff 80\n\n  $ ctoolbox base2base 10 64 \"0 1 63 64 255\" --output-alphabet base64_standard\n  A B / BA D/\n\nNote on Base 64 vs. Data Armor:\n  This command converts numbers in a mathematical base-64 radix (e.g. 255 -> D/).\n  To encode raw binary files or octet streams using RFC 4648 Base64 (where 0xFF -> /w==),\n  use a data armoring tool.\n\nContinuous Hex vs. Byte Streams:\n  Continuous hex strings (e.g. \"deadbeef\") are parsed as a single large scalar\n  integer (3735928559). Pass `--bytes` to chunk them into individual byte values (0..=255).\n\nNote on Stdin:\n  This command expects arguments and does not read standard input (stdin)."
     )]
     Base2Base {
         /// All positional arguments for custom parsing
@@ -293,10 +300,16 @@ pub enum Command {
         #[command(flatten)]
         base_args: BaseArgs,
     },
-    /// Convert from hexadecimal to decimal
+    /// Convert from hexadecimal to decimal.
+    ///
+    /// NOTE: Continuous hex strings (e.g. "deadbeef") are parsed as a single
+    /// large scalar integer (3735928559). Pass `--bytes` to chunk into byte
+    /// values (222 173 190 239).
+    ///
+    /// NOTE: This command expects arguments and does not read standard input.
     #[command(
         name = "hex2dec",
-        after_help = "Examples:\n  $ ctoolbox hex2dec \"1A 2B 3C\"\n  26 43 60\n\n  $ ctoolbox hex2dec \"0x1A 0x2B\"\n  26 43\n\n  $ ctoolbox hex2dec -s \", \" \"FF 80 00\"\n  255, 128, 0"
+        after_help = "Examples:\n  $ ctoolbox hex2dec 1A 2B 3C\n  26 43 60\n\n  $ ctoolbox hex2dec \"0x1A 0x2B\"\n  26 43\n\n  $ ctoolbox hex2dec -s \", \" FF 80 00\n  255, 128, 0\n\n  $ ctoolbox hex2dec deadbeef\n  3735928559\n\n  $ ctoolbox hex2dec --bytes deadbeef\n  222 173 190 239\n\nNote on Stdin:\n  This command expects arguments and does not read standard input (stdin)."
     )]
     Hex2Dec {
         #[command(flatten)]
@@ -304,10 +317,12 @@ pub enum Command {
         #[command(flatten)]
         base_args: BaseArgs,
     },
-    /// Convert from decimal to hexadecimal
+    /// Convert from decimal to hexadecimal.
+    ///
+    /// NOTE: This command expects arguments and does not read standard input.
     #[command(
         name = "dec2hex",
-        after_help = "Examples:\n  $ ctoolbox dec2hex \"255 128 64\"\n  ff 80 40\n\n  $ ctoolbox dec2hex --prefix \"0x\" \"10 20 30\"\n  0xa 0x14 0x1e\n\n  $ ctoolbox dec2hex --bytes \"255 16\"\n  ff 10"
+        after_help = "Examples:\n  $ ctoolbox dec2hex 255 128 64\n  ff 80 40\n\n  $ ctoolbox dec2hex --prefix \"0x\" 10 20 30\n  0xa 0x14 0x1e\n\n  $ ctoolbox dec2hex --bytes 255 16\n  ff 10\n\nNote on Stdin:\n  This command expects arguments and does not read standard input (stdin)."
     )]
     Dec2Hex {
         #[command(flatten)]
@@ -315,10 +330,19 @@ pub enum Command {
         #[command(flatten)]
         base_args: BaseArgs,
     },
-    /// Reformat hexdumps
+    /// Reformat hexadecimal number strings (delimiters, prefixes, case, padding).
+    ///
+    /// NOTE: This formats lists of hexadecimal numbers (not hexdump outputs with
+    /// line offsets or ASCII sidebars). For generating or formatting actual
+    /// hexdumps, see `hexdump` (or `hd` / `xxd`).
+    ///
+    /// NOTE: Continuous hex strings (e.g. "1a2b3c4d") are treated as a single
+    /// number unless `--bytes` or `--limit` is passed.
+    ///
+    /// NOTE: This command expects arguments and does not read standard input.
     #[command(
         name = "hexfmt",
-        after_help = "Examples:\n  $ ctoolbox hexfmt \"1a2b3c4d\"\n  1a2b3c4d\n\n  $ ctoolbox hexfmt -s \" \" \"1a 2b 3c 4d\"\n  1a 2b 3c 4d\n\n  $ ctoolbox hexfmt --prefix \"0x\" \"de ad be ef\"\n  0xde 0xad 0xbe 0xef"
+        after_help = "Examples:\n  $ ctoolbox hexfmt 1a 2b 3c 4d\n  1a 2b 3c 4d\n\n  $ ctoolbox hexfmt -s \", \" 1a 2b 3c 4d\n  1a, 2b, 3c, 4d\n\n  $ ctoolbox hexfmt --prefix \"0x\" 1a 2b\n  0x1a 0x2b\n\n  $ ctoolbox hexfmt --bytes \"deadbeef\"\n  de ad be ef\n\nNote on Hexdumps vs. Number Formatting:\n  This tool reformats hexadecimal numbers. To inspect or format raw binary\n  data or files as hexdumps, use `ctoolbox hexdump` (or `xxd`).\n\nNote on Stdin:\n  This command expects arguments and does not read standard input (stdin)."
     )]
     Hexfmt {
         #[command(flatten)]
@@ -912,7 +936,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         } => run_base_convert(
             &Some(16),
             &Some(10),
-            &string_input.input,
+            &string_input.joined(),
             base_args,
         ),
         Command::Dec2Hex {
@@ -921,7 +945,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         } => run_base_convert(
             &Some(10),
             &Some(16),
-            &string_input.input,
+            &string_input.joined(),
             base_args,
         ),
         Command::Hexfmt {
@@ -930,7 +954,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         } => run_base_convert(
             &Some(16),
             &Some(16),
-            &string_input.input,
+            &string_input.joined(),
             base_args,
         ),
         Command::Hex2Bin(args) => {
@@ -1881,6 +1905,98 @@ mod tests {
                 assert_eq!(exit_code, 0);
                 let output = String::from_utf8(stdout)?;
                 assert_eq!(output.trim(), "25516010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous() -> Result<()> {
+        // hex2dec with unquoted tokens
+        let cmd = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["1A".to_string(), "2B".to_string(), "3C".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "26 43 60");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // dec2hex with unquoted tokens
+        let cmd = Command::Dec2Hex {
+            string_input: StringInput {
+                input: vec!["255".to_string(), "128".to_string(), "64".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "ff 80 40");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hexfmt with prefix
+        let cmd = Command::Hexfmt {
+            string_input: StringInput {
+                input: vec!["1a".to_string(), "2b".to_string()],
+            },
+            base_args: BaseArgs {
+                prefix: "0x".to_string(),
+                ..Default::default()
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "0x1a 0x2b");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hex2dec continuous hex scalar vs bytes
+        let cmd_scalar = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res_scalar = run_lightweight_command(&cmd_scalar).await?;
+        match res_scalar {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "3735928559");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_bytes = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs {
+                bytes: true,
+                limit: 255,
+                pad: true,
+                ..Default::default()
+            },
+        };
+        let res_bytes = run_lightweight_command(&cmd_bytes).await?;
+        match res_bytes {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "222 173 190 239");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
