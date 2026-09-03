@@ -430,11 +430,9 @@ pub fn run_base2base(
         anyhow::bail!(
             "Invalid arguments! Usage: base2base [FROM_BASE TO_BASE INPUT] or [INPUT]"
         );
-    } else if args.len() == 2
-        && let (Ok(from), Ok(to)) = (
-            args.first().map_or(Err(()), |s| s.parse::<u8>().map_err(|_| ())),
-            args.get(1).map_or(Err(()), |s| s.parse::<u8>().map_err(|_| ())),
-        )
+    } else if let [from_str, to_str] = args
+        && let (Ok(from), Ok(to)) =
+            (from_str.parse::<u8>(), to_str.parse::<u8>())
     {
         return Ok(ToolResult::immediate_err(
             format!(
@@ -572,4 +570,249 @@ mod tests {
             _ => panic!("Expected immediate result"),
         }
     }
+
+    #[crate::ctb_test]
+    fn test_base2base_positional_args() {
+        let args = vec![
+            "16".to_string(),
+            "2".to_string(),
+            "1f".to_string(),
+            "2a".to_string(),
+        ];
+        let base_args = BaseArgs {
+            bytes: false,
+            no_pad: false,
+            prefix: "0b".to_string(),
+            separator: " ".to_string(),
+            lowercase: true,
+            filter_chars: true,
+            collapse_filtered: false,
+            collapse_only: Vec::new(),
+            parse_prefixes: true,
+            limit: 0,
+            pad: false,
+            pad_l: 1,
+            input_alphabet: CliBaseAlphabet::Standard,
+            output_alphabet: CliBaseAlphabet::Standard,
+            quiet: false,
+        };
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout).unwrap();
+                assert_eq!(output.trim(), "0b11111 0b101010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_base2base_base64_positional_args() {
+        let args = vec![
+            "10".to_string(),
+            "64".to_string(),
+            "0".to_string(),
+            "1".to_string(),
+            "63".to_string(),
+            "64".to_string(),
+            "255".to_string(),
+        ];
+        let base_args = BaseArgs {
+            bytes: false,
+            no_pad: false,
+            prefix: String::new(),
+            separator: " ".to_string(),
+            lowercase: false,
+            filter_chars: true,
+            collapse_filtered: false,
+            collapse_only: Vec::new(),
+            parse_prefixes: true,
+            limit: 0,
+            pad: false,
+            pad_l: 1,
+            input_alphabet: CliBaseAlphabet::Standard,
+            output_alphabet: CliBaseAlphabet::Base64Standard,
+            quiet: false,
+        };
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout).unwrap();
+                assert_eq!(output.trim(), "A B / BA D/");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_base2base_base30_base64_alphabet() {
+        let args = vec![
+            "10".to_string(),
+            "30".to_string(),
+            "25516010".to_string(),
+        ];
+        let base_args = BaseArgs {
+            bytes: false,
+            no_pad: false,
+            prefix: String::new(),
+            separator: " ".to_string(),
+            lowercase: false,
+            filter_chars: true,
+            collapse_filtered: false,
+            collapse_only: Vec::new(),
+            parse_prefixes: true,
+            limit: 0,
+            pad: false,
+            pad_l: 1,
+            input_alphabet: CliBaseAlphabet::Standard,
+            output_alphabet: CliBaseAlphabet::Base64Standard,
+            quiet: false,
+        };
+        let res = run_base2base(&args, &base_args).unwrap();
+        match res {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout).unwrap();
+                assert_eq!(output.trim(), "BBPBDU");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Roundtrip back to base 10
+        let args_back = vec![
+            "30".to_string(),
+            "10".to_string(),
+            "BBPBDU".to_string(),
+        ];
+        let base_args_back = BaseArgs {
+            bytes: false,
+            no_pad: false,
+            prefix: String::new(),
+            separator: " ".to_string(),
+            lowercase: false,
+            filter_chars: true,
+            collapse_filtered: false,
+            collapse_only: Vec::new(),
+            parse_prefixes: true,
+            limit: 0,
+            pad: false,
+            pad_l: 1,
+            input_alphabet: CliBaseAlphabet::Base64Standard,
+            output_alphabet: CliBaseAlphabet::Standard,
+            quiet: false,
+        };
+        let res_back = run_base2base(&args_back, &base_args_back).unwrap();
+        match res_back {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
+                assert_eq!(exit_code, 0);
+                let output = String::from_utf8(stdout).unwrap();
+                assert_eq!(output.trim(), "25516010");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous() {
+        // hex2dec with unquoted tokens
+        let res = run_base_convert(
+            &Some(16),
+            &Some(10),
+            "1A 2B 3C",
+            &BaseArgs::default(),
+        )
+        .unwrap();
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "26 43 60");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // dec2hex with unquoted tokens
+        let res = run_base_convert(
+            &Some(10),
+            &Some(16),
+            "255 128 64",
+            &BaseArgs::default(),
+        )
+        .unwrap();
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "ff 80 40");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hexfmt with prefix
+        let base_args = BaseArgs {
+            prefix: "0x".to_string(),
+            ..Default::default()
+        };
+        let res = run_base_convert(&Some(16), &Some(16), "1a 2b", &base_args)
+            .unwrap();
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "0x1a 0x2b");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hex2dec continuous hex scalar vs bytes
+        let res_scalar = run_base_convert(
+            &Some(16),
+            &Some(10),
+            "deadbeef",
+            &BaseArgs::default(),
+        )
+        .unwrap();
+        match res_scalar {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(
+                    String::from_utf8(stdout).unwrap().trim(),
+                    "3735928559"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let base_args_bytes = BaseArgs {
+            bytes: true,
+            limit: 255,
+            pad: true,
+            ..Default::default()
+        };
+        let res_bytes = run_base_convert(
+            &Some(16),
+            &Some(10),
+            "deadbeef",
+            &base_args_bytes,
+        )
+        .unwrap();
+        match res_bytes {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(
+                    String::from_utf8(stdout).unwrap().trim(),
+                    "222 173 190 239"
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
 }
+

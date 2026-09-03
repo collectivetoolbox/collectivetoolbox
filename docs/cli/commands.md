@@ -14,10 +14,10 @@ Commands:
   waitshutdown               Wait for the provided PID to shutdown, then clean up
   waitrestart                Wait for the provided PID to shutdown, then start ctoolbox with the given port
   waitupgrade                Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
-  base2base                  Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
+  base2base                  Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with --output-alphabet base64_standard)
   hex2dec                    Convert from hexadecimal to decimal
   dec2hex                    Convert from decimal to hexadecimal
-  hexfmt                     Reformat hexdumps
+  hexfmt                     Reformat hexadecimal number strings (delimiters, prefixes, case, padding)
   hex2bin                    Convert a hexadecimal string to binary data
   bin2hex                    Convert binary data to a hexadecimal string or hex dump
   hexdump                    Format binary data as a hex dump (fancy by default, or --plain / --xxd)
@@ -104,7 +104,7 @@ Options:
 ### `ctoolbox base2base`
 
 ```text
-Convert from one base to another (for base <= 36, or <= 64 with --input-alphabet/--output-alphabet `base64_standard`)
+Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with --output-alphabet base64_standard)
 
 Usage: ctoolbox base2base [OPTIONS] <ARGS>...
 
@@ -112,41 +112,40 @@ Arguments:
   <ARGS>...  All positional arguments for custom parsing
 
 Options:
-  -b, --bytes
-          Shortcut for -n -q --limit 255 --pad
-      --no-pad
-          Invalid unless using --bytes option. Turns off padding
-      --prefix <PREFIX>
-          Add prefix to each output number (e.g. 0x) [default: ""]
-  -s, --separator <SEPARATOR>
-          Separator inserted after numeric output values (except the last one) [default: " "]
-      --lowercase
-          Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
-  -f, --filter-chars
-          Whether to filter out bytes that aren't digits in the input base
-  -c, --collapse-filtered
-          Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
-      --collapse-only <COLLAPSE_ONLY>
-          A list of filtered characters to collapse, leaving others as spaces [default: []]
-      --parse-prefixes
-          Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
-  -l, --limit <LIMIT>
-          Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
-  -p, --pad
-          Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
-  -P, --pad-l <PAD_L>
-          Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+  -h, --help  Print help (see more with '--help')
+
+Padding & Chunking:
+  -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
+      --no-pad         Disables zero-padding when using the `--bytes` shortcut
+  -l, --limit <LIMIT>  Limit maximum value for number chunking. Input numbers longer than the digit width needed to represent this value will be split into chunks (e.g. limit 255 splits continuous hex into 2-digit byte chunks). Set to 0 to disable chunking [default: 0]
+  -p, --pad            Zero-pad the left of each number to the full digit width determined by the `--limit` argument (e.g. 2 hex digits or 8 binary digits for 255). Requires `--limit` to be set
+  -P, --pad-l <PAD_L>  Left-pad each number with leading zeros to at least this many digits. Set to 0 or 1 to disable fixed padding [default: 1]
+
+Formatting & Delimiters:
+      --prefix <PREFIX>        Prefix to prepend to each output number (e.g. "0x" for hexadecimal) [default: ""]
+  -s, --separator <SEPARATOR>  Delimiter string inserted between separate output numbers [default: " "]
+      --lowercase              Output letter digits in bases > 10 using lowercase letters instead of uppercase. Does not change case of non-digit characters
+
+Input Parsing & Filtering:
+      --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
+  -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+      --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
+
+Numeral Systems & Alphabets:
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
-  -q, --quiet
-          Suppress warning messages
-  -h, --help
-          Print help (see more with '--help')
+          Alphabet to use for formatting output numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+
+Output Options:
+  -q, --quiet  Suppress non-fatal warning messages
 
 Examples:
   $ ctoolbox base2base 10 16 "255 16 10"
+  ff 10 a
+
+  $ ctoolbox base2base 10 16 255 16 10
   ff 10 a
 
   $ ctoolbox base2base 2 10 "1101 1010"
@@ -160,6 +159,18 @@ Examples:
 
   $ ctoolbox base2base 10 64 "0 1 63 64 255" --output-alphabet base64_standard
   A B / BA D/
+
+Note on Base 64 vs. Data Armor:
+  This command converts numbers in a mathematical base-64 radix (e.g. 255 -> D/).
+  To encode raw binary files or octet streams using RFC 4648 Base64 (where 0xFF -> /w==),
+  use a data armoring tool.
+
+Continuous Hex vs. Byte Streams:
+  Continuous hex strings (e.g. "deadbeef") are parsed as a single large scalar
+  integer (3735928559). Pass `--bytes` to chunk them into individual byte values (0..=255).
+
+Note on Stdin:
+  This command expects arguments and does not read standard input (stdin).
 ```
 
 ### `ctoolbox bin2hex`
@@ -410,54 +421,57 @@ Options:
 ```text
 Convert from decimal to hexadecimal
 
-Usage: ctoolbox dec2hex [OPTIONS] <INPUT>
+Usage: ctoolbox dec2hex [OPTIONS] <INPUT>...
 
 Arguments:
-  <INPUT>  Input number or string
+  <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -b, --bytes
-          Shortcut for -n -q --limit 255 --pad
-      --no-pad
-          Invalid unless using --bytes option. Turns off padding
-      --prefix <PREFIX>
-          Add prefix to each output number (e.g. 0x) [default: ""]
-  -s, --separator <SEPARATOR>
-          Separator inserted after numeric output values (except the last one) [default: " "]
-      --lowercase
-          Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
-  -f, --filter-chars
-          Whether to filter out bytes that aren't digits in the input base
-  -c, --collapse-filtered
-          Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
-      --collapse-only <COLLAPSE_ONLY>
-          A list of filtered characters to collapse, leaving others as spaces [default: []]
-      --parse-prefixes
-          Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
-  -l, --limit <LIMIT>
-          Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
-  -p, --pad
-          Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
-  -P, --pad-l <PAD_L>
-          Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+  -h, --help  Print help (see more with '--help')
+
+Padding & Chunking:
+  -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
+      --no-pad         Disables zero-padding when using the `--bytes` shortcut
+  -l, --limit <LIMIT>  Limit maximum value for number chunking. Input numbers longer than the digit width needed to represent this value will be split into chunks (e.g. limit 255 splits continuous hex into 2-digit byte chunks). Set to 0 to disable chunking [default: 0]
+  -p, --pad            Zero-pad the left of each number to the full digit width determined by the `--limit` argument (e.g. 2 hex digits or 8 binary digits for 255). Requires `--limit` to be set
+  -P, --pad-l <PAD_L>  Left-pad each number with leading zeros to at least this many digits. Set to 0 or 1 to disable fixed padding [default: 1]
+
+Formatting & Delimiters:
+      --prefix <PREFIX>        Prefix to prepend to each output number (e.g. "0x" for hexadecimal) [default: ""]
+  -s, --separator <SEPARATOR>  Delimiter string inserted between separate output numbers [default: " "]
+      --lowercase              Output letter digits in bases > 10 using lowercase letters instead of uppercase. Does not change case of non-digit characters
+
+Input Parsing & Filtering:
+      --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
+  -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+      --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
+
+Numeral Systems & Alphabets:
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
-  -q, --quiet
-          Suppress warning messages
-  -h, --help
-          Print help (see more with '--help')
+          Alphabet to use for formatting output numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+
+Output Options:
+  -q, --quiet  Suppress non-fatal warning messages
 
 Examples:
-  $ ctoolbox dec2hex "255 128 64"
+  $ ctoolbox dec2hex 255 128 64
   ff 80 40
 
-  $ ctoolbox dec2hex --prefix "0x" "10 20 30"
+  $ ctoolbox dec2hex --prefix "0x" 10 20 30
   0xa 0x14 0x1e
 
-  $ ctoolbox dec2hex --bytes "255 16"
+  $ ctoolbox dec2hex --bytes 255 16
   ff 10
+
+Continuous Hex vs. Byte Streams:
+  Continuous hex strings (e.g. "deadbeef") are parsed as a single large scalar
+  integer (3735928559). Pass `--bytes` to chunk them into individual byte values (0..=255).
+
+Note on Stdin:
+  This command expects arguments and does not read standard input (stdin).
 ```
 
 ### `ctoolbox decompress`
@@ -564,54 +578,63 @@ Examples:
 ```text
 Convert from hexadecimal to decimal
 
-Usage: ctoolbox hex2dec [OPTIONS] <INPUT>
+Usage: ctoolbox hex2dec [OPTIONS] <INPUT>...
 
 Arguments:
-  <INPUT>  Input number or string
+  <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -b, --bytes
-          Shortcut for -n -q --limit 255 --pad
-      --no-pad
-          Invalid unless using --bytes option. Turns off padding
-      --prefix <PREFIX>
-          Add prefix to each output number (e.g. 0x) [default: ""]
-  -s, --separator <SEPARATOR>
-          Separator inserted after numeric output values (except the last one) [default: " "]
-      --lowercase
-          Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
-  -f, --filter-chars
-          Whether to filter out bytes that aren't digits in the input base
-  -c, --collapse-filtered
-          Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
-      --collapse-only <COLLAPSE_ONLY>
-          A list of filtered characters to collapse, leaving others as spaces [default: []]
-      --parse-prefixes
-          Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
-  -l, --limit <LIMIT>
-          Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
-  -p, --pad
-          Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
-  -P, --pad-l <PAD_L>
-          Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+  -h, --help  Print help (see more with '--help')
+
+Padding & Chunking:
+  -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
+      --no-pad         Disables zero-padding when using the `--bytes` shortcut
+  -l, --limit <LIMIT>  Limit maximum value for number chunking. Input numbers longer than the digit width needed to represent this value will be split into chunks (e.g. limit 255 splits continuous hex into 2-digit byte chunks). Set to 0 to disable chunking [default: 0]
+  -p, --pad            Zero-pad the left of each number to the full digit width determined by the `--limit` argument (e.g. 2 hex digits or 8 binary digits for 255). Requires `--limit` to be set
+  -P, --pad-l <PAD_L>  Left-pad each number with leading zeros to at least this many digits. Set to 0 or 1 to disable fixed padding [default: 1]
+
+Formatting & Delimiters:
+      --prefix <PREFIX>        Prefix to prepend to each output number (e.g. "0x" for hexadecimal) [default: ""]
+  -s, --separator <SEPARATOR>  Delimiter string inserted between separate output numbers [default: " "]
+      --lowercase              Output letter digits in bases > 10 using lowercase letters instead of uppercase. Does not change case of non-digit characters
+
+Input Parsing & Filtering:
+      --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
+  -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+      --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
+
+Numeral Systems & Alphabets:
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
-  -q, --quiet
-          Suppress warning messages
-  -h, --help
-          Print help (see more with '--help')
+          Alphabet to use for formatting output numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+
+Output Options:
+  -q, --quiet  Suppress non-fatal warning messages
 
 Examples:
-  $ ctoolbox hex2dec "1A 2B 3C"
+  $ ctoolbox hex2dec 1A 2B 3C
   26 43 60
 
   $ ctoolbox hex2dec "0x1A 0x2B"
   26 43
 
-  $ ctoolbox hex2dec -s ", " "FF 80 00"
+  $ ctoolbox hex2dec -s ", " FF 80 00
   255, 128, 0
+
+  $ ctoolbox hex2dec deadbeef
+  3735928559
+
+  $ ctoolbox hex2dec --bytes deadbeef
+  222 173 190 239
+
+Continuous Hex vs. Byte Streams:
+  Continuous hex strings (e.g. "deadbeef") are parsed as a single large scalar
+  integer (3735928559). Pass `--bytes` to chunk them into individual byte values (0..=255).
+
+Note on Stdin:
+  This command expects arguments and does not read standard input (stdin).
 ```
 
 ### `ctoolbox hexdump`
@@ -641,56 +664,62 @@ Examples:
 ### `ctoolbox hexfmt`
 
 ```text
-Reformat hexdumps
+Reformat hexadecimal number strings (delimiters, prefixes, case, padding)
 
-Usage: ctoolbox hexfmt [OPTIONS] <INPUT>
+Usage: ctoolbox hexfmt [OPTIONS] <INPUT>...
 
 Arguments:
-  <INPUT>  Input number or string
+  <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -b, --bytes
-          Shortcut for -n -q --limit 255 --pad
-      --no-pad
-          Invalid unless using --bytes option. Turns off padding
-      --prefix <PREFIX>
-          Add prefix to each output number (e.g. 0x) [default: ""]
-  -s, --separator <SEPARATOR>
-          Separator inserted after numeric output values (except the last one) [default: " "]
-      --lowercase
-          Output numbers in base 11+ using lowercase letters, rather than the default of uppercase. Does not change the case of input characters that are not parts of numbers
-  -f, --filter-chars
-          Whether to filter out bytes that aren't digits in the input base
-  -c, --collapse-filtered
-          Should filtered characters be totally ignored for parsing numbers? E.g. `10_000` would get the _ filtered out and be treated as 10000
-      --collapse-only <COLLAPSE_ONLY>
-          A list of filtered characters to collapse, leaving others as spaces [default: []]
-      --parse-prefixes
-          Whether to interpret existing prefixes (e.g. 0x) in the input. If set to false, it may produce silly results in some cases, like when converting hex with 0x prefixes to another base. If you also ask it to add prefixes, you'll get three prefixes for each number! (Because it will take 0 as a number, then pass through x, then take the actual number.)
-  -l, --limit <LIMIT>
-          Limit width for each number. Input numbers will be split up if longer than this value (0x0404 would be read as 0x04 04). The value of this argument should be the maximum value that you need to represent, and the width in bytes will be derived from that dependent on the base. Set to 0 to disable limiting [default: 0]
-  -p, --pad
-          Zero-pad the left of each number to the number of digits determined by the limit argument. Requires a limit to be set
-  -P, --pad-l <PAD_L>
-          Zero-pad the left of each number to at least this many digits. Set to 0 or 1 to turn off [default: 1]
+  -h, --help  Print help (see more with '--help')
+
+Padding & Chunking:
+  -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
+      --no-pad         Disables zero-padding when using the `--bytes` shortcut
+  -l, --limit <LIMIT>  Limit maximum value for number chunking. Input numbers longer than the digit width needed to represent this value will be split into chunks (e.g. limit 255 splits continuous hex into 2-digit byte chunks). Set to 0 to disable chunking [default: 0]
+  -p, --pad            Zero-pad the left of each number to the full digit width determined by the `--limit` argument (e.g. 2 hex digits or 8 binary digits for 255). Requires `--limit` to be set
+  -P, --pad-l <PAD_L>  Left-pad each number with leading zeros to at least this many digits. Set to 0 or 1 to disable fixed padding [default: 1]
+
+Formatting & Delimiters:
+      --prefix <PREFIX>        Prefix to prepend to each output number (e.g. "0x" for hexadecimal) [default: ""]
+  -s, --separator <SEPARATOR>  Delimiter string inserted between separate output numbers [default: " "]
+      --lowercase              Output letter digits in bases > 10 using lowercase letters instead of uppercase. Does not change case of non-digit characters
+
+Input Parsing & Filtering:
+      --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
+  -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+      --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
+
+Numeral Systems & Alphabets:
       --input-alphabet <INPUT_ALPHABET>
-          Alphabet to use for input numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+          Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
       --output-alphabet <OUTPUT_ALPHABET>
-          Alphabet to use for output numbers. Bases > 36 require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
-  -q, --quiet
-          Suppress warning messages
-  -h, --help
-          Print help (see more with '--help')
+          Alphabet to use for formatting output numbers. Bases > 36 (up to 64) require specifying an alphabet like `base64_standard` [default: standard] [possible values: standard, base64_standard]
+
+Output Options:
+  -q, --quiet  Suppress non-fatal warning messages
 
 Examples:
-  $ ctoolbox hexfmt "1a2b3c4d"
-  1a2b3c4d
-
-  $ ctoolbox hexfmt -s " " "1a 2b 3c 4d"
+  $ ctoolbox hexfmt 1a 2b 3c 4d
   1a 2b 3c 4d
 
-  $ ctoolbox hexfmt --prefix "0x" "de ad be ef"
-  0xde 0xad 0xbe 0xef
+  $ ctoolbox hexfmt -s ", " 1a 2b 3c 4d
+  1a, 2b, 3c, 4d
+
+  $ ctoolbox hexfmt --prefix "0x" 1a 2b
+  0x1a 0x2b
+
+  $ ctoolbox hexfmt --bytes "deadbeef"
+  de ad be ef
+
+Note on Hexdumps vs. Number Formatting:
+  This tool reformats hexadecimal numbers. To inspect or format raw binary
+  data or files as hexdumps, use `ctoolbox hexdump` (or `xxd`).
+
+Note on Stdin:
+  This command expects arguments and does not read standard input (stdin).
 ```
 
 ### `ctoolbox ia`

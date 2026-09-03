@@ -399,4 +399,16 @@ mod tests {
             _ => panic!("Expected Stdout output"),
         }
     }
+
+    #[ctb_test]
+    fn test_compress_help_table_content() {
+        let help_str = crate::COMPRESSION_AFTER_HELP.as_str();
+        assert!(help_str.contains("Supported compression formats:"));
+        assert!(help_str.contains("br, brotli: Brotli compressed stream"));
+        assert!(help_str.contains("gz, gzip: GNU gzip format"));
+        assert!(help_str.contains(
+            "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
+        ));
+    }
 }
+

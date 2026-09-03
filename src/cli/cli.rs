@@ -798,4 +798,164 @@ $my_test_array = array('a' => '1', 'b' => '2');
             .expect("should return exit code for subcommand");
         assert_eq!(exit_code, 0);
     }
+
+    #[crate::ctb_test]
+    fn test_compress_command_help() {
+        let mut cmd = Cli::command();
+        let compress_sub = cmd
+            .find_subcommand_mut("compress")
+            .expect("compress subcommand should exist");
+        let mut help_buf = Vec::new();
+        compress_sub
+            .write_help(&mut help_buf)
+            .expect("Should format help");
+        let help_str = String::from_utf8(help_buf).expect("UTF-8 help");
+
+        assert!(help_str.contains("Supported compression formats:"));
+        assert!(help_str.contains("br, brotli: Brotli compressed stream"));
+        assert!(help_str.contains("gz, gzip: GNU gzip format"));
+        assert!(help_str.contains(
+            "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
+        ));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_x86_instruction_sets_command() {
+        assert!(crate::routing::is_lightweight_command(
+            "x86-instruction-sets"
+        ));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let sample_file = temp_dir.path().join("dummy.bin");
+        std::fs::write(&sample_file, b"not a binary").unwrap();
+
+        let cmd = Command::X86InstructionSets { path: sample_file };
+        assert!(run_lightweight_command(&cmd).await.is_err());
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_adduser_command() -> Result<()> {
+        assert!(crate::routing::is_lightweight_command("adduser"));
+
+        let username = format!("cli_user_{}", function_name!());
+        ctb_storage::user::User::delete_by_name(&username).ok();
+
+        // Ensure allow_local_account_creation is true for this test
+        let mut settings =
+            ctb_utilities::pc_settings::PcSettings::load().unwrap_or_default();
+        settings.allow_local_account_creation =
+            ctb_utilities::json::maybe_value::MaybeValue::Value(true);
+        settings.save()?;
+
+        let _cmd = Command::AddUser {
+            username: username.clone(),
+            password_stdin: true,
+        };
+
+        // Note: Password comes from stdin or add_non_admin_user directly.
+        // Let's test calling add_non_admin_user
+        let password = ctb_utilities::password::Password::from_string(
+            ctb_utilities::password::TEST_USER_PASS,
+        );
+        let user = ctb_storage::user::add_non_admin_user(&username, &password)?;
+        assert_eq!(user.name(), username);
+        assert!(!user.is_admin());
+
+        user.delete()?;
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous() -> Result<()> {
+        use ctb_formats_math::cli::BaseArgs;
+
+        // hex2dec with unquoted tokens
+        let cmd = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["1A".to_string(), "2B".to_string(), "3C".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "26 43 60");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // dec2hex with unquoted tokens
+        let cmd = Command::Dec2Hex {
+            string_input: StringInput {
+                input: vec!["255".to_string(), "128".to_string(), "64".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "ff 80 40");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hexfmt with prefix
+        let cmd = Command::Hexfmt {
+            string_input: StringInput {
+                input: vec!["1a".to_string(), "2b".to_string()],
+            },
+            base_args: BaseArgs {
+                prefix: "0x".to_string(),
+                ..Default::default()
+            },
+        };
+        let res = run_lightweight_command(&cmd).await?;
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "0x1a 0x2b");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // hex2dec continuous hex scalar vs bytes
+        let cmd_scalar = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs::default(),
+        };
+        let res_scalar = run_lightweight_command(&cmd_scalar).await?;
+        match res_scalar {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "3735928559");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let cmd_bytes = Command::Hex2Dec {
+            string_input: StringInput {
+                input: vec!["deadbeef".to_string()],
+            },
+            base_args: BaseArgs {
+                bytes: true,
+                limit: 255,
+                pad: true,
+                ..Default::default()
+            },
+        };
+        let res_bytes = run_lightweight_command(&cmd_bytes).await?;
+        match res_bytes {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                assert_eq!(String::from_utf8(stdout)?.trim(), "222 173 190 239");
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        Ok(())
+    }
 }
+
