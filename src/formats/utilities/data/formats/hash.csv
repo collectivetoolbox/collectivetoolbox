@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:

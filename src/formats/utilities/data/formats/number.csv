@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -34,7 +34,7 @@ Import/export/tests support columns meaning:
 2228569,345,Rational,Rational number,number_abstract,,,,,,,,,,,,
 2228570,346,Real,Real number,number_abstract,,,,,,,,,,,,
 2228571,347,Complex,Complex number,number_abstract,,,,,,,,,,,,
-2228572,348,FloatIeee754,IEEE 754 floating-point number formats,number,,,,,,Float,,,,,,
+2228572,348,FloatIeee754,IEEE 754 floating-point number formats,number,Float,,,,,,,,,,,
 2228573,349,NumeralSystem,Format for representing numbers,number,,,,,,,,,,,,
 2228574,350,BaseNNumeral,Representation of a number in a given base,number,,,,,,,,,,,,
 2228575,351,Natural1,"Natural number, not including zero",number_abstract,,,,,,,,,,,,

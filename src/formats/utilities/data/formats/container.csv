@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -20,12 +20,12 @@ Import/export/tests support columns meaning:
 2228512,288,Shar,Shell archive,container,,.shar,,,,,,,,,,
 2228513,289,Cpio,CPIO archive,container,,.cpio,,,,,,,,,,
 2228514,290,Pax,PAX archive,container,,.pax,,,,,,,,,,
-2228515,291,TarGz,,container,,".tar.gz, .tgz",,,,Tar & Gzip,,,,,,
-2228516,292,TarZ,,container,,".tar.Z, .taz",,,,Tar & CompressLzw,,,,,,
-2228517,293,TarBz2,,container,,".tar.bz2, .tbz2",,,,Tar & Bzip2,,,,,,
+2228515,291,TarGz,,container,Tar & Gzip,".tar.gz, .tgz",,,,,,,,,,
+2228516,292,TarZ,,container,Tar & CompressLzw,".tar.Z, .taz",,,,,,,,,,
+2228517,293,TarBz2,,container,Tar & Bzip2,".tar.bz2, .tbz2",,,,,,,,,,
 2228529,305,Zpaq,ZPAQ,container,,,,,,,,,,,,
-2228546,322,TarLzo,"TAR, LZO",container,,".tar.lzo, .tzo",,,,Tar & Lzo,,,,,,
-2228558,334,CtbAssetBundleV1,"Collective Toolbox resource bundle, version 1",container,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228559,335,CtbAssetBundleV2,"Collective Toolbox resource bundle, version 2",container,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228560,336,CtbAssetBundleV3,"Collective Toolbox resource bundle, version 3",container,,.rsrc,,,,CtbAssetBundle,,,,,,
-2228561,337,CtbAssetBundleV4,"Collective Toolbox resource bundle, version 4",container,,.rsrc,,,,CtbAssetBundle,,,,,,
+2228546,322,TarLzo,"TAR, LZO",container,Tar & Lzo,".tar.lzo, .tzo",,,,,,,,,,
+2228558,334,CtbAssetBundleV1,"Collective Toolbox resource bundle, version 1",container,CtbAssetBundle,.rsrc,,,,,,,,,,
+2228559,335,CtbAssetBundleV2,"Collective Toolbox resource bundle, version 2",container,CtbAssetBundle,.rsrc,,,,,,,,,,
+2228560,336,CtbAssetBundleV3,"Collective Toolbox resource bundle, version 3",container,CtbAssetBundle,.rsrc,,,,,,,,,,
+2228561,337,CtbAssetBundleV4,"Collective Toolbox resource bundle, version 4",container,CtbAssetBundle,.rsrc,,,,,,,,,,

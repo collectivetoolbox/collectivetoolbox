@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -19,19 +19,19 @@ Import/export/tests support columns meaning:
 2228344,120,TypeScript,TypeScript,programming,,,,,,,,,,,,
 2228345,121,Perl,Perl,programming,,,,,,,,,,,,
 2228346,122,Bash,Bash,programming,,,,,,,,,,,,
-2228347,123,C,C,programming,,,,,"c, csrc",,,,,,,
+2228347,123,C,C,programming,,,,,,"c, csrc",,,,,,
 2228348,124,Cpp,C++,programming,,,,,,,,,,,,
 2228349,125,Cs,C#,programming,,,,,,,,,,,,
 2228350,126,Java,Java,programming,,,,,,,,,,,,
-2228351,127,Perl5,Perl 5,programming,,,,,,Perl,,,,,,
+2228351,127,Perl5,Perl 5,programming,Perl,,,,,,,,,,,
 2228352,128,Perl6,Perl 6 (quite different from earlier Perl versions),programming,,,,,,,,,,,,
-2228353,129,Raku,Raku (successor of Perl 6),programming,,,,,,Perl6,,,,,,
+2228353,129,Raku,Raku (successor of Perl 6),programming,Perl6,,,,,,,,,,,
 2228354,130,Rust,Rust,programming,,,,,,,,,,,,
 2228355,131,Php,PHP,programming,,,,,,,,,,,,
 2228356,132,Sh,POSIX sh,programming,,,,,,,,,,,,
 2228357,133,StageL,StageL,programming,,.stagel,,,,,,,,,,
 2228358,134,StageLParseResult,StageL parse result,programming,,,,,,,,,,,,
 2228562,338,Jq,jq programming language,programming,,,,,,,,,,,,
-2228563,339,JqJaq,jq programming language as implemented by jaq,programming,,,,,,Jq,,,,,,
-2228566,342,StageL2,StageL 2,programming,,.sl,,,,StageL,,,,,,
-2228567,343,StageL2Intermediate,Normalized StageL 2,programming,,.sli,,,,StageL2,,,,,,
+2228563,339,JqJaq,jq programming language as implemented by jaq,programming,Jq,,,,,,,,,,,
+2228566,342,StageL2,StageL 2,programming,StageL,.sl,,,,,,,,,,
+2228567,343,StageL2Intermediate,Normalized StageL 2,programming,StageL2,.sli,,,,,,,,,,

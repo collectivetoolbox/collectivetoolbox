@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -14,7 +14,7 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228235,11,DcBasenb,Dc in Unicode,v:unicodePua,,.dcbnb,,,,Unicode,,,,,unicodePua = extension to Unicode using the Private Use Areas,
-2228315,91,DcBasenbFragment,DcBasenb Fragment,v:unicodePua,,,,,,DcBasenb,,,,,,
+2228235,11,DcBasenb,Dc in Unicode,v:unicodePua,Unicode,.dcbnb,,,,,,,,,unicodePua = extension to Unicode using the Private Use Areas,
+2228315,91,DcBasenbFragment,DcBasenb Fragment,v:unicodePua,DcBasenb,,,,,,,,,,,
 2228500,276,Csur,ConScript Unicode Registry,v:unicodePua,,,,,,,,,,,,
-2228501,277,Ucsur,Under-ConScript Unicode Registry,v:unicodePua,,,,,,Csur,,,,,,
+2228501,277,Ucsur,Under-ConScript Unicode Registry,v:unicodePua,Csur,,,,,,,,,,,

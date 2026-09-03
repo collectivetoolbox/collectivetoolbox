@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -18,12 +18,12 @@ Import/export/tests support columns meaning:
 2228451,227,Uri,URI (Uniform Resource Identifier),identifier,,,,,,,,,,,,
 2228452,228,FileName,File name,identifier,,,,,,,,,,,,
 2228453,229,FilePath,File path,identifier,,,,,,,,,,,,
-2228454,230,Lnk,Windows shortcut,identifier,application/x-ms-shortcut,".lnk, .url, .cda",,,,,,,,,,
-2228455,231,MacAlias,Mac alias,identifier,,,com.apple.alias-file,alis,,,,,,,,
+2228454,230,Lnk,Windows shortcut,identifier,,".lnk, .url, .cda",application/x-ms-shortcut,,,,,,,,,
+2228455,231,MacAlias,Mac alias,identifier,,,,com.apple.alias-file,alis,,,,,,,
 2228456,232,MacBookmark,Mac bookmark,identifier,,,,,,,,,,,,
-2228457,233,Torrent,Torrent,identifier,application/x-bittorrent,.torrent,,,,,,,,,,
+2228457,233,Torrent,Torrent,identifier,,.torrent,application/x-bittorrent,,,,,,,,,
 2228458,234,Btih,Torrent info hash,identifier,,,,,,,,,,,,
-2228459,235,Magnet,Magnet URI,identifier,,,,,,Uri,,,,,,
+2228459,235,Magnet,Magnet URI,identifier,Uri,,,,,,,,,,,
 2228460,236,IaIdentifier,Internet Archive item identifier,identifier,,,,,,,,,,,,
-2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,application/x-bittorrent,~_archive\.torrent$~,,,,Torrent,,,,,,
+2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,Torrent,~_archive\.torrent$~,application/x-bittorrent,,,,,,,,,
 ,,DcIdentifier,,,,,,,,,,,,,,

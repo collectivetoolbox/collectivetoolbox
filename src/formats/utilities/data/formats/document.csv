@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"MIME (Primary MIME type first, followed by comma-separated aliases)","Extensions (Primary extension first, followed by comma-separated alternatives)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),BaseFormat or Chain,"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat or Chain,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -21,8 +21,8 @@ Import/export/tests support columns meaning:
 2228238,14,Text,Text,document,,.txt,,,,,,,,encoding,HTML and text both should default to UTF8 as the default encoding. Encodings fill a somewhat odd role since they are both encodings and formats (with the text format plus a given encoding being the same thing as that encoding by itself).,
 2228241,17,Elad,EITE Language in ASCII documents (ELAD),document,,.elad,,,,,,1,,,,
 2228245,21,EiteColorCoded,Color-coded HTML integer list,document,,.htm,,,,,,1,,,HTML file containing color-coded Dc integer list,
-2228305,81,CString,C string (null-terminated),document,,,,,,String,,,,,,
-2228306,82,PascalString,Pascal string,document,,,,,,String,,,,,,
+2228305,81,CString,C string (null-terminated),document,String,,,,,,,,,,,
+2228306,82,PascalString,Pascal string,document,String,,,,,,,,,,,
 2228312,88,DcText,DcText,document,,,,,,,,,,,,
 2228313,89,DcUtf,DcUtf,document,,,,,,,,,,,,
 2228314,90,DcList,DcList,document,,,,,,,,,,,,
@@ -39,10 +39,10 @@ Import/export/tests support columns meaning:
 2228326,102,Dce2txt,dce2txt,document,,,,,,,,,,,,
 2228327,103,Dce2hex,dce2hex,document,,,,,,,,,,,,
 2228328,104,Hex2dce,hex2dce,document,,,,,,,,,,,,
-2228329,105,Dce_3_01a,DCE 3.01a,document,,,,,,Dce,,,,,,
-2228330,106,Dce_3_01a_raw,DCE 3.01a (raw),document,,,,,,Dce_3_01a,,,,,,
-2228331,107,Dce_3_01a_hex,DCE 3.01a (hex-encoded),document,,,,,,Dce_3_01a & Hexadecimal,,,,,,
-2228332,108,Dce_3_01a_raw_hex,DCE 3.01a (raw hex-encoded),document,,,,,,Dce_3_01a_raw & Hexadecimal,,,,,,
+2228329,105,Dce_3_01a,DCE 3.01a,document,Dce,,,,,,,,,,,
+2228330,106,Dce_3_01a_raw,DCE 3.01a (raw),document,Dce_3_01a,,,,,,,,,,,
+2228331,107,Dce_3_01a_hex,DCE 3.01a (hex-encoded),document,Dce_3_01a & Hexadecimal,,,,,,,,,,,
+2228332,108,Dce_3_01a_raw_hex,DCE 3.01a (raw hex-encoded),document,Dce_3_01a_raw & Hexadecimal,,,,,,,,,,,
 2228333,109,DcIdList,Dc ID list (ASCII),document,,,,,,,,,,,Is this the same thing as dcil?,
 2228335,111,Utf8_Dc64,"UTF-8 (Base64-encoded, ASCII Dc ID list)",document,,,,,,,,,,,,
 2228336,112,Utf8_Dc64_enc,"UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)",document,,,,,,,,,,,,
@@ -68,13 +68,13 @@ Import/export/tests support columns meaning:
 2228401,177,JsonFeed11,JSON Feed 1.1,document,,.json,,,,,,,,,,
 2228402,178,WfscanOutput,`wfscan` output (a tool to make some binary data and file formats more readable),document,,,,,,,,,,,,
 2228403,179,WfparseOutput,`wfparser` output (a tool to make some binary data and file formats more readable),document,,,,,,,,,,,,
-2228502,278,Mime,Multipurpose Internet Mail Extensions,document,"message/rfc822, multipart/mixed",".eml, .mim, .mime",,,,,,,,,,
-2228518,294,OutlookMsg,Microsoft Outlook Email,document,application/vnd.ms-outlook,.msg,,,,,,,,,,
-2228539,315,AppleSingle,AppleSingle,document,application/applefile,.as,,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
-2228540,316,AppleDouble,AppleDouble (RFC 1740),document,multipart/appledouble,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+2228502,278,Mime,Multipurpose Internet Mail Extensions,document,,".eml, .mim, .mime","message/rfc822, multipart/mixed",,,,,,,,,
+2228518,294,OutlookMsg,Microsoft Outlook Email,document,,.msg,application/vnd.ms-outlook,,,,,,,,,
+2228539,315,AppleSingle,AppleSingle,document,,.as,application/applefile,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+2228540,316,AppleDouble,AppleDouble (RFC 1740),document,,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",multipart/appledouble,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
 2228541,317,CtbNode,Collective Toolbox serialized node package,document,,.ctbn,,,,,,,,,,
-2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,,.ctbn,,,,CtbNode,,,,,,
-2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,,.ctbn,,,,CtbNode,,,,,,
+2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,CtbNode,.ctbn,,,,,,,,,,
+2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,CtbNode,.ctbn,,,,,,,,,,
 2228557,333,AlphaWord,AlphaSmart AlphaWord file format,document,,,,,,,,,,,,
 2228564,340,Dcal,Dc ASCII List,document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing new Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
 2228568,344,Csdl,Comma-separated Dc list,document,,,,,,,,,,,"ASCII text containing list of integers representing new Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
