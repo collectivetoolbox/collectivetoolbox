@@ -869,10 +869,14 @@ pub struct BaseStringFormatSettings {
     /// Determines whether to recognize standard radix prefixes (such as `"0x"`,
     /// `"0b"`, or `"0o"`) as part of the number while parsing.
     ///
-    /// If `false`, prefixes are not recognized as part of the number: the
-    /// leading `0` will be treated as a number, followed by the prefix letter
-    /// as a string or separate character (e.g. `0x1A` would be read as `0`
-    /// followed by `x` and `1A`).
+    /// If `false`, prefixes are not stripped or recognized:
+    /// - If the prefix character is not a digit in the input base (such as `'x'`
+    ///   in hexadecimal), the leading `'0'` is parsed as a number, followed
+    ///   by the prefix letter as a non-digit delimiter, and the remaining
+    ///   digits as another number.
+    /// - If the prefix character *is* a valid digit in the input base (such as
+    ///   `'b'` in base 16, or `'x'` in bases 34..=36 and base 64), the prefix
+    ///   character is parsed directly as part of a single larger number.
     pub parse_prefixes: bool,
     /// Derives the maximum digit chunk width for numbers based on the maximum
     /// value to be represented (e.g. `limit = 255` chunks numbers into byte-sized
@@ -934,7 +938,7 @@ pub fn casefold_base_chars_in_string(
     Ok(result)
 }
 
-/// Parse a string contaning numbers in base 2 through 36, and print it
+/// Parse a string containing numbers in base 2 through 64 and print it
 /// formatted. Will warn for extra characters other than spaces and commas.
 pub fn format_base_string(
     s: &str,
@@ -1385,5 +1389,240 @@ mod tests {
         let un_b64_parsed =
             parse_natural_system(&un_b64_str, un_b64_sys).unwrap();
         assert_eq!(un_b64_parsed, un_val);
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_prefixes_behavior() {
+        let default_settings = BaseStringFormatSettings::default();
+
+        // 1. parse_prefixes = true (default): strips 0x in hex
+        let (res, log) =
+            base_to_base_string("0x1A", 16, 10, &default_settings).unwrap();
+        assert_eq!(res, "26");
+        assert!(!log.has_warnings());
+
+        // 2. parse_prefixes = false in base 16 where 'x' is NOT a digit:
+        // '0' is parsed as 0, 'x' is non-digit, '1A' is 26 -> output "0 26"
+        let no_prefix_settings = BaseStringFormatSettings {
+            parse_prefixes: false,
+            ..Default::default()
+        };
+        let (res, log) =
+            base_to_base_string("0x1A", 16, 10, &no_prefix_settings).unwrap();
+        assert_eq!(res, "0 26");
+        assert!(log.has_warnings());
+
+        // 3. parse_prefixes = false in base 16 with '0b' prefix:
+        // In base 16, 'b' IS a valid hex digit (value 11), so "0b10" parses as
+        // a single hex number: 0xB10 = 11 * 256 + 1 * 16 = 2832
+        let (res, _log) =
+            base_to_base_string("0b10", 16, 10, &no_prefix_settings).unwrap();
+        assert_eq!(res, "2832");
+
+        // 4. parse_prefixes = false in base 36 where 'x' IS a digit (value 33):
+        // "0x10" parses as single base-36 number: 33 * 36^2 + 1 * 36 = 42804
+        let (res, _log) =
+            base_to_base_string("0x10", 36, 10, &no_prefix_settings).unwrap();
+        assert_eq!(res, "42804");
+    }
+
+    #[crate::ctb_test]
+    fn test_filter_and_collapse_options() {
+        // filter_chars = true (default): non-digits stripped, separated by space
+        let default_settings = BaseStringFormatSettings::default();
+        let (res, _) =
+            base_to_base_string("10, 20, 30", 10, 16, &default_settings)
+                .unwrap();
+        assert_eq!(res, "A 14 1E");
+
+        // filter_chars = false: literal delimiters preserved
+        let raw_delim_settings = BaseStringFormatSettings {
+            filter_chars: false,
+            separator: String::new(),
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("10, 20, 30", 10, 16, &raw_delim_settings)
+                .unwrap();
+        assert_eq!(res, "A, 14, 1E");
+
+        // collapse_filtered = true: inline non-digits (like '_') do not break numbers
+        let collapse_settings = BaseStringFormatSettings {
+            collapse_filtered: true,
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("10_000", 10, 10, &collapse_settings).unwrap();
+        assert_eq!(res, "10000");
+
+        // collapse_only = ["_"]: only '_' is collapsed inline without warnings
+        let collapse_only_settings = BaseStringFormatSettings {
+            collapse_only: vec!["_".to_string()],
+            ..Default::default()
+        };
+        let (res, log) =
+            base_to_base_string("10_000", 10, 10, &collapse_only_settings)
+                .unwrap();
+        assert_eq!(res, "10000");
+        assert!(!log.has_warnings());
+    }
+
+    #[crate::ctb_test]
+    fn test_padding_modes() {
+        // Fixed pad_l = 4
+        let pad_l_settings = BaseStringFormatSettings {
+            pad: BaseConversionPaddingMode {
+                pad_l: 4,
+                pad_fit: false,
+            },
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("5", 10, 16, &pad_l_settings).unwrap();
+        assert_eq!(res, "0005");
+
+        // pad_fit with limit = 255 in hex (pads to 2 hex digits)
+        let pad_fit_settings = BaseStringFormatSettings {
+            limit: 255,
+            pad: BaseConversionPaddingMode {
+                pad_l: 0,
+                pad_fit: true,
+            },
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("5", 10, 16, &pad_fit_settings).unwrap();
+        assert_eq!(res, "05");
+
+        // pad_fit with limit = 255 in binary (pads to 8 binary digits)
+        let (res, _) =
+            base_to_base_string("5", 10, 2, &pad_fit_settings).unwrap();
+        assert_eq!(res, "00000101");
+    }
+
+    #[crate::ctb_test]
+    fn test_base_greater_than_36_formatting() {
+        // 1. Convert decimal to base 64 with prefix, separator, and padding
+        let b64_out_settings = BaseStringFormatSettings {
+            prefix: "64#".to_string(),
+            separator: ", ".to_string(),
+            pad: BaseConversionPaddingMode {
+                pad_l: 3,
+                pad_fit: false,
+            },
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        // 0 -> 'AAA', 1 -> 'AAB', 63 -> 'AA/', 64 -> 'ABA', 255 -> 'AD/'
+        let (res, log) = base_to_base_string(
+            "0 1 63 64 255",
+            10,
+            64,
+            &b64_out_settings,
+        )
+        .unwrap();
+        assert_eq!(res, "64#AAA, 64#AAB, 64#AA/, 64#ABA, 64#AD/");
+        assert!(!log.has_warnings());
+
+        // 2. Convert base 64 input to hex output
+        let b64_in_settings = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Base64Standard,
+            separator: " ".to_string(),
+            lowercase: true,
+            ..Default::default()
+        };
+        // 'BA' = 64 (0x40), 'D/' = 255 (0xff)
+        let (res, log) =
+            base_to_base_string("BA D/", 64, 16, &b64_in_settings).unwrap();
+        assert_eq!(res, "40 ff");
+        assert!(!log.has_warnings());
+
+        // 3. Format base 64 in-place with format_base_string
+        let b64_format_settings = BaseStringFormatSettings {
+            prefix: "@".to_string(),
+            separator: " | ".to_string(),
+            pad: BaseConversionPaddingMode {
+                pad_l: 4,
+                pad_fit: false,
+            },
+            input_alphabet: BaseAlphabet::Base64Standard,
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        let (res, log) =
+            format_base_string("BA D/", 64, &b64_format_settings).unwrap();
+        assert_eq!(res, "@AABA | @AAD/");
+        assert!(!log.has_warnings());
+
+        // 4. Custom intermediate base > 36 (e.g. base 48)
+        let dec_to_b48 = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Standard,
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        // In base64 alphabet: index 47 = 'v', 48 = 'w'.
+        // 47 in base 48 is 'v'.
+        // 48 in base 48 is 1 * 48 + 0 = 'BA'.
+        let (res, log) =
+            base_to_base_string("47 48", 10, 48, &dec_to_b48).unwrap();
+        assert_eq!(res, "v BA");
+        assert!(!log.has_warnings());
+
+        // Convert back from base 48 to decimal
+        let b48_to_dec = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Base64Standard,
+            output_alphabet: BaseAlphabet::Standard,
+            ..Default::default()
+        };
+        let (res, log) =
+            base_to_base_string("v BA", 48, 10, &b48_to_dec).unwrap();
+        assert_eq!(res, "47 48");
+        assert!(!log.has_warnings());
+
+        // Converting directly between two different bases > 36:
+        // 'BA' in base 48 is 48. In base 64, 48 is 'w'.
+        let b48_to_b64 = BaseStringFormatSettings {
+            input_alphabet: BaseAlphabet::Base64Standard,
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        let (res, log) =
+            base_to_base_string("BA", 48, 64, &b48_to_b64).unwrap();
+        assert_eq!(res, "w");
+        assert!(!log.has_warnings());
+
+        // 5. Case sensitivity preservation: lowercase setting must not alter
+        // Base64Standard letters because 'A' (0) != 'a' (26).
+        let b64_case_settings = BaseStringFormatSettings {
+            lowercase: true,
+            output_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("0 26", 10, 64, &b64_case_settings).unwrap();
+        assert_eq!(res, "A a");
+
+        // 6. Chunk limit with base 64:
+        // Limit = 63 requires 1 digit in base 64 (0..=63) -> "BABA" is chunked
+        // into 1-digit numbers: 'B' (1), 'A' (0), 'B' (1), 'A' (0) -> "1 0 1 0".
+        let b64_1digit_limit = BaseStringFormatSettings {
+            limit: 63,
+            input_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("BABA", 64, 10, &b64_1digit_limit).unwrap();
+        assert_eq!(res, "1 0 1 0");
+
+        // Limit = 4095 requires 2 digits in base 64 (0..=4095) -> "BABA" is
+        // chunked into 2-digit numbers: "BA" (64), "BA" (64) -> "64 64".
+        let b64_2digit_limit = BaseStringFormatSettings {
+            limit: 4095,
+            input_alphabet: BaseAlphabet::Base64Standard,
+            ..Default::default()
+        };
+        let (res, _) =
+            base_to_base_string("BABA", 64, 10, &b64_2digit_limit).unwrap();
+        assert_eq!(res, "64 64");
     }
 }
