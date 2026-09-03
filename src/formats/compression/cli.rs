@@ -232,6 +232,55 @@ where
         Ok(CliCompressionOutput::FileWritten(target_path))
     }
 }
+compress() -> ToolResult {
+            let cli_output =
+                ctb_formats_compression::cli::execute_cli_compress(
+                    args.clone(),
+                    read_file_or_stdin,
+                    check_overwrite_prompt,
+                )?;
+            match cli_output {
+                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
+                    Ok(ToolResult::immediate_ok(bytes))
+                }
+                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
+                    Ok(ToolResult::immediate_ok(Vec::new()))
+                }
+                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
+                    Ok(ToolResult::immediate_err(
+                        "Operation cancelled.\n".as_bytes().to_vec(),
+                        1,
+                    ))
+                }
+            }
+        }
+        decompress() -> Tool Result{
+                        let cli_output =
+                ctb_formats_compression::cli::execute_cli_decompress(
+                    ctb_formats_compression::cli::CliDecompressArgs {
+                        format: format.clone(),
+                        input_path: file.clone(),
+                        output_path: output.clone(),
+                        force: *force,
+                    },
+                    read_file_or_stdin,
+                    check_overwrite_prompt,
+                )?;
+            match cli_output {
+                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
+                    Ok(ToolResult::immediate_ok(bytes))
+                }
+                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
+                    Ok(ToolResult::immediate_ok(Vec::new()))
+                }
+                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
+                    Ok(ToolResult::immediate_err(
+                        "Operation cancelled.\n".as_bytes().to_vec(),
+                        1,
+                    ))
+                }
+            }
+        }
 
 #[cfg(test)]
 #[expect(

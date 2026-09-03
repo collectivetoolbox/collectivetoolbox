@@ -1,6 +1,15 @@
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
+            let data = read_file_or_stdin(file.as_path())?;
+            let hash_algo =
+                ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
+            let output = format!(
+                "{}\n",
+                ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
+            );
+            Ok(ToolResult::immediate_ok(output.into_bytes()))
+
 #[cfg(test)]
 #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {

@@ -888,48 +888,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             username,
             password_stdin,
         } => {
-            use std::io::IsTerminal;
-            use std::io::Write;
 
-            let password_str =
-                if !password_stdin && std::io::stdin().is_terminal() {
-                    print!("Enter password for '{username}': ");
-                    std::io::stdout().flush()?;
-                    let mut p1 = String::new();
-                    std::io::stdin().read_line(&mut p1)?;
-                    let p1 = p1.trim_end_matches(['\r', '\n']).to_string();
-
-                    print!("Confirm password: ");
-                    std::io::stdout().flush()?;
-                    let mut p2 = String::new();
-                    std::io::stdin().read_line(&mut p2)?;
-                    let p2 = p2.trim_end_matches(['\r', '\n']).to_string();
-
-                    if p1 != p2 {
-                        bail!("Passwords do not match");
-                    }
-                    p1
-                } else {
-                    let mut p = String::new();
-                    std::io::stdin().read_line(&mut p)?;
-                    p.trim_end_matches(['\r', '\n']).to_string()
-                };
-
-            if password_str.is_empty() {
-                bail!("Password cannot be empty");
-            }
-
-            let password =
-                ctb_utilities::password::Password::from_string(&password_str);
-            let user =
-                ctb_storage::user::add_non_admin_user(username, &password)?;
-
-            println!(
-                "User '{name}' registered successfully with ID {id}.",
-                name = user.name(),
-                id = user.local_id()
-            );
-            Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::WaitShutdown { pid } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
@@ -1074,133 +1033,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::IA { command } => match command {
-            IACommand::Verify {
-                item_path,
-                identifier,
-                check_live,
-                original,
-            } => {
-                let item_path = if let Some(item_path) = item_path {
-                    item_path.clone()
-                } else {
-                    std::env::current_dir()
-                        .context("Failed to get current directory")?
-                };
-                Ok(ToolResult::immediate_ok(
-                    ctb_formats_internetarchive::verify(
-                        item_path.as_path(),
-                        identifier.as_deref(),
-                        *check_live,
-                        *original,
-                    )?,
-                ))
-            }
-            IACommand::Sha1 {
-                target,
-                identifier,
-                check_live,
-            } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::iasha1(
-                    target,
-                    identifier.as_deref(),
-                    *check_live,
-                )?,
-            )),
-            IACommand::Md5 {
-                target,
-                identifier,
-                check_live,
-            } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::iamd5(
-                    target,
-                    identifier.as_deref(),
-                    *check_live,
-                )?,
-            )),
-            IACommand::Contains {
-                target,
-                desired_file,
-            } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::contains(target, desired_file)?,
-            )),
-            IACommand::ListPlain { target } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::listplain(target)?,
-            )),
-            IACommand::Metadata { target } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::metadata(target)?,
-            )),
-            IACommand::FilesXml { target } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::filesxml(target)?,
-            )),
-            IACommand::MetaXml { target } => Ok(ToolResult::immediate_ok(
-                ctb_formats_internetarchive::metaxml(target)?,
-            )),
-            IACommand::Download {
-                target,
-                output_dir,
-                original,
-                progress,
-                no_progress,
-            } => {
-                let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(
-                        *progress,
-                        *no_progress,
-                    );
-                Ok(ToolResult::immediate_ok(
-                    ctb_formats_internetarchive::download(
-                        target,
-                        output_dir.as_deref(),
-                        *original,
-                        progress_reporter,
-                    )?,
-                ))
-            }
-            IACommand::DownloadAsStream { target } => {
-                Ok(ToolResult::immediate_ok(
-                    ctb_formats_internetarchive::download_as_stream(target)?,
-                ))
-            }
-            IACommand::DownloadHere {
-                target,
-                output_dir,
-                progress,
-                no_progress,
-            } => {
-                let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(
-                        *progress,
-                        *no_progress,
-                    );
-                Ok(ToolResult::immediate_ok(
-                    ctb_formats_internetarchive::download_here(
-                        target,
-                        output_dir.as_deref(),
-                        progress_reporter,
-                    )?,
-                ))
-            }
-            IACommand::Checkeddl {
-                target,
-                output_dir,
-                original,
-                progress,
-                no_progress,
-            } => {
-                let progress_reporter =
-                    ctb_utilities::ui::progress::Progress::from_flags(
-                        *progress,
-                        *no_progress,
-                    );
-                Ok(ToolResult::immediate_ok(
-                    ctb_formats_internetarchive::checkeddl(
-                        target,
-                        output_dir.as_deref(),
-                        *original,
-                        progress_reporter,
-                    )?,
-                ))
-            }
+
         },
         Command::Pan2Csv {
             patterns,
@@ -1214,54 +1047,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             run_startup_procedure,
             pan_file,
         } => {
-            let data = read_file_or_stdin(pan_file.as_path())?;
-            let include_header = if *no_header { false } else { *header };
-            let enc = match encoding.to_ascii_lowercase().as_str() {
-                "mac" | "macroman" | "mac-roman" | "macintosh" => {
-                    ctb_formats_pan::output::PanCsvEncoding::MacRoman
-                }
-                "win" | "windows" | "win1252" | "windows-1252"
-                | "panwindows" => {
-                    ctb_formats_pan::output::PanCsvEncoding::Windows
-                }
-                "utf8-windows" | "windows-utf8" | "utf8-win" | "win-utf8" => {
-                    ctb_formats_pan::output::PanCsvEncoding::Utf8Windows
-                }
-                _ => ctb_formats_pan::output::PanCsvEncoding::Utf8,
-            };
-            let delim = match delimiter.to_ascii_lowercase().replace('_', "-").as_str() {
-                "tab" | "tabs" | "tsv" => {
-                    ctb_formats_pan::output::PanExportDelimiter::Tabs
-                }
-                "tab-no-quotes"
-                | "tabs-no-quotes"
-                | "tab-without-quotes"
-                | "tabs-without-quotes"
-                | "tabs-w/o-quotes"
-                | "tsv-no-quotes" => {
-                    ctb_formats_pan::output::PanExportDelimiter::TabsWithoutQuotes
-                }
-                "wordperfect" | "wp" => {
-                    ctb_formats_pan::output::PanExportDelimiter::WordPerfect
-                }
-                "commas" | "csv" => ctb_formats_pan::output::PanExportDelimiter::Commas,
-                _ => bail!("Unknown format for --delimiter: {delimiter:?}. Valid options are: commas, tabs, tabs-no-quotes, wordperfect"),
-            };
-            let opts = ctb_formats_pan::output::PanCsvOptions {
-                output_patterns: *patterns,
-                truncate_multiline: !*keep_multiline,
-                include_header,
-                encoding: enc,
-                delimiter: delim,
-                crlf: *crlf
-                    || (delim != ctb_formats_pan::output::PanExportDelimiter::WordPerfect
-                        && enc == ctb_formats_pan::output::PanCsvEncoding::Windows),
-                replicate_double_encoding: *replicate_double_encoding,
-                run_startup_procedure: *run_startup_procedure,
-            };
-            let output =
-                ctb_formats_pan::output::pan_to_csv_with_options(&data, &opts)?;
-            Ok(ToolResult::immediate_ok(output))
+
         }
         Command::StagelBootstrapParse { input_file } => {
             let data = std::fs::read(input_file).with_context(|| {
@@ -1427,36 +1213,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             file,
             prefix_0x,
         } => {
-            let data = read_file_or_stdin(file.as_path())?;
-            let hash_algo =
-                ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
-            let output = format!(
-                "{}\n",
-                ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
-            );
-            Ok(ToolResult::immediate_ok(output.into_bytes()))
+
         }
         Command::Compress(args) => {
-            let cli_output =
-                ctb_formats_compression::cli::execute_cli_compress(
-                    args.clone(),
-                    read_file_or_stdin,
-                    check_overwrite_prompt,
-                )?;
-            match cli_output {
-                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
-                    Ok(ToolResult::immediate_ok(bytes))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
-                    Ok(ToolResult::immediate_ok(Vec::new()))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
-                    Ok(ToolResult::immediate_err(
-                        "Operation cancelled.\n".as_bytes().to_vec(),
-                        1,
-                    ))
-                }
-            }
+
         }
         Command::Decompress {
             format,
