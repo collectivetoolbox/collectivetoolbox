@@ -340,58 +340,24 @@ mod tests {
         assert!(out_uni_info.contains("LATIN CAPITAL LETTER A"));
     }
 
-    enum Command {
-        Gid(GidArgs),
-    }
+    #[crate::ctb_test]
+    fn test_gid_command() {
+        let cmd_gid_short = GidArgs {
+            id: "1114408".to_string(),
+            short: true,
+            info: false,
+        };
+        let res_gid_short = execute_cli_gid(&cmd_gid_short).expect("Run gid --s");
+        assert_eq!(res_gid_short, "dc:296\n");
 
-    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-        match cmd {
-            Command::Gid(args) => {
-                let output = execute_cli_gid(args)?;
-                Ok(ToolResult::immediate_ok(output.into_bytes()))
-            }
-        }
-    }
-
-    #[crate::ctb_test("tokio")]
-    async fn test_gid_command() {
-
-        let cmd_gid_short =
-            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
-                id: "1114408".to_string(),
-                short: true,
-                info: false,
-            });
-        let res_gid_short = run_lightweight_command(&cmd_gid_short)
-            .await
-            .expect("Run gid --s");
-        match res_gid_short {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8"),
-                    "dc:296\n"
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-        let cmd_gid_info =
-            Command::Gid(ctb_formats_dctext::cli_identifiers::GidArgs {
-                id: "1114408".to_string(),
-                short: false,
-                info: true,
-            });
-        let res_gid_info = run_lightweight_command(&cmd_gid_info)
-            .await
-            .expect("Run gid -i");
-        match res_gid_info {
-            ToolResult::Immediate { stdout, .. } => {
-                let s = String::from_utf8(stdout).expect("UTF-8");
-                assert!(s.starts_with(
-                    "1114408\nNext number is a Dc-equivalent reference"
-                ));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let cmd_gid_info = GidArgs {
+            id: "1114408".to_string(),
+            short: false,
+            info: true,
+        };
+        let res_gid_info = execute_cli_gid(&cmd_gid_info).expect("Run gid -i");
+        assert!(res_gid_info.starts_with(
+            "1114408\nNext number is a Dc-equivalent reference"
+        ));
     }
 }

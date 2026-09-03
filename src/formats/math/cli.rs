@@ -817,78 +817,17 @@ mod tests {
     }
 
 
-    struct StringInput {
-        input: Vec<String>,
-    }
-    impl StringInput {
-        fn joined(&self) -> String {
-            self.input.join(" ")
-        }
-    }
-    enum Command {
-        Hex2Dec {
-            string_input: StringInput,
-            base_args: BaseArgs,
-        },
-        Dec2Hex {
-            string_input: StringInput,
-            base_args: BaseArgs,
-        },
-        Hexfmt {
-            string_input: StringInput,
-            base_args: BaseArgs,
-        },
-    }
-    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-        match cmd {
-            Command::Hex2Dec {
-                string_input,
-                base_args,
-            } => {
-                super::run_base_convert(
-                    &Some(16),
-                    &Some(10),
-                    &string_input.joined(),
-                    base_args,
-                )
-            }
-            Command::Dec2Hex {
-                string_input,
-                base_args,
-            } => {
-                super::run_base_convert(
-                    &Some(10),
-                    &Some(16),
-                    &string_input.joined(),
-                    base_args,
-                )
-            }
-            Command::Hexfmt {
-                string_input,
-                base_args,
-            } => {
-                super::run_base_convert(
-                    &Some(16),
-                    &Some(16),
-                    &string_input.joined(),
-                    base_args,
-                )
-            }
-        }
-    }
-
-    #[crate::ctb_test("tokio")]
-    async fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() -> Result<()> {
+    #[crate::ctb_test]
+    fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() -> Result<()> {
         use ctb_formats_math::cli::BaseArgs;
 
         // hex2dec with unquoted tokens
-        let cmd = Command::Hex2Dec {
-            string_input: StringInput {
-                input: vec!["1A".to_string(), "2B".to_string(), "3C".to_string()],
-            },
-            base_args: BaseArgs::default(),
-        };
-        let res = run_lightweight_command(&cmd).await?;
+        let res = super::run_base_convert(
+            &Some(16),
+            &Some(10),
+            "1A 2B 3C",
+            &BaseArgs::default(),
+        )?;
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -898,13 +837,12 @@ mod tests {
         }
 
         // dec2hex with unquoted tokens
-        let cmd = Command::Dec2Hex {
-            string_input: StringInput {
-                input: vec!["255".to_string(), "128".to_string(), "64".to_string()],
-            },
-            base_args: BaseArgs::default(),
-        };
-        let res = run_lightweight_command(&cmd).await?;
+        let res = super::run_base_convert(
+            &Some(10),
+            &Some(16),
+            "255 128 64",
+            &BaseArgs::default(),
+        )?;
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -914,16 +852,15 @@ mod tests {
         }
 
         // hexfmt with prefix
-        let cmd = Command::Hexfmt {
-            string_input: StringInput {
-                input: vec!["1a".to_string(), "2b".to_string()],
-            },
-            base_args: BaseArgs {
+        let res = super::run_base_convert(
+            &Some(16),
+            &Some(16),
+            "1a 2b",
+            &BaseArgs {
                 prefix: "0x".to_string(),
                 ..Default::default()
             },
-        };
-        let res = run_lightweight_command(&cmd).await?;
+        )?;
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -933,13 +870,12 @@ mod tests {
         }
 
         // hex2dec continuous hex scalar vs bytes
-        let cmd_scalar = Command::Hex2Dec {
-            string_input: StringInput {
-                input: vec!["deadbeef".to_string()],
-            },
-            base_args: BaseArgs::default(),
-        };
-        let res_scalar = run_lightweight_command(&cmd_scalar).await?;
+        let res_scalar = super::run_base_convert(
+            &Some(16),
+            &Some(10),
+            "deadbeef",
+            &BaseArgs::default(),
+        )?;
         match res_scalar {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -948,18 +884,17 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_bytes = Command::Hex2Dec {
-            string_input: StringInput {
-                input: vec!["deadbeef".to_string()],
-            },
-            base_args: BaseArgs {
+        let res_bytes = super::run_base_convert(
+            &Some(16),
+            &Some(10),
+            "deadbeef",
+            &BaseArgs {
                 bytes: true,
                 limit: 255,
                 pad: true,
                 ..Default::default()
             },
-        };
-        let res_bytes = run_lightweight_command(&cmd_bytes).await?;
+        )?;
         match res_bytes {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);

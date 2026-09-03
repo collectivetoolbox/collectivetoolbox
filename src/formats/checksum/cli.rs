@@ -52,42 +52,20 @@ where
 #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
-    enum Command {
-        Csum {
-            algo: String,
-            file: PathBuf,
-            prefix_0x: bool,
-        },
-    }
-
-    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-        match cmd {
-            Command::Csum {
-                algo,
-                file,
-                prefix_0x,
-            } => super::csum(algo, file, prefix_0x, |p| Ok(std::fs::read(p)?)),
-        }
-    }
-
-
-    #[crate::ctb_test("tokio")]
-    async fn test_csum_command() {
+    #[crate::ctb_test]
+    fn test_csum_command() {
         let temp_dir = tempfile::tempdir().expect("Create temp dir");
         let temp_file_path = temp_dir.path().join("csum_test_temp.txt");
         std::fs::write(&temp_file_path, b"hello world")
             .expect("Write temp file");
 
-        let cmd = Command::Csum {
-            algo: "xxhash32".to_string(),
-            file: temp_file_path.clone(),
-            prefix_0x: false,
-        };
-        let result = run_lightweight_command(&cmd)
-            .await
-            .expect("Run lightweight command");
+        let result = super::csum(
+            &"xxhash32".to_string(),
+            &temp_file_path,
+            &false,
+            |p| Ok(std::fs::read(p)?),
+        ).expect("Run csum command");
         match result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "cebb6622\n");
@@ -95,14 +73,12 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let cmd_0x = Command::Csum {
-            algo: "xxhash32".to_string(),
-            file: temp_file_path.clone(),
-            prefix_0x: true,
-        };
-        let result_0x = run_lightweight_command(&cmd_0x)
-            .await
-            .expect("Run lightweight command");
+        let result_0x = super::csum(
+            &"xxhash32".to_string(),
+            &temp_file_path,
+            &true,
+            |p| Ok(std::fs::read(p)?),
+        ).expect("Run csum command");
         match result_0x {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "0xcebb6622\n");

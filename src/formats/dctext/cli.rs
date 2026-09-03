@@ -427,164 +427,74 @@ mod tests {
         println!("OUTPUT:\n{desc}");
     }
 
-    enum Command {
-        CharacterDescription(CharacterDescriptionArgs),
-        ShortDc(crate::cli_identifiers::ShortDcArgs),
-        ShortFmt(crate::cli_identifiers::ShortFmtArgs),
+    #[crate::ctb_test]
+    fn test_character_description_command() {
+        let args = CharacterDescriptionArgs {
+            input: Some("A".to_string()),
+            ..Default::default()
+        };
+        let out = execute_cli_character_description(args, |p| Ok(std::fs::read(p)?))
+            .expect("Run character_description")
+            .unwrap_or_default();
+        assert_eq!(
+            String::from_utf8(out).expect("UTF-8 stdout"),
+            "U+0041 : LATIN CAPITAL LETTER A\n"
+        );
     }
 
-    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-        match cmd {
-            Command::CharacterDescription(args) => {
-                let out = execute_cli_character_description(
-                    args.clone(),
-                    |p| Ok(std::fs::read(p)?),
-                )?;
-                let bytes = match out {
-                    Some(b) => b,
-                    None => Vec::new(),
-                };
-                Ok(ToolResult::immediate_ok(bytes))
-            }
-            Command::ShortDc(args) => {
-                let output =
-                    crate::cli_identifiers::execute_cli_short_dc(args)?;
-                Ok(ToolResult::immediate_ok(output.into_bytes()))
-            }
-            Command::ShortFmt(args) => {
-                let output =
-                    crate::cli_identifiers::execute_cli_short_fmt(args)?;
-                Ok(ToolResult::immediate_ok(output.into_bytes()))
-            }
-        }
-    }
+    #[crate::ctb_test]
+    fn test_character_description_dcal_and_short_commands() {
+        let args_dcal = CharacterDescriptionArgs {
+            input: Some("65 1114408 2228304".to_string()),
+            from: CharacterDescriptionInputFormat::Dcal,
+            ..Default::default()
+        };
+        let out_dcal = execute_cli_character_description(args_dcal, |p| Ok(std::fs::read(p)?))
+            .expect("Run character_description --from dcal")
+            .unwrap_or_default();
+        let s = String::from_utf8(out_dcal).expect("UTF-8 stdout");
+        let lines: Vec<&str> = s.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
+        assert!(lines[1].starts_with(
+            "1114408 : <Dc> Next number is a Dc-equivalent reference"
+        ));
+        assert!(lines[2].starts_with("2228304 : String"));
 
-    #[crate::ctb_test("tokio")]
-    async fn test_character_description_command() {
-
-        let cmd3 = Command::CharacterDescription(
-            ctb_formats_dctext::cli::CharacterDescriptionArgs {
-                input: Some("A".to_string()),
-                ..Default::default()
-            },
-        );
-        let result3 = run_lightweight_command(&cmd3)
-            .await
-            .expect("Run character_description");
-        match result3 {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8 stdout"),
-                    "U+0041 : LATIN CAPITAL LETTER A\n"
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-    }
-
-    #[crate::ctb_test("tokio")]
-    async fn test_character_description_dcal_and_short_commands() {
-
-        let cmd3_dcal = Command::CharacterDescription(
-            ctb_formats_dctext::cli::CharacterDescriptionArgs {
-                input: Some("65 1114408 2228304".to_string()),
-                from: ctb_formats_dctext::cli::CharacterDescriptionInputFormat::Dcal,
-                ..Default::default()
-            },
-        );
-        let result3_dcal = run_lightweight_command(&cmd3_dcal)
-            .await
-            .expect("Run character_description --from dcal");
-        match result3_dcal {
-            ToolResult::Immediate { stdout, .. } => {
-                let s = String::from_utf8(stdout).expect("UTF-8 stdout");
-                let lines: Vec<&str> = s.lines().collect();
-                assert_eq!(lines.len(), 3);
-                assert_eq!(lines[0], "U+0041 : LATIN CAPITAL LETTER A");
-                assert!(lines[1].starts_with(
-                    "1114408 : <Dc> Next number is a Dc-equivalent reference"
-                ));
-                assert!(lines[2].starts_with("2228304 : String"));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-        let cmd_short_dc = Command::ShortDc(
-            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
-                id: "296".to_string(),
-                info: false,
-            },
-        );
-        let res_dc = run_lightweight_command(&cmd_short_dc)
-            .await
+        let args_short_dc = crate::cli_identifiers::ShortDcArgs {
+            id: "296".to_string(),
+            info: false,
+        };
+        let res_dc = crate::cli_identifiers::execute_cli_short_dc(&args_short_dc)
             .expect("Run short-dc");
-        match res_dc {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8"),
-                    "1114408\n"
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        assert_eq!(res_dc, "1114408\n");
 
-        let cmd_short_dc_i = Command::ShortDc(
-            ctb_formats_dctext::cli_identifiers::ShortDcArgs {
-                id: "296".to_string(),
-                info: true,
-            },
-        );
-        let res_dc_i = run_lightweight_command(&cmd_short_dc_i)
-            .await
+        let args_short_dc_i = crate::cli_identifiers::ShortDcArgs {
+            id: "296".to_string(),
+            info: true,
+        };
+        let res_dc_i = crate::cli_identifiers::execute_cli_short_dc(&args_short_dc_i)
             .expect("Run short-dc -i");
-        match res_dc_i {
-            ToolResult::Immediate { stdout, .. } => {
-                let s = String::from_utf8(stdout).expect("UTF-8");
-                assert!(s.starts_with(
-                    "1114408\nNext number is a Dc-equivalent reference"
-                ));
-                assert!(s.contains("Type: !Cx (Control: Dc special)"));
-                assert!(s.contains("Syntax: :~ [number]"));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        assert!(res_dc_i.starts_with(
+            "1114408\nNext number is a Dc-equivalent reference"
+        ));
+        assert!(res_dc_i.contains("Type: !Cx (Control: Dc special)"));
+        assert!(res_dc_i.contains("Syntax: :~ [number]"));
 
-        let cmd_short_fmt = Command::ShortFmt(
-            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
-                id: "80".to_string(),
-                info: false,
-            },
-        );
-        let res_fmt = run_lightweight_command(&cmd_short_fmt)
-            .await
+        let args_short_fmt = crate::cli_identifiers::ShortFmtArgs {
+            id: "80".to_string(),
+            info: false,
+        };
+        let res_fmt = crate::cli_identifiers::execute_cli_short_fmt(&args_short_fmt)
             .expect("Run short-fmt");
-        match res_fmt {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    String::from_utf8(stdout).expect("UTF-8"),
-                    "2228304\n"
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        assert_eq!(res_fmt, "2228304\n");
 
-        let cmd_short_fmt_i = Command::ShortFmt(
-            ctb_formats_dctext::cli_identifiers::ShortFmtArgs {
-                id: "80".to_string(),
-                info: true,
-            },
-        );
-        let res_fmt_i = run_lightweight_command(&cmd_short_fmt_i)
-            .await
+        let args_short_fmt_i = crate::cli_identifiers::ShortFmtArgs {
+            id: "80".to_string(),
+            info: true,
+        };
+        let res_fmt_i = crate::cli_identifiers::execute_cli_short_fmt(&args_short_fmt_i)
             .expect("Run short-fmt -i");
-        match res_fmt_i {
-            ToolResult::Immediate { stdout, .. } => {
-                let s = String::from_utf8(stdout).expect("UTF-8");
-                assert!(s.starts_with("2228304\nString\n\nCategory: semantic"));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
+        assert!(res_fmt_i.starts_with("2228304\nString\n\nCategory: semantic"));
     }
 }

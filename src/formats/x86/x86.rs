@@ -31,13 +31,6 @@ pub mod instruction_sets;
 pub use instruction_sets::extract_instruction_sets;
 
 #[cfg(test)]
-pub mod routing {
-    pub fn is_lightweight_command(cmd: &str) -> bool {
-        cmd == "x86-instruction-sets"
-    }
-}
-
-#[cfg(test)]
 #[expect(
     clippy::panic,
     clippy::expect_used,

@@ -37,20 +37,8 @@ pub fn php_to_csv(php_file: &Path) -> Result<ToolResult> {
 #[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    enum Command {
-        DceutilsPhpToCsv { php_file: PathBuf },
-    }
-
-    async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-        match cmd {
-            Command::DceutilsPhpToCsv { php_file } => super::php_to_csv(php_file),
-        }
-    }
-
-    #[crate::ctb_test("tokio")]
-    async fn test_dceutils_php_to_csv_command() {
+    #[crate::ctb_test]
+    fn test_dceutils_php_to_csv_command() {
         let temp_dir = tempfile::tempdir().expect("Create temp dir");
         let random_num = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -71,12 +59,7 @@ $my_test_array = array('a' => '1', 'b' => '2');
             let _ = std::fs::remove_file(expected_csv_path);
         }
 
-        let cmd = Command::DceutilsPhpToCsv {
-            php_file: php_path.clone(),
-        };
-        let result = run_lightweight_command(&cmd)
-            .await
-            .expect("Run lightweight command");
+        let result = super::php_to_csv(&php_path).expect("Run php_to_csv");
         match result {
             ToolResult::Immediate { .. } => {
                 assert!(expected_csv_path.exists());
@@ -89,6 +72,4 @@ $my_test_array = array('a' => '1', 'b' => '2');
 
         let _ = std::fs::remove_file(expected_csv_path);
     }
-
-
 }

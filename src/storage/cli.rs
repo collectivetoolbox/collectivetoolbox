@@ -79,18 +79,8 @@ pub fn adduser(username: &str, password_stdin: bool) -> Result<ToolResult> {
 mod tests {
     use super::*;
 
-    enum Command {
-        AddUser {
-            username: String,
-            password_stdin: bool,
-        },
-    }
-
-
-    #[crate::ctb_test("tokio")]
-    async fn test_adduser_command() -> Result<()> {
-        assert!(crate::routing::is_lightweight_command("adduser"));
-
+    #[crate::ctb_test]
+    fn test_adduser_command() -> Result<()> {
         let username = format!("cli_user_{}", function_name!());
         ctb_storage::user::User::delete_by_name(&username).ok();
 
@@ -100,11 +90,6 @@ mod tests {
         settings.allow_local_account_creation =
             ctb_utilities::json::maybe_value::MaybeValue::Value(true);
         settings.save()?;
-
-        let _cmd = Command::AddUser {
-            username: username.clone(),
-            password_stdin: true,
-        };
 
         // Note: Password comes from stdin or add_non_admin_user directly.
         // Let's test calling add_non_admin_user

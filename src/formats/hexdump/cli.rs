@@ -563,147 +563,77 @@ mod tests {
         );
     }
 
-    #[crate::ctb_test("tokio")]
-    async fn test_hex2bin_and_bin2hex_commands() {
-        enum Command {
-            Hex2Bin(ctb_formats_hexdump::cli::Hex2BinArgs),
-            Bin2Hex(ctb_formats_hexdump::cli::Bin2HexArgs),
-            Hexdump(ctb_formats_hexdump::cli::HexDumpArgs),
-            Xxd(ctb_formats_hexdump::cli::XxdArgs),
-        }
-
-        async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
-            let out = match cmd {
-                Command::Hex2Bin(args) => {
-                    execute_cli_hex2bin(args.clone(), |p| Ok(std::fs::read(p)?))?
-                }
-                Command::Bin2Hex(args) => {
-                    execute_cli_bin2hex(args.clone(), |p| Ok(std::fs::read(p)?))?
-                }
-                Command::Hexdump(args) => {
-                    execute_cli_hexdump(args.clone(), |p| Ok(std::fs::read(p)?))?
-                }
-                Command::Xxd(args) => {
-                    execute_cli_xxd(args.clone(), |p| Ok(std::fs::read(p)?))?
-                }
-            };
-            let bytes = match out {
-                Some(b) => b,
-                None => Vec::new(),
-            };
-            Ok(ToolResult::immediate_ok(bytes))
-        }
-
-        let cmd = Command::Hex2Bin(ctb_formats_hexdump::cli::Hex2BinArgs {
+    #[crate::ctb_test]
+    fn test_hex2bin_and_bin2hex_commands() {
+        let args = Hex2BinArgs {
             value: Some("48656c6c6f".to_string()),
             file: None,
             output: None,
-        });
-        let result = run_lightweight_command(&cmd).await.expect("Run hex2bin");
-        match result {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"Hello");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        };
+        let out = execute_cli_hex2bin(args, |p| Ok(std::fs::read(p)?)).expect("Run hex2bin");
+        assert_eq!(out, Some(b"Hello".to_vec()));
 
-        let cmd2 = Command::Bin2Hex(ctb_formats_hexdump::cli::Bin2HexArgs {
+        let args2 = Bin2HexArgs {
             value: Some("Hello".to_string()),
             file: None,
             output: None,
             hd: false,
             hf: false,
             xxd: false,
-        });
-        let result2 =
-            run_lightweight_command(&cmd2).await.expect("Run bin2hex");
-        match result2 {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(stdout, b"48656c6c6f");
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        };
+        let out2 = execute_cli_bin2hex(args2, |p| Ok(std::fs::read(p)?)).expect("Run bin2hex");
+        assert_eq!(out2, Some(b"48656c6c6f".to_vec()));
 
-        let cmd_hd = Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
+        let args_hd = HexDumpArgs {
             value: Some("Hello".to_string()),
             file: None,
             output: None,
             plain: false,
             xxd: false,
-        });
-        let result_hd =
-            run_lightweight_command(&cmd_hd).await.expect("Run hexdump");
-        match result_hd {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    stdout,
-                    ctb_formats_hexdump::to_fancy_hex_dump(b"Hello")
-                        .into_bytes()
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        };
+        let out_hd = execute_cli_hexdump(args_hd, |p| Ok(std::fs::read(p)?)).expect("Run hexdump");
+        assert_eq!(
+            out_hd,
+            Some(ctb_formats_hexdump::to_fancy_hex_dump(b"Hello").into_bytes())
+        );
 
-        let cmd_hd_plain =
-            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
-                value: Some("Hello".to_string()),
-                file: None,
-                output: None,
-                plain: true,
-                xxd: false,
-            });
-        let result_hd_plain = run_lightweight_command(&cmd_hd_plain)
-            .await
-            .expect("Run hexdump --plain");
-        match result_hd_plain {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    stdout,
-                    ctb_formats_hexdump::to_hex_dump(b"Hello").into_bytes()
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let args_hd_plain = HexDumpArgs {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            plain: true,
+            xxd: false,
+        };
+        let out_hd_plain = execute_cli_hexdump(args_hd_plain, |p| Ok(std::fs::read(p)?)).expect("Run hexdump --plain");
+        assert_eq!(
+            out_hd_plain,
+            Some(ctb_formats_hexdump::to_hex_dump(b"Hello").into_bytes())
+        );
 
-        let cmd_hd_xxd =
-            Command::Hexdump(ctb_formats_hexdump::cli::HexDumpArgs {
-                value: Some("Hello".to_string()),
-                file: None,
-                output: None,
-                plain: false,
-                xxd: true,
-            });
-        let result_hd_xxd = run_lightweight_command(&cmd_hd_xxd)
-            .await
-            .expect("Run hexdump --xxd");
-        match result_hd_xxd {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    stdout,
-                    ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes()
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let args_hd_xxd = HexDumpArgs {
+            value: Some("Hello".to_string()),
+            file: None,
+            output: None,
+            plain: false,
+            xxd: true,
+        };
+        let out_hd_xxd = execute_cli_hexdump(args_hd_xxd, |p| Ok(std::fs::read(p)?)).expect("Run hexdump --xxd");
+        assert_eq!(
+            out_hd_xxd,
+            Some(ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes())
+        );
 
-        let cmd_xxd = Command::Xxd(ctb_formats_hexdump::cli::XxdArgs {
+        let args_xxd = XxdArgs {
             value: Some("Hello".to_string()),
             file: None,
             output: None,
             plain: false,
             fancy: false,
-        });
-        let result_xxd =
-            run_lightweight_command(&cmd_xxd).await.expect("Run xxd");
-        match result_xxd {
-            ToolResult::Immediate { stdout, .. } => {
-                assert_eq!(
-                    stdout,
-                    ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes()
-                );
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
+        };
+        let out_xxd = execute_cli_xxd(args_xxd, |p| Ok(std::fs::read(p)?)).expect("Run xxd");
+        assert_eq!(
+            out_xxd,
+            Some(ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes())
+        );
     }
 }

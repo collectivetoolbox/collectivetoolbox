@@ -12,8 +12,5 @@ ctb-formats-utilities = { path = "../utilities" }
 malachite = "0.9.0"
 clap = { version = "4.5.54", features = ["derive"] }
 
-[dev-dependencies]
-tokio = "1"
-
 [lints]
 workspace = true
