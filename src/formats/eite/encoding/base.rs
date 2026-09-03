@@ -26,18 +26,34 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use anyhow::{Result, anyhow, bail};
+
 use crate::encoding::ascii::{byte_from_stagel_char, stagel_char_from_byte};
 pub use ctb_formats_math::base::{
     Base, BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
     NumeralSystem, base_to_base_string, casefold_base_chars_in_string,
-    char_from_hex_byte, dec_to_hex_single, dec_to_hex_string,
-    format_base_string, get_digits_needed, hex_to_dec_single,
-    hex_to_dec_string, int_from_base_str_big, int_from_base_str_big_alphabet,
+    dec_to_hex_single, dec_to_hex_string, format_base_string,
+    get_digits_needed, hex_to_dec_single, hex_to_dec_string,
+    int_from_base_str_big, int_from_base_str_big_alphabet,
     int_from_base_str_u32, int_from_base_str_u128, int_to_base_str,
     int_to_base_str_big_alphabet, is_base_digit, is_base_digit_alphabet,
     is_base_str, is_base_str_alphabet,
     is_supported_base_with_default_alphabet as is_supported_base,
 };
+
+/// Convert two hex digits to a single byte -> char (StageL: charFromHexByte).
+/// StageL operated on bytes, not Unicode scalar validation beyond 0xFF.
+pub fn char_from_hex_byte(hex: &str) -> Result<char> {
+    if hex.len() != 2 {
+        return Err(anyhow!("Expected 2 hex digits, got {}", hex.len()));
+    }
+    let v = int_from_base_str_u32(hex, 16)?;
+    if v > 0xFF {
+        return Err(anyhow!("Hex byte out of range"));
+    }
+    char::from_u32(v)
+        .ok_or_else(|| anyhow!("Invalid Unicode scalar value: {v}"))
+}
 
 /// Returns the nth digit in base 36 or less (using capitalized digits).
 /// The original JS version had a bug where it would accept 36 as a base, when 0

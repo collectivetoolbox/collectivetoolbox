@@ -17,7 +17,44 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Base definitions and utilities for number base representation and conversion.
+//! Mathematical base representation, positional numeral systems, and number
+//! string conversion utilities.
+//!
+//! This module addresses two distinct, interrelated domains:
+//!
+//! 1. **Mathematical Positional Radix Systems (Number-Oriented)**:
+//!    - Represents numeric quantities in positional notation across integer
+//!      radices from 1 (unary) to 64 ([`Base`], [`BaseAlphabet`],
+//!      [`NumeralSystem`]).
+//!    - Evaluates and formats scalar mathematical values ([`Natural`], integer
+//!      primitives).
+//!    - In positional number systems, leading zeros are semantically inert in
+//!      value (e.g. `0042` and `42` denote the identical scalar integer).
+//!
+//! 2. **Delimited Text Stream Parsing & Formatting (String-Oriented)**:
+//!    - Parses, converts, and formats strings containing one or more numbers
+//!      separated by delimiters (commas, spaces) or prefixes (`0x`, `0b`, `0o`)
+//!      via [`format_base_string`] and [`base_to_base_string`].
+//!    - Configured via [`BaseStringFormatSettings`], supporting custom padding,
+//!      delimiters, character filtering, and radix prefixes.
+//!    - Supports fixed-width digit chunking via the `limit` configuration
+//!      parameter (e.g. `limit = 255` allows chunking numbers into byte-sized
+//!      units).
+//!
+//! ### Distinction from Byte-Stream Data Armoring
+//!
+//! This module is intended for **mathematical numerals**, not for arbitrary
+//! binary byte data armoring:
+//! - In **data armoring** (e.g. continuous hex streams, hexdumps, Base16b, or
+//!   RFC 4648 Base64 byte armoring), exact byte framing is critical: leading
+//!   `0x00` bytes are real data elements whose removal alters data length and
+//!   corrupts serialization.
+//! - In **positional numerals** (this module), values are abstract scalars.
+//!   While [`BaseAlphabet::Base64Standard`] is provided, it represents a
+//!   mathematical base-64 positional radix ($b = 64$) over [`Natural`]
+//!   numbers, rather than an octet-stream block armor codec.
+//! - For raw byte sequence armoring and hexdumps, refer to `ctb_formats_armor`,
+//!   `ctb_formats_hexdump`, and `ctb_formats_base64`.
 
 #[expect(
     unused_imports,
@@ -31,6 +68,10 @@ use ctb_formats_utilities::FormatLog;
 use malachite::Natural;
 use malachite::base::num::basic::traits::Zero;
 
+// ============================================================================
+// SECTION 1: Positional Radix & Numeral Systems (Mathematical Numbers)
+// ============================================================================
+
 /// Represents a mathematical integer base / radix (e.g. 1, 2, 8, 10, 16, 64).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Base(u8);
@@ -38,10 +79,16 @@ pub struct Base(u8);
 /// Alphabet used by a numeral system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum BaseAlphabet {
-    /// Standard alphanumeric alphabet (`0-9`, `A-Z`), case-insensitive for input.
+    /// Standard alphanumeric alphabet (`0-9`, `A-Z`), case-insensitive for
+    /// input.
     #[default]
     Standard,
-    /// RFC 4648 Base64 alphabet (`A-Z`, `a-z`, `0-9`, `+`, `/`), case-sensitive.
+    /// Positional Base64 alphabet (`A-Z`, `a-z`, `0-9`, `+`, `/`),
+    /// case-sensitive.
+    ///
+    /// Note: In this module, this alphabet is used for mathematical base-64
+    /// positional numerals over numbers, not as an octet-stream data armor
+    /// codec.
     Base64Standard,
 }
 
@@ -386,6 +433,71 @@ pub fn char_to_digit(c: char, base: Base) -> Result<u8> {
     NumeralSystem::from(base).digit_for_char(c)
 }
 
+/// Returns true if the numeric base is supported (1..=64).
+/// Radices greater than 36 require an expanded alphabet such as
+/// [`BaseAlphabet::Base64Standard`].
+#[must_use]
+pub fn is_supported_base(base: u8) -> bool {
+    (1..=64).contains(&base)
+}
+
+/// Returns true if the base is supported by the standard alphanumeric alphabet
+/// (1..=36).
+#[must_use]
+pub fn is_supported_base_with_default_alphabet(base: u8) -> bool {
+    (1..=36).contains(&base)
+}
+
+/// Returns true if the character is a valid digit for the given base in the
+/// specified alphabet.
+#[must_use]
+pub fn is_base_digit_alphabet(
+    ch: char,
+    base: u8,
+    alphabet: BaseAlphabet,
+) -> bool {
+    alphabet.is_digit(ch, base)
+}
+
+/// Returns true if all characters in the string are valid digits for the given
+/// base in the specified alphabet.
+#[must_use]
+pub fn is_base_str_alphabet(s: &str, base: u8, alphabet: BaseAlphabet) -> bool {
+    if !alphabet.is_supported_base(base) {
+        return false;
+    }
+    for ch in s.chars() {
+        if !alphabet.is_digit(ch, base) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Returns true if the single-character string is a valid digit in the standard
+/// alphabet for the given base.
+pub fn is_base_digit(ch: &str, base: u8) -> Result<bool> {
+    if ch.chars().count() != 1 {
+        bail!("Invalid digit");
+    }
+    if !is_supported_base(base) {
+        bail!("Unsupported base {base}");
+    }
+    let Some(c) = ch.chars().next() else {
+        bail!("Empty character string");
+    };
+    Ok(BaseAlphabet::Standard.is_digit(c, base))
+}
+
+/// Returns true if all characters in the string are valid digits in the standard
+/// alphabet for the given base.
+pub fn is_base_str(s: &str, base: u8) -> Result<bool> {
+    if !is_supported_base(base) {
+        bail!("Unsupported base {base}");
+    }
+    Ok(is_base_str_alphabet(s, base, BaseAlphabet::Standard))
+}
+
 /// Parses a string representing a number in the given numeral system into a `Natural`.
 #[expect(
     clippy::arithmetic_side_effects,
@@ -491,86 +603,6 @@ pub fn format_natural(
     min_width: usize,
 ) -> Result<String> {
     format_natural_system(n, base.into(), min_width)
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BaseConversionPaddingMode {
-    /// If true, pad to the left of each number to at least this many digits.
-    pub pad_l: u32,
-    /// If true, pad to fit the limit. Requires a limit to be set.
-    pub pad_fit: bool,
-}
-
-impl Default for BaseConversionPaddingMode {
-    fn default() -> Self {
-        Self {
-            pad_l: 1,
-            pad_fit: false,
-        }
-    }
-}
-
-impl BaseConversionPaddingMode {
-    #[must_use]
-    pub fn none() -> Self {
-        Self::default()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[expect(clippy::struct_excessive_bools, reason = "conversion format flags")]
-pub struct BaseStringFormatSettings {
-    /// The prefix to use for each number (e.g. 0x for hexadecimal)
-    pub prefix: String,
-    /// The separator to use between numbers.
-    pub separator: String,
-    /// Should the string be lowercased?
-    pub lowercase: bool,
-    /// Should runs of characters (other than space) not in the base be replaced
-    /// with the configured separator?
-    pub filter_chars: bool,
-    /// Should filtered characters be totally ignored for parsing numbers? E.g.
-    /// `10_000` would get the _ filtered out and be treated as 10000.
-    pub collapse_filtered: bool,
-    /// A list of filtered characters to collapse, leaving others as spaces.
-    pub collapse_only: Vec<String>,
-    /// Determines whether to treat prefixes like 0x as part of the number while
-    /// parsing. If `false`, the existing prefix will be treated as a number 0
-    /// followed by a string.
-    pub parse_prefixes: bool,
-    /// Limit the number of digits for each number to be able to hold at least
-    /// this value. Set to 0 for no limiting. This requires a limit instead of a
-    /// number of digits because limiting to 2 for hex input of bytes, for
-    /// instance, and converting to decimal, would result in at least *three*
-    /// digits per output byte.
-    pub limit: u64,
-    /// Zero-pad the left of each number to at least this many digits.
-    pub pad: BaseConversionPaddingMode,
-    /// Alphabet to use for parsing input numbers.
-    pub input_alphabet: BaseAlphabet,
-    /// Alphabet to use for formatting output numbers.
-    pub output_alphabet: BaseAlphabet,
-}
-
-impl Default for BaseStringFormatSettings {
-    fn default() -> Self {
-        Self {
-            prefix: String::new(),
-            separator: " ".into(),
-            lowercase: false,
-            limit: 0,
-            filter_chars: true,
-            collapse_only: Vec::new(),
-            collapse_filtered: false,
-            parse_prefixes: true,
-            pad: BaseConversionPaddingMode {
-                pad_l: 1,
-                pad_fit: false,
-            },
-            input_alphabet: BaseAlphabet::Standard,
-            output_alphabet: BaseAlphabet::Standard,
-        }
-    }
 }
 
 /// Returns the integer represented by n in the requested base.
@@ -743,14 +775,6 @@ pub fn dec_to_hex_single(n: u32) -> Result<String> {
     int_to_base_str(n, 16)
 }
 
-pub fn hex_to_dec_string(s: &str) -> Result<(String, FormatLog)> {
-    base_to_base_string(s, 16, 10, &BaseStringFormatSettings::default())
-}
-
-pub fn dec_to_hex_string(s: &str) -> Result<(String, FormatLog)> {
-    base_to_base_string(s, 10, 16, &BaseStringFormatSettings::default())
-}
-
 #[expect(
     clippy::arithmetic_side_effects,
     reason = "Natural is arbitrary-precision and cannot overflow"
@@ -771,6 +795,119 @@ pub fn get_digits_needed(
         digits += Natural::from(1u8);
     }
     Ok(digits)
+}
+
+// ============================================================================
+// SECTION 2: Delimited Text Stream Parsing & Formatting (String Processing)
+// ============================================================================
+
+/// Zero-padding configuration for delimited base string conversion.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BaseConversionPaddingMode {
+    /// Left-pad each number with leading zeros to at least this many digits
+    /// (e.g. `pad_l: 4` formats 5 as `"0005"`).
+    pub pad_l: u32,
+    /// If true, automatically pads each number to the full digit width required
+    /// to hold `limit` (e.g. padding to 2 hex digits or 8 binary digits when
+    /// `limit = 255`). Requires a limit to be set.
+    pub pad_fit: bool,
+}
+
+impl Default for BaseConversionPaddingMode {
+    fn default() -> Self {
+        Self {
+            pad_l: 1,
+            pad_fit: false,
+        }
+    }
+}
+
+impl BaseConversionPaddingMode {
+    #[must_use]
+    pub fn none() -> Self {
+        Self::default()
+    }
+}
+
+/// Settings for parsing and formatting delimited strings of numbers across bases.
+///
+/// This configuration controls the batch transformation of lists of numbers
+/// embedded within a string (such as `"0x1A, 0x10, 0x04"`).
+///
+/// Note: The `separator` parameter controls delimiters *between separate
+/// numbers* in the output list. It does not insert internal digit grouping
+/// separators (like thousands separators in `"123,456"`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "conversion format flags")]
+pub struct BaseStringFormatSettings {
+    /// The prefix to prepend to each output number (e.g. `"0x"` for hexadecimal).
+    pub prefix: String,
+    /// The separator string inserted between separate numbers in the output list.
+    pub separator: String,
+    /// Whether letter digits in bases > 10 should be lowercased.
+    pub lowercase: bool,
+    /// Whether to strip or replace non-digit input characters (other than
+    /// spaces and commas) in the formatted output.
+    ///
+    /// When `true` (default), non-digit input characters that are not collapsed
+    /// are stripped from the output stream. When `false`, they are preserved as
+    /// literal tokens in the output string.
+    pub filter_chars: bool,
+    /// Should non-digit characters be completely ignored inline while parsing
+    /// numbers?
+    ///
+    /// When `true`, characters like `_` in `"10_000"` will not split the number,
+    /// allowing `"10_000"` to parse as a single number `10000`.
+    pub collapse_filtered: bool,
+    /// A selective list of specific non-digit characters to collapse inline
+    /// without splitting numbers (e.g. `vec!["_".to_string()]`).
+    ///
+    /// Characters in this list are stripped silently without emitting
+    /// warnings, while other non-digit characters will still split numbers and
+    /// generate "unexpected character" warnings.
+    pub collapse_only: Vec<String>,
+    /// Determines whether to recognize standard radix prefixes (such as `"0x"`,
+    /// `"0b"`, or `"0o"`) as part of the number while parsing.
+    ///
+    /// If `false`, prefixes are not recognized as part of the number: the
+    /// leading `0` will be treated as a number, followed by the prefix letter
+    /// as a string or separate character (e.g. `0x1A` would be read as `0`
+    /// followed by `x` and `1A`).
+    pub parse_prefixes: bool,
+    /// Derives the maximum digit chunk width for numbers based on the maximum
+    /// value to be represented (e.g. `limit = 255` chunks numbers into byte-sized
+    /// units: 2 hex digits, 8 binary digits, or up to 3 decimal digits).
+    /// Set to 0 to disable chunk limiting.
+    pub limit: u64,
+    /// Controls zero-padding on the left of each formatted number, either to a
+    /// fixed minimum digit width (`pad_l`) or sized to fit the configured
+    /// `limit` (e.g. padding hex bytes to 2 digits or binary to 8 bits).
+    pub pad: BaseConversionPaddingMode,
+    /// Alphabet to use when parsing input numbers.
+    pub input_alphabet: BaseAlphabet,
+    /// Alphabet to use when formatting output numbers.
+    pub output_alphabet: BaseAlphabet,
+}
+
+impl Default for BaseStringFormatSettings {
+    fn default() -> Self {
+        Self {
+            prefix: String::new(),
+            separator: " ".into(),
+            lowercase: false,
+            limit: 0,
+            filter_chars: true,
+            collapse_only: Vec::new(),
+            collapse_filtered: false,
+            parse_prefixes: true,
+            pad: BaseConversionPaddingMode {
+                pad_l: 1,
+                pad_fit: false,
+            },
+            input_alphabet: BaseAlphabet::Standard,
+            output_alphabet: BaseAlphabet::Standard,
+        }
+    }
 }
 
 pub fn casefold_base_chars_in_string(
@@ -858,6 +995,18 @@ pub fn base_to_base_string(
     log.merge(&formatted_log);
 
     Ok((formatted_res, log))
+}
+
+/// Convenience function to convert a delimited string of hexadecimal numbers
+/// to decimal using default format settings.
+pub fn hex_to_dec_string(s: &str) -> Result<(String, FormatLog)> {
+    base_to_base_string(s, 16, 10, &BaseStringFormatSettings::default())
+}
+
+/// Convenience function to convert a delimited string of decimal numbers to
+/// hexadecimal using default format settings.
+pub fn dec_to_hex_string(s: &str) -> Result<(String, FormatLog)> {
+    base_to_base_string(s, 10, 16, &BaseStringFormatSettings::default())
 }
 
 /// Converts all characters that match the requested base into the target base.
@@ -1102,69 +1251,6 @@ fn _format_base_string(
         },
         log,
     ))
-}
-
-/// Bases > 36 require the use of a different alphabet.
-pub fn is_supported_base(base: u8) -> bool {
-    (1..=64).contains(&base)
-}
-
-/// Bases > 36 require the use of a different alphabet.
-pub fn is_supported_base_with_default_alphabet(base: u8) -> bool {
-    (1..=36).contains(&base)
-}
-pub fn is_base_digit_alphabet(
-    ch: char,
-    base: u8,
-    alphabet: BaseAlphabet,
-) -> bool {
-    alphabet.is_digit(ch, base)
-}
-
-pub fn is_base_str_alphabet(s: &str, base: u8, alphabet: BaseAlphabet) -> bool {
-    if !alphabet.is_supported_base(base) {
-        return false;
-    }
-    for ch in s.chars() {
-        if !alphabet.is_digit(ch, base) {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn is_base_digit(ch: &str, base: u8) -> Result<bool> {
-    if ch.chars().count() != 1 {
-        bail!("Invalid digit");
-    }
-    if !is_supported_base(base) {
-        bail!("Unsupported base {base}");
-    }
-    let Some(c) = ch.chars().next() else {
-        bail!("Empty character string");
-    };
-    Ok(BaseAlphabet::Standard.is_digit(c, base))
-}
-
-pub fn is_base_str(s: &str, base: u8) -> Result<bool> {
-    if !is_supported_base(base) {
-        bail!("Unsupported base {base}");
-    }
-    Ok(is_base_str_alphabet(s, base, BaseAlphabet::Standard))
-}
-
-/// Convert two hex digits to a single byte -> char (StageL: charFromHexByte)
-/// StageL operated on bytes, not Unicode scalar validation beyond 0xFF.
-pub fn char_from_hex_byte(hex: &str) -> Result<char> {
-    if hex.len() != 2 {
-        return Err(anyhow!("Expected 2 hex digits, got {}", hex.len()));
-    }
-    let v = int_from_base_str_u32(hex, 16)?;
-    if v > 0xFF {
-        return Err(anyhow!("Hex byte out of range"));
-    }
-    char::from_u32(v)
-        .ok_or_else(|| anyhow!("Invalid Unicode scalar value: {v}"))
 }
 
 #[cfg(test)]
