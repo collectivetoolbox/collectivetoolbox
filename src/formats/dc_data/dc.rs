@@ -316,7 +316,7 @@ pub fn validate_dc_category_file(
             dc_id,
             short_id: short_id_usize,
             ident: None,
-            label: name,
+            name,
             category: category.clone(),
             combining_class,
             bidi_class,

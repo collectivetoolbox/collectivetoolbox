@@ -414,7 +414,7 @@ pub fn validate_formats_category_file(
             dc_id,
             short_id,
             ident: if ident.is_empty() { None } else { Some(ident) },
-            label: effective_label,
+            name: effective_label,
             category: formatted_category,
             combining_class: 0,
             bidi_class: BidiClass::BN,

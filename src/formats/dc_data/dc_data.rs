@@ -130,12 +130,12 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     // 4. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
         .iter()
-        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
@@ -186,12 +186,12 @@ pub fn validate_all_data_tables_from_repo(
     // 4. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
         .iter()
-        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);

@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Command-line runner for data table validation, automatic ID assignment,
 //! and merged dataset generation.
 
-use ctb_formats_data_validator::{
+use ctb_formats_dc_data::{
     assign_and_update_dc_categories, assign_and_update_format_categories,
     find_repository_root, generate_merged_csvs, validate_all_data_tables,
     validate_all_data_tables_from_repo,

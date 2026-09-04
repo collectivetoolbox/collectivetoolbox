@@ -7,7 +7,7 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
 cargo run \
     --quiet \
-    --manifest-path "${REPO_ROOT}/src/formats/data_validator/Cargo.toml" \
+    --manifest-path "${REPO_ROOT}/src/formats/dc_data/Cargo.toml" \
     --bin validate-data-tables \
     -- \
     --write \

@@ -2636,7 +2636,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
- "ctb-formats-data-validator",
+ "ctb-formats-dc-data",
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
  "ctb-formats-dctext",
@@ -2750,7 +2750,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-formats-data-validator"
+name = "ctb-formats-dc-data"
 version = "0.0.0"
 dependencies = [
  "csv",
@@ -3623,7 +3623,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
- "ctb-formats-data-validator",
+ "ctb-formats-dc-data",
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
  "ctb-formats-dctext",
