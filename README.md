@@ -47,7 +47,9 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Check for workspace lint setup correct: `cd ~/ctoolbox || exit 1; cargo workspace-lints -v`
 - Quick build and run: `cd ~/ctoolbox || exit 1; RUST_BACKTRACE=1 ./run-linux`
 - Run a single test: `cargo test spans_attach_request_and_stream_fields -- --nocapture`
-- Build Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
+- Build v86 image in Docker container (NOT required, used for building v86 image; this will take several hours and may need need >100GB disk space): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
+- Build small Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
+
 - Tag Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
@@ -75,6 +77,18 @@ Remember to update the date to match.
 * It should say Login Succeeded.
 
 Running in docker: `docker run -it ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2 bash`
+
+
+##### Using the built v86 image
+
+```
+docker run --rm \
+  --network=host \
+  -v "$PWD":/workspaces/ctoolbox \
+  -w /workspaces/ctoolbox \
+  ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-3:latest \
+  ./scripts/guix/build-v86-guix-image.sh --use-prebuilt-icecat
+```
 
 ### Updating:
 

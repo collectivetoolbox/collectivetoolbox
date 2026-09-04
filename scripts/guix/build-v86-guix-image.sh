@@ -33,10 +33,11 @@ prebuild_dest=""
 keep_failed=""
 disable_chroot=""
 disable_cross=""
+prebuilt_icecat=""
 no_retries=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--no-retries]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--use-prebuilt-icecat [PATH]] [--no-retries]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -77,6 +78,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --disable-cross)
             disable_cross="1"
+            ;;
+        --use-prebuilt-icecat|--prebuilt-icecat)
+            if [[ $# -gt 1 && "$2" != --* ]]; then
+                prebuilt_icecat="$2"
+                shift
+            else
+                prebuilt_icecat="auto"
+            fi
             ;;
         --no-retries)
             no_retries="1"
@@ -673,7 +682,20 @@ case "$mode" in
         fi
 
         if [ "$guix_available" -eq 1 ]; then
-            if [ -n "${DISABLE_CROSS:-}" ] && [ "$DISABLE_CROSS" = "1" ]; then
+            if [ -n "$prebuilt_icecat" ]; then
+                if [ "$prebuilt_icecat" != "auto" ] && [ -d "$prebuilt_icecat" ]; then
+                    icecat_store_path="$prebuilt_icecat"
+                elif [ -e "/var/guix/gcroots/ctoolbox/icecat" ]; then
+                    icecat_store_path="$(readlink -f /var/guix/gcroots/ctoolbox/icecat)"
+                elif compgen -G "/gnu/store/*-icecat-140*" >/dev/null 2>&1; then
+                    icecat_store_path="$(find /gnu/store -maxdepth 1 -name "*-icecat-140*" 2>/dev/null | head -n 1 || true)"
+                fi
+                if [ -n "$icecat_store_path" ]; then
+                    echo "Using pre-built Icecat: $icecat_store_path"
+                else
+                    echo "Warning: --use-prebuilt-icecat requested but no pre-built Icecat found." >&2
+                fi
+            elif [ -n "${DISABLE_CROSS:-}" ] && [ "$DISABLE_CROSS" = "1" ]; then
                 echo "Skipping browser cross-compilation (DISABLE_CROSS set)."
             else
                 echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
