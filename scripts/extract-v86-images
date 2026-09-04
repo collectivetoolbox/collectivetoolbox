@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Collective Toolbox Developers
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+workspace_root="$(cd "${script_dir}/.." && pwd)"
+
+image_tag="${DOCKER_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-3:latest}"
+
+# Ensure vendored dependencies in vendor/ctb-vendored are present before running Docker
+if [[ ! -d "${workspace_root}/vendor/ctb-vendored/vendor" ]]; then
+  echo "Vendored dependencies are missing."
+  exit 1
+fi
+
+# Build docker arguments
+docker_args=(
+  run --rm
+  --network=none
+  -v "${workspace_root}":/workspaces/ctoolbox
+  -w /workspaces/ctoolbox
+  -e CARGO_NET_OFFLINE=true
+)
+
+echo "Extracting v86 filesystem and assets using Docker image ${image_tag} (offline mode)..."
+docker "${docker_args[@]}" \
+  "${image_tag}" \
+  ./scripts/guix/build-v86-guix-image.sh --use-prebuilt-icecat "$@"
+

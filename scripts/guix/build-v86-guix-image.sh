@@ -37,7 +37,7 @@ prebuilt_icecat=""
 no_retries=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--use-prebuilt-icecat [PATH]] [--no-retries]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--use-prebuilt-icecat] [--no-retries]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -80,12 +80,7 @@ while [[ $# -gt 0 ]]; do
             disable_cross="1"
             ;;
         --use-prebuilt-icecat|--prebuilt-icecat)
-            if [[ $# -gt 1 && "$2" != --* ]]; then
-                prebuilt_icecat="$2"
-                shift
-            else
-                prebuilt_icecat="auto"
-            fi
+            prebuilt_icecat="1"
             ;;
         --no-retries)
             no_retries="1"
@@ -538,17 +533,17 @@ cross_compile_icecat() {
     icecat_output="$(guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
         --system=x86_64-linux --target=i686-linux-gnu \
         -e '((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))')"
-    echo "$icecat_output" | grep -o '/gnu/store/[^[:space:]]*icecat-[0-9.]*' | tail -n 1
+    echo "$icecat_output" | grep -o '/gnu/store/[^[:space:]]*icecat-[^[:space:]]*' | grep -v '\.drv$' | tail -n 1
 }
 
 fetch_icecat_sources() {
     guix_run_with_retries build -L "$script_dir" \
-        -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal)) ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))))' || true
+        -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal)) ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))))'
 }
 
 fetch_system_sources() {
     guix_run_with_retries build -L "$script_dir" \
-        -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))' || true
+        -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))'
 }
 
 case "$mode" in
@@ -683,23 +678,21 @@ case "$mode" in
 
         if [ "$guix_available" -eq 1 ]; then
             if [ -n "$prebuilt_icecat" ]; then
-                if [ "$prebuilt_icecat" != "auto" ] && [ -d "$prebuilt_icecat" ]; then
-                    icecat_store_path="$prebuilt_icecat"
-                elif [ -e "/var/guix/gcroots/ctoolbox/icecat" ]; then
-                    icecat_store_path="$(readlink -f /var/guix/gcroots/ctoolbox/icecat)"
-                elif compgen -G "/gnu/store/*-icecat-140*" >/dev/null 2>&1; then
-                    icecat_store_path="$(find /gnu/store -maxdepth 1 -name "*-icecat-140*" 2>/dev/null | head -n 1 || true)"
+                echo "Resolving pre-built Icecat binary via Guix Scheme..."
+                icecat_store_path="$(guix repl -L "$script_dir" "$script_dir/resolve-icecat.scm" binary)" || {
+                    echo "Error: Failed to resolve pre-built Icecat binary in /gnu/store." >&2
+                    exit 1
+                }
+                if [ -z "$icecat_store_path" ] || [ ! -d "$icecat_store_path" ]; then
+                    echo "Error: Resolved Icecat store path '$icecat_store_path' is not a directory or is missing." >&2
+                    exit 1
                 fi
-                if [ -n "$icecat_store_path" ]; then
-                    echo "Using pre-built Icecat: $icecat_store_path"
-                else
-                    echo "Warning: --use-prebuilt-icecat requested but no pre-built Icecat found." >&2
-                fi
+                echo "Using pre-built Icecat: $icecat_store_path"
             elif [ -n "${DISABLE_CROSS:-}" ] && [ "$DISABLE_CROSS" = "1" ]; then
                 echo "Skipping browser cross-compilation (DISABLE_CROSS set)."
             else
                 echo "Cross-compiling GNU Icecat from x86_64 for i686-linux-gnu..."
-                icecat_store_path="$(cross_compile_icecat || true)"
+                icecat_store_path="$(cross_compile_icecat)"
                 if [ -n "$icecat_store_path" ]; then
                     echo "Cross-compiled Icecat at: $icecat_store_path"
                 fi
@@ -747,32 +740,78 @@ case "$mode" in
         if [ -n "${icecat_store_path:-}" ] && [ -d "$icecat_store_path" ]; then
             echo "Merging cross-compiled Icecat closure ($icecat_store_path) into rootfs..."
             icecat_closure="$(guix gc -R "$icecat_store_path")"
+            if [ -z "$icecat_closure" ]; then
+                echo "Error: Failed to query runtime closure for Icecat at $icecat_store_path" >&2
+                exit 1
+            fi
             mkdir -p "$tmp_rootfs_dir/gnu/store"
             for store_item in $icecat_closure; do
                 if [ -e "$store_item" ]; then
                     cp -a "$store_item" "$tmp_rootfs_dir/gnu/store/"
+                else
+                    echo "Error: Icecat runtime closure item $store_item missing from /gnu/store!" >&2
+                    exit 1
                 fi
             done
 
-            echo "Fetching and merging Icecat source closure into rootfs..."
-            icecat_sources="$(fetch_icecat_sources)"
+            echo "Resolving and verifying Icecat transitive source closure..."
+            icecat_sources="$(guix repl -L "$script_dir" "$script_dir/resolve-icecat.scm" sources)" || {
+                echo "Error: Failed to resolve complete Icecat source closure from /gnu/store." >&2
+                exit 1
+            }
+            if [ -z "$icecat_sources" ]; then
+                echo "Error: Icecat source closure list is empty!" >&2
+                exit 1
+            fi
+            echo "Merging Icecat source closure into rootfs..."
             for src_item in $icecat_sources; do
                 if [ -n "$src_item" ] && [ -e "$src_item" ]; then
                     src_closure="$(guix gc -R "$src_item")"
+                    if [ -z "$src_closure" ]; then
+                        echo "Error: Failed to query closure for source $src_item" >&2
+                        exit 1
+                    fi
                     for item in $src_closure; do
-                        cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                        if [ -e "$item" ]; then
+                            cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                        else
+                            echo "Error: Source closure item $item missing from /gnu/store!" >&2
+                            exit 1
+                        fi
                     done
+                else
+                    echo "Error: Source origin $src_item missing from /gnu/store!" >&2
+                    exit 1
                 fi
             done
 
             echo "Fetching and merging base system source closure into rootfs..."
-            system_sources="$(fetch_system_sources)"
+            system_sources="$(fetch_system_sources)" || {
+                echo "Error: Failed to fetch base system source closure." >&2
+                exit 1
+            }
+            if [ -z "$system_sources" ]; then
+                echo "Error: Base system source closure list is empty!" >&2
+                exit 1
+            fi
             for src_item in $system_sources; do
                 if [ -n "$src_item" ] && [ -e "$src_item" ]; then
                     src_closure="$(guix gc -R "$src_item")"
+                    if [ -z "$src_closure" ]; then
+                        echo "Error: Failed to query closure for base source $src_item" >&2
+                        exit 1
+                    fi
                     for item in $src_closure; do
-                        cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                        if [ -e "$item" ]; then
+                            cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
+                        else
+                            echo "Error: Base system source closure item $item missing from /gnu/store!" >&2
+                            exit 1
+                        fi
                     done
+                else
+                    echo "Error: Base system source origin $src_item missing from /gnu/store!" >&2
+                    exit 1
                 fi
             done
 
@@ -783,6 +822,9 @@ case "$mode" in
             mkdir -p "$tmp_rootfs_dir/usr/local/bin"
             ln -sf "$icecat_store_path/bin/icecat" "$tmp_rootfs_dir/usr/local/bin/icecat"
             echo "Successfully merged Icecat and source code into Guix rootfs!"
+        elif [ -n "$prebuilt_icecat" ]; then
+            echo "Error: --use-prebuilt-icecat was requested, but pre-built Icecat was not merged." >&2
+            exit 1
         fi
 
         # Done with all Guix operations; stop daemon before v86 packing.
@@ -794,8 +836,56 @@ case "$mode" in
         # invocation builds for host cleanly.
         unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS CARGO_CFG_TARGET_ARCH CARGO_CFG_TARGET_OS 2>/dev/null || true
 
-        cargo run -p ctb-build-support --bin refresh-asset-bundle --release -- \
-            --pack-v86-dir "$tmp_rootfs_dir" "$out_flat_dir" "$out_fs_json"
+        if [ -x "$workspace_root/target/release/refresh-asset-bundle" ]; then
+            echo "Using prebuilt refresh-asset-bundle binary..."
+            "$workspace_root/target/release/refresh-asset-bundle" \
+                --pack-v86-dir "$tmp_rootfs_dir" "$out_flat_dir" "$out_fs_json"
+        else
+            echo "Building refresh-asset-bundle offline from vendored dependencies..."
+            ctb_build_dir="$(mktemp -d /tmp/ctb-build-XXXXXX)"
+            cp "$workspace_root/Cargo.toml" "$workspace_root/Cargo.lock" "$ctb_build_dir/"
+            cp -r "$workspace_root/src" "$ctb_build_dir/"
+            mkdir -p "$ctb_build_dir/vendor"
+            for item in "$workspace_root"/vendor/* "$workspace_root"/vendor/.[!.]*; do
+                case "$(basename "$item")" in
+                    v86_images|v86|.git|"*"|".keep")
+                        continue
+                        ;;
+                    *)
+                        if [ -e "$item" ]; then
+                            cp -r "$item" "$ctb_build_dir/vendor/"
+                        fi
+                        ;;
+                esac
+            done
+            mkdir -p "$ctb_build_dir/.cargo"
+            printf '%s\n' \
+                '[source.crates-io]' \
+                'replace-with = "vendored-sources"' \
+                '' \
+                '[source.vendored-sources]' \
+                'directory = "vendor/ctb-vendored/vendor"' \
+                '' \
+                '[source."https://github.com/boa-dev/boa.git"]' \
+                'git = "https://github.com/boa-dev/boa.git"' \
+                'rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"' \
+                'replace-with = "vendored-sources"' \
+                '' \
+                '[source."https://github.com/rust-dark-light/dark-light.git"]' \
+                'git = "https://github.com/rust-dark-light/dark-light.git"' \
+                'rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"' \
+                'replace-with = "vendored-sources"' \
+                > "$ctb_build_dir/.cargo/config.toml"
+            find "$ctb_build_dir/vendor" -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | while read -r file; do
+                mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"
+            done
+            (
+                cd "$ctb_build_dir"
+                cargo run --offline -p ctb-build-support --bin refresh-asset-bundle --release -- \
+                    --pack-v86-dir "$tmp_rootfs_dir" "$out_flat_dir" "$out_fs_json"
+            )
+            rm -r "$ctb_build_dir"
+        fi
 
         if [ ! -f "$out_fs_json" ] || [ ! -d "$out_flat_dir" ] || [ ! -f "$out_dir/guix_posix_initrd.cpio.gz" ]; then
             echo "Error: Failed to produce Guix 9pfs index ($out_fs_json), flat chunks ($out_flat_dir), or initrd archive." >&2

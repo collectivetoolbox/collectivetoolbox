@@ -17,3 +17,19 @@ PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-li
 PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_musl = { value = "/usr/include/x86_64-linux-musl" }
 
 
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor/ctb-vendored/vendor"
+
+[source."https://github.com/boa-dev/boa.git"]
+git = "https://github.com/boa-dev/boa.git"
+rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
+replace-with = "vendored-sources"
+
+[source."https://github.com/rust-dark-light/dark-light.git"]
+git = "https://github.com/rust-dark-light/dark-light.git"
+rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
+replace-with = "vendored-sources"

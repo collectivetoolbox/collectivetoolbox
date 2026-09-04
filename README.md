@@ -80,14 +80,7 @@ Running in docker: `docker run -it ghcr.io/collectivetoolbox/collectivetoolbox-2
 
 ##### Using the built v86 image
 
-```
-docker run --rm \
-  --network=host \
-  -v "$PWD":/workspaces/ctoolbox \
-  -w /workspaces/ctoolbox \
-  ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-3:latest \
-  ./scripts/guix/build-v86-guix-image.sh --use-prebuilt-icecat
-```
+`./scripts/extract-v86-images`
 
 ### Updating:
 

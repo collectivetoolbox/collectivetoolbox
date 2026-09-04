@@ -38,11 +38,11 @@ for p in /gnu/store/*-profile; do
 done
 
 # Protect final output directories for Icecat, Dillo, Mesa, and LLVM
-for ic in /gnu/store/*-icecat-140*; do
+for ic in /gnu/store/*-icecat-[0-9]*; do
     protect_store_item "${ic}" "$(basename "${ic}")"
 done
 
-for icm in /gnu/store/*-icecat-minimal-140*; do
+for icm in /gnu/store/*-icecat-minimal-[0-9]*; do
     protect_store_item "${icm}" "$(basename "${icm}")"
 done
 

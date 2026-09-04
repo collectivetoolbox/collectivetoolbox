@@ -137,6 +137,13 @@ RUN set -eux; \
     cargo run --offline -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript; \
     mkdir -p /var/cache/ctoolbox; \
     cp vendor/TypeScript-built.tar /var/cache/ctoolbox/TypeScript-built.tar; \
+    if [ -f /var/cache/ctoolbox/v86_images/guix/guix-fs.json ]; then \
+        cargo run --offline -p ctb-build-support --bin refresh-asset-bundle --release -- \
+            --build-v86-initrd /var/cache/ctoolbox/v86_images/guix/guix-fs.json /var/cache/ctoolbox/guix_posix_initrd.cpio.gz || true; \
+    fi; \
+    if [ ! -f /var/cache/ctoolbox/guix_posix_initrd.cpio.gz ] && [ -f /var/cache/ctoolbox/v86_images/guix/guix_posix_initrd.cpio.gz ]; then \
+        cp /var/cache/ctoolbox/v86_images/guix/guix_posix_initrd.cpio.gz /var/cache/ctoolbox/guix_posix_initrd.cpio.gz; \
+    fi; \
     cd /; \
     rm -r /tmp/ctb-ts-build
 
