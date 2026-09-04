@@ -88,7 +88,7 @@ ctb-formats-base64 = { path = "src/formats/base64" }
 ctb-formats-checksum = { path = "src/formats/checksum" }
 ctb-formats-compression = { path = "src/formats/compression" }
 ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
-ctb-formats-data-validator = { path = "src/formats/data_validator" }
+ctb-formats-dc-data = { path = "src/formats/dc_data" }
 ctb-formats-dceutils = { path = "src/formats/dceutils" }
 ctb-formats-dctext = { path = "src/formats/dctext" }
 ctb-formats-dct-el = { path = "src/formats/dct_el" }

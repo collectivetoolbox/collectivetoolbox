@@ -1,0 +1,6 @@
+# Dockerignore specific to Dockerfile-use-built (root level)
+vendor/vendor.tar
+vendor/icecat-bin.tar.gz
+built/
+target/
+.git/

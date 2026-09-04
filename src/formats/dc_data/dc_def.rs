@@ -65,7 +65,7 @@ pub struct DcDefn {
     pub short_id: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ident: Option<String>,
-    pub label: String,
+    pub name: String,
     pub category: String,
 
     // Character Metadata (flattened across all Dcs)

@@ -194,10 +194,10 @@ if [[ ! -f "vendor/TypeScript-built.tar" && -f "/var/cache/ctoolbox/TypeScript-b
     cp /var/cache/ctoolbox/TypeScript-built.tar vendor/TypeScript-built.tar
 fi
 
-if [[ ! -f "built/v86_images.rsrc" && -f "/var/cache/ctoolbox/v86_images.rsrc" ]]; then
-    echo "Restoring prebuilt v86_images.rsrc from container cache..."
-    mkdir -p built
-    cp /var/cache/ctoolbox/v86_images.rsrc built/v86_images.rsrc
+if [[ ! -d "vendor/v86_images" && -d "/var/cache/ctoolbox/v86_images" ]]; then
+    echo "Restoring prebuilt vendor/v86_images from container cache..."
+    mkdir -p vendor
+    cp -r /var/cache/ctoolbox/v86_images vendor/v86_images
 fi
 
 if [[ ! -f "built/guix_posix_initrd.cpio.gz" && -f "/var/cache/ctoolbox/guix_posix_initrd.cpio.gz" ]]; then

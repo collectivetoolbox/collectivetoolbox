@@ -1,9 +1,9 @@
 [package]
-name = "ctb-formats-data-validator"
+name = "ctb-formats-dc-data"
 edition = "2024"
 
 [lib]
-path="data_validator.rs"
+path="dc_data.rs"
 crate-type = ["lib"]
 
 [[bin]]

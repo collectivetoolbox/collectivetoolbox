@@ -629,25 +629,16 @@ fn write_cpio_entry(
 }
 
 fn find_profile_store_path(json: &str) -> Result<String> {
-    for line in json.lines() {
-        if (line.contains("openbox")
-            || line.contains("Xorg")
-            || line.contains("xterm"))
-            && line.contains("-profile")
-            && line.contains("gnu/store/")
-        {
-            if let Some(pos) = line.find("gnu/store/") {
-                if let Some(rest) = line.get(pos..) {
-                    let end = rest.find('"').unwrap_or(rest.len());
-                    if let Some(sub) = rest.get(..end) {
-                        let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) =
-                            (parts.first(), parts.get(1))
-                        {
-                            if p1.ends_with("-profile") {
-                                return Ok(format!("{p0}/{p1}"));
-                            }
-                        }
+    for (pos, _) in json.match_indices("gnu/store/") {
+        if let Some(rest) = json.get(pos..) {
+            let end = rest.find('"').unwrap_or(rest.len());
+            if let Some(sub) = rest.get(..end) {
+                let parts: Vec<&str> = sub.split('/').collect();
+                if let (Some(p0), Some(p1), Some(p2)) =
+                    (parts.first(), parts.get(1), parts.get(2))
+                {
+                    if *p0 == "gnu" && *p1 == "store" && p2.ends_with("-profile") {
+                        return Ok(format!("{p0}/{p1}/{p2}"));
                     }
                 }
             }

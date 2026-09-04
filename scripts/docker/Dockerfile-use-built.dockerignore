@@ -1,0 +1,6 @@
+# Dockerignore specific to scripts/docker/Dockerfile-use-built
+vendor/vendor.tar
+vendor/icecat-bin.tar.gz
+built/
+target/
+.git/
