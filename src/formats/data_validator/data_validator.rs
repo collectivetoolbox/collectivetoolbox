@@ -28,6 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub mod dc;
+pub mod dc_def;
 pub mod format;
 pub mod layout;
 pub mod report;
@@ -36,12 +37,13 @@ pub mod syntax;
 pub mod updater;
 
 pub use dc::{
-    DC_REGION_END, DC_REGION_START, ParsedDcRow, split_dc_aliases_column,
+    DC_REGION_END, DC_REGION_START, split_dc_aliases_column,
     validate_all_dc_files, validate_all_dc_files_from_disk,
     validate_dc_category_file, validate_dc_files_data,
 };
+pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{
-    FORMAT_REGION_END, FORMAT_REGION_START, ParsedFormatRow,
+    FORMAT_REGION_END, FORMAT_REGION_START,
     validate_all_format_files, validate_all_format_files_from_disk,
     validate_format_files_data, validate_formats_category_file,
 };
@@ -52,7 +54,7 @@ pub use layout::{
 };
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use shared::{
-    validate_bidi_class, validate_combining_class,
+    BidiClass, GeneralCategory, validate_bidi_class, validate_combining_class,
     validate_cross_table_uniqueness, validate_extension_entry,
     validate_extensions_field, validate_general_category, validate_mime_field,
     validate_rust_identifier, validate_support_level,
@@ -126,9 +128,9 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     );
 
     // 4. Validate Cross-Table Name / Label Uniqueness
-    let dc_names: Vec<(u32, &str, &str)> = dc_rows
+    let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
@@ -182,9 +184,9 @@ pub fn validate_all_data_tables_from_repo(
     );
 
     // 4. Validate Cross-Table Name / Label Uniqueness
-    let dc_names: Vec<(u32, &str, &str)> = dc_rows
+    let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id, r.label.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
@@ -501,6 +503,10 @@ mod tests {
         assert!(fmt_json_path.exists());
         let fmt_json_str = std::fs::read_to_string(&fmt_json_path).unwrap();
         assert!(fmt_json_str.contains("FormatOne"));
+        assert!(fmt_json_str.contains("format_document"));
+        assert!(fmt_json_str.contains("\"BN\""));
+        assert!(fmt_json_str.contains("\"!Cx\""));
+        assert!(fmt_json_str.contains("\"Formats\""));
     }
 
     #[crate::ctb_test]

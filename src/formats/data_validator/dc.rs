@@ -27,41 +27,20 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::report::ValidationReport;
+use crate::dc_def::DcDefn;
 use crate::shared::{
-    split_comma_separated_items, validate_bidi_class, validate_combining_class,
-    validate_general_category,
+    BidiClass, GeneralCategory, split_comma_separated_items,
+    validate_bidi_class, validate_combining_class, validate_general_category,
 };
 use crate::syntax::{
     CharTarget, DcSyntaxRule, parse_dc_syntax, parse_target_token,
     validate_dc_syntax,
 };
 use include_dir::Dir;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 pub const DC_REGION_START: u128 = 1_114_112;
 pub const DC_REGION_END: u128 = 2_228_223;
-
-/// Validated and split Document Character record.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ParsedDcRow {
-    pub dc_id: u128,
-    pub short_id: u32,
-    pub name: String,
-    pub is_deprecated: bool,
-    pub combining_class: u8,
-    pub bidi_class: Option<String>,
-    pub casing_partner: Option<u32>,
-    pub general_category: String,
-    pub script: String,
-    pub aliases: Vec<String>,
-    pub cross_references: Vec<String>,
-    pub decompositions: Vec<String>,
-    pub dc_syntax: Option<DcSyntaxRule>,
-    pub description: String,
-    pub source_file: String,
-    pub line_number: usize,
-}
 
 /// Splits the composite aliases/cross-reference/decomposition/syntax column.
 pub fn split_dc_aliases_column(
@@ -103,7 +82,7 @@ pub fn validate_dc_category_file(
     csv_bytes: &[u8],
     file_path: &str,
     report: &mut ValidationReport,
-) -> Vec<ParsedDcRow> {
+) -> Vec<DcDefn> {
     let vec_bytes = csv_bytes.to_vec();
     let table = match csv_tools::parse_csv_reader(
         &vec_bytes,
@@ -143,32 +122,31 @@ pub fn validate_dc_category_file(
         }
     }
 
+    let category = std::path::Path::new(file_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("general")
+        .to_string();
+
     for i in 0..table.row_count() {
         let line_no = i.saturating_add(2);
+        let row_opt = table.row(i);
+        let Some(row) = row_opt else {
+            continue;
+        };
 
-        if let Some(row_slice) = table.row(i) {
-            if row_slice.iter().all(|s| s.trim().is_empty()) {
-                continue;
-            }
-            if row_slice.len() != 10 {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    None,
-                    format!(
-                        "Row has {} columns, expected 10 columns (mismatched field count)",
-                        row_slice.len()
-                    ),
-                    Some("Check for unquoted commas, missing commas, or extra columns to avoid misaligned data"),
-                );
-            }
+        if row.len() != 10 {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                None,
+                format!("Row has {} columns, expected 10", row.len()),
+                Some("Each row in Dc categories must have exactly 10 columns matching schema"),
+            );
         }
 
-        let get_str = |col: usize| -> String {
-            match table.cell(i, col) {
-                Some(s) => s.trim().to_string(),
-                None => String::new(),
-            }
+        let get_str = |idx: usize| -> String {
+            row.get(idx).map_or(String::new(), |s| s.trim().to_string())
         };
 
         let dc_str = get_str(0);
@@ -237,16 +215,6 @@ pub fn validate_dc_category_file(
             );
         }
 
-        if raw_name.is_empty() {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Name"),
-                "Dc Name cannot be empty",
-                Some("Provide a character name"),
-            );
-        }
-
         let is_deprecated = raw_name.starts_with('!');
         let name = if let Some(stripped) = raw_name.strip_prefix('!') {
             stripped.trim().to_string()
@@ -268,19 +236,18 @@ pub fn validate_dc_category_file(
             }
         };
 
-        if let Err(e) = validate_bidi_class(&bidi_str) {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("⇆"),
-                format!("Invalid Bidi Class: {e}"),
-                Some("Use standard Unicode Bidi class abbreviation or leave empty"),
-            );
-        }
-        let bidi_class = if bidi_str.is_empty() {
-            None
-        } else {
-            Some(bidi_str)
+        let bidi_class = match validate_bidi_class(&bidi_str) {
+            Ok(b) => b,
+            Err(e) => {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("⇆"),
+                    format!("Invalid Bidi Class: {e}"),
+                    Some("Use standard Unicode Bidi class abbreviation (e.g. BN, L, ON)"),
+                );
+                BidiClass::BN
+            }
         };
 
         let casing_partner = if casing_str.is_empty() {
@@ -298,15 +265,19 @@ pub fn validate_dc_category_file(
             None
         };
 
-        if let Err(e) = validate_general_category(&general_cat_str) {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Type"),
-                format!("Invalid General Category: {e}"),
-                Some("Use standard Unicode category or '!Cx'"),
-            );
-        }
+        let general_category = match validate_general_category(&general_cat_str) {
+            Ok(cat) => cat,
+            Err(e) => {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Type"),
+                    format!("Invalid General Category: {e}"),
+                    Some("Use standard Unicode category or '!Cx'"),
+                );
+                GeneralCategory::NonUnicodeControl
+            }
+        };
 
         let (aliases, cross_references, decompositions, raw_dc_syntax) =
             split_dc_aliases_column(&raw_aliases);
@@ -329,21 +300,35 @@ pub fn validate_dc_category_file(
             None
         };
 
-        rows.push(ParsedDcRow {
+        let Ok(short_id_usize) = usize::try_from(short_id) else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Short"),
+                format!("Short ID {short_id} exceeds usize limits"),
+                Some("Ensure Short ID fits in machine usize"),
+            );
+            continue;
+        };
+
+        rows.push(DcDefn {
             dc_id,
-            short_id,
-            name,
-            is_deprecated,
+            short_id: short_id_usize,
+            ident: None,
+            label: name,
+            category: category.clone(),
             combining_class,
             bidi_class,
             casing_partner,
-            general_category: general_cat_str,
+            general_category,
             script,
+            is_deprecated,
+            decompositions,
             aliases,
             cross_references,
-            decompositions,
-            dc_syntax,
+            syntax: dc_syntax,
             description,
+            format: None,
             source_file: file_path.to_string(),
             line_number: line_no,
         });
@@ -427,12 +412,12 @@ pub fn validate_dc_files_data<'a, I>(
     category_dir_label: &str,
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
-) -> Vec<ParsedDcRow>
+) -> Vec<DcDefn>
 where
     I: IntoIterator<Item = (&'a str, &'a [u8])>,
 {
     let mut all_rows = Vec::new();
-    let mut short_id_map: HashMap<u32, (String, usize)> = HashMap::new();
+    let mut short_id_map: HashMap<usize, (String, usize)> = HashMap::new();
 
     for (path_str, contents) in files {
         if !path_str.ends_with(".csv")
@@ -469,8 +454,10 @@ where
         }
     }
 
-    let known_dc_ids: HashSet<u32> =
-        all_rows.iter().map(|r| r.short_id).collect();
+    let known_dc_ids: HashSet<u32> = all_rows
+        .iter()
+        .map(|r| u32::try_from(r.short_id).unwrap_or(0))
+        .collect();
 
     // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
     if let Some(&max_id) = known_dc_ids.iter().max() {
@@ -548,10 +535,11 @@ where
             }
         }
 
-        if let Some(syntax_rule) = &row.dc_syntax {
+        if let Some(syntax_rule) = &row.syntax {
+            let short_id_u32 = u32::try_from(row.short_id).unwrap_or(0);
             validate_dc_syntax(
                 syntax_rule,
-                row.short_id,
+                short_id_u32,
                 &known_dc_ids,
                 known_format_ids,
                 report,
@@ -569,7 +557,7 @@ pub fn validate_all_dc_files(
     dc_dir: &Dir,
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
-) -> Vec<ParsedDcRow> {
+) -> Vec<DcDefn> {
     let mut files = Vec::new();
     for f in dc_dir.files() {
         if let Some(path_str) = f.path().to_str() {
@@ -589,7 +577,7 @@ pub fn validate_all_dc_files_from_disk(
     dc_dir: &std::path::Path,
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
-) -> Vec<ParsedDcRow> {
+) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(dc_dir) else {
         report.add_error(
             &dc_dir.display().to_string(),

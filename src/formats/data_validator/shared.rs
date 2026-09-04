@@ -27,7 +27,233 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::report::ValidationReport;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// Standard Unicode General Category codes and Collective non-Unicode extension (`!Cx`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GeneralCategory {
+    Lu,
+    Ll,
+    Lt,
+    Lm,
+    Lo,
+    Mn,
+    Mc,
+    Me,
+    Nd,
+    Nl,
+    No,
+    Pc,
+    Pd,
+    Ps,
+    Pe,
+    Pi,
+    Pf,
+    Po,
+    Sm,
+    Sc,
+    Sk,
+    So,
+    Zs,
+    Zl,
+    Zp,
+    Cc,
+    Cf,
+    Cs,
+    Co,
+    Cn,
+    #[serde(rename = "!Cx")]
+    NonUnicodeControl,
+}
+
+impl GeneralCategory {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Lu => "Lu",
+            Self::Ll => "Ll",
+            Self::Lt => "Lt",
+            Self::Lm => "Lm",
+            Self::Lo => "Lo",
+            Self::Mn => "Mn",
+            Self::Mc => "Mc",
+            Self::Me => "Me",
+            Self::Nd => "Nd",
+            Self::Nl => "Nl",
+            Self::No => "No",
+            Self::Pc => "Pc",
+            Self::Pd => "Pd",
+            Self::Ps => "Ps",
+            Self::Pe => "Pe",
+            Self::Pi => "Pi",
+            Self::Pf => "Pf",
+            Self::Po => "Po",
+            Self::Sm => "Sm",
+            Self::Sc => "Sc",
+            Self::Sk => "Sk",
+            Self::So => "So",
+            Self::Zs => "Zs",
+            Self::Zl => "Zl",
+            Self::Zp => "Zp",
+            Self::Cc => "Cc",
+            Self::Cf => "Cf",
+            Self::Cs => "Cs",
+            Self::Co => "Co",
+            Self::Cn => "Cn",
+            Self::NonUnicodeControl => "!Cx",
+        }
+    }
+}
+
+impl std::fmt::Display for GeneralCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for GeneralCategory {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim() {
+            "Lu" => Ok(Self::Lu),
+            "Ll" => Ok(Self::Ll),
+            "Lt" => Ok(Self::Lt),
+            "Lm" => Ok(Self::Lm),
+            "Lo" => Ok(Self::Lo),
+            "Mn" => Ok(Self::Mn),
+            "Mc" => Ok(Self::Mc),
+            "Me" => Ok(Self::Me),
+            "Nd" => Ok(Self::Nd),
+            "Nl" => Ok(Self::Nl),
+            "No" => Ok(Self::No),
+            "Pc" => Ok(Self::Pc),
+            "Pd" => Ok(Self::Pd),
+            "Ps" => Ok(Self::Ps),
+            "Pe" => Ok(Self::Pe),
+            "Pi" => Ok(Self::Pi),
+            "Pf" => Ok(Self::Pf),
+            "Po" => Ok(Self::Po),
+            "Sm" => Ok(Self::Sm),
+            "Sc" => Ok(Self::Sc),
+            "Sk" => Ok(Self::Sk),
+            "So" => Ok(Self::So),
+            "Zs" => Ok(Self::Zs),
+            "Zl" => Ok(Self::Zl),
+            "Zp" => Ok(Self::Zp),
+            "Cc" => Ok(Self::Cc),
+            "Cf" => Ok(Self::Cf),
+            "Cs" => Ok(Self::Cs),
+            "Co" => Ok(Self::Co),
+            "Cn" => Ok(Self::Cn),
+            "!Cx" => Ok(Self::NonUnicodeControl),
+            other => bail!(
+                "Invalid General Category '{other}' (expected standard Unicode category or '!Cx')"
+            ),
+        }
+    }
+}
+
+/// Standard Unicode Bidirectional Class codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BidiClass {
+    L,
+    R,
+    AL,
+    EN,
+    ES,
+    ET,
+    AN,
+    CS,
+    NSM,
+    BN,
+    B,
+    S,
+    WS,
+    ON,
+    LRE,
+    LRO,
+    RLE,
+    RLO,
+    PDF,
+    LRI,
+    RLI,
+    FSI,
+    PDI,
+}
+
+impl BidiClass {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::L => "L",
+            Self::R => "R",
+            Self::AL => "AL",
+            Self::EN => "EN",
+            Self::ES => "ES",
+            Self::ET => "ET",
+            Self::AN => "AN",
+            Self::CS => "CS",
+            Self::NSM => "NSM",
+            Self::BN => "BN",
+            Self::B => "B",
+            Self::S => "S",
+            Self::WS => "WS",
+            Self::ON => "ON",
+            Self::LRE => "LRE",
+            Self::LRO => "LRO",
+            Self::RLE => "RLE",
+            Self::RLO => "RLO",
+            Self::PDF => "PDF",
+            Self::LRI => "LRI",
+            Self::RLI => "RLI",
+            Self::FSI => "FSI",
+            Self::PDI => "PDI",
+        }
+    }
+}
+
+impl std::fmt::Display for BidiClass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for BidiClass {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim() {
+            "L" => Ok(Self::L),
+            "R" => Ok(Self::R),
+            "AL" => Ok(Self::AL),
+            "EN" => Ok(Self::EN),
+            "ES" => Ok(Self::ES),
+            "ET" => Ok(Self::ET),
+            "AN" => Ok(Self::AN),
+            "CS" => Ok(Self::CS),
+            "NSM" => Ok(Self::NSM),
+            "BN" => Ok(Self::BN),
+            "B" => Ok(Self::B),
+            "S" => Ok(Self::S),
+            "WS" => Ok(Self::WS),
+            "ON" => Ok(Self::ON),
+            "LRE" => Ok(Self::LRE),
+            "LRO" => Ok(Self::LRO),
+            "RLE" => Ok(Self::RLE),
+            "RLO" => Ok(Self::RLO),
+            "PDF" => Ok(Self::PDF),
+            "LRI" => Ok(Self::LRI),
+            "RLI" => Ok(Self::RLI),
+            "FSI" => Ok(Self::FSI),
+            "PDI" => Ok(Self::PDI),
+            other => bail!(
+                "Invalid Bidi Class '{other}' (expected standard Unicode bidi class)"
+            ),
+        }
+    }
+}
 
 const RUST_KEYWORDS: &[&str] = &[
     "as", "break", "const", "continue", "crate", "else", "enum", "extern",
@@ -37,17 +263,6 @@ const RUST_KEYWORDS: &[&str] = &[
     "async", "await", "dyn", "abstract", "become", "box", "do", "final",
     "macro", "override", "priv", "typeof", "unsized", "virtual", "yield",
     "try",
-];
-
-const VALID_BIDI_CLASSES: &[&str] = &[
-    "L", "R", "AL", "EN", "ES", "ET", "AN", "CS", "NSM", "BN", "B", "S", "WS",
-    "ON", "LRE", "LRO", "RLE", "RLO", "PDF", "LRI", "RLI", "FSI", "PDI",
-];
-
-const VALID_GENERAL_CATEGORIES: &[&str] = &[
-    "Cc", "Cf", "Cs", "Co", "Cn", "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc",
-    "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm",
-    "Sc", "Sk", "So", "Zs", "Zl", "Zp", "!Cx",
 ];
 
 /// Validates that a string is a syntactically valid Rust identifier and not a keyword.
@@ -220,31 +435,13 @@ pub fn validate_support_level(val: &str) -> Result<()> {
 }
 
 /// Validates Unicode General Category code (e.g. `Cc`, `Sm`, `!Cx`).
-pub fn validate_general_category(cat: &str) -> Result<()> {
-    let trimmed = cat.trim();
-    if trimmed.is_empty() {
-        bail!("General Category cannot be empty");
-    }
-    if !VALID_GENERAL_CATEGORIES.contains(&trimmed) {
-        bail!(
-            "Invalid General Category '{trimmed}' (expected standard Unicode category or '!Cx')"
-        );
-    }
-    Ok(())
+pub fn validate_general_category(cat: &str) -> Result<GeneralCategory> {
+    cat.parse::<GeneralCategory>()
 }
 
-/// Validates Unicode Bidi class code.
-pub fn validate_bidi_class(bidi: &str) -> Result<()> {
-    let trimmed = bidi.trim();
-    if trimmed.is_empty() {
-        return Ok(());
-    }
-    if !VALID_BIDI_CLASSES.contains(&trimmed) {
-        bail!(
-            "Invalid Bidi Class '{trimmed}' (expected standard Unicode bidi class or empty)"
-        );
-    }
-    Ok(())
+/// Validates Unicode Bidi class code (e.g. `L`, `BN`, `ON`).
+pub fn validate_bidi_class(bidi: &str) -> Result<BidiClass> {
+    bidi.parse::<BidiClass>()
 }
 
 /// Validates Canonical Combining Class integer (`0..=254`).
@@ -264,11 +461,11 @@ pub fn validate_combining_class(cls: &str) -> Result<u8> {
 
 /// Validates that format labels and Dc names are unique across all records.
 pub fn validate_cross_table_uniqueness(
-    dc_names: &[(u32, &str, &str)], // (short_id, name, file_path)
+    dc_names: &[(usize, &str, &str)], // (short_id, name, file_path)
     format_labels: &[(usize, &str, &str)], // (short_id, label, file_path)
     report: &mut ValidationReport,
 ) {
-    let mut dc_name_map: HashMap<String, (u32, String)> = HashMap::new();
+    let mut dc_name_map: HashMap<String, (usize, String)> = HashMap::new();
     for &(short_id, raw_name, file_path) in dc_names {
         let clean_name = if let Some(stripped) = raw_name.strip_prefix('!') {
             stripped.trim()

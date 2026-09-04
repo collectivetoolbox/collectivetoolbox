@@ -27,42 +27,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::report::ValidationReport;
+use crate::dc_def::{DcDefn, FormatDetails};
 use crate::shared::{
-    split_comma_separated_items, validate_extensions_field,
-    validate_mime_field, validate_rust_identifier, validate_support_level,
+    BidiClass, GeneralCategory, split_comma_separated_items,
+    validate_extensions_field, validate_mime_field, validate_rust_identifier,
+    validate_support_level,
 };
 use crate::syntax::{DcSyntaxRule, parse_dc_syntax};
 use include_dir::Dir;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
-
-/// Validated format record from a category CSV file.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ParsedFormatRow {
-    pub dc_id: u128,
-    pub short_id: usize,
-    pub ident: String,
-    pub label: String,
-    pub category: String,
-    pub base_format: String,
-    pub syntax: Option<DcSyntaxRule>,
-    pub extensions: String,
-    pub mime: String,
-    pub uti: String,
-    pub apple_type: String,
-    pub nicknames: String,
-    pub import_support: String,
-    pub export_support: String,
-    pub tests: String,
-    pub variant_types: String,
-    pub comments: String,
-    pub references: String,
-    pub source_file: String,
-    pub line_number: usize,
-}
 
 /// Parses and validates a single format category CSV file.
 pub fn validate_formats_category_file(
@@ -70,7 +46,7 @@ pub fn validate_formats_category_file(
     file_path: &str,
     valid_variant_names: &HashSet<String>,
     report: &mut ValidationReport,
-) -> Vec<ParsedFormatRow> {
+) -> Vec<DcDefn> {
     let vec_bytes = csv_bytes.to_vec();
     let table = match csv_tools::parse_csv_reader(
         &vec_bytes,
@@ -345,14 +321,22 @@ pub fn validate_formats_category_file(
         let items = split_comma_separated_items(&base_format_raw);
         let mut base_parts = Vec::new();
         let mut syntax_raw = None;
+        let mut chain_raw = None;
         for item in items {
             if item.starts_with(':') {
                 syntax_raw = Some(item);
+            } else if item.starts_with('=') {
+                chain_raw = Some(item);
             } else {
                 base_parts.push(item);
             }
         }
-        let base_format = base_parts.join(", ");
+        let base_format = if base_parts.is_empty() {
+            None
+        } else {
+            Some(base_parts.join(", "))
+        };
+        let chain = chain_raw;
         let syntax = if let Some(raw_syn) = &syntax_raw {
             match parse_dc_syntax(raw_syn) {
                 Ok(rule) => Some(rule),
@@ -371,25 +355,79 @@ pub fn validate_formats_category_file(
             None
         };
 
-        rows.push(ParsedFormatRow {
+        let formatted_category = if category.starts_with("format_") {
+            category.clone()
+        } else {
+            format!("format_{category}")
+        };
+
+        let format_details = FormatDetails {
+            base_format,
+            chain,
+            extensions: if extensions.is_empty() {
+                None
+            } else {
+                Some(extensions)
+            },
+            mime: if mime.is_empty() { None } else { Some(mime) },
+            uti: if uti.is_empty() { None } else { Some(uti) },
+            apple_type: if apple_type.is_empty() {
+                None
+            } else {
+                Some(apple_type)
+            },
+            nicknames: if nicknames.is_empty() {
+                None
+            } else {
+                Some(nicknames.clone())
+            },
+            import_support: if import_support.is_empty() {
+                None
+            } else {
+                Some(import_support)
+            },
+            export_support: if export_support.is_empty() {
+                None
+            } else {
+                Some(export_support)
+            },
+            tests: if tests.is_empty() { None } else { Some(tests) },
+            variant_types: if variant_types.is_empty() {
+                None
+            } else {
+                Some(variant_types)
+            },
+        };
+
+        let aliases: Vec<String> = if nicknames.is_empty() {
+            Vec::new()
+        } else {
+            split_comma_separated_items(&nicknames)
+        };
+        let cross_references: Vec<String> = if references.is_empty() {
+            Vec::new()
+        } else {
+            split_comma_separated_items(&references)
+        };
+
+        rows.push(DcDefn {
             dc_id,
             short_id,
-            ident,
-            label,
-            category,
-            base_format,
+            ident: if ident.is_empty() { None } else { Some(ident) },
+            label: effective_label,
+            category: formatted_category,
+            combining_class: 0,
+            bidi_class: BidiClass::BN,
+            casing_partner: None,
+            general_category: GeneralCategory::NonUnicodeControl,
+            script: "Formats".to_string(),
+            is_deprecated: false,
+            decompositions: Vec::new(),
+            aliases,
+            cross_references,
             syntax,
-            extensions,
-            mime,
-            uti,
-            apple_type,
-            nicknames,
-            import_support,
-            export_support,
-            tests,
-            variant_types,
-            comments,
-            references,
+            description: comments,
+            format: Some(format_details),
             source_file: file_path.to_string(),
             line_number: line_no,
         });
@@ -403,7 +441,7 @@ pub fn validate_format_files_data<'a, I>(
     files: I,
     category_dir_label: &str,
     report: &mut ValidationReport,
-) -> Vec<ParsedFormatRow>
+) -> Vec<DcDefn>
 where
     I: IntoIterator<Item = (&'a str, &'a [u8])> + Clone,
 {
@@ -537,7 +575,7 @@ where
 pub fn validate_all_format_files(
     formats_dir: &Dir,
     report: &mut ValidationReport,
-) -> Vec<ParsedFormatRow> {
+) -> Vec<DcDefn> {
     let mut files = Vec::new();
     for f in formats_dir.files() {
         if let Some(path_str) = f.path().to_str() {
@@ -555,7 +593,7 @@ pub fn validate_all_format_files(
 pub fn validate_all_format_files_from_disk(
     formats_dir: &std::path::Path,
     report: &mut ValidationReport,
-) -> Vec<ParsedFormatRow> {
+) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(formats_dir) else {
         report.add_error(
             &formats_dir.display().to_string(),
