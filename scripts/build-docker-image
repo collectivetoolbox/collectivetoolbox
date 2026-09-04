@@ -64,7 +64,8 @@ docker buildx build -f scripts/docker/Dockerfile . \
   --network=host \
   --allow network.host \
   --allow security.insecure \
-  --cache-to "type=local,dest=$cache_dir,mode=max" \
   --cache-from "type=local,src=$cache_dir" \
   --load \
   --progress plain
+
+  # --cache-to "type=local,dest=$cache_dir,mode=max" \

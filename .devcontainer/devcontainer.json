@@ -9,6 +9,9 @@
   "runArgs": [
     "--network=host"
   ],
+  "mounts": [
+    "source=antigravity-ide-data,target=/root/.gemini,type=volume"
+  ],
   "remoteUser": "root",
   "containerEnv": {
     "PLAYWRIGHT_CHROMIUM_ARGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
