@@ -83,7 +83,8 @@ else
 fi
 
 # Execute build
-docker buildx build -f scripts/docker/Dockerfile . \
+echo "Building Docker image using $dockerfile..."
+docker buildx build -f "$dockerfile" . \
   --network=host \
   --allow network.host \
   --allow security.insecure \
