@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(rows.len(), 2);
 
         // Run gap validation logic
-        let known_dc_ids: HashSet<u32> =
+        let known_dc_ids: HashSet<usize> =
             rows.iter().map(|r| r.short_id).collect();
         if let Some(&max_id) = known_dc_ids.iter().max() {
             let mut missing_ids = Vec::new();

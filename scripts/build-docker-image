@@ -8,23 +8,46 @@ recreate_builder=false
 clean_cache=false
 cache_dir="${CTOOLBOX_DOCKER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ctoolbox-docker-cache}"
 
-for arg in "$@"; do
-  case "$arg" in
+dockerfile="scripts/docker/Dockerfile"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --recreate|--clean|--reset)
       recreate_builder=true
+      shift
       ;;
     --clean-cache|--reset-cache)
       clean_cache=true
+      shift
+      ;;
+    --use-built|--small)
+      dockerfile="scripts/docker/Dockerfile-use-built"
+      shift
+      ;;
+    --full)
+      dockerfile="scripts/docker/Dockerfile"
+      shift
+      ;;
+    -f|--file)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires an argument" >&2
+        exit 1
+      fi
+      dockerfile="$2"
+      shift 2
       ;;
     -h|--help)
-      echo "Usage: $0 [--recreate] [--clean-cache]"
+      echo "Usage: $0 [--recreate] [--clean-cache] [--use-built|--small] [--full] [-f <dockerfile>]"
       echo "Options:"
       echo "  --recreate, --clean, --reset  Remove and recreate the buildkit builder"
       echo "  --clean-cache, --reset-cache  Clear host cache directory ($cache_dir)"
+      echo "  --use-built, --small          Build small Docker image using prebuilt bundles (Dockerfile-use-built)"
+      echo "  --full                        Build full Docker image from scratch (Dockerfile)"
+      echo "  -f, --file <dockerfile>       Specify a custom Dockerfile"
       exit 0
       ;;
     *)
-      echo "Unknown option: $arg" >&2
+      echo "Unknown option: $1" >&2
       exit 1
       ;;
   esac

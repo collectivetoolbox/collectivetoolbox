@@ -793,11 +793,17 @@ fn prepare_runtime_assets(
     let guix_fs_json = v86_images_vendor.join("guix/guix-fs.json");
     let guix_initrd = project_root.join("built/guix_posix_initrd.cpio.gz");
 
+    let dest_rsrc = project_root.join("built/v86_images.rsrc");
+    let v86_rsrc_vendor = project_root.join("vendor/v86_images.rsrc");
+    if v86_rsrc_vendor.is_file() {
+        let _ = fs::remove_file(&v86_rsrc_vendor);
+    }
+
     let rebuild_requested = std::env::var("REBUILD_V86_IMAGES")
         .map(|v| v == "1" || v == "true")
         .unwrap_or(false);
 
-    if !guix_fs_json.is_file() || rebuild_requested {
+    if (!dest_rsrc.is_file() && !guix_fs_json.is_file()) || rebuild_requested {
         let script = project_root.join("scripts/guix/build-v86-guix-image.sh");
         if script.is_file() {
             println!("cargo:warning=Building Guix v86 OS image...");
@@ -838,11 +844,6 @@ fn prepare_runtime_assets(
         )?;
     }
 
-    let dest_rsrc = project_root.join("built/v86_images.rsrc");
-    let v86_rsrc_vendor = project_root.join("vendor/v86_images.rsrc");
-    if v86_rsrc_vendor.is_file() {
-        let _ = fs::remove_file(&v86_rsrc_vendor);
-    }
 
     let dest_rsrc_mtime =
         fs::metadata(&dest_rsrc).and_then(|m| m.modified()).ok();

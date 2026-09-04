@@ -33,7 +33,7 @@ use crate::shared::{
     validate_extensions_field, validate_mime_field, validate_rust_identifier,
     validate_support_level,
 };
-use crate::syntax::{DcSyntaxRule, parse_dc_syntax};
+use crate::syntax::parse_dc_syntax;
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
 
@@ -501,22 +501,20 @@ where
                 );
             }
 
-            if !row.ident.is_empty() {
-                if let Some((prev_file, prev_line)) = ident_map.get(&row.ident)
-                {
+            if let Some(ident) = &row.ident {
+                if let Some((prev_file, prev_line)) = ident_map.get(ident) {
                     report.add_error(
                         &row.source_file,
                         Some(row.line_number),
                         Some("Ident"),
                         format!(
-                            "Duplicate Format Ident '{}' already defined in {prev_file}:{prev_line}",
-                            row.ident
+                            "Duplicate Format Ident '{ident}' already defined in {prev_file}:{prev_line}"
                         ),
                         Some("Assign a unique Rust-friendly Ident to each format"),
                     );
                 } else {
                     ident_map.insert(
-                        row.ident.clone(),
+                        ident.clone(),
                         (row.source_file.clone(), row.line_number),
                     );
                 }

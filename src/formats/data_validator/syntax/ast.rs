@@ -26,10 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Target reference to a character or format entity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CharTarget {
     /// Short Document Character (Dc) ID (e.g. 246, 248, 0).
     Dc(u32),
@@ -50,7 +50,7 @@ impl std::fmt::Display for CharTarget {
 }
 
 /// Quantifier applied to a syntax term.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Quantifier {
     /// Exactly one occurrence (default).
     #[default]
@@ -78,7 +78,7 @@ impl Quantifier {
 }
 
 /// Syntactic term in a Dc syntax rule.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SyntaxTerm {
     /// Self character reference (`~`), representing the character defining the rule.
     SelfChar,
@@ -110,7 +110,7 @@ pub enum SyntaxTerm {
 }
 
 /// Quantified element combining a term and its repetition quantifier.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxElement {
     pub term: SyntaxTerm,
     pub quantifier: Quantifier,
@@ -134,7 +134,7 @@ impl SyntaxElement {
 }
 
 /// Pattern grammar combining sequences and alternations.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SyntaxPattern {
     /// Ordered sequence of syntax elements.
     Sequence(Vec<SyntaxElement>),
@@ -143,7 +143,7 @@ pub enum SyntaxPattern {
 }
 
 /// Argument passed to an action invocation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionArg {
     /// Bound variable reference (e.g. `$ident`).
     Variable(String),
@@ -152,7 +152,7 @@ pub enum ActionArg {
 }
 
 /// Action invocation representing semantic translation or AST emission.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxAction {
     /// Qualified action/method identifier (e.g. `lang.assign`).
     pub method: String,
@@ -161,7 +161,7 @@ pub struct SyntaxAction {
 }
 
 /// Root AST structure for a complete Dc syntax declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DcSyntaxRule {
     /// Parsed pattern matching specification.
     pub pattern: SyntaxPattern,

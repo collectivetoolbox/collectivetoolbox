@@ -33,8 +33,7 @@ use crate::shared::{
     validate_bidi_class, validate_combining_class, validate_general_category,
 };
 use crate::syntax::{
-    CharTarget, DcSyntaxRule, parse_dc_syntax, parse_target_token,
-    validate_dc_syntax,
+    CharTarget, parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
@@ -122,6 +121,7 @@ pub fn validate_dc_category_file(
         }
     }
 
+    // Reason for fallback: file paths without stems default to "general" category
     let category = std::path::Path::new(file_path)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -145,6 +145,7 @@ pub fn validate_dc_category_file(
             );
         }
 
+        // Reason for fallback: missing columns produce empty string so schema validation can report column count error
         let get_str = |idx: usize| -> String {
             row.get(idx).map_or(String::new(), |s| s.trim().to_string())
         };
@@ -454,6 +455,7 @@ where
         }
     }
 
+    // Reason for fallback: short ID values are within u32 range, default to 0 if out of range for syntax checks
     let known_dc_ids: HashSet<u32> = all_rows
         .iter()
         .map(|r| u32::try_from(r.short_id).unwrap_or(0))
@@ -536,6 +538,7 @@ where
         }
 
         if let Some(syntax_rule) = &row.syntax {
+            // Reason for fallback: short ID values fit u32, default to 0 if conversion fails
             let short_id_u32 = u32::try_from(row.short_id).unwrap_or(0);
             validate_dc_syntax(
                 syntax_rule,
