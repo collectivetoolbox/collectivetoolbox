@@ -78,7 +78,6 @@ Remember to update the date to match.
 
 Running in docker: `docker run -it ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2 bash`
 
-
 ##### Using the built v86 image
 
 ```
