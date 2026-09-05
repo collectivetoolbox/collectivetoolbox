@@ -8,4 +8,4 @@ nameservers = ["1.1.1.1", "8.8.8.8"]
 [worker.oci]
   enabled = true
   gc = true
-  gckeepstorage = "50GB"
+  gckeepstorage = "200GB"
