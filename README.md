@@ -47,10 +47,13 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Check for workspace lint setup correct: `cd ~/ctoolbox || exit 1; cargo workspace-lints -v`
 - Quick build and run: `cd ~/ctoolbox || exit 1; RUST_BACKTRACE=1 ./run-linux`
 - Run a single test: `cargo test spans_attach_request_and_stream_fields -- --nocapture`
-- Build v86 image in Docker container (NOT required, used for building v86 image; this will take several hours and may need need >100GB disk space): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
-- Build small Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image --use-built; notify-send "Docker command finished" || true`
-
-- Tag Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
+- Creating Docker containers:
+  - Note: Docker containers are NOT required to build ctoolbox or probably the v86 image, but are how I build the v86 image. I want to minimize dependency on, so the Dockerfiles use a Debian base image without extras to start with and build everything on top of that. CI runs in a container that's already partly built. It should be possible to build the image on a native Debian installation using the same scripts, though it may require some manual wrangling and I haven't tried it.
+  - Build v86 image in Docker container (used for building v86 image; this will take several hours and may need need >100GB disk space): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
+  - Protecting a Docker image from `docker image prune`: `docker create --name keep-ctb-builder-2026-sept-5-build ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
+  - Extract the built v86 image from the Docker container to avoid rebuilding on the host: `cd ~/ctoolbox || exit 1; ./scripts/extract-v86-images`
+  - Build small Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image --use-built; notify-send "Docker command finished" || true`
+  - Tag Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
 
@@ -77,10 +80,6 @@ Remember to update the date to match.
 * It should say Login Succeeded.
 
 Running in docker: `docker run -it ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2 bash`
-
-##### Using the built v86 image
-
-`cd ~/ctoolbox || exit 1; ./scripts/extract-v86-images`
 
 ### Updating:
 
