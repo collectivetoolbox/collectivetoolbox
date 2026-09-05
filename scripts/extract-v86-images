@@ -7,7 +7,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="$(cd "${script_dir}/.." && pwd)"
 
-image_tag="${DOCKER_IMAGE:-ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-3:latest}"
+image_tag="$1"
+shift
 
 # Ensure vendored dependencies in vendor/ctb-vendored are present before running Docker
 if [[ ! -d "${workspace_root}/vendor/ctb-vendored/vendor" ]]; then

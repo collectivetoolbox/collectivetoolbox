@@ -50,10 +50,11 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
 - Creating Docker containers:
   - Note: Docker containers are NOT required to build ctoolbox or probably the v86 image, but are how I build the v86 image. I want to minimize dependency on, so the Dockerfiles use a Debian base image without extras to start with and build everything on top of that. CI runs in a container that's already partly built. It should be possible to build the image on a native Debian installation using the same scripts, though it may require some manual wrangling and I haven't tried it.
   - Build v86 image in Docker container (used for building v86 image; this will take several hours and may need need >100GB disk space): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`
+  - Tag v86 builder Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
   - Protecting a Docker image from `docker image prune`: `docker create --name keep-ctb-builder-2026-sept-5-build ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
-  - Extract the built v86 image from the Docker container to avoid rebuilding on the host: `cd ~/ctoolbox || exit 1; ./scripts/extract-v86-images`
+  - Extract the built v86 image from the Docker container to avoid rebuilding on the host (pass the tag of the large builder image): `cd ~/ctoolbox || exit 1; ./scripts/extract-v86-images ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
   - Build small Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image --use-built; notify-send "Docker command finished" || true`
-  - Tag Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
+  - Tag small Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
 
