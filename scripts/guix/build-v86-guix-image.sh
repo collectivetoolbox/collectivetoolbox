@@ -411,6 +411,24 @@ start_guix_daemon() {
     if [ -n "$guix_cmd" ] && [ -e "$guix_cmd" ]; then
         guix_cmd="$(readlink -f "$guix_cmd")"
     fi
+    local has_env=0
+    for arg in "${daemon_env[@]}"; do
+        if [ "$arg" = "env" ]; then
+            has_env=1
+            break
+        fi
+    done
+    if [ "$has_env" -eq 0 ]; then
+        daemon_env+=(env)
+    fi
+    if [ -n "$guix_cmd" ] && [ -e "$guix_cmd" ]; then
+        daemon_env+=("GUIX=$guix_cmd")
+    fi
+    daemon_env+=(
+        "GUIX_STATE_DIRECTORY=/var/guix"
+        "GUIX_CONFIGURATION_DIRECTORY=/etc/guix"
+        "NIX_STORE_DIR=/gnu/store"
+    )
     local substitute_args=(--substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org")
     if [ -n "${CARGO_NET_OFFLINE:-}" ] || [ -n "${prebuilt_icecat:-}" ] || [ "${GUIX_OFFLINE:-0}" = "1" ]; then
         substitute_args=(--no-substitutes)
@@ -534,7 +552,7 @@ cross_compile_dillo() {
 }
 
 fetch_dillo_sources() {
-    guix_run_with_retries build -L "$script_dir" \
+    GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
         -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages web-browsers) dillo))))' || true
 }
 
@@ -547,7 +565,7 @@ cross_compile_icecat() {
 }
 
 fetch_icecat_sources() {
-    guix_run_with_retries build -L "$script_dir" \
+    GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
         -e '((@ (patches) all-transitive-sources) (list ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat-minimal)) ((@ (patches) apply-patches) (@ (gnu packages gnuzilla) icecat))))'
 }
 
@@ -555,7 +573,7 @@ fetch_system_sources() {
     if [ -n "$prebuilt_icecat" ] || [ -n "${CARGO_NET_OFFLINE:-}" ] || [ "${GUIX_OFFLINE:-0}" = "1" ]; then
         guix repl -L "$script_dir" "$script_dir/resolve-icecat.scm" system-sources
     else
-        guix_run_with_retries build -L "$script_dir" \
+        GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries build $keep_failed --fallback -L "$script_dir" \
             -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))'
     fi
 }
@@ -564,7 +582,7 @@ case "$mode" in
     pull)
         start_guix_daemon
         echo "Updating Guix channels to latest..."
-        guix_run_with_retries pull --url="https://codeberg.org/guix/guix.git" --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries pull --url="https://codeberg.org/guix/guix.git" --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
         for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
                    /root/.config/guix/current/share/guix/*.pub \
                    /usr/local/share/guix/*.pub; do
