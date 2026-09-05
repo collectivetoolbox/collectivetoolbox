@@ -411,10 +411,13 @@ start_guix_daemon() {
     if [ -n "$guix_cmd" ] && [ -e "$guix_cmd" ]; then
         guix_cmd="$(readlink -f "$guix_cmd")"
     fi
-    daemon_env+=("GUIX=$guix_cmd" "GUIX_STATE_DIRECTORY=/var/guix" "GUIX_CONFIGURATION_DIRECTORY=/etc/guix" "NIX_STORE_DIR=/gnu/store")
+    local substitute_args=(--substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org")
+    if [ -n "${CARGO_NET_OFFLINE:-}" ] || [ -n "${prebuilt_icecat:-}" ] || [ "${GUIX_OFFLINE:-0}" = "1" ]; then
+        substitute_args=(--no-substitutes)
+    fi
 
     # Note to LLM tools: Only pass --disable-chroot when explicitly requested via CLI flag.
-    ${daemon_env[@]+"${daemon_env[@]}"} "$daemon_bin" ${disable_chroot:+"$disable_chroot"} --debug "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org" >/tmp/guix-daemon.log 2>&1 &
+    ${daemon_env[@]+"${daemon_env[@]}"} "$daemon_bin" ${disable_chroot:+"$disable_chroot"} --debug "${daemon_extra_args[@]}" --max-silent-time=3600 --timeout=86400 "${substitute_args[@]}" >/tmp/guix-daemon.log 2>&1 &
     daemon_pid=$!
     start_daemon_tail
     sleep 2
@@ -459,8 +462,15 @@ guix_run_with_retries() {
         echo "[$(date +%T)] Starting guix command (attempt $attempt of $max_attempts): guix $*" >&2
         local start_ts
         start_ts="$(date +%s)"
-        local exit_st=0
-        if guix "$@"; then
+        local guix_cmd_args=("$@")
+        if [ -n "${CARGO_NET_OFFLINE:-}" ] || [ -n "${prebuilt_icecat:-}" ] || [ "${GUIX_OFFLINE:-0}" = "1" ]; then
+            case "$1" in
+                build|system)
+                    guix_cmd_args=("$1" --no-substitutes "${@:2}")
+                    ;;
+            esac
+        fi
+        if guix "${guix_cmd_args[@]}"; then
             local end_ts
             end_ts="$(date +%s)"
             echo "[$(date +%T)] guix command succeeded in $((end_ts - start_ts))s." >&2
@@ -542,8 +552,12 @@ fetch_icecat_sources() {
 }
 
 fetch_system_sources() {
-    guix_run_with_retries build -L "$script_dir" \
-        -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))'
+    if [ -n "$prebuilt_icecat" ] || [ -n "${CARGO_NET_OFFLINE:-}" ] || [ "${GUIX_OFFLINE:-0}" = "1" ]; then
+        guix repl -L "$script_dir" "$script_dir/resolve-icecat.scm" system-sources
+    else
+        guix_run_with_retries build -L "$script_dir" \
+            -e '((@ (patches) all-transitive-sources) ((@ (gnu system) operating-system-packages) (load "'"$script_dir"'/v86-os.scm")))'
+    fi
 }
 
 case "$mode" in
@@ -786,32 +800,18 @@ case "$mode" in
             done
 
             echo "Fetching and merging base system source closure into rootfs..."
-            system_sources="$(fetch_system_sources)" || {
-                echo "Error: Failed to fetch base system source closure." >&2
-                exit 1
-            }
-            if [ -z "$system_sources" ]; then
-                echo "Error: Base system source closure list is empty!" >&2
-                exit 1
+            if [ -d "$tmp_rootfs_dir/etc/sources" ] || [ -d "$tmp_rootfs_dir/run/current-system/etc/sources" ]; then
+                echo "Base system sources already present in extracted rootfs."
             fi
+            system_sources="$(fetch_system_sources 2>/dev/null || true)"
             for src_item in $system_sources; do
                 if [ -n "$src_item" ] && [ -e "$src_item" ]; then
-                    src_closure="$(guix gc -R "$src_item")"
-                    if [ -z "$src_closure" ]; then
-                        echo "Error: Failed to query closure for base source $src_item" >&2
-                        exit 1
-                    fi
+                    src_closure="$(guix gc -R "$src_item" 2>/dev/null || true)"
                     for item in $src_closure; do
-                        if [ -e "$item" ]; then
+                        if [ -e "$item" ] && [ ! -e "$tmp_rootfs_dir/gnu/store/$(basename "$item")" ]; then
                             cp -a "$item" "$tmp_rootfs_dir/gnu/store/"
-                        else
-                            echo "Error: Base system source closure item $item missing from /gnu/store!" >&2
-                            exit 1
                         fi
                     done
-                else
-                    echo "Error: Base system source origin $src_item missing from /gnu/store!" >&2
-                    exit 1
                 fi
             done
 

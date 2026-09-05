@@ -22,6 +22,7 @@ docker_args=(
   -v "${workspace_root}":/workspaces/ctoolbox
   -w /workspaces/ctoolbox
   -e CARGO_NET_OFFLINE=true
+  -e GUIX_OFFLINE=1
 )
 
 echo "Extracting v86 filesystem and assets using Docker image ${image_tag} (offline mode)..."

@@ -76,6 +76,25 @@
                       missing)
             #f)))))
 
+(define (resolve-system-sources)
+  (with-store store
+    (let* ((os (load (string-append (dirname (current-filename)) "/v86-os.scm")))
+           (pkgs (operating-system-packages os))
+           (sources (all-transitive-sources pkgs)))
+      (for-each
+       (lambda (src)
+         (let* ((lowered (run-with-store store (lower-object src)))
+                (out (if (derivation? lowered)
+                         (derivation->output-path lowered)
+                         lowered)))
+           (if (and (valid-path? store out) (file-exists? out))
+               (begin
+                 (display out)
+                 (newline))
+               #f)))
+       sources)
+      #t)))
+
 (match (command-line)
   ((_ "binary")
    (if (resolve-icecat-binary)
@@ -85,11 +104,15 @@
    (if (resolve-icecat-sources)
        (exit 0)
        (exit 1)))
+  ((_ "system-sources")
+   (if (resolve-system-sources)
+       (exit 0)
+       (exit 1)))
   ((_ "both")
    (if (and (resolve-icecat-binary)
             (resolve-icecat-sources))
        (exit 0)
        (exit 1)))
   (_
-   (format (current-error-port) "Usage: resolve-icecat.scm [binary|sources|both]~%")
+   (format (current-error-port) "Usage: resolve-icecat.scm [binary|sources|system-sources|both]~%")
    (exit 2)))
