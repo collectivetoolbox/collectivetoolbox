@@ -114,6 +114,9 @@ pub fn execute_copy_pipeline(
                     std::fs::create_dir_all(&curr_tgt).with_context(|| {
                         format!("Failed to create destination dir: {}", curr_tgt.display())
                     })?;
+                    if let (Some(parent), Some(name)) = (curr_tgt.parent(), curr_tgt.file_name()) {
+                        verify_filename_exact_bytes(parent, name.as_encoded_bytes())?;
+                    }
                 }
 
                 let src_meta = std::fs::metadata(&curr_src)?;
@@ -287,6 +290,15 @@ fn copy_single_item(
             std::os::unix::fs::symlink(&target, dest_path).with_context(|| {
                 format!("Failed to create symlink: {}", dest_path.display())
             })?;
+            if let (Some(parent), Some(name)) = (dest_path.parent(), dest_path.file_name()) {
+                verify_filename_exact_bytes(parent, name.as_encoded_bytes())?;
+            }
+            let dest_target = std::fs::read_link(dest_path)?;
+            anyhow::ensure!(
+                dest_target.as_os_str().as_encoded_bytes() == target.as_os_str().as_encoded_bytes(),
+                "Target filesystem altered or normalized symlink target for {}",
+                dest_path.display()
+            );
             apply_metadata(dest_path, sym_meta, true)?;
         }
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
@@ -315,6 +327,9 @@ fn copy_single_item(
                         dest_path.display()
                     )
                 })?;
+                if let (Some(parent), Some(name)) = (dest_path.parent(), dest_path.file_name()) {
+                    verify_filename_exact_bytes(parent, name.as_encoded_bytes())?;
+                }
             }
             stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
             journal.record_hardlink(dest_path.to_path_buf(), first_target.clone());
@@ -331,6 +346,9 @@ fn copy_single_item(
             mkfifo(dest_path, Mode::from_bits_truncate(sym_meta.mode())).with_context(|| {
                 format!("Failed to create FIFO: {}", dest_path.display())
             })?;
+            if let (Some(parent), Some(name)) = (dest_path.parent(), dest_path.file_name()) {
+                verify_filename_exact_bytes(parent, name.as_encoded_bytes())?;
+            }
             apply_metadata(dest_path, sym_meta, false)?;
         }
         stats.special_files_created = stats.special_files_created.saturating_add(1);
@@ -349,6 +367,9 @@ fn copy_single_item(
             .with_context(|| {
                 format!("Failed to create character device node: {}", dest_path.display())
             })?;
+            if let (Some(parent), Some(name)) = (dest_path.parent(), dest_path.file_name()) {
+                verify_filename_exact_bytes(parent, name.as_encoded_bytes())?;
+            }
             apply_metadata(dest_path, sym_meta, false)?;
         }
         stats.special_files_created = stats.special_files_created.saturating_add(1);
@@ -468,12 +489,13 @@ fn copy_single_item(
     let file_name = dest_path.file_name().context("Dest path has no file name")?;
 
     let pid = std::process::id();
-    let thread_id = std::thread::current().id();
     let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
         Ok(dur) => dur.subsec_nanos(),
         Err(_) => 0,
     };
-    let temp_name = format!(".csc-tmp.{pid}.{thread_id:?}.{nanos}.{}", file_name.to_string_lossy());
+    static ATOMIC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
     let temp_path = parent_dir.join(temp_name);
 
     let mut temp_file = OpenOptions::new()
@@ -557,6 +579,17 @@ fn copy_single_item(
     }
 
     let file_sha256 = hasher.finalize();
+
+    // Verify sparse extents if file was sparse
+    if is_sparse && initial_size >= 4096 {
+        let dest_extents = get_file_extents(&temp_file, initial_size)?;
+        let dest_has_hole = dest_extents.iter().any(|e| matches!(e, FileExtent::Hole { .. }));
+        anyhow::ensure!(
+            dest_has_hole,
+            "Target filesystem failed to preserve sparseness for {}. Sparse hole data would be inflated.",
+            dest_path.display()
+        );
+    }
 
     // Copy streams, xattrs, and ACLs
     let streams = read_and_hash_streams(src_path)?;

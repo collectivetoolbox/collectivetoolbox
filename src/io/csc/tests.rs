@@ -249,4 +249,376 @@ mod csc_tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
+
+    #[crate::ctb_test]
+    fn test_xattrs_and_streams_preserved() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_xattrs");
+        let dest = temp.path().join("dest_xattrs");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("data.bin");
+        fs::write(&file, b"Main stream payload").expect("write file");
+
+        xattr::set(&file, "user.test_attr", b"Value of attr 1").expect("set xattr 1");
+        xattr::set(
+            &file,
+            "user.complex_stream",
+            b"Multi-line\nstream\x00with\x01binary\xFFdata",
+        )
+        .expect("set xattr 2");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc with xattrs");
+
+        let dest_file = dest.join("data.bin");
+        assert_eq!(
+            fs::read(&dest_file).expect("read dest"),
+            b"Main stream payload"
+        );
+
+        let val1 = xattr::get(&dest_file, "user.test_attr")
+            .expect("get xattr 1")
+            .expect("attr 1 exists");
+        assert_eq!(val1, b"Value of attr 1");
+
+        let val2 = xattr::get(&dest_file, "user.complex_stream")
+            .expect("get xattr 2")
+            .expect("attr 2 exists");
+        assert_eq!(val2, b"Multi-line\nstream\x00with\x01binary\xFFdata");
+    }
+
+    #[crate::ctb_test]
+    fn test_unusual_filenames_and_stream_names() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_unusual");
+        let dest = temp.path().join("dest_unusual");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        // 1. Filename with newlines
+        let nl_file = src.join("file\nwith\nnewlines.txt");
+        fs::write(&nl_file, b"Newlines in filename content").expect("write nl_file");
+
+        // 2. Filename with unusual punctuation and spaces
+        let punc_file = src.join("special !@#$%^&*()_+-=[]{}|;',.<>?~.txt");
+        fs::write(&punc_file, b"Punctuation content").expect("write punc_file");
+
+        // 3. Misencoded non-UTF-8 raw byte filename
+        let misencoded_name = std::ffi::OsStr::from_bytes(b"misencoded_\xFF\xFE_\x80_junk.dat");
+        let mis_file = src.join(misencoded_name);
+        fs::write(&mis_file, b"Misencoded filename payload").expect("write mis_file");
+
+        // 4. Stream name with binary junk
+        let misencoded_stream =
+            std::ffi::OsStr::from_bytes(b"user.stream_\xFF\xFE_\x80_junk");
+        xattr::set(&mis_file, misencoded_stream, b"Stream with binary name")
+            .expect("set binary stream");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc with unusual names");
+
+        assert_eq!(
+            fs::read(dest.join("file\nwith\nnewlines.txt")).expect("read nl"),
+            b"Newlines in filename content"
+        );
+        assert_eq!(
+            fs::read(dest.join("special !@#$%^&*()_+-=[]{}|;',.<>?~.txt"))
+                .expect("read punc"),
+            b"Punctuation content"
+        );
+
+        let dest_mis = dest.join(misencoded_name);
+        assert_eq!(
+            fs::read(&dest_mis).expect("read mis"),
+            b"Misencoded filename payload"
+        );
+
+        let stream_val = xattr::get(&dest_mis, misencoded_stream)
+            .expect("get binary stream")
+            .expect("stream exists");
+        assert_eq!(stream_val, b"Stream with binary name");
+    }
+
+    #[crate::ctb_test]
+    fn test_long_path_names_and_deep_nesting() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_long");
+        let dest = temp.path().join("dest_long");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&state).expect("create state");
+
+        // Long filename of 240 bytes (close to NAME_MAX = 255)
+        let long_filename = "a".repeat(240);
+        let long_file = src.join(&long_filename);
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(&long_file, b"Payload in file with 240-byte name")
+            .expect("write long file");
+
+        // Deep directory nesting (15 levels deep)
+        let mut deep_dir = src.clone();
+        for i in 0..15 {
+            deep_dir = deep_dir.join(format!("level_{i}"));
+        }
+        fs::create_dir_all(&deep_dir).expect("create deep dir");
+        let nested_file = deep_dir.join("deep_nested.txt");
+        fs::write(&nested_file, b"Nested file content").expect("write nested file");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc with long paths");
+
+        assert_eq!(
+            fs::read(dest.join(&long_filename)).expect("read long file"),
+            b"Payload in file with 240-byte name"
+        );
+
+        let mut dest_deep = dest.clone();
+        for i in 0..15 {
+            dest_deep = dest_deep.join(format!("level_{i}"));
+        }
+        assert_eq!(
+            fs::read(dest_deep.join("deep_nested.txt")).expect("read nested file"),
+            b"Nested file content"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_sparse_file_preservation() {
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        use std::io::Write;
+        use crate::fs_strict::{get_file_extents, FileExtent};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_sparse");
+        let dest = temp.path().join("dest_sparse");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let sparse_src = src.join("sparse.img");
+        let mut f = fs::File::create(&sparse_src).expect("create sparse file");
+        // Write header
+        f.write_all(b"HeaderData").expect("write header");
+        // Seek forward 10MB
+        f.seek(SeekFrom::Start(10 * 1024 * 1024)).expect("seek 10MB");
+        // Write tail
+        f.write_all(b"TailData").expect("write tail");
+        f.sync_data().expect("sync sparse src");
+        drop(f);
+
+        let src_meta = fs::metadata(&sparse_src).expect("src meta");
+        let expected_len = src_meta.len();
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc with sparse file");
+
+        let dest_sparse = dest.join("sparse.img");
+        let dest_meta = fs::metadata(&dest_sparse).expect("dest meta");
+        assert_eq!(dest_meta.len(), expected_len);
+
+        // Verify extents on dest contain a hole
+        let dest_file = fs::File::open(&dest_sparse).expect("open dest sparse");
+        let extents = get_file_extents(&dest_file, expected_len).expect("get extents");
+        let has_hole = extents.iter().any(|e| matches!(e, FileExtent::Hole { .. }));
+        assert!(has_hole, "Expected destination file to preserve sparse hole");
+
+        // Verify content integrity
+        let mut dest_f = dest_file;
+        let mut header = [0_u8; 10];
+        dest_f.seek(SeekFrom::Start(0)).expect("seek to 0");
+        std::io::Read::read_exact(&mut dest_f, &mut header).expect("read header");
+        assert_eq!(&header, b"HeaderData");
+
+        dest_f.seek(SeekFrom::Start(10 * 1024 * 1024)).expect("seek to tail");
+        let mut tail = [0_u8; 8];
+        std::io::Read::read_exact(&mut dest_f, &mut tail).expect("read tail");
+        assert_eq!(&tail, b"TailData");
+    }
+
+    #[crate::ctb_test]
+    fn test_timestamps_and_metadata_preserved() {
+        use std::os::unix::fs::PermissionsExt;
+        use filetime::{FileTime, set_file_times};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_meta");
+        let dest = temp.path().join("dest_meta");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("custom_meta.txt");
+        fs::write(&file, b"Testing metadata and timestamps").expect("write file");
+
+        // Set permissions 0o640 (rw-r-----)
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o640))
+            .expect("set permissions");
+
+        // Set directory permissions 0o750 (rwxr-x---)
+        fs::set_permissions(&src, fs::Permissions::from_mode(0o750))
+            .expect("set dir perms");
+
+        // Set specific mtime timestamp
+        let custom_time = FileTime::from_unix_time(1_400_000_000, 500_000_000);
+        set_file_times(&file, custom_time, custom_time).expect("set file times");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc");
+
+        let dest_file = dest.join("custom_meta.txt");
+        let dm = fs::metadata(&dest_file).expect("dest meta");
+        assert_eq!(dm.permissions().mode() & 0o777, 0o640);
+        assert_eq!(dm.mtime(), 1_400_000_000);
+
+        let d_dir = fs::metadata(&dest).expect("dest dir meta");
+        assert_eq!(d_dir.permissions().mode() & 0o777, 0o750);
+    }
+
+    #[crate::ctb_test]
+    fn test_fifo_special_file_preserved() {
+        use nix::sys::stat::Mode;
+        use nix::unistd::mkfifo;
+        use std::os::unix::fs::FileTypeExt;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_fifo");
+        let dest = temp.path().join("dest_fifo");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let fifo_path = src.join("test.fifo");
+        mkfifo(&fifo_path, Mode::from_bits_truncate(0o660)).expect("mkfifo");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc with fifo");
+
+        let dest_fifo = dest.join("test.fifo");
+        let meta = fs::symlink_metadata(&dest_fifo).expect("fifo metadata");
+        assert!(meta.file_type().is_fifo(), "Expected created node to be a FIFO");
+    }
+
+    #[crate::ctb_test]
+    fn test_symlink_dangling_and_relative_target_preserved() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_dangling");
+        let dest = temp.path().join("dest_dangling");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let sym = src.join("dangling.sym");
+        std::os::unix::fs::symlink("../non_existent_folder/absent.txt", &sym)
+            .expect("create dangling symlink");
+
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+
+        run_csc(args).expect("run csc");
+
+        let dest_sym = dest.join("dangling.sym");
+        assert!(dest_sym.is_symlink());
+        let read = fs::read_link(&dest_sym).expect("read dangling symlink");
+        assert_eq!(read, PathBuf::from("../non_existent_folder/absent.txt"));
+    }
+
+    #[crate::ctb_test]
+    fn test_strict_error_on_altered_filename() {
+        use crate::fs_strict::verify_filename_exact_bytes;
+
+        let temp = tempdir().expect("create tempdir");
+        let test_file = temp.path().join("original_name.txt");
+        fs::write(&test_file, b"data").expect("write test file");
+
+        // Verify that matching bytes succeed
+        assert!(verify_filename_exact_bytes(temp.path(), b"original_name.txt").is_ok());
+
+        // Verify that altered, stripped, or normalized bytes fail with error
+        let err = verify_filename_exact_bytes(temp.path(), b"Original_Name.txt");
+        assert!(err.is_err(), "Expected error when filename bytes do not match exactly");
+    }
+
+    #[crate::ctb_test]
+    fn test_multiple_sources_to_dest_dir() {
+        let temp = tempdir().expect("create tempdir");
+        let src1 = temp.path().join("src1");
+        let src2 = temp.path().join("src2");
+        let dest = temp.path().join("dest_multi");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src1).expect("create src1");
+        fs::create_dir_all(&src2).expect("create src2");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src1.join("a.txt"), b"Content A").expect("write a");
+        fs::write(src2.join("b.txt"), b"Content B").expect("write b");
+
+        let args = default_test_args(
+            vec![src1.clone(), src2.clone(), dest.clone()],
+            state,
+        );
+
+        run_csc(args).expect("run csc multiple sources");
+
+        assert_eq!(
+            fs::read(dest.join("src1").join("a.txt")).expect("read a"),
+            b"Content A"
+        );
+        assert_eq!(
+            fs::read(dest.join("src2").join("b.txt")).expect("read b"),
+            b"Content B"
+        );
+    }
 }

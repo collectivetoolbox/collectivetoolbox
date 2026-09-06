@@ -30,16 +30,17 @@ use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
 use nix::fcntl::{AT_FDCWD, AtFlags};
 use nix::unistd::{Gid, Uid, Whence, chown, fchownat, lseek};
+use std::ffi::OsString;
 use std::fs::{Metadata, Permissions};
 use std::os::fd::AsFd;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::path::Path;
 
 /// Information about an extended attribute, ACL, or alternate stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StreamInfo {
     /// The name of the stream or extended attribute (e.g. `user.DosStream.foo`).
-    pub name: String,
+    pub name: OsString,
     /// Size of the stream payload in bytes.
     pub size: u64,
     /// Cryptographic SHA-256 digest of the stream payload.
@@ -95,15 +96,14 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
     };
 
     for name_os in xattr_names {
-        let name_str = name_os.to_string_lossy().into_owned();
         let val = match xattr::get(path, &name_os) {
             Ok(Some(v)) => v,
             Ok(None) => continue,
             Err(e) => {
                 return Err(e).with_context(|| {
                     format!(
-                        "Failed to read xattr/stream {} on {}",
-                        name_str,
+                        "Failed to read xattr/stream {:?} on {}",
+                        name_os,
                         path.display()
                     )
                 });
@@ -117,7 +117,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
 
         streams.push((
             StreamInfo {
-                name: name_str,
+                name: name_os,
                 size,
                 sha256,
             },
@@ -136,7 +136,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
     for (info, val) in streams {
         if let Err(e) = xattr::set(dest, &info.name, val) {
             anyhow::bail!(
-                "Target filesystem failed to store stream/xattr '{}' on {} (error: {}). Data would be lost.",
+                "Target filesystem failed to store stream/xattr '{:?}' on {} (error: {}). Data would be lost.",
                 info.name,
                 dest.display(),
                 e
@@ -196,9 +196,20 @@ pub fn apply_metadata(
     }
 
     // 3. Timestamps
-    if is_symlink {
+    // Note: opening a FIFO or special device node with open() (which set_file_times does)
+    // blocks indefinitely unless opened with O_NONBLOCK. set_symlink_file_times uses
+    // utimensat(..., AT_SYMLINK_NOFOLLOW), avoiding open() entirely.
+    let file_type = source_meta.file_type();
+    if is_symlink
+        || file_type.is_fifo()
+        || file_type.is_char_device()
+        || file_type.is_block_device()
+    {
         set_symlink_file_times(dest, atime, mtime).with_context(|| {
-            format!("Failed to set symlink times on {}", dest.display())
+            format!(
+                "Failed to set times on special node/symlink {}",
+                dest.display()
+            )
         })?;
     } else {
         set_file_times(dest, atime, mtime).with_context(|| {

@@ -192,7 +192,7 @@ pub fn verify_file_independent(
         let matching_dest = dest_streams.iter().find(|(d_info, _)| d_info.name == s_info.name);
         let Some((d_info, d_val)) = matching_dest else {
             anyhow::bail!(
-                "Stream/xattr '{}' missing on destination {} during verification",
+                "Stream/xattr {:?} missing on destination {} during verification",
                 s_info.name,
                 dest_path.display()
             );
@@ -200,7 +200,7 @@ pub fn verify_file_independent(
 
         if d_info.sha256 != s_info.sha256 || d_val != s_val {
             anyhow::bail!(
-                "CORRUPTION DETECTED in stream/xattr '{}' on {}: hash mismatch during verification",
+                "CORRUPTION DETECTED in stream/xattr {:?} on {}: hash mismatch during verification",
                 s_info.name,
                 dest_path.display()
             );

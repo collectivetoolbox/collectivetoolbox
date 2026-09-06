@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::os::unix::ffi::OsStringExt;
@@ -57,7 +58,7 @@ pub struct ManifestFile {
     pub uid: u32,
     pub gid: u32,
     pub is_sparse: bool,
-    pub streams: Vec<(String, [u8; 32])>,
+    pub streams: Vec<(OsString, [u8; 32])>,
 }
 
 /// Manifest information for a committed directory.
@@ -69,7 +70,7 @@ pub struct ManifestDir {
     pub mtime_nsec: u32,
     pub uid: u32,
     pub gid: u32,
-    pub streams: Vec<(String, [u8; 32])>,
+    pub streams: Vec<(OsString, [u8; 32])>,
 }
 
 /// Manifest information for a committed symlink.
@@ -249,7 +250,7 @@ impl JournalWriter {
             write_u32(&mut self.writer, d.gid)?;
             write_u32(&mut self.writer, u32::try_from(d.streams.len())?)?;
             for (sname, shash) in &d.streams {
-                write_bytes(&mut self.writer, sname.as_bytes())?;
+                write_bytes(&mut self.writer, sname.as_encoded_bytes())?;
                 self.writer.write_all(shash)?;
             }
         }
@@ -268,7 +269,7 @@ impl JournalWriter {
             self.writer.write_all(&[u8::from(f.is_sparse)])?;
             write_u32(&mut self.writer, u32::try_from(f.streams.len())?)?;
             for (sname, shash) in &f.streams {
-                write_bytes(&mut self.writer, sname.as_bytes())?;
+                write_bytes(&mut self.writer, sname.as_encoded_bytes())?;
                 self.writer.write_all(shash)?;
             }
 
@@ -404,7 +405,7 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
                 for _ in 0..stream_count {
                     let sname_bytes = read_bytes(&mut reader)?;
-                    let sname = String::from_utf8_lossy(&sname_bytes).into_owned();
+                    let sname = OsString::from_vec(sname_bytes);
                     let mut shash = [0_u8; 32];
                     reader.read_exact(&mut shash)?;
                     streams.push((sname, shash));
@@ -440,7 +441,7 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
                 for _ in 0..stream_count {
                     let sname_bytes = read_bytes(&mut reader)?;
-                    let sname = String::from_utf8_lossy(&sname_bytes).into_owned();
+                    let sname = OsString::from_vec(sname_bytes);
                     let mut shash = [0_u8; 32];
                     reader.read_exact(&mut shash)?;
                     streams.push((sname, shash));
