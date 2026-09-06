@@ -571,7 +571,7 @@ mod tests {
             )
         );
 
-        let input = "द्ध्र्य︘ꡀ𓉔A字😂\u{0004}𗿼선𘮝狀";
+        let input = "द्ध्र्य︘ꡀ𓉔A字😂\u{0004}𗿼선𘮝\u{F9FA}";
         let expected = "U+0926 : DEVANAGARI LETTER DA
 U+094D : DEVANAGARI SIGN VIRAMA {halant (the preferred Hindi name)}
 U+0927 : DEVANAGARI LETTER DHA
