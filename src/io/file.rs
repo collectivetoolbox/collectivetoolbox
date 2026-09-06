@@ -32,6 +32,7 @@ pub mod materializer;
 pub mod metadata;
 pub mod path_policy;
 pub mod payload;
+pub mod sandboxable_dir;
 pub mod streams;
 pub mod sys_flags;
 pub mod verifier;
@@ -40,7 +41,7 @@ pub use entity::{FileEntity, FileEntityKind};
 pub use identity::{FileIdentity, FileOrigin, InodeKey};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
-    verify_filename_exact_bytes,
+    materialize_entity_at_path, verify_filename_exact_bytes,
 };
 pub use metadata::{FileFlag, FileMetadata, FileTimestamps, OsFamily, PlatformRawFlags};
 pub use path_policy::{
@@ -50,6 +51,7 @@ pub use path_policy::{
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
 };
+pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use verifier::{evict_fd_cache, try_drop_system_caches, verify_materialized_entity};
@@ -68,6 +70,7 @@ pub use verifier::{evict_fd_cache, try_drop_system_caches, verify_materialized_e
 mod tests {
     use super::*;
     use ctb_formats_checksum::Sha256Stream;
+    use rustix::fd::AsFd;
     use std::fs;
     use std::path::PathBuf;
 
@@ -226,10 +229,11 @@ mod tests {
         let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let options = MaterializeOptions::default();
 
+        let dest_dir = SandboxableDir::open(&dest_root).unwrap();
         let receipt = materialize_entity(
             &entity,
             Some(&mut payload),
-            &dest_root,
+            &dest_dir,
             &options,
         )
         .expect("materialize regular file");
@@ -359,6 +363,115 @@ mod tests {
             "Must reject directory path that is outside dest_root"
         );
     }
+
+    #[crate::ctb_test]
+    fn test_sandboxable_dir_verbatim_external_symlink_and_no_follow() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        let outside_dir = temp_dir.path().join("outside_target");
+        fs::create_dir_all(&dest_root).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        let sandboxed = SandboxableDir::open(&dest_root).unwrap();
+
+        // 1. Exact fidelity: create symlink pointing outside under PreserveVerbatim
+        let (parent_fd, link_name) = sandboxed
+            .ensure_parent_dir(
+                &PathBuf::from("external_link"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
+
+        sandboxed
+            .create_symlink(
+                &parent_fd.as_fd(),
+                link_name.to_str().unwrap(),
+                outside_dir.as_os_str().as_encoded_bytes(),
+                SymlinkValidationPolicy::PreserveVerbatim,
+            )
+            .expect("PreserveVerbatim allows creating external symlink");
+
+        // Verify symlink target on disk is preserved verbatim
+        let symlink_path = dest_root.join("external_link");
+        assert_eq!(
+            fs::read_link(&symlink_path).unwrap(),
+            outside_dir
+        );
+
+        // 2. Strict containment: subsequent traversal through external_link must NOT follow it!
+        let escape_attempt = PathBuf::from("external_link/secret.txt");
+        let res = sandboxed.ensure_parent_dir(
+            &escape_attempt,
+            PathTraversalPolicy::StrictSandboxed,
+        );
+        assert!(
+            res.is_err(),
+            "StrictSandboxed traversal must reject following intermediate symlinks"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_sandboxable_dir_materialize_entity_at_path() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+
+        let payload_bytes = b"Testing materialize_entity_at_path convenience API";
+        let mut hasher = Sha256Stream::new();
+        hasher.update(payload_bytes);
+        let sha256 = hasher.finalize();
+        let size = u64::try_from(payload_bytes.len()).unwrap();
+
+        let rel_path = PathBuf::from("convenience/test.txt");
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                raw_filename: b"test.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: nix::unistd::getuid().as_raw(),
+                gid: nix::unistd::getgid().as_raw(),
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data { offset: 0, length: size }],
+            },
+            streams: Vec::new(),
+        };
+
+        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let options = MaterializeOptions::default();
+
+        let receipt = materialize_entity_at_path(
+            &entity,
+            Some(&mut payload),
+            &dest_root,
+            &options,
+        )
+        .expect("materialize_entity_at_path should succeed");
+
+        assert_eq!(receipt.bytes_written, size);
+        assert_eq!(receipt.sha256, Some(sha256));
+        assert!(dest_root.join("convenience").join("test.txt").exists());
+    }
 }
+
 
 

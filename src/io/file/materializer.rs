@@ -29,19 +29,19 @@ use crate::utilities::*;
 use crate::file::entity::{FileEntity, FileEntityKind};
 use crate::file::metadata::FileMetadata;
 use crate::file::path_policy::{
-    PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all,
-    resolve_and_validate_path, validate_symlink_target,
+    PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
 use crate::file::payload::{Extent, PayloadSource};
+use crate::file::sandboxable_dir::SandboxableDir;
 use crate::file::streams::write_streams;
 use crate::file::sys_flags::apply_file_flags;
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
-use nix::fcntl::{AT_FDCWD, AtFlags};
-use nix::sys::stat::{Mode, SFlag, mknod};
-use nix::unistd::{Gid, Uid, fchownat, mkfifo};
-use std::ffi::OsStr;
-use std::fs::{File, OpenOptions, Permissions};
+use nix::fcntl::{AT_FDCWD, AtFlags as NixAtFlags};
+use nix::unistd::{Gid, Uid, fchownat};
+use rustix::fd::AsFd;
+use rustix::fs::AtFlags;
+use std::fs::Permissions;
 use std::io::{Seek, SeekFrom, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -125,7 +125,7 @@ pub fn apply_entity_metadata(
                 dest,
                 uid_obj,
                 gid_obj,
-                AtFlags::AT_SYMLINK_NOFOLLOW,
+                NixAtFlags::AT_SYMLINK_NOFOLLOW,
             )
         } else {
             nix::unistd::chown(dest, uid_obj, gid_obj)
@@ -202,21 +202,18 @@ pub fn verify_filename_exact_bytes(
     Ok(())
 }
 
-fn remove_if_exists(path: &Path) {
-    if path.exists() || path.is_symlink() {
-        let _ = std::fs::remove_file(path);
-    }
-}
+/// Global sequence generator for atomic temporary files.
+static ATOMIC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-/// Materializes a complete `FileEntity` onto the filesystem at `dest_root`.
+/// Materializes a complete `FileEntity` onto the filesystem within a [`SandboxableDir`].
 pub fn materialize_entity(
     entity: &FileEntity,
     payload: Option<&mut dyn PayloadSource>,
-    dest_root: &Path,
+    dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
     let dest_path = resolve_and_validate_path(
-        dest_root,
+        dest_dir.root_path(),
         &entity.identity.relative_path,
         options.path_policy,
     )?;
@@ -236,30 +233,20 @@ pub fn materialize_entity(
         });
     }
 
-    let parent_dir = dest_path
-        .parent()
-        .context("Destination path has no parent directory")?;
-    if options.path_policy == PathTraversalPolicy::StrictSandboxed {
-        ensure_sandboxed_dir_all(dest_root, parent_dir)?;
-    } else if !parent_dir.exists() {
-        std::fs::create_dir_all(parent_dir).with_context(|| {
-            format!("Failed to create directory tree: {}", parent_dir.display())
-        })?;
-    }
+    let (parent_dir_fd, file_name) = dest_dir
+        .ensure_parent_dir(&entity.identity.relative_path, options.path_policy)?;
+    let file_name_str = file_name
+        .to_str()
+        .context("Destination filename is not valid UTF-8")?;
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
-            validate_symlink_target(
-                dest_root,
-                &dest_path,
+            dest_dir.create_symlink(
+                &parent_dir_fd.as_fd(),
+                file_name_str,
                 target,
                 options.symlink_policy,
             )?;
-            remove_if_exists(&dest_path);
-            let target_os = OsStr::from_bytes(target);
-            std::os::unix::fs::symlink(target_os, &dest_path).with_context(|| {
-                format!("Failed to create symlink: {}", dest_path.display())
-            })?;
             apply_entity_metadata(&dest_path, &entity.metadata, true, options.strict_lossless)?;
 
             Ok(MaterializeReceipt {
@@ -271,15 +258,11 @@ pub fn materialize_entity(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let target_path = dest_root.join(target_relative_path);
-            remove_if_exists(&dest_path);
-            std::fs::hard_link(&target_path, &dest_path).with_context(|| {
-                format!(
-                    "Failed to create hardlink from {} to {}",
-                    target_path.display(),
-                    dest_path.display()
-                )
-            })?;
+            dest_dir.create_hardlink(
+                target_relative_path,
+                &parent_dir_fd.as_fd(),
+                file_name_str,
+            )?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -287,13 +270,8 @@ pub fn materialize_entity(
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
-            if options.path_policy == PathTraversalPolicy::StrictSandboxed {
-                ensure_sandboxed_dir_all(dest_root, &dest_path)?;
-            } else if !dest_path.exists() {
-                std::fs::create_dir_all(&dest_path).with_context(|| {
-                    format!("Failed to create directory: {}", dest_path.display())
-                })?;
-            }
+            let _dir_fd =
+                dest_dir.ensure_dir_all(&entity.identity.relative_path, options.path_policy)?;
             write_streams(&dest_path, &entity.streams, options.strict_lossless)?;
             apply_entity_metadata(
                 &dest_path,
@@ -307,13 +285,13 @@ pub fn materialize_entity(
                 sha256: None,
             })
         }
-        FileEntityKind::Fifo => {
-            remove_if_exists(&dest_path);
-            mkfifo(
-                &dest_path,
-                Mode::from_bits_truncate(entity.metadata.mode),
-            )
-            .with_context(|| format!("Failed to create FIFO: {}", dest_path.display()))?;
+        FileEntityKind::Fifo | FileEntityKind::CharDevice { .. } => {
+            dest_dir.create_special(
+                &parent_dir_fd.as_fd(),
+                file_name_str,
+                &entity.kind,
+                entity.metadata.mode,
+            )?;
             apply_entity_metadata(
                 &dest_path,
                 &entity.metadata,
@@ -326,51 +304,18 @@ pub fn materialize_entity(
                 sha256: None,
             })
         }
-        FileEntityKind::CharDevice { rdev } => {
-            remove_if_exists(&dest_path);
-            mknod(
-                &dest_path,
-                SFlag::S_IFCHR,
-                Mode::from_bits_truncate(entity.metadata.mode),
-                *rdev,
-            )
-            .with_context(|| {
-                format!(
-                    "Failed to create character device node: {}",
-                    dest_path.display()
-                )
-            })?;
-            apply_entity_metadata(
-                &dest_path,
-                &entity.metadata,
-                false,
-                options.strict_lossless,
-            )?;
-            Ok(MaterializeReceipt {
-                destination_path: dest_path,
-                bytes_written: 0,
-                sha256: None,
-            })
-        }
-        FileEntityKind::BlockDevice { rdev } => {
+        FileEntityKind::BlockDevice { .. } => {
             anyhow::ensure!(
                 options.copy_block_devices,
                 "Block device node creation rejected: {}. Enable copy_block_devices to permit.",
                 dest_path.display()
             );
-            remove_if_exists(&dest_path);
-            mknod(
-                &dest_path,
-                SFlag::S_IFBLK,
-                Mode::from_bits_truncate(entity.metadata.mode),
-                *rdev,
-            )
-            .with_context(|| {
-                format!(
-                    "Failed to create block device node: {}",
-                    dest_path.display()
-                )
-            })?;
+            dest_dir.create_special(
+                &parent_dir_fd.as_fd(),
+                file_name_str,
+                &entity.kind,
+                entity.metadata.mode,
+            )?;
             apply_entity_metadata(
                 &dest_path,
                 &entity.metadata,
@@ -413,18 +358,14 @@ pub fn materialize_entity(
                 Ok(dur) => dur.subsec_nanos(),
                 Err(_) => 0,
             };
-            static ATOMIC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
             let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
-            let temp_path = parent_dir.join(temp_name);
 
-            let mut temp_file = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&temp_path)
-                .with_context(|| {
-                    format!("Failed to create atomic temp file: {}", temp_path.display())
-                })?;
+            let mut temp_file = dest_dir.create_temp_file(
+                &parent_dir_fd.as_fd(),
+                &temp_name,
+                entity.metadata.mode,
+            )?;
 
             let mut hasher = Sha256Stream::new();
             let initial_size = *size;
@@ -494,7 +435,15 @@ pub fn materialize_entity(
 
             let computed_sha256 = hasher.finalize();
             if computed_sha256 != *expected_sha256 {
-                let _ = std::fs::remove_file(&temp_path);
+                if let Err(cleanup_err) =
+                    rustix::fs::unlinkat(&parent_dir_fd, &temp_name, AtFlags::empty())
+                {
+                    if cleanup_err.kind() != std::io::ErrorKind::NotFound {
+                        warn_fmt!(
+                            "Failed to clean up temporary file {temp_name} after hash mismatch: {cleanup_err}"
+                        );
+                    }
+                }
                 anyhow::bail!(
                     "Payload SHA-256 verification failed during write for {}: expected {:02x?}, got {:02x?}",
                     dest_path.display(),
@@ -502,6 +451,11 @@ pub fn materialize_entity(
                     computed_sha256
                 );
             }
+
+            let parent_dir = dest_path
+                .parent()
+                .context("Destination path has no parent directory")?;
+            let temp_path = parent_dir.join(&temp_name);
 
             // Write attached streams (xattrs, resource forks)
             write_streams(&temp_path, &entity.streams, options.strict_lossless)?;
@@ -518,17 +472,16 @@ pub fn materialize_entity(
             temp_file.sync_data()?;
             drop(temp_file);
 
-            let parent_fd = File::open(parent_dir)?;
-            parent_fd.sync_data()?;
-
-            // Atomic rename
-            std::fs::rename(&temp_path, &dest_path).with_context(|| {
-                format!(
-                    "Failed to rename temp file to destination: {}",
-                    dest_path.display()
-                )
+            rustix::fs::fsync(&parent_dir_fd).with_context(|| {
+                format!("Failed to sync parent directory: {}", parent_dir.display())
             })?;
-            parent_fd.sync_data()?;
+
+            // Atomic rename inside parent directory
+            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, file_name_str)?;
+
+            rustix::fs::fsync(&parent_dir_fd).with_context(|| {
+                format!("Failed to sync parent directory: {}", parent_dir.display())
+            })?;
 
             // Verify raw filename bytes on destination filesystem
             verify_filename_exact_bytes(parent_dir, &entity.identity.raw_filename)?;
@@ -552,4 +505,15 @@ pub fn materialize_entity(
             })
         }
     }
+}
+
+/// Convenience wrapper to materialize an entity given a destination root path.
+pub fn materialize_entity_at_path(
+    entity: &FileEntity,
+    payload: Option<&mut dyn PayloadSource>,
+    dest_root: &Path,
+    options: &MaterializeOptions,
+) -> Result<MaterializeReceipt> {
+    let dest_dir = SandboxableDir::create_or_open(dest_root)?;
+    materialize_entity(entity, payload, &dest_dir, options)
 }
