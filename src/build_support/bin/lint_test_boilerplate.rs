@@ -235,8 +235,7 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
         let end_idx = v.replace_end_line.saturating_sub(1);
 
         let mod_line_str = new_lines.get(mod_idx).cloned().unwrap_or_default();
-        let indent_len = mod_line_str.len().saturating_sub(mod_line_str.trim_start().len());
-        let indent = &mod_line_str[..indent_len];
+        let indent: String = mod_line_str.chars().take_while(|c| c.is_whitespace()).collect();
 
         let boilerplate_template = if v.needs_cfg_test {
             STANDARD_BOILERPLATE
@@ -304,9 +303,8 @@ fn main() -> Result<()> {
             continue;
         }
 
-        let syntax_tree = match syn::parse_file(&content) {
-            Ok(tree) => tree,
-            Err(_) => continue,
+        let Ok(syntax_tree) = syn::parse_file(&content) else {
+            continue;
         };
 
         let mut visitor = TestModuleVisitor {
@@ -335,8 +333,7 @@ fn main() -> Result<()> {
 
     if do_fix {
         println!(
-            "Normalized test boilerplate across {} files ({} violations fixed).",
-            fixed_files, total_violations
+            "Normalized test boilerplate across {fixed_files} files ({total_violations} violations fixed)."
         );
         return Ok(());
     }
@@ -349,9 +346,7 @@ fn main() -> Result<()> {
         Ok(())
     } else {
         bail!(
-            "Found {} test boilerplate violations across {} files. Run `./scripts/lint-test-boilerplate --fix` to fix them automatically.",
-            total_violations,
-            files_with_violations
+            "Found {total_violations} test boilerplate violations across {files_with_violations} files. Run `./scripts/lint-test-boilerplate --fix` to fix them automatically."
         );
     }
 }
