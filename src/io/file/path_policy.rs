@@ -40,7 +40,14 @@ pub enum SymlinkValidationPolicy {
     /// This is the required behavior for `csc` to ensure exact filesystem fidelity.
     PreserveVerbatim,
 
-    /// Disallows symlinks whose target resolves outside the destination root.
+    /// Best-effort validation that rejects symlinks whose target lexically or
+    /// on-disk (via canonicalization of existing path components) escapes the
+    /// destination root.
+    ///
+    /// Note: This performs lexical normalization and opportunistic canonicalization.
+    /// It cannot guarantee dynamic containment against complex chained symlinks
+    /// pointing to not-yet-created targets or concurrent filesystem mutations.
+    /// For strict containment against untrusted archives, use [`RejectAllSymlinks`].
     #[default]
     RejectEscapingSymlinks,
 
@@ -71,6 +78,7 @@ pub fn resolve_and_validate_path(
     match policy {
         PathTraversalPolicy::PreserveVerbatim => Ok(dest_root.join(rel_path)),
         PathTraversalPolicy::StrictSandboxed => {
+            let mut depth: usize = 0;
             let mut out = PathBuf::from(dest_root);
             for comp in rel_path.components() {
                 match comp {
@@ -82,16 +90,20 @@ pub fn resolve_and_validate_path(
                     }
                     Component::CurDir => {}
                     Component::ParentDir => {
-                        if out == dest_root {
+                        if depth == 0 || out == dest_root {
                             anyhow::bail!(
                                 "Path traversal rejected: path escapes destination root: {}",
                                 rel_path.display()
                             );
                         }
                         out.pop();
+                        depth = depth.saturating_sub(1);
                     }
                     Component::Normal(c) => {
                         out.push(c);
+                        depth = depth
+                            .checked_add(1)
+                            .context("Path traversal depth overflow")?;
                     }
                 }
             }
@@ -114,33 +126,74 @@ pub fn ensure_sandboxed_dir_all(dest_root: &Path, dir_path: &Path) -> Result<()>
         );
     }
 
-    let rel = match dir_path.strip_prefix(dest_root) {
-        Ok(r) => r,
-        Err(_) => return Ok(()),
-    };
+    let rel = dir_path.strip_prefix(dest_root).with_context(|| {
+        format!(
+            "Directory path {} is not inside destination root {}",
+            dir_path.display(),
+            dest_root.display()
+        )
+    })?;
 
     let mut current = PathBuf::from(dest_root);
     for comp in rel.components() {
         match comp {
             Component::Normal(c) => {
                 current.push(c);
-                if let Ok(sym_meta) = std::fs::symlink_metadata(&current) {
-                    if sym_meta.file_type().is_symlink() {
-                        anyhow::bail!(
-                            "Security rejection: intermediate path component {} is a symlink under StrictSandboxed policy",
-                            current.display()
-                        );
+                match std::fs::symlink_metadata(&current) {
+                    Ok(sym_meta) => {
+                        if sym_meta.file_type().is_symlink() {
+                            anyhow::bail!(
+                                "Security rejection: intermediate path component {} is a symlink under StrictSandboxed policy",
+                                current.display()
+                            );
+                        }
+                        if !sym_meta.is_dir() {
+                            anyhow::bail!(
+                                "Intermediate path component {} already exists and is not a directory",
+                                current.display()
+                            );
+                        }
                     }
-                    if !sym_meta.is_dir() {
-                        anyhow::bail!(
-                            "Intermediate path component {} already exists and is not a directory",
-                            current.display()
-                        );
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        if let Err(create_err) = std::fs::create_dir(&current) {
+                            if create_err.kind() == std::io::ErrorKind::AlreadyExists {
+                                let sym_meta = std::fs::symlink_metadata(&current)
+                                    .with_context(|| {
+                                        format!(
+                                            "Failed to inspect intermediate directory after concurrent creation: {}",
+                                            current.display()
+                                        )
+                                    })?;
+                                if sym_meta.file_type().is_symlink() {
+                                    anyhow::bail!(
+                                        "Security rejection: intermediate path component {} was created as a symlink under StrictSandboxed policy",
+                                        current.display()
+                                    );
+                                }
+                                if !sym_meta.is_dir() {
+                                    anyhow::bail!(
+                                        "Intermediate path component {} already exists and is not a directory",
+                                        current.display()
+                                    );
+                                }
+                            } else {
+                                return Err(create_err).with_context(|| {
+                                    format!(
+                                        "Failed to create intermediate directory: {}",
+                                        current.display()
+                                    )
+                                });
+                            }
+                        }
                     }
-                } else {
-                    std::fs::create_dir(&current).with_context(|| {
-                        format!("Failed to create intermediate directory: {}", current.display())
-                    })?;
+                    Err(e) => {
+                        return Err(e).with_context(|| {
+                            format!(
+                                "Failed to inspect intermediate path component: {}",
+                                current.display()
+                            )
+                        });
+                    }
                 }
             }
             Component::CurDir => {}
@@ -216,17 +269,35 @@ pub fn validate_symlink_target(
                 );
             }
 
-            if let (Ok(canonical_dest), Ok(canonical_tgt)) = (
-                std::fs::canonicalize(dest_root),
-                std::fs::canonicalize(&resolved),
-            ) {
-                if !canonical_tgt.starts_with(&canonical_dest) {
-                    anyhow::bail!(
-                        "Symlink {} escapes destination root {}: resolves to {}",
-                        symlink_path.display(),
-                        dest_root.display(),
-                        canonical_tgt.display()
-                    );
+            if let Ok(canonical_dest) = std::fs::canonicalize(dest_root) {
+                if let Ok(canonical_tgt) = std::fs::canonicalize(&resolved) {
+                    if !canonical_tgt.starts_with(&canonical_dest) {
+                        anyhow::bail!(
+                            "Symlink {} escapes destination root {}: resolves to {}",
+                            symlink_path.display(),
+                            dest_root.display(),
+                            canonical_tgt.display()
+                        );
+                    }
+                } else {
+                    // Target does not exist yet; verify that any existing ancestor components
+                    // on disk do not escape dest_root (e.g. through an existing symlinked directory)
+                    let mut ancestor = resolved.parent();
+                    while let Some(anc) = ancestor {
+                        if let Ok(canonical_anc) = std::fs::canonicalize(anc) {
+                            if !canonical_anc.starts_with(&canonical_dest) {
+                                anyhow::bail!(
+                                    "Symlink {} escapes destination root {}: ancestor {} resolves outside root to {}",
+                                    symlink_path.display(),
+                                    dest_root.display(),
+                                    anc.display(),
+                                    canonical_anc.display()
+                                );
+                            }
+                            break;
+                        }
+                        ancestor = anc.parent();
+                    }
                 }
             }
             Ok(())

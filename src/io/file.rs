@@ -299,5 +299,66 @@ mod tests {
             "Must reject creating directories traversing through an existing intermediate symlink"
         );
     }
+
+    #[crate::ctb_test]
+    fn test_symlink_target_nonexistent_leaf_with_poisoned_ancestor() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        let outside_dir = temp_dir.path().join("outside_target");
+        fs::create_dir_all(&dest_root).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        // Create a symlink inside dest_root pointing outside
+        let poisoned_link = dest_root.join("poisoned_dir");
+        std::os::unix::fs::symlink(&outside_dir, &poisoned_link).unwrap();
+
+        let symlink_path = dest_root.join("test_symlink");
+        // Target points through poisoned_link to a file that does not exist yet on disk
+        let target_bytes = b"poisoned_dir/nonexistent_file.txt";
+
+        let res = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            target_bytes,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(
+            res.is_err(),
+            "Must reject symlink whose nonexistent target has an ancestor symlink escaping dest_root"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_ensure_sandboxed_dir_all_handles_concurrent_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        // Pre-create the directory so create_dir returns AlreadyExists
+        let nested_dir = dest_root.join("a").join("b").join("c");
+        fs::create_dir_all(&nested_dir).unwrap();
+
+        let res = ensure_sandboxed_dir_all(&dest_root, &nested_dir);
+        assert!(
+            res.is_ok(),
+            "ensure_sandboxed_dir_all must succeed when intermediate directory already exists"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_ensure_sandboxed_dir_all_strip_prefix_mismatch() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        let foreign_dir = temp_dir.path().join("foreign_dir");
+        fs::create_dir_all(&dest_root).unwrap();
+        fs::create_dir_all(&foreign_dir).unwrap();
+
+        let res = ensure_sandboxed_dir_all(&dest_root, &foreign_dir);
+        assert!(
+            res.is_err(),
+            "Must reject directory path that is outside dest_root"
+        );
+    }
 }
+
 
