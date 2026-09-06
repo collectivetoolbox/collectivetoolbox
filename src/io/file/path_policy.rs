@@ -26,6 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 /// Policy controlling whether symlink targets are allowed to reference outside
@@ -125,15 +127,8 @@ pub fn validate_symlink_target(
     match policy {
         SymlinkValidationPolicy::PreserveVerbatim => Ok(()),
         SymlinkValidationPolicy::RejectEscapingSymlinks => {
-            let target_str = match std::str::from_utf8(target_bytes) {
-                Ok(s) => s,
-                Err(_) => {
-                    anyhow::bail!(
-                        "Symlink target has non-UTF8 bytes and cannot be verified for containment"
-                    );
-                }
-            };
-            let target_path = Path::new(target_str);
+            let target_os = OsStr::from_bytes(target_bytes);
+            let target_path = Path::new(target_os);
             let resolved = if target_path.is_absolute() {
                 target_path.to_path_buf()
             } else {

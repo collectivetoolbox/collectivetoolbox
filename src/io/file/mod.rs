@@ -145,6 +145,38 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_symlink_non_utf8_target_verification() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let symlink_path = dest_root.join("sub").join("link");
+
+        // Invalid UTF-8 bytes in target pointing outside
+        let escaping_non_utf8 = b"../../\xFF\xFE\xFD_outside";
+        let res_escaping = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            escaping_non_utf8,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(res_escaping.is_err(), "Must detect escape even with non-UTF-8 bytes");
+
+        // Invalid UTF-8 bytes in target contained safely inside
+        let contained_non_utf8 = b"internal/\xFF\xFE\xFD_safe";
+        let res_contained = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            contained_non_utf8,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(
+            res_contained.is_ok(),
+            "Must verify contained symlink even with non-UTF-8 bytes"
+        );
+    }
+
+    #[crate::ctb_test]
     fn test_materialize_and_verify_regular_file() {
         let temp_dir = tempfile::tempdir().unwrap();
         let dest_root = temp_dir.path().join("dest_root");

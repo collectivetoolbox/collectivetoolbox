@@ -29,25 +29,7 @@ use crate::utilities::*;
 use crate::file::metadata::{FileFlag, OsFamily, PlatformRawFlags};
 use std::path::Path;
 
-#[cfg(target_os = "linux")]
-nix::ioctl_read!(linux_fs_getflags, b'f', 1, nix::libc::c_long);
-#[cfg(target_os = "linux")]
-nix::ioctl_write_ptr!(linux_fs_setflags, b'f', 2, nix::libc::c_long);
-
-#[cfg(target_os = "linux")]
-const FS_COMPR_FL: nix::libc::c_long = 0x0000_0004;
-#[cfg(target_os = "linux")]
-const FS_IMMUTABLE_FL: nix::libc::c_long = 0x0000_0010;
-#[cfg(target_os = "linux")]
-const FS_APPEND_FL: nix::libc::c_long = 0x0000_0020;
-#[cfg(target_os = "linux")]
-const FS_NODUMP_FL: nix::libc::c_long = 0x0000_0040;
-
 /// Reads OS-specific flags from `path`.
-#[allow(
-    unsafe_code,
-    reason = "Invoking Linux ioctl and BSD chflags system calls"
-)]
 pub fn query_file_flags(
     path: &Path,
     is_symlink: bool,
@@ -59,44 +41,41 @@ pub fn query_file_flags(
 
     #[cfg(target_os = "linux")]
     {
+        use rustix::fs::{IFlags, ioctl_getflags};
         use std::fs::File;
-        use std::os::fd::AsRawFd;
 
         // ioctl FS_IOC_GETFLAGS only works on regular files/directories
         let Ok(f) = File::open(path) else {
             return Ok((Vec::new(), None));
         };
 
-        let mut raw_val: nix::libc::c_long = 0;
-        let fd = f.as_raw_fd();
-        let res = unsafe { linux_fs_getflags(fd, &mut raw_val) };
-        if res.is_err() {
+        let Ok(iflags) = ioctl_getflags(&f) else {
             // Filesystem does not support FS_IOC_GETFLAGS (e.g. tmpfs or vfat)
             return Ok((Vec::new(), None));
-        }
+        };
 
         let mut flags = Vec::new();
-        let mut mapped_mask: nix::libc::c_long = 0;
+        let mut mapped_mask = IFlags::empty();
 
-        if (raw_val & FS_NODUMP_FL) != 0 {
+        if iflags.contains(IFlags::NODUMP) {
             flags.push(FileFlag::NoDump);
-            mapped_mask |= FS_NODUMP_FL;
+            mapped_mask |= IFlags::NODUMP;
         }
-        if (raw_val & FS_IMMUTABLE_FL) != 0 {
+        if iflags.contains(IFlags::IMMUTABLE) {
             flags.push(FileFlag::UserImmutable);
-            mapped_mask |= FS_IMMUTABLE_FL;
+            mapped_mask |= IFlags::IMMUTABLE;
         }
-        if (raw_val & FS_APPEND_FL) != 0 {
+        if iflags.contains(IFlags::APPEND) {
             flags.push(FileFlag::UserAppend);
-            mapped_mask |= FS_APPEND_FL;
+            mapped_mask |= IFlags::APPEND;
         }
-        if (raw_val & FS_COMPR_FL) != 0 {
+        if iflags.contains(IFlags::COMPRESSED) {
             flags.push(FileFlag::Compressed);
-            mapped_mask |= FS_COMPR_FL;
+            mapped_mask |= IFlags::COMPRESSED;
         }
 
-        let has_unparsed = (raw_val & !mapped_mask) != 0;
-        let raw_u64 = u64::try_from(raw_val).unwrap_or(0);
+        let has_unparsed = (iflags.bits() & !mapped_mask.bits()) != 0;
+        let raw_u64 = u64::from(iflags.bits());
 
         let platform_raw = PlatformRawFlags {
             source_os: OsFamily::Linux,
@@ -225,8 +204,8 @@ pub fn apply_file_flags(
 
     #[cfg(target_os = "linux")]
     {
+        use rustix::fs::{IFlags, ioctl_setflags};
         use std::fs::OpenOptions;
-        use std::os::fd::AsRawFd;
 
         if flags.is_empty() && raw.map_or(true, |r| r.raw_value == 0) {
             return Ok(());
@@ -238,27 +217,27 @@ pub fn apply_file_flags(
             Err(_) => OpenOptions::new().read(true).open(path)?,
         };
 
-        let fd = f.as_raw_fd();
-        let mut target_val: nix::libc::c_long = 0;
+        let mut target_iflags = IFlags::empty();
 
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::Linux {
-                target_val = match nix::libc::c_long::try_from(raw_info.raw_value) {
-                    Ok(v) => v,
-                    Err(_) => 0,
-                };
+                if let Ok(bits) = u32::try_from(raw_info.raw_value) {
+                    target_iflags = IFlags::from_bits_retain(bits);
+                }
             }
         }
 
-        if target_val == 0 {
+        if target_iflags.is_empty() {
             for flag in flags {
                 match flag {
-                    FileFlag::NoDump => target_val |= FS_NODUMP_FL,
+                    FileFlag::NoDump => target_iflags |= IFlags::NODUMP,
                     FileFlag::UserImmutable | FileFlag::SystemImmutable => {
-                        target_val |= FS_IMMUTABLE_FL;
+                        target_iflags |= IFlags::IMMUTABLE;
                     }
-                    FileFlag::UserAppend | FileFlag::SystemAppend => target_val |= FS_APPEND_FL,
-                    FileFlag::Compressed => target_val |= FS_COMPR_FL,
+                    FileFlag::UserAppend | FileFlag::SystemAppend => {
+                        target_iflags |= IFlags::APPEND;
+                    }
+                    FileFlag::Compressed => target_iflags |= IFlags::COMPRESSED,
                     other => {
                         if strict_lossless {
                             anyhow::bail!(
@@ -272,9 +251,8 @@ pub fn apply_file_flags(
             }
         }
 
-        if target_val != 0 {
-            let res = unsafe { linux_fs_setflags(fd, &target_val) };
-            if let Err(e) = res {
+        if !target_iflags.is_empty() {
+            if let Err(e) = ioctl_setflags(&f, target_iflags) {
                 if strict_lossless {
                     anyhow::bail!(
                         "Failed to set file flags via ioctl for {}: {e}",
