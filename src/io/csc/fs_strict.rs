@@ -28,7 +28,8 @@ use crate::utilities::*;
 
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
-use nix::unistd::{Gid, Uid, Whence, chown, lchown, lseek};
+use nix::fcntl::{AT_FDCWD, AtFlags};
+use nix::unistd::{Gid, Uid, Whence, chown, fchownat, lseek};
 use std::fs::{Metadata, Permissions};
 use std::os::fd::AsFd;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -82,8 +83,8 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
     let xattr_names = match xattr::list(path) {
         Ok(iter) => iter,
         Err(e) => {
-            if e.raw_os_error() == Some(libc::ENOTSUP)
-                || e.raw_os_error() == Some(libc::EOPNOTSUPP)
+            if e.raw_os_error() == Some(nix::libc::ENOTSUP)
+                || e.raw_os_error() == Some(nix::libc::EOPNOTSUPP)
             {
                 return Ok(streams);
             }
@@ -112,7 +113,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
         let mut hasher = Sha256Stream::new();
         hasher.update(&val);
         let sha256 = hasher.finalize();
-        let size = u64::try_from(val.len()).unwrap_or(0);
+        let size = u64::try_from(val.len())?;
 
         streams.push((
             StreamInfo {
@@ -174,7 +175,7 @@ pub fn apply_metadata(
         let uid_obj = Some(Uid::from_raw(uid));
         let gid_obj = Some(Gid::from_raw(gid));
         let chown_res = if is_symlink {
-            lchown(dest, uid_obj, gid_obj)
+            fchownat(AT_FDCWD, dest, uid_obj, gid_obj, AtFlags::AT_SYMLINK_NOFOLLOW)
         } else {
             chown(dest, uid_obj, gid_obj)
         };
@@ -225,9 +226,8 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExt
 
     let mut extents = Vec::new();
     let mut current_offset: i64 = 0;
-    let size_i64 = match i64::try_from(file_size) {
-        Ok(s) => s,
-        Err(_) => anyhow::bail!("File size exceeds i64::MAX"),
+    let Ok(size_i64) = i64::try_from(file_size) else {
+        anyhow::bail!("File size exceeds i64::MAX");
     };
 
     while current_offset < size_i64 {
@@ -237,8 +237,8 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExt
             Err(nix::errno::Errno::ENXIO) => {
                 // No more data in file; the rest is a hole
                 let hole_len = size_i64.saturating_sub(current_offset);
-                let u_hole_len = u64::try_from(hole_len).unwrap_or(0);
-                let u_curr = u64::try_from(current_offset).unwrap_or(0);
+                let u_hole_len = u64::try_from(hole_len)?;
+                let u_curr = u64::try_from(current_offset)?;
                 if u_hole_len > 0 {
                     extents.push(FileExtent::Hole {
                         offset: u_curr,
@@ -247,9 +247,9 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExt
                 }
                 break;
             }
-            Err(e) => {
+            Err(_e) => {
                 // Filesystem does not support SEEK_DATA/SEEK_HOLE, treat whole file as data
-                let u_size = u64::try_from(size_i64).unwrap_or(0);
+                let u_size = u64::try_from(size_i64)?;
                 return Ok(vec![FileExtent::Data {
                     offset: 0,
                     length: u_size,
@@ -260,8 +260,8 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExt
         if next_data > current_offset {
             // Hole between current_offset and next_data
             let hole_len = next_data.saturating_sub(current_offset);
-            let u_hole_len = u64::try_from(hole_len).unwrap_or(0);
-            let u_curr = u64::try_from(current_offset).unwrap_or(0);
+            let u_hole_len = u64::try_from(hole_len)?;
+            let u_curr = u64::try_from(current_offset)?;
             extents.push(FileExtent::Hole {
                 offset: u_curr,
                 length: u_hole_len,
@@ -280,8 +280,8 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExt
         };
 
         let data_len = end_of_data.saturating_sub(next_data);
-        let u_data_len = u64::try_from(data_len).unwrap_or(0);
-        let u_next_data = u64::try_from(next_data).unwrap_or(0);
+        let u_data_len = u64::try_from(data_len)?;
+        let u_next_data = u64::try_from(next_data)?;
         if u_data_len > 0 {
             extents.push(FileExtent::Data {
                 offset: u_next_data,

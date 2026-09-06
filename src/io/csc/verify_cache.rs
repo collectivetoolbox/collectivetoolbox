@@ -32,7 +32,6 @@ use ctb_formats_checksum::Sha256Stream;
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 use std::fs::File;
 use std::io::Read;
-use std::os::fd::AsRawFd;
 use std::path::Path;
 
 /// Checks if global kernel cache dropping is available.
@@ -54,9 +53,11 @@ pub fn check_cache_flush_privileges() {
 }
 
 /// Evicts page cache entries for the given file using `POSIX_FADV_DONTNEED`.
-pub fn evict_file_cache(fd: std::os::fd::RawFd) {
+pub fn evict_file_cache<Fd: std::os::fd::AsFd>(fd: &Fd) {
     // POSIX_FADV_DONTNEED with offset 0 and len 0 evicts the entire file
-    let _ = posix_fadvise(fd, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED);
+    if let Err(e) = posix_fadvise(fd, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED) {
+        log_fmt!("posix_fadvise DONTNEED failed: {e}");
+    }
 }
 
 /// Attempts to drop system-wide clean caches if running as root.
@@ -66,7 +67,9 @@ pub fn try_drop_system_caches() {
         .open("/proc/sys/vm/drop_caches")
     {
         use std::io::Write;
-        let _ = f.write_all(b"3\n");
+        if let Err(e) = f.write_all(b"3\n") {
+            log_fmt!("Writing to drop_caches failed: {e}");
+        }
     }
 }
 
@@ -78,28 +81,31 @@ pub fn verify_file_independent(
     dest_path: &Path,
     manifest: &ManifestFile,
 ) -> Result<()> {
-    // 1. Open both files
     let src_file = File::open(source_path).with_context(|| {
-        format!(
-            "Failed to open source file for verification: {}",
-            source_path.display()
-        )
+        format!("Failed to open source file for verification: {}", source_path.display())
     })?;
     let dest_file = File::open(dest_path).with_context(|| {
-        format!(
-            "Failed to open destination file for verification: {}",
-            dest_path.display()
-        )
+        format!("Failed to open dest file for verification: {}", dest_path.display())
     })?;
 
-    // 2. Invalidate OS page cache for both files
-    evict_file_cache(src_file.as_raw_fd());
-    evict_file_cache(dest_file.as_raw_fd());
+    // 1. Sync destination filesystem to physical media
+    #[cfg(target_os = "linux")]
+    {
+        use nix::unistd::syncfs;
+        if let Err(e) = syncfs(&dest_file) {
+            log_fmt!("syncfs failed: {e}");
+        }
+    }
+
+    // 2. Invalidate page cache
+    try_drop_system_caches();
+    evict_file_cache(&src_file);
+    evict_file_cache(&dest_file);
 
     // 3. Physical re-read and fresh SHA-256 computation of source
     let mut src_reader = std::io::BufReader::with_capacity(128 * 1024, src_file);
     let mut src_hasher = Sha256Stream::new();
-    let mut buf = [0_u8; 64 * 1024];
+    let mut buf = vec![0_u8; 64 * 1024];
     let mut src_bytes_read = 0_u64;
 
     loop {
@@ -107,9 +113,12 @@ pub fn verify_file_independent(
         if n == 0 {
             break;
         }
-        let n_u64 = u64::try_from(n).unwrap_or(0);
+        let n_u64 = u64::try_from(n)?;
         src_bytes_read = src_bytes_read.saturating_add(n_u64);
-        src_hasher.update(&buf[..n]);
+        let slice = buf
+            .get(..n)
+            .context("Source buffer slice index out of bounds")?;
+        src_hasher.update(slice);
     }
     let fresh_src_sha = src_hasher.finalize();
 
@@ -123,9 +132,12 @@ pub fn verify_file_independent(
         if n == 0 {
             break;
         }
-        let n_u64 = u64::try_from(n).unwrap_or(0);
+        let n_u64 = u64::try_from(n)?;
         dest_bytes_read = dest_bytes_read.saturating_add(n_u64);
-        dest_hasher.update(&buf[..n]);
+        let slice = buf
+            .get(..n)
+            .context("Destination buffer slice index out of bounds")?;
+        dest_hasher.update(slice);
     }
     let fresh_dest_sha = dest_hasher.finalize();
 

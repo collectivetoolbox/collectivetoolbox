@@ -35,14 +35,13 @@ use crate::journal::{
     JournalSnapshot, JournalWriter, ManifestDir, ManifestFile, ManifestSymlink,
 };
 use crate::path_resolution::ResolvedCopyTask;
-use crate::verify_cache::{evict_file_cache, verify_file_independent};
+use crate::verify_cache::verify_file_independent;
 use ctb_formats_checksum::Sha256Stream;
 use nix::sys::stat::{Mode, SFlag, mknod};
 use nix::unistd::mkfifo;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::fd::AsRawFd;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -84,7 +83,7 @@ pub fn execute_copy_pipeline(
 
     // Restore hardlinks and files from snapshot if resuming
     if let Some(snap) = snapshot {
-        for (src_rel, tgt_rel) in &snap.committed_hardlinks {
+        for tgt_rel in snap.committed_hardlinks.values() {
             let full_tgt = snap.destination.join(tgt_rel);
             if let Ok(meta) = full_tgt.metadata() {
                 hardlink_map.insert((meta.dev(), meta.ino()), full_tgt);
@@ -99,19 +98,22 @@ pub fn execute_copy_pipeline(
         let src_root = &task.source_root;
         let tgt_root = &task.target_root;
 
-        if src_root.is_dir() {
-            // Traverse directory recursively
-            let mut dir_queue = vec![(src_root.clone(), tgt_root.clone())];
+        let src_meta = match std::fs::symlink_metadata(src_root) {
+            Ok(m) => m,
+            Err(e) => {
+                anyhow::bail!("Source path does not exist: {}: {e}", src_root.display());
+            }
+        };
+
+        if src_meta.is_dir() {
+            // Traverse directory
+            let mut dir_queue: Vec<(PathBuf, PathBuf)> = vec![(src_root.clone(), tgt_root.clone())];
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
-                // Ensure target directory exists
-                if !curr_tgt.exists() {
-                    if !args.dry_run {
-                        std::fs::create_dir_all(&curr_tgt).with_context(|| {
-                            format!("Failed to create directory: {}", curr_tgt.display())
-                        })?;
-                    }
-                    stats.dirs_created = stats.dirs_created.saturating_add(1);
+                if !curr_tgt.exists() && !args.dry_run {
+                    std::fs::create_dir_all(&curr_tgt).with_context(|| {
+                        format!("Failed to create destination dir: {}", curr_tgt.display())
+                    })?;
                 }
 
                 let src_meta = std::fs::metadata(&curr_src)?;
@@ -123,7 +125,8 @@ pub fn execute_copy_pipeline(
                 });
 
                 let dir_mtime = src_meta.mtime();
-                let dir_mtime_nsec = u32::try_from(src_meta.mtime_nsec()).unwrap_or(0);
+                let dir_mtime_nsec = u32::try_from(src_meta.mtime_nsec())
+                    .context("Failed to convert directory mtime nanoseconds to u32")?;
                 journal.record_dir(ManifestDir {
                     relative_path: curr_tgt.clone(),
                     mode: src_meta.mode(),
@@ -140,20 +143,19 @@ pub fn execute_copy_pipeline(
 
                 for entry in read_dir {
                     let entry = entry?;
-                    let child_name = entry.file_name();
-                    let child_src = curr_src.join(&child_name);
-                    let child_tgt = curr_tgt.join(&child_name);
+                    let entry_src = entry.path();
+                    let entry_name = entry.file_name();
+                    let entry_tgt = curr_tgt.join(&entry_name);
 
-                    let child_sym_meta = std::fs::symlink_metadata(&child_src)?;
-                    let file_type = child_sym_meta.file_type();
+                    let entry_sym_meta = std::fs::symlink_metadata(&entry_src)?;
 
-                    if file_type.is_dir() {
-                        dir_queue.push((child_src, child_tgt));
+                    if entry_sym_meta.is_dir() {
+                        dir_queue.push((entry_src, entry_tgt));
                     } else {
                         copy_single_item(
-                            &child_src,
-                            &child_tgt,
-                            &child_sym_meta,
+                            &entry_src,
+                            &entry_tgt,
+                            &entry_sym_meta,
                             args,
                             journal,
                             snapshot,
@@ -163,14 +165,14 @@ pub fn execute_copy_pipeline(
                         )?;
 
                         uncommitted_count = uncommitted_count.saturating_add(1);
-                        if uncommitted_count >= 500 {
-                            if !args.dry_run {
-                                journal.commit_batch()?;
-                            }
+                        if uncommitted_count >= 500 && !args.dry_run {
+                            journal.commit_batch()?;
                             uncommitted_count = 0;
                         }
 
-                        if progress.is_enabled() && last_progress_render.elapsed().as_millis() > 100 {
+                        if progress.is_enabled()
+                            && last_progress_render.elapsed().as_millis() > 100
+                        {
                             progress.update_progress(
                                 &format!("[Copying] {} files ({} bytes)", stats.files_copied, stats.bytes_copied),
                                 0.0,
@@ -181,12 +183,16 @@ pub fn execute_copy_pipeline(
                 }
             }
         } else {
-            // Single file or special node
-            let sym_meta = std::fs::symlink_metadata(src_root)?;
+            // Single file / node copy
+            if let Some(parent) = tgt_root.parent() {
+                if !parent.exists() && !args.dry_run {
+                    std::fs::create_dir_all(parent)?;
+                }
+            }
             copy_single_item(
                 src_root,
                 tgt_root,
-                &sym_meta,
+                &src_meta,
                 args,
                 journal,
                 snapshot,
@@ -201,8 +207,12 @@ pub fn execute_copy_pipeline(
     if !args.dry_run {
         while let Some(fixup) = deferred_dirs.pop() {
             if fixup.dest_path.exists() {
-                let _ = write_streams(&fixup.dest_path, &fixup.streams);
-                let _ = apply_metadata(&fixup.dest_path, &fixup.source_meta, false);
+                if let Err(e) = write_streams(&fixup.dest_path, &fixup.streams) {
+                    log_fmt!("Writing directory streams failed for {}: {e}", fixup.dest_path.display());
+                }
+                if let Err(e) = apply_metadata(&fixup.dest_path, &fixup.source_meta, false) {
+                    log_fmt!("Applying directory metadata failed for {}: {e}", fixup.dest_path.display());
+                }
             }
         }
         journal.commit_batch()?;
@@ -234,7 +244,18 @@ pub fn execute_copy_pipeline(
     Ok(stats)
 }
 
-#[allow(clippy::too_many_arguments)]
+fn remove_if_exists(path: &Path) {
+    if path.exists() || path.is_symlink() {
+        if let Err(e) = std::fs::remove_file(path) {
+            log_fmt!("Could not remove existing file at {}: {e}", path.display());
+        }
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Internal copy engine worker separating engine parameters"
+)]
 fn copy_single_item(
     src_path: &Path,
     dest_path: &Path,
@@ -262,9 +283,7 @@ fn copy_single_item(
     if file_type.is_symlink() {
         let target = std::fs::read_link(src_path)?;
         if !args.dry_run {
-            if dest_path.exists() || dest_path.is_symlink() {
-                let _ = std::fs::remove_file(dest_path);
-            }
+            remove_if_exists(dest_path);
             std::os::unix::fs::symlink(&target, dest_path).with_context(|| {
                 format!("Failed to create symlink: {}", dest_path.display())
             })?;
@@ -275,7 +294,8 @@ fn copy_single_item(
             relative_path: dest_path.to_path_buf(),
             target: target.as_os_str().as_encoded_bytes().to_vec(),
             mtime_sec: sym_meta.mtime(),
-            mtime_nsec: u32::try_from(sym_meta.mtime_nsec()).unwrap_or(0),
+            mtime_nsec: u32::try_from(sym_meta.mtime_nsec())
+                .context("Failed to convert symlink mtime nanoseconds to u32")?,
             uid: sym_meta.uid(),
             gid: sym_meta.gid(),
         });
@@ -287,9 +307,7 @@ fn copy_single_item(
         let key = (sym_meta.dev(), sym_meta.ino());
         if let Some(first_target) = hardlink_map.get(&key) {
             if !args.dry_run {
-                if dest_path.exists() {
-                    let _ = std::fs::remove_file(dest_path);
-                }
+                remove_if_exists(dest_path);
                 std::fs::hard_link(first_target, dest_path).with_context(|| {
                     format!(
                         "Failed to create hardlink from {} to {}",
@@ -309,9 +327,7 @@ fn copy_single_item(
     // 4. Special files (FIFOs, device nodes, sockets)
     if file_type.is_fifo() {
         if !args.dry_run {
-            if dest_path.exists() {
-                let _ = std::fs::remove_file(dest_path);
-            }
+            remove_if_exists(dest_path);
             mkfifo(dest_path, Mode::from_bits_truncate(sym_meta.mode())).with_context(|| {
                 format!("Failed to create FIFO: {}", dest_path.display())
             })?;
@@ -323,9 +339,7 @@ fn copy_single_item(
 
     if file_type.is_char_device() {
         if !args.dry_run {
-            if dest_path.exists() {
-                let _ = std::fs::remove_file(dest_path);
-            }
+            remove_if_exists(dest_path);
             mknod(
                 dest_path,
                 SFlag::S_IFCHR,
@@ -348,9 +362,7 @@ fn copy_single_item(
             src_path.display()
         );
         if !args.dry_run {
-            if dest_path.exists() {
-                let _ = std::fs::remove_file(dest_path);
-            }
+            remove_if_exists(dest_path);
             mknod(
                 dest_path,
                 SFlag::S_IFBLK,
@@ -374,8 +386,8 @@ fn copy_single_item(
     }
 
     // 5. Regular file: Atomic temp write with sparse extents & SHA-256
-    let initial_mtime = sym_meta.mtime();
-    let initial_ctime = sym_meta.ctime();
+    let captured_mtime = sym_meta.mtime();
+    let captured_ctime = sym_meta.ctime();
     let initial_size = sym_meta.size();
 
     // Check pre-existing file if --skip-existing-checksum is active
@@ -387,12 +399,15 @@ fn copy_single_item(
 
                 let mut src_hasher = Sha256Stream::new();
                 let mut f_src = File::open(src_path)?;
-                let mut buf = [0_u8; 64 * 1024];
+                let mut buf = vec![0_u8; 64 * 1024];
                 while let Ok(n) = f_src.read(&mut buf) {
                     if n == 0 {
                         break;
                     }
-                    src_hasher.update(&buf[..n]);
+                    let slice = buf
+                        .get(..n)
+                        .context("Source read buffer slice index out of bounds")?;
+                    src_hasher.update(slice);
                 }
                 let src_hash = src_hasher.finalize();
 
@@ -402,7 +417,10 @@ fn copy_single_item(
                     if n == 0 {
                         break;
                     }
-                    dest_hasher.update(&buf[..n]);
+                    let slice = buf
+                        .get(..n)
+                        .context("Destination read buffer slice index out of bounds")?;
+                    dest_hasher.update(slice);
                 }
                 let dest_hash = dest_hasher.finalize();
 
@@ -414,7 +432,7 @@ fn copy_single_item(
                 if src_hash == dest_hash && streams_match {
                     // Pre-existing file is identical! Sync metadata and skip copy
                     if !args.dry_run {
-                        let _ = apply_metadata(dest_path, sym_meta, false);
+                        apply_metadata(dest_path, sym_meta, false)?;
                     }
                     stats.files_skipped_identical = stats.files_skipped_identical.saturating_add(1);
 
@@ -422,8 +440,9 @@ fn copy_single_item(
                         relative_path: dest_path.to_path_buf(),
                         size: initial_size,
                         sha256: src_hash,
-                        mtime_sec: initial_mtime,
-                        mtime_nsec: u32::try_from(sym_meta.mtime_nsec()).unwrap_or(0),
+                        mtime_sec: captured_mtime,
+                        mtime_nsec: u32::try_from(sym_meta.mtime_nsec())
+                            .context("Failed to convert file mtime nanoseconds to u32")?,
                         mode: sym_meta.mode(),
                         uid: sym_meta.uid(),
                         gid: sym_meta.gid(),
@@ -450,8 +469,11 @@ fn copy_single_item(
 
     let pid = std::process::id();
     let thread_id = std::thread::current().id();
-    let rand_val: u32 = fastrand::u32(..);
-    let temp_name = format!(".csc-tmp.{pid}.{thread_id:?}.{rand_val}.{}", file_name.to_string_lossy());
+    let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(dur) => dur.subsec_nanos(),
+        Err(_) => 0,
+    };
+    let temp_name = format!(".csc-tmp.{pid}.{thread_id:?}.{nanos}.{}", file_name.to_string_lossy());
     let temp_path = parent_dir.join(temp_name);
 
     let mut temp_file = OpenOptions::new()
@@ -465,8 +487,9 @@ fn copy_single_item(
     })?;
 
     let mut hasher = Sha256Stream::new();
-    let extents = get_file_extents(src_file.as_raw_fd(), initial_size)?;
+    let extents = get_file_extents(&src_file, initial_size)?;
     let is_sparse = extents.iter().any(|e| matches!(e, FileExtent::Hole { .. }));
+    src_file.seek(SeekFrom::Start(0))?;
 
     if is_sparse {
         // Copy sparse extents preserving holes
@@ -477,16 +500,24 @@ fn copy_single_item(
                     temp_file.seek(SeekFrom::Start(offset))?;
 
                     let mut remaining = length;
-                    let mut buf = [0_u8; 64 * 1024];
+                    let mut buf = vec![0_u8; 64 * 1024];
                     while remaining > 0 {
-                        let to_read = usize::try_from(remaining.min(64 * 1024)).unwrap_or(0);
-                        let n = src_file.read(&mut buf[..to_read])?;
+                        let to_read = usize::try_from(remaining.min(64 * 1024))
+                            .context("Failed to convert buffer slice length to usize")?;
+                        let buf_slice = buf
+                            .get_mut(..to_read)
+                            .context("Buffer slice index out of bounds for read")?;
+                        let n = src_file.read(buf_slice)?;
                         if n == 0 {
                             break;
                         }
-                        temp_file.write_all(&buf[..n])?;
-                        hasher.update(&buf[..n]);
-                        let n_u64 = u64::try_from(n).unwrap_or(0);
+                        let write_slice = buf
+                            .get(..n)
+                            .context("Buffer slice index out of bounds for write")?;
+                        temp_file.write_all(write_slice)?;
+                        hasher.update(write_slice);
+                        let n_u64 = u64::try_from(n)
+                            .context("Failed to convert read bytes count to u64")?;
                         remaining = remaining.saturating_sub(n_u64);
                     }
                 }
@@ -495,9 +526,14 @@ fn copy_single_item(
                     let zero_buf = [0_u8; 8 * 1024];
                     let mut remaining = length;
                     while remaining > 0 {
-                        let chunk = usize::try_from(remaining.min(8 * 1024)).unwrap_or(0);
-                        hasher.update(&zero_buf[..chunk]);
-                        let chunk_u64 = u64::try_from(chunk).unwrap_or(0);
+                        let chunk = usize::try_from(remaining.min(8 * 1024))
+                            .context("Failed to convert hole chunk size to usize")?;
+                        let zero_slice = zero_buf
+                            .get(..chunk)
+                            .context("Zero buffer slice index out of bounds")?;
+                        hasher.update(zero_slice);
+                        let chunk_u64 = u64::try_from(chunk)
+                            .context("Failed to convert hole chunk size to u64")?;
                         remaining = remaining.saturating_sub(chunk_u64);
                     }
                 }
@@ -506,14 +542,17 @@ fn copy_single_item(
         temp_file.set_len(initial_size)?;
     } else {
         // Standard contiguous copy
-        let mut buf = [0_u8; 64 * 1024];
+        let mut buf = vec![0_u8; 64 * 1024];
         loop {
             let n = src_file.read(&mut buf)?;
             if n == 0 {
                 break;
             }
-            temp_file.write_all(&buf[..n])?;
-            hasher.update(&buf[..n]);
+            let slice = buf
+                .get(..n)
+                .context("Buffer slice index out of bounds for write")?;
+            temp_file.write_all(slice)?;
+            hasher.update(slice);
         }
     }
 
@@ -544,12 +583,12 @@ fn copy_single_item(
 
     // Check source file modification during copy
     let after_meta = std::fs::symlink_metadata(src_path)?;
-    if after_meta.mtime() != initial_mtime
-        || after_meta.ctime() != initial_ctime
+    if after_meta.mtime() != captured_mtime
+        || after_meta.ctime() != captured_ctime
         || after_meta.size() != initial_size
     {
         if args.on_source_change == SourceChangePolicy::Error {
-            let _ = std::fs::remove_file(dest_path);
+            remove_if_exists(dest_path);
             anyhow::bail!(
                 "Source file {} was modified concurrently during copy (mtime/ctime/size changed)",
                 src_path.display()
@@ -568,8 +607,9 @@ fn copy_single_item(
         relative_path: dest_path.to_path_buf(),
         size: initial_size,
         sha256: file_sha256,
-        mtime_sec: initial_mtime,
-        mtime_nsec: u32::try_from(sym_meta.mtime_nsec()).unwrap_or(0),
+        mtime_sec: captured_mtime,
+        mtime_nsec: u32::try_from(sym_meta.mtime_nsec())
+            .context("Failed to convert file mtime nanoseconds to u32")?,
         mode: sym_meta.mode(),
         uid: sym_meta.uid(),
         gid: sym_meta.gid(),

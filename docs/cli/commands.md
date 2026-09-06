@@ -44,6 +44,8 @@ Commands:
   js-lint                    Lint JavaScript and TypeScript sources
   ts-check                   Type-check TypeScript code
   js-test                    Run JavaScript tests
+  validate-docker-image      Validate a docker save image tarball
+  csc                        Checksummed copy with rsync-compatible resolution and post-flush verification
   csum                       Calculate checksum for a file or stdin
   compress                   Compress a file or stdin using single-stream compression format
   decompress                 Decompress a compressed file or stdin
@@ -288,6 +290,45 @@ Supported compression formats:
   xz, xzip: XZ compression
   zst, zstd: Zstandard compression
   lzo: LZO compression
+```
+
+### `ctoolbox csc`
+
+```text
+Checksummed copy with rsync-compatible resolution and post-flush verification
+
+Usage: ctoolbox csc [OPTIONS] [PATHS]...
+
+Arguments:
+  [PATHS]...  Source path(s) and destination path. If resuming, paths are restored from the state file
+
+Options:
+      --resume <STATE_FILE>
+          Path to a state file (.journal or .desc) from which to resume an interrupted run. When specified, source and destination paths should not be passed
+      --state-dir <DIR>
+          Directory in which to store state files (default: user's home folder)
+  -v, --verbose
+          Verbose output showing each file copied and verified
+      --progress
+          Display real-time progress indicators (default: enabled)
+      --no-progress
+          Disable progress display
+      --verify-after
+          Recalculate checksums after flushing OS caches (default: enabled)
+      --no-verify-after
+          Skip the post-flush verification pass
+      --skip-existing-checksum
+          When target file exists, checksum source and destination and skip copying if identical. Default is to overwrite atomically
+      --on-source-change <ON_SOURCE_CHANGE>
+          Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
+      --copy-block-devices
+          Permit copying block device nodes
+      --backup-count <BACKUP_COUNT>
+          Number of entries to roll back on resume to guarantee consistency [default: 500]
+  -n, --dry-run
+          Perform a dry run without copying or modifying destination files
+  -h, --help
+          Print help (see more with '--help')
 ```
 
 ### `ctoolbox csum`
@@ -1361,6 +1402,21 @@ Options:
       --unattended               Automatically apply updates without prompting
       --server-url <SERVER_URL>  URL of the update server. Defaults to the configured server URL
   -h, --help                     Print help (see more with '--help')
+```
+
+### `ctoolbox validate-docker-image`
+
+```text
+Validate a docker save image tarball
+
+Usage: ctoolbox validate-docker-image [OPTIONS] [FILE]
+
+Arguments:
+  [FILE]  Tarball file path (or - for stdin)
+
+Options:
+      --strict  Fail if any unreferenced blobs are present in blobs/
+  -h, --help    Print help
 ```
 
 ### `ctoolbox waitrestart`

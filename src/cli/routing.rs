@@ -49,6 +49,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
         command,
         "adduser"
             | "validate-docker-image"
+            | "csc"
             | "csum"
             | "compress"
             | "decompress"
@@ -490,6 +491,9 @@ pub enum Command {
         #[arg(long)]
         strict: bool,
     },
+    /// Checksummed copy with rsync-compatible resolution and post-flush verification
+    #[command(name = "csc")]
+    Csc(ctb_io_csc::args::CscArgs),
     /// Calculate checksum for a file or stdin
     #[command(name = "csum")]
     Csum {
@@ -1107,6 +1111,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                 *strict,
             )
         }
+        Command::Csc(args) => ctb_io_csc::cli::run_csc(args.clone()),
         Command::Csum {
             algo,
             file,

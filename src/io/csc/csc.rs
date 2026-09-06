@@ -17,9 +17,13 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Checksummed Copy (`csc`): high-integrity, crash-safe, verified file tree copying.
+//! Checksummed Copy (`csc`): Attempts to provide high-integrity, crash-safe, verified file tree copying. Not yet ready for production use.
 
-#[allow(clippy::wildcard_imports)]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 pub mod args;
@@ -31,4 +35,14 @@ pub mod path_resolution;
 pub mod verify_cache;
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests;

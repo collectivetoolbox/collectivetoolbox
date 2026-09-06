@@ -57,6 +57,10 @@ pub struct CscArgs {
     #[arg(long, value_name = "STATE_FILE")]
     pub resume: Option<PathBuf>,
 
+    /// Directory in which to store state files (default: user's home folder).
+    #[arg(long, value_name = "DIR")]
+    pub state_dir: Option<PathBuf>,
+
     /// Verbose output showing each file copied and verified.
     #[arg(short = 'v', long)]
     pub verbose: bool,

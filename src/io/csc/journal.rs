@@ -26,9 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -39,7 +40,7 @@ const TAG_SESSION_HEADER: u8 = 1;
 const TAG_DIR: u8 = 2;
 const TAG_FILE: u8 = 3;
 const TAG_SYMLINK: u8 = 4;
-const TAG_SPECIAL: u8 = 5;
+const _TAG_SPECIAL: u8 = 5;
 const TAG_HARDLINK: u8 = 6;
 const TAG_BATCH_COMMIT: u8 = 7;
 const TAG_JOB_COMPLETED: u8 = 8;
@@ -121,12 +122,11 @@ impl JournalWriter {
     ) -> Result<Self> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        // Format timestamp as YYYYMMDD_HHMMSS (using basic calendar math for timestamp)
-        let ts_str = format!("{now}");
-        let base_name = format!("csc_state_{ts_str}");
+            .context("System clock before Unix epoch")?;
+        let secs = now.as_secs();
+        let nanos = now.subsec_nanos();
+        let pid = std::process::id();
+        let base_name = format!("csc_state_{secs}_{nanos}_{pid}");
 
         let journal_path = home_dir.join(format!("{base_name}.journal"));
         let desc_path = home_dir.join(format!("{base_name}.desc"));
@@ -173,7 +173,6 @@ impl JournalWriter {
         snapshot: &JournalSnapshot,
     ) -> Result<Self> {
         let file = OpenOptions::new()
-            .write(true)
             .append(true)
             .open(journal_path)
             .with_context(|| {
@@ -197,14 +196,14 @@ impl JournalWriter {
             uncommitted_dirs: Vec::new(),
             uncommitted_symlinks: Vec::new(),
             uncommitted_hardlinks: Vec::new(),
-            total_committed_files: u64::try_from(snapshot.committed_files.len()).unwrap_or(0),
+            total_committed_files: u64::try_from(snapshot.committed_files.len())?,
             total_committed_bytes: total_bytes,
         })
     }
 
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
         self.writer.write_all(&[TAG_SESSION_HEADER])?;
-        write_u32(&mut self.writer, u32::try_from(sources.len()).unwrap_or(0))?;
+        write_u32(&mut self.writer, u32::try_from(sources.len())?)?;
         for src in sources {
             write_bytes(&mut self.writer, src.as_os_str().as_encoded_bytes())?;
         }
@@ -248,7 +247,7 @@ impl JournalWriter {
             write_u32(&mut self.writer, d.mtime_nsec)?;
             write_u32(&mut self.writer, d.uid)?;
             write_u32(&mut self.writer, d.gid)?;
-            write_u32(&mut self.writer, u32::try_from(d.streams.len()).unwrap_or(0))?;
+            write_u32(&mut self.writer, u32::try_from(d.streams.len())?)?;
             for (sname, shash) in &d.streams {
                 write_bytes(&mut self.writer, sname.as_bytes())?;
                 self.writer.write_all(shash)?;
@@ -266,8 +265,8 @@ impl JournalWriter {
             write_u32(&mut self.writer, f.mode)?;
             write_u32(&mut self.writer, f.uid)?;
             write_u32(&mut self.writer, f.gid)?;
-            self.writer.write_all(&[if f.is_sparse { 1 } else { 0 }])?;
-            write_u32(&mut self.writer, u32::try_from(f.streams.len()).unwrap_or(0))?;
+            self.writer.write_all(&[u8::from(f.is_sparse)])?;
+            write_u32(&mut self.writer, u32::try_from(f.streams.len())?)?;
             for (sname, shash) in &f.streams {
                 write_bytes(&mut self.writer, sname.as_bytes())?;
                 self.writer.write_all(shash)?;
@@ -324,16 +323,17 @@ impl JournalWriter {
     }
 
     fn update_desc_file(&self, status: &str) -> Result<()> {
+        use std::fmt::Write;
         let mut desc_text = String::new();
-        desc_text.push_str("CSC State File\n");
-        desc_text.push_str(&format!("Status: {status}\n"));
-        desc_text.push_str(&format!("FilesCommitted: {}\n", self.total_committed_files));
-        desc_text.push_str(&format!("BytesCommitted: {}\n", self.total_committed_bytes));
-        desc_text.push_str("Sources:\n");
+        writeln!(desc_text, "CSC State File")?;
+        writeln!(desc_text, "Status: {status}")?;
+        writeln!(desc_text, "FilesCommitted: {}", self.total_committed_files)?;
+        writeln!(desc_text, "BytesCommitted: {}", self.total_committed_bytes)?;
+        writeln!(desc_text, "Sources:")?;
         for s in &self.sources {
-            desc_text.push_str(&format!("  - {}\n", s.display()));
+            writeln!(desc_text, "  - {}", s.display())?;
         }
-        desc_text.push_str(&format!("Destination: {}\n", self.destination.display()));
+        writeln!(desc_text, "Destination: {}", self.destination.display())?;
 
         let temp_desc = format!("{}.tmp", self.desc_path.display());
         std::fs::write(&temp_desc, desc_text.as_bytes())?;
@@ -387,21 +387,21 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let src_count = read_u32(&mut reader)?;
                 for _ in 0..src_count {
                     let bytes = read_bytes(&mut reader)?;
-                    sources.push(PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(bytes)));
+                    sources.push(PathBuf::from(std::ffi::OsString::from_vec(bytes)));
                 }
                 let dest_bytes = read_bytes(&mut reader)?;
-                destination = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(dest_bytes));
+                destination = PathBuf::from(std::ffi::OsString::from_vec(dest_bytes));
             }
             TAG_DIR => {
                 let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(rel_bytes));
+                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
                 let mode = read_u32(&mut reader)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
+                let seconds_timestamp = read_i64(&mut reader)?;
+                let nanos_fraction = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
                 let stream_count = read_u32(&mut reader)?;
-                let mut streams = Vec::with_capacity(stream_count as usize);
+                let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
                 for _ in 0..stream_count {
                     let sname_bytes = read_bytes(&mut reader)?;
                     let sname = String::from_utf8_lossy(&sname_bytes).into_owned();
@@ -414,8 +414,8 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                     ManifestDir {
                         relative_path: rel_path,
                         mode,
-                        mtime_sec,
-                        mtime_nsec,
+                        mtime_sec: seconds_timestamp,
+                        mtime_nsec: nanos_fraction,
                         uid,
                         gid,
                         streams,
@@ -424,12 +424,12 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
             }
             TAG_FILE => {
                 let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(rel_bytes));
+                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
                 let size = read_u64(&mut reader)?;
                 let mut sha256 = [0_u8; 32];
                 reader.read_exact(&mut sha256)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
+                let seconds_timestamp = read_i64(&mut reader)?;
+                let nanos_fraction = read_u32(&mut reader)?;
                 let mode = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
@@ -437,7 +437,7 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 reader.read_exact(&mut sparse_byte)?;
                 let is_sparse = sparse_byte[0] != 0;
                 let stream_count = read_u32(&mut reader)?;
-                let mut streams = Vec::with_capacity(stream_count as usize);
+                let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
                 for _ in 0..stream_count {
                     let sname_bytes = read_bytes(&mut reader)?;
                     let sname = String::from_utf8_lossy(&sname_bytes).into_owned();
@@ -451,8 +451,8 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                         relative_path: rel_path,
                         size,
                         sha256,
-                        mtime_sec,
-                        mtime_nsec,
+                        mtime_sec: seconds_timestamp,
+                        mtime_nsec: nanos_fraction,
                         mode,
                         uid,
                         gid,
@@ -463,10 +463,10 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
             }
             TAG_SYMLINK => {
                 let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(rel_bytes));
+                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
                 let target = read_bytes(&mut reader)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
+                let seconds_timestamp = read_i64(&mut reader)?;
+                let nanos_fraction = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
                 pending_symlinks.insert(
@@ -474,8 +474,8 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                     ManifestSymlink {
                         relative_path: rel_path,
                         target,
-                        mtime_sec,
-                        mtime_nsec,
+                        mtime_sec: seconds_timestamp,
+                        mtime_nsec: nanos_fraction,
                         uid,
                         gid,
                     },
@@ -484,8 +484,8 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
             TAG_HARDLINK => {
                 let src_bytes = read_bytes(&mut reader)?;
                 let tgt_bytes = read_bytes(&mut reader)?;
-                let src_rel = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(src_bytes));
-                let tgt_rel = PathBuf::from(std::ffi::OsString::from_encoded_bytes_unchecked(tgt_bytes));
+                let src_rel = PathBuf::from(std::ffi::OsString::from_vec(src_bytes));
+                let tgt_rel = PathBuf::from(std::ffi::OsString::from_vec(tgt_bytes));
                 pending_hardlinks.insert(src_rel, tgt_rel);
             }
             TAG_BATCH_COMMIT => {
@@ -522,13 +522,13 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
 // Low-level serialization helpers
 
 fn write_bytes(w: &mut impl Write, bytes: &[u8]) -> Result<()> {
-    write_u32(w, u32::try_from(bytes.len()).unwrap_or(0))?;
+    write_u32(w, u32::try_from(bytes.len())?)?;
     w.write_all(bytes)?;
     Ok(())
 }
 
 fn read_bytes(r: &mut impl Read) -> Result<Vec<u8>> {
-    let len = read_u32(r)? as usize;
+    let len = usize::try_from(read_u32(r)?)?;
     let mut buf = vec![0_u8; len];
     r.read_exact(&mut buf)?;
     Ok(buf)

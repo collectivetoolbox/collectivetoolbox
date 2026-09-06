@@ -29,10 +29,10 @@ use crate::utilities::*;
 use crate::args::CscArgs;
 use crate::copy_engine::execute_copy_pipeline;
 use crate::journal::{JournalWriter, read_journal_snapshot};
-use crate::path_resolution::{ResolvedCopyTask, resolve_tasks};
+use crate::path_resolution::resolve_tasks;
 use crate::verify_cache::check_cache_flush_privileges;
 use ctb_utilities::cli::ToolResult;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 /// Main entry point for the `csc` command called by CLI routing.
@@ -42,9 +42,13 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     // 1. Startup root / privilege check and warning
     check_cache_flush_privileges();
 
-    let home_dir = match std::env::var("HOME") {
-        Ok(h) => PathBuf::from(h),
-        Err(_) => PathBuf::from("."),
+    let home_dir = if let Some(ref custom_dir) = args.state_dir {
+        custom_dir.clone()
+    } else {
+        match std::env::var("HOME") {
+            Ok(h) => PathBuf::from(h),
+            Err(_) => PathBuf::from("."),
+        }
     };
 
     let progress = Progress::new(args.should_show_progress());
@@ -107,29 +111,32 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     // 3. Format result summary
     let mut summary = String::new();
-    summary.push_str("\n--- Checksummed Copy (csc) Summary ---\n");
-    summary.push_str(&format!("Files copied:             {}\n", stats.files_copied));
+    use std::fmt::Write;
+    writeln!(summary, "--- CSC Summary ---")?;
+    writeln!(summary, "Files copied:             {}", stats.files_copied)?;
     if stats.files_skipped_identical > 0 {
-        summary.push_str(&format!(
-            "Files skipped (identical): {}\n",
+        writeln!(
+            summary,
+            "Files skipped (identical): {}",
             stats.files_skipped_identical
-        ));
+        )?;
     }
-    summary.push_str(&format!("Bytes transferred:        {}\n", stats.bytes_copied));
-    summary.push_str(&format!("Directories created:      {}\n", stats.dirs_created));
-    summary.push_str(&format!("Symlinks created:         {}\n", stats.symlinks_created));
-    summary.push_str(&format!("Hardlinks created:        {}\n", stats.hardlinks_created));
+    writeln!(summary, "Bytes transferred:        {}", stats.bytes_copied)?;
+    writeln!(summary, "Directories created:      {}", stats.dirs_created)?;
+    writeln!(summary, "Symlinks created:         {}", stats.symlinks_created)?;
+    writeln!(summary, "Hardlinks created:        {}", stats.hardlinks_created)?;
     if stats.special_files_created > 0 {
-        summary.push_str(&format!(
-            "Special nodes created:    {}\n",
+        writeln!(
+            summary,
+            "Special nodes created:    {}",
             stats.special_files_created
-        ));
+        )?;
     }
     if args.should_verify_after() {
-        summary.push_str(&format!("Files verified:           {}\n", stats.files_verified));
+        writeln!(summary, "Files verified:           {}", stats.files_verified)?;
     }
-    summary.push_str(&format!("Duration:                 {:.2}s\n", elapsed));
-    summary.push_str("Status:                   All operations verified successfully.\n");
+    writeln!(summary, "Duration:                 {elapsed:.2}s")?;
+    writeln!(summary, "Status:                   All operations verified successfully.")?;
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }

@@ -17,6 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! Unit and integration tests for checksummed copy (csc).
+
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
@@ -38,16 +40,16 @@ use crate::utilities::*;
 mod csc_tests {
     use crate::args::CscArgs;
     use crate::cli::run_csc;
-    use std::fs::{self, File};
-    use std::io::Write;
+    use std::fs;
     use std::os::unix::fs::MetadataExt;
     use std::path::PathBuf;
     use tempfile::tempdir;
 
-    fn default_test_args(paths: Vec<PathBuf>) -> CscArgs {
+    fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscArgs {
         CscArgs {
             paths,
             resume: None,
+            state_dir: Some(state_dir),
             verbose: true,
             progress: false,
             no_progress: true,
@@ -66,15 +68,20 @@ mod csc_tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_dir");
         let dest = temp.path().join("dest_dir");
+        let state = temp.path().join("state_dir");
         fs::create_dir_all(src.join("sub")).expect("create src sub");
+        fs::create_dir_all(&state).expect("create state dir");
 
         fs::write(src.join("file1.txt"), b"Hello, World!").expect("write file1");
         fs::write(src.join("sub").join("file2.bin"), vec![42_u8; 1000]).expect("write file2");
 
-        let args = default_test_args(vec![
-            PathBuf::from(format!("{}/", src.display())),
-            dest.clone(),
-        ]);
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -102,7 +109,9 @@ mod csc_tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_links");
         let dest = temp.path().join("dest_links");
+        let state = temp.path().join("state_dir");
         fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
 
         let f1 = src.join("orig.txt");
         fs::write(&f1, b"Shared content across hardlinks").expect("write orig");
@@ -110,10 +119,13 @@ mod csc_tests {
         let f2 = src.join("link.txt");
         fs::hard_link(&f1, &f2).expect("create hardlink");
 
-        let args = default_test_args(vec![
-            PathBuf::from(format!("{}/", src.display())),
-            dest.clone(),
-        ]);
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
 
         run_csc(args).expect("run csc");
 
@@ -133,7 +145,9 @@ mod csc_tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_sym");
         let dest = temp.path().join("dest_sym");
+        let state = temp.path().join("state_dir");
         fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
 
         let target_file = src.join("target.txt");
         fs::write(&target_file, b"Symlink target data").expect("write target");
@@ -141,10 +155,13 @@ mod csc_tests {
         let sym = src.join("sym.txt");
         std::os::unix::fs::symlink("target.txt", &sym).expect("create symlink");
 
-        let args = default_test_args(vec![
-            PathBuf::from(format!("{}/", src.display())),
-            dest.clone(),
-        ]);
+        let args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
 
         run_csc(args).expect("run csc");
 
@@ -159,16 +176,21 @@ mod csc_tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_skip");
         let dest = temp.path().join("dest_skip");
+        let state = temp.path().join("state_dir");
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&dest).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
 
         fs::write(src.join("file.txt"), b"Same data").expect("write src");
         fs::write(dest.join("file.txt"), b"Same data").expect("write dest");
 
-        let mut args = default_test_args(vec![
-            PathBuf::from(format!("{}/", src.display())),
-            dest.clone(),
-        ]);
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
         args.skip_existing_checksum = true;
 
         let res = run_csc(args).expect("run csc");
@@ -177,6 +199,52 @@ mod csc_tests {
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files skipped (identical): 1"));
                 assert!(out.contains("Files copied:             0"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_resume_mode() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_res");
+        let dest = temp.path().join("dest_res");
+        let state = temp.path().join("state_res");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("first.txt"), b"First payload").expect("write first");
+
+        let args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+
+        run_csc(args1).expect("run initial csc");
+
+        // Locate created journal
+        let mut journal_file = None;
+        for entry in fs::read_dir(&state).expect("read state dir") {
+            let entry = entry.expect("entry");
+            if entry.path().extension().and_then(|e| e.to_str()) == Some("journal") {
+                journal_file = Some(entry.path());
+                break;
+            }
+        }
+        let journal_path = journal_file.expect("found journal");
+
+        // Now resume without specifying source or dest!
+        let mut resume_args = default_test_args(Vec::new(), state.clone());
+        resume_args.resume = Some(journal_path);
+
+        let res = run_csc(resume_args).expect("run resume csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("already marked Completed") || out.contains("Summary"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

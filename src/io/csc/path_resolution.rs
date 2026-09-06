@@ -64,17 +64,12 @@ pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBu
         "At least one source path and one destination path are required"
     );
 
-    let Some(dest_arg) = paths.last() else {
+    let Some((dest_arg, sources)) = paths.split_last() else {
         anyhow::bail!("Missing destination argument");
     };
     let dest_path = dest_arg.clone();
-    let sources = match paths.split_last() {
-        Some((_, src_slice)) => src_slice,
-        None => anyhow::bail!("Invalid path list"),
-    };
 
     let dest_has_slash = path_has_trailing_slash(&dest_path);
-    let dest_exists = dest_path.exists();
     let dest_is_dir = dest_path.is_dir();
 
     let multiple_sources = sources.len() > 1;
