@@ -3272,6 +3272,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctb-formats-checksum",
+ "ctb-io",
  "ctb-utilities",
  "filetime",
  "nix 0.30.1",

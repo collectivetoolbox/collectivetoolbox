@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::metadata::{FileFlag, FileMetadata};
+use crate::file::metadata::FileMetadata;
 use crate::file::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
     validate_symlink_target,
@@ -42,7 +42,7 @@ use nix::sys::stat::{Mode, SFlag, mknod};
 use nix::unistd::{Gid, Uid, fchownat, mkfifo};
 use std::ffi::OsStr;
 use std::fs::{File, OpenOptions, Permissions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Seek, SeekFrom, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -404,20 +404,14 @@ pub fn materialize_entity(
                 );
             };
 
-            let file_name = dest_path
-                .file_name()
-                .context("Destination path has no file name")?;
-
             let pid = std::process::id();
-            let thread_id = std::thread::current().id();
             let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                 Ok(dur) => dur.subsec_nanos(),
                 Err(_) => 0,
             };
-            let temp_name = format!(
-                ".csc-tmp.{pid}.{thread_id:?}.{nanos}.{}",
-                file_name.to_string_lossy()
-            );
+            static ATOMIC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+            let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
             let temp_path = parent_dir.join(temp_name);
 
             let mut temp_file = OpenOptions::new()

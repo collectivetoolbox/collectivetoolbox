@@ -95,6 +95,26 @@ pub fn resolve_and_validate_path(
     }
 }
 
+/// Normalizes a path logically by resolving `.` and `..` components without
+/// requiring filesystem access.
+pub fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = Vec::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if let Some(Component::Normal(_)) = components.last() {
+                    components.pop();
+                } else {
+                    components.push(comp);
+                }
+            }
+            _ => components.push(comp),
+        }
+    }
+    components.into_iter().collect()
+}
+
 /// Validates a symlink target against the destination root if policy requires.
 pub fn validate_symlink_target(
     dest_root: &Path,
@@ -121,11 +141,22 @@ pub fn validate_symlink_target(
                 parent.join(target_path)
             };
 
-            let Ok(canonical_dest) = std::fs::canonicalize(dest_root) else {
-                return Ok(());
-            };
+            let norm_dest = normalize_path(dest_root);
+            let norm_resolved = normalize_path(&resolved);
 
-            if let Ok(canonical_tgt) = std::fs::canonicalize(&resolved) {
+            if !norm_resolved.starts_with(&norm_dest) {
+                anyhow::bail!(
+                    "Symlink {} escapes destination root {}: resolves to {}",
+                    symlink_path.display(),
+                    dest_root.display(),
+                    norm_resolved.display()
+                );
+            }
+
+            if let (Ok(canonical_dest), Ok(canonical_tgt)) = (
+                std::fs::canonicalize(dest_root),
+                std::fs::canonicalize(&resolved),
+            ) {
                 if !canonical_tgt.starts_with(&canonical_dest) {
                     anyhow::bail!(
                         "Symlink {} escapes destination root {}: resolves to {}",

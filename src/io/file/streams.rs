@@ -27,11 +27,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::identity::{FileIdentity, FileOrigin, InodeKey};
+use crate::file::identity::{FileIdentity, FileOrigin};
 use crate::file::metadata::{FileMetadata, FileTimestamps};
 use crate::file::payload::Extent;
 use ctb_formats_checksum::Sha256Stream;
-use std::ffi::{CStr, CString, OsStr};
+use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
