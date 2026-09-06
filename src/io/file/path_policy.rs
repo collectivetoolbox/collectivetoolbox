@@ -38,12 +38,12 @@ pub enum SymlinkValidationPolicy {
     /// they point to parent directories or absolute paths.
     ///
     /// This is the required behavior for `csc` to ensure exact filesystem fidelity.
-    #[default]
     PreserveVerbatim,
 
     /// Disallows symlinks whose target resolves outside the destination root.
     ///
     /// Essential for untrusted archive extraction to prevent "Zip Slip" attacks.
+    #[default]
     RejectEscapingSymlinks,
 }
 
