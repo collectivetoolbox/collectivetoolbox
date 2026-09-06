@@ -34,6 +34,7 @@ pub(crate) use ctb_utilities::*;
 pub use ctb_utilities::ipc::service_prelude::*;
 
 pub use ctb_io_webui as webui;
+pub mod file;
 
 /// Start a local web UI server, returning the port number.
 #[ipc_method]
