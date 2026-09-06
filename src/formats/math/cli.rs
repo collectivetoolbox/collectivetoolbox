@@ -818,7 +818,7 @@ mod tests {
 
 
     #[crate::ctb_test]
-    fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() -> Result<()> {
+    fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() {
         use ctb_formats_math::cli::BaseArgs;
 
         // hex2dec with unquoted tokens
@@ -827,11 +827,12 @@ mod tests {
             &Some(10),
             "1A 2B 3C",
             &BaseArgs::default(),
-        )?;
+        )
+        .unwrap();
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "26 43 60");
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "26 43 60");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -842,11 +843,12 @@ mod tests {
             &Some(16),
             "255 128 64",
             &BaseArgs::default(),
-        )?;
+        )
+        .unwrap();
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "ff 80 40");
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "ff 80 40");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -860,11 +862,12 @@ mod tests {
                 prefix: "0x".to_string(),
                 ..Default::default()
             },
-        )?;
+        )
+        .unwrap();
         match res {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "0x1a 0x2b");
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "0x1a 0x2b");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -875,11 +878,12 @@ mod tests {
             &Some(10),
             "deadbeef",
             &BaseArgs::default(),
-        )?;
+        )
+        .unwrap();
         match res_scalar {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "3735928559");
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "3735928559");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -894,16 +898,15 @@ mod tests {
                 pad: true,
                 ..Default::default()
             },
-        )?;
+        )
+        .unwrap();
         match res_bytes {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "222 173 190 239");
+                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "222 173 190 239");
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
-
-        Ok(())
     }
 }
 

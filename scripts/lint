@@ -4,6 +4,8 @@ set -euxo pipefail
 # Change directory to the repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
+export LOCKSTEP_XML_PATH="$(pwd)/vendor/ctb-vendored/vendor/atspi-common/xml"
+
 offline=""
 quick=""
 while [[ $# -gt 0 ]]; do

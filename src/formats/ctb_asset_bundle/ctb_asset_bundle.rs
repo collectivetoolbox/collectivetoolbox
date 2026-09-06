@@ -596,13 +596,11 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let temp_name = format!(
-        ".{}.tmp_stream",
-        output_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("bundle.rsrc")
-    );
+    let file_name = output_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .context("Invalid bundle output filename")?;
+    let temp_name = format!(".{file_name}.tmp_stream");
     let temp_path = output_path.with_file_name(temp_name);
     let file = File::create(&temp_path)
         .with_context(|| format!("Failed to create {}", temp_path.display()))?;
