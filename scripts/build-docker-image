@@ -9,6 +9,7 @@ clean_cache=false
 cache_dir="${CTOOLBOX_DOCKER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ctoolbox-docker-cache}"
 
 dockerfile="scripts/docker/Dockerfile"
+image_tag=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -28,6 +29,14 @@ while [[ $# -gt 0 ]]; do
       dockerfile="scripts/docker/Dockerfile"
       shift
       ;;
+    -t|--tag)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires an argument" >&2
+        exit 1
+      fi
+      image_tag="$2"
+      shift 2
+      ;;
     -f|--file)
       if [[ $# -lt 2 ]]; then
         echo "Error: $1 requires an argument" >&2
@@ -37,12 +46,13 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo "Usage: $0 [--recreate] [--clean-cache] [--use-built|--small] [--full] [-f <dockerfile>]"
+      echo "Usage: $0 [--recreate] [--clean-cache] [--use-built|--small] [--full] [-t <tag>] [-f <dockerfile>]"
       echo "Options:"
       echo "  --recreate, --clean, --reset  Remove and recreate the buildkit builder"
       echo "  --clean-cache, --reset-cache  Clear host cache directory ($cache_dir)"
       echo "  --use-built, --small          Build small Docker image using prebuilt bundles (Dockerfile-use-built)"
       echo "  --full                        Build full Docker image from scratch (Dockerfile)"
+      echo "  -t, --tag <tag>               Tag the resulting image"
       echo "  -f, --file <dockerfile>       Specify a custom Dockerfile"
       exit 0
       ;;
@@ -82,6 +92,26 @@ else
   docker buildx inspect --bootstrap buildkit
 fi
 
+if [ "$dockerfile" = "scripts/docker/Dockerfile-use-built" ]; then
+  if [ ! -f "vendor/TypeScript-built.tar" ]; then
+    echo "vendor/TypeScript-built.tar not found. Prebuilding..."
+    cargo run -p ctb-formats-javascript-bootstrap-ts --bin bootstrap_ts --release -- ./vendor/TypeScript
+  fi
+  if [ ! -f "vendor/v86_images/guix/guix-fs.json" ] || [ ! -d "vendor/v86_images/guix/guix-rootfs-flat" ]; then
+    echo "Error: vendor/v86_images/guix assets not found." >&2
+    echo "Please extract them first using ./scripts/extract-v86-images <builder-tag>" >&2
+    exit 1
+  fi
+  if [ ! -f "vendor/v86_images/guix/guix_posix_initrd.cpio.gz" ]; then
+    if [ -f "built/guix_posix_initrd.cpio.gz" ]; then
+      cp built/guix_posix_initrd.cpio.gz vendor/v86_images/guix/guix_posix_initrd.cpio.gz
+    else
+      echo "Error: vendor/v86_images/guix/guix_posix_initrd.cpio.gz not found." >&2
+      exit 1
+    fi
+  fi
+fi
+
 # Execute build
 echo "Building Docker image using $dockerfile..."
 docker buildx build -f "$dockerfile" . \
@@ -89,6 +119,7 @@ docker buildx build -f "$dockerfile" . \
   --allow network.host \
   --allow security.insecure \
   --cache-from "type=local,src=$cache_dir" \
+  ${image_tag:+-t "$image_tag"} \
   --load \
   --progress plain
 

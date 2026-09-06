@@ -54,7 +54,7 @@ The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_bui
   - Protecting a Docker image from `docker image prune`: `docker create --name keep-ctb-builder-2026-sept-5-build ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
   - Extract the built v86 image from the Docker container to avoid rebuilding on the host (pass the tag of the large builder image): `cd ~/ctoolbox || exit 1; ./scripts/extract-v86-images ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-build:latest`
   - Build small Docker container (NOT required, used for CI and dev container): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image --use-built; notify-send "Docker command finished" || true`
-  - Tag small Docker container (remember to update the image hash and date to match): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-jul-30-2:latest`
+  - Tag small Docker container (remember to update the image hash and date to match; or pass `-t <tag>` to build-docker-image): `docker tag 091481791716 ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5:latest`
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
 
