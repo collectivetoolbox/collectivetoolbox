@@ -91,7 +91,7 @@ fn process_data(data: &[u8], features: &mut BTreeSet<String>) -> Result<()> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

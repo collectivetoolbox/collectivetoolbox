@@ -197,7 +197,7 @@ fn write_text_element<W: std::io::Write>(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

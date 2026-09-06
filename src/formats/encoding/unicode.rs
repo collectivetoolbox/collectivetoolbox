@@ -53,7 +53,7 @@ pub fn utf32be_to_utf8(input: &[u8]) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -116,7 +116,7 @@ pub fn test_echo_3x(#[ipc(shm)] document: String) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

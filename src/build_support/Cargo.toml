@@ -31,6 +31,10 @@ path = "bin/lint_headers.rs"
 name = "seabios-tool"
 path = "bin/seabios_tool.rs"
 
+[[bin]]
+name = "lint-test-boilerplate"
+path = "bin/lint_test_boilerplate.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 ctb-formats-ctb-asset-bundle = { path = "../formats/ctb_asset_bundle" }

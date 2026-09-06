@@ -340,7 +340,7 @@ pub fn ensure_x11_locale_root() -> Result<()> {
 }
 
 #[cfg(all(test, target_os = "linux"))]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

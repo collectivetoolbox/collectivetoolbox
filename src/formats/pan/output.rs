@@ -708,7 +708,7 @@ fn write_csv_bytes(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

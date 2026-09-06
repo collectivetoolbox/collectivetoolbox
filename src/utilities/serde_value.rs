@@ -186,7 +186,7 @@ pub fn get_as_json_string_from_json_string(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

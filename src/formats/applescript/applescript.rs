@@ -54,7 +54,7 @@ pub fn escape_string_fragment(text: &str) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

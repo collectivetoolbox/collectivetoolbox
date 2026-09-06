@@ -102,7 +102,7 @@ pub fn wfscan_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

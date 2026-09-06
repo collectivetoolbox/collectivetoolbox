@@ -169,7 +169,7 @@ fn format_scaled_int(integer: u128, decimal_digit: Option<u8>) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

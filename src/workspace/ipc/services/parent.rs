@@ -150,7 +150,7 @@ pub(crate) async fn dispatch_parent(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

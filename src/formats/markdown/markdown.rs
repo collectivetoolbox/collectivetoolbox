@@ -66,7 +66,7 @@ pub fn markdown2html_str_unsafe(markdown: &str) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

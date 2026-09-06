@@ -638,7 +638,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

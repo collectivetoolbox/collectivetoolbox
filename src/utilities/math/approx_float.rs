@@ -654,7 +654,7 @@ pub fn isize_to_f64_approx(value: isize) -> Result<f64> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

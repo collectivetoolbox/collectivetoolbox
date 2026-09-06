@@ -834,7 +834,7 @@ fn runtime_value_from_field(value: &PanDataValue) -> PanRuntimeValue {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

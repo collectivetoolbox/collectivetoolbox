@@ -176,7 +176,7 @@ async fn config_from_pem_chain_file(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

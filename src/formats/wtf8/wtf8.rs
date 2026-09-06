@@ -288,7 +288,7 @@ pub fn is_unpackable_wtf8(byte_array_input: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

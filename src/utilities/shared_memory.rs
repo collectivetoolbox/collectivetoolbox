@@ -504,7 +504,7 @@ pub fn descriptor_requires_fd_transfer(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

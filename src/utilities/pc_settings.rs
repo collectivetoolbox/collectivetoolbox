@@ -677,7 +677,7 @@ pub fn normalize_ctb_domain_name(domain: &str) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

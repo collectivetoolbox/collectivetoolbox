@@ -33,7 +33,7 @@ use ctb_utilities::ipc::service_traits::renderer::RenderSettings;
 include!("runtime.generated.rs");
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

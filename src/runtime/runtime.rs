@@ -147,7 +147,7 @@ pub async fn test_prepend(document: String, prepend: String) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

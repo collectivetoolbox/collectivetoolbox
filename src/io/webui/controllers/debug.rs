@@ -192,7 +192,7 @@ pub async fn get_db_table_data(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

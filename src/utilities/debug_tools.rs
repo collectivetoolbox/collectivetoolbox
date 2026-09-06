@@ -70,7 +70,7 @@ pub fn generate_gdb_instructions(data: Vec<u8>) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -436,7 +436,7 @@ pub fn explode_escaped(s: &str, separator: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

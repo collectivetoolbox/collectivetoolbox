@@ -1171,7 +1171,7 @@ fn read_fixed_bytes<const N: usize>(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

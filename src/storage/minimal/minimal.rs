@@ -55,7 +55,7 @@ pub fn get_license_boilerplate_line3() -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

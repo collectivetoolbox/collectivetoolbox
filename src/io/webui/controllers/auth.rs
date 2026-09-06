@@ -712,7 +712,7 @@ fn remote_account_exists(_username: &String) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

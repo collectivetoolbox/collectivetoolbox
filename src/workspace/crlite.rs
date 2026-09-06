@@ -205,7 +205,7 @@ pub async fn get_crlite_artifact(relative_path: &str) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

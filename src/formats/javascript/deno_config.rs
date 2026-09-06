@@ -150,7 +150,7 @@ pub fn get_rules_from_config(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

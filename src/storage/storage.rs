@@ -345,7 +345,7 @@ pub fn overwrite_file(path: &Path, data: &[u8]) -> Result<()> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

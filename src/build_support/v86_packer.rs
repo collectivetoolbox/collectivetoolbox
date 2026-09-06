@@ -930,7 +930,7 @@ pub fn ensure_v86_assets_built(project_root: &Path) -> Result<PathBuf> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

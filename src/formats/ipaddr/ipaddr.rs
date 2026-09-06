@@ -190,7 +190,7 @@ pub fn is_unspecified(addr: &str) -> Result<bool> {
 // NOTE: I haven't checked over these tests to make sure they match the original at https://raw.githubusercontent.com/sindresorhus/ip-regex/refs/heads/main/test.js
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

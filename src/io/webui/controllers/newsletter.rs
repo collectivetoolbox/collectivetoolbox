@@ -467,7 +467,7 @@ fn get_newsletters_scripting_news_01(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

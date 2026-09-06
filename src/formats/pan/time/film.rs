@@ -122,7 +122,7 @@ fn parse_feet_plus_frames(s: &str) -> Result<(i64, i64)> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

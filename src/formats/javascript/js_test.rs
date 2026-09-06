@@ -399,7 +399,7 @@ pub fn run_test_args(args: &JsTestArgs) -> Result<i32> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

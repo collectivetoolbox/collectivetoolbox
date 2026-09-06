@@ -181,7 +181,7 @@ pub fn get_test_graph(username: &str) -> Graph {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

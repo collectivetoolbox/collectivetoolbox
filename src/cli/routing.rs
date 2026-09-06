@@ -1337,7 +1337,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

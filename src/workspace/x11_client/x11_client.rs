@@ -520,7 +520,7 @@ pub fn rounded_points_to_u16(value: f32) -> Result<u16> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

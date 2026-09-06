@@ -912,7 +912,7 @@ pub fn html2md_with_width(html: Vec<u8>, _width: u16) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

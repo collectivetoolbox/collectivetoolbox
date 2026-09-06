@@ -95,7 +95,7 @@ pub fn detect_os(user_agent: &str) -> OperatingSystem {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

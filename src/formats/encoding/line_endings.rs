@@ -214,7 +214,7 @@ pub fn apply_line_ending_option(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

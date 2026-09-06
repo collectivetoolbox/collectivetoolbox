@@ -440,7 +440,7 @@ fn normalize_asset_key(key: &str) -> &str {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

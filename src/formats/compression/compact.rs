@@ -701,7 +701,7 @@ pub fn decompress_compact_stream<R: Read, W: Write>(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -292,7 +292,7 @@ pub fn render_scripting_news_20(feed: &Feed) -> Result<String> {
 // ============================================================================
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -40,7 +40,7 @@ pub fn ed25519_base64_to_pem(ed25519: &str) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

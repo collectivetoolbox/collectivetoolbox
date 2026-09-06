@@ -58,7 +58,7 @@ pub(crate) static WINDOWS_1252_MAPPING: LazyLock<SingleByteMapping> =
     LazyLock::new(|| build_mapping_from_encoding_rs(encoding_rs::WINDOWS_1252));
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

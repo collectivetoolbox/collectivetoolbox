@@ -221,7 +221,7 @@ fn scale_frames(frames: i64, from_fps: i64, to_fps: i64) -> Result<i64> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

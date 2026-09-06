@@ -443,7 +443,7 @@ fn verify_official_signature_in_thread() -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

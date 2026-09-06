@@ -347,7 +347,7 @@ pub fn generate_cli_markdown_docs() -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

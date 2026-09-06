@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

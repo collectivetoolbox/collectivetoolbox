@@ -49,7 +49,7 @@ pub fn xxhash3_128(data: &[u8]) -> [u8; 16] {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

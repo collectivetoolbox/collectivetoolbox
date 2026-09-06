@@ -429,7 +429,7 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -704,7 +704,7 @@ async fn quick_update_check() -> StartupUpdateResult {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -222,7 +222,7 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

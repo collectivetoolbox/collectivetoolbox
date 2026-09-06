@@ -599,7 +599,7 @@ pub async fn post_public_pc_settings(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

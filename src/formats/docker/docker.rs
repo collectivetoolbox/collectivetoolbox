@@ -311,7 +311,7 @@ pub fn validate_docker_archive<R: Read>(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

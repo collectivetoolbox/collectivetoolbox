@@ -1044,7 +1044,7 @@ fn format_time_ampm(seconds: i64, include_seconds: bool) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

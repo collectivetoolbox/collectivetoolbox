@@ -170,7 +170,7 @@ fn get_layout_table() -> Result<std::sync::Arc<csv_tools::CsvTable>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

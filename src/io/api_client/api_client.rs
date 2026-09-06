@@ -33,7 +33,7 @@ pub use graph::GraphApiClient;
 pub use node::{ApiClient, NodeApiClient};
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

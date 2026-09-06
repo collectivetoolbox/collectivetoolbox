@@ -288,7 +288,7 @@ pub fn search(haystack: String, regex: String) -> Result<i64> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

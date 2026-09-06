@@ -301,7 +301,7 @@ impl From<ctb_utilities::ipc::service_traits::storage::Node> for Node {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

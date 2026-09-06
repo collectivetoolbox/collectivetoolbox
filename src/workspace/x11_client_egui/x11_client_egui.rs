@@ -632,7 +632,7 @@ fn is_paste_command(modifiers: egui::Modifiers, key: egui::Key) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

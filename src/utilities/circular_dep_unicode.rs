@@ -183,7 +183,7 @@ pub fn u16_vec_to_le_bytes(v: &[u16]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

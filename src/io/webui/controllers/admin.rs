@@ -154,7 +154,7 @@ pub async fn post_setup_global_user(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

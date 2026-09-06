@@ -468,7 +468,7 @@ pub fn parse_dc_number_global_i128(gids: &[u128]) -> Result<i128> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

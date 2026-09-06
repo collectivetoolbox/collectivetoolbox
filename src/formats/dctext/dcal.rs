@@ -78,7 +78,7 @@ pub fn dclist_to_dcal(dclist: &[u128]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

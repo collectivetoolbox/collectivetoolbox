@@ -166,7 +166,7 @@ pub fn range_cli_handler(args: &RangeGenArgs) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

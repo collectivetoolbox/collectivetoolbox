@@ -315,7 +315,7 @@ pub fn decode_delta_payload(payload: &[u8]) -> Result<(&str, &[u8])> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

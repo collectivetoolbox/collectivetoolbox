@@ -340,7 +340,7 @@ async fn invalidate_session_internal(token: &str) -> Result<()> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

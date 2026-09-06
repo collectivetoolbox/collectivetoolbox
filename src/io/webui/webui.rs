@@ -582,7 +582,7 @@ macro_rules! get_user_and_graph {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

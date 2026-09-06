@@ -245,7 +245,7 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

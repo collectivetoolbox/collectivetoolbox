@@ -879,7 +879,7 @@ pub fn assert_string_not_contains(expected: &str, actual: &str) {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

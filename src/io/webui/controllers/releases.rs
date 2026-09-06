@@ -1284,7 +1284,7 @@ pub async fn calculate_download_sizes(
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

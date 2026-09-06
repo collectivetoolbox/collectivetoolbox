@@ -221,7 +221,7 @@ pub fn asc(enc: CharEncoding, s: &str) -> Option<u8> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

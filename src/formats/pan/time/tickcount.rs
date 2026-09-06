@@ -130,7 +130,7 @@ fn nanos_since_boot() -> Result<u128> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -1296,7 +1296,7 @@ pub fn html_options(mut options: ClipHtmlOptions) -> ClipOptions {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

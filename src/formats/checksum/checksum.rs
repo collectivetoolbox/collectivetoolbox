@@ -127,7 +127,7 @@ pub fn hash_hex(data: &[u8], algo: HashAlgorithm, prefix_0x: bool) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

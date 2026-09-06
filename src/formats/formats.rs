@@ -155,7 +155,7 @@ pub fn convert_from(document: Vec<u8>, _filetype: Vec<u8>) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

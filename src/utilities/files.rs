@@ -54,10 +54,15 @@ pub fn is_symlink_in_dir(path: &Path, dir: &Path) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
     clippy::unwrap_in_result,
     clippy::panic_in_result_fn,
-    reason = "tests are allowed to unwrap/panic"
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
 )]
 mod tests {
     use super::*;

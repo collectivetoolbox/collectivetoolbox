@@ -32,7 +32,7 @@ pub fn explode_escaped(delimiter: char, s: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

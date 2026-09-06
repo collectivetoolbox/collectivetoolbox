@@ -460,7 +460,7 @@ pub fn from_entities_mathml(input: String) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

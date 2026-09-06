@@ -754,7 +754,7 @@ pub fn build_multipart<T: Serialize>(data: &T) -> Result<(Vec<u8>, String)> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

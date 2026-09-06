@@ -633,11 +633,14 @@ fn root_cert_store_from_pem(pem: &str) -> Result<rustls::RootCertStore> {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
+#[allow(
+    clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
 mod tests {

@@ -131,7 +131,7 @@ pub fn perl_utf8_decode(data: &[u8]) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -77,6 +77,9 @@ if git grep -E '^\s*#\[(tokio::)?test\]\s*$' -- 'src/' ':!src/build_support/' ':
     exit 1
 fi
 
+echo "=== Checking test module boilerplate ==="
+./scripts/lint-test-boilerplate || exit 1
+
 echo "=== Running cargo clippy ==="
 if ! RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets $offline; then
     echo "Clippy reported errors."

@@ -49,7 +49,7 @@ pub(crate) fn get_encoding_data(key: &str) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

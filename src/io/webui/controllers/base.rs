@@ -747,7 +747,7 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

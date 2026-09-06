@@ -143,7 +143,7 @@ pub fn utf8_windows_to_mac_roman(text: &str) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

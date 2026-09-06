@@ -50,7 +50,7 @@ pub fn find_tsconfig(start_dir: &Path) -> Option<PathBuf> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

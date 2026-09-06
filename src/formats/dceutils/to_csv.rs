@@ -478,7 +478,7 @@ fn escape_csv_field(field: &str) -> String {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

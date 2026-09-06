@@ -69,7 +69,7 @@ pub fn sanitize_html(document: Vec<u8>) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

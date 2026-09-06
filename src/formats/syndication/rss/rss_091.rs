@@ -301,7 +301,7 @@ fn render_rss_091(feed: &Feed, flavor: Rss091Flavor) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

@@ -29,7 +29,7 @@ use crate::utilities::*;
 include!("network.generated.rs");
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

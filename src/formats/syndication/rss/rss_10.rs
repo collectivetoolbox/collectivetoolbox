@@ -164,7 +164,7 @@ pub fn render_rss_10(feed: &Feed) -> Result<String> {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,

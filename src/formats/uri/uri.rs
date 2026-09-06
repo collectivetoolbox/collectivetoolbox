@@ -131,7 +131,7 @@ pub fn is_iana_scheme(uri: &str) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
+#[allow(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
