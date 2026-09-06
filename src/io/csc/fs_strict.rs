@@ -18,6 +18,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Strict zero-data-loss validation, metadata preservation, and stream handling.
+//!
+//! Delegates low-level filesystem representation and operations to `ctb_io::file`.
 
 #[expect(
     unused_imports,
@@ -26,15 +28,20 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_formats_checksum::Sha256Stream;
-use filetime::{FileTime, set_file_times, set_symlink_file_times};
-use nix::fcntl::{AT_FDCWD, AtFlags};
-use nix::unistd::{Gid, Uid, Whence, chown, fchownat, lseek};
+pub use ctb_io::file::Extent as FileExtent;
+pub use ctb_io::file::get_file_extents;
+pub use ctb_io::file::verify_filename_exact_bytes;
+
+use ctb_io::file::entity::{FileEntity, FileEntityKind};
+use ctb_io::file::identity::{FileIdentity, FileOrigin};
+use ctb_io::file::materializer::apply_entity_metadata;
+use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::ffi::OsString;
-use std::fs::{Metadata, Permissions};
-use std::os::fd::AsFd;
-use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
-use std::path::Path;
+use std::fs::Metadata;
+use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::path::{Path, PathBuf};
 
 /// Information about an extended attribute, ACL, or alternate stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,261 +54,119 @@ pub struct StreamInfo {
     pub sha256: [u8; 32],
 }
 
-/// Verifies that the destination filesystem did not alter, normalize, or
-/// truncate the filename bytes.
-pub fn verify_filename_exact_bytes(
-    parent_dir: &Path,
-    expected_filename_bytes: &[u8],
-) -> Result<()> {
-    let mut matched = false;
-    for entry in std::fs::read_dir(parent_dir)
-        .with_context(|| format!("Failed to read directory: {}", parent_dir.display()))?
-    {
-        let entry = entry.with_context(|| {
-            format!("Error reading entry in directory: {}", parent_dir.display())
-        })?;
-        let entry_name = entry.file_name();
-        let entry_bytes = entry_name.as_encoded_bytes();
-        if entry_bytes == expected_filename_bytes {
-            matched = true;
-            break;
-        }
-    }
-
-    anyhow::ensure!(
-        matched,
-        "Target filesystem altered, normalized, or discarded filename bytes for {:?}",
-        String::from_utf8_lossy(expected_filename_bytes)
-    );
-    Ok(())
-}
-
 /// Reads all extended attributes, ACLs, security labels, and alternate streams
 /// from `path`, computing their SHA-256 checksums.
 pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> {
-    let mut streams = Vec::new();
+    let attached = ctb_io::file::read_and_hash_streams(path)?;
+    let mut streams = Vec::with_capacity(attached.len());
 
-    let xattr_names = match xattr::list(path) {
-        Ok(iter) => iter,
-        Err(e) => {
-            if e.raw_os_error() == Some(nix::libc::ENOTSUP)
-                || e.raw_os_error() == Some(nix::libc::EOPNOTSUPP)
-            {
-                return Ok(streams);
-            }
-            return Err(e).with_context(|| {
-                format!("Failed to list xattrs/streams for {}", path.display())
-            });
-        }
-    };
-
-    for name_os in xattr_names {
-        let val = match xattr::get(path, &name_os) {
-            Ok(Some(v)) => v,
-            Ok(None) => continue,
-            Err(e) => {
-                return Err(e).with_context(|| {
-                    format!(
-                        "Failed to read xattr/stream {:?} on {}",
-                        name_os,
-                        path.display()
-                    )
-                });
-            }
+    for s in attached {
+        let (size, sha256) = match &s.entity.kind {
+            FileEntityKind::Regular { size, sha256, .. } => (*size, *sha256),
+            _ => (0, [0_u8; 32]),
         };
-
-        let mut hasher = Sha256Stream::new();
-        hasher.update(&val);
-        let sha256 = hasher.finalize();
-        let size = u64::try_from(val.len())?;
-
+        let data = s.data.unwrap_or_default();
         streams.push((
             StreamInfo {
-                name: name_os,
+                name: OsString::from_vec(s.name.0),
                 size,
                 sha256,
             },
-            val,
+            data,
         ));
     }
 
-    // Sort by name for deterministic ordering
-    streams.sort_by(|a, b| a.0.name.cmp(&b.0.name));
     Ok(streams)
 }
 
 /// Writes all streams (xattrs, ACLs, security labels) to `dest`.
 /// If the destination filesystem cannot store them, fails with a hard error.
 pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<()> {
+    let mut attached = Vec::with_capacity(streams.len());
     for (info, val) in streams {
-        if let Err(e) = xattr::set(dest, &info.name, val) {
-            anyhow::bail!(
-                "Target filesystem failed to store stream/xattr '{:?}' on {} (error: {}). Data would be lost.",
-                info.name,
-                dest.display(),
-                e
-            );
-        }
+        let name_bytes = info.name.as_encoded_bytes().to_vec();
+        let stream_name = StreamName(name_bytes.clone());
+        let kind = StreamKind::infer_from_name(&name_bytes);
+        let size = u64::try_from(val.len())?;
+
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from(&info.name),
+                raw_filename: name_bytes,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: 0,
+                gid: 0,
+                timestamps: FileTimestamps {
+                    atime_sec: 0,
+                    atime_nsec: 0,
+                    mtime_sec: 0,
+                    mtime_nsec: 0,
+                    ctime_sec: 0,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256: info.sha256,
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        attached.push(AttachedStream {
+            name: stream_name,
+            kind,
+            entity: Box::new(entity),
+            data: Some(val.clone()),
+        });
     }
-    Ok(())
+
+    ctb_io::file::write_streams(dest, &attached, true)
 }
 
 /// Applies permissions, ownership, and timestamps from `source_meta` to `dest`.
 /// Fails with a hard error if ownership or permissions cannot be preserved.
-pub fn apply_metadata(
-    dest: &Path,
-    source_meta: &Metadata,
-    is_symlink: bool,
-) -> Result<()> {
+pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> Result<()> {
     let mode = source_meta.permissions().mode();
     let uid = source_meta.uid();
     let gid = source_meta.gid();
-    let atime = FileTime::from_last_access_time(source_meta);
-    let mtime = FileTime::from_last_modification_time(source_meta);
+    let atime_sec = source_meta.atime();
+    let atime_nsec = u32::try_from(source_meta.atime_nsec())
+        .context("Failed to convert atime_nsec to u32")?;
+    let mtime_sec = source_meta.mtime();
+    let mtime_nsec = u32::try_from(source_meta.mtime_nsec())
+        .context("Failed to convert mtime_nsec to u32")?;
+    let ctime_sec = source_meta.ctime();
+    let ctime_nsec = u32::try_from(source_meta.ctime_nsec())
+        .context("Failed to convert ctime_nsec to u32")?;
 
-    // 1. Ownership: check if dest already has the desired UID/GID
-    let dest_meta = if is_symlink {
-        std::fs::symlink_metadata(dest)
-    } else {
-        std::fs::metadata(dest)
+    let meta = FileMetadata {
+        mode,
+        uid,
+        gid,
+        timestamps: FileTimestamps {
+            atime_sec,
+            atime_nsec,
+            mtime_sec,
+            mtime_nsec,
+            ctime_sec,
+            ctime_nsec,
+            birthtime_sec: None,
+            birthtime_nsec: None,
+        },
+        flags: Vec::new(),
+        platform_raw_flags: None,
     };
 
-    let needs_chown = match dest_meta {
-        Ok(ref dm) => dm.uid() != uid || dm.gid() != gid,
-        Err(_) => true,
-    };
-
-    if needs_chown {
-        let uid_obj = Some(Uid::from_raw(uid));
-        let gid_obj = Some(Gid::from_raw(gid));
-        let chown_res = if is_symlink {
-            fchownat(AT_FDCWD, dest, uid_obj, gid_obj, AtFlags::AT_SYMLINK_NOFOLLOW)
-        } else {
-            chown(dest, uid_obj, gid_obj)
-        };
-        if let Err(err) = chown_res {
-            anyhow::bail!(
-                "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
-                dest.display()
-            );
-        }
-    }
-
-    // 2. Permissions (symlink permissions are fixed on Linux, so only set for non-symlinks)
-    if !is_symlink {
-        let perms = Permissions::from_mode(mode);
-        std::fs::set_permissions(dest, perms).with_context(|| {
-            format!("Failed to set permissions on {}", dest.display())
-        })?;
-    }
-
-    // 3. Timestamps
-    // Note: opening a FIFO or special device node with open() (which set_file_times does)
-    // blocks indefinitely unless opened with O_NONBLOCK. set_symlink_file_times uses
-    // utimensat(..., AT_SYMLINK_NOFOLLOW), avoiding open() entirely.
-    let file_type = source_meta.file_type();
-    if is_symlink
-        || file_type.is_fifo()
-        || file_type.is_char_device()
-        || file_type.is_block_device()
-    {
-        set_symlink_file_times(dest, atime, mtime).with_context(|| {
-            format!(
-                "Failed to set times on special node/symlink {}",
-                dest.display()
-            )
-        })?;
-    } else {
-        set_file_times(dest, atime, mtime).with_context(|| {
-            format!("Failed to set file times on {}", dest.display())
-        })?;
-    }
-
-    Ok(())
-}
-
-/// A contiguous extent within a file, either holding data or representing a hole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FileExtent {
-    /// A region containing written data.
-    Data { offset: u64, length: u64 },
-    /// A sparse hole containing all zeroes.
-    Hole { offset: u64, length: u64 },
-}
-
-/// Discovers the extent map (data and holes) of a file using `SEEK_DATA` / `SEEK_HOLE`.
-pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<FileExtent>> {
-    if file_size == 0 {
-        return Ok(Vec::new());
-    }
-
-    let mut extents = Vec::new();
-    let mut current_offset: i64 = 0;
-    let Ok(size_i64) = i64::try_from(file_size) else {
-        anyhow::bail!("File size exceeds i64::MAX");
-    };
-
-    while current_offset < size_i64 {
-        // Query next data offset
-        let next_data = match lseek(fd, current_offset, Whence::SeekData) {
-            Ok(off) => off,
-            Err(nix::errno::Errno::ENXIO) => {
-                // No more data in file; the rest is a hole
-                let hole_len = size_i64.saturating_sub(current_offset);
-                let u_hole_len = u64::try_from(hole_len)?;
-                let u_curr = u64::try_from(current_offset)?;
-                if u_hole_len > 0 {
-                    extents.push(FileExtent::Hole {
-                        offset: u_curr,
-                        length: u_hole_len,
-                    });
-                }
-                break;
-            }
-            Err(_e) => {
-                // Filesystem does not support SEEK_DATA/SEEK_HOLE, treat whole file as data
-                let u_size = u64::try_from(size_i64)?;
-                return Ok(vec![FileExtent::Data {
-                    offset: 0,
-                    length: u_size,
-                }]);
-            }
-        };
-
-        if next_data > current_offset {
-            // Hole between current_offset and next_data
-            let hole_len = next_data.saturating_sub(current_offset);
-            let u_hole_len = u64::try_from(hole_len)?;
-            let u_curr = u64::try_from(current_offset)?;
-            extents.push(FileExtent::Hole {
-                offset: u_curr,
-                length: u_hole_len,
-            });
-        }
-
-        // Query next hole offset
-        let next_hole = match lseek(fd, next_data, Whence::SeekHole) {
-            Ok(off) => off,
-            Err(_) => size_i64,
-        };
-        let end_of_data = if next_hole > size_i64 {
-            size_i64
-        } else {
-            next_hole
-        };
-
-        let data_len = end_of_data.saturating_sub(next_data);
-        let u_data_len = u64::try_from(data_len)?;
-        let u_next_data = u64::try_from(next_data)?;
-        if u_data_len > 0 {
-            extents.push(FileExtent::Data {
-                offset: u_next_data,
-                length: u_data_len,
-            });
-        }
-
-        current_offset = end_of_data;
-    }
-
-    Ok(extents)
+    apply_entity_metadata(dest, &meta, is_symlink, true)
 }

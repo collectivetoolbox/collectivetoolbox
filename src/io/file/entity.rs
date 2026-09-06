@@ -33,7 +33,7 @@ use crate::file::streams::{AttachedStream, read_and_hash_streams};
 use crate::file::sys_flags::query_file_flags;
 use ctb_formats_checksum::Sha256Stream;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
@@ -227,6 +227,7 @@ impl FileEntity {
                 .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
             let extents = get_file_extents(&file, size)?;
             let is_sparse = extents.iter().any(Extent::is_hole);
+            file.seek(SeekFrom::Start(0))?;
 
             let mut hasher = Sha256Stream::new();
             let mut buf = vec![0_u8; 64 * 1024];

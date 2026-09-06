@@ -26,6 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
@@ -82,6 +83,91 @@ pub struct ManifestSymlink {
     pub mtime_nsec: u32,
     pub uid: u32,
     pub gid: u32,
+}
+
+impl ManifestFile {
+    /// Constructs a `ManifestFile` from a `FileEntity`.
+    #[must_use]
+    pub fn from_entity(entity: &FileEntity) -> Option<Self> {
+        match &entity.kind {
+            FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse,
+                ..
+            } => {
+                let streams = entity
+                    .streams
+                    .iter()
+                    .map(|s| {
+                        let hash = match &s.entity.kind {
+                            FileEntityKind::Regular { sha256, .. } => *sha256,
+                            _ => [0_u8; 32],
+                        };
+                        (OsString::from_vec(s.name.0.clone()), hash)
+                    })
+                    .collect();
+                Some(Self {
+                    relative_path: entity.identity.relative_path.clone(),
+                    size: *size,
+                    sha256: *sha256,
+                    mtime_sec: entity.metadata.timestamps.mtime_sec,
+                    mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+                    mode: entity.metadata.mode,
+                    uid: entity.metadata.uid,
+                    gid: entity.metadata.gid,
+                    is_sparse: *is_sparse,
+                    streams,
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+impl ManifestDir {
+    /// Constructs a `ManifestDir` from a `FileEntity`.
+    #[must_use]
+    pub fn from_entity(entity: &FileEntity) -> Self {
+        let streams = entity
+            .streams
+            .iter()
+            .map(|s| {
+                let hash = match &s.entity.kind {
+                    FileEntityKind::Regular { sha256, .. } => *sha256,
+                    _ => [0_u8; 32],
+                };
+                (OsString::from_vec(s.name.0.clone()), hash)
+            })
+            .collect();
+        Self {
+            relative_path: entity.identity.relative_path.clone(),
+            mode: entity.metadata.mode,
+            mtime_sec: entity.metadata.timestamps.mtime_sec,
+            mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+            uid: entity.metadata.uid,
+            gid: entity.metadata.gid,
+            streams,
+        }
+    }
+}
+
+impl ManifestSymlink {
+    /// Constructs a `ManifestSymlink` from a `FileEntity`.
+    #[must_use]
+    pub fn from_entity(entity: &FileEntity) -> Option<Self> {
+        match &entity.kind {
+            FileEntityKind::Symlink { target } => Some(Self {
+                relative_path: entity.identity.relative_path.clone(),
+                target: target.clone(),
+                mtime_sec: entity.metadata.timestamps.mtime_sec,
+                mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+                uid: entity.metadata.uid,
+                gid: entity.metadata.gid,
+            }),
+            _ => None,
+        }
+    }
 }
 
 /// Summary of an active or completed journal recovered from disk.
@@ -227,6 +313,34 @@ impl JournalWriter {
 
     pub fn record_hardlink(&mut self, source_rel: PathBuf, target_rel: PathBuf) {
         self.uncommitted_hardlinks.push((source_rel, target_rel));
+    }
+
+    /// Records any `FileEntity` by dispatching to the appropriate manifest recorder.
+    pub fn record_entity(&mut self, entity: &FileEntity) {
+        match &entity.kind {
+            FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
+                self.record_dir(ManifestDir::from_entity(entity));
+            }
+            FileEntityKind::Regular { .. } => {
+                if let Some(mf) = ManifestFile::from_entity(entity) {
+                    self.record_file(mf);
+                }
+            }
+            FileEntityKind::Symlink { .. } => {
+                if let Some(ms) = ManifestSymlink::from_entity(entity) {
+                    self.record_symlink(ms);
+                }
+            }
+            FileEntityKind::Hardlink {
+                target_relative_path,
+            } => {
+                self.record_hardlink(
+                    entity.identity.relative_path.clone(),
+                    target_relative_path.clone(),
+                );
+            }
+            _ => {}
+        }
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.

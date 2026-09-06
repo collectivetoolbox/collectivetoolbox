@@ -153,7 +153,10 @@ pub fn apply_entity_metadata(
     }
 
     // 3. Timestamps
-    let time_res = if is_symlink {
+    let is_special = dest_meta
+        .as_ref()
+        .map_or(false, |m| !m.is_file() && !m.is_dir());
+    let time_res = if is_symlink || is_special {
         set_symlink_file_times(dest, atime, mtime)
     } else {
         set_file_times(dest, atime, mtime)
@@ -235,15 +238,12 @@ pub fn materialize_entity(
 
     let (parent_dir_fd, file_name) = dest_dir
         .ensure_parent_dir(&entity.identity.relative_path, options.path_policy)?;
-    let file_name_str = file_name
-        .to_str()
-        .context("Destination filename is not valid UTF-8")?;
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
             dest_dir.create_symlink(
                 &parent_dir_fd.as_fd(),
-                file_name_str,
+                &file_name,
                 target,
                 options.symlink_policy,
             )?;
@@ -261,7 +261,7 @@ pub fn materialize_entity(
             dest_dir.create_hardlink(
                 target_relative_path,
                 &parent_dir_fd.as_fd(),
-                file_name_str,
+                &file_name,
             )?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -288,7 +288,7 @@ pub fn materialize_entity(
         FileEntityKind::Fifo | FileEntityKind::CharDevice { .. } => {
             dest_dir.create_special(
                 &parent_dir_fd.as_fd(),
-                file_name_str,
+                &file_name,
                 &entity.kind,
                 entity.metadata.mode,
             )?;
@@ -312,7 +312,7 @@ pub fn materialize_entity(
             );
             dest_dir.create_special(
                 &parent_dir_fd.as_fd(),
-                file_name_str,
+                &file_name,
                 &entity.kind,
                 entity.metadata.mode,
             )?;
@@ -477,7 +477,7 @@ pub fn materialize_entity(
             })?;
 
             // Atomic rename inside parent directory
-            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, file_name_str)?;
+            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
 
             rustix::fs::fsync(&parent_dir_fd).with_context(|| {
                 format!("Failed to sync parent directory: {}", parent_dir.display())

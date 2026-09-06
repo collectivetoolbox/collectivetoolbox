@@ -259,16 +259,22 @@ impl SandboxableDir {
     pub fn create_temp_file(
         &self,
         parent_dir_fd: &BorrowedFd<'_>,
-        temp_name: &str,
+        temp_name: impl AsRef<std::ffi::OsStr>,
         mode: u32,
     ) -> Result<std::fs::File> {
+        let temp_os = temp_name.as_ref();
         let fd = openat(
             parent_dir_fd,
-            temp_name,
+            temp_os,
             OFlags::CREATE | OFlags::EXCL | OFlags::RDWR | OFlags::CLOEXEC,
             Mode::from_bits_truncate(mode),
         )
-        .with_context(|| format!("Failed to create atomic temporary file: {temp_name}"))?;
+        .with_context(|| {
+            format!(
+                "Failed to create atomic temporary file: {}",
+                temp_os.to_string_lossy()
+            )
+        })?;
 
         Ok(std::fs::File::from(fd))
     }
@@ -277,11 +283,17 @@ impl SandboxableDir {
     pub fn commit_atomic_file(
         &self,
         parent_dir_fd: &BorrowedFd<'_>,
-        temp_name: &str,
-        final_name: &str,
+        temp_name: impl AsRef<std::ffi::OsStr>,
+        final_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
-        renameat(parent_dir_fd, temp_name, parent_dir_fd, final_name).with_context(|| {
-            format!("Failed to atomically rename {temp_name} to {final_name} in sandboxed parent")
+        let temp_os = temp_name.as_ref();
+        let final_os = final_name.as_ref();
+        renameat(parent_dir_fd, temp_os, parent_dir_fd, final_os).with_context(|| {
+            format!(
+                "Failed to atomically rename {} to {} in sandboxed parent",
+                temp_os.to_string_lossy(),
+                final_os.to_string_lossy()
+            )
         })?;
         Ok(())
     }
@@ -290,19 +302,24 @@ impl SandboxableDir {
     pub fn create_symlink(
         &self,
         parent_dir_fd: &BorrowedFd<'_>,
-        link_name: &str,
+        link_name: impl AsRef<std::ffi::OsStr>,
         target_bytes: &[u8],
         policy: SymlinkValidationPolicy,
     ) -> Result<()> {
-        let symlink_path = self.root_path.join(link_name);
+        let link_os = link_name.as_ref();
+        let symlink_path = self.root_path.join(link_os);
         validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
 
         // Remove existing entry if present
-        unlink_if_exists(*parent_dir_fd, link_name)?;
+        unlink_if_exists(*parent_dir_fd, link_os)?;
 
         let target_os = std::ffi::OsStr::from_bytes(target_bytes);
-        symlinkat(target_os, parent_dir_fd, link_name)
-            .with_context(|| format!("Failed to create symlink {link_name} in sandboxed parent"))?;
+        symlinkat(target_os, parent_dir_fd, link_os).with_context(|| {
+            format!(
+                "Failed to create symlink {} in sandboxed parent",
+                link_os.to_string_lossy()
+            )
+        })?;
         Ok(())
     }
 
@@ -311,21 +328,23 @@ impl SandboxableDir {
         &self,
         target_rel: &Path,
         parent_dir_fd: &BorrowedFd<'_>,
-        link_name: &str,
+        link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
-        unlink_if_exists(*parent_dir_fd, link_name)?;
+        let link_os = link_name.as_ref();
+        unlink_if_exists(*parent_dir_fd, link_os)?;
 
         linkat(
             &self.root_fd,
             target_rel,
             parent_dir_fd,
-            link_name,
+            link_os,
             AtFlags::empty(),
         )
         .with_context(|| {
             format!(
-                "Failed to create hardlink to {} as {link_name} in sandboxed parent",
-                target_rel.display()
+                "Failed to create hardlink to {} as {} in sandboxed parent",
+                target_rel.display(),
+                link_os.to_string_lossy()
             )
         })?;
         Ok(())
@@ -335,45 +354,57 @@ impl SandboxableDir {
     pub fn create_special(
         &self,
         parent_dir_fd: &BorrowedFd<'_>,
-        name: &str,
+        name: impl AsRef<std::ffi::OsStr>,
         kind: &FileEntityKind,
         mode: u32,
     ) -> Result<()> {
-        unlink_if_exists(*parent_dir_fd, name)?;
+        let name_os = name.as_ref();
+        unlink_if_exists(*parent_dir_fd, name_os)?;
 
         match kind {
             FileEntityKind::Fifo => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name,
+                    name_os,
                     nix::sys::stat::SFlag::S_IFIFO,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     0,
                 )
-                .with_context(|| format!("Failed to create FIFO {name} in sandboxed parent"))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to create FIFO {} in sandboxed parent",
+                        name_os.to_string_lossy()
+                    )
+                })?;
             }
             FileEntityKind::CharDevice { rdev } => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name,
+                    name_os,
                     nix::sys::stat::SFlag::S_IFCHR,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     *rdev,
                 )
                 .with_context(|| {
-                    format!("Failed to create char device {name} in sandboxed parent")
+                    format!(
+                        "Failed to create char device {} in sandboxed parent",
+                        name_os.to_string_lossy()
+                    )
                 })?;
             }
             FileEntityKind::BlockDevice { rdev } => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name,
+                    name_os,
                     nix::sys::stat::SFlag::S_IFBLK,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     *rdev,
                 )
                 .with_context(|| {
-                    format!("Failed to create block device {name} in sandboxed parent")
+                    format!(
+                        "Failed to create block device {} in sandboxed parent",
+                        name_os.to_string_lossy()
+                    )
                 })?;
             }
             _ => {
@@ -385,10 +416,15 @@ impl SandboxableDir {
 }
 
 /// Helper that unlinks an existing entry inside a directory, ignoring `NotFound`.
-fn unlink_if_exists(parent_dir_fd: BorrowedFd<'_>, name: &str) -> Result<()> {
+fn unlink_if_exists(parent_dir_fd: BorrowedFd<'_>, name: &std::ffi::OsStr) -> Result<()> {
     match unlinkat(parent_dir_fd, name, AtFlags::empty()) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e).with_context(|| format!("Failed to unlink existing entry: {name}")),
+        Err(e) => Err(e).with_context(|| {
+            format!(
+                "Failed to unlink existing entry: {}",
+                name.to_string_lossy()
+            )
+        }),
     }
 }

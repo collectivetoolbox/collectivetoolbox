@@ -32,7 +32,7 @@ use crate::file::streams::read_and_hash_streams;
 use ctb_formats_checksum::Sha256Stream;
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
@@ -163,6 +163,7 @@ pub fn verify_materialized_entity(
                     dest_path.display()
                 );
             }
+            dest_file.seek(SeekFrom::Start(0))?;
         }
 
         let mut hasher = Sha256Stream::new();

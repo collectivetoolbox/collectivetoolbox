@@ -109,9 +109,9 @@ pub enum FileFlag {
     UserImmutable,
     /// User append-only (`UF_APPEND` / `FS_APPEND_FL` / `uappnd`).
     UserAppend,
-    /// Directory opaque to union mounts (`UF_OPAQUE`).
+    /// Directory opaque to union mounts (`UF_OPAQUE`). (not on OpenBSD)
     Opaque,
-    /// Hidden in GUI / Finder (`UF_HIDDEN`).
+    /// Hidden in GUI / Finder (`UF_HIDDEN`). (not on OpenBSD)
     Hidden,
     /// System archived flag (`SF_ARCHIVED`).
     Archived,
@@ -119,7 +119,7 @@ pub enum FileFlag {
     SystemImmutable,
     /// Superuser append-only (`SF_APPEND` / `sappnd`).
     SystemAppend,
-    /// Superuser cannot unlink or rename (`SF_NOUNLINK` / `sunlnk`).
+    /// Superuser cannot unlink or rename (`SF_NOUNLINK` / `sunlnk`). (not on OpenBSD)
     SystemNoUnlink,
 
     // FreeBSD specific
