@@ -41,10 +41,12 @@ pub enum SymlinkValidationPolicy {
     PreserveVerbatim,
 
     /// Disallows symlinks whose target resolves outside the destination root.
-    ///
-    /// Essential for untrusted archive extraction to prevent "Zip Slip" attacks.
     #[default]
     RejectEscapingSymlinks,
+
+    /// Completely forbids creating any symbolic links (strongest defense against
+    /// symlink-based escapes in untrusted archives).
+    RejectAllSymlinks,
 }
 
 /// Policy controlling how relative entry paths are checked before materialization.
@@ -59,7 +61,8 @@ pub enum PathTraversalPolicy {
     StrictSandboxed,
 }
 
-/// Resolves and validates a destination path against a traversal policy.
+/// Resolves and validates a destination path against a traversal policy,
+/// returning the fully normalized joined path.
 pub fn resolve_and_validate_path(
     dest_root: &Path,
     rel_path: &Path,
@@ -68,7 +71,7 @@ pub fn resolve_and_validate_path(
     match policy {
         PathTraversalPolicy::PreserveVerbatim => Ok(dest_root.join(rel_path)),
         PathTraversalPolicy::StrictSandboxed => {
-            let mut depth: usize = 0;
+            let mut out = PathBuf::from(dest_root);
             for comp in rel_path.components() {
                 match comp {
                     Component::Prefix(_) | Component::RootDir => {
@@ -79,26 +82,85 @@ pub fn resolve_and_validate_path(
                     }
                     Component::CurDir => {}
                     Component::ParentDir => {
-                        if depth == 0 {
+                        if out == dest_root {
                             anyhow::bail!(
                                 "Path traversal rejected: path escapes destination root: {}",
                                 rel_path.display()
                             );
                         }
-                        depth = depth.saturating_sub(1);
+                        out.pop();
                     }
-                    Component::Normal(_) => {
-                        depth = depth.saturating_add(1);
+                    Component::Normal(c) => {
+                        out.push(c);
                     }
                 }
             }
-            Ok(dest_root.join(rel_path))
+            Ok(out)
         }
     }
 }
 
+/// Creates all intermediate directories between `dest_root` and `dir_path`,
+/// verifying that NO intermediate component is a symbolic link.
+///
+/// Prevents "symlink poisoning" attacks where an archive contains a symlink
+/// pointing outside the root followed by a file inside that symlink.
+pub fn ensure_sandboxed_dir_all(dest_root: &Path, dir_path: &Path) -> Result<()> {
+    if !dir_path.starts_with(dest_root) {
+        anyhow::bail!(
+            "Directory path {} is not inside destination root {}",
+            dir_path.display(),
+            dest_root.display()
+        );
+    }
+
+    let rel = match dir_path.strip_prefix(dest_root) {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
+
+    let mut current = PathBuf::from(dest_root);
+    for comp in rel.components() {
+        match comp {
+            Component::Normal(c) => {
+                current.push(c);
+                if let Ok(sym_meta) = std::fs::symlink_metadata(&current) {
+                    if sym_meta.file_type().is_symlink() {
+                        anyhow::bail!(
+                            "Security rejection: intermediate path component {} is a symlink under StrictSandboxed policy",
+                            current.display()
+                        );
+                    }
+                    if !sym_meta.is_dir() {
+                        anyhow::bail!(
+                            "Intermediate path component {} already exists and is not a directory",
+                            current.display()
+                        );
+                    }
+                } else {
+                    std::fs::create_dir(&current).with_context(|| {
+                        format!("Failed to create intermediate directory: {}", current.display())
+                    })?;
+                }
+            }
+            Component::CurDir => {}
+            _ => {
+                anyhow::bail!(
+                    "Unexpected path component in sandboxed directory creation for {}",
+                    dir_path.display()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Normalizes a path logically by resolving `.` and `..` components without
 /// requiring filesystem access.
+///
+/// Note: This is a purely lexical normalization utility and does NOT account
+/// for on-disk symlinks. For secure directory creation, use [`ensure_sandboxed_dir_all`].
 pub fn normalize_path(path: &Path) -> PathBuf {
     let mut components = Vec::new();
     for comp in path.components() {
@@ -126,6 +188,12 @@ pub fn validate_symlink_target(
 ) -> Result<()> {
     match policy {
         SymlinkValidationPolicy::PreserveVerbatim => Ok(()),
+        SymlinkValidationPolicy::RejectAllSymlinks => {
+            anyhow::bail!(
+                "Symbolic link creation rejected under RejectAllSymlinks policy: {}",
+                symlink_path.display()
+            );
+        }
         SymlinkValidationPolicy::RejectEscapingSymlinks => {
             let target_os = OsStr::from_bytes(target_bytes);
             let target_path = Path::new(target_os);

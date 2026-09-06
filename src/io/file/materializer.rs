@@ -29,8 +29,8 @@ use crate::utilities::*;
 use crate::file::entity::{FileEntity, FileEntityKind};
 use crate::file::metadata::FileMetadata;
 use crate::file::path_policy::{
-    PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
-    validate_symlink_target,
+    PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all,
+    resolve_and_validate_path, validate_symlink_target,
 };
 use crate::file::payload::{Extent, PayloadSource};
 use crate::file::streams::write_streams;
@@ -239,7 +239,9 @@ pub fn materialize_entity(
     let parent_dir = dest_path
         .parent()
         .context("Destination path has no parent directory")?;
-    if !parent_dir.exists() {
+    if options.path_policy == PathTraversalPolicy::StrictSandboxed {
+        ensure_sandboxed_dir_all(dest_root, parent_dir)?;
+    } else if !parent_dir.exists() {
         std::fs::create_dir_all(parent_dir).with_context(|| {
             format!("Failed to create directory tree: {}", parent_dir.display())
         })?;
@@ -285,7 +287,9 @@ pub fn materialize_entity(
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
-            if !dest_path.exists() {
+            if options.path_policy == PathTraversalPolicy::StrictSandboxed {
+                ensure_sandboxed_dir_all(dest_root, &dest_path)?;
+            } else if !dest_path.exists() {
                 std::fs::create_dir_all(&dest_path).with_context(|| {
                     format!("Failed to create directory: {}", dest_path.display())
                 })?;

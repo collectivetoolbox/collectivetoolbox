@@ -44,8 +44,8 @@ pub use materializer::{
 };
 pub use metadata::{FileFlag, FileMetadata, FileTimestamps, OsFamily, PlatformRawFlags};
 pub use path_policy::{
-    PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
-    validate_symlink_target,
+    PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all, normalize_path,
+    resolve_and_validate_path, validate_symlink_target,
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
@@ -242,4 +242,62 @@ mod tests {
         verify_materialized_entity(&target_path, &entity, true)
             .expect("independent verification of materialized entity");
     }
+
+    #[crate::ctb_test]
+    fn test_reject_all_symlinks_policy() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let symlink_path = dest_root.join("sub").join("link");
+        let safe_target = b"sub/other.txt";
+
+        let res = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            safe_target,
+            SymlinkValidationPolicy::RejectAllSymlinks,
+        );
+        assert!(
+            res.is_err(),
+            "RejectAllSymlinks policy must reject any symlink creation"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_resolve_and_validate_path_normalization() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+
+        let rel = PathBuf::from("a/b/../c/./d");
+        let resolved = resolve_and_validate_path(&dest_root, &rel, PathTraversalPolicy::StrictSandboxed)
+            .expect("valid relative path with dots");
+        assert_eq!(resolved, dest_root.join("a").join("c").join("d"));
+
+        let escaping = PathBuf::from("a/../../escaped");
+        let res = resolve_and_validate_path(&dest_root, &escaping, PathTraversalPolicy::StrictSandboxed);
+        assert!(res.is_err(), "Must reject path escaping root via ..");
+    }
+
+    #[crate::ctb_test]
+    fn test_ensure_sandboxed_dir_all_rejects_symlink_poisoning() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        let outside_dir = temp_dir.path().join("outside_target");
+        fs::create_dir_all(&dest_root).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        // Create an intermediate symlink inside dest_root pointing outside
+        let poisoned_link = dest_root.join("poisoned_dir");
+        std::os::unix::fs::symlink(&outside_dir, &poisoned_link).unwrap();
+
+        // Attempting to ensure sandboxed dir through poisoned_link must fail!
+        let target_nested = poisoned_link.join("subdir");
+        let res = ensure_sandboxed_dir_all(&dest_root, &target_nested);
+        assert!(
+            res.is_err(),
+            "Must reject creating directories traversing through an existing intermediate symlink"
+        );
+    }
 }
+
