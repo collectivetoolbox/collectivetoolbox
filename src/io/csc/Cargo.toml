@@ -1,0 +1,22 @@
+[package]
+name = "ctb-io-csc"
+edition = "2024"
+
+[lib]
+path = "csc.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-checksum = { path = "../../formats/checksum" }
+clap = { version = "4.5", features = ["derive"] }
+nix = { version = "0.30", features = ["fs", "mman", "user"] }
+xattr = "1.6"
+filetime = "0.2"
+anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true

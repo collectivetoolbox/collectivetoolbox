@@ -104,6 +104,52 @@ pub fn sha256_hex(data: impl AsRef<[u8]>) -> String {
     to_hex(&sha256(data))
 }
 
+/// Streaming SHA-256 hasher for incremental hashing.
+#[derive(Clone, Default)]
+pub struct Sha256Stream {
+    hasher: Sha256Digest,
+}
+
+impl Sha256Stream {
+    /// Creates a new SHA-256 streaming hasher.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            hasher: Sha256Digest::new(),
+        }
+    }
+
+    /// Feeds additional bytes into the hasher.
+    pub fn update(&mut self, data: impl AsRef<[u8]>) {
+        self.hasher.update(data.as_ref());
+    }
+
+    /// Finalizes the hash computation and returns the raw 32-byte digest.
+    #[must_use]
+    pub fn finalize(self) -> [u8; 32] {
+        let mut out = [0_u8; 32];
+        out.copy_from_slice(&self.hasher.finalize());
+        out
+    }
+
+    /// Finalizes the hash computation and returns the lowercase hex string.
+    #[must_use]
+    pub fn finalize_hex(self) -> String {
+        to_hex(&self.finalize())
+    }
+}
+
+impl std::io::Write for Sha256Stream {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.update(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// Computes the hash of the given data using the specified algorithm.
 pub fn hash(data: &[u8], algo: HashAlgorithm) -> Vec<u8> {
     match algo {
@@ -161,6 +207,25 @@ mod tests {
         );
         assert_eq!(
             sha256_hex(data),
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_sha256_stream() {
+        let mut stream = Sha256Stream::new();
+        stream.update(b"hello ");
+        stream.update(b"world");
+        assert_eq!(
+            stream.finalize_hex(),
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+
+        use std::io::Write;
+        let mut stream2 = Sha256Stream::default();
+        stream2.write_all(b"hello world").expect("write to stream");
+        assert_eq!(
+            stream2.finalize_hex(),
             "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
         );
     }
