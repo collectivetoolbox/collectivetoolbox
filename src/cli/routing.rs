@@ -48,6 +48,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
     matches!(
         command,
         "adduser"
+            | "validate-docker-image"
             | "csum"
             | "compress"
             | "decompress"
@@ -478,6 +479,16 @@ pub enum Command {
     JsTest {
         #[command(flatten)]
         args: ctb_formats_javascript::js_test::JsTestArgs,
+    },
+    /// Validate a docker save image tarball
+    #[command(name = "validate-docker-image")]
+    ValidateDockerImage {
+        /// Tarball file path (or - for stdin)
+        #[arg(value_name = "FILE")]
+        file: Option<PathBuf>,
+        /// Fail if any unreferenced blobs are present in blobs/
+        #[arg(long)]
+        strict: bool,
     },
     /// Calculate checksum for a file or stdin
     #[command(name = "csum")]
@@ -1090,6 +1101,12 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             stderr: Vec::new(),
             exit_code: ctb_formats_javascript::js_test::run_test_args(args)?,
         }),
+        Command::ValidateDockerImage { file, strict } => {
+            ctb_formats_docker::cli::run_validate_docker_image(
+                file.as_deref(),
+                *strict,
+            )
+        }
         Command::Csum {
             algo,
             file,
@@ -1337,6 +1354,7 @@ mod tests {
     fn test_is_lightweight_command_general() {
         let lightweight_commands = [
             "adduser",
+            "validate-docker-image",
             "compress",
             "decompress",
             "base2base",

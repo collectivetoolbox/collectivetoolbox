@@ -2602,6 +2602,7 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dctext",
+ "ctb-formats-docker",
  "ctb-formats-eite",
  "ctb-formats-hexdump",
  "ctb-formats-internetarchive",
@@ -2640,6 +2641,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
  "ctb-formats-dctext",
+ "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
  "ctb-formats-encoding",
@@ -2803,6 +2805,22 @@ dependencies = [
  "ctb-utilities",
  "malachite",
  "tempfile",
+]
+
+[[package]]
+name = "ctb-formats-docker"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctb-formats-checksum",
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
 ]
 
 [[package]]
@@ -3627,6 +3645,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
  "ctb-formats-dctext",
+ "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
  "ctb-formats-encoding",

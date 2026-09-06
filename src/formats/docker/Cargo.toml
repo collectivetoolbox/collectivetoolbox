@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "ctb-formats-docker"
+edition = "2024"
+
+[lib]
+path = "docker.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-checksum = { path = "../checksum" }
+
+tar = "0.4.46"
+sha2 = "0.10.9"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+include_dir = { version = "0.7.4", features = ["glob"] }
+anyhow = "1.0.100"
+clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
+
+[lints]
+workspace = true

@@ -19,6 +19,7 @@ ctb-formats-dc-data = { path = "dc_data" }
 ctb-formats-dceutils = { path = "dceutils" }
 ctb-formats-dctext = { path = "dctext" }
 ctb-formats-dct-el = { path = "dct_el" }
+ctb-formats-docker = { path = "docker" }
 ctb-formats-dpkg = { path = "dpkg" }
 ctb-formats-eite = { path = "eite" }
 ctb-formats-encoding = { path = "encoding" }

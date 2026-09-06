@@ -46,6 +46,7 @@ pub use ctb_formats_compression as compression;
 pub use ctb_formats_ctb_asset_bundle as ctb_asset_bundle;
 pub use ctb_formats_dceutils as dceutils;
 pub use ctb_formats_dct_el as dct_el;
+pub use ctb_formats_docker as docker;
 pub use ctb_formats_eite as eite;
 pub use ctb_formats_encoding as encoding;
 pub use ctb_formats_hexdump as hexdump;
