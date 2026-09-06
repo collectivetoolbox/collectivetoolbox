@@ -15,6 +15,7 @@ CC_x86_64_unknown_linux_musl = { value = "scripts/x86_64-musl-gcc", relative = t
 
 PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-linux-musl" }
 PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_musl = { value = "/usr/include/x86_64-linux-musl" }
+LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }
 
 
 

@@ -293,19 +293,17 @@ pub fn pack_v86_rsrc(
     let mut entries = Vec::new();
     collect_v86_entries(v86_images_dir, v86_images_dir, &mut entries)?;
 
-    let (bundle_bytes, _header) =
-        ctb_formats_ctb_asset_bundle::build_asset_bundle(&entries)?;
-    if let Some(parent) = output_rsrc_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(output_rsrc_path, bundle_bytes)?;
+    ctb_formats_ctb_asset_bundle::write_asset_bundle_from_disk_entries(
+        &entries,
+        output_rsrc_path,
+    )?;
     Ok(())
 }
 
 fn collect_v86_entries(
     root_dir: &Path,
     current_dir: &Path,
-    entries: &mut Vec<ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry>,
+    entries: &mut Vec<ctb_formats_ctb_asset_bundle::AssetBundleDiskSourceEntry>,
 ) -> Result<()> {
     for entry in fs::read_dir(current_dir)? {
         let entry = entry?;
@@ -329,14 +327,15 @@ fn collect_v86_entries(
             continue;
         }
 
+        let meta = entry.metadata()?;
         let rel_path = path.strip_prefix(root_dir).unwrap_or(&path);
         let bundle_path =
             format!("images/{}", rel_path.to_string_lossy().replace('\\', "/"));
-        let contents = fs::read(&path)?;
         entries.push(
-            ctb_formats_ctb_asset_bundle::AssetBundleSourceEntry::raw(
+            ctb_formats_ctb_asset_bundle::AssetBundleDiskSourceEntry::new(
                 bundle_path,
-                contents,
+                &path,
+                meta.len(),
             ),
         );
     }
@@ -1019,6 +1018,10 @@ mod tests {
             entries.iter().any(|e| e.path == "images/guix/guix-fs.json"),
             "Guix files should be included in v86 entries"
         );
+
+        let out_rsrc = temp.join("out.rsrc");
+        pack_v86_rsrc(&temp, &out_rsrc).expect("pack v86 rsrc");
+        assert!(out_rsrc.is_file());
 
         let _ = fs::remove_dir_all(&temp);
     }

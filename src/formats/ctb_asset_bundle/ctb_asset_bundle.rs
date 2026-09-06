@@ -82,7 +82,8 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -149,6 +150,32 @@ impl AssetBundleSourceEntry {
             path: path.into(),
             contents: delta_payload,
             flags: ASSET_FLAG_DELTA,
+        }
+    }
+}
+
+/// Source entry representing an on-disk file to be streamed directly into a
+/// bundle without loading its full contents into memory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssetBundleDiskSourceEntry {
+    pub path: String,
+    pub disk_path: PathBuf,
+    pub size: u64,
+    pub flags: u32,
+}
+
+impl AssetBundleDiskSourceEntry {
+    #[must_use]
+    pub fn new(
+        path: impl Into<String>,
+        disk_path: impl Into<PathBuf>,
+        size: u64,
+    ) -> Self {
+        Self {
+            path: path.into(),
+            disk_path: disk_path.into(),
+            size,
+            flags: ASSET_FLAG_RAW,
         }
     }
 }
@@ -445,6 +472,240 @@ pub fn build_asset_bundle_v4_with_details(
         Some(bundle_uuid),
         Some(created_at_unix_secs),
     )
+}
+
+/// Write an asset bundle directly to disk from on-disk source files in a
+/// streaming manner without loading all payload bytes into memory.
+pub fn write_asset_bundle_from_disk_entries(
+    entries: &[AssetBundleDiskSourceEntry],
+    output_path: &Path,
+) -> Result<AssetBundleHeader> {
+    write_asset_bundle_from_disk_entries_with_details(
+        entries,
+        output_path,
+        RESOURCE_BUNDLE_VERSION,
+        None,
+        None,
+    )
+}
+
+/// Write an asset bundle directly to disk from on-disk source files with
+/// explicit version, uuid, and timestamp parameters.
+pub fn write_asset_bundle_from_disk_entries_with_details(
+    entries: &[AssetBundleDiskSourceEntry],
+    output_path: &Path,
+    version: u32,
+    custom_uuid: Option<Uuid>,
+    custom_created_at: Option<u64>,
+) -> Result<AssetBundleHeader> {
+    let entries = normalized_disk_source_entries(entries)?;
+    let entry_count = u32::try_from(entries.len())
+        .context("Too many resource bundle entries")?;
+
+    let header_size = match version {
+        RESOURCE_BUNDLE_VERSION_V1 => RESOURCE_BUNDLE_V1_HEADER_SIZE,
+        RESOURCE_BUNDLE_VERSION_V2 => RESOURCE_BUNDLE_V2_HEADER_SIZE,
+        RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
+            RESOURCE_BUNDLE_HEADER_SIZE
+        }
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
+    let bundle_uuid = match version {
+        RESOURCE_BUNDLE_VERSION_V1 => Uuid::nil(),
+        RESOURCE_BUNDLE_VERSION_V2 => {
+            bail!(
+                "Streaming disk bundle write is only supported for v3 and v4 bundles"
+            );
+        }
+        RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
+            // Reason for fallback: when custom UUID is not provided for v3/v4 bundle, generate a random UUID.
+            custom_uuid.unwrap_or_else(Uuid::new_v4)
+        }
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
+    let created_at_unix_secs = match version {
+        RESOURCE_BUNDLE_VERSION_V1 | RESOURCE_BUNDLE_VERSION_V2 => 0,
+        RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
+            match custom_created_at {
+                Some(ts) => ts,
+                None => SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .context("System clock is before UNIX_EPOCH")?
+                    .as_secs(),
+            }
+        }
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
+
+    let index_bytes = RESOURCE_ENTRY_SIZE
+        .checked_mul(usize::try_from(entry_count).context("entry count")?)
+        .context("Resource bundle index too large")?;
+
+    let mut path_bytes = Vec::new();
+    let mut path_offsets = Vec::with_capacity(entries.len());
+    let mut data_offsets = Vec::with_capacity(entries.len());
+    let mut running_data_offset: u64 = 0;
+
+    for entry in &entries {
+        let path_offset = u64::try_from(path_bytes.len())
+            .context("Resource bundle path table too large")?;
+        path_offsets.push(path_offset);
+        path_bytes.extend_from_slice(entry.path.as_bytes());
+
+        data_offsets.push(running_data_offset);
+        running_data_offset = running_data_offset
+            .checked_add(entry.size)
+            .context("Resource bundle data section too large")?;
+    }
+
+    let paths_start = u64::try_from(header_size)
+        .context("header size overflow")?
+        .checked_add(u64::try_from(index_bytes).context("index size overflow")?)
+        .context("paths start overflow")?;
+    let data_start = paths_start
+        .checked_add(u64::try_from(path_bytes.len()).context("paths len")?)
+        .context("data start overflow")?;
+
+    let mut index = Vec::with_capacity(index_bytes);
+    for (entry, (path_offset, data_offset)) in entries
+        .iter()
+        .zip(path_offsets.into_iter().zip(data_offsets.into_iter()))
+    {
+        append_u64(
+            &mut index,
+            paths_start
+                .checked_add(path_offset)
+                .context("paths start offset overflow")?,
+        );
+        append_u32(
+            &mut index,
+            u32::try_from(entry.path.len()).context("path length overflow")?,
+        );
+        append_u32(&mut index, entry.flags);
+        append_u64(
+            &mut index,
+            data_start
+                .checked_add(data_offset)
+                .context("data start offset overflow")?,
+        );
+        append_u64(&mut index, entry.size);
+    }
+
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temp_name = format!(
+        ".{}.tmp_stream",
+        output_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("bundle.rsrc")
+    );
+    let temp_path = output_path.with_file_name(temp_name);
+    let file = File::create(&temp_path)
+        .with_context(|| format!("Failed to create {}", temp_path.display()))?;
+    let capacity = 256_usize
+        .checked_mul(1024)
+        .context("capacity overflow")?;
+    let mut writer = BufWriter::with_capacity(capacity, file);
+
+    // 1. Write placeholder header
+    let placeholder = vec![0_u8; header_size];
+    writer.write_all(&placeholder)?;
+
+    // 2. Write index table
+    writer.write_all(&index)?;
+
+    // 3. Write path table
+    writer.write_all(&path_bytes)?;
+
+    // 4. Stream data from disk while calculating sha256
+    let mut hasher = Sha256::new();
+    let mut read_buf = [0_u8; 128 * 1024];
+
+    for entry in &entries {
+        let path_len = u64::try_from(entry.path.len())
+            .context("resource bundle path length overflow")?;
+        hasher.update(path_len.to_le_bytes());
+        hasher.update(entry.path.as_bytes());
+        hasher.update(entry.size.to_le_bytes());
+
+        let mut in_file = File::open(&entry.disk_path)
+            .with_context(|| format!("Failed to open {}", entry.disk_path.display()))?;
+        let mut bytes_copied: u64 = 0;
+        loop {
+            let n = in_file.read(&mut read_buf)?;
+            if n == 0 {
+                break;
+            }
+            let Some(chunk) = read_buf.get(..n) else {
+                break;
+            };
+            hasher.update(chunk);
+            writer.write_all(chunk)?;
+            bytes_copied = bytes_copied
+                .checked_add(u64::try_from(n)?)
+                .context("bytes copied overflow")?;
+        }
+        ensure!(
+            bytes_copied == entry.size,
+            "File size changed during bundling for {}: expected {}, read {}",
+            entry.disk_path.display(),
+            entry.size,
+            bytes_copied
+        );
+    }
+
+    writer.flush()?;
+
+    let digest = hasher.finalize();
+    let mut content_sha256 = [0_u8; RESOURCE_BUNDLE_SHA256_SIZE];
+    for (dst, src) in content_sha256.iter_mut().zip(digest.iter()) {
+        *dst = *src;
+    }
+
+    let header = AssetBundleHeader {
+        version,
+        entry_count,
+        bundle_uuid,
+        content_sha256,
+        created_at_unix_secs,
+    };
+
+    let mut out_file = writer
+        .into_inner()
+        .map_err(|e| anyhow::anyhow!("BufWriter flush error: {e}"))?;
+    out_file.seek(SeekFrom::Start(0))?;
+
+    let mut header_bytes = Vec::with_capacity(header_size);
+    header_bytes.extend_from_slice(RESOURCE_BUNDLE_MAGIC);
+    append_u32(&mut header_bytes, header.version);
+    append_u32(&mut header_bytes, header.entry_count);
+
+    if version >= RESOURCE_BUNDLE_VERSION_V2 {
+        header_bytes.extend_from_slice(header.bundle_uuid.as_bytes());
+    }
+    if version >= RESOURCE_BUNDLE_VERSION_V3 {
+        header_bytes.extend_from_slice(&header.content_sha256);
+        append_u64(&mut header_bytes, header.created_at_unix_secs);
+    }
+
+    ensure!(
+        header_bytes.len() == header_size,
+        "Header byte size mismatch: expected {header_size}, got {}",
+        header_bytes.len()
+    );
+
+    out_file.write_all(&header_bytes)?;
+    out_file.sync_all()?;
+    drop(out_file);
+
+    fs::rename(&temp_path, output_path)
+        .with_context(|| format!("Failed to rename {} to {}", temp_path.display(), output_path.display()))?;
+
+    Ok(header)
 }
 
 pub fn create_test_fixture_entries(
@@ -783,6 +1044,28 @@ fn normalized_source_entries(
         normalized.push(AssetBundleSourceEntry {
             path,
             contents: entry.contents.clone(),
+            flags: entry.flags,
+        });
+    }
+    normalized.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(normalized)
+}
+
+fn normalized_disk_source_entries(
+    entries: &[AssetBundleDiskSourceEntry],
+) -> Result<Vec<AssetBundleDiskSourceEntry>> {
+    let mut normalized = Vec::with_capacity(entries.len());
+    let mut seen_paths = HashSet::<String>::new();
+    for entry in entries {
+        let path = normalize_bundle_path(&entry.path)?;
+        ensure!(
+            seen_paths.insert(path.clone()),
+            "Duplicate bundle path {path}"
+        );
+        normalized.push(AssetBundleDiskSourceEntry {
+            path,
+            disk_path: entry.disk_path.clone(),
+            size: entry.size,
             flags: entry.flags,
         });
     }
@@ -1229,6 +1512,63 @@ mod tests {
             get_ctb_asset_bundle_data("fixtures/bundle_v4.rsrc").unwrap();
         assert_eq!(v4_bytes, fixture_v4);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_write_asset_bundle_from_disk_entries_matches_in_memory() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("ctb_test_disk_bundle");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let file1_path = temp_dir.join("file1.bin");
+        let file2_path = temp_dir.join("file2.bin");
+        fs::write(&file1_path, b"hello streaming world")?;
+        fs::write(&file2_path, b"second payload bytes")?;
+
+        let in_memory_entries = vec![
+            AssetBundleSourceEntry::raw(
+                "path/a.bin",
+                b"hello streaming world".to_vec(),
+            ),
+            AssetBundleSourceEntry::raw(
+                "path/b.bin",
+                b"second payload bytes".to_vec(),
+            ),
+        ];
+        let fixed_uuid =
+            Uuid::parse_str("4c059cbb-98f6-4ef1-a4b7-db80efd12345")?;
+        let fixed_ts = 1_700_000_000_u64;
+
+        let (in_mem_bytes, in_mem_header) = build_asset_bundle_v4_with_details(
+            &in_memory_entries,
+            fixed_uuid,
+            fixed_ts,
+        )?;
+
+        let disk_entries = vec![
+            AssetBundleDiskSourceEntry::new("path/a.bin", &file1_path, 21),
+            AssetBundleDiskSourceEntry::new("path/b.bin", &file2_path, 20),
+        ];
+        let out_rsrc = temp_dir.join("streamed.rsrc");
+        let disk_header = write_asset_bundle_from_disk_entries_with_details(
+            &disk_entries,
+            &out_rsrc,
+            RESOURCE_BUNDLE_VERSION_V4,
+            Some(fixed_uuid),
+            Some(fixed_ts),
+        )?;
+
+        assert_eq!(in_mem_header, disk_header);
+        let disk_bytes = fs::read(&out_rsrc)?;
+        assert_eq!(in_mem_bytes, disk_bytes);
+
+        let parsed = parse_asset_bundle(&disk_bytes)?;
+        assert_eq!(parsed.entries.len(), 2);
+        assert_eq!(parsed.entries[0].path, "path/a.bin");
+        assert_eq!(parsed.entries[1].path, "path/b.bin");
+
+        let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
     }
 }
