@@ -122,7 +122,7 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
         Ok(PathBuf::from(OsStr::from_bytes(&bytes)))
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
         let s = std::str::from_utf8(raw_bytes)
             .context("Relative path bytes are not valid UTF-8 for current platform")?;
@@ -135,5 +135,12 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
 
         let normalized = s.replace('/', "\\");
         Ok(PathBuf::from(normalized))
+    }
+
+    #[cfg(all(not(unix), not(windows)))]
+    {
+        let _ = origin_is_windows;
+        let _ = raw_bytes;
+        anyhow::bail!("Path resolution is unimplemented for this platform");
     }
 }

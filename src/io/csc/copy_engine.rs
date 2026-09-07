@@ -84,15 +84,14 @@ pub fn execute_copy_pipeline(
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
 
-    // Restore hardlinks from snapshot if resuming
+    // Restore hardlinks from snapshot if resuming (go through already-copied items and store their inodes in memory so we know we've already seen them)
     if let Some(snap) = snapshot {
         let is_windows = snap.origin_platform == PLATFORM_WINDOWS;
-        for entity in snap.committed_entities.values() {
-            if let FileEntityKind::Hardlink { target_relative_path } = &entity.kind {
-                if let Ok(tgt_rel) = resolve_relative_path_for_os(target_relative_path, is_windows) {
-                    let full_tgt = snap.destination.join(&tgt_rel);
-                    if let Ok(meta) = full_tgt.metadata() {
-                        hardlink_map.insert((meta.dev(), meta.ino()), full_tgt);
+        for (raw_rel, entity) in &snap.committed_entities {
+            if entity.identity.nlink > 1 {
+                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+                    if let Ok(rel_path) = resolve_relative_path_for_os(raw_rel, is_windows) {
+                        hardlink_map.entry((key.device_id, key.inode)).or_insert(rel_path);
                     }
                 }
             }
