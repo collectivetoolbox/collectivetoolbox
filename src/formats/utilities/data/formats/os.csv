@@ -34,3 +34,4 @@ Import/export/tests support columns meaning:
 2228631,407,FreeBsd,FreeBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228632,408,OpenBsd,OpenBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228633,409,NetBsd,NetBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
+2228636,412,DragonFlyBsd,DragonFly BSD,os,FreeBsd & BsdKernel & BsdUserland,,,,,,,,,,,

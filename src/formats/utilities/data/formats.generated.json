@@ -8629,5 +8629,26 @@
     },
     "source_file": "database.csv",
     "line_number": 29
+  },
+  {
+    "dc_id": 2228636,
+    "short_id": 412,
+    "ident": "DragonFlyBsd",
+    "name": "DragonFly BSD",
+    "category": "format_os",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "FreeBsd & BsdKernel & BsdUserland"
+    },
+    "source_file": "os.csv",
+    "line_number": 22
   }
 ]
