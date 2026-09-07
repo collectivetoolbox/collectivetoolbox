@@ -27,7 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::metadata::FileFlag;
+use ctb_io::file::identity::{FileIdentity, FileOrigin};
+use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
+use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
@@ -152,6 +154,95 @@ impl ManifestFile {
             _ => None,
         }
     }
+
+    /// Converts this `ManifestFile` into a `FileEntity` suitable for auditing.
+    #[must_use]
+    pub fn to_entity(&self) -> FileEntity {
+        let mut streams = Vec::with_capacity(self.streams.len());
+        for (name, sha256) in &self.streams {
+            let name_bytes = name.as_encoded_bytes().to_vec();
+            let s_name = StreamName(name_bytes.clone());
+            let kind = StreamKind::infer_from_name(&name_bytes);
+            let s_entity = FileEntity {
+                identity: FileIdentity {
+                    origin: FileOrigin::Synthetic,
+                    relative_path: PathBuf::from(name),
+                    raw_filename: name_bytes,
+                    nlink: 1,
+                    hardlink_group: None,
+                },
+                metadata: FileMetadata {
+                    mode: 0o644,
+                    uid: 0,
+                    gid: 0,
+                    timestamps: FileTimestamps {
+                        atime_sec: 0,
+                        atime_nsec: 0,
+                        mtime_sec: 0,
+                        mtime_nsec: 0,
+                        ctime_sec: 0,
+                        ctime_nsec: 0,
+                        birthtime_sec: None,
+                        birthtime_nsec: None,
+                    },
+                    flags: Vec::new(),
+                    platform_raw_flags: None,
+                },
+                kind: FileEntityKind::Regular {
+                    size: 0,
+                    sha256: *sha256,
+                    is_sparse: false,
+                    extents: Vec::new(),
+                },
+                streams: Vec::new(),
+            };
+
+            streams.push(AttachedStream {
+                name: s_name,
+                kind,
+                entity: Box::new(s_entity),
+                data: None,
+            });
+        }
+
+        FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: self.relative_path.clone(),
+                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
+                raw_filename: self
+                    .relative_path
+                    .file_name()
+                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: self.mode,
+                uid: self.uid,
+                gid: self.gid,
+                timestamps: FileTimestamps {
+                    atime_sec: self.atime_sec,
+                    atime_nsec: self.atime_nsec,
+                    mtime_sec: self.mtime_sec,
+                    mtime_nsec: self.mtime_nsec,
+                    ctime_sec: self.ctime_sec,
+                    ctime_nsec: self.ctime_nsec,
+                    birthtime_sec: self.birthtime_sec,
+                    birthtime_nsec: self.birthtime_nsec,
+                },
+                flags: self.flags.clone(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: self.size,
+                sha256: self.sha256,
+                is_sparse: self.is_sparse,
+                extents: Vec::new(),
+            },
+            streams,
+        }
+    }
 }
 
 impl ManifestDir {
@@ -186,6 +277,90 @@ impl ManifestDir {
             streams,
         }
     }
+
+    /// Converts this `ManifestDir` into a `FileEntity` suitable for auditing.
+    #[must_use]
+    pub fn to_entity(&self) -> FileEntity {
+        let mut streams = Vec::with_capacity(self.streams.len());
+        for (name, sha256) in &self.streams {
+            let name_bytes = name.as_encoded_bytes().to_vec();
+            let s_name = StreamName(name_bytes.clone());
+            let kind = StreamKind::infer_from_name(&name_bytes);
+            let s_entity = FileEntity {
+                identity: FileIdentity {
+                    origin: FileOrigin::Synthetic,
+                    relative_path: PathBuf::from(name),
+                    raw_filename: name_bytes,
+                    nlink: 1,
+                    hardlink_group: None,
+                },
+                metadata: FileMetadata {
+                    mode: 0o644,
+                    uid: 0,
+                    gid: 0,
+                    timestamps: FileTimestamps {
+                        atime_sec: 0,
+                        atime_nsec: 0,
+                        mtime_sec: 0,
+                        mtime_nsec: 0,
+                        ctime_sec: 0,
+                        ctime_nsec: 0,
+                        birthtime_sec: None,
+                        birthtime_nsec: None,
+                    },
+                    flags: Vec::new(),
+                    platform_raw_flags: None,
+                },
+                kind: FileEntityKind::Regular {
+                    size: 0,
+                    sha256: *sha256,
+                    is_sparse: false,
+                    extents: Vec::new(),
+                },
+                streams: Vec::new(),
+            };
+
+            streams.push(AttachedStream {
+                name: s_name,
+                kind,
+                entity: Box::new(s_entity),
+                data: None,
+            });
+        }
+
+        FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: self.relative_path.clone(),
+                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
+                raw_filename: self
+                    .relative_path
+                    .file_name()
+                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: self.mode,
+                uid: self.uid,
+                gid: self.gid,
+                timestamps: FileTimestamps {
+                    atime_sec: self.atime_sec,
+                    atime_nsec: self.atime_nsec,
+                    mtime_sec: self.mtime_sec,
+                    mtime_nsec: self.mtime_nsec,
+                    ctime_sec: self.ctime_sec,
+                    ctime_nsec: self.ctime_nsec,
+                    birthtime_sec: self.birthtime_sec,
+                    birthtime_nsec: self.birthtime_nsec,
+                },
+                flags: self.flags.clone(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Directory,
+            streams,
+        }
+    }
 }
 
 impl ManifestSymlink {
@@ -209,6 +384,45 @@ impl ManifestSymlink {
                 flags: entity.metadata.flags.clone(),
             }),
             _ => None,
+        }
+    }
+
+    /// Converts this `ManifestSymlink` into a `FileEntity` suitable for auditing.
+    #[must_use]
+    pub fn to_entity(&self) -> FileEntity {
+        FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: self.relative_path.clone(),
+                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
+                raw_filename: self
+                    .relative_path
+                    .file_name()
+                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o777,
+                uid: self.uid,
+                gid: self.gid,
+                timestamps: FileTimestamps {
+                    atime_sec: self.atime_sec,
+                    atime_nsec: self.atime_nsec,
+                    mtime_sec: self.mtime_sec,
+                    mtime_nsec: self.mtime_nsec,
+                    ctime_sec: self.ctime_sec,
+                    ctime_nsec: self.ctime_nsec,
+                    birthtime_sec: self.birthtime_sec,
+                    birthtime_nsec: self.birthtime_nsec,
+                },
+                flags: self.flags.clone(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Symlink {
+                target: self.target.clone(),
+            },
+            streams: Vec::new(),
         }
     }
 }
@@ -553,6 +767,7 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
             let p = entry.path();
             if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
                 if let Ok(meta) = p.metadata() {
+                    // Reason for fallback: If filesystem metadata modified time cannot be determined, default to UNIX_EPOCH.
                     let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
                     candidates.push((mtime, p));
                 }

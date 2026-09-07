@@ -54,7 +54,10 @@ pub use payload::{
 pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};
 pub use sys_flags::{apply_file_flags, query_file_flags};
-pub use verifier::{evict_fd_cache, try_drop_system_caches, verify_materialized_entity};
+pub use verifier::{
+    DiffKind, EntityAuditOptions, StreamDiffKind, audit_entity, evict_fd_cache, hex_encode,
+    try_drop_system_caches, verify_materialized_entity,
+};
 
 #[cfg(test)]
 #[allow(

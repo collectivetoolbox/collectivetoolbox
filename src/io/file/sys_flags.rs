@@ -20,10 +20,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Platform-specific adapters for reading and writing OS file flags.
 
-/* License information for parts derived from Swift - see license at end of this file:
+/* License information for parts derived from the Swift System open source project - see license at end of this file:
 
-// This source file is part of the Swift System open source project
-//
 // Copyright (c) 2025 - 2026 Apple Inc. and the Swift System project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //

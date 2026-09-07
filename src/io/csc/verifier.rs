@@ -29,124 +29,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
-use crate::journal::{
-    ManifestDir, ManifestFile, ManifestSymlink, read_journal_snapshot, resolve_journal_path,
-};
+use crate::journal::{read_journal_snapshot, resolve_journal_path};
 use crate::verify_cache::check_cache_flush_privileges;
-use ctb_formats_checksum::Sha256Stream;
-use ctb_io::file::entity::FileEntityKind;
-use ctb_io::file::streams::read_and_hash_streams;
-use ctb_io::file::sys_flags::query_file_flags;
-use ctb_io::file::verifier::{evict_fd_cache, try_drop_system_caches};
+pub use ctb_io::file::verifier::{DiffKind, StreamDiffKind};
+use ctb_io::file::verifier::{audit_entity, try_drop_system_caches};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
-use std::ffi::OsString;
-use std::fs::File;
-use std::io::Read;
-use std::os::unix::ffi::OsStringExt;
+use std::collections::HashSet;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-
-/// Nature of a stream/xattr discrepancy.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum StreamDiffKind {
-    /// Stream expected in manifest but missing on disk.
-    MissingStream,
-    /// Unexpected stream present on disk but absent in manifest.
-    ExtraStream,
-    /// Cryptographic digest mismatch on stream content.
-    DigestMismatch {
-        expected_hex: String,
-        actual_hex: String,
-    },
-}
-
-/// Discrepancy detected between manifest record and target directory on disk.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "type")]
-pub enum DiffKind {
-    /// Expected entry is missing entirely from disk.
-    MissingOnDisk,
-    /// Unexpected entry exists on disk but is absent from manifest.
-    UntrackedOnDisk,
-    /// File type on disk does not match manifest (e.g. file vs dir vs symlink).
-    TypeMismatch {
-        expected: String,
-        actual: String,
-    },
-    /// Regular file byte length mismatch.
-    SizeMismatch {
-        expected: u64,
-        actual: u64,
-    },
-    /// Cryptographic SHA-256 payload checksum mismatch.
-    ContentHashMismatch {
-        expected_hex: String,
-        actual_hex: String,
-    },
-    /// Symbolic link target path mismatch.
-    SymlinkTargetMismatch {
-        expected: String,
-        actual: String,
-    },
-    /// POSIX file permission mode mismatch (masked with 0o7777).
-    ModeMismatch {
-        expected: String,
-        actual: String,
-    },
-    /// Owner user ID (UID) mismatch.
-    UidMismatch {
-        expected: u32,
-        actual: u32,
-    },
-    /// Owner group ID (GID) mismatch.
-    GidMismatch {
-        expected: u32,
-        actual: u32,
-    },
-    /// Modification time (mtime) mismatch.
-    MtimeMismatch {
-        expected_sec: i64,
-        expected_nsec: u32,
-        actual_sec: i64,
-        actual_nsec: u32,
-    },
-    /// Access time (atime) mismatch.
-    AtimeMismatch {
-        expected_sec: i64,
-        expected_nsec: u32,
-        actual_sec: i64,
-        actual_nsec: u32,
-    },
-    /// Metadata change time (ctime) mismatch.
-    CtimeMismatch {
-        expected_sec: i64,
-        expected_nsec: u32,
-        actual_sec: i64,
-        actual_nsec: u32,
-    },
-    /// File birth / creation time mismatch.
-    BirthtimeMismatch {
-        expected_sec: Option<i64>,
-        actual_sec: Option<i64>,
-    },
-    /// Semantic or OS file flags mismatch.
-    FlagsMismatch {
-        expected: Vec<String>,
-        actual: Vec<String>,
-    },
-    /// Alternate data stream or extended attribute mismatch.
-    StreamMismatch {
-        stream_name: String,
-        details: StreamDiffKind,
-    },
-    /// Hardlink target or inode grouping mismatch.
-    HardlinkMismatch {
-        expected_target: PathBuf,
-        details: String,
-    },
-}
 
 /// Collection of discrepancies detected for a specific relative file path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -179,7 +70,6 @@ impl VerificationReport {
 
     /// Formats the audit report into a human-readable text document.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "Comprehensive discrepancy report formatting")]
     #[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
     pub fn format_human_report(&self) -> String {
         use std::fmt::Write;
@@ -227,137 +117,7 @@ impl VerificationReport {
             for entry in &self.changed_entries {
                 let _ = writeln!(out, "  [CHANGED] {}", entry.relative_path.display());
                 for diff in &entry.differences {
-                    match diff {
-                        DiffKind::TypeMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Type mismatch: expected {expected}, got {actual}"
-                            );
-                        }
-                        DiffKind::SizeMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Size mismatch: expected {expected} bytes, got {actual} bytes"
-                            );
-                        }
-                        DiffKind::ContentHashMismatch {
-                            expected_hex,
-                            actual_hex,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - SHA-256 mismatch: expected {expected_hex}, got {actual_hex}"
-                            );
-                        }
-                        DiffKind::SymlinkTargetMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Symlink target mismatch: expected {expected}, got {actual}"
-                            );
-                        }
-                        DiffKind::ModeMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Permissions mismatch: expected {expected}, got {actual}"
-                            );
-                        }
-                        DiffKind::UidMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Owner UID mismatch: expected {expected}, got {actual}"
-                            );
-                        }
-                        DiffKind::GidMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Owner GID mismatch: expected {expected}, got {actual}"
-                            );
-                        }
-                        DiffKind::MtimeMismatch {
-                            expected_sec,
-                            expected_nsec,
-                            actual_sec,
-                            actual_nsec,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Mtime mismatch: expected {expected_sec}.{expected_nsec:09}, got {actual_sec}.{actual_nsec:09}"
-                            );
-                        }
-                        DiffKind::AtimeMismatch {
-                            expected_sec,
-                            expected_nsec,
-                            actual_sec,
-                            actual_nsec,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Atime mismatch: expected {expected_sec}.{expected_nsec:09}, got {actual_sec}.{actual_nsec:09}"
-                            );
-                        }
-                        DiffKind::CtimeMismatch {
-                            expected_sec,
-                            expected_nsec,
-                            actual_sec,
-                            actual_nsec,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Ctime mismatch: expected {expected_sec}.{expected_nsec:09}, got {actual_sec}.{actual_nsec:09}"
-                            );
-                        }
-                        DiffKind::BirthtimeMismatch {
-                            expected_sec,
-                            actual_sec,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Birthtime mismatch: expected {expected_sec:?}, got {actual_sec:?}"
-                            );
-                        }
-                        DiffKind::FlagsMismatch { expected, actual } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Flags mismatch: expected {expected:?}, got {actual:?}"
-                            );
-                        }
-                        DiffKind::StreamMismatch {
-                            stream_name,
-                            details,
-                        } => match details {
-                            StreamDiffKind::MissingStream => {
-                                let _ = writeln!(out, "    - Stream missing: {stream_name}");
-                            }
-                            StreamDiffKind::ExtraStream => {
-                                let _ = writeln!(out, "    - Unexpected extra stream: {stream_name}");
-                            }
-                            StreamDiffKind::DigestMismatch {
-                                expected_hex,
-                                actual_hex,
-                            } => {
-                                let _ = writeln!(
-                                    out,
-                                    "    - Stream '{stream_name}' hash mismatch: expected {expected_hex}, got {actual_hex}"
-                                );
-                            }
-                        },
-                        DiffKind::HardlinkMismatch {
-                            expected_target,
-                            details,
-                        } => {
-                            let _ = writeln!(
-                                out,
-                                "    - Hardlink mismatch: target {}, details: {details}",
-                                expected_target.display()
-                            );
-                        }
-                        DiffKind::MissingOnDisk => {
-                            let _ = writeln!(out, "    - Missing on disk");
-                        }
-                        DiffKind::UntrackedOnDisk => {
-                            let _ = writeln!(out, "    - Untracked on disk");
-                        }
-                    }
+                    let _ = writeln!(out, "    - {diff}");
                 }
             }
             let _ = writeln!(out);
@@ -381,17 +141,6 @@ impl VerificationReport {
     pub fn format_json_report(&self) -> Result<String> {
         serde_json::to_string_pretty(self).context("Failed to serialize verification report to JSON")
     }
-}
-
-/// Helper converting a 32-byte digest array into a lowercase hex string.
-#[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
-fn hex_encode(bytes: &[u8; 32]) -> String {
-    use std::fmt::Write;
-    let mut s = String::with_capacity(64);
-    for b in bytes {
-        let _ = write!(s, "{b:02x}");
-    }
-    s
 }
 
 /// Performs verification of target directory against manifest according to options.
@@ -423,6 +172,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         try_drop_system_caches();
     }
 
+    let audit_options = args.to_audit_options();
     let mut changed_entries = Vec::new();
     let mut missing_entries = Vec::new();
     let mut matched_entries = 0_usize;
@@ -446,21 +196,17 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         verified_paths.insert(normalize_rel_path(rel_path));
         let full_path = target_dir.join(rel_path);
 
-        match std::fs::symlink_metadata(&full_path) {
-            Err(_) => {
-                missing_entries.push(rel_path.clone());
-            }
-            Ok(meta) => {
-                let diffs = audit_file(&full_path, mf, &meta, args)?;
-                if diffs.is_empty() {
-                    matched_entries = matched_entries.saturating_add(1);
-                } else {
-                    changed_entries.push(EntryDiff {
-                        relative_path: rel_path.clone(),
-                        differences: diffs,
-                    });
-                }
-            }
+        let entity = mf.to_entity();
+        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
+        if diffs.is_empty() {
+            matched_entries = matched_entries.saturating_add(1);
+        } else if diffs == vec![DiffKind::MissingOnDisk] {
+            missing_entries.push(rel_path.clone());
+        } else {
+            changed_entries.push(EntryDiff {
+                relative_path: rel_path.clone(),
+                differences: diffs,
+            });
         }
     }
 
@@ -472,21 +218,17 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         verified_paths.insert(normalize_rel_path(rel_path));
         let full_path = target_dir.join(rel_path);
 
-        match std::fs::symlink_metadata(&full_path) {
-            Err(_) => {
-                missing_entries.push(rel_path.clone());
-            }
-            Ok(meta) => {
-                let diffs = audit_directory(&full_path, md, &meta, args);
-                if diffs.is_empty() {
-                    matched_entries = matched_entries.saturating_add(1);
-                } else {
-                    changed_entries.push(EntryDiff {
-                        relative_path: rel_path.clone(),
-                        differences: diffs,
-                    });
-                }
-            }
+        let entity = md.to_entity();
+        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
+        if diffs.is_empty() {
+            matched_entries = matched_entries.saturating_add(1);
+        } else if diffs == vec![DiffKind::MissingOnDisk] {
+            missing_entries.push(rel_path.clone());
+        } else {
+            changed_entries.push(EntryDiff {
+                relative_path: rel_path.clone(),
+                differences: diffs,
+            });
         }
     }
 
@@ -495,21 +237,17 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         verified_paths.insert(normalize_rel_path(rel_path));
         let full_path = target_dir.join(rel_path);
 
-        match std::fs::symlink_metadata(&full_path) {
-            Err(_) => {
-                missing_entries.push(rel_path.clone());
-            }
-            Ok(meta) => {
-                let diffs = audit_symlink(&full_path, ms, &meta, args)?;
-                if diffs.is_empty() {
-                    matched_entries = matched_entries.saturating_add(1);
-                } else {
-                    changed_entries.push(EntryDiff {
-                        relative_path: rel_path.clone(),
-                        differences: diffs,
-                    });
-                }
-            }
+        let entity = ms.to_entity();
+        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
+        if diffs.is_empty() {
+            matched_entries = matched_entries.saturating_add(1);
+        } else if diffs == vec![DiffKind::MissingOnDisk] {
+            missing_entries.push(rel_path.clone());
+        } else {
+            changed_entries.push(EntryDiff {
+                relative_path: rel_path.clone(),
+                differences: diffs,
+            });
         }
     }
 
@@ -591,397 +329,8 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
 }
 
 fn normalize_rel_path(p: &Path) -> PathBuf {
+    // Reason for fallback: If path does not start with "./", it is already a normalized relative path.
     p.strip_prefix("./").unwrap_or(p).to_path_buf()
-}
-
-#[expect(clippy::too_many_lines, reason = "Comprehensive audit of all file attributes, hashes, and streams")]
-fn audit_file(
-    full_path: &Path,
-    mf: &ManifestFile,
-    meta: &std::fs::Metadata,
-    args: &CscVerifyArgs,
-) -> Result<Vec<DiffKind>> {
-    let mut diffs = Vec::new();
-
-    if !meta.is_file() {
-        diffs.push(DiffKind::TypeMismatch {
-            expected: "regular file".into(),
-            actual: if meta.is_dir() {
-                "directory".into()
-            } else if meta.is_symlink() {
-                "symlink".into()
-            } else {
-                "special node".into()
-            },
-        });
-        return Ok(diffs);
-    }
-
-    // Permissions
-    if !args.should_ignore_perms() {
-        let expected_mode = mf.mode & 0o7777;
-        let actual_mode = meta.mode() & 0o7777;
-        if expected_mode != actual_mode {
-            diffs.push(DiffKind::ModeMismatch {
-                expected: format!("{expected_mode:#05o}"),
-                actual: format!("{actual_mode:#05o}"),
-            });
-        }
-    }
-
-    // Ownership
-    if !args.should_ignore_owner() {
-        if meta.uid() != mf.uid {
-            diffs.push(DiffKind::UidMismatch {
-                expected: mf.uid,
-                actual: meta.uid(),
-            });
-        }
-        if meta.gid() != mf.gid {
-            diffs.push(DiffKind::GidMismatch {
-                expected: mf.gid,
-                actual: meta.gid(),
-            });
-        }
-    }
-
-    // Modification time
-    if !args.should_ignore_mtime() {
-        let actual_sec = meta.mtime();
-        let actual_nsec = u32::try_from(meta.mtime_nsec()).unwrap_or(0);
-        if actual_sec != mf.mtime_sec || actual_nsec != mf.mtime_nsec {
-            diffs.push(DiffKind::MtimeMismatch {
-                expected_sec: mf.mtime_sec,
-                expected_nsec: mf.mtime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    // Access time
-    if !args.should_ignore_atime() {
-        let actual_sec = meta.atime();
-        let actual_nsec = u32::try_from(meta.atime_nsec()).unwrap_or(0);
-        if actual_sec != mf.atime_sec || actual_nsec != mf.atime_nsec {
-            diffs.push(DiffKind::AtimeMismatch {
-                expected_sec: mf.atime_sec,
-                expected_nsec: mf.atime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    // Metadata change time
-    if !args.should_ignore_ctime() {
-        let actual_sec = meta.ctime();
-        let actual_nsec = u32::try_from(meta.ctime_nsec()).unwrap_or(0);
-        if actual_sec != mf.ctime_sec || actual_nsec != mf.ctime_nsec {
-            diffs.push(DiffKind::CtimeMismatch {
-                expected_sec: mf.ctime_sec,
-                expected_nsec: mf.ctime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    // Flags
-    if !args.should_ignore_flags() {
-        if let Ok((actual_flags, _)) = query_file_flags(full_path, false) {
-            let mut exp_names: Vec<String> = mf.flags.iter().map(|f| f.name().to_string()).collect();
-            let mut act_names: Vec<String> = actual_flags.iter().map(|f| f.name().to_string()).collect();
-            exp_names.sort();
-            act_names.sort();
-            if exp_names != act_names {
-                diffs.push(DiffKind::FlagsMismatch {
-                    expected: exp_names,
-                    actual: act_names,
-                });
-            }
-        }
-    }
-
-    // Size
-    let actual_size = meta.len();
-    if actual_size != mf.size {
-        diffs.push(DiffKind::SizeMismatch {
-            expected: mf.size,
-            actual: actual_size,
-        });
-    }
-
-    // Payload cryptographic checksum
-    #[cfg(target_os = "linux")]
-    let mut file = {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut opts = File::options();
-        opts.read(true);
-        opts.custom_flags(nix::libc::O_NOATIME);
-        match opts.open(full_path) {
-            Ok(f) => f,
-            Err(_) => File::open(full_path).with_context(|| {
-                format!("Failed to open file for verification: {}", full_path.display())
-            })?,
-        }
-    };
-    #[cfg(not(target_os = "linux"))]
-    let mut file = File::open(full_path).with_context(|| {
-        format!("Failed to open file for verification: {}", full_path.display())
-    })?;
-    if args.should_drop_caches() {
-        evict_fd_cache(&file);
-    }
-
-    let mut hasher = Sha256Stream::new();
-    let mut buf = vec![0_u8; 64 * 1024];
-    loop {
-        let n = file.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        let slice = buf
-            .get(..n)
-            .context("Verification buffer slice out of bounds")?;
-        hasher.update(slice);
-    }
-    let actual_sha256 = hasher.finalize();
-
-    if actual_sha256 != mf.sha256 {
-        diffs.push(DiffKind::ContentHashMismatch {
-            expected_hex: hex_encode(&mf.sha256),
-            actual_hex: hex_encode(&actual_sha256),
-        });
-    }
-
-    // Extended attributes and streams
-    if !args.should_ignore_xattrs() {
-        let on_disk_streams = read_and_hash_streams(full_path)?;
-        let mut expected_map: HashMap<OsString, [u8; 32]> = HashMap::new();
-        for (sname, shash) in &mf.streams {
-            expected_map.insert(sname.clone(), *shash);
-        }
-
-        let mut disk_map: HashMap<OsString, [u8; 32]> = HashMap::new();
-        for s in &on_disk_streams {
-            let hash = match &s.entity.kind {
-                FileEntityKind::Regular { sha256, .. } => *sha256,
-                _ => [0_u8; 32],
-            };
-            disk_map.insert(OsString::from_vec(s.name.0.clone()), hash);
-        }
-
-        for (exp_name, exp_hash) in &expected_map {
-            if let Some(act_hash) = disk_map.get(exp_name) {
-                if exp_hash != act_hash {
-                    diffs.push(DiffKind::StreamMismatch {
-                        stream_name: exp_name.to_string_lossy().to_string(),
-                        details: StreamDiffKind::DigestMismatch {
-                            expected_hex: hex_encode(exp_hash),
-                            actual_hex: hex_encode(act_hash),
-                        },
-                    });
-                }
-            } else {
-                diffs.push(DiffKind::StreamMismatch {
-                    stream_name: exp_name.to_string_lossy().to_string(),
-                    details: StreamDiffKind::MissingStream,
-                });
-            }
-        }
-
-        for disk_name in disk_map.keys() {
-            if !expected_map.contains_key(disk_name) {
-                diffs.push(DiffKind::StreamMismatch {
-                    stream_name: disk_name.to_string_lossy().to_string(),
-                    details: StreamDiffKind::ExtraStream,
-                });
-            }
-        }
-    }
-
-    Ok(diffs)
-}
-
-fn audit_directory(
-    full_path: &Path,
-    md: &ManifestDir,
-    meta: &std::fs::Metadata,
-    args: &CscVerifyArgs,
-) -> Vec<DiffKind> {
-    let mut diffs = Vec::new();
-
-    if !meta.is_dir() {
-        diffs.push(DiffKind::TypeMismatch {
-            expected: "directory".into(),
-            actual: if meta.is_file() {
-                "regular file".into()
-            } else if meta.is_symlink() {
-                "symlink".into()
-            } else {
-                "special node".into()
-            },
-        });
-        return diffs;
-    }
-
-    if !args.should_ignore_perms() {
-        let expected_mode = md.mode & 0o7777;
-        let actual_mode = meta.mode() & 0o7777;
-        if expected_mode != actual_mode {
-            diffs.push(DiffKind::ModeMismatch {
-                expected: format!("{expected_mode:#05o}"),
-                actual: format!("{actual_mode:#05o}"),
-            });
-        }
-    }
-
-    if !args.should_ignore_owner() {
-        if meta.uid() != md.uid {
-            diffs.push(DiffKind::UidMismatch {
-                expected: md.uid,
-                actual: meta.uid(),
-            });
-        }
-        if meta.gid() != md.gid {
-            diffs.push(DiffKind::GidMismatch {
-                expected: md.gid,
-                actual: meta.gid(),
-            });
-        }
-    }
-
-    if !args.should_ignore_mtime() {
-        let actual_sec = meta.mtime();
-        let actual_nsec = u32::try_from(meta.mtime_nsec()).unwrap_or(0);
-        if actual_sec != md.mtime_sec || actual_nsec != md.mtime_nsec {
-            diffs.push(DiffKind::MtimeMismatch {
-                expected_sec: md.mtime_sec,
-                expected_nsec: md.mtime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    if !args.should_ignore_atime() {
-        let actual_sec = meta.atime();
-        let actual_nsec = u32::try_from(meta.atime_nsec()).unwrap_or(0);
-        if actual_sec != md.atime_sec || actual_nsec != md.atime_nsec {
-            diffs.push(DiffKind::AtimeMismatch {
-                expected_sec: md.atime_sec,
-                expected_nsec: md.atime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    if !args.should_ignore_ctime() {
-        let actual_sec = meta.ctime();
-        let actual_nsec = u32::try_from(meta.ctime_nsec()).unwrap_or(0);
-        if actual_sec != md.ctime_sec || actual_nsec != md.ctime_nsec {
-            diffs.push(DiffKind::CtimeMismatch {
-                expected_sec: md.ctime_sec,
-                expected_nsec: md.ctime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    if !args.should_ignore_flags() {
-        if let Ok((actual_flags, _)) = query_file_flags(full_path, false) {
-            let mut exp_names: Vec<String> = md.flags.iter().map(|f| f.name().to_string()).collect();
-            let mut act_names: Vec<String> = actual_flags.iter().map(|f| f.name().to_string()).collect();
-            exp_names.sort();
-            act_names.sort();
-            if exp_names != act_names {
-                diffs.push(DiffKind::FlagsMismatch {
-                    expected: exp_names,
-                    actual: act_names,
-                });
-            }
-        }
-    }
-
-    diffs
-}
-
-fn audit_symlink(
-    full_path: &Path,
-    ms: &ManifestSymlink,
-    meta: &std::fs::Metadata,
-    args: &CscVerifyArgs,
-) -> Result<Vec<DiffKind>> {
-    let mut diffs = Vec::new();
-
-    if !meta.is_symlink() {
-        diffs.push(DiffKind::TypeMismatch {
-            expected: "symlink".into(),
-            actual: if meta.is_dir() {
-                "directory".into()
-            } else if meta.is_file() {
-                "regular file".into()
-            } else {
-                "special node".into()
-            },
-        });
-        return Ok(diffs);
-    }
-
-    let actual_target = std::fs::read_link(full_path)?;
-    let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
-    if actual_bytes != ms.target.as_slice() {
-        diffs.push(DiffKind::SymlinkTargetMismatch {
-            expected: String::from_utf8_lossy(&ms.target).to_string(),
-            actual: String::from_utf8_lossy(actual_bytes).to_string(),
-        });
-    }
-
-    if !args.should_ignore_owner() {
-        if meta.uid() != ms.uid {
-            diffs.push(DiffKind::UidMismatch {
-                expected: ms.uid,
-                actual: meta.uid(),
-            });
-        }
-        if meta.gid() != ms.gid {
-            diffs.push(DiffKind::GidMismatch {
-                expected: ms.gid,
-                actual: meta.gid(),
-            });
-        }
-    }
-
-    if !args.should_ignore_mtime() {
-        let actual_sec = meta.mtime();
-        let actual_nsec = u32::try_from(meta.mtime_nsec()).unwrap_or(0);
-        if actual_sec != ms.mtime_sec || actual_nsec != ms.mtime_nsec {
-            diffs.push(DiffKind::MtimeMismatch {
-                expected_sec: ms.mtime_sec,
-                expected_nsec: ms.mtime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    if !args.should_ignore_atime() {
-        let actual_sec = meta.atime();
-        let actual_nsec = u32::try_from(meta.atime_nsec()).unwrap_or(0);
-        if actual_sec != ms.atime_sec || actual_nsec != ms.atime_nsec {
-            diffs.push(DiffKind::AtimeMismatch {
-                expected_sec: ms.atime_sec,
-                expected_nsec: ms.atime_nsec,
-                actual_sec,
-                actual_nsec,
-            });
-        }
-    }
-
-    Ok(diffs)
 }
 
 fn scan_disk_entries(root: &Path) -> Result<HashSet<PathBuf>> {
@@ -1034,3 +383,4 @@ pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
         exit_code,
     })
 }
+

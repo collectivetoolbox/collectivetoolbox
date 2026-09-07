@@ -265,4 +265,20 @@ impl CscVerifyArgs {
     pub fn should_drop_caches(&self) -> bool {
         !self.no_drop_caches
     }
+
+    /// Converts this set of CLI verification flags into `EntityAuditOptions`.
+    #[must_use]
+    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+        ctb_io::file::verifier::EntityAuditOptions {
+            ignore_atime: self.should_ignore_atime(),
+            ignore_mtime: self.should_ignore_mtime(),
+            ignore_ctime: self.should_ignore_ctime(),
+            ignore_owner: self.should_ignore_owner(),
+            ignore_perms: self.should_ignore_perms(),
+            ignore_flags: self.should_ignore_flags(),
+            ignore_xattrs: self.should_ignore_xattrs(),
+            check_sparse: true,
+            drop_caches: self.should_drop_caches(),
+        }
+    }
 }

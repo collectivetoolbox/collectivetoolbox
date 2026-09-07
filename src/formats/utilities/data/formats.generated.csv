@@ -425,3 +425,5 @@ Import/export/tests support columns meaning:
 2228631,407,FreeBsd,FreeBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228632,408,OpenBsd,OpenBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228633,409,NetBsd,NetBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
+2228634,410,CscJournal,Collective Toolbox csc journal,database,,.cscjournal,,,,,,,,,,
+2228635,411,CscDesc,Collective Toolbox csc description,database,,.cscdesc,,,,,,,,,,

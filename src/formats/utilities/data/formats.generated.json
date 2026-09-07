@@ -8587,5 +8587,47 @@
     },
     "source_file": "os.csv",
     "line_number": 21
+  },
+  {
+    "dc_id": 2228634,
+    "short_id": 410,
+    "ident": "CscJournal",
+    "name": "Collective Toolbox csc journal",
+    "category": "format_database",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "extensions": ".cscjournal"
+    },
+    "source_file": "database.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 2228635,
+    "short_id": 411,
+    "ident": "CscDesc",
+    "name": "Collective Toolbox csc description",
+    "category": "format_database",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "extensions": ".cscdesc"
+    },
+    "source_file": "database.csv",
+    "line_number": 29
   }
 ]
