@@ -206,7 +206,7 @@ pub fn execute_copy_pipeline(
                 }
             }
         } else {
-            // Single file, symlink, or special node copy
+            // Reason for fallback: A single-component relative destination (e.g. "output.bin") has no parent path; falling back to current working directory "." correctly targets the local directory.
             let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
             let dest_dir = if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?

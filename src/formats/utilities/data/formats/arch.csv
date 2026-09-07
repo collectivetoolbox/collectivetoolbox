@@ -14,12 +14,12 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-,,x86,"x86 family, 32-bit",arch,,,,,,,,,,,,
-,,amd64,64-bit extension of x86,arch,x86,,,,,,,,,,,
-,,arm,ARM/Acorn,arch,,,,,,,,,,,,
-,,arm64,64-bit extension of ARM,arch,,,,,,,,,,,,
-,,i586,Pentium (i586),arch,x86,,,,,,,,,,,
-,,sse2,Streaming SIMD Extensions 2 support,arch,i586,,,,,,,,,,,
+2228608,384,x86,"x86 family, 32-bit",arch,,,,,,,,,,,,
+2228609,385,amd64,64-bit extension of x86,arch,x86,,,,,,,,,,,
+2228610,386,arm,ARM/Acorn,arch,,,,,,,,,,,,
+2228611,387,arm64,64-bit extension of ARM,arch,,,,,,,,,,,,
+2228612,388,i586,Pentium (i586),arch,x86,,,,,,,,,,,
+2228613,389,sse2,Streaming SIMD Extensions 2 support,arch,i586,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,

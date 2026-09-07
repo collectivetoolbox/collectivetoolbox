@@ -64,6 +64,7 @@ impl SandboxableDir {
     /// Opens an existing directory as a root handle.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
+        // Reason for fallback: If path canonicalization fails (e.g. in restricted environments), attempt direct opening with the verbatim path.
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let fd = open(
             &canonical,

@@ -129,6 +129,7 @@ pub fn verify_file_independent(
         identity: FileIdentity {
             origin: FileOrigin::Synthetic,
             relative_path: manifest.relative_path.clone(),
+            // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
             raw_filename: dest_path
                 .file_name()
                 .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),

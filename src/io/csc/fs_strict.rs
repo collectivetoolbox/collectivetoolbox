@@ -65,6 +65,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
             FileEntityKind::Regular { size, sha256, .. } => (*size, *sha256),
             _ => (0, [0_u8; 32]),
         };
+        // Reason for fallback: AttachedStream in-memory data payload is optional; an absent buffer represents an empty byte payload.
         let data = s.data.unwrap_or_default();
         streams.push((
             StreamInfo {

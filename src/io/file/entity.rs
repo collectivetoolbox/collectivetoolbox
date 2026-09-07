@@ -142,10 +142,12 @@ impl FileEntity {
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 
+        // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
         let filename_bytes = path
             .file_name()
             .map_or_else(Vec::new, |f| f.as_bytes().to_vec());
 
+        // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
         let relative_path = if let Some(base) = base_dir {
             match path.strip_prefix(base) {
                 Ok(rel) => rel.to_path_buf(),
@@ -155,6 +157,7 @@ impl FileEntity {
             path.file_name().map_or_else(PathBuf::new, PathBuf::from)
         };
 
+        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
 
         let identity = FileIdentity {

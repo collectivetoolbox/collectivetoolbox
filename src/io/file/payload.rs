@@ -257,8 +257,12 @@ impl Seek for MemoryPayloadSource {
 }
 
 impl PayloadSource for MemoryPayloadSource {
+    #[expect(
+        clippy::expect_used,
+        reason = "Infallible conversion: usize buffer length fits in u64 on supported 32-bit and 64-bit architectures"
+    )]
     fn total_size(&self) -> u64 {
-        u64::try_from(self.cursor.get_ref().len()).unwrap_or(0)
+        u64::try_from(self.cursor.get_ref().len()).expect("buffer len fits in u64")
     }
 
     fn extents(&self) -> &[Extent] {

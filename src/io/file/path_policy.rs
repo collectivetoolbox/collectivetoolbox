@@ -253,6 +253,7 @@ pub fn validate_symlink_target(
             let resolved = if target_path.is_absolute() {
                 target_path.to_path_buf()
             } else {
+                // Reason for fallback: A single-component relative symlink path (e.g. "link.txt") has no parent directory component; its parent directory is the destination root.
                 let parent = symlink_path.parent().unwrap_or(dest_root);
                 parent.join(target_path)
             };

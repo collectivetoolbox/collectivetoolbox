@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND Apache-2.0
+// SPDX-License-Identifier for parts derived from Swift System: Apache-2.0
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -195,7 +196,7 @@ pub fn query_file_flags(
 
         macro_rules! map_freebsd_flag {
             ($c_flag:expr, $variant:expr) => {
-                let mask = u32::try_from($c_flag).unwrap_or(0);
+                let mask: u32 = $c_flag;
                 if (raw_val & mask) != 0 {
                     flags.push($variant);
                     mapped_mask |= mask;
@@ -264,6 +265,7 @@ pub fn apply_file_flags(
         use std::fs::OpenOptions;
         use std::os::unix::fs::OpenOptionsExt;
 
+        // Reason for fallback: An absent raw platform flags record represents no raw flags to apply.
         if flags.is_empty() && raw.map_or(true, |r| r.raw_value == 0) {
             return Ok(());
         }
@@ -357,44 +359,44 @@ pub fn apply_file_flags(
         if target_mask == 0 {
             for flag in flags {
                 match flag {
-                    FileFlag::NoDump => target_mask |= u32::try_from(libc::UF_NODUMP).unwrap_or(0),
+                    FileFlag::NoDump => target_mask |= libc::UF_NODUMP,
                     FileFlag::UserImmutable => {
-                        target_mask |= u32::try_from(libc::UF_IMMUTABLE).unwrap_or(0);
+                        target_mask |= libc::UF_IMMUTABLE;
                     }
                     FileFlag::UserAppend => {
-                        target_mask |= u32::try_from(libc::UF_APPEND).unwrap_or(0);
+                        target_mask |= libc::UF_APPEND;
                     }
                     FileFlag::Opaque => {
-                        target_mask |= u32::try_from(libc::UF_OPAQUE).unwrap_or(0);
+                        target_mask |= libc::UF_OPAQUE;
                     }
                     FileFlag::Archived => {
-                        target_mask |= u32::try_from(libc::SF_ARCHIVED).unwrap_or(0);
+                        target_mask |= libc::SF_ARCHIVED;
                     }
                     FileFlag::SystemImmutable => {
-                        target_mask |= u32::try_from(libc::SF_IMMUTABLE).unwrap_or(0);
+                        target_mask |= libc::SF_IMMUTABLE;
                     }
                     FileFlag::SystemAppend => {
-                        target_mask |= u32::try_from(libc::SF_APPEND).unwrap_or(0);
+                        target_mask |= libc::SF_APPEND;
                     }
                     #[cfg(target_vendor = "apple")]
                     FileFlag::Compressed => {
-                        target_mask |= u32::try_from(libc::UF_COMPRESSED).unwrap_or(0);
+                        target_mask |= libc::UF_COMPRESSED;
                     }
                     #[cfg(target_vendor = "apple")]
                     FileFlag::Tracked => {
-                        target_mask |= u32::try_from(libc::UF_TRACKED).unwrap_or(0);
+                        target_mask |= libc::UF_TRACKED;
                     }
                     #[cfg(any(target_vendor = "apple", target_os = "freebsd"))]
                     FileFlag::Hidden => {
-                        target_mask |= u32::try_from(libc::UF_HIDDEN).unwrap_or(0);
+                        target_mask |= libc::UF_HIDDEN;
                     }
                     #[cfg(target_os = "freebsd")]
                     FileFlag::UserNoUnlink => {
-                        target_mask |= u32::try_from(libc::UF_NOUNLINK).unwrap_or(0);
+                        target_mask |= libc::UF_NOUNLINK;
                     }
                     #[cfg(target_os = "freebsd")]
                     FileFlag::SystemNoUnlink => {
-                        target_mask |= u32::try_from(libc::SF_NOUNLINK).unwrap_or(0);
+                        target_mask |= libc::SF_NOUNLINK;
                     }
                     other => {
                         if strict_lossless {

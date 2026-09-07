@@ -153,6 +153,7 @@ pub fn apply_entity_metadata(
     }
 
     // 3. Timestamps
+    // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
     let is_special = dest_meta
         .as_ref()
         .map_or(false, |m| !m.is_file() && !m.is_dir());
