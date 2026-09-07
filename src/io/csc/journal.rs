@@ -26,404 +26,40 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_formats_checksum::{Sha256Stream, xxhash};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{FileIdentity, FileOrigin};
+use ctb_io::file::identity::{FileIdentity, FileOrigin, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const JOURNAL_MAGIC: &[u8; 8] = b"CTBCSC02";
+const JOURNAL_MAGIC: &[u8; 8] = b"CTBCSCJ\x01";
 
 const TAG_SESSION_HEADER: u8 = 1;
-const TAG_DIR: u8 = 2;
-const TAG_FILE: u8 = 3;
-const TAG_SYMLINK: u8 = 4;
-const _TAG_SPECIAL: u8 = 5;
-const TAG_HARDLINK: u8 = 6;
-const TAG_BATCH_COMMIT: u8 = 7;
-const TAG_JOB_COMPLETED: u8 = 8;
+const TAG_ENTITY: u8 = 2;
+const TAG_BATCH_COMMIT: u8 = 3;
+const TAG_JOB_COMPLETED: u8 = 4;
 
-/// Manifest information for a committed regular file.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManifestFile {
-    pub relative_path: PathBuf,
-    pub size: u64,
-    pub sha256: [u8; 32],
-    pub mode: u32,
-    pub uid: u32,
-    pub gid: u32,
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
-    pub atime_sec: i64,
-    pub atime_nsec: u32,
-    pub ctime_sec: i64,
-    pub ctime_nsec: u32,
-    pub birthtime_sec: Option<i64>,
-    pub birthtime_nsec: Option<u32>,
-    pub flags: Vec<FileFlag>,
-    pub is_sparse: bool,
-    pub streams: Vec<(OsString, [u8; 32])>,
-}
+pub const PLATFORM_LINUX: u8 = 1;
+pub const PLATFORM_MACOS: u8 = 2;
+pub const PLATFORM_WINDOWS: u8 = 3;
+pub const PLATFORM_OTHER: u8 = 4;
 
-/// Manifest information for a committed directory.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManifestDir {
-    pub relative_path: PathBuf,
-    pub mode: u32,
-    pub uid: u32,
-    pub gid: u32,
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
-    pub atime_sec: i64,
-    pub atime_nsec: u32,
-    pub ctime_sec: i64,
-    pub ctime_nsec: u32,
-    pub birthtime_sec: Option<i64>,
-    pub birthtime_nsec: Option<u32>,
-    pub flags: Vec<FileFlag>,
-    pub streams: Vec<(OsString, [u8; 32])>,
-}
-
-/// Manifest information for a committed symlink.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManifestSymlink {
-    pub relative_path: PathBuf,
-    pub target: Vec<u8>,
-    pub uid: u32,
-    pub gid: u32,
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
-    pub atime_sec: i64,
-    pub atime_nsec: u32,
-    pub ctime_sec: i64,
-    pub ctime_nsec: u32,
-    pub birthtime_sec: Option<i64>,
-    pub birthtime_nsec: Option<u32>,
-    pub flags: Vec<FileFlag>,
-}
-
-impl ManifestFile {
-    /// Constructs a `ManifestFile` from a `FileEntity`.
-    #[must_use]
-    pub fn from_entity(entity: &FileEntity) -> Option<Self> {
-        match &entity.kind {
-            FileEntityKind::Regular {
-                size,
-                sha256,
-                is_sparse,
-                ..
-            } => {
-                let streams = entity
-                    .streams
-                    .iter()
-                    .map(|s| {
-                        let hash = match &s.entity.kind {
-                            FileEntityKind::Regular { sha256, .. } => *sha256,
-                            _ => [0_u8; 32],
-                        };
-                        (OsString::from_vec(s.name.0.clone()), hash)
-                    })
-                    .collect();
-                Some(Self {
-                    relative_path: entity.identity.relative_path.clone(),
-                    size: *size,
-                    sha256: *sha256,
-                    mode: entity.metadata.mode,
-                    uid: entity.metadata.uid,
-                    gid: entity.metadata.gid,
-                    mtime_sec: entity.metadata.timestamps.mtime_sec,
-                    mtime_nsec: entity.metadata.timestamps.mtime_nsec,
-                    atime_sec: entity.metadata.timestamps.atime_sec,
-                    atime_nsec: entity.metadata.timestamps.atime_nsec,
-                    ctime_sec: entity.metadata.timestamps.ctime_sec,
-                    ctime_nsec: entity.metadata.timestamps.ctime_nsec,
-                    birthtime_sec: entity.metadata.timestamps.birthtime_sec,
-                    birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
-                    flags: entity.metadata.flags.clone(),
-                    is_sparse: *is_sparse,
-                    streams,
-                })
-            }
-            _ => None,
-        }
-    }
-
-    /// Converts this `ManifestFile` into a `FileEntity` suitable for auditing.
-    #[must_use]
-    pub fn to_entity(&self) -> FileEntity {
-        let mut streams = Vec::with_capacity(self.streams.len());
-        for (name, sha256) in &self.streams {
-            let name_bytes = name.as_encoded_bytes().to_vec();
-            let s_name = StreamName(name_bytes.clone());
-            let kind = StreamKind::infer_from_name(&name_bytes);
-            let s_entity = FileEntity {
-                identity: FileIdentity {
-                    origin: FileOrigin::Synthetic,
-                    relative_path: PathBuf::from(name),
-                    raw_filename: name_bytes,
-                    nlink: 1,
-                    hardlink_group: None,
-                },
-                metadata: FileMetadata {
-                    mode: 0o644,
-                    uid: 0,
-                    gid: 0,
-                    timestamps: FileTimestamps {
-                        atime_sec: 0,
-                        atime_nsec: 0,
-                        mtime_sec: 0,
-                        mtime_nsec: 0,
-                        ctime_sec: 0,
-                        ctime_nsec: 0,
-                        birthtime_sec: None,
-                        birthtime_nsec: None,
-                    },
-                    flags: Vec::new(),
-                    platform_raw_flags: None,
-                },
-                kind: FileEntityKind::Regular {
-                    size: 0,
-                    sha256: *sha256,
-                    is_sparse: false,
-                    extents: Vec::new(),
-                },
-                streams: Vec::new(),
-            };
-
-            streams.push(AttachedStream {
-                name: s_name,
-                kind,
-                entity: Box::new(s_entity),
-                data: None,
-            });
-        }
-
-        FileEntity {
-            identity: FileIdentity {
-                origin: FileOrigin::Synthetic,
-                relative_path: self.relative_path.clone(),
-                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
-                raw_filename: self
-                    .relative_path
-                    .file_name()
-                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
-                nlink: 1,
-                hardlink_group: None,
-            },
-            metadata: FileMetadata {
-                mode: self.mode,
-                uid: self.uid,
-                gid: self.gid,
-                timestamps: FileTimestamps {
-                    atime_sec: self.atime_sec,
-                    atime_nsec: self.atime_nsec,
-                    mtime_sec: self.mtime_sec,
-                    mtime_nsec: self.mtime_nsec,
-                    ctime_sec: self.ctime_sec,
-                    ctime_nsec: self.ctime_nsec,
-                    birthtime_sec: self.birthtime_sec,
-                    birthtime_nsec: self.birthtime_nsec,
-                },
-                flags: self.flags.clone(),
-                platform_raw_flags: None,
-            },
-            kind: FileEntityKind::Regular {
-                size: self.size,
-                sha256: self.sha256,
-                is_sparse: self.is_sparse,
-                extents: Vec::new(),
-            },
-            streams,
-        }
-    }
-}
-
-impl ManifestDir {
-    /// Constructs a `ManifestDir` from a `FileEntity`.
-    #[must_use]
-    pub fn from_entity(entity: &FileEntity) -> Self {
-        let streams = entity
-            .streams
-            .iter()
-            .map(|s| {
-                let hash = match &s.entity.kind {
-                    FileEntityKind::Regular { sha256, .. } => *sha256,
-                    _ => [0_u8; 32],
-                };
-                (OsString::from_vec(s.name.0.clone()), hash)
-            })
-            .collect();
-        Self {
-            relative_path: entity.identity.relative_path.clone(),
-            mode: entity.metadata.mode,
-            uid: entity.metadata.uid,
-            gid: entity.metadata.gid,
-            mtime_sec: entity.metadata.timestamps.mtime_sec,
-            mtime_nsec: entity.metadata.timestamps.mtime_nsec,
-            atime_sec: entity.metadata.timestamps.atime_sec,
-            atime_nsec: entity.metadata.timestamps.atime_nsec,
-            ctime_sec: entity.metadata.timestamps.ctime_sec,
-            ctime_nsec: entity.metadata.timestamps.ctime_nsec,
-            birthtime_sec: entity.metadata.timestamps.birthtime_sec,
-            birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
-            flags: entity.metadata.flags.clone(),
-            streams,
-        }
-    }
-
-    /// Converts this `ManifestDir` into a `FileEntity` suitable for auditing.
-    #[must_use]
-    pub fn to_entity(&self) -> FileEntity {
-        let mut streams = Vec::with_capacity(self.streams.len());
-        for (name, sha256) in &self.streams {
-            let name_bytes = name.as_encoded_bytes().to_vec();
-            let s_name = StreamName(name_bytes.clone());
-            let kind = StreamKind::infer_from_name(&name_bytes);
-            let s_entity = FileEntity {
-                identity: FileIdentity {
-                    origin: FileOrigin::Synthetic,
-                    relative_path: PathBuf::from(name),
-                    raw_filename: name_bytes,
-                    nlink: 1,
-                    hardlink_group: None,
-                },
-                metadata: FileMetadata {
-                    mode: 0o644,
-                    uid: 0,
-                    gid: 0,
-                    timestamps: FileTimestamps {
-                        atime_sec: 0,
-                        atime_nsec: 0,
-                        mtime_sec: 0,
-                        mtime_nsec: 0,
-                        ctime_sec: 0,
-                        ctime_nsec: 0,
-                        birthtime_sec: None,
-                        birthtime_nsec: None,
-                    },
-                    flags: Vec::new(),
-                    platform_raw_flags: None,
-                },
-                kind: FileEntityKind::Regular {
-                    size: 0,
-                    sha256: *sha256,
-                    is_sparse: false,
-                    extents: Vec::new(),
-                },
-                streams: Vec::new(),
-            };
-
-            streams.push(AttachedStream {
-                name: s_name,
-                kind,
-                entity: Box::new(s_entity),
-                data: None,
-            });
-        }
-
-        FileEntity {
-            identity: FileIdentity {
-                origin: FileOrigin::Synthetic,
-                relative_path: self.relative_path.clone(),
-                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
-                raw_filename: self
-                    .relative_path
-                    .file_name()
-                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
-                nlink: 1,
-                hardlink_group: None,
-            },
-            metadata: FileMetadata {
-                mode: self.mode,
-                uid: self.uid,
-                gid: self.gid,
-                timestamps: FileTimestamps {
-                    atime_sec: self.atime_sec,
-                    atime_nsec: self.atime_nsec,
-                    mtime_sec: self.mtime_sec,
-                    mtime_nsec: self.mtime_nsec,
-                    ctime_sec: self.ctime_sec,
-                    ctime_nsec: self.ctime_nsec,
-                    birthtime_sec: self.birthtime_sec,
-                    birthtime_nsec: self.birthtime_nsec,
-                },
-                flags: self.flags.clone(),
-                platform_raw_flags: None,
-            },
-            kind: FileEntityKind::Directory,
-            streams,
-        }
-    }
-}
-
-impl ManifestSymlink {
-    /// Constructs a `ManifestSymlink` from a `FileEntity`.
-    #[must_use]
-    pub fn from_entity(entity: &FileEntity) -> Option<Self> {
-        match &entity.kind {
-            FileEntityKind::Symlink { target } => Some(Self {
-                relative_path: entity.identity.relative_path.clone(),
-                target: target.clone(),
-                uid: entity.metadata.uid,
-                gid: entity.metadata.gid,
-                mtime_sec: entity.metadata.timestamps.mtime_sec,
-                mtime_nsec: entity.metadata.timestamps.mtime_nsec,
-                atime_sec: entity.metadata.timestamps.atime_sec,
-                atime_nsec: entity.metadata.timestamps.atime_nsec,
-                ctime_sec: entity.metadata.timestamps.ctime_sec,
-                ctime_nsec: entity.metadata.timestamps.ctime_nsec,
-                birthtime_sec: entity.metadata.timestamps.birthtime_sec,
-                birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
-                flags: entity.metadata.flags.clone(),
-            }),
-            _ => None,
-        }
-    }
-
-    /// Converts this `ManifestSymlink` into a `FileEntity` suitable for auditing.
-    #[must_use]
-    pub fn to_entity(&self) -> FileEntity {
-        FileEntity {
-            identity: FileIdentity {
-                origin: FileOrigin::Synthetic,
-                relative_path: self.relative_path.clone(),
-                // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
-                raw_filename: self
-                    .relative_path
-                    .file_name()
-                    .map_or_else(Vec::new, |n| n.as_encoded_bytes().to_vec()),
-                nlink: 1,
-                hardlink_group: None,
-            },
-            metadata: FileMetadata {
-                mode: 0o777,
-                uid: self.uid,
-                gid: self.gid,
-                timestamps: FileTimestamps {
-                    atime_sec: self.atime_sec,
-                    atime_nsec: self.atime_nsec,
-                    mtime_sec: self.mtime_sec,
-                    mtime_nsec: self.mtime_nsec,
-                    ctime_sec: self.ctime_sec,
-                    ctime_nsec: self.ctime_nsec,
-                    birthtime_sec: self.birthtime_sec,
-                    birthtime_nsec: self.birthtime_nsec,
-                },
-                flags: self.flags.clone(),
-                platform_raw_flags: None,
-            },
-            kind: FileEntityKind::Symlink {
-                target: self.target.clone(),
-            },
-            streams: Vec::new(),
-        }
+#[must_use]
+pub fn current_platform() -> u8 {
+    if cfg!(target_os = "linux") {
+        PLATFORM_LINUX
+    } else if cfg!(target_os = "macos") {
+        PLATFORM_MACOS
+    } else if cfg!(target_os = "windows") {
+        PLATFORM_WINDOWS
+    } else {
+        PLATFORM_OTHER
     }
 }
 
@@ -432,12 +68,18 @@ impl ManifestSymlink {
 pub struct JournalSnapshot {
     pub sources: Vec<PathBuf>,
     pub destination: PathBuf,
-    pub committed_files: HashMap<PathBuf, ManifestFile>,
-    pub committed_dirs: HashMap<PathBuf, ManifestDir>,
-    pub committed_symlinks: HashMap<PathBuf, ManifestSymlink>,
-    pub committed_hardlinks: HashMap<PathBuf, PathBuf>,
+    pub origin_platform: u8,
+    pub committed_entities: HashMap<Vec<u8>, FileEntity>,
     pub is_completed: bool,
     pub last_batch_id: u64,
+}
+
+impl JournalSnapshot {
+    /// Returns true if the relative path (in raw bytes) has been committed.
+    #[must_use]
+    pub fn is_committed(&self, rel_bytes: &[u8]) -> bool {
+        self.committed_entities.contains_key(rel_bytes)
+    }
 }
 
 /// Writer managing the persistent state journal and its companion `.cscdesc` file.
@@ -448,10 +90,7 @@ pub struct JournalWriter {
     sources: Vec<PathBuf>,
     destination: PathBuf,
     current_batch_id: u64,
-    uncommitted_files: Vec<ManifestFile>,
-    uncommitted_dirs: Vec<ManifestDir>,
-    uncommitted_symlinks: Vec<ManifestSymlink>,
-    uncommitted_hardlinks: Vec<(PathBuf, PathBuf)>,
+    uncommitted_entities: Vec<FileEntity>,
     total_committed_files: u64,
     total_committed_bytes: u64,
 }
@@ -497,10 +136,7 @@ impl JournalWriter {
             sources: sources.to_vec(),
             destination: destination.to_path_buf(),
             current_batch_id: 0,
-            uncommitted_files: Vec::new(),
-            uncommitted_dirs: Vec::new(),
-            uncommitted_symlinks: Vec::new(),
-            uncommitted_hardlinks: Vec::new(),
+            uncommitted_entities: Vec::new(),
             total_committed_files: 0,
             total_committed_bytes: 0,
         };
@@ -524,8 +160,12 @@ impl JournalWriter {
             })?;
 
         let mut total_bytes = 0_u64;
-        for f in snapshot.committed_files.values() {
-            total_bytes = total_bytes.saturating_add(f.size);
+        let mut total_files = 0_u64;
+        for e in snapshot.committed_entities.values() {
+            if let FileEntityKind::Regular { size, .. } = e.kind {
+                total_bytes = total_bytes.saturating_add(size);
+                total_files = total_files.saturating_add(1);
+            }
         }
 
         let writer = BufWriter::new(file);
@@ -536,17 +176,15 @@ impl JournalWriter {
             sources: snapshot.sources.clone(),
             destination: snapshot.destination.clone(),
             current_batch_id: snapshot.last_batch_id,
-            uncommitted_files: Vec::new(),
-            uncommitted_dirs: Vec::new(),
-            uncommitted_symlinks: Vec::new(),
-            uncommitted_hardlinks: Vec::new(),
-            total_committed_files: u64::try_from(snapshot.committed_files.len())?,
+            uncommitted_entities: Vec::new(),
+            total_committed_files: total_files,
             total_committed_bytes: total_bytes,
         })
     }
 
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
         self.writer.write_all(&[TAG_SESSION_HEADER])?;
+        self.writer.write_all(&[current_platform()])?;
         write_u32(&mut self.writer, u32::try_from(sources.len())?)?;
         for src in sources {
             write_bytes(&mut self.writer, src.as_os_str().as_encoded_bytes())?;
@@ -556,157 +194,50 @@ impl JournalWriter {
         Ok(())
     }
 
-    pub fn record_file(&mut self, file: ManifestFile) {
-        self.uncommitted_files.push(file);
-    }
-
-    pub fn record_dir(&mut self, dir: ManifestDir) {
-        self.uncommitted_dirs.push(dir);
-    }
-
-    pub fn record_symlink(&mut self, symlink: ManifestSymlink) {
-        self.uncommitted_symlinks.push(symlink);
-    }
-
-    pub fn record_hardlink(&mut self, source_rel: PathBuf, target_rel: PathBuf) {
-        self.uncommitted_hardlinks.push((source_rel, target_rel));
-    }
-
-    /// Records any `FileEntity` by dispatching to the appropriate manifest recorder.
+    /// Queues a `FileEntity` for transactional commit.
     pub fn record_entity(&mut self, entity: &FileEntity) {
-        match &entity.kind {
-            FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
-                self.record_dir(ManifestDir::from_entity(entity));
-            }
-            FileEntityKind::Regular { .. } => {
-                if let Some(mf) = ManifestFile::from_entity(entity) {
-                    self.record_file(mf);
-                }
-            }
-            FileEntityKind::Symlink { .. } => {
-                if let Some(ms) = ManifestSymlink::from_entity(entity) {
-                    self.record_symlink(ms);
-                }
-            }
-            FileEntityKind::Hardlink {
-                target_relative_path,
-            } => {
-                self.record_hardlink(
-                    entity.identity.relative_path.clone(),
-                    target_relative_path.clone(),
-                );
-            }
-            _ => {}
-        }
+        self.uncommitted_entities.push(entity.clone());
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.
     pub fn commit_batch(&mut self) -> Result<()> {
-        if self.uncommitted_files.is_empty()
-            && self.uncommitted_dirs.is_empty()
-            && self.uncommitted_symlinks.is_empty()
-            && self.uncommitted_hardlinks.is_empty()
-        {
+        if self.uncommitted_entities.is_empty() {
             return Ok(());
         }
 
-        // 1. Write directory entries
-        for d in &self.uncommitted_dirs {
-            self.writer.write_all(&[TAG_DIR])?;
-            write_bytes(&mut self.writer, d.relative_path.as_os_str().as_encoded_bytes())?;
-            write_u32(&mut self.writer, d.mode)?;
-            write_u32(&mut self.writer, d.uid)?;
-            write_u32(&mut self.writer, d.gid)?;
-            write_i64(&mut self.writer, d.mtime_sec)?;
-            write_u32(&mut self.writer, d.mtime_nsec)?;
-            write_i64(&mut self.writer, d.atime_sec)?;
-            write_u32(&mut self.writer, d.atime_nsec)?;
-            write_i64(&mut self.writer, d.ctime_sec)?;
-            write_u32(&mut self.writer, d.ctime_nsec)?;
-            write_opt_timestamp(&mut self.writer, d.birthtime_sec, d.birthtime_nsec)?;
-            write_u32(&mut self.writer, u32::try_from(d.flags.len())?)?;
-            for flag in &d.flags {
-                write_flag(&mut self.writer, *flag)?;
-            }
-            write_u32(&mut self.writer, u32::try_from(d.streams.len())?)?;
-            for (sname, shash) in &d.streams {
-                write_bytes(&mut self.writer, sname.as_encoded_bytes())?;
-                self.writer.write_all(shash)?;
+        let mut batch_hasher = Sha256Stream::new();
+
+        for entity in &self.uncommitted_entities {
+            let mut payload = Vec::new();
+            write_entity_payload(&mut payload, entity)?;
+            let payload_len = u32::try_from(payload.len())?;
+            let checksum = xxhash::xxh3_64(&payload);
+
+            batch_hasher.update(&payload);
+
+            self.writer.write_all(&[TAG_ENTITY])?;
+            write_u32(&mut self.writer, payload_len)?;
+            write_u64(&mut self.writer, checksum)?;
+            self.writer.write_all(&payload)?;
+
+            if let FileEntityKind::Regular { size, .. } = entity.kind {
+                self.total_committed_files = self.total_committed_files.saturating_add(1);
+                self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
             }
         }
 
-        // 2. Write file entries
-        for f in &self.uncommitted_files {
-            self.writer.write_all(&[TAG_FILE])?;
-            write_bytes(&mut self.writer, f.relative_path.as_os_str().as_encoded_bytes())?;
-            write_u64(&mut self.writer, f.size)?;
-            self.writer.write_all(&f.sha256)?;
-            write_u32(&mut self.writer, f.mode)?;
-            write_u32(&mut self.writer, f.uid)?;
-            write_u32(&mut self.writer, f.gid)?;
-            write_i64(&mut self.writer, f.mtime_sec)?;
-            write_u32(&mut self.writer, f.mtime_nsec)?;
-            write_i64(&mut self.writer, f.atime_sec)?;
-            write_u32(&mut self.writer, f.atime_nsec)?;
-            write_i64(&mut self.writer, f.ctime_sec)?;
-            write_u32(&mut self.writer, f.ctime_nsec)?;
-            write_opt_timestamp(&mut self.writer, f.birthtime_sec, f.birthtime_nsec)?;
-            write_u32(&mut self.writer, u32::try_from(f.flags.len())?)?;
-            for flag in &f.flags {
-                write_flag(&mut self.writer, *flag)?;
-            }
-            self.writer.write_all(&[u8::from(f.is_sparse)])?;
-            write_u32(&mut self.writer, u32::try_from(f.streams.len())?)?;
-            for (sname, shash) in &f.streams {
-                write_bytes(&mut self.writer, sname.as_encoded_bytes())?;
-                self.writer.write_all(shash)?;
-            }
-
-            self.total_committed_files = self.total_committed_files.saturating_add(1);
-            self.total_committed_bytes = self.total_committed_bytes.saturating_add(f.size);
-        }
-
-        // 3. Write symlink entries
-        for s in &self.uncommitted_symlinks {
-            self.writer.write_all(&[TAG_SYMLINK])?;
-            write_bytes(&mut self.writer, s.relative_path.as_os_str().as_encoded_bytes())?;
-            write_bytes(&mut self.writer, &s.target)?;
-            write_u32(&mut self.writer, s.uid)?;
-            write_u32(&mut self.writer, s.gid)?;
-            write_i64(&mut self.writer, s.mtime_sec)?;
-            write_u32(&mut self.writer, s.mtime_nsec)?;
-            write_i64(&mut self.writer, s.atime_sec)?;
-            write_u32(&mut self.writer, s.atime_nsec)?;
-            write_i64(&mut self.writer, s.ctime_sec)?;
-            write_u32(&mut self.writer, s.ctime_nsec)?;
-            write_opt_timestamp(&mut self.writer, s.birthtime_sec, s.birthtime_nsec)?;
-            write_u32(&mut self.writer, u32::try_from(s.flags.len())?)?;
-            for flag in &s.flags {
-                write_flag(&mut self.writer, *flag)?;
-            }
-        }
-
-        // 4. Write hardlink entries
-        for (src_rel, tgt_rel) in &self.uncommitted_hardlinks {
-            self.writer.write_all(&[TAG_HARDLINK])?;
-            write_bytes(&mut self.writer, src_rel.as_os_str().as_encoded_bytes())?;
-            write_bytes(&mut self.writer, tgt_rel.as_os_str().as_encoded_bytes())?;
-        }
-
-        // 5. Write BATCH_COMMIT record
+        // Write BATCH_COMMIT record with batch SHA-256 hash
         self.current_batch_id = self.current_batch_id.saturating_add(1);
         self.writer.write_all(&[TAG_BATCH_COMMIT])?;
         write_u64(&mut self.writer, self.current_batch_id)?;
+        let batch_sha256 = batch_hasher.finalize();
+        self.writer.write_all(&batch_sha256)?;
 
-        // 6. Flush buffer and fsync journal
+        // Flush buffer and fsync journal
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
 
-        self.uncommitted_files.clear();
-        self.uncommitted_dirs.clear();
-        self.uncommitted_symlinks.clear();
-        self.uncommitted_hardlinks.clear();
-
+        self.uncommitted_entities.clear();
         self.update_desc_file("InProgress")?;
         Ok(())
     }
@@ -767,7 +298,6 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
             let p = entry.path();
             if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
                 if let Ok(meta) = p.metadata() {
-                    // Reason for fallback: If filesystem metadata modified time cannot be determined, default to UNIX_EPOCH.
                     let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
                     candidates.push((mtime, p));
                 }
@@ -803,18 +333,11 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
     let mut sources = Vec::new();
     let mut destination = PathBuf::new();
+    let mut origin_platform = 0_u8;
 
-    // Committed maps (persisted across batch commits)
-    let mut committed_files = HashMap::new();
-    let mut committed_dirs = HashMap::new();
-    let mut committed_symlinks = HashMap::new();
-    let mut committed_hardlinks = HashMap::new();
-
-    // In-flight batch buffers (discarded if not followed by TAG_BATCH_COMMIT)
-    let mut pending_files = HashMap::new();
-    let mut pending_dirs = HashMap::new();
-    let mut pending_symlinks = HashMap::new();
-    let mut pending_hardlinks = HashMap::new();
+    let mut committed_entities = HashMap::new();
+    let mut pending_entities = HashMap::new();
+    let mut batch_hasher = Sha256Stream::new();
 
     let mut last_batch_id = 0_u64;
     let mut is_completed = false;
@@ -823,181 +346,88 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     while reader.read_exact(&mut tag_buf).is_ok() {
         match tag_buf[0] {
             TAG_SESSION_HEADER => {
-                let src_count = read_u32(&mut reader)?;
+                let Ok(plat) = read_u8(&mut reader) else {
+                    break;
+                };
+                origin_platform = plat;
+
+                let Ok(src_count) = read_u32(&mut reader) else {
+                    break;
+                };
+                let mut valid_sources = true;
                 for _ in 0..src_count {
-                    let bytes = read_bytes(&mut reader)?;
-                    sources.push(PathBuf::from(std::ffi::OsString::from_vec(bytes)));
-                }
-                let dest_bytes = read_bytes(&mut reader)?;
-                destination = PathBuf::from(std::ffi::OsString::from_vec(dest_bytes));
-            }
-            TAG_DIR => {
-                let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
-                let mode = read_u32(&mut reader)?;
-                let uid = read_u32(&mut reader)?;
-                let gid = read_u32(&mut reader)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
-                let atime_sec = read_i64(&mut reader)?;
-                let atime_nsec = read_u32(&mut reader)?;
-                let ctime_sec = read_i64(&mut reader)?;
-                let ctime_nsec = read_u32(&mut reader)?;
-                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
-                let flag_count = read_u32(&mut reader)?;
-                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
-                for _ in 0..flag_count {
-                    if let Some(flag) = read_flag(&mut reader)? {
-                        flags.push(flag);
+                    if let Ok(bytes) = read_bytes(&mut reader) {
+                        let is_windows = origin_platform == PLATFORM_WINDOWS;
+                        let src_path = resolve_relative_path_for_os(&bytes, is_windows)
+                            .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&bytes).as_ref()));
+                        sources.push(src_path);
+                    } else {
+                        valid_sources = false;
+                        break;
                     }
                 }
-                let stream_count = read_u32(&mut reader)?;
-                let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
-                for _ in 0..stream_count {
-                    let sname_bytes = read_bytes(&mut reader)?;
-                    let sname = OsString::from_vec(sname_bytes);
-                    let mut shash = [0_u8; 32];
-                    reader.read_exact(&mut shash)?;
-                    streams.push((sname, shash));
+                if !valid_sources {
+                    break;
                 }
-                pending_dirs.insert(
-                    rel_path.clone(),
-                    ManifestDir {
-                        relative_path: rel_path,
-                        mode,
-                        uid,
-                        gid,
-                        mtime_sec,
-                        mtime_nsec,
-                        atime_sec,
-                        atime_nsec,
-                        ctime_sec,
-                        ctime_nsec,
-                        birthtime_sec,
-                        birthtime_nsec,
-                        flags,
-                        streams,
-                    },
-                );
+                let Ok(dest_bytes) = read_bytes(&mut reader) else {
+                    break;
+                };
+                let is_windows = origin_platform == PLATFORM_WINDOWS;
+                destination = resolve_relative_path_for_os(&dest_bytes, is_windows)
+                    .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&dest_bytes).as_ref()));
             }
-            TAG_FILE => {
-                let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
-                let size = read_u64(&mut reader)?;
-                let mut sha256 = [0_u8; 32];
-                reader.read_exact(&mut sha256)?;
-                let mode = read_u32(&mut reader)?;
-                let uid = read_u32(&mut reader)?;
-                let gid = read_u32(&mut reader)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
-                let atime_sec = read_i64(&mut reader)?;
-                let atime_nsec = read_u32(&mut reader)?;
-                let ctime_sec = read_i64(&mut reader)?;
-                let ctime_nsec = read_u32(&mut reader)?;
-                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
-                let flag_count = read_u32(&mut reader)?;
-                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
-                for _ in 0..flag_count {
-                    if let Some(flag) = read_flag(&mut reader)? {
-                        flags.push(flag);
+            TAG_ENTITY => {
+                let Ok(payload_len) = read_u32(&mut reader) else {
+                    break;
+                };
+                let Ok(expected_checksum) = read_u64(&mut reader) else {
+                    break;
+                };
+                let Ok(payload_len_usize) = usize::try_from(payload_len) else {
+                    break;
+                };
+                let mut payload = vec![0_u8; payload_len_usize];
+                if reader.read_exact(&mut payload).is_err() {
+                    break;
+                }
+                let actual_checksum = xxhash::xxh3_64(&payload);
+                if actual_checksum != expected_checksum {
+                    break;
+                }
+
+                batch_hasher.update(&payload);
+
+                match read_entity_payload(&payload[..], origin_platform) {
+                    Ok(entity) => {
+                        let path_key = entity.identity.path_bytes().to_vec();
+                        pending_entities.insert(path_key, entity);
+                    }
+                    Err(_) => {
+                        break;
                     }
                 }
-                let mut sparse_byte = [0_u8; 1];
-                reader.read_exact(&mut sparse_byte)?;
-                let is_sparse = sparse_byte[0] != 0;
-                let stream_count = read_u32(&mut reader)?;
-                let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
-                for _ in 0..stream_count {
-                    let sname_bytes = read_bytes(&mut reader)?;
-                    let sname = OsString::from_vec(sname_bytes);
-                    let mut shash = [0_u8; 32];
-                    reader.read_exact(&mut shash)?;
-                    streams.push((sname, shash));
-                }
-                pending_files.insert(
-                    rel_path.clone(),
-                    ManifestFile {
-                        relative_path: rel_path,
-                        size,
-                        sha256,
-                        mode,
-                        uid,
-                        gid,
-                        mtime_sec,
-                        mtime_nsec,
-                        atime_sec,
-                        atime_nsec,
-                        ctime_sec,
-                        ctime_nsec,
-                        birthtime_sec,
-                        birthtime_nsec,
-                        flags,
-                        is_sparse,
-                        streams,
-                    },
-                );
-            }
-            TAG_SYMLINK => {
-                let rel_bytes = read_bytes(&mut reader)?;
-                let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
-                let target = read_bytes(&mut reader)?;
-                let uid = read_u32(&mut reader)?;
-                let gid = read_u32(&mut reader)?;
-                let mtime_sec = read_i64(&mut reader)?;
-                let mtime_nsec = read_u32(&mut reader)?;
-                let atime_sec = read_i64(&mut reader)?;
-                let atime_nsec = read_u32(&mut reader)?;
-                let ctime_sec = read_i64(&mut reader)?;
-                let ctime_nsec = read_u32(&mut reader)?;
-                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
-                let flag_count = read_u32(&mut reader)?;
-                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
-                for _ in 0..flag_count {
-                    if let Some(flag) = read_flag(&mut reader)? {
-                        flags.push(flag);
-                    }
-                }
-                pending_symlinks.insert(
-                    rel_path.clone(),
-                    ManifestSymlink {
-                        relative_path: rel_path,
-                        target,
-                        uid,
-                        gid,
-                        mtime_sec,
-                        mtime_nsec,
-                        atime_sec,
-                        atime_nsec,
-                        ctime_sec,
-                        ctime_nsec,
-                        birthtime_sec,
-                        birthtime_nsec,
-                        flags,
-                    },
-                );
-            }
-            TAG_HARDLINK => {
-                let src_bytes = read_bytes(&mut reader)?;
-                let tgt_bytes = read_bytes(&mut reader)?;
-                let src_rel = PathBuf::from(std::ffi::OsString::from_vec(src_bytes));
-                let tgt_rel = PathBuf::from(std::ffi::OsString::from_vec(tgt_bytes));
-                pending_hardlinks.insert(src_rel, tgt_rel);
             }
             TAG_BATCH_COMMIT => {
-                let batch_id = read_u64(&mut reader)?;
+                let Ok(batch_id) = read_u64(&mut reader) else {
+                    break;
+                };
+                let mut expected_batch_hash = [0_u8; 32];
+                if reader.read_exact(&mut expected_batch_hash).is_err() {
+                    break;
+                }
+                let actual_batch_hash = batch_hasher.finalize();
+                if actual_batch_hash != expected_batch_hash {
+                    break;
+                }
+
                 last_batch_id = batch_id;
-                // Commit in-flight items into confirmed maps
-                committed_files.extend(pending_files.drain());
-                committed_dirs.extend(pending_dirs.drain());
-                committed_symlinks.extend(pending_symlinks.drain());
-                committed_hardlinks.extend(pending_hardlinks.drain());
+                committed_entities.extend(pending_entities.drain());
+                batch_hasher = Sha256Stream::new();
             }
             TAG_JOB_COMPLETED => {
                 is_completed = true;
             }
             _ => {
-                // Unknown tag or truncated record; stop reading and keep valid committed state
                 break;
             }
         }
@@ -1006,12 +436,259 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     Ok(JournalSnapshot {
         sources,
         destination,
-        committed_files,
-        committed_dirs,
-        committed_symlinks,
-        committed_hardlinks,
+        origin_platform,
+        committed_entities,
         is_completed,
         last_batch_id,
+    })
+}
+
+// Low-level entity serialization
+
+fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
+    write_bytes(w, entity.identity.path_bytes())?;
+    write_bytes(w, &entity.identity.raw_filename)?;
+    write_u64(w, entity.identity.nlink)?;
+    match entity.identity.hardlink_group {
+        Some(grp) => {
+            w.write_all(&[1])?;
+            write_u64(w, grp)?;
+        }
+        None => {
+            w.write_all(&[0])?;
+        }
+    }
+    write_u32(w, entity.metadata.mode)?;
+    write_u32(w, entity.metadata.uid)?;
+    write_u32(w, entity.metadata.gid)?;
+    write_i64(w, entity.metadata.timestamps.mtime_sec)?;
+    write_u32(w, entity.metadata.timestamps.mtime_nsec)?;
+    write_i64(w, entity.metadata.timestamps.atime_sec)?;
+    write_u32(w, entity.metadata.timestamps.atime_nsec)?;
+    write_i64(w, entity.metadata.timestamps.ctime_sec)?;
+    write_u32(w, entity.metadata.timestamps.ctime_nsec)?;
+    write_opt_timestamp(
+        w,
+        entity.metadata.timestamps.birthtime_sec,
+        entity.metadata.timestamps.birthtime_nsec,
+    )?;
+    write_u32(w, u32::try_from(entity.metadata.flags.len())?)?;
+    for flag in &entity.metadata.flags {
+        write_flag(w, *flag)?;
+    }
+
+    match &entity.kind {
+        FileEntityKind::Regular {
+            size,
+            sha256,
+            is_sparse,
+            ..
+        } => {
+            w.write_all(&[0])?;
+            write_u64(w, *size)?;
+            w.write_all(sha256)?;
+            w.write_all(&[u8::from(*is_sparse)])?;
+        }
+        FileEntityKind::Directory => {
+            w.write_all(&[1])?;
+        }
+        FileEntityKind::Symlink { target } => {
+            w.write_all(&[2])?;
+            write_bytes(w, target)?;
+        }
+        FileEntityKind::Hardlink {
+            target_relative_path,
+        } => {
+            w.write_all(&[3])?;
+            write_bytes(w, target_relative_path)?;
+        }
+        FileEntityKind::Fifo => {
+            w.write_all(&[4])?;
+        }
+        FileEntityKind::CharDevice { rdev } => {
+            w.write_all(&[5])?;
+            write_u64(w, *rdev)?;
+        }
+        FileEntityKind::BlockDevice { rdev } => {
+            w.write_all(&[6])?;
+            write_u64(w, *rdev)?;
+        }
+        FileEntityKind::Socket => {
+            w.write_all(&[7])?;
+        }
+        _ => {
+            w.write_all(&[1])?;
+        }
+    }
+
+    write_u32(w, u32::try_from(entity.streams.len())?)?;
+    for s in &entity.streams {
+        write_bytes(w, &s.name.0)?;
+        let hash = match &s.entity.kind {
+            FileEntityKind::Regular { sha256, .. } => *sha256,
+            _ => [0_u8; 32],
+        };
+        w.write_all(&hash)?;
+    }
+    Ok(())
+}
+
+fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> {
+    let raw_rel_path = read_bytes(&mut r)?;
+    let raw_filename = read_bytes(&mut r)?;
+    let nlink = read_u64(&mut r)?;
+    let has_grp = read_u8(&mut r)?;
+    let hardlink_group = if has_grp == 1 {
+        Some(read_u64(&mut r)?)
+    } else {
+        None
+    };
+
+    let mode = read_u32(&mut r)?;
+    let uid = read_u32(&mut r)?;
+    let gid = read_u32(&mut r)?;
+    let mtime_sec = read_i64(&mut r)?;
+    let mtime_nsec = read_u32(&mut r)?;
+    let atime_sec = read_i64(&mut r)?;
+    let atime_nsec = read_u32(&mut r)?;
+    let ctime_sec = read_i64(&mut r)?;
+    let ctime_nsec = read_u32(&mut r)?;
+    let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut r)?;
+
+    let flag_count = read_u32(&mut r)?;
+    let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
+    for _ in 0..flag_count {
+        if let Some(flag) = read_flag(&mut r)? {
+            flags.push(flag);
+        }
+    }
+
+    let kind_tag = read_u8(&mut r)?;
+    let kind = match kind_tag {
+        0 => {
+            let size = read_u64(&mut r)?;
+            let mut sha256 = [0_u8; 32];
+            r.read_exact(&mut sha256)?;
+            let is_sparse = read_u8(&mut r)? != 0;
+            FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse,
+                extents: Vec::new(),
+            }
+        }
+        1 => FileEntityKind::Directory,
+        2 => {
+            let target = read_bytes(&mut r)?;
+            FileEntityKind::Symlink { target }
+        }
+        3 => {
+            let target_relative_path = read_bytes(&mut r)?;
+            FileEntityKind::Hardlink {
+                target_relative_path,
+            }
+        }
+        4 => FileEntityKind::Fifo,
+        5 => {
+            let rdev = read_u64(&mut r)?;
+            FileEntityKind::CharDevice { rdev }
+        }
+        6 => {
+            let rdev = read_u64(&mut r)?;
+            FileEntityKind::BlockDevice { rdev }
+        }
+        7 => FileEntityKind::Socket,
+        _ => FileEntityKind::Regular {
+            size: 0,
+            sha256: [0_u8; 32],
+            is_sparse: false,
+            extents: Vec::new(),
+        },
+    };
+
+    let stream_count = read_u32(&mut r)?;
+    let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
+    for _ in 0..stream_count {
+        let sname_bytes = read_bytes(&mut r)?;
+        let mut shash = [0_u8; 32];
+        r.read_exact(&mut shash)?;
+
+        let stream_name = StreamName(sname_bytes.clone());
+        let skind = StreamKind::infer_from_name(&sname_bytes);
+        let s_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                raw_relative_path: sname_bytes.clone(),
+                raw_filename: sname_bytes,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: 0,
+                gid: 0,
+                timestamps: FileTimestamps {
+                    atime_sec: 0,
+                    atime_nsec: 0,
+                    mtime_sec: 0,
+                    mtime_nsec: 0,
+                    ctime_sec: 0,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 0,
+                sha256: shash,
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        streams.push(AttachedStream {
+            name: stream_name,
+            kind: skind,
+            entity: Box::new(s_entity),
+            data: None,
+        });
+    }
+
+    let is_windows = origin_platform == PLATFORM_WINDOWS;
+    let relative_path = resolve_relative_path_for_os(&raw_rel_path, is_windows)?;
+
+    Ok(FileEntity {
+        identity: FileIdentity {
+            origin: FileOrigin::Synthetic,
+            relative_path,
+            raw_relative_path: raw_rel_path,
+            raw_filename,
+            nlink,
+            hardlink_group,
+        },
+        metadata: FileMetadata {
+            mode,
+            uid,
+            gid,
+            timestamps: FileTimestamps {
+                atime_sec,
+                atime_nsec,
+                mtime_sec,
+                mtime_nsec,
+                ctime_sec,
+                ctime_nsec,
+                birthtime_sec,
+                birthtime_nsec,
+            },
+            flags,
+            platform_raw_flags: None,
+        },
+        kind,
+        streams,
     })
 }
 
@@ -1063,6 +740,12 @@ fn read_i64(r: &mut impl Read) -> Result<i64> {
     Ok(i64::from_le_bytes(buf))
 }
 
+fn read_u8(r: &mut impl Read) -> Result<u8> {
+    let mut buf = [0_u8; 1];
+    r.read_exact(&mut buf)?;
+    Ok(buf[0])
+}
+
 fn write_flag(w: &mut impl Write, flag: FileFlag) -> Result<()> {
     write_bytes(w, flag.name().as_bytes())
 }
@@ -1098,4 +781,3 @@ fn read_opt_timestamp(r: &mut impl Read) -> Result<(Option<i64>, Option<u32>)> {
         Ok((None, None))
     }
 }
-

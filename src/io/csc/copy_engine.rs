@@ -27,10 +27,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
-use crate::journal::{JournalSnapshot, JournalWriter};
+use crate::journal::{JournalSnapshot, JournalWriter, PLATFORM_WINDOWS};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::FileOrigin;
+use ctb_io::file::identity::{FileOrigin, resolve_relative_path_for_os};
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
 };
@@ -86,10 +86,15 @@ pub fn execute_copy_pipeline(
 
     // Restore hardlinks from snapshot if resuming
     if let Some(snap) = snapshot {
-        for tgt_rel in snap.committed_hardlinks.values() {
-            let full_tgt = snap.destination.join(tgt_rel);
-            if let Ok(meta) = full_tgt.metadata() {
-                hardlink_map.insert((meta.dev(), meta.ino()), full_tgt);
+        let is_windows = snap.origin_platform == PLATFORM_WINDOWS;
+        for entity in snap.committed_entities.values() {
+            if let FileEntityKind::Hardlink { target_relative_path } = &entity.kind {
+                if let Ok(tgt_rel) = resolve_relative_path_for_os(target_relative_path, is_windows) {
+                    let full_tgt = snap.destination.join(&tgt_rel);
+                    if let Ok(meta) = full_tgt.metadata() {
+                        hardlink_map.insert((meta.dev(), meta.ino()), full_tgt);
+                    }
+                }
             }
         }
     }
@@ -148,6 +153,7 @@ pub fn execute_copy_pipeline(
                 let mut journal_dir = dir_entity.clone();
                 if let Ok(rel) = curr_tgt.strip_prefix(journal.destination()) {
                     journal_dir.identity.relative_path = rel.to_path_buf();
+                    journal_dir.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
                 }
                 journal.record_entity(&journal_dir);
 

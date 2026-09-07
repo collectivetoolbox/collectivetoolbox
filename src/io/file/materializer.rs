@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::file::entity::{FileEntity, FileEntityKind};
+use crate::file::identity::resolve_relative_path_for_os;
 use crate::file::metadata::FileMetadata;
 use crate::file::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
@@ -259,8 +260,9 @@ pub fn materialize_entity(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
+            let target_path = resolve_relative_path_for_os(target_relative_path, false)?;
             dest_dir.create_hardlink(
-                target_relative_path,
+                &target_path,
                 &parent_dir_fd.as_fd(),
                 &file_name,
             )?;

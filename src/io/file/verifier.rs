@@ -163,6 +163,10 @@ pub enum DiffKind {
         expected_target: PathBuf,
         details: String,
     },
+    /// Path cannot be represented losslessly on target operating system.
+    IncompatiblePath {
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for DiffKind {
@@ -272,6 +276,9 @@ impl std::fmt::Display for DiffKind {
                     "Hardlink mismatch: target {}, details: {details}",
                     expected_target.display()
                 )
+            }
+            Self::IncompatiblePath { reason } => {
+                write!(f, "Incompatible path for target platform: {reason}")
             }
         }
     }

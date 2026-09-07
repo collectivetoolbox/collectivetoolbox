@@ -199,6 +199,7 @@ mod tests {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: rel_path.clone(),
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
                 raw_filename: b"test_file.bin".to_vec(),
                 nlink: 1,
                 hardlink_group: None,
@@ -429,6 +430,7 @@ mod tests {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: rel_path.clone(),
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
                 raw_filename: b"test.txt".to_vec(),
                 nlink: 1,
                 hardlink_group: None,

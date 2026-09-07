@@ -32,7 +32,10 @@ use crate::args::{CscVerifyArgs, VerifyOutputFormat};
 use crate::journal::{read_journal_snapshot, resolve_journal_path};
 use crate::verify_cache::check_cache_flush_privileges;
 pub use ctb_io::file::verifier::{DiffKind, StreamDiffKind};
+use ctb_io::file::entity::FileEntityKind;
+use ctb_io::file::identity::resolve_relative_path_for_os;
 use ctb_io::file::verifier::{audit_entity, try_drop_system_caches};
+use crate::journal::PLATFORM_WINDOWS;
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -178,119 +181,104 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut matched_entries = 0_usize;
     let mut verified_paths = HashSet::new();
 
-    let total_dirs = snapshot
-        .committed_dirs
-        .keys()
-        .filter(|p| !p.as_os_str().is_empty() && *p != Path::new("."))
-        .count();
+    let total_manifest_entries = snapshot.committed_entities.len();
+    let is_windows = snapshot.origin_platform == PLATFORM_WINDOWS;
 
-    let total_manifest_entries = snapshot
-        .committed_files
-        .len()
-        .saturating_add(total_dirs)
-        .saturating_add(snapshot.committed_symlinks.len())
-        .saturating_add(snapshot.committed_hardlinks.len());
-
-    // 1. Verify Regular Files
-    for (rel_path, mf) in &snapshot.committed_files {
-        verified_paths.insert(normalize_rel_path(rel_path));
-        let full_path = target_dir.join(rel_path);
-
-        let entity = mf.to_entity();
-        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
-        if diffs.is_empty() {
-            matched_entries = matched_entries.saturating_add(1);
-        } else if diffs == vec![DiffKind::MissingOnDisk] {
-            missing_entries.push(rel_path.clone());
-        } else {
-            changed_entries.push(EntryDiff {
-                relative_path: rel_path.clone(),
-                differences: diffs,
-            });
-        }
-    }
-
-    // 2. Verify Directories
-    for (rel_path, md) in &snapshot.committed_dirs {
-        if rel_path.as_os_str().is_empty() || rel_path == Path::new(".") {
-            continue;
-        }
-        verified_paths.insert(normalize_rel_path(rel_path));
-        let full_path = target_dir.join(rel_path);
-
-        let entity = md.to_entity();
-        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
-        if diffs.is_empty() {
-            matched_entries = matched_entries.saturating_add(1);
-        } else if diffs == vec![DiffKind::MissingOnDisk] {
-            missing_entries.push(rel_path.clone());
-        } else {
-            changed_entries.push(EntryDiff {
-                relative_path: rel_path.clone(),
-                differences: diffs,
-            });
-        }
-    }
-
-    // 3. Verify Symlinks
-    for (rel_path, ms) in &snapshot.committed_symlinks {
-        verified_paths.insert(normalize_rel_path(rel_path));
-        let full_path = target_dir.join(rel_path);
-
-        let entity = ms.to_entity();
-        let diffs = audit_entity(&full_path, &entity, &audit_options)?;
-        if diffs.is_empty() {
-            matched_entries = matched_entries.saturating_add(1);
-        } else if diffs == vec![DiffKind::MissingOnDisk] {
-            missing_entries.push(rel_path.clone());
-        } else {
-            changed_entries.push(EntryDiff {
-                relative_path: rel_path.clone(),
-                differences: diffs,
-            });
-        }
-    }
-
-    // 4. Verify Hardlinks
-    for (src_rel, tgt_rel) in &snapshot.committed_hardlinks {
-        verified_paths.insert(normalize_rel_path(src_rel));
-        let src_full = target_dir.join(src_rel);
-        let tgt_full = target_dir.join(tgt_rel);
-
-        match (
-            std::fs::symlink_metadata(&src_full),
-            std::fs::symlink_metadata(&tgt_full),
-        ) {
-            (Ok(m1), Ok(m2)) => {
-                if m1.ino() != m2.ino() || m1.dev() != m2.dev() {
-                    changed_entries.push(EntryDiff {
-                        relative_path: src_rel.clone(),
-                        differences: vec![DiffKind::HardlinkMismatch {
-                            expected_target: tgt_rel.clone(),
-                            details: format!(
-                                "Inodes differ: ({}:{}) vs ({}:{})",
-                                m1.dev(),
-                                m1.ino(),
-                                m2.dev(),
-                                m2.ino()
-                            ),
-                        }],
-                    });
-                } else {
-                    matched_entries = matched_entries.saturating_add(1);
-                }
-            }
-            (Err(_), _) => {
-                missing_entries.push(src_rel.clone());
-            }
-            (_, Err(_)) => {
+    for (raw_rel, entity) in &snapshot.committed_entities {
+        let rel_path = match resolve_relative_path_for_os(raw_rel, is_windows) {
+            Ok(p) => p,
+            Err(e) => {
+                let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
                 changed_entries.push(EntryDiff {
-                    relative_path: src_rel.clone(),
-                    differences: vec![DiffKind::HardlinkMismatch {
-                        expected_target: tgt_rel.clone(),
-                        details: format!("Target hardlink file missing: {}", tgt_full.display()),
+                    relative_path: p,
+                    differences: vec![DiffKind::IncompatiblePath {
+                        reason: e.to_string(),
                     }],
                 });
+                continue;
+            }
+        };
+
+        if matches!(entity.kind, FileEntityKind::Directory)
+            && (rel_path.as_os_str().is_empty() || rel_path == Path::new("."))
+        {
+            continue;
+        }
+
+        verified_paths.insert(normalize_rel_path(&rel_path));
+        let full_path = target_dir.join(&rel_path);
+
+        match &entity.kind {
+            FileEntityKind::Hardlink {
+                target_relative_path,
+            } => {
+                let tgt_rel = match resolve_relative_path_for_os(target_relative_path, is_windows) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let p = PathBuf::from(String::from_utf8_lossy(target_relative_path).as_ref());
+                        changed_entries.push(EntryDiff {
+                            relative_path: rel_path.clone(),
+                            differences: vec![DiffKind::IncompatiblePath {
+                                reason: e.to_string(),
+                            }],
+                        });
+                        continue;
+                    }
+                };
+                let tgt_full = target_dir.join(&tgt_rel);
+
+                match (
+                    std::fs::symlink_metadata(&full_path),
+                    std::fs::symlink_metadata(&tgt_full),
+                ) {
+                    (Ok(m1), Ok(m2)) => {
+                        if m1.ino() != m2.ino() || m1.dev() != m2.dev() {
+                            changed_entries.push(EntryDiff {
+                                relative_path: rel_path.clone(),
+                                differences: vec![DiffKind::HardlinkMismatch {
+                                    expected_target: tgt_rel,
+                                    details: format!(
+                                        "Inodes differ: ({}:{}) vs ({}:{})",
+                                        m1.dev(),
+                                        m1.ino(),
+                                        m2.dev(),
+                                        m2.ino()
+                                    ),
+                                }],
+                            });
+                        } else {
+                            matched_entries = matched_entries.saturating_add(1);
+                        }
+                    }
+                    (Err(_), _) => {
+                        missing_entries.push(rel_path.clone());
+                    }
+                    (_, Err(_)) => {
+                        changed_entries.push(EntryDiff {
+                            relative_path: rel_path.clone(),
+                            differences: vec![DiffKind::HardlinkMismatch {
+                                expected_target: tgt_rel,
+                                details: format!(
+                                    "Target hardlink file missing: {}",
+                                    tgt_full.display()
+                                ),
+                            }],
+                        });
+                    }
+                }
+            }
+            _ => {
+                let diffs = audit_entity(&full_path, entity, &audit_options)?;
+                if diffs.is_empty() {
+                    matched_entries = matched_entries.saturating_add(1);
+                } else if diffs == vec![DiffKind::MissingOnDisk] {
+                    missing_entries.push(rel_path.clone());
+                } else {
+                    changed_entries.push(EntryDiff {
+                        relative_path: rel_path.clone(),
+                        differences: diffs,
+                    });
+                }
             }
         }
     }
