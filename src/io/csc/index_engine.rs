@@ -291,7 +291,8 @@ fn index_directory_to_journal(
 
 /// Initializes database tables, PRAGMAs, and B-tree indices.
 async fn init_database_schema(conn: &Connection) -> Result<()> {
-    conn.execute("PRAGMA journal_mode = WAL", ()).await?;
+    let mut stmt = conn.prepare("PRAGMA journal_mode = WAL").await?;
+    let _ = stmt.query(()).await?;
     conn.execute("PRAGMA synchronous = NORMAL", ()).await?;
 
     conn.execute(

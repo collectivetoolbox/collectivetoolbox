@@ -1098,4 +1098,216 @@ mod csc_tests {
         assert_eq!(recovered.committed_entities.len(), 2);
         assert_eq!(recovered.last_batch_id, snap.last_batch_id);
     }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_and_fsearch_pipeline() {
+        use crate::args::{FsearchArgs, FsindexArgs, SearchOutputFormat, SearchSortField};
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use ctb_utilities::ToolResult;
+
+        let temp = tempdir().expect("create tempdir");
+        let src_a = temp.path().join("source_a");
+        let src_b = temp.path().join("source_b");
+        fs::create_dir_all(src_a.join("nested/deep")).expect("create src_a");
+        fs::create_dir_all(src_b.join("sub")).expect("create src_b");
+
+        fs::write(src_a.join("hello.txt"), b"Hello Source A").expect("write hello.txt");
+        fs::write(src_a.join("nested/doc.md"), b"# Markdown document").expect("write doc.md");
+        fs::write(src_a.join("nested/deep/data.bin"), vec![0u8; 1024]).expect("write data.bin");
+        std::os::unix::fs::symlink("hello.txt", src_a.join("link_to_hello")).expect("create symlink");
+
+        fs::write(src_b.join("world.txt"), b"World Source B").expect("write world.txt");
+        fs::write(src_b.join("sub/extra.log"), b"log entry 1\nlog entry 2\n").expect("write extra.log");
+
+        let db_path = temp.path().join("combined.cscindex.sqlite");
+
+        // 1. Run fsindex on source_a
+        let args_a = FsindexArgs {
+            targets: vec![src_a.clone()],
+            database: Some(db_path.clone()),
+            source_name: Some("source_a_tag".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+        };
+        let res_a = run_fsindex(args_a).await.expect("run_fsindex source_a");
+        match res_a {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        // 2. Glom source_b into the same database
+        let args_b = FsindexArgs {
+            targets: vec![src_b.clone()],
+            database: Some(db_path.clone()),
+            source_name: Some("source_b_tag".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+        };
+        let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (glom)");
+        match res_b {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        // 3. Search: filename glob "*.txt" -> should match hello.txt and world.txt across both sources
+        let search_txt = FsearchArgs {
+            database: db_path.clone(),
+            query: Some("*.txt".to_string()),
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: None,
+            sort: SearchSortField::Path,
+            sort_desc: false,
+            limit: None,
+            format: SearchOutputFormat::Path,
+        };
+        let res_search_txt = run_fsearch(search_txt).await.expect("run_fsearch *.txt");
+        if let ToolResult::Immediate { stdout, .. } = res_search_txt {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(out_str.contains("world.txt"));
+            assert!(!out_str.contains("doc.md"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Search with source filter: only source_a_tag
+        let search_src_a = FsearchArgs {
+            database: db_path.clone(),
+            query: Some("*.txt".to_string()),
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: Some("source_a_tag".to_string()),
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: None,
+            sort: SearchSortField::Path,
+            sort_desc: false,
+            limit: None,
+            format: SearchOutputFormat::Path,
+        };
+        let res_src_a = run_fsearch(search_src_a).await.expect("run_fsearch source filter");
+        if let ToolResult::Immediate { stdout, .. } = res_src_a {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(!out_str.contains("world.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 5. Search with path glob "nested/**"
+        let search_path = FsearchArgs {
+            database: db_path.clone(),
+            query: None,
+            name_glob: None,
+            path_glob: Some("nested/*".to_string()),
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: None,
+            sort: SearchSortField::Path,
+            sort_desc: false,
+            limit: None,
+            format: SearchOutputFormat::Long,
+        };
+        let res_path = run_fsearch(search_path).await.expect("run_fsearch path glob");
+        if let ToolResult::Immediate { stdout, .. } = res_path {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("doc.md"));
+            assert!(out_str.contains("data.bin"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 6. Search with JSON output and type filter (symlinks)
+        let search_sym = FsearchArgs {
+            database: db_path.clone(),
+            query: None,
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: Some("symlink".to_string()),
+            sort: SearchSortField::Name,
+            sort_desc: false,
+            limit: None,
+            format: SearchOutputFormat::Json,
+        };
+        let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
+        if let ToolResult::Immediate { stdout, .. } = res_sym {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("\"filename\": \"link_to_hello\""));
+            assert!(out_str.contains("\"symlink_target\": \"hello.txt\""));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 7. Search with size filter: >= 500 bytes (should match data.bin which is 1024 bytes)
+        let search_size = FsearchArgs {
+            database: db_path.clone(),
+            query: None,
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: Some("500".to_string()),
+            size_max: None,
+            entry_type: None,
+            sort: SearchSortField::Size,
+            sort_desc: true,
+            limit: None,
+            format: SearchOutputFormat::Path,
+        };
+        let res_size = run_fsearch(search_size).await.expect("run_fsearch size filter");
+        if let ToolResult::Immediate { stdout, .. } = res_size {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("data.bin"));
+            assert!(!out_str.contains("hello.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+    }
 }
+

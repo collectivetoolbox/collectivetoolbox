@@ -110,8 +110,9 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     }
 
     // 4. Entity type filter
-    if let Some(ref t) = args.entry_type {
-        let kind_str = match t.to_lowercase().as_str() {
+    let t_lower = args.entry_type.as_deref().map(str::to_lowercase);
+    if let Some(ref lower) = t_lower {
+        let kind_str = match lower.as_str() {
             "f" | "file" | "regular" => "regular",
             "d" | "dir" | "directory" => "dir",
             "l" | "symlink" | "link" => "symlink",

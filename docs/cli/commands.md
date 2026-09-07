@@ -46,6 +46,9 @@ Commands:
   js-test                    Run JavaScript tests
   validate-docker-image      Validate a docker save image tarball
   csc                        Checksummed copy with rsync-compatible resolution and post-flush verification
+  csc-verify                 Verify a directory against a manifest recorded by csc
+  fsindex                    Index directories into resumable state journals and compile into Turso SQLite databases
+  fsearch                    Fast indexed search against a .cscindex.sqlite database
   csum                       Calculate checksum for a file or stdin
   compress                   Compress a file or stdin using single-stream compression format
   decompress                 Decompress a compressed file or stdin
@@ -304,7 +307,7 @@ Arguments:
 
 Options:
       --resume <STATE_FILE>
-          Path to a state file (.journal or .desc) from which to resume an interrupted run. When specified, source and destination paths should not be passed
+          Path to a state file (.cscjournal or .cscdesc) from which to resume an interrupted run. When specified, source and destination paths should not be passed
       --state-dir <DIR>
           Directory in which to store state files (default: user's home folder)
   -v, --verbose
@@ -329,6 +332,34 @@ Options:
           Perform a dry run without copying or modifying destination files
   -h, --help
           Print help (see more with '--help')
+```
+
+### `ctoolbox csc-verify`
+
+```text
+Verify a directory against a manifest recorded by csc
+
+Usage: ctoolbox csc-verify [OPTIONS] <MANIFEST> [DIRECTORY]
+
+Arguments:
+  <MANIFEST>   Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files
+  [DIRECTORY]  Target directory to verify. If omitted, uses the destination path recorded in the manifest. Specifying this allows verifying relocated folders
+
+Options:
+      --no-drop-caches    Skip dropping OS kernel caches and per-file cache eviction before reading
+      --ignore-atime      Ignore access time (atime) differences
+      --ignore-mtime      Ignore modification time (mtime) differences
+      --ignore-ctime      Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
+      --check-ctime       Explicitly enforce status/metadata change time (ctime) verification
+      --ignore-owner      Ignore ownership (UID and GID) differences
+      --ignore-perms      Ignore file mode / permission differences
+      --ignore-flags      Ignore semantic file flags differences
+      --ignore-xattrs     Ignore alternate data streams and extended attribute differences
+      --ignore-untracked  Do not report untracked extra files present on disk that are absent from manifest
+      --ignore <IGNORE>   Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
+      --format <FORMAT>   Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
+  -q, --quiet             Only report discrepancies or errors, suppressing informational progress
+  -h, --help              Print help (see more with '--help')
 ```
 
 ### `ctoolbox csum`
@@ -553,6 +584,59 @@ Supported compression formats:
   xz, xzip: XZ compression
   zst, zstd: Zstandard compression
   lzo: LZO compression
+```
+
+### `ctoolbox fsearch`
+
+```text
+Fast indexed search against a .cscindex.sqlite database
+
+Usage: ctoolbox fsearch [OPTIONS] <DATABASE> [PATTERN]
+
+Arguments:
+  <DATABASE>  Path to the *.cscindex.sqlite database file
+  [PATTERN]   Search pattern or glob (matched against filename unless --path or --regex is specified)
+
+Options:
+  -n, --name <NAME_GLOB>             Glob pattern to match against filename (e.g. "*.rs", "*test*")
+  -p, --path <PATH_GLOB>             Glob pattern to match against relative path (e.g. "src/**/tests.rs")
+  -k, --keyword <KEYWORD>            Substring keyword to match in path or filename
+  -r, --regex <REGEX>                Regular expression pattern to match against path
+  -s, --source <SOURCE>              Filter by source name tag
+      --mtime-after <MTIME_AFTER>    Filter entries modified on or after this Unix timestamp or relative duration (e.g. "1725600000", "7d", "24h")
+      --mtime-before <MTIME_BEFORE>  Filter entries modified on or before this Unix timestamp or relative duration
+      --ctime-after <CTIME_AFTER>    Filter entries changed on or after this Unix timestamp or relative duration
+      --ctime-before <CTIME_BEFORE>  Filter entries changed on or before this Unix timestamp or relative duration
+      --size-min <SIZE_MIN>          Minimum file size in bytes (or suffix like 10k, 5M, 1G)
+      --size-max <SIZE_MAX>          Maximum file size in bytes (or suffix like 10k, 5M, 1G)
+  -t, --type <ENTRY_TYPE>            Filter by entity type ('f' or 'file', 'd' or 'dir', 'l' or 'symlink')
+      --sort <SORT>                  Field to sort results by [default: path] [possible values: path, name, mtime, ctime, size]
+      --desc                         Sort in descending order
+  -l, --limit <LIMIT>                Maximum number of search results to return
+      --format <FORMAT>              Output formatting mode (`path`, `long`, or `json`) [default: path] [possible values: path, long, json]
+  -h, --help                         Print help (see more with '--help')
+```
+
+### `ctoolbox fsindex`
+
+```text
+Index directories into resumable state journals and compile into Turso SQLite databases
+
+Usage: ctoolbox fsindex [OPTIONS] <PATH>...
+
+Arguments:
+  <PATH>...  Target directory or .cscjournal file(s) to index
+
+Options:
+  -d, --db <DATABASE>              Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed)
+  -s, --source-name <SOURCE_NAME>  Override the source name tag stored in the database (default: journal basename without extension)
+      --resume                     Resume an interrupted directory indexing session from an existing journal
+      --resume-journal <JOURNAL>   Explicit path to a journal file when resuming
+      --checksum                   Compute cryptographic SHA-256 digests for file contents (slow on large filesystems; default is metadata-only)
+      --journal-only               Only generate the *.cscjournal file; do not compile into SQLite database
+      --batch-size <BATCH_SIZE>    Number of entries to commit per transaction batch during traversal and ingestion [default: 500]
+  -q, --quiet                      Suppress progress output
+  -h, --help                       Print help
 ```
 
 ### `ctoolbox gdb_instructions_generate`
