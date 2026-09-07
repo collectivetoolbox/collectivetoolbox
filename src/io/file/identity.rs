@@ -74,10 +74,70 @@ pub struct FileIdentity {
     pub origin: FileOrigin,
     /// Logical relative path within the operation or archive.
     pub relative_path: PathBuf,
+    /// Exact raw bytes of the full relative path with canonical '/' separator.
+    pub raw_relative_path: Vec<u8>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
     pub raw_filename: Vec<u8>,
     /// Link count on the source filesystem.
     pub nlink: u64,
     /// Optional hardlink grouping identifier (e.g. InodeKey or archive linkname).
     pub hardlink_group: Option<u64>,
+}
+
+impl FileIdentity {
+    /// Returns the raw byte representation of the relative path.
+    #[must_use]
+    pub fn path_bytes(&self) -> &[u8] {
+        if !self.raw_relative_path.is_empty() {
+            &self.raw_relative_path
+        } else {
+            self.relative_path.as_os_str().as_encoded_bytes()
+        }
+    }
+}
+
+/// Resolves raw relative path bytes to a local OS `PathBuf`.
+///
+/// Converts canonical forward-slash separated path bytes to the current platform's
+/// path representation. On POSIX/Linux, this is lossless for any byte sequence.
+/// On Windows, decodes UTF-8 and maps `/` to `\`.
+pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -> Result<PathBuf> {
+    #[cfg(unix)]
+    {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let bytes = if origin_is_windows && raw_bytes.contains(&b'\\') {
+            let mut normalized = raw_bytes.to_vec();
+            for b in &mut normalized {
+                if *b == b'\\' {
+                    *b = b'/';
+                }
+            }
+            normalized
+        } else {
+            raw_bytes.to_vec()
+        };
+
+        Ok(PathBuf::from(OsStr::from_bytes(&bytes)))
+    }
+
+    #[cfg(windows)]
+    {
+        let s = std::str::from_utf8(raw_bytes)
+            .context("Relative path bytes are not valid UTF-8 for current platform")?;
+
+        for c in s.chars() {
+            if matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                anyhow::bail!("Path contains character '{c}' which is incompatible with target platform");
+            }
+        }
+
+        let normalized = s.replace('/', "\\");
+        Ok(PathBuf::from(normalized))
+    }
+
+    #[cfg(and(not(windows),not(unix))] {
+        Err("Unimplemented for platform")
+    }
 }

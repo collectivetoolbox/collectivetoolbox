@@ -107,7 +107,7 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachedStream {
     /// Raw byte name of the stream.
     pub name: StreamName,
@@ -165,6 +165,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                raw_relative_path: name_bytes.clone(),
                 raw_filename: name_bytes,
                 nlink: 1,
                 hardlink_group: None,

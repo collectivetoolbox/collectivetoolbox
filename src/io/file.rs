@@ -38,7 +38,7 @@ pub mod sys_flags;
 pub mod verifier;
 
 pub use entity::{FileEntity, FileEntityKind};
-pub use identity::{FileIdentity, FileOrigin, InodeKey};
+pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
     materialize_entity_at_path, verify_filename_exact_bytes,

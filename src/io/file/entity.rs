@@ -39,7 +39,7 @@ use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 
 /// The concrete filesystem or archive kind of a file entity.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileEntityKind {
     /// A regular file with size, extents, and payload digest.
     Regular {
@@ -61,8 +61,8 @@ pub enum FileEntityKind {
     },
     /// A hardlink to an existing path or inode in the session.
     Hardlink {
-        /// Relative path to the original linked file.
-        target_relative_path: PathBuf,
+        /// Relative path to the original linked file in raw bytes.
+        target_relative_path: Vec<u8>,
     },
     /// A named pipe (FIFO).
     Fifo,
@@ -89,7 +89,7 @@ pub enum FileEntityKind {
 
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileEntity {
     /// Multifaceted identity and origin.
     pub identity: FileIdentity,
@@ -160,6 +160,8 @@ impl FileEntity {
         // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
 
+        let raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
+
         let identity = FileIdentity {
             origin: FileOrigin::Filesystem {
                 key: InodeKey {
@@ -169,6 +171,7 @@ impl FileEntity {
                 canonical_path: canonical,
             },
             relative_path,
+            raw_relative_path,
             raw_filename: filename_bytes,
             nlink,
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
