@@ -297,7 +297,24 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut total_disk_scanned = 0_usize;
 
     if !args.should_ignore_untracked() {
-        let disk_entries = scan_disk_entries(&target_dir)?;
+        // If manifest contains "." or "" as an entity, the target directory itself was the root of copy.
+        // Otherwise, only the specific top-level subtrees/entities copied (e.g. ".fonts", "dir1") are
+        // within the scope of this manifest; siblings in target_dir outside these roots are ignored.
+        let is_root_target = snapshot.committed_entities.iter().any(|(raw_rel, entity)| {
+            (raw_rel.is_empty() || raw_rel == b".")
+                && matches!(entity.kind, FileEntityKind::Directory)
+        });
+        let top_level_roots: Option<HashSet<PathBuf>> = if is_root_target {
+            None
+        } else {
+            let roots: HashSet<PathBuf> = verified_paths
+                .iter()
+                .filter_map(|p| p.components().next().map(|c| PathBuf::from(c.as_os_str())))
+                .collect();
+            Some(roots)
+        };
+
+        let disk_entries = scan_disk_entries(&target_dir, top_level_roots.as_ref())?;
         total_disk_scanned = disk_entries.len();
 
         for disk_rel in disk_entries {
@@ -330,9 +347,29 @@ fn normalize_rel_path(p: &Path) -> PathBuf {
     p.strip_prefix("./").unwrap_or(p).to_path_buf()
 }
 
-fn scan_disk_entries(root: &Path) -> Result<HashSet<PathBuf>> {
+fn scan_disk_entries(
+    root: &Path,
+    top_level_roots: Option<&HashSet<PathBuf>>,
+) -> Result<HashSet<PathBuf>> {
     let mut result = HashSet::new();
-    let mut dir_queue = vec![root.to_path_buf()];
+    let mut dir_queue = Vec::new();
+
+    match top_level_roots {
+        Some(roots) => {
+            for r in roots {
+                let full = root.join(r);
+                if let Ok(sym_meta) = std::fs::symlink_metadata(&full) {
+                    result.insert(r.clone());
+                    if sym_meta.is_dir() {
+                        dir_queue.push(full);
+                    }
+                }
+            }
+        }
+        None => {
+            dir_queue.push(root.to_path_buf());
+        }
+    }
 
     while let Some(current_dir) = dir_queue.pop() {
         let entries = match std::fs::read_dir(&current_dir) {

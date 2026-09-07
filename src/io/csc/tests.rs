@@ -1016,6 +1016,56 @@ mod csc_tests {
     }
 
     #[crate::ctb_test]
+    fn test_verify_untracked_scoped_to_copied_subtrees() {
+        let temp = tempdir().expect("create tempdir");
+        let src_fonts = temp.path().join("my_fonts");
+        let dest_dir = temp.path().join("dest_root");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src_fonts).expect("create src_fonts");
+        fs::create_dir_all(&dest_dir).expect("create dest_dir");
+        fs::create_dir_all(&state).expect("create state");
+
+        // Populate source fonts
+        fs::write(src_fonts.join("font1.ttf"), b"font content 1").expect("write font1");
+
+        // Destination root already contains unrelated files/directories outside the copied tree
+        let dosbox = dest_dir.join(".dosbox");
+        fs::create_dir_all(&dosbox).expect("create dosbox");
+        fs::write(dosbox.join("dosbox.conf"), b"conf").expect("write dosbox.conf");
+        fs::write(dest_dir.join(".face"), b"image").expect("write .face");
+        fs::write(dest_dir.join("e"), b"file e").expect("write e");
+
+        // Copy "my_fonts" into "dest_root" without trailing slash (creates dest_root/my_fonts)
+        let csc_args = default_test_args(
+            vec![src_fonts.clone(), dest_dir.clone()],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Now add a real untracked file INSIDE the copied subtree
+        fs::write(dest_dir.join("my_fonts").join("untracked_in_fonts.ttf"), b"extra font")
+            .expect("write untracked font");
+
+        let journal = find_cscjournal(&state);
+        let verify_args = default_verify_args(journal, None);
+        let res = run_csc_verify(&verify_args).expect("run csc-verify");
+
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                // Untracked entry inside my_fonts MUST be reported
+                assert!(out.contains("[UNTRACKED] my_fonts/untracked_in_fonts.ttf"));
+                // Sibling entries outside my_fonts MUST NOT be reported
+                assert!(!out.contains(".dosbox"));
+                assert!(!out.contains(".face"));
+                assert!(!out.contains("[UNTRACKED] e"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
     fn test_verify_json_output() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_json");

@@ -365,6 +365,16 @@ pub fn execute_copy_pipeline(
         journal.commit_batch()?;
     }
 
+    if progress.is_enabled() && stats.files_copied > 0 {
+        progress.update_progress(
+            &format!(
+                "[Copying] {} files ({} bytes)",
+                stats.files_copied, stats.bytes_copied
+            ),
+            0.0,
+        );
+    }
+
     // =========================================================================
     // PASS 4: Post-flush independent verification pass
     // =========================================================================
@@ -388,7 +398,20 @@ pub fn execute_copy_pipeline(
                 last_progress_render = Instant::now();
             }
         }
+
+        if progress.is_enabled() && !files_to_verify.is_empty() {
+            progress.update_progress(
+                &format!(
+                    "[Verifying] {}/{} verified",
+                    stats.files_verified,
+                    files_to_verify.len()
+                ),
+                0.0,
+            );
+        }
     }
+
+    progress.finish_progress();
 
     if !args.dry_run {
         journal.mark_completed()?;

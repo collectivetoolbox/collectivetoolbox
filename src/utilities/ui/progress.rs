@@ -29,6 +29,8 @@ use crate::utilities::*;
 use crate::utilities::cli::is_stderr_interactive;
 
 use std::io::{Write, stderr};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Resolves whether progress updates should be displayed based on CLI flags
 /// `--progress` and `--no-progress`, falling back to whether standard error is interactive.
@@ -47,15 +49,27 @@ pub fn should_show_progress(progress: bool, no_progress: bool) -> bool {
 /// needing to know whether they're calling a GUI, CLI, or neither.
 ///
 /// Encapsulates terminal checks, progress messages, step tracking, and status/percentage updates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Progress {
     enabled: bool,
+    needs_newline: Arc<AtomicBool>,
 }
+
+impl PartialEq for Progress {
+    fn eq(&self, other: &Self) -> bool {
+        self.enabled == other.enabled
+    }
+}
+
+impl Eq for Progress {}
 
 impl Progress {
     /// Creates a new progress reporter with an explicit enabled flag.
     pub fn new(enabled: bool) -> Self {
-        Self { enabled }
+        Self {
+            enabled,
+            needs_newline: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     /// Creates a progress reporter based on `--progress` / `--no-progress` flags
@@ -70,8 +84,10 @@ impl Progress {
     }
 
     /// Emits a high-level informational message (e.g. "Downloading item 'xyz' to ./dest").
+    /// Automatically ensures any in-progress inline status is terminated with a newline first.
     pub fn message(&self, msg: &str) {
         if self.enabled {
+            self.ensure_newline();
             eprintln!("{msg}");
         }
     }
@@ -79,12 +95,14 @@ impl Progress {
     /// Starts a multi-step task or single file step (e.g., "[1/5] Downloading image.png... ").
     pub fn start_step(&self, step: usize, total: usize, name: &str) {
         if self.enabled {
+            self.ensure_newline();
             if total > 0 {
                 eprint!("[{step}/{total}] {name}... ");
             } else {
                 eprint!("{name}... ");
             }
             let _ = stderr().flush();
+            self.needs_newline.store(true, Ordering::SeqCst);
         }
     }
 
@@ -96,6 +114,7 @@ impl Progress {
             } else {
                 eprintln!("done.");
             }
+            self.needs_newline.store(false, Ordering::SeqCst);
         }
     }
 
@@ -104,6 +123,29 @@ impl Progress {
         if self.enabled {
             eprint!("\r{item}... {percent:.1}%");
             let _ = stderr().flush();
+            self.needs_newline.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// Ensures any active inline progress output is terminated with a newline.
+    pub fn finish_progress(&self) {
+        if self.enabled {
+            self.ensure_newline();
+        }
+    }
+
+    /// Internal helper ensuring that any active inline progress line is cleanly terminated.
+    fn ensure_newline(&self) {
+        if self.needs_newline.swap(false, Ordering::SeqCst) {
+            eprintln!();
+        }
+    }
+}
+
+impl Drop for Progress {
+    fn drop(&mut self) {
+        if self.enabled && Arc::strong_count(&self.needs_newline) == 1 {
+            self.ensure_newline();
         }
     }
 }
@@ -137,8 +179,10 @@ mod tests {
         progress.start_step(1, 2, "step");
         progress.finish_step(Some("detail"));
         progress.update_progress("item", 50.0);
+        progress.finish_progress();
 
         let enabled_progress = Progress::new(true);
         assert!(enabled_progress.is_enabled());
+        enabled_progress.finish_progress();
     }
 }
