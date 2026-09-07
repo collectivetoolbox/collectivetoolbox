@@ -58,7 +58,7 @@ pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams,
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use verifier::{
     DiffKind, EntityAuditOptions, StreamDiffKind, audit_entity, evict_fd_cache, hex_encode,
-    try_drop_system_caches, verify_materialized_entity,
+    try_drop_system_caches, verify_materialized_entity, verify_materialized_entity_ext,
 };
 
 #[cfg(test)]

@@ -52,7 +52,8 @@ mod csc_tests {
             manifest,
             dir,
             no_drop_caches: true,
-            ignore_atime: false,
+            ignore_atime: true,
+            check_atime: false,
             ignore_mtime: false,
             ignore_ctime: true,
             check_ctime: false,
@@ -94,6 +95,7 @@ mod csc_tests {
             copy_block_devices_as_regular_files: false,
             one_file_system: false,
             best_effort_metadata: false,
+            check_atime: false,
             dry_run: false,
         }
     }
@@ -934,27 +936,27 @@ mod csc_tests {
 
         let journal = find_cscjournal(&state);
 
-        // Strict verification: should detect atime mismatch
+        // Default verification: should ignore atime by default and pass cleanly
         let verify_args = default_verify_args(journal.clone(), None);
-        let res = run_csc_verify(&verify_args).expect("run strict verifier");
+        let res = run_csc_verify(&verify_args).expect("run default verifier");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
-                assert_eq!(exit_code, 1);
-                let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("Atime mismatch"));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
-
-        // With --ignore-atime: should ignore atime and pass cleanly
-        let mut ignored_args = default_verify_args(journal, None);
-        ignored_args.ignore_atime = true;
-        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_atime");
-        match res2 {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("OK - Directory matches manifest perfectly"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Opt-in with --check-atime: should detect atime mismatch
+        let mut checked_args = default_verify_args(journal, None);
+        checked_args.check_atime = true;
+        let res2 = run_csc_verify(&checked_args).expect("run verifier with check_atime");
+        match res2 {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Atime mismatch"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

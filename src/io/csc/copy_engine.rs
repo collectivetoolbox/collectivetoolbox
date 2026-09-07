@@ -40,7 +40,7 @@ use ctb_io::file::payload::DiskPayloadSource;
 use ctb_io::file::query_block_device_size;
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
-use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity};
+use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
 use std::collections::HashMap;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
@@ -383,7 +383,12 @@ pub fn execute_copy_pipeline(
         try_drop_system_caches();
 
         for (_src_path, dest_path, entity) in &files_to_verify {
-            verify_materialized_entity(dest_path, entity, !args.best_effort_metadata)?;
+            verify_materialized_entity_ext(
+                dest_path,
+                entity,
+                !args.best_effort_metadata,
+                args.check_atime,
+            )?;
             stats.files_verified = stats.files_verified.saturating_add(1);
 
             if progress.is_enabled() && last_progress_render.elapsed().as_millis() > 100 {

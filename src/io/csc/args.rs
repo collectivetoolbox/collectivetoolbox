@@ -109,6 +109,10 @@ pub struct CscArgs {
     #[arg(long)]
     pub best_effort_metadata: bool,
 
+    /// Explicitly check access time (atime) differences in post-copy verification.
+    #[arg(long)]
+    pub check_atime: bool,
+
     /// Perform a dry run without copying or modifying destination files.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
@@ -166,11 +170,16 @@ pub struct CscVerifyArgs {
     #[arg(long)]
     pub no_drop_caches: bool,
 
-    /// Ignore access time (atime) differences.
-    #[arg(long)]
+    /// Ignore access time (atime) differences during verification (defaults to
+    /// true).
+    #[arg(long, default_value_t = true)]
     pub ignore_atime: bool,
 
-    /// Ignore modification time (mtime) differences.
+    /// Explicitly check access time (atime) differences during verification.
+    #[arg(long)]
+    pub check_atime: bool,
+
+    /// Ignore modification time (mtime) differences during verification.
     #[arg(long)]
     pub ignore_mtime: bool,
 
@@ -223,6 +232,9 @@ pub struct CscVerifyArgs {
 impl CscVerifyArgs {
     #[must_use]
     pub fn should_ignore_atime(&self) -> bool {
+        if self.check_atime {
+            return false;
+        }
         self.ignore_atime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("atime"))
     }
 

@@ -287,9 +287,11 @@ impl std::fmt::Display for DiffKind {
 /// Options controlling which attributes and checks are audited by `audit_entity`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntityAuditOptions {
-    /// Skip checking access times (atime).
+    /// Skip checking access times (atime) during verification. Access times are
+    /// still copied to the destination during transfer.
     pub ignore_atime: bool,
-    /// Skip checking modification times (mtime).
+    /// Skip checking modification times (mtime) during verification.
+    /// Modification times are still copied to the destination during transfer.
     pub ignore_mtime: bool,
     /// Skip checking metadata change times (ctime).
     pub ignore_ctime: bool,
@@ -313,7 +315,7 @@ pub struct EntityAuditOptions {
 impl Default for EntityAuditOptions {
     fn default() -> Self {
         Self {
-            ignore_atime: false,
+            ignore_atime: true,
             ignore_mtime: false,
             ignore_ctime: true,
             ignore_owner: false,
@@ -712,10 +714,21 @@ pub fn verify_materialized_entity(
     entity: &FileEntity,
     strict_lossless: bool,
 ) -> Result<()> {
+    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false)
+}
+
+/// Verifies a materialized entity with opt-in control over access time (atime) checking.
+pub fn verify_materialized_entity_ext(
+    dest_path: &Path,
+    entity: &FileEntity,
+    strict_lossless: bool,
+    check_atime: bool,
+) -> Result<()> {
     let mut options = EntityAuditOptions::default();
     options.drop_caches = true;
     options.check_sparse = true;
     options.ignore_ctime = true;
+    options.ignore_atime = !check_atime;
     options.best_effort = !strict_lossless;
 
     let diffs = audit_entity(dest_path, entity, &options)?;
