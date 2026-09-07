@@ -1117,7 +1117,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             )
         }
         Command::Csc(args) => ctb_io_csc::cli::run_csc(args.clone()),
-        Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args.clone()),
+        Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args),
         Command::Csum {
             algo,
             file,

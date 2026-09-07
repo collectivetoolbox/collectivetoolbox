@@ -163,9 +163,13 @@ pub struct CscVerifyArgs {
     #[arg(long)]
     pub ignore_mtime: bool,
 
-    /// Ignore status/metadata change time (ctime) differences.
-    #[arg(long)]
+    /// Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime).
+    #[arg(long, default_value_t = true)]
     pub ignore_ctime: bool,
+
+    /// Explicitly enforce status/metadata change time (ctime) verification.
+    #[arg(long)]
+    pub check_ctime: bool,
 
     /// Ignore ownership (UID and GID) differences.
     #[arg(long)]
@@ -213,6 +217,9 @@ impl CscVerifyArgs {
 
     #[must_use]
     pub fn should_ignore_ctime(&self) -> bool {
+        if self.check_ctime {
+            return false;
+        }
         self.ignore_ctime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("ctime"))
     }
 

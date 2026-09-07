@@ -53,7 +53,8 @@ mod csc_tests {
             no_drop_caches: true,
             ignore_atime: false,
             ignore_mtime: false,
-            ignore_ctime: false,
+            ignore_ctime: true,
+            check_ctime: false,
             ignore_owner: true,
             ignore_perms: false,
             ignore_flags: true,
@@ -675,7 +676,7 @@ mod csc_tests {
 
         let journal = find_cscjournal(&state);
         let verify_args = default_verify_args(journal, None);
-        let res = run_csc_verify(verify_args).expect("run verifier");
+        let res = run_csc_verify(&verify_args).expect("run verifier");
 
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
@@ -715,7 +716,7 @@ mod csc_tests {
         let journal = find_cscjournal(&state);
         // Verify with relocated folder specified
         let verify_args = default_verify_args(journal, Some(relocated));
-        let res = run_csc_verify(verify_args).expect("run verifier on relocated");
+        let res = run_csc_verify(&verify_args).expect("run verifier on relocated");
 
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
@@ -752,7 +753,7 @@ mod csc_tests {
 
         let journal = find_cscjournal(&state);
         let verify_args = default_verify_args(journal, None);
-        let res = run_csc_verify(verify_args).expect("run verifier");
+        let res = run_csc_verify(&verify_args).expect("run verifier");
 
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
@@ -796,7 +797,7 @@ mod csc_tests {
 
         // Strict verification: should detect permissions mismatch
         let verify_args = default_verify_args(journal.clone(), None);
-        let res = run_csc_verify(verify_args).expect("run strict verifier");
+        let res = run_csc_verify(&verify_args).expect("run strict verifier");
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 1);
@@ -809,7 +810,8 @@ mod csc_tests {
         // With --ignore-perms: should pass cleanly
         let mut ignored_args = default_verify_args(journal, None);
         ignored_args.ignore_perms = true;
-        let res2 = run_csc_verify(ignored_args).expect("run verifier with ignore_perms");
+        ignored_args.ignore_atime = true;
+        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_perms");
         match res2 {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -854,7 +856,7 @@ mod csc_tests {
 
         // Strict verification: should detect atime mismatch
         let verify_args = default_verify_args(journal.clone(), None);
-        let res = run_csc_verify(verify_args).expect("run strict verifier");
+        let res = run_csc_verify(&verify_args).expect("run strict verifier");
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 1);
@@ -867,7 +869,7 @@ mod csc_tests {
         // With --ignore-atime: should ignore atime and pass cleanly
         let mut ignored_args = default_verify_args(journal, None);
         ignored_args.ignore_atime = true;
-        let res2 = run_csc_verify(ignored_args).expect("run verifier with ignore_atime");
+        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_atime");
         match res2 {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -907,7 +909,7 @@ mod csc_tests {
 
         // Default verification: should report both missing and untracked
         let verify_args = default_verify_args(journal.clone(), None);
-        let res = run_csc_verify(verify_args).expect("run verifier");
+        let res = run_csc_verify(&verify_args).expect("run verifier");
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 1);
@@ -921,7 +923,7 @@ mod csc_tests {
         // With --ignore-untracked: untracked file is not reported, but missing file is still caught
         let mut ignored_args = default_verify_args(journal, None);
         ignored_args.ignore_untracked = true;
-        let res2 = run_csc_verify(ignored_args).expect("run verifier with ignore_untracked");
+        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_untracked");
         match res2 {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 1);
@@ -957,7 +959,7 @@ mod csc_tests {
         let mut verify_args = default_verify_args(journal, None);
         verify_args.format = VerifyOutputFormat::Json;
 
-        let res = run_csc_verify(verify_args).expect("run json verifier");
+        let res = run_csc_verify(&verify_args).expect("run json verifier");
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);

@@ -324,6 +324,8 @@ pub fn execute_copy_pipeline(
 
         for (_src_path, dest_path, entity) in &files_to_verify {
             verify_materialized_entity(dest_path, entity, true)?;
+            // Re-apply timestamps so that reading the file during verification does not leave atime altered.
+            let _ = apply_entity_metadata(dest_path, &entity.metadata, entity.is_symlink(), false);
             stats.files_verified = stats.files_verified.saturating_add(1);
 
             if progress.is_enabled() && last_progress_render.elapsed().as_millis() > 100 {

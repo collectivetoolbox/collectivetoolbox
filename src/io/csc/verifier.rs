@@ -179,6 +179,8 @@ impl VerificationReport {
 
     /// Formats the audit report into a human-readable text document.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "Comprehensive discrepancy report formatting")]
+    #[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
     pub fn format_human_report(&self) -> String {
         use std::fmt::Write;
         let mut out = String::new();
@@ -382,6 +384,7 @@ impl VerificationReport {
 }
 
 /// Helper converting a 32-byte digest array into a lowercase hex string.
+#[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
 fn hex_encode(bytes: &[u8; 32]) -> String {
     use std::fmt::Write;
     let mut s = String::with_capacity(64);
@@ -392,6 +395,7 @@ fn hex_encode(bytes: &[u8; 32]) -> String {
 }
 
 /// Performs verification of target directory against manifest according to options.
+#[expect(clippy::too_many_lines, reason = "Manifest verification orchestrator covering files, dirs, symlinks, and hardlinks")]
 pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<VerificationReport> {
     let journal_path = resolve_journal_path(&args.manifest)?;
     let snapshot = read_journal_snapshot(&journal_path)?;
@@ -424,10 +428,16 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut matched_entries = 0_usize;
     let mut verified_paths = HashSet::new();
 
+    let total_dirs = snapshot
+        .committed_dirs
+        .keys()
+        .filter(|p| !p.as_os_str().is_empty() && *p != Path::new("."))
+        .count();
+
     let total_manifest_entries = snapshot
         .committed_files
         .len()
-        .saturating_add(snapshot.committed_dirs.len())
+        .saturating_add(total_dirs)
         .saturating_add(snapshot.committed_symlinks.len())
         .saturating_add(snapshot.committed_hardlinks.len());
 
@@ -467,7 +477,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 missing_entries.push(rel_path.clone());
             }
             Ok(meta) => {
-                let diffs = audit_directory(&full_path, md, &meta, args)?;
+                let diffs = audit_directory(&full_path, md, &meta, args);
                 if diffs.is_empty() {
                     matched_entries = matched_entries.saturating_add(1);
                 } else {
@@ -584,6 +594,7 @@ fn normalize_rel_path(p: &Path) -> PathBuf {
     p.strip_prefix("./").unwrap_or(p).to_path_buf()
 }
 
+#[expect(clippy::too_many_lines, reason = "Comprehensive audit of all file attributes, hashes, and streams")]
 fn audit_file(
     full_path: &Path,
     mf: &ManifestFile,
@@ -702,6 +713,20 @@ fn audit_file(
     }
 
     // Payload cryptographic checksum
+    #[cfg(target_os = "linux")]
+    let mut file = {
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut opts = File::options();
+        opts.read(true);
+        opts.custom_flags(nix::libc::O_NOATIME);
+        match opts.open(full_path) {
+            Ok(f) => f,
+            Err(_) => File::open(full_path).with_context(|| {
+                format!("Failed to open file for verification: {}", full_path.display())
+            })?,
+        }
+    };
+    #[cfg(not(target_os = "linux"))]
     let mut file = File::open(full_path).with_context(|| {
         format!("Failed to open file for verification: {}", full_path.display())
     })?;
@@ -784,7 +809,7 @@ fn audit_directory(
     md: &ManifestDir,
     meta: &std::fs::Metadata,
     args: &CscVerifyArgs,
-) -> Result<Vec<DiffKind>> {
+) -> Vec<DiffKind> {
     let mut diffs = Vec::new();
 
     if !meta.is_dir() {
@@ -798,7 +823,7 @@ fn audit_directory(
                 "special node".into()
             },
         });
-        return Ok(diffs);
+        return diffs;
     }
 
     if !args.should_ignore_perms() {
@@ -881,7 +906,7 @@ fn audit_directory(
         }
     }
 
-    Ok(diffs)
+    diffs
 }
 
 fn audit_symlink(
@@ -993,15 +1018,15 @@ fn scan_disk_entries(root: &Path) -> Result<HashSet<PathBuf>> {
 }
 
 /// Main orchestration entry point for the `csc-verify` CLI command.
-pub fn run_csc_verify(args: CscVerifyArgs) -> Result<ToolResult> {
-    let report = verify_directory_against_manifest(&args)?;
+pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
+    let report = verify_directory_against_manifest(args)?;
 
     let output_str = match args.format {
         VerifyOutputFormat::Text => report.format_human_report(),
         VerifyOutputFormat::Json => report.format_json_report()?,
     };
 
-    let exit_code = if report.is_clean() { 0 } else { 1 };
+    let exit_code = i32::from(!report.is_clean());
 
     Ok(ToolResult::Immediate {
         stdout: output_str.into_bytes(),
