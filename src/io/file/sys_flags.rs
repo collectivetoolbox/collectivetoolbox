@@ -235,9 +235,12 @@ pub fn query_file_flags(
 ///
 /// If `strict_lossless` is true, fails with an error if flags cannot be losslessly
 /// transferred.
-#[expect(
-    unsafe_code,
-    reason = "Invoking Linux ioctl and BSD chflags system calls requires it"
+#[cfg_attr(
+    any(target_vendor = "apple", target_os = "freebsd"),
+    expect(
+        unsafe_code,
+        reason = "Invoking BSD chflags system call requires unsafe C FFI"
+    )
 )]
 pub fn apply_file_flags(
     path: &Path,
@@ -264,7 +267,7 @@ pub fn apply_file_flags(
         use std::os::unix::fs::OpenOptionsExt;
 
         // Reason for fallback: An absent raw platform flags record represents no raw flags to apply.
-        if flags.is_empty() && raw.map_or(true, |r| r.raw_value == 0) {
+        if flags.is_empty() && raw.is_none_or(|r| r.raw_value == 0) {
             return Ok(());
         }
 
