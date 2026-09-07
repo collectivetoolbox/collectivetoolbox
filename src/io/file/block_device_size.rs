@@ -73,9 +73,6 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
     // From <sys/disk.h>:
     // DKIOCGETBLOCKSIZE  -> u32
     // DKIOCGETBLOCKCOUNT -> u64
-    //
-    // These numeric request codes are platform ABI details; verify against
-    // your target SDK headers if you want to avoid hard-coding them.
     const DKIOCGETBLOCKSIZE: libc::c_ulong = 0x4004_6418;
     const DKIOCGETBLOCKCOUNT: libc::c_ulong = 0x4008_6419;
 

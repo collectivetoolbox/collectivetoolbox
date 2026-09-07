@@ -36,7 +36,8 @@ use ctb_io::file::materializer::{
     verify_directory_filenames_exact,
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
-use ctb_io::file::payload::{DiskPayloadSource, query_block_device_size};
+use ctb_io::file::payload::DiskPayloadSource;
+use ctb_io::file::query_block_device_size;
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity};
@@ -461,10 +462,10 @@ fn copy_single_item(
             if args.copy_block_devices_as_regular_files
                 && matches!(entity.kind, FileEntityKind::BlockDevice { .. })
             {
-                let mut dev_file = std::fs::File::open(src_path).with_context(|| {
+                let dev_file = std::fs::File::open(src_path).with_context(|| {
                     format!("Failed to open block device: {}", src_path.display())
                 })?;
-                let size = query_block_device_size(&mut dev_file).with_context(|| {
+                let size = query_block_device_size(&dev_file).with_context(|| {
                     format!(
                         "Failed to determine size of block device: {}",
                         src_path.display()

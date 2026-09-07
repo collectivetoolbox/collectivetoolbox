@@ -26,6 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+pub mod block_device_size;
 pub mod entity;
 pub mod identity;
 pub mod materializer;
@@ -37,6 +38,7 @@ pub mod streams;
 pub mod sys_flags;
 pub mod verifier;
 
+pub use block_device_size::query_block_device_size;
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
@@ -50,7 +52,6 @@ pub use path_policy::{
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
-    query_block_device_size,
 };
 pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};

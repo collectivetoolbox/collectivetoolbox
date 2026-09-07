@@ -270,3 +270,5 @@ impl PayloadSource for MemoryPayloadSource {
     }
 }
 
+pub use crate::file::block_device_size::query_block_device_size;
+
