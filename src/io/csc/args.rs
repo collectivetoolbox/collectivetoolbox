@@ -51,7 +51,7 @@ pub struct CscArgs {
     #[arg(value_name = "PATHS")]
     pub paths: Vec<PathBuf>,
 
-    /// Path to a state file (.journal or .desc) from which to resume an
+    /// Path to a state file (.cscjournal or .cscdesc) from which to resume an
     /// interrupted run. When specified, source and destination paths should
     /// not be passed.
     #[arg(long, value_name = "STATE_FILE")]
@@ -122,5 +122,140 @@ impl CscArgs {
         } else {
             self.verify_after
         }
+    }
+}
+
+/// Output format for verification reporting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum VerifyOutputFormat {
+    /// Human-readable detailed text summary.
+    #[default]
+    Text,
+    /// JSON output for automated scripting and machine parsing.
+    Json,
+}
+
+/// Command-line arguments for `csc-verify` (or `cscv`).
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "csc-verify",
+    about = "Verifies a directory against a manifest created by csc, reporting all changed files and metadata differences"
+)]
+pub struct CscVerifyArgs {
+    /// Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files.
+    #[arg(value_name = "MANIFEST")]
+    pub manifest: PathBuf,
+
+    /// Target directory to verify. If omitted, uses the destination path recorded
+    /// in the manifest. Specifying this allows verifying relocated folders.
+    #[arg(value_name = "DIRECTORY")]
+    pub dir: Option<PathBuf>,
+
+    /// Skip dropping OS kernel caches and per-file cache eviction before reading.
+    #[arg(long)]
+    pub no_drop_caches: bool,
+
+    /// Ignore access time (atime) differences.
+    #[arg(long)]
+    pub ignore_atime: bool,
+
+    /// Ignore modification time (mtime) differences.
+    #[arg(long)]
+    pub ignore_mtime: bool,
+
+    /// Ignore status/metadata change time (ctime) differences.
+    #[arg(long)]
+    pub ignore_ctime: bool,
+
+    /// Ignore ownership (UID and GID) differences.
+    #[arg(long)]
+    pub ignore_owner: bool,
+
+    /// Ignore file mode / permission differences.
+    #[arg(long)]
+    pub ignore_perms: bool,
+
+    /// Ignore semantic file flags differences.
+    #[arg(long)]
+    pub ignore_flags: bool,
+
+    /// Ignore alternate data streams and extended attribute differences.
+    #[arg(long)]
+    pub ignore_xattrs: bool,
+
+    /// Do not report untracked extra files present on disk that are absent from manifest.
+    #[arg(long)]
+    pub ignore_untracked: bool,
+
+    /// Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked).
+    #[arg(long, value_delimiter = ',')]
+    pub ignore: Vec<String>,
+
+    /// Output reporting format (`text` or `json`).
+    #[arg(long, value_enum, default_value_t = VerifyOutputFormat::Text)]
+    pub format: VerifyOutputFormat,
+
+    /// Only report discrepancies or errors, suppressing informational progress.
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
+}
+
+impl CscVerifyArgs {
+    #[must_use]
+    pub fn should_ignore_atime(&self) -> bool {
+        self.ignore_atime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("atime"))
+    }
+
+    #[must_use]
+    pub fn should_ignore_mtime(&self) -> bool {
+        self.ignore_mtime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("mtime"))
+    }
+
+    #[must_use]
+    pub fn should_ignore_ctime(&self) -> bool {
+        self.ignore_ctime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("ctime"))
+    }
+
+    #[must_use]
+    pub fn should_ignore_owner(&self) -> bool {
+        self.ignore_owner
+            || self.ignore.iter().any(|s| {
+                s.eq_ignore_ascii_case("owner")
+                    || s.eq_ignore_ascii_case("uid")
+                    || s.eq_ignore_ascii_case("gid")
+            })
+    }
+
+    #[must_use]
+    pub fn should_ignore_perms(&self) -> bool {
+        self.ignore_perms
+            || self.ignore.iter().any(|s| {
+                s.eq_ignore_ascii_case("perms")
+                    || s.eq_ignore_ascii_case("mode")
+                    || s.eq_ignore_ascii_case("permissions")
+            })
+    }
+
+    #[must_use]
+    pub fn should_ignore_flags(&self) -> bool {
+        self.ignore_flags || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("flags"))
+    }
+
+    #[must_use]
+    pub fn should_ignore_xattrs(&self) -> bool {
+        self.ignore_xattrs
+            || self.ignore.iter().any(|s| {
+                s.eq_ignore_ascii_case("xattrs") || s.eq_ignore_ascii_case("streams")
+            })
+    }
+
+    #[must_use]
+    pub fn should_ignore_untracked(&self) -> bool {
+        self.ignore_untracked || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("untracked"))
+    }
+
+    #[must_use]
+    pub fn should_drop_caches(&self) -> bool {
+        !self.no_drop_caches
     }
 }

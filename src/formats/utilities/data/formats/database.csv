@@ -40,3 +40,5 @@ Import/export/tests support columns meaning:
 2228536,312,PkixCrl,X.509 CRL (RFC 2585 sec. 4.2; RFC 5280 sec. 5),database,,.crl,"application/pkix-crl, application/x-pkcs7-crl",,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228537,313,Pkcs7Mime,PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7),database,,".p7c, .p7b, .spc, .p7r","application/pkcs7-mime, application/x-pkcs7-certificates, application/x-pkcs7-certreqresp",,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228538,314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,".p12, .pfx",application/x-pkcs12,com.rsa.pkcs-12,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
+,,CscJournal,Collective Toolbox csc journal,database,,.cscjournal,,,,,,,,,,
+,,CscDesc,Collective Toolbox csc description,database,,.cscdesc,,,,,,,,,,

@@ -229,7 +229,7 @@ mod csc_tests {
         let mut journal_file = None;
         for entry in fs::read_dir(&state).expect("read state dir") {
             let entry = entry.expect("entry");
-            if entry.path().extension().and_then(|e| e.to_str()) == Some("journal") {
+            if entry.path().extension().and_then(|e| e.to_str()) == Some("cscjournal") {
                 journal_file = Some(entry.path());
                 break;
             }

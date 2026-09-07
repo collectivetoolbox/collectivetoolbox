@@ -55,13 +55,13 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let (tasks, mut journal, snapshot) = if let Some(ref resume_path) = args.resume {
         // Resume mode: recover state from journal
-        let journal_path = if resume_path.extension().and_then(|e| e.to_str()) == Some("desc") {
-            resume_path.with_extension("journal")
+        let journal_path = if resume_path.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+            resume_path.with_extension("cscjournal")
         } else {
             resume_path.clone()
         };
 
-        let desc_path = journal_path.with_extension("desc");
+        let desc_path = journal_path.with_extension("cscdesc");
 
         progress.message(&format!(
             "Resuming session from journal: {}",

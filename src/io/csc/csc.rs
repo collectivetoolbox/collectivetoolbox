@@ -33,6 +33,7 @@ pub mod fs_strict;
 pub mod journal;
 pub mod path_resolution;
 pub mod verify_cache;
+pub mod verifier;
 
 #[cfg(test)]
 #[allow(

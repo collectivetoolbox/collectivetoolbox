@@ -145,7 +145,11 @@ pub fn execute_copy_pipeline(
                     dir_entity: dir_entity.clone(),
                 });
 
-                journal.record_entity(&dir_entity);
+                let mut journal_dir = dir_entity.clone();
+                if let Ok(rel) = curr_tgt.strip_prefix(journal.destination()) {
+                    journal_dir.identity.relative_path = rel.to_path_buf();
+                }
+                journal.record_entity(&journal_dir);
 
                 let read_dir = std::fs::read_dir(&curr_src).with_context(|| {
                     format!("Failed to read source directory: {}", curr_src.display())
@@ -276,7 +280,11 @@ pub fn execute_copy_pipeline(
         }
 
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
-        journal.record_entity(&entity);
+        let mut journal_symlink = entity.clone();
+        if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
+            journal_symlink.identity.relative_path = rel.to_path_buf();
+        }
+        journal.record_entity(&journal_symlink);
     }
 
     // =========================================================================
@@ -358,7 +366,13 @@ fn copy_single_item(
 ) -> Result<()> {
     // 1. Check if already committed in snapshot
     if let Some(snap) = snapshot {
-        if snap.committed_files.contains_key(dest_path)
+        let rel_dest = dest_path
+            .strip_prefix(journal.destination())
+            .unwrap_or(dest_path);
+        if snap.committed_files.contains_key(rel_dest)
+            || snap.committed_symlinks.contains_key(rel_dest)
+            || snap.committed_hardlinks.contains_key(rel_dest)
+            || snap.committed_files.contains_key(dest_path)
             || snap.committed_symlinks.contains_key(dest_path)
             || snap.committed_hardlinks.contains_key(dest_path)
         {
@@ -385,7 +399,7 @@ fn copy_single_item(
             };
             materialize_entity(&entity, None, dest_dir, options)?;
             stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
-            journal.record_entity(&entity);
+            record_journal_entry(journal, dest_path, &entity);
             return Ok(());
         }
 
@@ -399,7 +413,7 @@ fn copy_single_item(
         | FileEntityKind::BlockDevice { .. } => {
             materialize_entity(&entity, None, dest_dir, options)?;
             stats.special_files_created = stats.special_files_created.saturating_add(1);
-            journal.record_entity(&entity);
+            record_journal_entry(journal, dest_path, &entity);
             return Ok(());
         }
         FileEntityKind::Socket => {
@@ -451,7 +465,7 @@ fn copy_single_item(
                         }
                         stats.files_skipped_identical =
                             stats.files_skipped_identical.saturating_add(1);
-                        journal.record_entity(&entity);
+                        record_journal_entry(journal, dest_path, &entity);
                         files_to_verify.push((
                             src_path.to_path_buf(),
                             dest_path.to_path_buf(),
@@ -496,10 +510,22 @@ fn copy_single_item(
     stats.files_copied = stats.files_copied.saturating_add(1);
     stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
 
-    journal.record_entity(&entity);
+    record_journal_entry(journal, dest_path, &entity);
     files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
 
     Ok(())
+}
+
+fn record_journal_entry(
+    journal: &mut JournalWriter,
+    dest_path: &Path,
+    entity: &FileEntity,
+) {
+    let mut journal_entity = entity.clone();
+    if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
+        journal_entity.identity.relative_path = rel.to_path_buf();
+    }
+    journal.record_entity(&journal_entity);
 }
 
 trait FileEntityKindExt {

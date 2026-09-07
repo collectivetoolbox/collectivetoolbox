@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
+use ctb_io::file::metadata::FileFlag;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
@@ -53,11 +54,18 @@ pub struct ManifestFile {
     pub relative_path: PathBuf,
     pub size: u64,
     pub sha256: [u8; 32],
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
     pub mode: u32,
     pub uid: u32,
     pub gid: u32,
+    pub mtime_sec: i64,
+    pub mtime_nsec: u32,
+    pub atime_sec: i64,
+    pub atime_nsec: u32,
+    pub ctime_sec: i64,
+    pub ctime_nsec: u32,
+    pub birthtime_sec: Option<i64>,
+    pub birthtime_nsec: Option<u32>,
+    pub flags: Vec<FileFlag>,
     pub is_sparse: bool,
     pub streams: Vec<(OsString, [u8; 32])>,
 }
@@ -67,10 +75,17 @@ pub struct ManifestFile {
 pub struct ManifestDir {
     pub relative_path: PathBuf,
     pub mode: u32,
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
     pub uid: u32,
     pub gid: u32,
+    pub mtime_sec: i64,
+    pub mtime_nsec: u32,
+    pub atime_sec: i64,
+    pub atime_nsec: u32,
+    pub ctime_sec: i64,
+    pub ctime_nsec: u32,
+    pub birthtime_sec: Option<i64>,
+    pub birthtime_nsec: Option<u32>,
+    pub flags: Vec<FileFlag>,
     pub streams: Vec<(OsString, [u8; 32])>,
 }
 
@@ -79,10 +94,17 @@ pub struct ManifestDir {
 pub struct ManifestSymlink {
     pub relative_path: PathBuf,
     pub target: Vec<u8>,
-    pub mtime_sec: i64,
-    pub mtime_nsec: u32,
     pub uid: u32,
     pub gid: u32,
+    pub mtime_sec: i64,
+    pub mtime_nsec: u32,
+    pub atime_sec: i64,
+    pub atime_nsec: u32,
+    pub ctime_sec: i64,
+    pub ctime_nsec: u32,
+    pub birthtime_sec: Option<i64>,
+    pub birthtime_nsec: Option<u32>,
+    pub flags: Vec<FileFlag>,
 }
 
 impl ManifestFile {
@@ -111,11 +133,18 @@ impl ManifestFile {
                     relative_path: entity.identity.relative_path.clone(),
                     size: *size,
                     sha256: *sha256,
-                    mtime_sec: entity.metadata.timestamps.mtime_sec,
-                    mtime_nsec: entity.metadata.timestamps.mtime_nsec,
                     mode: entity.metadata.mode,
                     uid: entity.metadata.uid,
                     gid: entity.metadata.gid,
+                    mtime_sec: entity.metadata.timestamps.mtime_sec,
+                    mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+                    atime_sec: entity.metadata.timestamps.atime_sec,
+                    atime_nsec: entity.metadata.timestamps.atime_nsec,
+                    ctime_sec: entity.metadata.timestamps.ctime_sec,
+                    ctime_nsec: entity.metadata.timestamps.ctime_nsec,
+                    birthtime_sec: entity.metadata.timestamps.birthtime_sec,
+                    birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
+                    flags: entity.metadata.flags.clone(),
                     is_sparse: *is_sparse,
                     streams,
                 })
@@ -143,10 +172,17 @@ impl ManifestDir {
         Self {
             relative_path: entity.identity.relative_path.clone(),
             mode: entity.metadata.mode,
-            mtime_sec: entity.metadata.timestamps.mtime_sec,
-            mtime_nsec: entity.metadata.timestamps.mtime_nsec,
             uid: entity.metadata.uid,
             gid: entity.metadata.gid,
+            mtime_sec: entity.metadata.timestamps.mtime_sec,
+            mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+            atime_sec: entity.metadata.timestamps.atime_sec,
+            atime_nsec: entity.metadata.timestamps.atime_nsec,
+            ctime_sec: entity.metadata.timestamps.ctime_sec,
+            ctime_nsec: entity.metadata.timestamps.ctime_nsec,
+            birthtime_sec: entity.metadata.timestamps.birthtime_sec,
+            birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
+            flags: entity.metadata.flags.clone(),
             streams,
         }
     }
@@ -160,10 +196,17 @@ impl ManifestSymlink {
             FileEntityKind::Symlink { target } => Some(Self {
                 relative_path: entity.identity.relative_path.clone(),
                 target: target.clone(),
-                mtime_sec: entity.metadata.timestamps.mtime_sec,
-                mtime_nsec: entity.metadata.timestamps.mtime_nsec,
                 uid: entity.metadata.uid,
                 gid: entity.metadata.gid,
+                mtime_sec: entity.metadata.timestamps.mtime_sec,
+                mtime_nsec: entity.metadata.timestamps.mtime_nsec,
+                atime_sec: entity.metadata.timestamps.atime_sec,
+                atime_nsec: entity.metadata.timestamps.atime_nsec,
+                ctime_sec: entity.metadata.timestamps.ctime_sec,
+                ctime_nsec: entity.metadata.timestamps.ctime_nsec,
+                birthtime_sec: entity.metadata.timestamps.birthtime_sec,
+                birthtime_nsec: entity.metadata.timestamps.birthtime_nsec,
+                flags: entity.metadata.flags.clone(),
             }),
             _ => None,
         }
@@ -183,7 +226,7 @@ pub struct JournalSnapshot {
     pub last_batch_id: u64,
 }
 
-/// Writer managing the persistent state journal and its companion `.desc` file.
+/// Writer managing the persistent state journal and its companion `.cscdesc` file.
 pub struct JournalWriter {
     journal_path: PathBuf,
     desc_path: PathBuf,
@@ -215,8 +258,8 @@ impl JournalWriter {
         let pid = std::process::id();
         let base_name = format!("csc_state_{secs}_{nanos}_{pid}");
 
-        let journal_path = home_dir.join(format!("{base_name}.journal"));
-        let desc_path = home_dir.join(format!("{base_name}.desc"));
+        let journal_path = home_dir.join(format!("{base_name}.cscjournal"));
+        let desc_path = home_dir.join(format!("{base_name}.cscdesc"));
 
         let file = OpenOptions::new()
             .write(true)
@@ -358,10 +401,19 @@ impl JournalWriter {
             self.writer.write_all(&[TAG_DIR])?;
             write_bytes(&mut self.writer, d.relative_path.as_os_str().as_encoded_bytes())?;
             write_u32(&mut self.writer, d.mode)?;
-            write_i64(&mut self.writer, d.mtime_sec)?;
-            write_u32(&mut self.writer, d.mtime_nsec)?;
             write_u32(&mut self.writer, d.uid)?;
             write_u32(&mut self.writer, d.gid)?;
+            write_i64(&mut self.writer, d.mtime_sec)?;
+            write_u32(&mut self.writer, d.mtime_nsec)?;
+            write_i64(&mut self.writer, d.atime_sec)?;
+            write_u32(&mut self.writer, d.atime_nsec)?;
+            write_i64(&mut self.writer, d.ctime_sec)?;
+            write_u32(&mut self.writer, d.ctime_nsec)?;
+            write_opt_timestamp(&mut self.writer, d.birthtime_sec, d.birthtime_nsec)?;
+            write_u32(&mut self.writer, u32::try_from(d.flags.len())?)?;
+            for flag in &d.flags {
+                write_flag(&mut self.writer, *flag)?;
+            }
             write_u32(&mut self.writer, u32::try_from(d.streams.len())?)?;
             for (sname, shash) in &d.streams {
                 write_bytes(&mut self.writer, sname.as_encoded_bytes())?;
@@ -375,11 +427,20 @@ impl JournalWriter {
             write_bytes(&mut self.writer, f.relative_path.as_os_str().as_encoded_bytes())?;
             write_u64(&mut self.writer, f.size)?;
             self.writer.write_all(&f.sha256)?;
-            write_i64(&mut self.writer, f.mtime_sec)?;
-            write_u32(&mut self.writer, f.mtime_nsec)?;
             write_u32(&mut self.writer, f.mode)?;
             write_u32(&mut self.writer, f.uid)?;
             write_u32(&mut self.writer, f.gid)?;
+            write_i64(&mut self.writer, f.mtime_sec)?;
+            write_u32(&mut self.writer, f.mtime_nsec)?;
+            write_i64(&mut self.writer, f.atime_sec)?;
+            write_u32(&mut self.writer, f.atime_nsec)?;
+            write_i64(&mut self.writer, f.ctime_sec)?;
+            write_u32(&mut self.writer, f.ctime_nsec)?;
+            write_opt_timestamp(&mut self.writer, f.birthtime_sec, f.birthtime_nsec)?;
+            write_u32(&mut self.writer, u32::try_from(f.flags.len())?)?;
+            for flag in &f.flags {
+                write_flag(&mut self.writer, *flag)?;
+            }
             self.writer.write_all(&[u8::from(f.is_sparse)])?;
             write_u32(&mut self.writer, u32::try_from(f.streams.len())?)?;
             for (sname, shash) in &f.streams {
@@ -396,10 +457,19 @@ impl JournalWriter {
             self.writer.write_all(&[TAG_SYMLINK])?;
             write_bytes(&mut self.writer, s.relative_path.as_os_str().as_encoded_bytes())?;
             write_bytes(&mut self.writer, &s.target)?;
-            write_i64(&mut self.writer, s.mtime_sec)?;
-            write_u32(&mut self.writer, s.mtime_nsec)?;
             write_u32(&mut self.writer, s.uid)?;
             write_u32(&mut self.writer, s.gid)?;
+            write_i64(&mut self.writer, s.mtime_sec)?;
+            write_u32(&mut self.writer, s.mtime_nsec)?;
+            write_i64(&mut self.writer, s.atime_sec)?;
+            write_u32(&mut self.writer, s.atime_nsec)?;
+            write_i64(&mut self.writer, s.ctime_sec)?;
+            write_u32(&mut self.writer, s.ctime_nsec)?;
+            write_opt_timestamp(&mut self.writer, s.birthtime_sec, s.birthtime_nsec)?;
+            write_u32(&mut self.writer, u32::try_from(s.flags.len())?)?;
+            for flag in &s.flags {
+                write_flag(&mut self.writer, *flag)?;
+            }
         }
 
         // 4. Write hardlink entries
@@ -427,7 +497,7 @@ impl JournalWriter {
         Ok(())
     }
 
-    /// Marks the job as completely finished and updates the `.desc` companion file.
+    /// Marks the job as completely finished and updates the `.cscdesc` companion file.
     pub fn mark_completed(&mut self) -> Result<()> {
         self.commit_batch()?;
         self.writer.write_all(&[TAG_JOB_COMPLETED])?;
@@ -460,11 +530,50 @@ impl JournalWriter {
     pub fn journal_path(&self) -> &Path {
         &self.journal_path
     }
+
+    #[must_use]
+    pub fn destination(&self) -> &Path {
+        &self.destination
+    }
+}
+
+/// Resolves a manifest path or directory into a `.cscjournal` file path.
+pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
+    if path.is_file() {
+        if path.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+            return Ok(path.with_extension("cscjournal"));
+        }
+        return Ok(path.to_path_buf());
+    }
+
+    if path.is_dir() {
+        let mut candidates = Vec::new();
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+                if let Ok(meta) = p.metadata() {
+                    let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
+                    candidates.push((mtime, p));
+                }
+            }
+        }
+        candidates.sort_by(|a, b| b.0.cmp(&a.0));
+        if let Some((_, newest)) = candidates.into_iter().next() {
+            return Ok(newest);
+        }
+    }
+
+    anyhow::bail!(
+        "Could not find valid .cscjournal file from path: {}",
+        path.display()
+    )
 }
 
 /// Reads a state journal, rolling back to the last valid `BATCH_COMMIT` marker.
-pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
-    let file = File::open(journal_path).with_context(|| {
+pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
+    let journal_path = resolve_journal_path(path)?;
+    let file = File::open(&journal_path).with_context(|| {
         format!("Failed to open journal file: {}", journal_path.display())
     })?;
     let mut reader = BufReader::new(file);
@@ -511,10 +620,22 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let rel_bytes = read_bytes(&mut reader)?;
                 let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
                 let mode = read_u32(&mut reader)?;
-                let seconds_timestamp = read_i64(&mut reader)?;
-                let nanos_fraction = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
+                let mtime_sec = read_i64(&mut reader)?;
+                let mtime_nsec = read_u32(&mut reader)?;
+                let atime_sec = read_i64(&mut reader)?;
+                let atime_nsec = read_u32(&mut reader)?;
+                let ctime_sec = read_i64(&mut reader)?;
+                let ctime_nsec = read_u32(&mut reader)?;
+                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
+                let flag_count = read_u32(&mut reader)?;
+                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
+                for _ in 0..flag_count {
+                    if let Some(flag) = read_flag(&mut reader)? {
+                        flags.push(flag);
+                    }
+                }
                 let stream_count = read_u32(&mut reader)?;
                 let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
                 for _ in 0..stream_count {
@@ -529,10 +650,17 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                     ManifestDir {
                         relative_path: rel_path,
                         mode,
-                        mtime_sec: seconds_timestamp,
-                        mtime_nsec: nanos_fraction,
                         uid,
                         gid,
+                        mtime_sec,
+                        mtime_nsec,
+                        atime_sec,
+                        atime_nsec,
+                        ctime_sec,
+                        ctime_nsec,
+                        birthtime_sec,
+                        birthtime_nsec,
+                        flags,
                         streams,
                     },
                 );
@@ -543,11 +671,23 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let size = read_u64(&mut reader)?;
                 let mut sha256 = [0_u8; 32];
                 reader.read_exact(&mut sha256)?;
-                let seconds_timestamp = read_i64(&mut reader)?;
-                let nanos_fraction = read_u32(&mut reader)?;
                 let mode = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
+                let mtime_sec = read_i64(&mut reader)?;
+                let mtime_nsec = read_u32(&mut reader)?;
+                let atime_sec = read_i64(&mut reader)?;
+                let atime_nsec = read_u32(&mut reader)?;
+                let ctime_sec = read_i64(&mut reader)?;
+                let ctime_nsec = read_u32(&mut reader)?;
+                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
+                let flag_count = read_u32(&mut reader)?;
+                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
+                for _ in 0..flag_count {
+                    if let Some(flag) = read_flag(&mut reader)? {
+                        flags.push(flag);
+                    }
+                }
                 let mut sparse_byte = [0_u8; 1];
                 reader.read_exact(&mut sparse_byte)?;
                 let is_sparse = sparse_byte[0] != 0;
@@ -566,11 +706,18 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                         relative_path: rel_path,
                         size,
                         sha256,
-                        mtime_sec: seconds_timestamp,
-                        mtime_nsec: nanos_fraction,
                         mode,
                         uid,
                         gid,
+                        mtime_sec,
+                        mtime_nsec,
+                        atime_sec,
+                        atime_nsec,
+                        ctime_sec,
+                        ctime_nsec,
+                        birthtime_sec,
+                        birthtime_nsec,
+                        flags,
                         is_sparse,
                         streams,
                     },
@@ -580,19 +727,38 @@ pub fn read_journal_snapshot(journal_path: &Path) -> Result<JournalSnapshot> {
                 let rel_bytes = read_bytes(&mut reader)?;
                 let rel_path = PathBuf::from(std::ffi::OsString::from_vec(rel_bytes));
                 let target = read_bytes(&mut reader)?;
-                let seconds_timestamp = read_i64(&mut reader)?;
-                let nanos_fraction = read_u32(&mut reader)?;
                 let uid = read_u32(&mut reader)?;
                 let gid = read_u32(&mut reader)?;
+                let mtime_sec = read_i64(&mut reader)?;
+                let mtime_nsec = read_u32(&mut reader)?;
+                let atime_sec = read_i64(&mut reader)?;
+                let atime_nsec = read_u32(&mut reader)?;
+                let ctime_sec = read_i64(&mut reader)?;
+                let ctime_nsec = read_u32(&mut reader)?;
+                let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut reader)?;
+                let flag_count = read_u32(&mut reader)?;
+                let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
+                for _ in 0..flag_count {
+                    if let Some(flag) = read_flag(&mut reader)? {
+                        flags.push(flag);
+                    }
+                }
                 pending_symlinks.insert(
                     rel_path.clone(),
                     ManifestSymlink {
                         relative_path: rel_path,
                         target,
-                        mtime_sec: seconds_timestamp,
-                        mtime_nsec: nanos_fraction,
                         uid,
                         gid,
+                        mtime_sec,
+                        mtime_nsec,
+                        atime_sec,
+                        atime_nsec,
+                        ctime_sec,
+                        ctime_nsec,
+                        birthtime_sec,
+                        birthtime_nsec,
+                        flags,
                     },
                 );
             }
@@ -681,3 +847,40 @@ fn read_i64(r: &mut impl Read) -> Result<i64> {
     r.read_exact(&mut buf)?;
     Ok(i64::from_le_bytes(buf))
 }
+
+fn write_flag(w: &mut impl Write, flag: FileFlag) -> Result<()> {
+    write_bytes(w, flag.name().as_bytes())
+}
+
+fn read_flag(r: &mut impl Read) -> Result<Option<FileFlag>> {
+    let bytes = read_bytes(r)?;
+    let s = std::str::from_utf8(&bytes)?;
+    Ok(FileFlag::from_name(s))
+}
+
+fn write_opt_timestamp(w: &mut impl Write, sec: Option<i64>, nsec: Option<u32>) -> Result<()> {
+    match (sec, nsec) {
+        (Some(s), Some(ns)) => {
+            w.write_all(&[1])?;
+            write_i64(w, s)?;
+            write_u32(w, ns)?;
+        }
+        _ => {
+            w.write_all(&[0])?;
+        }
+    }
+    Ok(())
+}
+
+fn read_opt_timestamp(r: &mut impl Read) -> Result<(Option<i64>, Option<u32>)> {
+    let mut tag = [0_u8; 1];
+    r.read_exact(&mut tag)?;
+    if tag[0] == 1 {
+        let sec = read_i64(r)?;
+        let nsec = read_u32(r)?;
+        Ok((Some(sec), Some(nsec)))
+    } else {
+        Ok((None, None))
+    }
+}
+
