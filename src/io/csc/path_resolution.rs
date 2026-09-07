@@ -128,6 +128,11 @@ pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBu
                 });
             } else {
                 // e.g. "csc file1 file2" -> copy file1 to file2
+                anyhow::ensure!(
+                    dest_path.file_name().is_some(),
+                    "Target path has no file name component: {}",
+                    dest_path.display()
+                );
                 tasks.push(ResolvedCopyTask {
                     source_root: source.clone(),
                     target_root: dest_path.clone(),

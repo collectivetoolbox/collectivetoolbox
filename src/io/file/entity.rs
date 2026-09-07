@@ -273,8 +273,9 @@ impl FileEntity {
         // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
         let relative_path = if let Some(base) = base_dir {
             match path.strip_prefix(base) {
-                Ok(rel) => rel.to_path_buf(),
-                Err(_) => path.file_name().map_or_else(PathBuf::new, PathBuf::from),
+                Ok(rel) if !rel.as_os_str().is_empty() => rel.to_path_buf(),
+                Ok(_) if sym_meta.is_dir() => PathBuf::new(),
+                _ => path.file_name().map_or_else(PathBuf::new, PathBuf::from),
             }
         } else {
             path.file_name().map_or_else(PathBuf::new, PathBuf::from)

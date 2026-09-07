@@ -677,6 +677,62 @@ mod csc_tests {
     }
 
     #[crate::ctb_test]
+    fn test_copy_single_file_to_directory() {
+        let temp = tempdir().expect("create tempdir");
+        let src_file = temp.path().join(".face");
+        let dest_dir = temp.path().join("dest_dir");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&dest_dir).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(&src_file, b"face icon bytes").expect("write face");
+
+        // Test case 1: dest with trailing slash (e.g. csc ~/.face ./)
+        let dest_with_slash = PathBuf::from(format!("{}/", dest_dir.display()));
+        let args = default_test_args(
+            vec![src_file.clone(), dest_with_slash],
+            state.clone(),
+        );
+
+        run_csc(args).expect("run csc single file with trailing slash");
+        assert_eq!(
+            fs::read(dest_dir.join(".face")).expect("read copied file"),
+            b"face icon bytes"
+        );
+
+        // Test case 2: dest without trailing slash (e.g. csc ~/.face .)
+        let dest_dir2 = temp.path().join("dest_dir2");
+        let state2 = temp.path().join("state_dir2");
+        fs::create_dir_all(&dest_dir2).expect("create dest2");
+        fs::create_dir_all(&state2).expect("create state2");
+
+        let args2 = default_test_args(
+            vec![src_file.clone(), dest_dir2.clone()],
+            state2,
+        );
+        run_csc(args2).expect("run csc single file to directory without trailing slash");
+        assert_eq!(
+            fs::read(dest_dir2.join(".face")).expect("read copied file 2"),
+            b"face icon bytes"
+        );
+
+        // Test case 3: direct file rename (e.g. csc ~/.face renamed.face)
+        let renamed_file = temp.path().join("renamed.face");
+        let state3 = temp.path().join("state_dir3");
+        fs::create_dir_all(&state3).expect("create state3");
+
+        let args3 = default_test_args(
+            vec![src_file.clone(), renamed_file.clone()],
+            state3,
+        );
+        run_csc(args3).expect("run csc single file rename");
+        assert_eq!(
+            fs::read(&renamed_file).expect("read renamed file"),
+            b"face icon bytes"
+        );
+    }
+
+    #[crate::ctb_test]
     fn test_verify_clean_directory() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_clean");

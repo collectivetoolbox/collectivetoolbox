@@ -158,10 +158,9 @@ pub fn execute_copy_pipeline(
                 });
 
                 let mut journal_dir = dir_entity.clone();
-                if let Ok(rel) = curr_tgt.strip_prefix(journal.destination()) {
-                    journal_dir.identity.relative_path = rel.to_path_buf();
-                    journal_dir.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
-                }
+                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt);
+                journal_dir.identity.relative_path = rel.clone();
+                journal_dir.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
                 journal.record_entity(&journal_dir);
 
                 let read_dir = std::fs::read_dir(&curr_src).with_context(|| {
@@ -180,11 +179,21 @@ pub fn execute_copy_pipeline(
                         continue;
                     }
 
+                    let entry_rel = if dir_entity.identity.relative_path.as_os_str().is_empty() {
+                        PathBuf::from(&entry_name)
+                    } else {
+                        dir_entity.identity.relative_path.join(&entry_name)
+                    };
+
                     if entry_sym_meta.is_dir() {
                         dir_queue.push((entry_src, entry_tgt));
                     } else if entry_sym_meta.is_symlink() {
-                        let sym_entity =
+                        let mut sym_entity =
                             FileEntity::from_filesystem(&entry_src, Some(src_root))?;
+                        sym_entity.identity.relative_path = entry_rel;
+                        sym_entity.identity.raw_relative_path =
+                            sym_entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
+                        sym_entity.identity.raw_filename = entry_name.as_encoded_bytes().to_vec();
                         deferred_symlinks.push(DeferredSymlink {
                             dest_path: entry_tgt,
                             entity: sym_entity,
@@ -194,7 +203,7 @@ pub fn execute_copy_pipeline(
                         copy_single_item(
                             &entry_src,
                             &entry_tgt,
-                            src_root,
+                            &entry_rel,
                             &dest_dir,
                             &options,
                             args,
@@ -227,16 +236,30 @@ pub fn execute_copy_pipeline(
                 }
             }
         } else {
-            // Reason for fallback: A single-component relative destination (e.g. "output.bin") has no parent path; falling back to current working directory "." correctly targets the local directory.
-            let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
+            // Reason for fallback: A single-component relative destination (e.g. "output.bin") has no parent path or an empty parent path (""); falling back to current working directory "." correctly targets the local directory.
+            let parent_dest = match tgt_root.parent() {
+                Some(p) if !p.as_os_str().is_empty() => p,
+                _ => Path::new("."),
+            };
+            let target_file_name = tgt_root
+                .file_name()
+                .context("Target path has no file name component")?;
+
             let dest_dir = if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?
             } else {
                 SandboxableDir::create_or_open(parent_dest)?
             };
 
+            let target_rel_path = Path::new(target_file_name);
+
             if src_meta.is_symlink() {
-                let sym_entity = FileEntity::from_filesystem(src_root, None)?;
+                let mut sym_entity = FileEntity::from_filesystem(src_root, None)?;
+                sym_entity.identity.relative_path = target_rel_path.to_path_buf();
+                sym_entity.identity.raw_relative_path =
+                    target_file_name.as_encoded_bytes().to_vec();
+                sym_entity.identity.raw_filename =
+                    target_file_name.as_encoded_bytes().to_vec();
                 deferred_symlinks.push(DeferredSymlink {
                     dest_path: tgt_root.clone(),
                     entity: sym_entity,
@@ -246,7 +269,7 @@ pub fn execute_copy_pipeline(
                 copy_single_item(
                     src_root,
                     tgt_root,
-                    src_root,
+                    target_rel_path,
                     &dest_dir,
                     &options,
                     args,
@@ -265,15 +288,13 @@ pub fn execute_copy_pipeline(
     // =========================================================================
     for symlink_item in deferred_symlinks {
         let dest_path = &symlink_item.dest_path;
-        let mut entity = symlink_item.entity;
+        let entity = symlink_item.entity;
 
         if let Some(snap) = snapshot {
-            let rel_bytes = if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
-                rel.as_os_str().as_encoded_bytes()
-            } else {
-                dest_path.as_os_str().as_encoded_bytes()
-            };
-            if snap.is_committed(rel_bytes) {
+            let rel = compute_journal_relative_path(journal.destination(), dest_path);
+            let rel_bytes = rel.as_os_str().as_encoded_bytes();
+            let dest_bytes = dest_path.as_os_str().as_encoded_bytes();
+            if snap.is_committed(rel_bytes) || snap.is_committed(dest_bytes) {
                 continue;
             }
         }
@@ -283,11 +304,6 @@ pub fn execute_copy_pipeline(
         } else {
             SandboxableDir::create_or_open(&symlink_item.dest_dir_root)?
         };
-
-        if let Ok(rel) = dest_path.strip_prefix(dest_dir.root_path()) {
-            entity.identity.relative_path = rel.to_path_buf();
-            entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
-        }
 
         materialize_entity(&entity, None, &dest_dir, &options)?;
 
@@ -303,12 +319,7 @@ pub fn execute_copy_pipeline(
         }
 
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
-        let mut journal_symlink = entity.clone();
-        if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
-            journal_symlink.identity.relative_path = rel.to_path_buf();
-            journal_symlink.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
-        }
-        journal.record_entity(&journal_symlink);
+        record_journal_entry(journal, dest_path, &entity);
     }
 
     // =========================================================================
@@ -378,7 +389,7 @@ pub fn execute_copy_pipeline(
 fn copy_single_item(
     src_path: &Path,
     dest_path: &Path,
-    src_root: &Path,
+    dest_rel_path: &Path,
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
     args: &CscArgs,
@@ -390,10 +401,7 @@ fn copy_single_item(
 ) -> Result<()> {
     // 1. Check if already committed in snapshot
     if let Some(snap) = snapshot {
-        // Reason for fallback: If dest_path is outside or equal to destination root, retain dest_path as relative lookup key.
-        let rel_dest = dest_path
-            .strip_prefix(journal.destination())
-            .unwrap_or(dest_path);
+        let rel_dest = compute_journal_relative_path(journal.destination(), dest_path);
         let rel_bytes = rel_dest.as_os_str().as_encoded_bytes();
         let dest_bytes = dest_path.as_os_str().as_encoded_bytes();
         if snap.is_committed(rel_bytes) || snap.is_committed(dest_bytes) {
@@ -402,10 +410,11 @@ fn copy_single_item(
     }
 
     // 2. Discover full entity from filesystem
-    let mut entity = FileEntity::from_filesystem(src_path, Some(src_root))?;
-    if let Ok(rel) = dest_path.strip_prefix(dest_dir.root_path()) {
-        entity.identity.relative_path = rel.to_path_buf();
-        entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
+    let mut entity = FileEntity::from_filesystem(src_path, None)?;
+    entity.identity.relative_path = dest_rel_path.to_path_buf();
+    entity.identity.raw_relative_path = dest_rel_path.as_os_str().as_encoded_bytes().to_vec();
+    if let Some(fname) = dest_rel_path.file_name() {
+        entity.identity.raw_filename = fname.as_encoded_bytes().to_vec();
     }
 
     // 3. Hardlink detection (nlink > 1)
@@ -566,16 +575,33 @@ fn copy_single_item(
     Ok(())
 }
 
+fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathBuf {
+    let norm_dest = dest_path.strip_prefix("./").unwrap_or(dest_path);
+    let norm_journal = journal_dest.strip_prefix("./").unwrap_or(journal_dest);
+
+    if norm_journal.as_os_str().is_empty() || norm_journal == Path::new(".") {
+        return norm_dest.to_path_buf();
+    }
+
+    if let Ok(rel) = norm_dest.strip_prefix(norm_journal) {
+        return rel.strip_prefix("./").unwrap_or(rel).to_path_buf();
+    }
+    if let Ok(rel) = dest_path.strip_prefix(journal_dest) {
+        return rel.to_path_buf();
+    }
+
+    norm_dest.to_path_buf()
+}
+
 fn record_journal_entry(
     journal: &mut JournalWriter,
     dest_path: &Path,
     entity: &FileEntity,
 ) {
     let mut journal_entity = entity.clone();
-    if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
-        journal_entity.identity.relative_path = rel.to_path_buf();
-        journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
-    }
+    let rel = compute_journal_relative_path(journal.destination(), dest_path);
+    journal_entity.identity.relative_path = rel.clone();
+    journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
     journal.record_entity(&journal_entity);
 }
 

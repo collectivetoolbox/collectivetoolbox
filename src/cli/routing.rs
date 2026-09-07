@@ -501,7 +501,7 @@ pub enum Command {
     /// Verify a directory against a manifest recorded by csc
     #[command(name = "csc-verify", alias = "cscv")]
     CscVerify(ctb_io_csc::args::CscVerifyArgs),
-    /// Index directories into resumable state journals and compile into Turso SQLite databases
+    /// Index a directory or csc manifest for quick searching
     #[command(name = "fsindex")]
     Fsindex(ctb_io_csc::args::FsindexArgs),
     /// Fast indexed search against a .cscindex.sqlite database
