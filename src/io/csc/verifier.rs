@@ -181,7 +181,17 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut matched_entries = 0_usize;
     let mut verified_paths = HashSet::new();
 
-    let total_manifest_entries = snapshot.committed_entities.len();
+    let total_manifest_entries = snapshot
+        .committed_entities
+        .iter()
+        .filter(|(raw_rel, entity)| {
+            if matches!(entity.kind, FileEntityKind::Directory) {
+                !raw_rel.is_empty() && *raw_rel != b"."
+            } else {
+                true
+            }
+        })
+        .count();
     let is_windows = snapshot.origin_platform == PLATFORM_WINDOWS;
 
     for (raw_rel, entity) in &snapshot.committed_entities {
@@ -215,7 +225,6 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 let tgt_rel = match resolve_relative_path_for_os(target_relative_path, is_windows) {
                     Ok(p) => p,
                     Err(e) => {
-                        let p = PathBuf::from(String::from_utf8_lossy(target_relative_path).as_ref());
                         changed_entries.push(EntryDiff {
                             relative_path: rel_path.clone(),
                             differences: vec![DiffKind::IncompatiblePath {

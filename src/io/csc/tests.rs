@@ -974,4 +974,128 @@ mod csc_tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
+
+    #[crate::ctb_test]
+    fn test_journal_entity_format_and_checksum_resilience() {
+        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+        use std::io::Write;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+
+        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+
+        let file_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("hello.txt"),
+                raw_relative_path: b"hello.txt".to_vec(),
+                raw_filename: b"hello.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 100,
+                    mtime_sec: 1_700_000_001,
+                    mtime_nsec: 200,
+                    ctime_sec: 1_700_000_002,
+                    ctime_nsec: 300,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 42,
+                sha256: [0xAB; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        let link_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("link.txt"),
+                raw_relative_path: b"link.txt".to_vec(),
+                raw_filename: b"link.txt".to_vec(),
+                nlink: 2,
+                hardlink_group: Some(12345),
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+            },
+            kind: FileEntityKind::Hardlink {
+                target_relative_path: b"hello.txt".to_vec(),
+            },
+            streams: Vec::new(),
+        };
+
+        writer.record_entity(&file_entity);
+        writer.record_entity(&link_entity);
+        writer.commit_batch().expect("commit batch");
+
+        let snap = read_journal_snapshot(writer.journal_path()).expect("read snapshot");
+        assert_eq!(snap.committed_entities.len(), 2);
+        assert!(snap.is_committed(b"hello.txt"));
+        assert!(snap.is_committed(b"link.txt"));
+
+        let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
+        if let FileEntityKind::Regular { size, sha256, .. } = &read_file.kind {
+            assert_eq!(*size, 42);
+            assert_eq!(*sha256, [0xAB; 32]);
+        } else {
+            panic!("Expected regular file kind");
+        }
+
+        let read_link = snap.committed_entities.get(b"link.txt".as_slice()).expect("get link.txt");
+        if let FileEntityKind::Hardlink { target_relative_path } = &read_link.kind {
+            assert_eq!(target_relative_path, b"hello.txt");
+        } else {
+            panic!("Expected hardlink kind");
+        }
+
+        // Test corruption resilience: Append corrupted bytes (bad checksum)
+        {
+            let mut file = std::fs::OpenOptions::new()
+                .append(true)
+                .open(writer.journal_path())
+                .expect("open for append");
+            // TAG_ENTITY (2) + len (10) + checksum (0) + 10 junk bytes
+            file.write_all(&[2, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).expect("write junk");
+            file.write_all(b"badpayload").expect("write junk payload");
+        }
+
+        // Snapshot should cleanly recover up to the last valid batch and discard corrupted bytes
+        let recovered = read_journal_snapshot(writer.journal_path()).expect("recover after corruption");
+        assert_eq!(recovered.committed_entities.len(), 2);
+        assert_eq!(recovered.last_batch_id, snap.last_batch_id);
+    }
 }

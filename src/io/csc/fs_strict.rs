@@ -94,6 +94,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from(&info.name),
+                raw_relative_path: name_bytes.clone(),
                 raw_filename: name_bytes,
                 nlink: 1,
                 hardlink_group: None,

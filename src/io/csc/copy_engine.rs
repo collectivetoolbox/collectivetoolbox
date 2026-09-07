@@ -257,7 +257,12 @@ pub fn execute_copy_pipeline(
         let mut entity = symlink_item.entity;
 
         if let Some(snap) = snapshot {
-            if snap.committed_symlinks.contains_key(dest_path) {
+            let rel_bytes = if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
+                rel.as_os_str().as_encoded_bytes()
+            } else {
+                dest_path.as_os_str().as_encoded_bytes()
+            };
+            if snap.is_committed(rel_bytes) {
                 continue;
             }
         }
@@ -270,6 +275,7 @@ pub fn execute_copy_pipeline(
 
         if let Ok(rel) = dest_path.strip_prefix(dest_dir.root_path()) {
             entity.identity.relative_path = rel.to_path_buf();
+            entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
         }
 
         materialize_entity(&entity, None, &dest_dir, &options)?;
@@ -289,6 +295,7 @@ pub fn execute_copy_pipeline(
         let mut journal_symlink = entity.clone();
         if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
             journal_symlink.identity.relative_path = rel.to_path_buf();
+            journal_symlink.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
         }
         journal.record_entity(&journal_symlink);
     }
@@ -376,13 +383,9 @@ fn copy_single_item(
         let rel_dest = dest_path
             .strip_prefix(journal.destination())
             .unwrap_or(dest_path);
-        if snap.committed_files.contains_key(rel_dest)
-            || snap.committed_symlinks.contains_key(rel_dest)
-            || snap.committed_hardlinks.contains_key(rel_dest)
-            || snap.committed_files.contains_key(dest_path)
-            || snap.committed_symlinks.contains_key(dest_path)
-            || snap.committed_hardlinks.contains_key(dest_path)
-        {
+        let rel_bytes = rel_dest.as_os_str().as_encoded_bytes();
+        let dest_bytes = dest_path.as_os_str().as_encoded_bytes();
+        if snap.is_committed(rel_bytes) || snap.is_committed(dest_bytes) {
             return Ok(());
         }
     }
@@ -391,6 +394,7 @@ fn copy_single_item(
     let mut entity = FileEntity::from_filesystem(src_path, Some(src_root))?;
     if let Ok(rel) = dest_path.strip_prefix(dest_dir.root_path()) {
         entity.identity.relative_path = rel.to_path_buf();
+        entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
     }
 
     // 3. Hardlink detection (nlink > 1)
@@ -402,7 +406,7 @@ fn copy_single_item(
 
         if let Some(first_target_rel) = hardlink_map.get(&key) {
             entity.kind = FileEntityKind::Hardlink {
-                target_relative_path: first_target_rel.clone(),
+                target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
             };
             materialize_entity(&entity, None, dest_dir, options)?;
             stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
@@ -531,6 +535,7 @@ fn record_journal_entry(
     let mut journal_entity = entity.clone();
     if let Ok(rel) = dest_path.strip_prefix(journal.destination()) {
         journal_entity.identity.relative_path = rel.to_path_buf();
+        journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
     }
     journal.record_entity(&journal_entity);
 }

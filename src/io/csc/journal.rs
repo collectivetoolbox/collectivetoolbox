@@ -211,13 +211,13 @@ impl JournalWriter {
             let mut payload = Vec::new();
             write_entity_payload(&mut payload, entity)?;
             let payload_len = u32::try_from(payload.len())?;
-            let checksum = xxhash::xxh3_64(&payload);
+            let checksum = xxhash::xxhash3_64(&payload);
 
             batch_hasher.update(&payload);
 
             self.writer.write_all(&[TAG_ENTITY])?;
             write_u32(&mut self.writer, payload_len)?;
-            write_u64(&mut self.writer, checksum)?;
+            self.writer.write_all(&checksum)?;
             self.writer.write_all(&payload)?;
 
             if let FileEntityKind::Regular { size, .. } = entity.kind {
@@ -380,9 +380,10 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 let Ok(payload_len) = read_u32(&mut reader) else {
                     break;
                 };
-                let Ok(expected_checksum) = read_u64(&mut reader) else {
+                let mut expected_checksum = [0_u8; 8];
+                if reader.read_exact(&mut expected_checksum).is_err() {
                     break;
-                };
+                }
                 let Ok(payload_len_usize) = usize::try_from(payload_len) else {
                     break;
                 };
@@ -390,7 +391,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 if reader.read_exact(&mut payload).is_err() {
                     break;
                 }
-                let actual_checksum = xxhash::xxh3_64(&payload);
+                let actual_checksum = xxhash::xxhash3_64(&payload);
                 if actual_checksum != expected_checksum {
                     break;
                 }
