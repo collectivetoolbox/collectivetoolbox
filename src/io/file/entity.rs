@@ -107,6 +107,20 @@ impl FileEntity {
     /// If `base_dir` is provided, `identity.relative_path` is calculated relative
     /// to `base_dir`. Otherwise, it uses the entry's filename.
     pub fn from_filesystem(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
+        Self::from_filesystem_internal(path, base_dir, true)
+    }
+
+    /// Inspects an existing filesystem entry at `path` and builds a `FileEntity`
+    /// without reading file payload bytes or computing cryptographic hashes.
+    pub fn from_filesystem_metadata_only(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
+        Self::from_filesystem_internal(path, base_dir, false)
+    }
+
+    fn from_filesystem_internal(
+        path: &Path,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+    ) -> Result<Self> {
         let sym_meta = std::fs::symlink_metadata(path)
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
 
@@ -226,6 +240,13 @@ impl FileEntity {
         } else if (mode & 0xF000) == 0xD000 {
             // S_IFDOOR
             FileEntityKind::Door
+        } else if !compute_hash {
+            FileEntityKind::Regular {
+                size: sym_meta.size(),
+                sha256: [0_u8; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            }
         } else {
             // Regular file: discover extents and compute SHA-256
             let size = sym_meta.size();
@@ -257,7 +278,7 @@ impl FileEntity {
             }
         };
 
-        let streams = if is_symlink {
+        let streams = if is_symlink || !compute_hash {
             Vec::new()
         } else {
             read_and_hash_streams(path)?

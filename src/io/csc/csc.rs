@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Checksummed Copy (`csc`): Attempts to provide high-integrity, crash-safe, verified file tree copying. Not yet ready for production use.
+//! Checksummed Copy (`csc`): Attempts to provide high-integrity, crash-safe, verified, resumable file tree copying. Not yet ready for production use.
 
 #[expect(
     unused_imports,
@@ -34,6 +34,8 @@ pub mod journal;
 pub mod path_resolution;
 pub mod verify_cache;
 pub mod verifier;
+pub mod index_engine;
+pub mod search_engine;
 
 #[cfg(test)]
 #[allow(

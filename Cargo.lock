@@ -3278,10 +3278,13 @@ dependencies = [
  "ctb-utilities",
  "filetime",
  "nix 0.30.1",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
  "tracing",
+ "turso",
  "xattr",
 ]
 

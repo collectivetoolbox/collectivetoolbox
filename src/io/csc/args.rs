@@ -282,3 +282,151 @@ impl CscVerifyArgs {
         }
     }
 }
+
+/// Command-line arguments for `fsindex`.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "fsindex",
+    about = "Indexes directories into resumable .cscjournal state files and compiles them into Turso SQLite databases"
+)]
+pub struct FsindexArgs {
+    /// Target directory or .cscjournal file(s) to index.
+    #[arg(value_name = "PATH", required = true, num_args = 1..)]
+    pub targets: Vec<PathBuf>,
+
+    /// Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed).
+    #[arg(short = 'd', long = "db", value_name = "DATABASE")]
+    pub database: Option<PathBuf>,
+
+    /// Override the source name tag stored in the database (default: journal basename without extension).
+    #[arg(short = 's', long = "source-name")]
+    pub source_name: Option<String>,
+
+    /// Resume an interrupted directory indexing session from an existing journal.
+    #[arg(long)]
+    pub resume: bool,
+
+    /// Explicit path to a journal file when resuming.
+    #[arg(long, value_name = "JOURNAL")]
+    pub resume_journal: Option<PathBuf>,
+
+    /// Compute cryptographic SHA-256 digests for file contents (slow on large filesystems; default is metadata-only).
+    #[arg(long)]
+    pub checksum: bool,
+
+    /// Only generate the *.cscjournal file; do not compile into SQLite database.
+    #[arg(long)]
+    pub journal_only: bool,
+
+    /// Number of entries to commit per transaction batch during traversal and ingestion.
+    #[arg(long, default_value_t = 500)]
+    pub batch_size: usize,
+
+    /// Suppress progress output.
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
+}
+
+/// Output format for search results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum SearchOutputFormat {
+    /// Locate-style path list (one path per line).
+    #[default]
+    Path,
+    /// Detailed long listing (permissions, size, mtime, source, path).
+    Long,
+    /// JSON output for scripting.
+    Json,
+}
+
+/// Field to sort search results by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum SearchSortField {
+    #[default]
+    Path,
+    Name,
+    Mtime,
+    Ctime,
+    Size,
+}
+
+/// Command-line arguments for `fsearch`.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "fsearch",
+    about = "Performs fast indexed searches against a .cscindex.sqlite database"
+)]
+pub struct FsearchArgs {
+    /// Path to the *.cscindex.sqlite database file.
+    #[arg(value_name = "DATABASE")]
+    pub database: PathBuf,
+
+    /// Search pattern or glob (matched against filename unless --path or --regex is specified).
+    #[arg(value_name = "PATTERN")]
+    pub query: Option<String>,
+
+    /// Glob pattern to match against filename (e.g. "*.rs", "*test*").
+    #[arg(short = 'n', long = "name")]
+    pub name_glob: Option<String>,
+
+    /// Glob pattern to match against relative path (e.g. "src/**/tests.rs").
+    #[arg(short = 'p', long = "path")]
+    pub path_glob: Option<String>,
+
+    /// Substring keyword to match in path or filename.
+    #[arg(short = 'k', long = "keyword")]
+    pub keyword: Option<String>,
+
+    /// Regular expression pattern to match against path.
+    #[arg(short = 'r', long = "regex")]
+    pub regex: Option<String>,
+
+    /// Filter by source name tag.
+    #[arg(short = 's', long = "source")]
+    pub source: Option<String>,
+
+    /// Filter entries modified on or after this Unix timestamp or relative duration (e.g. "1725600000", "7d", "24h").
+    #[arg(long = "mtime-after")]
+    pub mtime_after: Option<String>,
+
+    /// Filter entries modified on or before this Unix timestamp or relative duration.
+    #[arg(long = "mtime-before")]
+    pub mtime_before: Option<String>,
+
+    /// Filter entries changed on or after this Unix timestamp or relative duration.
+    #[arg(long = "ctime-after")]
+    pub ctime_after: Option<String>,
+
+    /// Filter entries changed on or before this Unix timestamp or relative duration.
+    #[arg(long = "ctime-before")]
+    pub ctime_before: Option<String>,
+
+    /// Minimum file size in bytes (or suffix like 10k, 5M, 1G).
+    #[arg(long = "size-min")]
+    pub size_min: Option<String>,
+
+    /// Maximum file size in bytes (or suffix like 10k, 5M, 1G).
+    #[arg(long = "size-max")]
+    pub size_max: Option<String>,
+
+    /// Filter by entity type ('f' or 'file', 'd' or 'dir', 'l' or 'symlink').
+    #[arg(short = 't', long = "type")]
+    pub entry_type: Option<String>,
+
+    /// Field to sort results by.
+    #[arg(long, value_enum, default_value_t = SearchSortField::Path)]
+    pub sort: SearchSortField,
+
+    /// Sort in descending order.
+    #[arg(long = "desc")]
+    pub sort_desc: bool,
+
+    /// Maximum number of search results to return.
+    #[arg(short = 'l', long = "limit")]
+    pub limit: Option<usize>,
+
+    /// Output formatting mode (`path`, `long`, or `json`).
+    #[arg(long, value_enum, default_value_t = SearchOutputFormat::Path)]
+    pub format: SearchOutputFormat,
+}
+

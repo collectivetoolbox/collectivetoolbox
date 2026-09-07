@@ -52,6 +52,8 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "csc"
             | "csc-verify"
             | "cscv"
+            | "fsindex"
+            | "fsearch"
             | "csum"
             | "compress"
             | "decompress"
@@ -499,6 +501,12 @@ pub enum Command {
     /// Verify a directory against a manifest recorded by csc
     #[command(name = "csc-verify", alias = "cscv")]
     CscVerify(ctb_io_csc::args::CscVerifyArgs),
+    /// Index directories into resumable state journals and compile into Turso SQLite databases
+    #[command(name = "fsindex")]
+    Fsindex(ctb_io_csc::args::FsindexArgs),
+    /// Fast indexed search against a .cscindex.sqlite database
+    #[command(name = "fsearch")]
+    Fsearch(ctb_io_csc::args::FsearchArgs),
     /// Calculate checksum for a file or stdin
     #[command(name = "csum")]
     Csum {
@@ -1118,6 +1126,8 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::Csc(args) => ctb_io_csc::cli::run_csc(args.clone()),
         Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args),
+        Command::Fsindex(args) => ctb_io_csc::index_engine::run_fsindex(args.clone()).await,
+        Command::Fsearch(args) => ctb_io_csc::search_engine::run_fsearch(args.clone()).await,
         Command::Csum {
             algo,
             file,

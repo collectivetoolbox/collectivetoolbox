@@ -96,6 +96,46 @@ pub struct JournalWriter {
 }
 
 impl JournalWriter {
+    /// Creates a new state journal at the specified path.
+    /// Fails with an error if either file already exists.
+    pub fn create_at_path(
+        journal_path: &Path,
+        desc_path: &Path,
+        sources: &[PathBuf],
+        destination: &Path,
+    ) -> Result<Self> {
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(journal_path)
+            .with_context(|| {
+                format!(
+                    "Failed to create state journal (file already exists or inaccessible): {}",
+                    journal_path.display()
+                )
+            })?;
+
+        let mut writer = BufWriter::new(file);
+        writer.write_all(JOURNAL_MAGIC)?;
+
+        let mut jw = Self {
+            journal_path: journal_path.to_path_buf(),
+            desc_path: desc_path.to_path_buf(),
+            writer,
+            sources: sources.to_vec(),
+            destination: destination.to_path_buf(),
+            current_batch_id: 0,
+            uncommitted_entities: Vec::new(),
+            total_committed_files: 0,
+            total_committed_bytes: 0,
+        };
+
+        jw.write_session_header(sources, destination)?;
+        jw.update_desc_file("InProgress")?;
+        Ok(jw)
+    }
+
     /// Creates a new timestamped state journal directly in the user's home directory.
     /// Fails with an error if either file already exists.
     pub fn create_new(
@@ -113,38 +153,9 @@ impl JournalWriter {
 
         let journal_path = home_dir.join(format!("{base_name}.cscjournal"));
         let desc_path = home_dir.join(format!("{base_name}.cscdesc"));
-
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&journal_path)
-            .with_context(|| {
-                format!(
-                    "Failed to create state journal (file already exists or inaccessible): {}",
-                    journal_path.display()
-                )
-            })?;
-
-        let mut writer = BufWriter::new(file);
-        writer.write_all(JOURNAL_MAGIC)?;
-
-        let mut jw = Self {
-            journal_path,
-            desc_path,
-            writer,
-            sources: sources.to_vec(),
-            destination: destination.to_path_buf(),
-            current_batch_id: 0,
-            uncommitted_entities: Vec::new(),
-            total_committed_files: 0,
-            total_committed_bytes: 0,
-        };
-
-        jw.write_session_header(sources, destination)?;
-        jw.update_desc_file("InProgress")?;
-        Ok(jw)
+        Self::create_at_path(&journal_path, &desc_path, sources, destination)
     }
+
 
     /// Reopens an existing journal for resuming, seeking to the end.
     pub fn open_for_resume(
