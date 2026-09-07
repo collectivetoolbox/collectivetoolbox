@@ -91,6 +91,7 @@ pub fn apply_entity_metadata(
     dest: &Path,
     meta: &FileMetadata,
     is_symlink: bool,
+    apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<()> {
     let mode = meta.mode;
@@ -138,6 +139,10 @@ pub fn apply_entity_metadata(
                     dest.display()
                 );
             }
+            log_fmt!(
+                "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
+                dest.display()
+            );
         }
     }
 
@@ -150,6 +155,10 @@ pub fn apply_entity_metadata(
                     format!("Failed to set permissions on {}", dest.display())
                 });
             }
+            log_fmt!(
+                "Failed to set permissions on {}: {e} (proceeding best-effort)",
+                dest.display()
+            );
         }
     }
 
@@ -169,6 +178,20 @@ pub fn apply_entity_metadata(
                 format!("Failed to set file timestamps on {}", dest.display())
             });
         }
+        log_fmt!(
+            "Failed to set file timestamps on {}: {e} (proceeding best-effort)",
+            dest.display()
+        );
+    }
+
+    // 4. File flags
+    if apply_flags && (!meta.flags.is_empty() || meta.platform_raw_flags.is_some()) {
+        apply_file_flags(
+            dest,
+            &meta.flags,
+            meta.platform_raw_flags.as_ref(),
+            strict_lossless,
+        )?;
     }
 
     Ok(())
@@ -249,7 +272,13 @@ pub fn materialize_entity(
                 target,
                 options.symlink_policy,
             )?;
-            apply_entity_metadata(&dest_path, &entity.metadata, true, options.strict_lossless)?;
+            apply_entity_metadata(
+                &dest_path,
+                &entity.metadata,
+                true,
+                true,
+                options.strict_lossless,
+            )?;
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -280,6 +309,7 @@ pub fn materialize_entity(
                 &dest_path,
                 &entity.metadata,
                 false,
+                true,
                 options.strict_lossless,
             )?;
             Ok(MaterializeReceipt {
@@ -306,6 +336,7 @@ pub fn materialize_entity(
                 &dest_path,
                 &entity.metadata,
                 false,
+                true,
                 options.strict_lossless,
             )?;
             Ok(MaterializeReceipt {
@@ -352,6 +383,13 @@ pub fn materialize_entity(
                 &temp_name,
                 entity.metadata.mode,
             )?;
+
+            // RAII guard unlinking temp_file if an error occurs before commit_atomic_file
+            let mut cleanup_guard = TempFileCleanupGuard {
+                parent_fd: parent_dir_fd.as_fd(),
+                temp_name: temp_name.clone(),
+                active: true,
+            };
 
             let mut hasher = Sha256Stream::new();
             let initial_size = *size;
@@ -420,16 +458,8 @@ pub fn materialize_entity(
             }
 
             let computed_sha256 = hasher.finalize();
-            if computed_sha256 != *expected_sha256 {
-                if let Err(cleanup_err) =
-                    rustix::fs::unlinkat(&parent_dir_fd, &temp_name, AtFlags::empty())
-                {
-                    if cleanup_err.kind() != std::io::ErrorKind::NotFound {
-                        warn_fmt!(
-                            "Failed to clean up temporary file {temp_name} after hash mismatch: {cleanup_err}"
-                        );
-                    }
-                }
+            let is_sentinel = *expected_sha256 == [0_u8; 32];
+            if !is_sentinel && computed_sha256 != *expected_sha256 {
                 anyhow::bail!(
                     "Payload SHA-256 verification failed during write for {}: expected {:02x?}, got {:02x?}",
                     dest_path.display(),
@@ -438,18 +468,20 @@ pub fn materialize_entity(
                 );
             }
 
-            let parent_dir = dest_path
-                .parent()
-                .context("Destination path has no parent directory")?;
+            let parent_dir = match dest_path.parent() {
+                Some(p) if !p.as_os_str().is_empty() => p,
+                _ => Path::new("."),
+            };
             let temp_path = parent_dir.join(&temp_name);
 
             // Write attached streams (xattrs, resource forks)
             write_streams(&temp_path, &entity.streams, options.strict_lossless)?;
 
-            // Apply ownership, permissions, and timestamps to temp file
+            // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             apply_entity_metadata(
                 &temp_path,
                 &entity.metadata,
+                false,
                 false,
                 options.strict_lossless,
             )?;
@@ -464,13 +496,11 @@ pub fn materialize_entity(
 
             // Atomic rename inside parent directory
             dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
+            cleanup_guard.active = false;
 
             rustix::fs::fsync(&parent_dir_fd).with_context(|| {
                 format!("Failed to sync parent directory: {}", parent_dir.display())
             })?;
-
-            // Verify raw filename bytes on destination filesystem
-            verify_filename_exact_bytes(parent_dir, &entity.identity.raw_filename)?;
 
             // Deferred immutability: apply flags as the very last step!
             if !entity.metadata.flags.is_empty()
@@ -491,6 +521,54 @@ pub fn materialize_entity(
             })
         }
     }
+}
+
+struct TempFileCleanupGuard<'a> {
+    parent_fd: rustix::fd::BorrowedFd<'a>,
+    temp_name: String,
+    active: bool,
+}
+
+impl Drop for TempFileCleanupGuard<'_> {
+    fn drop(&mut self) {
+        if self.active {
+            let _ = rustix::fs::unlinkat(&self.parent_fd, &self.temp_name, AtFlags::empty());
+        }
+    }
+}
+
+/// Verifies a collection of filenames within a directory in a single pass.
+pub fn verify_directory_filenames_exact(
+    dir: &Path,
+    expected_filenames: &[&[u8]],
+) -> Result<()> {
+    if expected_filenames.is_empty() {
+        return Ok(());
+    }
+
+    let dir_path = match dir.as_os_str() {
+        s if s.is_empty() => Path::new("."),
+        _ => dir,
+    };
+
+    let mut found = std::collections::HashSet::new();
+    for entry in std::fs::read_dir(dir_path)
+        .with_context(|| format!("Failed to read directory: {}", dir_path.display()))?
+    {
+        let entry = entry.with_context(|| {
+            format!("Error reading entry in directory: {}", dir_path.display())
+        })?;
+        found.insert(entry.file_name().as_bytes().to_vec());
+    }
+
+    for expected in expected_filenames {
+        anyhow::ensure!(
+            found.contains(*expected),
+            "Target filesystem altered, normalized, or discarded filename bytes for {:?}",
+            String::from_utf8_lossy(expected)
+        );
+    }
+    Ok(())
 }
 
 /// Convenience wrapper to materialize an entity given a destination root path.

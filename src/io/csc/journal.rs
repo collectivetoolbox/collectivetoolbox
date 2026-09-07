@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use ctb_formats_checksum::{Sha256Stream, xxhash};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{FileIdentity, FileOrigin, resolve_relative_path_for_os};
+use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::collections::HashMap;
@@ -461,10 +461,15 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
     write_bytes(w, entity.identity.path_bytes())?;
     write_bytes(w, &entity.identity.raw_filename)?;
     write_u64(w, entity.identity.nlink)?;
+    let (device_id, _inode) = match &entity.identity.origin {
+        FileOrigin::Filesystem { key, .. } => (key.device_id, key.inode),
+        _ => (0, 0),
+    };
     match entity.identity.hardlink_group {
         Some(grp) => {
             w.write_all(&[1])?;
             write_u64(w, grp)?;
+            write_u64(w, device_id)?;
         }
         None => {
             w.write_all(&[0])?;
@@ -528,9 +533,14 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         FileEntityKind::Socket => {
             w.write_all(&[7])?;
         }
-        _ => {
-            w.write_all(&[1])?;
+        FileEntityKind::Door => {
+            w.write_all(&[8])?;
         }
+        FileEntityKind::Bundle { bundle_type } => {
+            w.write_all(&[9])?;
+            write_bytes(w, bundle_type.as_bytes())?;
+        }
+        _ => bail!("Unknown file type")
     }
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;
@@ -550,10 +560,12 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let raw_filename = read_bytes(&mut r)?;
     let nlink = read_u64(&mut r)?;
     let has_grp = read_u8(&mut r)?;
-    let hardlink_group = if has_grp == 1 {
-        Some(read_u64(&mut r)?)
+    let (hardlink_group, origin_device_id) = if has_grp == 1 {
+        let grp = read_u64(&mut r)?;
+        let dev = read_u64(&mut r)?;
+        (Some(grp), dev)
     } else {
-        None
+        (None, 0)
     };
 
     let mode = read_u32(&mut r)?;
@@ -610,12 +622,13 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             FileEntityKind::BlockDevice { rdev }
         }
         7 => FileEntityKind::Socket,
-        _ => FileEntityKind::Regular {
-            size: 0,
-            sha256: [0_u8; 32],
-            is_sparse: false,
-            extents: Vec::new(),
-        },
+        8 => FileEntityKind::Door,
+        9 => {
+            let btype_bytes = read_bytes(&mut r)?;
+            let bundle_type = String::from_utf8_lossy(&btype_bytes).to_string();
+            FileEntityKind::Bundle { bundle_type }
+        }
+        _ => bail!("Unknown file type tag"),
     };
 
     let stream_count = read_u32(&mut r)?;
@@ -673,9 +686,21 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let is_windows = origin_platform == PLATFORM_WINDOWS;
     let relative_path = resolve_relative_path_for_os(&raw_rel_path, is_windows)?;
 
+    let origin = if let Some(grp) = hardlink_group {
+        FileOrigin::Filesystem {
+            key: InodeKey {
+                device_id: origin_device_id,
+                inode: grp,
+            },
+            canonical_path: relative_path.clone(),
+        }
+    } else {
+        FileOrigin::Synthetic
+    };
+
     Ok(FileEntity {
         identity: FileIdentity {
-            origin: FileOrigin::Synthetic,
+            origin,
             relative_path,
             raw_relative_path: raw_rel_path,
             raw_filename,

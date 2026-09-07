@@ -295,7 +295,14 @@ pub fn apply_file_flags(
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::Linux {
                 if let Ok(bits) = u32::try_from(raw_info.raw_value) {
-                    target_iflags = IFlags::from_bits_retain(bits);
+                    let user_modifiable = IFlags::NODUMP
+                        | IFlags::IMMUTABLE
+                        | IFlags::APPEND
+                        | IFlags::COMPRESSED
+                        | IFlags::SYNC
+                        | IFlags::DIRSYNC
+                        | IFlags::NOATIME;
+                    target_iflags = IFlags::from_bits_retain(bits) & user_modifiable;
                 }
             }
         }
@@ -329,6 +336,11 @@ pub fn apply_file_flags(
                 if strict_lossless {
                     anyhow::bail!(
                         "Failed to set file flags via ioctl for {}: {e}",
+                        path.display()
+                    );
+                } else {
+                    log_fmt!(
+                        "Failed to set file flags via ioctl for {}: {e} (proceeding best-effort)",
                         path.display()
                     );
                 }

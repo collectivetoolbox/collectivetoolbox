@@ -92,7 +92,7 @@ mod csc_tests {
             copy_specials_as_specials: false,
             copy_block_devices_as_regular_files: false,
             one_file_system: false,
-            backup_count: 50,
+            best_effort_metadata: false,
             dry_run: false,
         }
     }

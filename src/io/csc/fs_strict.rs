@@ -170,5 +170,5 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
         platform_raw_flags: None,
     };
 
-    apply_entity_metadata(dest, &meta, is_symlink, true)
+    apply_entity_metadata(dest, &meta, is_symlink, true, true)
 }

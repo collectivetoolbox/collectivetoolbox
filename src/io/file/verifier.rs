@@ -305,6 +305,9 @@ pub struct EntityAuditOptions {
     pub check_sparse: bool,
     /// Request kernel and file cache page eviction prior to reading.
     pub drop_caches: bool,
+    /// Best effort mode: tolerate timestamp differences up to 2 seconds and
+    /// ignore owner UID/GID differences when running unprivileged.
+    pub best_effort: bool,
 }
 
 impl Default for EntityAuditOptions {
@@ -319,6 +322,7 @@ impl Default for EntityAuditOptions {
             ignore_xattrs: false,
             check_sparse: true,
             drop_caches: false,
+            best_effort: false,
         }
     }
 }
@@ -433,7 +437,9 @@ pub fn audit_entity(
     }
 
     // 3. Ownership
-    if !options.ignore_owner {
+    let ignore_owner = options.ignore_owner
+        || (options.best_effort && !nix::unistd::getuid().is_root());
+    if !ignore_owner {
         if dest_meta.uid() != expected.metadata.uid {
             diffs.push(DiffKind::UidMismatch {
                 expected: expected.metadata.uid,
@@ -453,9 +459,13 @@ pub fn audit_entity(
         let actual_sec = dest_meta.mtime();
         // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
         let actual_nsec = u32::try_from(dest_meta.mtime_nsec()).unwrap_or(0);
-        if actual_sec != expected.metadata.timestamps.mtime_sec
-            || actual_nsec != expected.metadata.timestamps.mtime_nsec
-        {
+        let mtime_mismatch = if options.best_effort {
+            (actual_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() > 2
+        } else {
+            actual_sec != expected.metadata.timestamps.mtime_sec
+                || actual_nsec != expected.metadata.timestamps.mtime_nsec
+        };
+        if mtime_mismatch {
             diffs.push(DiffKind::MtimeMismatch {
                 expected_sec: expected.metadata.timestamps.mtime_sec,
                 expected_nsec: expected.metadata.timestamps.mtime_nsec,
@@ -469,9 +479,13 @@ pub fn audit_entity(
         let actual_sec = dest_meta.atime();
         // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
         let actual_nsec = u32::try_from(dest_meta.atime_nsec()).unwrap_or(0);
-        if actual_sec != expected.metadata.timestamps.atime_sec
-            || actual_nsec != expected.metadata.timestamps.atime_nsec
-        {
+        let atime_mismatch = if options.best_effort {
+            (actual_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() > 2
+        } else {
+            actual_sec != expected.metadata.timestamps.atime_sec
+                || actual_nsec != expected.metadata.timestamps.atime_nsec
+        };
+        if atime_mismatch {
             diffs.push(DiffKind::AtimeMismatch {
                 expected_sec: expected.metadata.timestamps.atime_sec,
                 expected_nsec: expected.metadata.timestamps.atime_nsec,
@@ -485,9 +499,13 @@ pub fn audit_entity(
         let actual_sec = dest_meta.ctime();
         // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
         let actual_nsec = u32::try_from(dest_meta.ctime_nsec()).unwrap_or(0);
-        if actual_sec != expected.metadata.timestamps.ctime_sec
-            || actual_nsec != expected.metadata.timestamps.ctime_nsec
-        {
+        let ctime_mismatch = if options.best_effort {
+            (actual_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() > 2
+        } else {
+            actual_sec != expected.metadata.timestamps.ctime_sec
+                || actual_nsec != expected.metadata.timestamps.ctime_nsec
+        };
+        if ctime_mismatch {
             diffs.push(DiffKind::CtimeMismatch {
                 expected_sec: expected.metadata.timestamps.ctime_sec,
                 expected_nsec: expected.metadata.timestamps.ctime_nsec,
@@ -698,14 +716,35 @@ pub fn verify_materialized_entity(
     options.drop_caches = true;
     options.check_sparse = true;
     options.ignore_ctime = true;
+    options.best_effort = !strict_lossless;
 
     let diffs = audit_entity(dest_path, entity, &options)?;
-    if strict_lossless {
-        if let Some(first) = diffs.first() {
+    if let Some(first) = diffs.first() {
+        if strict_lossless {
             anyhow::bail!(
                 "Verification failure on {}: {first}",
                 dest_path.display()
             );
+        } else {
+            match first {
+                DiffKind::ContentHashMismatch { .. }
+                | DiffKind::SizeMismatch { .. }
+                | DiffKind::MissingOnDisk
+                | DiffKind::TypeMismatch { .. }
+                | DiffKind::SymlinkTargetMismatch { .. } => {
+                    anyhow::bail!(
+                        "Verification payload integrity failure on {}: {first}",
+                        dest_path.display()
+                    );
+                }
+                _ => {
+                    log_fmt!(
+                        Level::WARN,
+                        "Verification metadata warning on {}: {first}",
+                        dest_path.display()
+                    );
+                }
+            }
         }
     }
     Ok(())

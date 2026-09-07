@@ -103,9 +103,11 @@ pub struct CscArgs {
     #[arg(short = 'x', long = "one-file-system")]
     pub one_file_system: bool,
 
-    /// Number of entries to roll back on resume to guarantee consistency.
-    #[arg(long, default_value_t = 500)]
-    pub backup_count: usize,
+    /// Relax strict metadata requirements when writing to target filesystem.
+    /// Permits unprivileged copies (skips root-only chown/flags failures)
+    /// and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB).
+    #[arg(long)]
+    pub best_effort_metadata: bool,
 
     /// Perform a dry run without copying or modifying destination files.
     #[arg(short = 'n', long)]
@@ -211,6 +213,11 @@ pub struct CscVerifyArgs {
     /// Only report discrepancies or errors, suppressing informational progress.
     #[arg(short = 'q', long)]
     pub quiet: bool,
+
+    /// Verify in best-effort mode: tolerates timestamp precision differences
+    /// up to 2 seconds and ignores ownership mismatches if running unprivileged.
+    #[arg(long)]
+    pub best_effort: bool,
 }
 
 impl CscVerifyArgs {
@@ -261,13 +268,13 @@ impl CscVerifyArgs {
     pub fn should_ignore_xattrs(&self) -> bool {
         self.ignore_xattrs
             || self.ignore.iter().any(|s| {
-                s.eq_ignore_ascii_case("xattrs") || s.eq_ignore_ascii_case("streams")
+                s.eq_ignore_ascii_case("xattrs") || s.eq_ignore_ascii_case("xattr") || s.eq_ignore_ascii_case("streams")
             })
     }
 
     #[must_use]
     pub fn should_ignore_untracked(&self) -> bool {
-        self.ignore_untracked || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("untracked"))
+        self.ignore_untracked || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("untracked") || s.eq_ignore_ascii_case("extra"))
     }
 
     #[must_use]
@@ -288,6 +295,7 @@ impl CscVerifyArgs {
             ignore_xattrs: self.should_ignore_xattrs(),
             check_sparse: true,
             drop_caches: self.should_drop_caches(),
+            best_effort: self.best_effort,
         }
     }
 }
