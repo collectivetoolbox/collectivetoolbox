@@ -32,6 +32,7 @@ use serde::Serialize;
 use std::fmt::Write as _;
 use std::time::{SystemTime, UNIX_EPOCH};
 use turso::{Builder, Value};
+use ctb_io::file::entity::FileEntityType;
 
 /// A single matched entry returned from search.
 #[derive(Debug, Clone, Serialize)]
@@ -110,19 +111,10 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     }
 
     // 4. Entity type filter
-    let t_lower = args.entry_type.as_deref().map(str::to_lowercase);
-    if let Some(ref lower) = t_lower {
-        let kind_str = match lower.as_str() {
-            "f" | "file" | "regular" => "regular",
-            "d" | "dir" | "directory" => "dir",
-            "l" | "symlink" | "link" => "symlink",
-            "h" | "hardlink" => "hardlink",
-            "p" | "fifo" | "pipe" => "fifo",
-            "s" | "socket" => "socket",
-            other => other,
-        };
+    if let Some(ref entry_type_str) = args.entry_type {
+        let entity_type = FileEntityType::parse(entry_type_str)?;
         sql.push_str(" AND e.kind = ?");
-        params.push(Value::Text(kind_str.to_string()));
+        params.push(Value::Text(entity_type.as_str().to_string()));
     }
 
     // 5. Size filters

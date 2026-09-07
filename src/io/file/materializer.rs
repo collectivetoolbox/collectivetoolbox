@@ -59,8 +59,8 @@ pub struct MaterializeOptions {
     pub symlink_policy: SymlinkValidationPolicy,
     /// Policy for validating relative entry paths.
     pub path_policy: PathTraversalPolicy,
-    /// Permit creating block device special nodes.
-    pub copy_block_devices: bool,
+    /// Permit creating special nodes (FIFOs, character and block devices).
+    pub copy_specials: bool,
 }
 
 impl Default for MaterializeOptions {
@@ -70,7 +70,7 @@ impl Default for MaterializeOptions {
             strict_lossless: true,
             symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
             path_policy: PathTraversalPolicy::StrictSandboxed,
-            copy_block_devices: false,
+            copy_specials: false,
         }
     }
 }
@@ -288,29 +288,12 @@ pub fn materialize_entity(
                 sha256: None,
             })
         }
-        FileEntityKind::Fifo | FileEntityKind::CharDevice { .. } => {
-            dest_dir.create_special(
-                &parent_dir_fd.as_fd(),
-                &file_name,
-                &entity.kind,
-                entity.metadata.mode,
-            )?;
-            apply_entity_metadata(
-                &dest_path,
-                &entity.metadata,
-                false,
-                options.strict_lossless,
-            )?;
-            Ok(MaterializeReceipt {
-                destination_path: dest_path,
-                bytes_written: 0,
-                sha256: None,
-            })
-        }
-        FileEntityKind::BlockDevice { .. } => {
+        FileEntityKind::Fifo
+        | FileEntityKind::CharDevice { .. }
+        | FileEntityKind::BlockDevice { .. } => {
             anyhow::ensure!(
-                options.copy_block_devices,
-                "Block device node creation rejected: {}. Enable copy_block_devices to permit.",
+                options.copy_specials,
+                "Special node creation rejected: {}. Enable copy_specials to permit.",
                 dest_path.display()
             );
             dest_dir.create_special(

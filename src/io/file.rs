@@ -37,7 +37,7 @@ pub mod streams;
 pub mod sys_flags;
 pub mod verifier;
 
-pub use entity::{FileEntity, FileEntityKind};
+pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,

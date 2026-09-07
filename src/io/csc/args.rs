@@ -90,9 +90,18 @@ pub struct CscArgs {
     #[arg(long, value_enum, default_value_t = SourceChangePolicy::Error)]
     pub on_source_change: SourceChangePolicy,
 
-    /// Permit copying block device nodes.
+    /// Recreate special files (FIFOs, device nodes) faithfully as special nodes.
+    /// Default is to skip special files.
     #[arg(long)]
-    pub copy_block_devices: bool,
+    pub copy_specials_as_specials: bool,
+
+    /// Copy block devices by reading their data and creating regular files.
+    #[arg(long)]
+    pub copy_block_devices_as_regular_files: bool,
+
+    /// Stay on the current filesystem and do not cross mount boundaries.
+    #[arg(short = 'x', long = "one-file-system")]
+    pub one_file_system: bool,
 
     /// Number of entries to roll back on resume to guarantee consistency.
     #[arg(long, default_value_t = 500)]
@@ -325,6 +334,10 @@ pub struct FsindexArgs {
     /// Suppress progress output.
     #[arg(short = 'q', long)]
     pub quiet: bool,
+
+    /// Stay on the current filesystem and do not cross mount boundaries.
+    #[arg(short = 'x', long = "one-file-system")]
+    pub one_file_system: bool,
 }
 
 /// Output format for search results.

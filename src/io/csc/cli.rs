@@ -132,6 +132,18 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
             stats.special_files_created
         )?;
     }
+    if stats.special_files_skipped > 0 {
+        writeln!(
+            summary,
+            "Special files skipped:    {}",
+            stats.special_files_skipped
+        )?;
+        writeln!(
+            summary,
+            "WARNING: {} special file(s) were skipped. Pass --copy-specials-as-specials to preserve them as device nodes, or --copy-block-devices-as-regular-files to copy block devices as disk image files.",
+            stats.special_files_skipped
+        )?;
+    }
     if args.should_verify_after() {
         writeln!(summary, "Files verified:           {}", stats.files_verified)?;
     }

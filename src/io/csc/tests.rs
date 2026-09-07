@@ -41,6 +41,7 @@ mod csc_tests {
     use crate::args::{CscArgs, CscVerifyArgs, VerifyOutputFormat};
     use crate::cli::run_csc;
     use crate::verifier::run_csc_verify;
+    use ctb_utilities::cli::ToolResult;
     use std::fs;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
@@ -88,7 +89,9 @@ mod csc_tests {
             no_verify_after: false,
             skip_existing_checksum: false,
             on_source_change: crate::args::SourceChangePolicy::Error,
-            copy_block_devices: false,
+            copy_specials_as_specials: false,
+            copy_block_devices_as_regular_files: false,
+            one_file_system: false,
             backup_count: 50,
             dry_run: false,
         }
@@ -567,13 +570,33 @@ mod csc_tests {
                 PathBuf::from(format!("{}/", src.display())),
                 dest.clone(),
             ],
-            state,
+            state.clone(),
         );
 
-        run_csc(args).expect("run csc with fifo");
-
+        let res = run_csc(args).expect("run csc with fifo default skip");
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("Special files skipped:    1"));
+        }
         let dest_fifo = dest.join("test.fifo");
-        let meta = fs::symlink_metadata(&dest_fifo).expect("fifo metadata");
+        assert!(!dest_fifo.exists(), "Default should skip FIFO");
+
+        // Now test with copy_specials_as_specials = true
+        let dest_copy = temp.path().join("dest_fifo_copy");
+        let state_copy = temp.path().join("state_dir_copy");
+        fs::create_dir_all(&state_copy).expect("create state copy");
+        let mut args_copy = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest_copy.clone(),
+            ],
+            state_copy,
+        );
+        args_copy.copy_specials_as_specials = true;
+        run_csc(args_copy).expect("run csc with copy_specials_as_specials");
+
+        let dest_fifo_node = dest_copy.join("test.fifo");
+        let meta = fs::symlink_metadata(&dest_fifo_node).expect("fifo metadata");
         assert!(meta.file_type().is_fifo(), "Expected created node to be a FIFO");
     }
 
@@ -1133,6 +1156,7 @@ mod csc_tests {
             journal_only: false,
             batch_size: 50,
             quiet: true,
+            one_file_system: false,
         };
         let res_a = run_fsindex(args_a).await.expect("run_fsindex source_a");
         match res_a {
@@ -1151,6 +1175,7 @@ mod csc_tests {
             journal_only: false,
             batch_size: 50,
             quiet: true,
+            one_file_system: false,
         };
         let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (glom)");
         match res_b {
@@ -1308,6 +1333,94 @@ mod csc_tests {
         } else {
             panic!("Expected immediate result");
         }
+
+        // 8. Search with entry_type filter: "f" / "file"
+        let search_type = FsearchArgs {
+            database: db_path.clone(),
+            query: None,
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: Some("f".to_string()),
+            sort: SearchSortField::Path,
+            sort_desc: false,
+            limit: None,
+            format: SearchOutputFormat::Path,
+        };
+        let res_type = run_fsearch(search_type).await.expect("run_fsearch type filter");
+        if let ToolResult::Immediate { stdout, .. } = res_type {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(out_str.contains("world.txt"));
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_file_entity_type_and_sqlite_check_constraint() {
+        use ctb_io::file::entity::FileEntityType;
+        use turso::Builder;
+
+        // Verify parsing shortcuts and canonical names
+        assert_eq!(FileEntityType::parse("f").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("file").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("regular").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("d").unwrap(), FileEntityType::Directory);
+        assert_eq!(FileEntityType::parse("dir").unwrap(), FileEntityType::Directory);
+        assert_eq!(FileEntityType::parse("l").unwrap(), FileEntityType::Symlink);
+        assert_eq!(FileEntityType::parse("symlink").unwrap(), FileEntityType::Symlink);
+        assert_eq!(FileEntityType::parse("h").unwrap(), FileEntityType::Hardlink);
+        assert_eq!(FileEntityType::parse("p").unwrap(), FileEntityType::Fifo);
+        assert_eq!(FileEntityType::parse("c").unwrap(), FileEntityType::CharDevice);
+        assert_eq!(FileEntityType::parse("chardev").unwrap(), FileEntityType::CharDevice);
+        assert_eq!(FileEntityType::parse("b").unwrap(), FileEntityType::BlockDevice);
+        assert_eq!(FileEntityType::parse("blockdev").unwrap(), FileEntityType::BlockDevice);
+        assert_eq!(FileEntityType::parse("s").unwrap(), FileEntityType::Socket);
+        assert_eq!(FileEntityType::parse("door").unwrap(), FileEntityType::Door);
+        assert_eq!(FileEntityType::parse("bundle").unwrap(), FileEntityType::Bundle);
+        assert!(FileEntityType::parse("invalid_kind").is_err());
+
+        // Verify SQLite CHECK constraint rejects invalid kinds
+        let temp = tempdir().expect("create tempdir");
+        let db_path = temp.path().join("check_test.sqlite");
+        let db = Builder::new_local(db_path.to_str().expect("valid path"))
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+
+        // Insert a valid source
+        conn.execute("INSERT INTO sources (name, journal_path, indexed_at) VALUES ('test', '/test.cscjournal', 0)", ())
+            .await
+            .expect("insert source");
+
+        // Inserting valid kind 'regular' must succeed
+        conn.execute(
+            "INSERT INTO entries (source_id, path, filename, parent_dir, kind, size, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink) \
+             VALUES (1, 'test.txt', 'test.txt', '', 'regular', 10, 0, 0, 0, 0, 420, 1)",
+            (),
+        )
+        .await
+        .expect("insert valid kind");
+
+        // Inserting invalid kind 'not_a_kind' must be rejected by the CHECK constraint
+        let bad_insert = conn.execute(
+            "INSERT INTO entries (source_id, path, filename, parent_dir, kind, size, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink) \
+             VALUES (1, 'bad.txt', 'bad.txt', '', 'not_a_kind', 10, 0, 0, 0, 0, 420, 1)",
+            (),
+        )
+        .await;
+
+        assert!(bad_insert.is_err(), "CHECK constraint should reject invalid kind");
     }
 }
 

@@ -40,7 +40,8 @@ use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity};
 use std::collections::HashMap;
-use std::os::unix::fs::MetadataExt;
+use std::io::{Seek, SeekFrom};
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -54,6 +55,7 @@ pub struct CopyStats {
     pub symlinks_created: u64,
     pub hardlinks_created: u64,
     pub special_files_created: u64,
+    pub special_files_skipped: u64,
     pub files_verified: u64,
 }
 
@@ -98,6 +100,12 @@ pub fn execute_copy_pipeline(
         }
     }
 
+    if !args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files {
+        progress.message(
+            "Notice: Special files (FIFOs, device nodes, sockets) will be skipped by default. Pass --copy-specials-as-specials to preserve them.",
+        );
+    }
+
     let mut uncommitted_count: usize = 0;
     let mut last_progress_render = Instant::now();
 
@@ -106,7 +114,7 @@ pub fn execute_copy_pipeline(
         strict_lossless: true,
         symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
         path_policy: PathTraversalPolicy::StrictSandboxed,
-        copy_block_devices: args.copy_block_devices,
+        copy_specials: args.copy_specials_as_specials,
     };
 
     // =========================================================================
@@ -167,6 +175,10 @@ pub fn execute_copy_pipeline(
                     let entry_tgt = curr_tgt.join(&entry_name);
 
                     let entry_sym_meta = std::fs::symlink_metadata(&entry_src)?;
+
+                    if args.one_file_system && entry_sym_meta.dev() != src_meta.dev() {
+                        continue;
+                    }
 
                     if entry_sym_meta.is_dir() {
                         dir_queue.push((entry_src, entry_tgt));
@@ -416,21 +428,46 @@ fn copy_single_item(
         hardlink_map.insert(key, entity.identity.relative_path.clone());
     }
 
-    // 4. Special files (FIFOs, device nodes)
+    // 4. Special files (FIFOs, device nodes, sockets, doors)
     match &entity.kind {
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
-        | FileEntityKind::BlockDevice { .. } => {
-            materialize_entity(&entity, None, dest_dir, options)?;
-            stats.special_files_created = stats.special_files_created.saturating_add(1);
-            record_journal_entry(journal, dest_path, &entity);
-            return Ok(());
-        }
-        FileEntityKind::Socket => {
-            anyhow::bail!(
-                "Cannot copy live UNIX socket node: {}. Sockets cannot be cloned across directories.",
-                src_path.display()
-            );
+        | FileEntityKind::BlockDevice { .. }
+        | FileEntityKind::Socket
+        | FileEntityKind::Door => {
+            if args.copy_block_devices_as_regular_files
+                && matches!(entity.kind, FileEntityKind::BlockDevice { .. })
+            {
+                let mut dev_file = std::fs::File::open(src_path).with_context(|| {
+                    format!("Failed to open block device: {}", src_path.display())
+                })?;
+                let size = dev_file.seek(SeekFrom::End(0)).with_context(|| {
+                    format!(
+                        "Failed to determine size of block device: {}",
+                        src_path.display()
+                    )
+                })?;
+                dev_file.seek(SeekFrom::Start(0))?;
+                entity.kind = FileEntityKind::Regular {
+                    size,
+                    sha256: [0_u8; 32],
+                    is_sparse: false,
+                    extents: vec![ctb_io::file::payload::Extent::Data {
+                        offset: 0,
+                        length: size,
+                    }],
+                };
+            } else if args.copy_specials_as_specials
+                && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
+            {
+                materialize_entity(&entity, None, dest_dir, options)?;
+                stats.special_files_created = stats.special_files_created.saturating_add(1);
+                record_journal_entry(journal, dest_path, &entity);
+                return Ok(());
+            } else {
+                stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
+                return Ok(());
+            }
         }
         _ => {}
     }
@@ -500,9 +537,12 @@ fn copy_single_item(
 
     // Verify source wasn't modified concurrently during copy
     let after_meta = std::fs::symlink_metadata(src_path)?;
-    if after_meta.mtime() != captured_mtime
-        || after_meta.ctime() != captured_ctime
-        || after_meta.size() != initial_size
+    let is_block_device_as_regular = args.copy_block_devices_as_regular_files
+        && after_meta.file_type().is_block_device();
+    if !is_block_device_as_regular
+        && (after_meta.mtime() != captured_mtime
+            || after_meta.ctime() != captured_ctime
+            || after_meta.size() != initial_size)
     {
         if args.on_source_change == SourceChangePolicy::Error {
             let _ = std::fs::remove_file(dest_path);

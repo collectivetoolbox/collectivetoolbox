@@ -33,6 +33,7 @@ use crate::journal::{
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::collections::VecDeque;
 use std::fmt::Write as _;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use turso::{Builder, Connection, Value};
@@ -197,6 +198,10 @@ fn index_directory_to_journal(
         (jw, None)
     };
 
+    let root_meta = std::fs::symlink_metadata(&target_dir)
+        .with_context(|| format!("Failed to read metadata for target: {}", target_dir.display()))?;
+    let root_dev = root_meta.dev();
+
     let mut dir_queue: VecDeque<PathBuf> = VecDeque::new();
     dir_queue.push_back(target_dir.clone());
 
@@ -254,6 +259,10 @@ fn index_directory_to_journal(
                 }
             };
 
+            if args.one_file_system && entry_sym_meta.dev() != root_dev {
+                continue;
+            }
+
             if entry_sym_meta.is_dir() {
                 dir_queue.push_back(entry_path);
             } else {
@@ -290,7 +299,7 @@ fn index_directory_to_journal(
 }
 
 /// Initializes database tables, PRAGMAs, and B-tree indices.
-async fn init_database_schema(conn: &Connection) -> Result<()> {
+pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     let mut stmt = conn.prepare("PRAGMA journal_mode = WAL").await?;
     let _ = stmt.query(()).await?;
     conn.execute("PRAGMA synchronous = NORMAL", ()).await?;
@@ -322,7 +331,7 @@ async fn init_database_schema(conn: &Connection) -> Result<()> {
             path TEXT NOT NULL,
             filename TEXT NOT NULL,
             parent_dir TEXT NOT NULL,
-            kind TEXT NOT NULL,
+            kind TEXT NOT NULL CHECK (kind IN ('regular', 'dir', 'symlink', 'hardlink', 'fifo', 'chardev', 'blockdev', 'socket', 'door', 'bundle')),
             size INTEGER NOT NULL,
             mtime_sec INTEGER NOT NULL,
             mtime_nsec INTEGER NOT NULL,
@@ -429,7 +438,8 @@ async fn ingest_journal_snapshot(
                 .parent()
                 .map_or(String::new(), |p| p.to_string_lossy().to_string());
 
-            let (kind_str, size_val, symlink_target, sha256_str) = match &entity.kind {
+            let kind_str = entity.kind.kind_str();
+            let (size_val, symlink_target, sha256_str) = match &entity.kind {
                 FileEntityKind::Regular { size, sha256, .. } => {
                     let sha_hex = if sha256.iter().any(|&b| b != 0) {
                         Some(hex::encode(sha256))
@@ -437,26 +447,19 @@ async fn ingest_journal_snapshot(
                         None
                     };
                     let size_i64 = <i64 as TryFrom<_>>::try_from(*size).unwrap_or(i64::MAX);
-                    ("regular", size_i64, None, sha_hex)
+                    (size_i64, None, sha_hex)
                 }
-                FileEntityKind::Directory | FileEntityKind::Bundle { .. } => ("dir", 0_i64, None, None),
                 FileEntityKind::Symlink { target } => (
-                    "symlink",
                     0_i64,
                     Some(String::from_utf8_lossy(target).to_string()),
                     None,
                 ),
                 FileEntityKind::Hardlink { target_relative_path } => (
-                    "hardlink",
                     0_i64,
                     Some(String::from_utf8_lossy(target_relative_path).to_string()),
                     None,
                 ),
-                FileEntityKind::Fifo => ("fifo", 0_i64, None, None),
-                FileEntityKind::CharDevice { .. } => ("chardev", 0_i64, None, None),
-                FileEntityKind::BlockDevice { .. } => ("blockdev", 0_i64, None, None),
-                FileEntityKind::Socket => ("socket", 0_i64, None, None),
-                FileEntityKind::Door => ("door", 0_i64, None, None),
+                _ => (0_i64, None, None),
             };
 
             let mtime_sec = entity.metadata.timestamps.mtime_sec;

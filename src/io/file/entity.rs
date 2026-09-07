@@ -87,6 +87,115 @@ pub enum FileEntityKind {
     },
 }
 
+/// Canonical categorical type of a file entity without payload details.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum FileEntityType {
+    /// Regular file.
+    Regular,
+    /// Directory node.
+    Directory,
+    /// Symbolic link.
+    Symlink,
+    /// Hardlink to an existing path or inode.
+    Hardlink,
+    /// Named pipe (FIFO).
+    Fifo,
+    /// Character device node.
+    CharDevice,
+    /// Block device node.
+    BlockDevice,
+    /// UNIX domain socket node.
+    Socket,
+    /// Door descriptor node.
+    Door,
+    /// Composite bundle directory.
+    Bundle,
+}
+
+impl FileEntityType {
+    /// Returns the canonical string representation matching the SQLite `kind` column.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Regular => "regular",
+            Self::Directory => "dir",
+            Self::Symlink => "symlink",
+            Self::Hardlink => "hardlink",
+            Self::Fifo => "fifo",
+            Self::CharDevice => "chardev",
+            Self::BlockDevice => "blockdev",
+            Self::Socket => "socket",
+            Self::Door => "door",
+            Self::Bundle => "bundle",
+        }
+    }
+
+    /// Parses a string specifier or alias into a `FileEntityType`.
+    ///
+    /// Supports find-style shorthand ("f", "d", "l", "h", "p", "c", "b", "s")
+    /// as well as full type names and canonical names.
+    pub fn parse(s: &str) -> Result<Self> {
+        let trimmed = s.trim().to_lowercase();
+        match trimmed.as_str() {
+            "f" | "file" | "regular" => Ok(Self::Regular),
+            "d" | "dir" | "directory" => Ok(Self::Directory),
+            "l" | "symlink" | "link" => Ok(Self::Symlink),
+            "h" | "hardlink" => Ok(Self::Hardlink),
+            "p" | "fifo" | "pipe" => Ok(Self::Fifo),
+            "c" | "char" | "chardev" | "character" => Ok(Self::CharDevice),
+            "b" | "block" | "blockdev" => Ok(Self::BlockDevice),
+            "s" | "socket" => Ok(Self::Socket),
+            "door" => Ok(Self::Door),
+            "bundle" => Ok(Self::Bundle),
+            other => anyhow::bail!(
+                "Unknown file entity type '{other}'. Expected one of: file/f, \
+                 dir/d, symlink/l, hardlink/h, fifo/p, chardev/c, blockdev/b, \
+                 socket/s, door, bundle"
+            ),
+        }
+    }
+}
+
+impl std::fmt::Display for FileEntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for FileEntityType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
+impl FileEntityKind {
+    /// Returns the categorical entity type of this kind.
+    #[must_use]
+    pub const fn entity_type(&self) -> FileEntityType {
+        match self {
+            Self::Regular { .. } => FileEntityType::Regular,
+            Self::Directory => FileEntityType::Directory,
+            Self::Symlink { .. } => FileEntityType::Symlink,
+            Self::Hardlink { .. } => FileEntityType::Hardlink,
+            Self::Fifo => FileEntityType::Fifo,
+            Self::CharDevice { .. } => FileEntityType::CharDevice,
+            Self::BlockDevice { .. } => FileEntityType::BlockDevice,
+            Self::Socket => FileEntityType::Socket,
+            Self::Door => FileEntityType::Door,
+            Self::Bundle { .. } => FileEntityType::Bundle,
+        }
+    }
+
+    /// Returns the canonical string representation for this kind.
+    #[must_use]
+    pub const fn kind_str(&self) -> &'static str {
+        self.entity_type().as_str()
+    }
+}
+
+
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
 #[derive(Debug, Clone, PartialEq, Eq)]
