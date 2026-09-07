@@ -17,7 +17,7 @@ Import/export/tests support columns meaning:
 2228614,390,Linux,Linux kernel family,kernel,,,,,,,,,,,,
 2228615,391,BsdKernel,BSD kernel family,kernel,,,,,,,,,,,,
 2228616,392,Mach,Mach kernel family,kernel,BsdKernel,,,,,,,,,,,
-2228617,393,Hurd,Hurd kernel,kernel,Mach,,,,,,,,,,,
+2228617,393,Hurd,Hurd kernel,kernel,GnuMach,,,,,,,,,,,
 2228618,394,Xnu,XNU (X is Not Unix),kernel,Mach,,,,,,,,,,,
 2228619,395,Gnu,GNU userland,userland,,,,,,,,,,,,
 2228620,396,Darwin,Darwin userland,userland,,,,,,,,,,,,
@@ -35,3 +35,4 @@ Import/export/tests support columns meaning:
 2228632,408,OpenBsd,OpenBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228633,409,NetBsd,NetBSD,os,BsdKernel & BsdUserland,,,,,,,,,,,
 2228636,412,DragonFlyBsd,DragonFly BSD,os,FreeBsd & BsdKernel & BsdUserland,,,,,,,,,,,
+2228637,413,GnuMach,GNU Mach,kernel,Mach,,,,,,,,,,,

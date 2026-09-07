@@ -8259,7 +8259,7 @@
     "cross_references": [],
     "description": "",
     "format": {
-      "base_format": "Mach"
+      "base_format": "GnuMach"
     },
     "source_file": "os.csv",
     "line_number": 5
@@ -8650,5 +8650,26 @@
     },
     "source_file": "os.csv",
     "line_number": 22
+  },
+  {
+    "dc_id": 2228637,
+    "short_id": 413,
+    "ident": "GnuMach",
+    "name": "GNU Mach",
+    "category": "format_kernel",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "Mach"
+    },
+    "source_file": "os.csv",
+    "line_number": 23
   }
 ]
