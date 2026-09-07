@@ -540,7 +540,6 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
             w.write_all(&[9])?;
             write_bytes(w, bundle_type.as_bytes())?;
         }
-        _ => bail!("Unknown file type")
     }
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;

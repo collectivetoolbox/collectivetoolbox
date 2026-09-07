@@ -269,3 +269,37 @@ impl PayloadSource for MemoryPayloadSource {
         &self.extents
     }
 }
+
+/// Queries the size in bytes of a block device.
+///
+/// On Linux, attempts `BLKGETSIZE64` ioctl, falling back to seeking to the end of the file.
+#[cfg(target_os = "linux")]
+#[expect(
+    unsafe_code,
+    reason = "BLKGETSIZE64 ioctl requires invoking unsafe C FFI to query block device geometry"
+)]
+pub fn query_block_device_size(file: &mut File) -> Result<u64> {
+    use std::os::unix::io::AsRawFd;
+    nix::ioctl_read!(blkgetsize64, 0x12, 114, u64);
+    let mut bytes: u64 = 0;
+    let res = unsafe { blkgetsize64(file.as_raw_fd(), &mut bytes) };
+    if res.is_ok() && bytes > 0 {
+        Ok(bytes)
+    } else {
+        let size = file
+            .seek(SeekFrom::End(0))
+            .context("Failed to seek to end of block device")?;
+        file.seek(SeekFrom::Start(0))?;
+        Ok(size)
+    }
+}
+
+/// Queries the size in bytes of a block device.
+#[cfg(not(target_os = "linux"))]
+pub fn query_block_device_size(file: &mut File) -> Result<u64> {
+    let size = file
+        .seek(SeekFrom::End(0))
+        .context("Failed to seek to end of block device")?;
+    file.seek(SeekFrom::Start(0))?;
+    Ok(size)
+}

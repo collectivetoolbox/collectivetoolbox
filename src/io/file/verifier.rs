@@ -738,8 +738,7 @@ pub fn verify_materialized_entity(
                     );
                 }
                 _ => {
-                    log_fmt!(
-                        Level::WARN,
+                    warn_fmt!(
                         "Verification metadata warning on {}: {first}",
                         dest_path.display()
                     );

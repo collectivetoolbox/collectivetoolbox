@@ -50,6 +50,7 @@ pub use path_policy::{
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
+    query_block_device_size,
 };
 pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};

@@ -235,9 +235,9 @@ pub fn query_file_flags(
 ///
 /// If `strict_lossless` is true, fails with an error if flags cannot be losslessly
 /// transferred.
-#[allow(
+#[expect(
     unsafe_code,
-    reason = "Invoking Linux ioctl and BSD chflags system calls"
+    reason = "Invoking Linux ioctl and BSD chflags system calls requires it"
 )]
 pub fn apply_file_flags(
     path: &Path,

@@ -64,6 +64,7 @@ mod csc_tests {
             ignore: Vec::new(),
             format: VerifyOutputFormat::Text,
             quiet: false,
+            best_effort: false,
         }
     }
 
@@ -1477,6 +1478,124 @@ mod csc_tests {
         .await;
 
         assert!(bad_insert.is_err(), "CHECK constraint should reject invalid kind");
+    }
+
+    #[crate::ctb_test]
+    fn test_hardlinks_preserved_across_resume() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_hl_res");
+        let dest = temp.path().join("dest_hl_res");
+        let state = temp.path().join("state_hl_res");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let f1 = src.join("orig.txt");
+        fs::write(&f1, b"Shared payload across resumed hardlinks").expect("write orig");
+        let anchor = temp.path().join("anchor.tmp");
+        fs::hard_link(&f1, &anchor).expect("create anchor link");
+
+        let args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(args1).expect("initial run");
+
+        let journal_path = find_cscjournal(&state);
+
+        // Simulate an interrupted run by stripping the 1-byte TAG_JOB_COMPLETED marker
+        let f = fs::OpenOptions::new()
+            .write(true)
+            .open(&journal_path)
+            .expect("open journal");
+        let len = f.metadata().expect("meta").len();
+        f.set_len(len.saturating_sub(1)).expect("truncate completion tag");
+        drop(f);
+        let desc_path = journal_path.with_extension("cscdesc");
+        let _ = fs::remove_file(&desc_path);
+
+        let f2 = src.join("link.txt");
+        fs::hard_link(&f1, &f2).expect("create link");
+        let _ = fs::remove_file(&anchor);
+
+        let mut resume_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+        resume_args.resume = Some(journal_path);
+        run_csc(resume_args).expect("resume run");
+
+        let dest_f1 = dest.join("orig.txt");
+        let dest_f2 = dest.join("link.txt");
+
+        let m1 = fs::metadata(&dest_f1).expect("meta1");
+        let m2 = fs::metadata(&dest_f2).expect("meta2");
+
+        assert_eq!(m1.ino(), m2.ino(), "Inodes must match across resume");
+        assert_eq!(m1.nlink(), 2, "Link count must be 2");
+    }
+
+    #[crate::ctb_test]
+    fn test_best_effort_metadata_timestamp_tolerance() {
+        use filetime::{FileTime, set_file_times};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_be");
+        let dest = temp.path().join("dest_be");
+        let state = temp.path().join("state_be");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("file.txt");
+        fs::write(&file, b"Timestamp drift test").expect("write file");
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        args.best_effort_metadata = true;
+        run_csc(args).expect("run csc");
+
+        let journal_path = find_cscjournal(&state);
+
+        let dest_file = dest.join("file.txt");
+        let dest_meta = fs::metadata(&dest_file).expect("dest meta");
+        let orig_mtime = dest_meta.mtime();
+        set_file_times(
+            &dest_file,
+            FileTime::from_unix_time(dest_meta.atime(), 0),
+            FileTime::from_unix_time(orig_mtime.saturating_add(1), 0),
+        )
+        .expect("set drifted mtime");
+
+        let strict_vargs = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        let res_strict = run_csc_verify(&strict_vargs).expect("verify strict");
+        if let ToolResult::Immediate { stdout, .. } = res_strict {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(
+                out.contains("discrepancies detected") || out.contains("mismatch"),
+                "Strict mode must report timestamp mismatch: {out}"
+            );
+        }
+
+        let mut be_vargs = default_verify_args(journal_path, Some(dest));
+        be_vargs.best_effort = true;
+        let res_be = run_csc_verify(&be_vargs).expect("verify best_effort");
+        if let ToolResult::Immediate { stdout, .. } = res_be {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(
+                out.contains("OK") || out.contains("0 discrepancies"),
+                "Best effort mode must tolerate 1s timestamp difference: {out}"
+            );
+        }
     }
 }
 
