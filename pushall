@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/" || exit 1
+
+pushd vendor/ctb-vendored/ || exit 1
+git push
+git push all
+popd || exit 1
+
+pushd vendor/ || exit 1
+git push
+git push all
+popd || exit 1
+
+pushd packaging/homebrew-tap/ || exit 1
+git push
+git push all
+popd || exit 1
+
+git push
+git push all

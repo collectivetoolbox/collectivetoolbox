@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 # For some reason rustup seems to lose my targets every time I update.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 default='1.92'
 versions=( '1.90' '1.92' )
