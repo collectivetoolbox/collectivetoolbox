@@ -219,15 +219,15 @@ EOF
 fi
 
 # Inject LOCKSTEP_XML_PATH into Cargo config inside container to resolve dependency XML path collision
-if grep -q '^\[env\]' .cargo/config.toml; then
-    sed -i '/^\[env\]/a LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }' .cargo/config.toml
-else
-    cat <<'EOF' >> .cargo/config.toml
-
-[env]
-LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }
-EOF
-fi
+# if grep -q '^\[env\]' .cargo/config.toml; then
+#     sed -i '/^\[env\]/a LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }' .cargo/config.toml
+# else
+#     cat <<'EOF' >> .cargo/config.toml
+#
+# [env]
+# LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }
+# EOF
+# fi
 
 cat <<'OUTEOF' >> .cargo/config.toml
 
@@ -252,7 +252,9 @@ replace-with = "vendored-sources"
 OUTEOF
 
 echo "Installing Rust..."
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
+if ! command -v cargo; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
+fi
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup default 1.92
 
