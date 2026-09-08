@@ -197,7 +197,7 @@ fi
 if [[ ! -d "vendor/v86_images" && -d "/var/cache/ctoolbox/v86_images" ]]; then
     echo "Restoring prebuilt vendor/v86_images from container cache..."
     mkdir -p vendor
-    cp -r /var/cache/ctoolbox/v86_images vendor/v86_images
+    ln -s /var/cache/ctoolbox/v86_images vendor/v86_images
 fi
 
 if [[ ! -f "built/guix_posix_initrd.cpio.gz" && -f "/var/cache/ctoolbox/guix_posix_initrd.cpio.gz" ]]; then
@@ -217,39 +217,6 @@ else
 jobs = 2
 EOF
 fi
-
-# Inject LOCKSTEP_XML_PATH into Cargo config inside container to resolve dependency XML path collision
-# if grep -q '^\[env\]' .cargo/config.toml; then
-#     sed -i '/^\[env\]/a LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }' .cargo/config.toml
-# else
-#     cat <<'EOF' >> .cargo/config.toml
-#
-# [env]
-# LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }
-# EOF
-# fi
-
-cat <<'OUTEOF' >> .cargo/config.toml
-
-[registries.crates-io]
-protocol = "sparse"
-
-[source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "vendor/ctb-vendored/vendor"
-
-[source."https://github.com/boa-dev/boa.git"]
-git = "https://github.com/boa-dev/boa.git"
-rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
-replace-with = "vendored-sources"
-
-[source."https://github.com/rust-dark-light/dark-light.git"]
-git = "https://github.com/rust-dark-light/dark-light.git"
-rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
-replace-with = "vendored-sources"
-OUTEOF
 
 echo "Installing Rust..."
 if ! command -v cargo; then

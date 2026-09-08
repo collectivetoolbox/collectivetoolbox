@@ -1,0 +1,24 @@
+# This file gets concatenated to config.default.toml when using vendored dependencies.
+
+# https://github.com/luukvanderduim/zbus-lockstep/issues/9
+# Goes in [env] table; that must be at the end of config.toml
+LOCKSTEP_XML_PATH = { value = "vendor/ctb-vendored/vendor/atspi-common/xml", relative = true }
+
+[registries.crates-io]
+protocol = "sparse"
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor/ctb-vendored/vendor"
+
+[source."https://github.com/boa-dev/boa.git"]
+git = "https://github.com/boa-dev/boa.git"
+rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
+replace-with = "vendored-sources"
+
+[source."https://github.com/rust-dark-light/dark-light.git"]
+git = "https://github.com/rust-dark-light/dark-light.git"
+rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
+replace-with = "vendored-sources"

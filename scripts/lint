@@ -4,32 +4,6 @@ set -euxo pipefail
 # Change directory to the repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
-# ### 2. Why `LOCKSTEP_XML_PATH` was needed with vendored dependencies
-
-# The need for `LOCKSTEP_XML_PATH` stems from an upstream bug in [`zbus_lockstep::resolve_xml_path`](file:///workspaces/ctoolbox/vendor/ctb-vendored/vendor/zbus-lockstep/src/macros.rs#L35-L122) that only surfaces when using **cargo-vendored** sources:
-
-# 1. `atspi-common` uses `#[validate(...)]` from `zbus-lockstep-macros` to validate D-Bus interfaces against XML definitions.
-# 2. During path resolution, `resolve_xml_path` checks candidate locations. However, instead of using `if ... else if ...`, it uses **sequential `if` statements**:
-#    ```rust
-#    if current_dir_lower_case.exists() {
-#        xml = Some(current_dir_lower_case.to_str()...);
-#    }
-#    ...
-#    if parent_dir_lower_case.exists() {
-#        xml = Some(parent_dir_lower_case.to_str()...); // <--- overwrites previous matches!
-#    }
-#    ```
-# 3. When using dependencies directly from Crates.io (in `~/.cargo/registry/src/index.crates.io-.../`), directories include version numbers (e.g. `atspi-common-0.3.0` and `xml-0.8.4`). There is no directory named `../xml`.
-# 4. In `vendor/ctb-vendored/vendor/`, version numbers are omitted. Sitting alongside `atspi-common` is the `xml` crate (`vendor/ctb-vendored/vendor/xml`).
-# 5. Because `../xml` exists, `parent_dir_lower_case.exists()` evaluates to `true` and **overwrites** `atspi-common/xml` with `vendor/ctb-vendored/vendor/xml`!
-# 6. `zbus-lockstep-macros` then scans the `xml` crate directory, encounters files like `LICENSE` without an extension, and panics with:
-#    ```text
-#    entry.path().extension().expect("File has no extension.")
-#    ```
-# 7. Setting `LOCKSTEP_XML_PATH="$(pwd)/vendor/ctb-vendored/vendor/atspi-common/xml"` overrides the fallback search order and points it directly to `atspi-common`'s actual XML definitions.
-
-export LOCKSTEP_XML_PATH="$(pwd)/vendor/ctb-vendored/vendor/atspi-common/xml"
-
 offline=""
 quick=""
 while [[ $# -gt 0 ]]; do

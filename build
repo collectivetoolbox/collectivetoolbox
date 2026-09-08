@@ -178,6 +178,12 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+cp .cargo/config.default.toml .cargo/config.toml
+
+if [[ "$offline" == "--offline" ]]; then
+    cat .cargo/config.vendored.toml >> .cargo/config.toml
+fi
+
 if [[ -f ~/"ctb-deploy.branding-enabled" ]]; then
     branding="true"
 fi
