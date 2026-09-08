@@ -270,6 +270,11 @@ else
     platforms=("$platform")
 fi
 
+if [[ "$js_test" == "true" ]]; then
+    echo "=== Running JavaScript tests ==="
+    cargo run $offline -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
+fi
+
 for p in "${platforms[@]}"; do
     echo "Building for platform $p with release profile $release..."
     if [[ "$p" == "linux-x64" ]]; then
@@ -336,24 +341,26 @@ for p in "${platforms[@]}"; do
         rm -rf vendor/seabios/out
     fi
 
-    if [[ "$js_test" == "true" ]]; then
-        echo "=== Running JavaScript tests ==="
-        cargo run $offline -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
-    fi
-
     if [[ "$run_tests" == "true" ]]; then
+        test_exclude=( )
+        if [[ "$target" == i586-* || "$target" == i686-* || "$p" == *"x86"* ]]; then
+            test_exclude=(--exclude ctb-nopersonality)
+        fi
+
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --no-fail-fast --target "$target" -- --nocapture || exit 1
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --examples --no-fail-fast --target "$target" -- --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --no-fail-fast --target "$target" -- || exit 1
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace --examples --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --examples --no-fail-fast --target "$target" -- || exit 1
         fi
 
-        echo "=== Running CLI compression tests ==="
-        bash scripts/test-compression-cli || exit 1
+        if [[ "$build_binaries" != "true" ]]; then
+            echo "=== Running CLI compression tests ==="
+            bash scripts/test-compression-cli || exit 1
+        fi
     fi
 
     if [[ "$build_binaries" == "true" ]]; then
@@ -433,6 +440,14 @@ for p in "${platforms[@]}"; do
         cp built/ctoolbox.rsrc built/"$p"/
         if [[ -f built/v86_images.rsrc ]]; then
             cp built/v86_images.rsrc built/"$p"/
+        fi
+
+        # Run CLI compression tests against the built binary if it is runnable by host
+        if [[ "$run_tests" == "true" && -x "built/$p/ctoolbox" ]]; then
+            if "built/$p/ctoolbox" --version >/dev/null 2>&1; then
+                echo "=== Running CLI compression tests against built/$p/ctoolbox ==="
+                bash scripts/test-compression-cli "built/$p/ctoolbox" || exit 1
+            fi
         fi
     fi
 done

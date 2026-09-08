@@ -18,9 +18,27 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 TEST_FILE="$TMP_DIR/sample.txt"
 echo "The quick brown fox jumps over the lazy dog! 1234567890" > "$TEST_FILE"
 
-# Build ctoolbox binary if needed or use cargo run
-export RUSTFLAGS="-Awarnings"
-CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+# Determine binary to test:
+# 1. Explicit argument ($1) or CTOOLBOX_BIN environment variable
+# 2. Reusing an existing built binary in built/ or target/ (with warning for local runs)
+# 3. Fallback to cargo run --release
+CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
+
+if [[ -n "$CTB_BIN" ]]; then
+    CARGO_CMD="$CTB_BIN"
+elif [[ -x "built/linux-x64/ctoolbox" ]]; then
+    echo "Warning: Reusing existing pre-built binary at built/linux-x64/ctoolbox (may be stale if source changed)" >&2
+    CARGO_CMD="built/linux-x64/ctoolbox"
+elif [[ -x "target/x86_64-unknown-linux-musl/release/ctoolbox" ]]; then
+    echo "Warning: Reusing existing pre-built binary at target/x86_64-unknown-linux-musl/release/ctoolbox (may be stale if source changed)" >&2
+    CARGO_CMD="target/x86_64-unknown-linux-musl/release/ctoolbox"
+elif [[ -x "target/release/ctoolbox" ]]; then
+    echo "Warning: Reusing existing pre-built binary at target/release/ctoolbox (may be stale if source changed)" >&2
+    CARGO_CMD="target/release/ctoolbox"
+else
+    export RUSTFLAGS="-Awarnings"
+    CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+fi
 
 # 1. Test gzip compression & decompression via stdout streams
 $CARGO_CMD compress gzip "$TEST_FILE" -o - | $CARGO_CMD decompress gzip - -o - > "$TMP_DIR/out_stream.txt"

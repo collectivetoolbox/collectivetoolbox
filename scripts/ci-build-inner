@@ -96,34 +96,43 @@ for prohibited in "${SKIP_BINS[@]}"; do
     fi
 done
 
-if ! command -v guix >/dev/null 2>&1; then
-    echo "Installing GNU Guix..."
-    curl -sSL -o /tmp/guix-install.sh https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
-    chmod +x /tmp/guix-install.sh
-    # `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
-    sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh
-    yes | /tmp/guix-install.sh || true
-    if [[ -f /tmp/guix-install.sh ]]; then
-        rm /tmp/guix-install.sh
-    fi
-    mkdir -p /etc/guix
-    for key in /root/.config/guix/current/share/guix/*.pub; do
-        /root/.config/guix/current/bin/guix archive --authorize < "$key" || true
-    done
+need_guix=true
+if [[ -f "/var/cache/ctoolbox/guix_posix_initrd.cpio.gz" || -f "built/guix_posix_initrd.cpio.gz" ]]; then
+    need_guix=false
 fi
 
-export PATH="/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/current-profile/bin:$PATH"
-
-if ! ps aux | grep -q "[g]uix-daemon"; then
-    echo "Starting guix-daemon..."
-    chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
-    chmod 1775 /gnu/store /var/guix 2>/dev/null || true
-    if command -v proot >/dev/null 2>&1; then
-        nohup proot -0 /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
-    else
-        nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+if [[ "$need_guix" == "true" ]]; then
+    if ! command -v guix >/dev/null 2>&1; then
+        echo "Installing GNU Guix..."
+        curl -sSL -o /tmp/guix-install.sh https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+        chmod +x /tmp/guix-install.sh
+        # `sed` is to work around a 502 error. Likely transient; try commenting that out next rebuild.
+        sed -i 's|https://ftpmirror.gnu.org/gnu/guix/|https://ftp.gnu.org/gnu/guix/|g' /tmp/guix-install.sh
+        yes | /tmp/guix-install.sh || true
+        if [[ -f /tmp/guix-install.sh ]]; then
+            rm /tmp/guix-install.sh
+        fi
+        mkdir -p /etc/guix
+        for key in /root/.config/guix/current/share/guix/*.pub; do
+            /root/.config/guix/current/bin/guix archive --authorize < "$key" || true
+        done
     fi
-    sleep 2
+
+    export PATH="/root/.config/guix/current/bin:/var/guix/profiles/per-user/root/current-profile/bin:$PATH"
+
+    if ! ps aux | grep -q "[g]uix-daemon"; then
+        echo "Starting guix-daemon..."
+        chown -R root:guixbuild /var/guix /gnu/store 2>/dev/null || true
+        chmod 1775 /gnu/store /var/guix 2>/dev/null || true
+        if command -v proot >/dev/null 2>&1; then
+            nohup proot -0 /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+        else
+            nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &
+        fi
+        sleep 2
+    fi
+else
+    echo "Prebuilt Guix assets are available; skipping Guix installation and daemon startup..."
 fi
 
 

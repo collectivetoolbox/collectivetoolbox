@@ -142,7 +142,6 @@ ctb-workspace = { path = "src/workspace" }
 ctb-workspace-ipc = { path = "src/workspace/ipc" }
 ctb-workspace-x11-client = { path = "src/workspace/x11_client" }
 ctb-workspace-x11-client-egui = { path = "src/workspace/x11_client_egui" }
-ctb-nopersonality = { path = "src/nopersonality" }
 ctb-v86-posix-init = { path = "src/v86_posix_init" }
 
 # NOTE: These are not normal dependencies. They're proc-macros, which need their
@@ -272,3 +271,6 @@ x11rb = { path = "vendor/x11rb" }
 xkbcommon-rs = { path = "vendor/xkbcommon-rs" }
 yaxi = { path = "vendor/yaxi" }
 warcat = { path = "vendor/warcat" }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+ctb-nopersonality = { path = "src/nopersonality" }
