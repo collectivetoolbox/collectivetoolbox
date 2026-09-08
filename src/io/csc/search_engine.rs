@@ -120,13 +120,17 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     // 5. Size filters
     if let Some(ref min_s) = args.size_min {
         let bytes = parse_size_spec(min_s)?;
-        let i_bytes = <i64 as TryFrom<_>>::try_from(bytes).unwrap_or(i64::MAX);
+        let i_bytes = i64::try_from(bytes).with_context(|| {
+            format!("Size filter '--size-min {min_s}' exceeds maximum supported 64-bit integer size ({} bytes)", i64::MAX)
+        })?;
         sql.push_str(" AND e.size >= ?");
         params.push(Value::Integer(i_bytes));
     }
     if let Some(ref max_s) = args.size_max {
         let bytes = parse_size_spec(max_s)?;
-        let i_bytes = <i64 as TryFrom<_>>::try_from(bytes).unwrap_or(i64::MAX);
+        let i_bytes = i64::try_from(bytes).with_context(|| {
+            format!("Size filter '--size-max {max_s}' exceeds maximum supported 64-bit integer size ({} bytes)", i64::MAX)
+        })?;
         sql.push_str(" AND e.size <= ?");
         params.push(Value::Integer(i_bytes));
     }
@@ -168,7 +172,9 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     let has_regex = args.regex.is_some();
     if !has_regex {
         if let Some(limit) = args.limit {
-            let lim_i64 = <i64 as TryFrom<_>>::try_from(limit).unwrap_or(i64::MAX);
+            let lim_i64 = i64::try_from(limit).with_context(|| {
+                format!("Limit value '{limit}' exceeds maximum supported 64-bit integer limit ({})", i64::MAX)
+            })?;
             sql.push_str(" LIMIT ?");
             params.push(Value::Integer(lim_i64));
         }
@@ -210,20 +216,24 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
             _ => "regular".to_string(),
         };
         let size = match row.get_value(4)? {
-            Value::Integer(i) => <u64 as TryFrom<_>>::try_from(i).unwrap_or(0),
-            _ => 0,
+            Value::Integer(i) => u64::try_from(i).with_context(|| {
+                format!("Corrupted database record for '{path}': size column has negative value {i}")
+            })?,
+            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in size column"),
         };
         let mtime_sec = match row.get_value(5)? {
             Value::Integer(i) => i,
-            _ => 0,
+            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in mtime column"),
         };
         let ctime_sec = match row.get_value(6)? {
             Value::Integer(i) => i,
-            _ => 0,
+            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in ctime column"),
         };
         let mode = match row.get_value(7)? {
-            Value::Integer(i) => <u32 as TryFrom<_>>::try_from(i).unwrap_or(0),
-            _ => 0,
+            Value::Integer(i) => u32::try_from(i).with_context(|| {
+                format!("Corrupted database record for '{path}': mode column has out-of-range value {i}")
+            })?,
+            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in mode column"),
         };
         let symlink_target = match row.get_value(8)? {
             Value::Text(s) => Some(s),
@@ -271,6 +281,7 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
             for item in matches {
                 let perm_str = format_permissions(&item.kind, item.mode);
                 let date_str = format_timestamp(item.mtime_sec);
+                // Reason for fallback: non-symlink entities have no target link, displaying empty suffix
                 let target_str = item
                     .symlink_target
                     .as_deref()
@@ -299,18 +310,13 @@ fn parse_size_spec(s: &str) -> Result<u64> {
         anyhow::bail!("Empty size string");
     }
 
-    let (num_part, multiplier) = if s.ends_with(['k', 'K']) {
-        // Reason for fallback: slice verified non-empty by condition.
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    let (num_part, multiplier) = if let Some(sub) = s.strip_suffix(['k', 'K']) {
         (sub, 1024_u64)
-    } else if s.ends_with(['m', 'M']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['m', 'M']) {
         (sub, 1024_u64.saturating_mul(1024))
-    } else if s.ends_with(['g', 'G']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['g', 'G']) {
         (sub, 1024_u64.saturating_mul(1024).saturating_mul(1024))
-    } else if s.ends_with(['t', 'T']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['t', 'T']) {
         (sub, 1024_u64.saturating_mul(1024).saturating_mul(1024).saturating_mul(1024))
     } else {
         (s, 1_u64)
@@ -337,20 +343,15 @@ fn parse_time_spec(s: &str) -> Result<i64> {
             .as_secs(),
     )?;
 
-    let (num_part, multiplier) = if s.ends_with(['s', 'S']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    let (num_part, multiplier) = if let Some(sub) = s.strip_suffix(['s', 'S']) {
         (sub, 1_i64)
-    } else if s.ends_with(['m', 'M']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['m', 'M']) {
         (sub, 60_i64)
-    } else if s.ends_with(['h', 'H']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['h', 'H']) {
         (sub, 3600_i64)
-    } else if s.ends_with(['d', 'D']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['d', 'D']) {
         (sub, 86400_i64)
-    } else if s.ends_with(['w', 'W']) {
-        let sub = s.get(..s.len().checked_sub(1).unwrap_or(0)).unwrap_or("");
+    } else if let Some(sub) = s.strip_suffix(['w', 'W']) {
         (sub, 604_800_i64)
     } else {
         anyhow::bail!("Unrecognized time format: {s}. Expected timestamp or relative duration like '7d'");
@@ -390,22 +391,45 @@ fn format_permissions(kind: &str, mode: u32) -> String {
     format!("{type_char}{r_usr}{w_usr}{x_usr}{r_grp}{w_grp}{x_grp}{r_oth}{w_oth}{x_oth}")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Divisors 4, 100, and 400 are non-zero constants"
+)]
+fn is_leap_year(year: u64) -> bool {
+    (year.checked_rem(4).expect("divisor 4 is non-zero") == 0
+        && year.checked_rem(100).expect("divisor 100 is non-zero") != 0)
+        || (year.checked_rem(400).expect("divisor 400 is non-zero") == 0)
+}
+
+#[expect(
+    clippy::expect_used,
+    reason = "Checked operations with non-zero constants and range-checked non-negative values are infallible"
+)]
 fn format_timestamp(sec: i64) -> String {
     // Basic UTC representation YYYY-MM-DD HH:MM
-    let u_sec = <u64 as TryFrom<_>>::try_from(sec.max(0)).unwrap_or(0);
+    let u_sec = u64::try_from(sec.max(0))
+        .expect("clamped to non-negative i64 which fits in u64");
     let d = std::time::Duration::from_secs(u_sec);
-    let days = d.as_secs().checked_div(86400).unwrap_or(0);
-    let rem = d.as_secs().checked_rem(86400).unwrap_or(0);
-    let hours = rem.checked_div(3600).unwrap_or(0);
-    let mins = (rem.checked_rem(3600).unwrap_or(0)).checked_div(60).unwrap_or(0);
+    let days = d
+        .as_secs()
+        .checked_div(86400)
+        .expect("divisor 86400 is non-zero");
+    let rem = d
+        .as_secs()
+        .checked_rem(86400)
+        .expect("divisor 86400 is non-zero");
+    let hours = rem.checked_div(3600).expect("divisor 3600 is non-zero");
+    let mins = rem
+        .checked_rem(3600)
+        .expect("divisor 3600 is non-zero")
+        .checked_div(60)
+        .expect("divisor 60 is non-zero");
 
     // Approximate days to year-month-day for human display
     let mut year = 1970_u64;
     let mut day_count = days;
     loop {
-        let leap = (year.checked_rem(4).unwrap_or(1) == 0
-            && year.checked_rem(100).unwrap_or(0) != 0)
-            || (year.checked_rem(400).unwrap_or(1) == 0);
+        let leap = is_leap_year(year);
         let days_in_year = if leap { 366 } else { 365 };
         if day_count >= days_in_year {
             day_count = day_count.saturating_sub(days_in_year);
@@ -415,9 +439,7 @@ fn format_timestamp(sec: i64) -> String {
         }
     }
 
-    let leap = (year.checked_rem(4).unwrap_or(1) == 0
-        && year.checked_rem(100).unwrap_or(0) != 0)
-        || (year.checked_rem(400).unwrap_or(1) == 0);
+    let leap = is_leap_year(year);
     let month_days = [
         31_u64,
         if leap { 29 } else { 28 },

@@ -309,6 +309,7 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
             let p = entry.path();
             if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
                 if let Ok(meta) = p.metadata() {
+                    // Reason for fallback: filesystems lacking mtime support default to UNIX_EPOCH so missing timestamps sort oldest
                     let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
                     candidates.push((mtime, p));
                 }
@@ -369,6 +370,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 for _ in 0..src_count {
                     if let Ok(bytes) = read_bytes(&mut reader) {
                         let is_windows = origin_platform == PLATFORM_WINDOWS;
+                        // Reason for fallback: when cross-platform path resolution fails due to invalid characters or encoding, lossy UTF-8 conversion provides best-effort path
                         let src_path = resolve_relative_path_for_os(&bytes, is_windows)
                             .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&bytes).as_ref()));
                         sources.push(src_path);
@@ -384,6 +386,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                     break;
                 };
                 let is_windows = origin_platform == PLATFORM_WINDOWS;
+                // Reason for fallback: when cross-platform path resolution fails due to invalid characters or encoding, lossy UTF-8 conversion provides best-effort path
                 destination = resolve_relative_path_for_os(&dest_bytes, is_windows)
                     .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&dest_bytes).as_ref()));
             }

@@ -460,7 +460,7 @@ fn checkeddl_with_client(
         target,
         Some(&base_output_dir),
         original,
-        progress,
+        &progress,
     )?;
     progress.message("Verifying downloaded files...");
     let live_files_xml_bytes =

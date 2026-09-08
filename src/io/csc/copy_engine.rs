@@ -627,7 +627,9 @@ fn copy_single_item(
 }
 
 fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathBuf {
+    // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_dest = dest_path.strip_prefix("./").unwrap_or(dest_path);
+    // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_journal = journal_dest.strip_prefix("./").unwrap_or(journal_dest);
 
     if norm_journal.as_os_str().is_empty() || norm_journal == Path::new(".") {
@@ -635,6 +637,7 @@ fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathB
     }
 
     if let Ok(rel) = norm_dest.strip_prefix(norm_journal) {
+        // Reason for fallback: path not prefixed with "./" retains original path unchanged
         return rel.strip_prefix("./").unwrap_or(rel).to_path_buf();
     }
     if let Ok(rel) = dest_path.strip_prefix(journal_dest) {

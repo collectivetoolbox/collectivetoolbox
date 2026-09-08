@@ -50,6 +50,7 @@ pub fn derive_source_name(journal_path: &Path, explicit_name: Option<&str>) -> S
         .file_name()
         .map_or("source", |f| f.to_str().unwrap_or("source"));
 
+    // Reason for fallback: base filename lacking recognized archive extension retains original string unchanged
     let without_journal = base
         .strip_suffix(".cscjournal")
         .or_else(|| base.strip_suffix(".cscdesc"))
@@ -90,14 +91,15 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     let db_path = if let Some(ref db) = args.database {
         db.clone()
     } else {
-        // Reason for fallback: When first target has no file name or is root, default to index.cscindex.sqlite.
         let first_target = args
             .targets
             .first()
             .context("No target paths provided to index")?;
+        // Reason for fallback: target path lacking valid UTF-8 filename defaults to "index" database stem
         let stem = first_target
             .file_name()
             .map_or("index", |s| s.to_str().unwrap_or("index"));
+        // Reason for fallback: stem lacking recognized archive extension retains original stem unchanged
         let stem_trimmed = stem
             .strip_suffix(".cscjournal")
             .or_else(|| stem.strip_suffix(".cscdesc"))
@@ -446,6 +448,7 @@ async fn ingest_journal_snapshot(
                     } else {
                         None
                     };
+                    // Reason for fallback: file size exceeding signed 64-bit integer limit is clamped to i64::MAX for SQLite storage
                     let size_i64 = <i64 as TryFrom<_>>::try_from(*size).unwrap_or(i64::MAX);
                     (size_i64, None, sha_hex)
                 }
@@ -467,6 +470,7 @@ async fn ingest_journal_snapshot(
             let ctime_sec = entity.metadata.timestamps.ctime_sec;
             let ctime_nsec = i64::from(entity.metadata.timestamps.ctime_nsec);
             let mode = i64::from(entity.metadata.mode);
+            // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
             let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);
 
             let params = vec![
@@ -482,6 +486,7 @@ async fn ingest_journal_snapshot(
                 Value::Integer(ctime_nsec),
                 Value::Integer(mode),
                 Value::Integer(nlink),
+                // Reason for fallback: entities without symlink target or SHA-256 hash record NULL in SQLite
                 symlink_target.map_or(Value::Null, Value::Text),
                 sha256_str.map_or(Value::Null, Value::Text),
             ];

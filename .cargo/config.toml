@@ -1,3 +1,5 @@
+# This is the canonical source of config.toml, which it is copied to by the build script.
+
 [build]
 # rustflags = ["--cfg", "tokio_unstable"]
 # You may need to adjust this depending on your system.
