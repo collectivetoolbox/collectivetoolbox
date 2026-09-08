@@ -28,6 +28,56 @@
   - "Zig actually provides libSystem.tbd stubs out of the box, so you can cross-compile from any OS to macOS too as long as you only depend on libSystem (the macOS libc.)" - emidoots at https://news.ycombinator.com/item?id=30488979
 - [ ] Add OpenGL/Vulkan: Approach it by statically linking LLVM and Mesa software rendering (LLVMpipe/Lavapipe), and delivering separate, optional minimal shim binaries that attempt to dlopen the system X11/libwayland/libGL, proxying over IPC. On other platforms, I'll likely use some dynamic linking, with a preference for statically linking where possible.
 
+### csc
+
+Uninformative error: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
+
+Configurable journal path
+
+Add a way to flush deleted files from fsindex
+
+Appended indices should be deduplicated by path
+
+Add a Dc to represent long Dcs
+
+Standardize on "short" and "long" terms for Dcs
+
+Deprecate Dcs duplicating Unicode
+
+Pull and export oldest container
+
+Pan procedure export
+
+File with Swift table didn't have all cases
+
+Skip fwrite based on checksum?
+
+Progress always says "0.0%". I guess if it doesn't know what the total is, it should hide the percentage. Trying to estimate would probably be too slow.
+
+`cscv` should disallow verifying from a failed or truncated manifest by default (since it can be very misleading), but provide an option to allow it.
+
+And make sure a manifest is not marked finished (and thus verifiable by cscv) until it has finished *the full verification pass*.
+
+`cscv` in best-effort mode shouldn't say `Directory matches manifest perfectly.` if it doesn't - it should say something like `Directory matches manifest in best-effort mode; ignored 1234 ownership differences and 2345 timestamp differences.`
+
+fsearch `-k` should either be able to accept a single argument, or clearly document that it is able to consume multiple parameters. `-k 'new begun'` finds nothing; `-k 'new' 'begun'` finds something.
+
+For maximum fidelity, File struct should probably retain the original enclosing path too, even if the relative path is what's being used. For File structs read from a filesystem, they should probably also include a time of read, documenting when that File is current as of.
+
+Use Turso FTS for full-text search in fsindex/fsearch if it doesn't already.
+
+Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
+
+Full-text fsindex?
+
+Password-protectable fsindex?
+
+csc --delete-manifest-after option, and `cp` as an alias for it? and mv that moves if possible or `csc --delete-manifest-after` if it needs to move across filesystems
+
+magic-square
+
+New string type for DcText?
+
 ### Installer
 
 ALL SOURCE CODE EXCEPT ICECAT MISSING FROM GUIX IMAGE
