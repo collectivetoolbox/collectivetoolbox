@@ -263,7 +263,7 @@ pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
 /// Each short Dc ID `c` is mapped to its long global graph Dc ID (`1114112 + c`).
 pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut log = FormatLog::default();
-    let max_known = ctb_formats_eite::dc::maximum_known_dc()?;
+    let max_known = ctb_formats_eite::dc::maximum_known_short_dc()?;
     let mut list = Vec::with_capacity(dc_array.len());
 
     for (idx, &dc) in dc_array.iter().enumerate() {
@@ -310,10 +310,10 @@ pub fn dclist_to_dcarray(
 ) -> Result<ConversionOutput<Vec<u32>>> {
     let mut log = FormatLog::default();
     let max_known_u128 = u128::try_from(
-        ctb_formats_eite::dc::maximum_known_dc()?,
+        ctb_formats_eite::dc::maximum_known_short_dc()?,
     )
     .map_err(|e| {
-        anyhow::anyhow!("Failed to convert maximum_known_dc to u128: {e}")
+        anyhow::anyhow!("Failed to convert maximum_known_short_dc to u128: {e}")
     })?;
 
     let mut result = Vec::new();

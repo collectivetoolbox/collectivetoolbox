@@ -348,7 +348,7 @@ pub fn dc_data_filter_by_value_greater(
 )]
 mod tests {
     use crate::{
-        dc::{get_dc_count, maximum_known_dc},
+        dc::{get_dc_count, maximum_known_short_dc},
         formats::is_format,
     };
 
@@ -358,7 +358,7 @@ mod tests {
     fn test_data_loaded() -> Result<()> {
         assert_eq!(dc_dataset_length("DcData")?, 304);
         assert_eq!(get_dc_count()?, 304);
-        assert_eq!(maximum_known_dc()?, 303);
+        assert_eq!(maximum_known_short_dc()?, 303);
         assert!(is_format("unicode"));
         assert!(is_format("utf8"));
         Ok(())

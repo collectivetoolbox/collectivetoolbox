@@ -54,12 +54,12 @@ pub const DC_END_ENCAPSULATION_BINARY: u32 = 204;
 /* ===== Dc classification & queries ===== */
 
 pub fn is_known_dc(v: u32) -> Result<bool> {
-    let max = u32::try_from(maximum_known_dc()?)
-        .context("Failed to convert maximum_known_dc to u32")?;
+    let max = u32::try_from(maximum_known_short_dc()?)
+        .context("Failed to convert maximum_known_short_dc to u32")?;
     Ok(v <= max)
 }
 
-pub fn maximum_known_dc() -> Result<usize> {
+pub fn maximum_known_short_dc() -> Result<usize> {
     let len = dc_dataset_length("DcData")?;
     len.checked_sub(1).context("Failed to get maximum known Dc")
 }
