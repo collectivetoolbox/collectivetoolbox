@@ -70,7 +70,10 @@ pub mod workspace_path_resolution;
 
 pub use crate::cli::{OutputChunk, ToolResult};
 pub use crate::math::approx_eq;
-pub use crate::string::format_bytes_decimal;
+pub use crate::string::{
+    format_bytes_decimal, format_permissions, octal_mode_to_letters, parse_bytes,
+    parse_bytes_u128,
+};
 pub use crate::ui::progress::Progress;
 pub use crate::utilities_json_json as json;
 pub use anyhow;

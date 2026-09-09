@@ -131,7 +131,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             db_path.display()
         );
         let db_path_str = db_path.to_string_lossy().to_string();
-        let db = Builder::new_local(&db_path_str).build().await?;
+        let db = Builder::new_local(&db_path_str)
+            .experimental_index_method(true)
+            .build()
+            .await?;
         let conn = db.connect()?;
         conn.busy_timeout(std::time::Duration::from_millis(5000))?;
         init_database_schema(&conn).await?;
@@ -161,11 +164,35 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
 
     // 3. Connect to Turso SQLite database and create schema
     let db_path_str = db_path.to_string_lossy().to_string();
-    let db = Builder::new_local(&db_path_str).build().await?;
+    let db = Builder::new_local(&db_path_str)
+        .experimental_index_method(true)
+        .build()
+        .await?;
     let conn = db.connect()?;
     conn.busy_timeout(std::time::Duration::from_millis(5000))?;
 
     init_database_schema(&conn).await?;
+
+    let is_fulltext = args.fulltext || args.fulltext_max != "20k";
+    let fulltext_limit = if is_fulltext {
+        let parsed = parse_bytes(&args.fulltext_max)?;
+        Some(usize::try_from(parsed).unwrap_or(20480))
+    } else {
+        None
+    };
+
+    if is_fulltext {
+        let has_full_text = check_has_full_text(&conn).await?;
+        if !has_full_text {
+            conn.execute("ALTER TABLE entries ADD COLUMN full_text TEXT", ())
+                .await?;
+        }
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entries_text_fts ON entries USING fts (full_text)",
+            (),
+        )
+        .await?;
+    }
 
     let mut total_flushed: u64 = 0;
     if args.flush_deleted {
@@ -197,7 +224,15 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
         let src_id = get_or_create_source(&conn, &src_name, j_path).await?;
 
         let snapshot = read_journal_snapshot(j_path)?;
-        let count = ingest_journal_snapshot(&conn, src_id, &snapshot, args.batch_size, &progress).await?;
+        let count = ingest_journal_snapshot(
+            &conn,
+            src_id,
+            &snapshot,
+            args.batch_size,
+            &progress,
+            fulltext_limit,
+        )
+        .await?;
 
         total_indexed_files = total_indexed_files.saturating_add(count);
         sources_indexed = sources_indexed.saturating_add(1);
@@ -441,8 +476,23 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_mtime ON entries(mtime_sec)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_ctime ON entries(ctime_sec)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_size ON entries(size)", ()).await?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_fts ON entries USING fts (filename, path)", ()).await?;
 
     Ok(())
+}
+
+/// Checks if the `entries` table has the `full_text` column.
+pub async fn check_has_full_text(conn: &Connection) -> Result<bool> {
+    let mut stmt = conn.prepare("PRAGMA table_info(entries)").await?;
+    let mut rows = stmt.query(()).await?;
+    while let Some(row) = rows.next().await? {
+        if let Ok(Value::Text(col)) = row.get_value(1) {
+            if col == "full_text" {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
 }
 
 /// Retrieves or inserts a source entry, returning its integer `source_id`.
@@ -495,6 +545,7 @@ async fn ingest_journal_snapshot(
     snapshot: &JournalSnapshot,
     batch_size: usize,
     progress: &Progress,
+    fulltext_limit: Option<usize>,
 ) -> Result<u64> {
     let mut inserted_count: u64 = 0;
     let entities: Vec<&FileEntity> = snapshot.committed_entities.values().collect();
@@ -502,7 +553,13 @@ async fn ingest_journal_snapshot(
     let chunks = entities.chunks(batch_size);
     let total_chunks = chunks.len();
 
-    let sql_insert = "INSERT INTO entries (
+    let has_full_text = check_has_full_text(conn).await?;
+    let root_dir = snapshot
+        .sources
+        .first()
+        .unwrap_or(&snapshot.destination);
+
+    let sql_insert_without_ft = "INSERT INTO entries (
         source_id, path, filename, parent_dir, kind, size,
         mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
         symlink_target, sha256
@@ -521,6 +578,33 @@ async fn ingest_journal_snapshot(
         nlink = excluded.nlink,
         symlink_target = excluded.symlink_target,
         sha256 = excluded.sha256";
+
+    let sql_insert_with_ft = "INSERT INTO entries (
+        source_id, path, filename, parent_dir, kind, size,
+        mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
+        symlink_target, sha256, full_text
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(path) DO UPDATE SET
+        source_id = excluded.source_id,
+        filename = excluded.filename,
+        parent_dir = excluded.parent_dir,
+        kind = excluded.kind,
+        size = excluded.size,
+        mtime_sec = excluded.mtime_sec,
+        mtime_nsec = excluded.mtime_nsec,
+        ctime_sec = excluded.ctime_sec,
+        ctime_nsec = excluded.ctime_nsec,
+        mode = excluded.mode,
+        nlink = excluded.nlink,
+        symlink_target = excluded.symlink_target,
+        sha256 = excluded.sha256,
+        full_text = excluded.full_text";
+
+    let sql_insert = if has_full_text {
+        sql_insert_with_ft
+    } else {
+        sql_insert_without_ft
+    };
 
     for (chunk_idx, chunk) in chunks.enumerate() {
         conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
@@ -573,7 +657,7 @@ async fn ingest_journal_snapshot(
             // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
             let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);
 
-            let params = vec![
+            let mut params = vec![
                 Value::Integer(source_id),
                 Value::Text(path_str),
                 Value::Text(filename),
@@ -590,6 +674,22 @@ async fn ingest_journal_snapshot(
                 symlink_target.map_or(Value::Null, Value::Text),
                 sha256_str.map_or(Value::Null, Value::Text),
             ];
+
+            if has_full_text {
+                let full_text_val = if fulltext_limit.is_some()
+                    && matches!(entity.kind, FileEntityKind::Regular { .. })
+                {
+                    let full_path = root_dir.join(&entity.identity.relative_path);
+                    if let Ok(mut f) = std::fs::File::open(&full_path) {
+                        ctb_formats_text_extraction::to_text(&mut f, fulltext_limit).ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                params.push(full_text_val.map_or(Value::Null, Value::Text));
+            }
 
             conn.execute(sql_insert, params).await?;
             inserted_count = inserted_count.saturating_add(1);

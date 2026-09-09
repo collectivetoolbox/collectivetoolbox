@@ -27,12 +27,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{FsearchArgs, SearchOutputFormat, SearchSortField};
+use crate::index_engine::check_has_full_text;
+use ctb_io::file::entity::FileEntityType;
 use regex::Regex;
 use serde::Serialize;
 use std::fmt::Write as _;
 use std::time::{SystemTime, UNIX_EPOCH};
 use turso::{Builder, Value};
-use ctb_io::file::entity::FileEntityType;
 
 /// A single matched entry returned from search.
 #[derive(Debug, Clone, Serialize)]
@@ -48,6 +49,211 @@ pub struct SearchResultEntry {
     pub symlink_target: Option<String>,
     pub sha256: Option<String>,
     pub source_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_lines: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SearchTarget {
+    Path,
+    Name,
+    Text,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SearchKind {
+    Regex,
+    Glob,
+    Keyword,
+}
+
+struct ResolvedSearch {
+    kind: SearchKind,
+    target: SearchTarget,
+    pattern: String,
+}
+
+fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<ResolvedSearch>> {
+    // 1. Explicit regex options
+    if let Some(pat) = args.regex_path.as_deref().or(args.regex.as_deref()) {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Path,
+            pattern: pat.to_string(),
+        }));
+    }
+    if let Some(ref pat) = args.regex_text {
+        anyhow::ensure!(
+            has_full_text,
+            "Cannot perform regex full-text search: database was not indexed with --fulltext"
+        );
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Text,
+            pattern: pat.clone(),
+        }));
+    }
+    if let Some(ref pat) = args.regex_name {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Name,
+            pattern: pat.clone(),
+        }));
+    }
+
+    // 2. Explicit glob options
+    if let Some(pat) = args.glob_path.as_deref().or(args.path_glob.as_deref()) {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Glob,
+            target: SearchTarget::Path,
+            pattern: pat.to_string(),
+        }));
+    }
+    if let Some(ref pat) = args.glob_text {
+        anyhow::ensure!(
+            has_full_text,
+            "Cannot perform glob full-text search: database was not indexed with --fulltext"
+        );
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Glob,
+            target: SearchTarget::Text,
+            pattern: pat.clone(),
+        }));
+    }
+    if let Some(pat) = args.glob_name.as_deref().or(args.name_glob.as_deref()) {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Glob,
+            target: SearchTarget::Name,
+            pattern: pat.to_string(),
+        }));
+    }
+
+    // 3. Explicit keyword options
+    if let Some(pat) = args.keyword_path.as_deref().or(args.keyword.as_deref()) {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Keyword,
+            target: SearchTarget::Path,
+            pattern: pat.to_string(),
+        }));
+    }
+    if let Some(ref pat) = args.keyword_text {
+        anyhow::ensure!(
+            has_full_text,
+            "Cannot perform keyword full-text search: database was not indexed with --fulltext"
+        );
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Keyword,
+            target: SearchTarget::Text,
+            pattern: pat.clone(),
+        }));
+    }
+    if let Some(ref pat) = args.keyword_name {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Keyword,
+            target: SearchTarget::Name,
+            pattern: pat.clone(),
+        }));
+    }
+
+    // 4. Positional query resolution
+    if let [q] = args.query.as_slice() {
+        if q.contains('*') {
+            if q.contains('/') {
+                Ok(Some(ResolvedSearch {
+                    kind: SearchKind::Glob,
+                    target: SearchTarget::Path,
+                    pattern: q.clone(),
+                }))
+            } else {
+                Ok(Some(ResolvedSearch {
+                    kind: SearchKind::Glob,
+                    target: SearchTarget::Name,
+                    pattern: q.clone(),
+                }))
+            }
+        } else if has_full_text {
+            Ok(Some(ResolvedSearch {
+                kind: SearchKind::Keyword,
+                target: SearchTarget::Text,
+                pattern: q.clone(),
+            }))
+        } else {
+            Ok(Some(ResolvedSearch {
+                kind: SearchKind::Keyword,
+                target: SearchTarget::Path,
+                pattern: q.clone(),
+            }))
+        }
+    } else if args.query.len() > 1 {
+        let combined = args.query.join(" ");
+        if has_full_text {
+            Ok(Some(ResolvedSearch {
+                kind: SearchKind::Keyword,
+                target: SearchTarget::Text,
+                pattern: combined,
+            }))
+        } else {
+            Ok(Some(ResolvedSearch {
+                kind: SearchKind::Keyword,
+                target: SearchTarget::Path,
+                pattern: combined,
+            }))
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+fn extract_context_lines(
+    text: &str,
+    resolved: Option<&ResolvedSearch>,
+    regex: Option<&Regex>,
+    n: usize,
+) -> Option<Vec<String>> {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return None;
+    }
+
+    let match_idx = if let Some(re) = regex {
+        lines.iter().position(|line| re.is_match(line))
+    } else if let Some(res) = resolved {
+        match res.kind {
+            SearchKind::Keyword => {
+                let terms: Vec<String> = res
+                    .pattern
+                    .split_whitespace()
+                    .map(|w| w.trim_matches('"').to_ascii_lowercase())
+                    .filter(|w| !w.is_empty())
+                    .collect();
+                lines.iter().position(|line| {
+                    let l_lower = line.to_ascii_lowercase();
+                    terms.iter().any(|term| l_lower.contains(term))
+                })
+            }
+            SearchKind::Glob => {
+                let pat_lower = res.pattern.trim_matches('*').to_ascii_lowercase();
+                lines
+                    .iter()
+                    .position(|line| line.to_ascii_lowercase().contains(&pat_lower))
+            }
+            SearchKind::Regex => None,
+        }
+    } else {
+        None
+    }?;
+
+    let start = match_idx.saturating_sub(n);
+    let end = (match_idx.saturating_add(n).saturating_add(1)).min(lines.len());
+
+    let mut ctx = Vec::with_capacity(end.saturating_sub(start));
+    for (idx, line) in lines.iter().enumerate().take(end).skip(start) {
+        let line_num = idx.saturating_add(1);
+        let sep = if idx == match_idx { ":" } else { "-" };
+        ctx.push(format!("{line_num}{sep} {line}"));
+    }
+
+    Some(ctx)
 }
 
 /// Executes fast indexed search query against a .cscindex.sqlite database.
@@ -59,19 +265,43 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     );
 
     let db_path_str = args.database.to_string_lossy().to_string();
-    let db = Builder::new_local(&db_path_str).build().await?;
+    let db = Builder::new_local(&db_path_str)
+        .experimental_index_method(true)
+        .build()
+        .await?;
     let conn = db.connect()?;
 
+    let has_full_text = check_has_full_text(&conn).await?;
+
+    if args.context.is_some() && !has_full_text {
+        anyhow::bail!("Cannot display context lines: database was not indexed with --fulltext");
+    }
+
+    let resolved = resolve_search(&args, has_full_text)?;
+
     // Build SQL query dynamically
-    let mut sql = String::from(
-        "SELECT
-            e.path, e.filename, e.parent_dir, e.kind, e.size,
-            e.mtime_sec, e.ctime_sec, e.mode, e.symlink_target, e.sha256,
-            s.name AS source_name
-        FROM entries e
-        JOIN sources s ON e.source_id = s.id
-        WHERE 1=1",
-    );
+    let mut sql = if has_full_text {
+        String::from(
+            "SELECT
+                e.path, e.filename, e.parent_dir, e.kind, e.size,
+                e.mtime_sec, e.ctime_sec, e.mode, e.symlink_target, e.sha256,
+                s.name AS source_name,
+                e.full_text
+            FROM entries e
+            JOIN sources s ON e.source_id = s.id
+            WHERE 1=1",
+        )
+    } else {
+        String::from(
+            "SELECT
+                e.path, e.filename, e.parent_dir, e.kind, e.size,
+                e.mtime_sec, e.ctime_sec, e.mode, e.symlink_target, e.sha256,
+                s.name AS source_name
+            FROM entries e
+            JOIN sources s ON e.source_id = s.id
+            WHERE 1=1",
+        )
+    };
 
     let mut params: Vec<Value> = Vec::new();
 
@@ -81,61 +311,79 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
         params.push(Value::Text(format!("%{src}%")));
     }
 
-    // 2. Pattern matching (positional query or explicit name/path globs)
-    if let Some(ref name_glob) = args.name_glob {
-        sql.push_str(" AND e.filename GLOB ?");
-        params.push(Value::Text(name_glob.clone()));
-    } else if let Some(ref path_glob) = args.path_glob {
-        sql.push_str(" AND e.path GLOB ?");
-        params.push(Value::Text(path_glob.clone()));
-    } else if let Some(ref query) = args.query {
-        if query.contains('/') || query.contains("**") {
-            sql.push_str(" AND e.path GLOB ?");
-            params.push(Value::Text(query.clone()));
-        } else if query.contains('*') || query.contains('?') || query.contains('[') {
-            sql.push_str(" AND e.filename GLOB ?");
-            params.push(Value::Text(query.clone()));
-        } else {
-            // Substring or glob match if no glob wildcards given
-            sql.push_str(" AND e.filename GLOB ?");
-            params.push(Value::Text(format!("*{query}*")));
+    // 2. Pattern filter
+    let mut regex_filter: Option<Regex> = None;
+    if let Some(ref res) = resolved {
+        match res.kind {
+            SearchKind::Keyword => match res.target {
+                SearchTarget::Name => {
+                    sql.push_str(" AND e.filename MATCH ?");
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+                SearchTarget::Path => {
+                    sql.push_str(" AND (e.filename, e.path) MATCH ?");
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+                SearchTarget::Text => {
+                    sql.push_str(
+                        " AND ((e.filename, e.path) MATCH ? OR (e.full_text IS NOT NULL AND e.full_text MATCH ?))",
+                    );
+                    params.push(Value::Text(res.pattern.clone()));
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+            },
+            SearchKind::Glob => match res.target {
+                SearchTarget::Name => {
+                    sql.push_str(" AND e.filename GLOB ?");
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+                SearchTarget::Path => {
+                    sql.push_str(" AND e.path GLOB ?");
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+                SearchTarget::Text => {
+                    sql.push_str(
+                        " AND (e.path GLOB ? OR e.filename GLOB ? OR (e.full_text IS NOT NULL AND e.full_text GLOB ?))",
+                    );
+                    params.push(Value::Text(res.pattern.clone()));
+                    params.push(Value::Text(res.pattern.clone()));
+                    params.push(Value::Text(res.pattern.clone()));
+                }
+            },
+            SearchKind::Regex => {
+                let re = Regex::new(&res.pattern)
+                    .with_context(|| format!("Invalid regular expression: {}", res.pattern))?;
+                regex_filter = Some(re);
+            }
         }
     }
 
-    // 3. Keyword filter
-    if let Some(ref kw) = args.keyword {
-        sql.push_str(" AND (e.filename LIKE ? OR e.path LIKE ?)");
-        let pat = format!("%{kw}%");
-        params.push(Value::Text(pat.clone()));
-        params.push(Value::Text(pat));
-    }
-
-    // 4. Entity type filter
+    // 3. Entity type filter
     if let Some(ref entry_type_str) = args.entry_type {
         let entity_type = FileEntityType::parse(entry_type_str)?;
         sql.push_str(" AND e.kind = ?");
         params.push(Value::Text(entity_type.as_str().to_string()));
     }
 
-    // 5. Size filters
+    // 4. Size filters
     if let Some(ref min_s) = args.size_min {
-        let bytes = parse_size_spec(min_s)?;
+        let bytes = parse_bytes(min_s)?;
         let i_bytes = i64::try_from(bytes).with_context(|| {
-            format!("Size filter '--size-min {min_s}' exceeds maximum supported 64-bit integer size ({} bytes)", i64::MAX)
+            format!("Size filter '--size-min {min_s}' exceeds maximum supported 64-bit integer size")
         })?;
         sql.push_str(" AND e.size >= ?");
         params.push(Value::Integer(i_bytes));
     }
     if let Some(ref max_s) = args.size_max {
-        let bytes = parse_size_spec(max_s)?;
+        let bytes = parse_bytes(max_s)?;
         let i_bytes = i64::try_from(bytes).with_context(|| {
-            format!("Size filter '--size-max {max_s}' exceeds maximum supported 64-bit integer size ({} bytes)", i64::MAX)
+            format!("Size filter '--size-max {max_s}' exceeds maximum supported 64-bit integer size")
         })?;
         sql.push_str(" AND e.size <= ?");
         params.push(Value::Integer(i_bytes));
     }
 
-    // 6. Timestamps filters
+    // 5. Timestamps filters
     if let Some(ref ma) = args.mtime_after {
         let sec = parse_time_spec(ma)?;
         sql.push_str(" AND e.mtime_sec >= ?");
@@ -157,7 +405,7 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
         params.push(Value::Integer(sec));
     }
 
-    // 7. Sort ordering
+    // 6. Sort ordering
     let order_col = match args.sort {
         SearchSortField::Path => "e.path",
         SearchSortField::Name => "e.filename",
@@ -168,23 +416,17 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     let order_dir = if args.sort_desc { "DESC" } else { "ASC" };
     write!(sql, " ORDER BY {order_col} {order_dir}")?;
 
-    // 8. Limit (only if regex post-filter is not active)
-    let has_regex = args.regex.is_some();
+    // 7. Limit (only if regex post-filter is not active)
+    let has_regex = regex_filter.is_some();
     if !has_regex {
         if let Some(limit) = args.limit {
             let lim_i64 = i64::try_from(limit).with_context(|| {
-                format!("Limit value '{limit}' exceeds maximum supported 64-bit integer limit ({})", i64::MAX)
+                format!("Limit value '{limit}' exceeds maximum supported 64-bit integer limit")
             })?;
             sql.push_str(" LIMIT ?");
             params.push(Value::Integer(lim_i64));
         }
     }
-
-    let regex_filter = if let Some(ref r) = args.regex {
-        Some(Regex::new(r).with_context(|| format!("Invalid regular expression: {r}"))?)
-    } else {
-        None
-    };
 
     let mut stmt = conn.prepare(&sql).await?;
     let mut rows = stmt.query(params).await?;
@@ -196,12 +438,6 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
             Value::Text(s) => s,
             _ => continue,
         };
-
-        if let Some(ref re) = regex_filter {
-            if !re.is_match(&path) {
-                continue;
-            }
-        }
 
         let filename = match row.get_value(1)? {
             Value::Text(s) => s,
@@ -248,6 +484,41 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
             _ => String::new(),
         };
 
+        let full_text = if has_full_text {
+            match row.get_value(11)? {
+                Value::Text(s) => Some(s),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        if let Some(ref re) = regex_filter {
+            let res = resolved
+                .as_ref()
+                .context("Expected resolved search for regex")?;
+            let is_matched = match res.target {
+                SearchTarget::Name => re.is_match(&filename),
+                SearchTarget::Path => re.is_match(&path),
+                SearchTarget::Text => {
+                    re.is_match(&path)
+                        || re.is_match(&filename)
+                        || full_text.as_deref().map_or(false, |t| re.is_match(t))
+                }
+            };
+            if !is_matched {
+                continue;
+            }
+        }
+
+        let context_lines = if let Some(n) = args.context {
+            full_text.as_deref().and_then(|t| {
+                extract_context_lines(t, resolved.as_ref(), regex_filter.as_ref(), n)
+            })
+        } else {
+            None
+        };
+
         matches.push(SearchResultEntry {
             path,
             filename,
@@ -260,6 +531,7 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
             symlink_target,
             sha256,
             source_name,
+            context_lines,
         });
 
         if let Some(limit) = args.limit {
@@ -273,12 +545,17 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     let mut out = String::new();
     match args.format {
         SearchOutputFormat::Path => {
-            for item in matches {
+            for item in &matches {
                 writeln!(out, "{}", item.path)?;
+                if let Some(ref ctx) = item.context_lines {
+                    for line in ctx {
+                        writeln!(out, "  {line}")?;
+                    }
+                }
             }
         }
         SearchOutputFormat::Long => {
-            for item in matches {
+            for item in &matches {
                 let perm_str = format_permissions(&item.kind, item.mode);
                 let date_str = format_timestamp(item.mtime_sec);
                 // Reason for fallback: non-symlink entities have no target link, displaying empty suffix
@@ -292,6 +569,11 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
                     "{} {:>10} {} [{}] {}{}",
                     perm_str, item.size, date_str, item.source_name, item.path, target_str
                 )?;
+                if let Some(ref ctx) = item.context_lines {
+                    for line in ctx {
+                        writeln!(out, "  {line}")?;
+                    }
+                }
             }
         }
         SearchOutputFormat::Json => {
@@ -301,32 +583,6 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     }
 
     Ok(ToolResult::immediate_ok(out.into_bytes()))
-}
-
-/// Parses human-readable size specifications like "10k", "5M", "1G" into bytes.
-fn parse_size_spec(s: &str) -> Result<u64> {
-    let s = s.trim();
-    if s.is_empty() {
-        anyhow::bail!("Empty size string");
-    }
-
-    let (num_part, multiplier) = if let Some(sub) = s.strip_suffix(['k', 'K']) {
-        (sub, 1024_u64)
-    } else if let Some(sub) = s.strip_suffix(['m', 'M']) {
-        (sub, 1024_u64.saturating_mul(1024))
-    } else if let Some(sub) = s.strip_suffix(['g', 'G']) {
-        (sub, 1024_u64.saturating_mul(1024).saturating_mul(1024))
-    } else if let Some(sub) = s.strip_suffix(['t', 'T']) {
-        (sub, 1024_u64.saturating_mul(1024).saturating_mul(1024).saturating_mul(1024))
-    } else {
-        (s, 1_u64)
-    };
-
-    let base: u64 = num_part
-        .parse()
-        .with_context(|| format!("Invalid number in size specification: {s}"))?;
-
-    Ok(base.saturating_mul(multiplier))
 }
 
 /// Parses an absolute epoch timestamp or relative duration like "7d", "24h", "60m".
@@ -363,32 +619,6 @@ fn parse_time_spec(s: &str) -> Result<i64> {
 
     let delta = val.saturating_mul(multiplier);
     Ok(now_sec.saturating_sub(delta))
-}
-
-fn format_permissions(kind: &str, mode: u32) -> String {
-    let type_char = match kind {
-        "dir" => 'd',
-        "symlink" => 'l',
-        "fifo" => 'p',
-        "socket" => 's',
-        "chardev" => 'c',
-        "blockdev" => 'b',
-        _ => '-',
-    };
-
-    let r_usr = if mode & 0o400 != 0 { 'r' } else { '-' };
-    let w_usr = if mode & 0o200 != 0 { 'w' } else { '-' };
-    let x_usr = if mode & 0o100 != 0 { 'x' } else { '-' };
-
-    let r_grp = if mode & 0o040 != 0 { 'r' } else { '-' };
-    let w_grp = if mode & 0o020 != 0 { 'w' } else { '-' };
-    let x_grp = if mode & 0o010 != 0 { 'x' } else { '-' };
-
-    let r_oth = if mode & 0o004 != 0 { 'r' } else { '-' };
-    let w_oth = if mode & 0o002 != 0 { 'w' } else { '-' };
-    let x_oth = if mode & 0o001 != 0 { 'x' } else { '-' };
-
-    format!("{type_char}{r_usr}{w_usr}{x_usr}{r_grp}{w_grp}{x_grp}{r_oth}{w_oth}{x_oth}")
 }
 
 #[expect(

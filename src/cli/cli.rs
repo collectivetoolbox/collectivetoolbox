@@ -118,6 +118,35 @@ pub struct SubprocessArgs {
     pub args: Vec<String>,
 }
 
+fn normalize_fsearch_flags(args: Vec<String>) -> Vec<String> {
+    let mut normalized = Vec::with_capacity(args.len());
+    let mut in_fsearch = false;
+    for arg in args {
+        if arg == "fsearch" {
+            in_fsearch = true;
+            normalized.push(arg);
+            continue;
+        }
+        if in_fsearch {
+            match arg.as_str() {
+                "-rp" => normalized.push("--regex-path".to_string()),
+                "-rt" => normalized.push("--regex-text".to_string()),
+                "-rn" => normalized.push("--regex-name".to_string()),
+                "-gp" => normalized.push("--glob-path".to_string()),
+                "-gt" => normalized.push("--glob-text".to_string()),
+                "-gn" => normalized.push("--glob-name".to_string()),
+                "-kp" => normalized.push("--keyword-path".to_string()),
+                "-kt" => normalized.push("--keyword-text".to_string()),
+                "-kn" => normalized.push("--keyword-name".to_string()),
+                _ => normalized.push(arg),
+            }
+        } else {
+            normalized.push(arg);
+        }
+    }
+    normalized
+}
+
 // Public parsing entry point used by lib::entry().
 pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
     // Reason for fallback: when caller passes None for explicit args (normal entrypoint), harvest process arguments directly from std::env::args().
@@ -127,8 +156,9 @@ pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
     if let Some(kind) = kind {
         return Ok(Invocation::Subprocess(SubprocessArgs { kind, args: raw }));
     }
+    let normalized = normalize_fsearch_flags(raw);
     // Fallback: user CLI
-    let cli = Cli::parse_from(raw); // Clap handles errors & help display
+    let cli = Cli::parse_from(normalized); // Clap handles errors & help display
     Ok(Invocation::User(cli))
 }
 

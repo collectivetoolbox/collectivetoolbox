@@ -2662,6 +2662,7 @@ dependencies = [
  "ctb-formats-perl",
  "ctb-formats-stagel",
  "ctb-formats-syndication",
+ "ctb-formats-text-extraction",
  "ctb-formats-troff",
  "ctb-formats-unicode",
  "ctb-formats-uri",
@@ -3094,6 +3095,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-text-extraction"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "ctb-formats-utilities",
+ "ctb-formats-wfscan",
+ "ctb-utilities",
+ "tempfile",
+]
+
+[[package]]
 name = "ctb-formats-troff"
 version = "0.0.0"
 dependencies = [
@@ -3274,6 +3286,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctb-formats-checksum",
+ "ctb-formats-text-extraction",
  "ctb-io",
  "ctb-utilities",
  "filetime",
@@ -3698,6 +3711,7 @@ dependencies = [
  "ctb-formats-perl",
  "ctb-formats-stagel",
  "ctb-formats-syndication",
+ "ctb-formats-text-extraction",
  "ctb-formats-troff",
  "ctb-formats-unicode",
  "ctb-formats-uri",

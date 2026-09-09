@@ -370,6 +370,14 @@ pub struct FsindexArgs {
     /// Stay on the current filesystem and do not cross mount boundaries.
     #[arg(short = 'x', long = "one-file-system")]
     pub one_file_system: bool,
+
+    /// Extract and index file contents for full-text search.
+    #[arg(long = "fulltext")]
+    pub fulltext: bool,
+
+    /// Maximum file size to extract for full-text indexing (e.g. "20k", "64k", "1M"). Defaults to 20k.
+    #[arg(long = "fulltext-max", default_value = "20k", value_name = "SIZE")]
+    pub fulltext_max: String,
 }
 
 /// Output format for search results.
@@ -406,23 +414,63 @@ pub struct FsearchArgs {
     #[arg(value_name = "DATABASE")]
     pub database: PathBuf,
 
-    /// Search pattern or glob (matched against filename unless --path or --regex is specified).
-    #[arg(value_name = "PATTERN")]
-    pub query: Option<String>,
+    /// Search pattern or terms (matched as glob if 1 argument with '*', or keyword search if multiple arguments or without '*').
+    #[arg(value_name = "QUERY", num_args = 0..)]
+    pub query: Vec<String>,
 
-    /// Glob pattern to match against filename (e.g. "*.rs", "*test*").
+    /// Regular expression pattern to match against path and filename.
+    #[arg(long = "regex-path", alias = "rp")]
+    pub regex_path: Option<String>,
+
+    /// Regular expression pattern to match against path, filename, and full text content.
+    #[arg(long = "regex-text", alias = "rt")]
+    pub regex_text: Option<String>,
+
+    /// Regular expression pattern to match against filename only.
+    #[arg(long = "regex-name", alias = "rn")]
+    pub regex_name: Option<String>,
+
+    /// Glob pattern to match against relative path and filename.
+    #[arg(long = "glob-path", alias = "gp")]
+    pub glob_path: Option<String>,
+
+    /// Glob pattern to match against relative path, filename, and full text content.
+    #[arg(long = "glob-text", alias = "gt")]
+    pub glob_text: Option<String>,
+
+    /// Glob pattern to match against filename only.
+    #[arg(long = "glob-name", alias = "gn")]
+    pub glob_name: Option<String>,
+
+    /// Keyword match across relative path and filename.
+    #[arg(long = "keyword-path", alias = "kp")]
+    pub keyword_path: Option<String>,
+
+    /// Keyword match across relative path, filename, and full text content.
+    #[arg(long = "keyword-text", alias = "kt")]
+    pub keyword_text: Option<String>,
+
+    /// Keyword match on filename only.
+    #[arg(long = "keyword-name", alias = "kn")]
+    pub keyword_name: Option<String>,
+
+    /// Print n lines around first match of full text.
+    #[arg(short = 'C', long = "context")]
+    pub context: Option<usize>,
+
+    /// Glob pattern to match against filename (e.g. "*.rs", "*test*"). Legacy alias for --glob-name.
     #[arg(short = 'n', long = "name")]
     pub name_glob: Option<String>,
 
-    /// Glob pattern to match against relative path (e.g. "src/**/tests.rs").
+    /// Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Legacy alias for --glob-path.
     #[arg(short = 'p', long = "path")]
     pub path_glob: Option<String>,
 
-    /// Substring keyword to match in path or filename.
+    /// Substring keyword to match in path or filename. Legacy alias for --keyword-path.
     #[arg(short = 'k', long = "keyword")]
     pub keyword: Option<String>,
 
-    /// Regular expression pattern to match against path.
+    /// Regular expression pattern to match against path. Legacy alias for --regex-path.
     #[arg(short = 'r', long = "regex")]
     pub regex: Option<String>,
 

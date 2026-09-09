@@ -32,7 +32,12 @@ use anyhow::{Result, anyhow, bail};
 use crate::bail_if_none;
 
 pub mod bytes;
-pub use bytes::{format_bytes_binary, format_bytes_both, format_bytes_decimal};
+pub mod file;
+pub use bytes::{
+    format_bytes_binary, format_bytes_both, format_bytes_decimal, parse_bytes,
+    parse_bytes_u128,
+};
+pub use file::{format_permissions, octal_mode_to_letters};
 
 /// Remove the line at the specified index from the given string.
 pub fn remove_line(s: &str, idx_to_remove: usize) -> String {

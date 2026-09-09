@@ -1232,9 +1232,61 @@ mod csc_tests {
         assert_eq!(recovered.last_batch_id, snap.last_batch_id);
     }
 
+    fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathBuf>) -> crate::args::FsindexArgs {
+        crate::args::FsindexArgs {
+            targets,
+            database,
+            journal_path: None,
+            flush_deleted: false,
+            source_name: None,
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+            fulltext: false,
+            fulltext_max: "20k".to_string(),
+        }
+    }
+
+    fn default_fsearch_args(database: PathBuf) -> crate::args::FsearchArgs {
+        crate::args::FsearchArgs {
+            database,
+            query: Vec::new(),
+            regex_path: None,
+            regex_text: None,
+            regex_name: None,
+            glob_path: None,
+            glob_text: None,
+            glob_name: None,
+            keyword_path: None,
+            keyword_text: None,
+            keyword_name: None,
+            context: None,
+            name_glob: None,
+            path_glob: None,
+            keyword: None,
+            regex: None,
+            source: None,
+            mtime_after: None,
+            mtime_before: None,
+            ctime_after: None,
+            ctime_before: None,
+            size_min: None,
+            size_max: None,
+            entry_type: None,
+            sort: crate::args::SearchSortField::Path,
+            sort_desc: false,
+            limit: None,
+            format: crate::args::SearchOutputFormat::Path,
+        }
+    }
+
     #[crate::ctb_test("tokio")]
     async fn test_fsindex_and_fsearch_pipeline() {
-        use crate::args::{FsearchArgs, FsindexArgs, SearchOutputFormat, SearchSortField};
+        use crate::args::{SearchOutputFormat, SearchSortField};
         use crate::index_engine::run_fsindex;
         use crate::search_engine::run_fsearch;
         use ctb_utilities::ToolResult;
@@ -1256,20 +1308,8 @@ mod csc_tests {
         let db_path = temp.path().join("combined.cscindex.sqlite");
 
         // 1. Run fsindex on source_a
-        let args_a = FsindexArgs {
-            targets: vec![src_a.clone()],
-            database: Some(db_path.clone()),
-            journal_path: None,
-            flush_deleted: false,
-            source_name: Some("source_a_tag".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args_a = default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
+        args_a.source_name = Some("source_a_tag".to_string());
         let res_a = run_fsindex(args_a).await.expect("run_fsindex source_a");
         match res_a {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
@@ -1277,20 +1317,8 @@ mod csc_tests {
         }
 
         // 2. Glom source_b into the same database
-        let args_b = FsindexArgs {
-            targets: vec![src_b.clone()],
-            database: Some(db_path.clone()),
-            journal_path: None,
-            flush_deleted: false,
-            source_name: Some("source_b_tag".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
+        args_b.source_name = Some("source_b_tag".to_string());
         let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (glom)");
         match res_b {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
@@ -1298,26 +1326,8 @@ mod csc_tests {
         }
 
         // 3. Search: filename glob "*.txt" -> should match hello.txt and world.txt across both sources
-        let search_txt = FsearchArgs {
-            database: db_path.clone(),
-            query: Some("*.txt".to_string()),
-            name_glob: None,
-            path_glob: None,
-            keyword: None,
-            regex: None,
-            source: None,
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: None,
-            size_max: None,
-            entry_type: None,
-            sort: SearchSortField::Path,
-            sort_desc: false,
-            limit: None,
-            format: SearchOutputFormat::Path,
-        };
+        let mut search_txt = default_fsearch_args(db_path.clone());
+        search_txt.query = vec!["*.txt".to_string()];
         let res_search_txt = run_fsearch(search_txt).await.expect("run_fsearch *.txt");
         if let ToolResult::Immediate { stdout, .. } = res_search_txt {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1329,26 +1339,9 @@ mod csc_tests {
         }
 
         // 4. Search with source filter: only source_a_tag
-        let search_src_a = FsearchArgs {
-            database: db_path.clone(),
-            query: Some("*.txt".to_string()),
-            name_glob: None,
-            path_glob: None,
-            keyword: None,
-            regex: None,
-            source: Some("source_a_tag".to_string()),
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: None,
-            size_max: None,
-            entry_type: None,
-            sort: SearchSortField::Path,
-            sort_desc: false,
-            limit: None,
-            format: SearchOutputFormat::Path,
-        };
+        let mut search_src_a = default_fsearch_args(db_path.clone());
+        search_src_a.query = vec!["*.txt".to_string()];
+        search_src_a.source = Some("source_a_tag".to_string());
         let res_src_a = run_fsearch(search_src_a).await.expect("run_fsearch source filter");
         if let ToolResult::Immediate { stdout, .. } = res_src_a {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1358,27 +1351,10 @@ mod csc_tests {
             panic!("Expected immediate result");
         }
 
-        // 5. Search with path glob "nested/**"
-        let search_path = FsearchArgs {
-            database: db_path.clone(),
-            query: None,
-            name_glob: None,
-            path_glob: Some("nested/*".to_string()),
-            keyword: None,
-            regex: None,
-            source: None,
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: None,
-            size_max: None,
-            entry_type: None,
-            sort: SearchSortField::Path,
-            sort_desc: false,
-            limit: None,
-            format: SearchOutputFormat::Long,
-        };
+        // 5. Search with path glob "nested/*"
+        let mut search_path = default_fsearch_args(db_path.clone());
+        search_path.path_glob = Some("nested/*".to_string());
+        search_path.format = SearchOutputFormat::Long;
         let res_path = run_fsearch(search_path).await.expect("run_fsearch path glob");
         if let ToolResult::Immediate { stdout, .. } = res_path {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1389,26 +1365,10 @@ mod csc_tests {
         }
 
         // 6. Search with JSON output and type filter (symlinks)
-        let search_sym = FsearchArgs {
-            database: db_path.clone(),
-            query: None,
-            name_glob: None,
-            path_glob: None,
-            keyword: None,
-            regex: None,
-            source: None,
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: None,
-            size_max: None,
-            entry_type: Some("symlink".to_string()),
-            sort: SearchSortField::Name,
-            sort_desc: false,
-            limit: None,
-            format: SearchOutputFormat::Json,
-        };
+        let mut search_sym = default_fsearch_args(db_path.clone());
+        search_sym.entry_type = Some("symlink".to_string());
+        search_sym.sort = SearchSortField::Name;
+        search_sym.format = SearchOutputFormat::Json;
         let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
         if let ToolResult::Immediate { stdout, .. } = res_sym {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1419,26 +1379,10 @@ mod csc_tests {
         }
 
         // 7. Search with size filter: >= 500 bytes (should match data.bin which is 1024 bytes)
-        let search_size = FsearchArgs {
-            database: db_path.clone(),
-            query: None,
-            name_glob: None,
-            path_glob: None,
-            keyword: None,
-            regex: None,
-            source: None,
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: Some("500".to_string()),
-            size_max: None,
-            entry_type: None,
-            sort: SearchSortField::Size,
-            sort_desc: true,
-            limit: None,
-            format: SearchOutputFormat::Path,
-        };
+        let mut search_size = default_fsearch_args(db_path.clone());
+        search_size.size_min = Some("500".to_string());
+        search_size.sort = SearchSortField::Size;
+        search_size.sort_desc = true;
         let res_size = run_fsearch(search_size).await.expect("run_fsearch size filter");
         if let ToolResult::Immediate { stdout, .. } = res_size {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1449,26 +1393,8 @@ mod csc_tests {
         }
 
         // 8. Search with entry_type filter: "f" / "file"
-        let search_type = FsearchArgs {
-            database: db_path.clone(),
-            query: None,
-            name_glob: None,
-            path_glob: None,
-            keyword: None,
-            regex: None,
-            source: None,
-            mtime_after: None,
-            mtime_before: None,
-            ctime_after: None,
-            ctime_before: None,
-            size_min: None,
-            size_max: None,
-            entry_type: Some("f".to_string()),
-            sort: SearchSortField::Path,
-            sort_desc: false,
-            limit: None,
-            format: SearchOutputFormat::Path,
-        };
+        let mut search_type = default_fsearch_args(db_path.clone());
+        search_type.entry_type = Some("f".to_string());
         let res_type = run_fsearch(search_type).await.expect("run_fsearch type filter");
         if let ToolResult::Immediate { stdout, .. } = res_type {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1505,6 +1431,7 @@ mod csc_tests {
         let temp = tempdir().expect("create tempdir");
         let db_path = temp.path().join("check_test.sqlite");
         let db = Builder::new_local(db_path.to_str().expect("valid path"))
+            .experimental_index_method(true)
             .build()
             .await
             .expect("open db");
@@ -1695,7 +1622,6 @@ mod csc_tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_fsindex_configurable_journal_path() {
-        use crate::args::FsindexArgs;
         use crate::index_engine::run_fsindex;
 
         let temp = tempdir().expect("create tempdir");
@@ -1706,20 +1632,9 @@ mod csc_tests {
         let custom_journal = temp.path().join("custom_index.cscjournal");
         let custom_desc = temp.path().join("custom_index.cscdesc");
 
-        let args = FsindexArgs {
-            targets: vec![src.clone()],
-            database: None,
-            journal_path: Some(custom_journal.clone()),
-            flush_deleted: false,
-            source_name: None,
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: true,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args = default_fsindex_args(vec![src.clone()], None);
+        args.journal_path = Some(custom_journal.clone());
+        args.journal_only = true;
 
         let res = run_fsindex(args.clone()).await.expect("run fsindex with explicit journal_path");
         match res {
@@ -1744,7 +1659,6 @@ mod csc_tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_fsindex_flush_deleted_files_from_index() {
-        use crate::args::FsindexArgs;
         use crate::index_engine::run_fsindex;
         use crate::journal::read_journal_snapshot;
         use turso::{Builder, Value};
@@ -1760,26 +1674,19 @@ mod csc_tests {
         let db_path = temp.path().join("files.cscindex.sqlite");
 
         // 1. Initial index
-        let args_init = FsindexArgs {
-            targets: vec![src.clone()],
-            database: Some(db_path.clone()),
-            journal_path: Some(journal_path.clone()),
-            flush_deleted: false,
-            source_name: Some("test_src".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args_init = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        args_init.journal_path = Some(journal_path.clone());
+        args_init.source_name = Some("test_src".to_string());
         run_fsindex(args_init).await.expect("initial fsindex");
 
         // Verify all 3 files exist in the database
         {
             let db_str = db_path.to_string_lossy().to_string();
-            let db = Builder::new_local(&db_str).build().await.expect("open db");
+            let db = Builder::new_local(&db_str)
+                .experimental_index_method(true)
+                .build()
+                .await
+                .expect("open db");
             let conn = db.connect().expect("connect db");
             let mut count_stmt = conn.prepare("SELECT COUNT(*) FROM entries").await.expect("prepare count");
             let mut rows = count_stmt.query(()).await.expect("query count");
@@ -1801,20 +1708,9 @@ mod csc_tests {
         );
 
         // 3. Run fsindex again with the journal path and --flush-deleted
-        let args_flush = FsindexArgs {
-            targets: vec![journal_path.clone()],
-            database: Some(db_path.clone()),
-            journal_path: None,
-            flush_deleted: true,
-            source_name: Some("test_src".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
+        args_flush.flush_deleted = true;
+        args_flush.source_name = Some("test_src".to_string());
         let res_flush = run_fsindex(args_flush).await.expect("run fsindex flush");
         if let ToolResult::Immediate { stdout, .. } = res_flush {
             let out_str = String::from_utf8_lossy(&stdout);
@@ -1822,11 +1718,17 @@ mod csc_tests {
                 out_str.contains("Entries flushed:  1"),
                 "Output must report 1 flushed entry: {out_str}"
             );
+        } else {
+            panic!("Expected immediate tool result");
         }
 
         // 4. Verify b.txt is gone from database, while a.txt and c.txt remain
         let db_str = db_path.to_string_lossy().to_string();
-        let db = Builder::new_local(&db_str).build().await.expect("open db");
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
         let conn = db.connect().expect("connect db");
 
         let mut check_b = conn
@@ -1861,7 +1763,6 @@ mod csc_tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_fsindex_appended_indices_deduplicated_by_path() {
-        use crate::args::FsindexArgs;
         use crate::index_engine::run_fsindex;
         use turso::{Builder, Value};
 
@@ -1879,42 +1780,22 @@ mod csc_tests {
         let db_path = temp.path().join("dedup.cscindex.sqlite");
 
         // Index source 1
-        let args1 = FsindexArgs {
-            targets: vec![src1.clone()],
-            database: Some(db_path.clone()),
-            journal_path: None,
-            flush_deleted: false,
-            source_name: Some("source_1".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args1 = default_fsindex_args(vec![src1.clone()], Some(db_path.clone()));
+        args1.source_name = Some("source_1".to_string());
         run_fsindex(args1).await.expect("index src1");
 
         // Index source 2 into same database (append)
-        let args2 = FsindexArgs {
-            targets: vec![src2.clone()],
-            database: Some(db_path.clone()),
-            journal_path: None,
-            flush_deleted: false,
-            source_name: Some("source_2".to_string()),
-            resume: false,
-            resume_journal: None,
-            checksum: false,
-            journal_only: false,
-            batch_size: 50,
-            quiet: true,
-            one_file_system: false,
-        };
+        let mut args2 = default_fsindex_args(vec![src2.clone()], Some(db_path.clone()));
+        args2.source_name = Some("source_2".to_string());
         run_fsindex(args2).await.expect("index src2");
 
         // Verify deduplication: exactly 1 entry for shared.txt with updated size
         let db_str = db_path.to_string_lossy().to_string();
-        let db = Builder::new_local(&db_str).build().await.expect("open db");
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
         let conn = db.connect().expect("connect db");
 
         let mut stmt = conn
@@ -1941,5 +1822,145 @@ mod csc_tests {
         assert_eq!(size, 24, "Entry must be updated with the latest appended data");
         assert_eq!(src_name, "source_2", "Source tag must be updated to the latest source");
     }
-}
 
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_and_fsearch_fulltext_and_context() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("docs");
+        fs::create_dir_all(&src).expect("create src");
+
+        fs::write(
+            src.join("sample.txt"),
+            b"Line 1 introductory text\nLine 2 contains unique_phrase_xyz for search\nLine 3 conclusion text\n",
+        )
+        .expect("write sample.txt");
+
+        fs::write(
+            src.join("other.txt"),
+            b"Line 1 standard words\nLine 2 another normal sentence\n",
+        )
+        .expect("write other.txt");
+
+        let db_path = temp.path().join("fulltext.cscindex.sqlite");
+
+        // Index with fulltext enabled
+        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        idx_args.fulltext = true;
+        idx_args.fulltext_max = "50k".to_string();
+        run_fsindex(idx_args).await.expect("run fsindex with fulltext");
+
+        // 1. Keyword search on text content (-kt / --keyword-text)
+        let mut search_kt = default_fsearch_args(db_path.clone());
+        search_kt.keyword_text = Some("unique_phrase_xyz".to_string());
+        let res_kt = run_fsearch(search_kt).await.expect("search -kt");
+        if let ToolResult::Immediate { stdout, .. } = res_kt {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"), "Must find sample.txt by content: {s}");
+            assert!(!s.contains("other.txt"), "Must not find other.txt");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 2. Search with context (-C 1)
+        let mut search_ctx = default_fsearch_args(db_path.clone());
+        search_ctx.keyword_text = Some("unique_phrase_xyz".to_string());
+        search_ctx.context = Some(1);
+        let res_ctx = run_fsearch(search_ctx).await.expect("search with context");
+        if let ToolResult::Immediate { stdout, .. } = res_ctx {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"));
+            assert!(s.contains("1- Line 1 introductory text"), "Must show line 1 context: {s}");
+            assert!(s.contains("2: Line 2 contains unique_phrase_xyz for search"), "Must show matching line 2: {s}");
+            assert!(s.contains("3- Line 3 conclusion text"), "Must show line 3 context: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 3. Auto-resolved keyword search with multiple terms
+        let mut search_multi = default_fsearch_args(db_path.clone());
+        search_multi.query = vec!["unique_phrase_xyz".to_string(), "conclusion".to_string()];
+        let res_multi = run_fsearch(search_multi).await.expect("search multiple positional terms");
+        if let ToolResult::Immediate { stdout, .. } = res_multi {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"), "Multiple terms must match sample.txt: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Auto-resolved glob search with wildcard '*'
+        let mut search_glob = default_fsearch_args(db_path.clone());
+        search_glob.query = vec!["*.txt".to_string()];
+        let res_glob = run_fsearch(search_glob).await.expect("search glob *.txt");
+        if let ToolResult::Immediate { stdout, .. } = res_glob {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"));
+            assert!(s.contains("other.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 5. Orthogonal flag: -kn (keyword on filename only)
+        let mut search_kn = default_fsearch_args(db_path.clone());
+        search_kn.keyword_name = Some("unique_phrase_xyz".to_string());
+        let res_kn = run_fsearch(search_kn).await.expect("search -kn");
+        if let ToolResult::Immediate { stdout, .. } = res_kn {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(!s.contains("sample.txt"), "-kn must not match text content in sample.txt: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_without_fulltext_schema() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("files");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("test.txt"), b"Normal content").expect("write file");
+
+        let db_path = temp.path().join("nofulltext.cscindex.sqlite");
+
+        // Index with fulltext disabled (default)
+        let idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        run_fsindex(idx_args).await.expect("run fsindex without fulltext");
+
+        // Check SQLite schema: full_text column must NOT exist
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+        let mut stmt = conn.prepare("PRAGMA table_info(entries)").await.expect("pragma table_info");
+        let mut rows = stmt.query(()).await.expect("query");
+        let mut has_full_text_col = false;
+        while let Some(row) = rows.next().await.expect("row") {
+            if let Ok(Value::Text(col)) = row.get_value(1) {
+                if col == "full_text" {
+                    has_full_text_col = true;
+                }
+            }
+        }
+        assert!(!has_full_text_col, "entries table must NOT contain full_text column when fulltext is disabled");
+
+        // Searching with -kt or -C on non-fulltext database must error
+        let mut search_kt = default_fsearch_args(db_path.clone());
+        search_kt.keyword_text = Some("Normal".to_string());
+        let err = run_fsearch(search_kt).await.err().expect("must fail -kt on non-fulltext db");
+        assert!(err.to_string().contains("not indexed with --fulltext"));
+
+        let mut search_ctx = default_fsearch_args(db_path.clone());
+        search_ctx.query = vec!["Normal".to_string()];
+        search_ctx.context = Some(2);
+        let err_ctx = run_fsearch(search_ctx).await.err().expect("must fail context on non-fulltext db");
+        assert!(err_ctx.to_string().contains("not indexed with --fulltext"));
+    }
+}

@@ -1,15 +1,19 @@
 [package]
-name = "ctb-formats-x86"
+name = "ctb-formats-text-extraction"
 edition = "2024"
 
 [lib]
-path="x86.rs"
+path = "text_extraction.rs"
 crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
-include_dir = { version = "0.7.4", features = ["glob"] }
+ctb-formats-wfscan = { path = "../wfscan" }
+anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints]
 workspace = true

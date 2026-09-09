@@ -19,6 +19,112 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Human-readable byte size formatting using decimal and binary units.
 
+use anyhow::{Context, Result};
+
+const DECIMAL_SUFFIXES: [&str; 11] = [
+    "B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "RB", "QB",
+];
+const BINARY_SUFFIXES: [&str; 11] = [
+    "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB", "RiB", "QiB",
+];
+
+/// Parses human-readable size specifications like "10k", "20KiB", "5M", "1G" into bytes.
+pub fn parse_bytes(s: &str) -> Result<u64> {
+    let val_u128 = parse_bytes_u128(s)?;
+    u64::try_from(val_u128).context("Byte size exceeds u64 limit")
+}
+
+fn suffix_power(c: char) -> Option<usize> {
+    match c {
+        'k' => Some(1),
+        'm' => Some(2),
+        'g' => Some(3),
+        't' => Some(4),
+        'p' => Some(5),
+        'e' => Some(6),
+        'z' => Some(7),
+        'y' => Some(8),
+        'r' => Some(9),
+        'q' => Some(10),
+        _ => None,
+    }
+}
+
+fn unit_multiplier(base: u128, power: usize) -> Result<u128> {
+    let mut mult = 1_u128;
+    for _ in 0..power {
+        mult = mult
+            .checked_mul(base)
+            .context("Byte size multiplier overflow")?;
+    }
+    Ok(mult)
+}
+
+/// Parses human-readable size specifications into a 128-bit byte count.
+///
+/// Supports:
+/// - Plain numbers (e.g. "500", "500B", "500 bytes")
+/// - Binary IEC units (e.g. "20KiB", "5MiB", "1GiB")
+/// - Decimal units (e.g. "20kB", "5MB", "1GB")
+/// - Shorthand units (e.g. "20k", "5M", "1G", interpreted as binary units)
+pub fn parse_bytes_u128(s: &str) -> Result<u128> {
+    let s = s.trim();
+    if s.is_empty() {
+        anyhow::bail!("Empty size string");
+    }
+
+    let num_end = s
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(s.len());
+
+    let (num_str, suffix_str) = s.split_at(num_end);
+    if num_str.is_empty() {
+        anyhow::bail!("Invalid byte size specification '{s}': missing numeric value");
+    }
+
+    let base_val: u128 = num_str
+        .parse()
+        .with_context(|| format!("Invalid number in byte size specification: '{num_str}'"))?;
+
+    let suffix = suffix_str.trim().to_ascii_lowercase();
+
+    let multiplier = if suffix.is_empty()
+        || suffix == "b"
+        || suffix == "byte"
+        || suffix == "bytes"
+    {
+        1_u128
+    } else if let Some(stripped) = suffix.strip_suffix("ib") {
+        if stripped.chars().count() != 1 {
+            anyhow::bail!("Unrecognized binary unit '{suffix}' in byte specification: '{s}'");
+        }
+        let c = stripped.chars().next().context("Missing unit prefix")?;
+        let power = suffix_power(c)
+            .with_context(|| format!("Unknown binary unit prefix '{c}' in: '{s}'"))?;
+        unit_multiplier(1024, power)?
+    } else if let Some(stripped) = suffix.strip_suffix('b') {
+        if stripped.chars().count() != 1 {
+            anyhow::bail!("Unrecognized decimal unit '{suffix}' in byte specification: '{s}'");
+        }
+        let c = stripped.chars().next().context("Missing unit prefix")?;
+        let power = suffix_power(c)
+            .with_context(|| format!("Unknown decimal unit prefix '{c}' in: '{s}'"))?;
+        unit_multiplier(1000, power)?
+    } else {
+        if suffix.chars().count() != 1 {
+            anyhow::bail!("Unrecognized unit suffix '{suffix}' in byte specification: '{s}'");
+        }
+        let c = suffix.chars().next().context("Missing unit prefix")?;
+        let power = suffix_power(c)
+            .with_context(|| format!("Unknown unit prefix '{c}' in: '{s}'"))?;
+        unit_multiplier(1024, power)?
+    };
+
+    base_val
+        .checked_mul(multiplier)
+        .context("Byte size calculation overflowed u128")
+}
+
 /// Formats a byte size as a human-readable string using decimal units.
 pub fn format_bytes_decimal(bytes: u64) -> String {
     format_bytes(bytes.into(), 1000, &DECIMAL_SUFFIXES)
@@ -53,13 +159,6 @@ pub fn format_bytes_both_u128(bytes: u128) -> String {
 
     format!("{dec} ({bin})")
 }
-
-const DECIMAL_SUFFIXES: [&str; 11] = [
-    "B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "RB", "QB",
-];
-const BINARY_SUFFIXES: [&str; 11] = [
-    "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB", "RiB", "QiB",
-];
 
 fn format_bytes(bytes: u128, unit: u128, suffixes: &[&str]) -> String {
     if bytes < 1000 {
@@ -275,4 +374,33 @@ mod tests {
         let exact_next = 1u128 << 110; // 1024^11
         assert_eq!(format_bytes_binary_u128(exact_next), "1024 QiB");
     }
+
+    #[crate::ctb_test]
+    fn test_parse_bytes_various_formats() {
+        assert_eq!(parse_bytes("500").unwrap(), 500);
+        assert_eq!(parse_bytes("500B").unwrap(), 500);
+        assert_eq!(parse_bytes("500 b").unwrap(), 500);
+        assert_eq!(parse_bytes("500 bytes").unwrap(), 500);
+        assert_eq!(parse_bytes("10k").unwrap(), 10 * 1024);
+        assert_eq!(parse_bytes("20K").unwrap(), 20 * 1024);
+        assert_eq!(parse_bytes("20KiB").unwrap(), 20 * 1024);
+        assert_eq!(parse_bytes("20kib").unwrap(), 20 * 1024);
+        assert_eq!(parse_bytes("20kB").unwrap(), 20 * 1000);
+        assert_eq!(parse_bytes("20 kb").unwrap(), 20 * 1000);
+        assert_eq!(parse_bytes("5M").unwrap(), 5 * 1024 * 1024);
+        assert_eq!(parse_bytes("5MiB").unwrap(), 5 * 1024 * 1024);
+        assert_eq!(parse_bytes("5MB").unwrap(), 5 * 1000 * 1000);
+        assert_eq!(parse_bytes("1G").unwrap(), 1024 * 1024 * 1024);
+        assert_eq!(parse_bytes("1GiB").unwrap(), 1024 * 1024 * 1024);
+        assert_eq!(parse_bytes("1GB").unwrap(), 1_000_000_000);
+        assert_eq!(parse_bytes("2T").unwrap(), 2 * 1024 * 1024 * 1024 * 1024);
+        assert_eq!(parse_bytes("2TiB").unwrap(), 2 * 1024 * 1024 * 1024 * 1024);
+        assert_eq!(parse_bytes("2TB").unwrap(), 2_000_000_000_000);
+        assert!(parse_bytes("").is_err());
+        assert!(parse_bytes("   ").is_err());
+        assert!(parse_bytes("not_a_number").is_err());
+        assert!(parse_bytes("-50").is_err());
+        assert!(parse_bytes("10xyz").is_err());
+    }
 }
+
