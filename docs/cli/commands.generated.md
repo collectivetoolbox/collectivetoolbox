@@ -224,7 +224,7 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format: utf8 (default), dcal (Dc ASCII list), dcil (classic Dc integer list), or dctext [default: utf8] [possible values: utf8, dcal, dcil, dctext]
+          Input format: utf8 (default), dcal (Dc ASCII list), dcil (short Dc integer list), or dctext [default: utf8] [possible values: utf8, dcal, dcil, dctext]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>

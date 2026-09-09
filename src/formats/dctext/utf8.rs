@@ -20,8 +20,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Conversions between `DcList` (`&[u128]`) and UTF-8 (`&[u8]`).
 //!
 //! `DcList` is a superset format of UTF-8, where values `0..=0x10FFFF` directly
-//! represent Unicode scalar codepoints, and `CLASSIC_DC_OFFSET` (`1_114_112`)
-//! offsets classic EITE Document Character IDs. Unmappable `DcList` values can
+//! represent Unicode scalar codepoints, and `SHORT_DC_OFFSET` (`1_114_112`)
+//! offsets short EITE Document Character IDs. Unmappable `DcList` values can
 //! be encapsulated into UTF-8 using `dcl_basenb` (base17) armoring, replaced
 //! with UTF-8 replacement characters (`U+FFFD`), or skipped.
 
@@ -47,7 +47,7 @@ use ctb_formats_eite::encoding::basenb::{
 use ctb_formats_utf8::{UTF8_REPLACEMENT_CHARACTER, first_char_of_utf8_string};
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
-use crate::{CLASSIC_DC_OFFSET, DcList, dclist_to_dcutf, dcutf_to_dclist};
+use crate::{DcList, SHORT_DC_OFFSET, dclist_to_dcutf, dcutf_to_dclist};
 
 /// Raw 16-byte array for Start UUID: `1880aba3-21df-42b2-9c96-e32cd647ffc5`
 pub const DCL_BASENB_START_UUID_RAW: [u8; 16] = [
@@ -84,7 +84,7 @@ pub struct DcListUtf8Settings {
     /// Skip unmappable characters entirely when outputting to UTF-8 (when
     /// `dcl_basenb_enabled` is false).
     pub skip_unmappable: bool,
-    /// When true, map classic Dcs to their corresponding Unicode output character
+    /// When true, map short Dcs to their corresponding Unicode output character
     /// (if available), and parse legacy base64 UTF-8 embeds (`191..192`) in input documents.
     pub canonicalize_equivalent_dcs: bool,
     /// Enable debug logging.
@@ -117,7 +117,7 @@ pub fn dclist_to_utf8(
     let mut out = Vec::new();
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
-    let max_classic_u128 = u128::try_from(maximum_known_dc()?)
+    let max_short_u128 = u128::try_from(maximum_known_dc()?)
         .map_err(|e| anyhow!("Failed to convert maximum_known_dc: {e}"))?;
 
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
@@ -148,16 +148,16 @@ pub fn dclist_to_utf8(
             }
         }
 
-        // Case 2: Classic Dc offset range (CLASSIC_DC_OFFSET..=CLASSIC_DC_OFFSET + max_classic)
-        if dc >= CLASSIC_DC_OFFSET {
-            let diff = dc.saturating_sub(CLASSIC_DC_OFFSET);
-            if diff <= max_classic_u128 {
-                let classic_dc = u32::try_from(diff)
-                    .map_err(|e| anyhow!("Classic Dc overflow: {e}"))?;
+        // Case 2: Short Dc offset range (SHORT_DC_OFFSET..=SHORT_DC_OFFSET + max_short)
+        if dc >= SHORT_DC_OFFSET {
+            let diff = dc.saturating_sub(SHORT_DC_OFFSET);
+            if diff <= max_short_u128 {
+                let short_dc = u32::try_from(diff)
+                    .map_err(|e| anyhow!("Short Dc overflow: {e}"))?;
 
                 if settings.canonicalize_equivalent_dcs {
                     // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DC_START_ENCAPSULATION_UTF8 (191)
-                    if classic_dc == DC_START_ENCAPSULATION_UTF8 {
+                    if short_dc == DC_START_ENCAPSULATION_UTF8 {
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
                         #[expect(
@@ -168,18 +168,18 @@ pub fn dclist_to_utf8(
                             let cur_dc = *dclist.get(j).expect(
                                 "j < dclist.len() guarantees in-bounds access",
                             );
-                            if cur_dc >= CLASSIC_DC_OFFSET {
+                            if cur_dc >= SHORT_DC_OFFSET {
                                 let cur_diff =
-                                    cur_dc.saturating_sub(CLASSIC_DC_OFFSET);
-                                if let Ok(cur_classic) = u32::try_from(cur_diff)
+                                    cur_dc.saturating_sub(SHORT_DC_OFFSET);
+                                if let Ok(cur_short) = u32::try_from(cur_diff)
                                 {
-                                    if cur_classic == DC_END_ENCAPSULATION_UTF8
+                                    if cur_short == DC_END_ENCAPSULATION_UTF8
                                     {
                                         truncated = false;
                                         break;
                                     }
                                     if !is_dc_base64_encapsulation_character(
-                                        cur_classic,
+                                        cur_short,
                                     ) {
                                         break;
                                     }
@@ -196,10 +196,10 @@ pub fn dclist_to_utf8(
                             let mut inner_dcs = Vec::new();
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
-                                    if let Ok(k_classic) = u32::try_from(
-                                        k_dc.saturating_sub(CLASSIC_DC_OFFSET),
+                                    if let Ok(k_short) = u32::try_from(
+                                        k_dc.saturating_sub(SHORT_DC_OFFSET),
                                     ) {
-                                        inner_dcs.push(k_classic);
+                                        inner_dcs.push(k_short);
                                     }
                                 }
                             }
@@ -221,10 +221,10 @@ pub fn dclist_to_utf8(
                         }
                     }
 
-                    // Sub-case 2b: Standard classic Dc to UTF-8 mapping
+                    // Sub-case 2b: Standard short Dc to UTF-8 mapping
                     if let Ok((mapped_bytes, dc_log)) =
                         ctb_formats_eite::formats::dc_to_format(
-                            "utf8", classic_dc,
+                            "utf8", short_dc,
                         )
                     {
                         log.merge(&dc_log);
@@ -537,7 +537,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_basenb_armored_roundtrip() {
-        let unmappable_dc = CLASSIC_DC_OFFSET + 999_999;
+        let unmappable_dc = SHORT_DC_OFFSET + 999_999;
         let input: DcList = vec![72, 105, unmappable_dc, 33];
         let mut settings = DcListUtf8Settings::default();
         settings.dcl_basenb_enabled = true;
@@ -549,7 +549,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_basenb_fragment_roundtrip() {
-        let unmappable_dc = CLASSIC_DC_OFFSET + 888_888;
+        let unmappable_dc = SHORT_DC_OFFSET + 888_888;
         let input: DcList = vec![65, unmappable_dc, 66];
         let mut settings = DcListUtf8Settings::default();
         settings.dcl_basenb_enabled = true;
@@ -562,7 +562,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_replacement_and_skip() {
-        let unmappable_dc = CLASSIC_DC_OFFSET + 777_777;
+        let unmappable_dc = SHORT_DC_OFFSET + 777_777;
         let input: DcList = vec![65, unmappable_dc, 66];
 
         // Replacement mode
@@ -582,9 +582,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_canonicalize_equivalent_dcs() {
-        // Classic Dc 65 maps to 'P'
-        let classic_p = CLASSIC_DC_OFFSET + 65;
-        let input: DcList = vec![classic_p];
+        // Short Dc 65 maps to 'P'
+        let short_p = SHORT_DC_OFFSET + 65;
+        let input: DcList = vec![short_p];
 
         // Without canonicalization: treated as unmappable (replaced with \u{FFFD} by default)
         let settings_no_canon = DcListUtf8Settings::default();
@@ -594,7 +594,7 @@ mod tests {
             "\u{FFFD}"
         );
 
-        // With canonicalization: maps classic Dc 65 to 'P'
+        // With canonicalization: maps short Dc 65 to 'P'
         let mut settings_canon = DcListUtf8Settings::default();
         settings_canon.canonicalize_equivalent_dcs = true;
         let conv_canon = dclist_to_utf8(&input, &settings_canon).unwrap();

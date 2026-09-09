@@ -116,8 +116,8 @@ pub enum FormatId {
     DcUtf,
     DcList, // modern equivalent of DcArray, not a data format exactly, it's &[u128], maybe doesn't belong here
     // EITE:
-    DcIntegerList, // classic
-    DcArray, // classic, not a data format exactly, it's &[u32], maybe doesn't belong here
+    DcIntegerList, // short
+    DcArray, // short, not a data format exactly, it's &[u32], maybe doesn't belong here
     Sems,
     Ascii,
     AsciiSafeSubset,

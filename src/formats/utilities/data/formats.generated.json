@@ -29,7 +29,7 @@
     "dc_id": 2228225,
     "short_id": 1,
     "ident": "DcArray",
-    "name": "Internal: Classic Dc Array",
+    "name": "Internal: Short Dc Array",
     "category": "format_semantic",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -39,7 +39,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "Array of classic (short) Dc ints, without a defined repreresentation - &[u32] in Rust; an in StageL",
+    "description": "Array of short Dc ints, without a defined representation - &[u32] in Rust; an in StageL",
     "format": {
       "import_support": "-1",
       "export_support": "-1",
@@ -62,7 +62,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "ASCII text containing list of integers representing classic Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+    "description": "ASCII text containing list of integers representing short Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
     "format": {
       "extensions": ".dcil",
       "import_support": "2",
@@ -159,7 +159,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "Space-separated list of ints representing classic Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
+    "description": "Space-separated list of ints representing short Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
     "format": {
       "extensions": ".sems",
       "import_support": "2",
@@ -6997,7 +6997,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "ASCII text containing list of integers representing new Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+    "description": "ASCII text containing list of integers representing long Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
     "format": {
       "extensions": ".dcal",
       "import_support": "2",
@@ -7086,7 +7086,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "ASCII text containing list of integers representing new Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
+    "description": "ASCII text containing list of integers representing long Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
     "format": {},
     "source_file": "document.csv",
     "line_number": 65
@@ -7270,7 +7270,7 @@
     "dc_id": 2228576,
     "short_id": 352,
     "ident": "DcIdentifier",
-    "name": "Dc identifier (new)",
+    "name": "Dc identifier (long)",
     "category": "format_identifier",
     "combining_class": 0,
     "bidi_class": "BN",

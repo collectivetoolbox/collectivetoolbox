@@ -103,7 +103,7 @@ pub enum CharacterDescriptionInputFormat {
         alias = "dc-ascii-list"
     )]
     Dcal,
-    /// Classic Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
+    /// Short Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
     #[value(
         name = "dcil",
         alias = "dc-il",
@@ -125,7 +125,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal (Dc ASCII list), dcil (classic Dc integer list), or dctext
+    /// Input format: utf8 (default), dcal (Dc ASCII list), dcil (short Dc integer list), or dctext
     #[arg(long = "from", value_enum, default_value_t = CharacterDescriptionInputFormat::Utf8)]
     pub from: CharacterDescriptionInputFormat,
 

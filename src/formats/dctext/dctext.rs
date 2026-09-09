@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Implements DcText and related formats DcList and DcUTF. These formats are
-//! encodings for sequences of integer global graph IDs (which are new new Dcs).
+//! encodings for sequences of integer global graph IDs (which are long Dcs).
 //! Format looks like (w/o backticks): `Unicode (UTF-8) text @123@miesu@214748364@@L662@`
 //! where `Unicode text` is actual unicode text, and between each pair of @ signs, is a DcId. A DcId can be any int 128 bits (u128) in decimal, and it may have an `L` prefix.
 //! Output format is sort of UTF-8 text. For normal Unicode input characters, the output character is the same. For DcIds less than or equal to 1114111 (the largest Unicode character, I believe), the output character is the corresponding "generalized UTF-8", the numeric value encoded in the same underlying algorithm as UTF-8. For DcIds greater than 1114111 and not prefixed with an L, the output character is the decimal DcId represented by extending the usual algorithm of UTF-8 encoding, but for those larger numbers. For DcIds prefixed with an L, the output is equivalent to @1114408@ (short Dc 296) followed by a Dc number for the number that followed the L (the L is just a shorthand for that 1114408 Dc). That is to say, it's not a true Unicode encoding, it's simply using an extension of the algorithm underlying UTF-8 as a convenient encoding of ints.
@@ -75,9 +75,9 @@ pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };
 
-/// Base offset for classic Document Characters in the global graph layout.
-/// Former classic Dc 0 starts at 1114112 (0x110000).
-pub const CLASSIC_DC_OFFSET: u128 = 1_114_112;
+/// Base offset for short Document Characters in the global graph layout.
+/// Short Dc 0 starts at 1114112 (0x110000).
+pub const SHORT_DC_OFFSET: u128 = 1_114_112;
 
 /// A list of global graph Document Character IDs represented as `u128` values.
 pub type DcList = Vec<u128>;
@@ -258,9 +258,9 @@ pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
     dclist_to_dctext(&dclist)
 }
 
-/// Converts a classic EITE DcArray (`&[u32]`) to a `DcList` (`Vec<u128>`).
+/// Converts a EITE DcArray (short Dcs, `&[u32]`) to a `DcList` (`Vec<u128>`).
 ///
-/// Each classic Dc ID `c` is mapped to its new global graph Dc ID (`1114112 + c`).
+/// Each short Dc ID `c` is mapped to its long global graph Dc ID (`1114112 + c`).
 pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut log = FormatLog::default();
     let max_known = ctb_formats_eite::dc::maximum_known_dc()?;
@@ -271,25 +271,25 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
             val
         } else {
             log.warn(&format!(
-                "Classic Dc ID {dc} at index {idx} overflows usize"
+                "Short Dc ID {dc} at index {idx} overflows usize"
             ));
             usize::MAX
         };
 
         if dc_usize > max_known {
             log.warn(&format!(
-                "Classic Dc ID {dc} at index {idx} exceeds maximum known classic Dc ID ({max_known})"
+                "Short Dc ID {dc} at index {idx} exceeds maximum known short Dc ID ({max_known})"
             ));
         }
 
-        let new_dc_id = CLASSIC_DC_OFFSET.saturating_add(u128::from(dc));
-        list.push(new_dc_id);
+        let long_dc_id = SHORT_DC_OFFSET.saturating_add(u128::from(dc));
+        list.push(long_dc_id);
     }
 
     Ok(ConversionOutput::new(list, log))
 }
 
-/// Converts an old-style EITE DcArray (`&[u32]`) to the newer DcText format (`Vec<u8>`).
+/// Converts an EITE DcArray (short Dcs, `&[u32]`) to the DcText format (`Vec<u8>`).
 pub fn dcarray_to_dctext(
     dc_array: &[u32],
 ) -> Result<ConversionOutput<Vec<u8>>> {
@@ -298,11 +298,12 @@ pub fn dcarray_to_dctext(
     Ok(ConversionOutput::new(text_bytes, conv.log))
 }
 
-/// Converts a `DcList` (`&[u128]`) to an old-style EITE DcArray (`Vec<u32>`).
+/// Converts a `DcList` (`&[u128]`) to an EITE DcArray (short Dcs, `Vec<u32>`).
 ///
-/// Note: DcText / DcList is a superset of classic Dcs, so this is a lossy operation.
+/// Note: DcText / DcList is a superset of short Dcs, so this is a lossy operation.
+/// Known short Dcs are converted back to their original `u32` value (`1114112 + c` -> `c`).
 /// Runs of unmappable UTF-8 characters are embedded into encapsulated UTF-8 ranges
-/// (classic Dcs 191..192), while out-of-range Dc IDs are substituted with
+/// (short Dcs 191..192), while out-of-range Dc IDs are substituted with
 /// replacement Dc ID (`207`).
 pub fn dclist_to_dcarray(
     dclist: &[u128],
@@ -338,18 +339,18 @@ pub fn dclist_to_dcarray(
     };
 
     for &dcid in dclist {
-        if dcid >= CLASSIC_DC_OFFSET {
-            let diff = dcid.saturating_sub(CLASSIC_DC_OFFSET);
+        if dcid >= SHORT_DC_OFFSET {
+            let diff = dcid.saturating_sub(SHORT_DC_OFFSET);
             if diff <= max_known_u128 {
-                if let Ok(classic_dc) = u32::try_from(diff) {
+                if let Ok(short_dc) = u32::try_from(diff) {
                     flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                    result.push(classic_dc);
+                    result.push(short_dc);
                     continue;
                 }
             }
             flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
             log.warn(&format!(
-                "Dc ID {dcid} exceeds maximum classic Dc ID range, replaced with 207"
+                "Dc ID {dcid} exceeds maximum short Dc ID range, replaced with 207"
             ));
             result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
         } else if dcid <= 0x10_FFFF {
@@ -374,7 +375,7 @@ pub fn dclist_to_dcarray(
         } else {
             flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
             log.warn(&format!(
-                "Dc ID {dcid} outside classic Dc range, replaced with 207"
+                "Dc ID {dcid} outside short Dc range, replaced with 207"
             ));
             result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
         }
@@ -384,7 +385,7 @@ pub fn dclist_to_dcarray(
     Ok(ConversionOutput::new(result, log))
 }
 
-/// Converts a DcText document (`&[u8]`) to an old-style EITE DcArray (`Vec<u32>`).
+/// Converts a DcText document (`&[u8]`) to an EITE DcArray (short Dcs, `Vec<u32>`).
 pub fn dctext_to_dcarray(
     document: &[u8],
 ) -> Result<ConversionOutput<Vec<u32>>> {
@@ -507,7 +508,7 @@ mod tests {
         let out = dctext_to_dcarray(unmappable_input)
             .expect("conversion should succeed");
         assert!(out.log.has_warnings());
-        // Should contain classic Dcs for "hi ", then 191 (start encapsulation), Base64 Dcs, 192 (end encapsulation), then " bye"
+        // Should contain short Dcs for "hi ", then 191 (start encapsulation), Base64 Dcs, 192 (end encapsulation), then " bye"
         assert!(out.result.contains(&191));
         assert!(out.result.contains(&192));
     }

@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Implementation of Format 340 (Dcal: Dc ASCII List).
 //!
-//! ASCII text containing a list of integers representing new Dcs. Strictly, one
+//! ASCII text containing a list of integers representing long Dcs. Strictly, one
 //! space after every int, and no newlines. Loosely, with newlines or multiple
 //! spaces, or no end space.
 

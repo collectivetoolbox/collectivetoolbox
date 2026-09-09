@@ -14,9 +14,9 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228226,2,DcIntegerList,Dc Integer List,document,,.dcil,,,,,2,3,1,,"ASCII text containing list of integers representing classic Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228226,2,DcIntegerList,Dc Integer List,document,,.dcil,,,,,2,3,1,,"ASCII text containing list of integers representing short Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
 2228229,5,Html,HTML,document,,".htm, .html",,,,,,1,1,encoding,,
-2228230,6,Sems,SEMS,document,,.sems,,,,,2,,1,,"Space-separated list of ints representing classic Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
+2228230,6,Sems,SEMS,document,,.sems,,,,,2,,1,,"Space-separated list of ints representing short Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
 2228237,13,HtmlFragment,HTML fragment,document,,.htmfrag,,,,,,1,1,,Variants: same as HTML,
 2228238,14,Text,Text,document,,.txt,,,,,,,,encoding,HTML and text both should default to UTF8 as the default encoding. Encodings fill a somewhat odd role since they are both encodings and formats (with the text format plus a given encoding being the same thing as that encoding by itself).,
 2228241,17,Elad,EITE Language in ASCII documents (ELAD),document,,.elad,,,,,,1,,,,
@@ -76,5 +76,5 @@ Import/export/tests support columns meaning:
 2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,CtbNode,.ctbn,,,,,,,,,,
 2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,CtbNode,.ctbn,,,,,,,,,,
 2228557,333,AlphaWord,AlphaSmart AlphaWord file format,document,,,,,,,,,,,,
-2228564,340,Dcal,Dc ASCII List,document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing new Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
-2228568,344,Csdl,Comma-separated Dc list,document,,,,,,,,,,,"ASCII text containing list of integers representing new Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
+2228564,340,Dcal,Dc ASCII List,document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing long Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228568,344,Csdl,Comma-separated Dc list,document,,,,,,,,,,,"ASCII text containing list of integers representing long Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",

@@ -33,7 +33,7 @@
 
 Add a Dc to represent long Dcs
 
-Standardize on "short" and "long" terms for Dcs
+- [x] Standardize on "short" and "long" terms for Dcs
 
 Deprecate Dcs duplicating Unicode
 
