@@ -39,11 +39,7 @@ Deprecate Dcs duplicating Unicode
 
 Pull and export oldest container
 
-Pan procedure export
-
 "// FIXME: Remove probably/possibly"
-
-Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
 
 - [x] Configurable journal path
 
@@ -54,7 +50,13 @@ Uninformative error: csc did not describe which file failed: `Error: Failed to p
 
 File flags did not have complete implementation
 
+Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
+
 Skip fwrite based on checksum?
+
+Password-protectable fsindex?
+
+csc --delete-manifest-after option, and `cp` as an alias for it? and mv that moves if possible or `csc --delete-manifest-after` if it needs to move across filesystems
 
 - [x] Progress always says "0.0%". I guess if it doesn't know what the total is, it should hide the percentage. Trying to estimate would probably be too slow.
 
@@ -73,10 +75,6 @@ Use Turso FTS for full-text search in fsindex/fsearch if it doesn't already.
 - [x] Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
 
 Full-text fsindex?
-
-Password-protectable fsindex?
-
-csc --delete-manifest-after option, and `cp` as an alias for it? and mv that moves if possible or `csc --delete-manifest-after` if it needs to move across filesystems
 
 magic-square
 

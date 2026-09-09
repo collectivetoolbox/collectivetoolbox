@@ -18,9 +18,15 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// See:
+// https://raw.githubusercontent.com/mozilla-firefox/firefox/f052455619779175711cf8c67b0b77b287dcbd46/uriloader/exthandler/nsExternalHelperAppService.cpp
+// https://github.com/mozilla-firefox/firefox/blob/f21b53b7045f7d5e995acd6538539d105dfdef50/xpcom/io/nsLocalFileWin.cpp
+
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
 
 // See additional licensing details at end of file.
 
@@ -127,6 +133,7 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "PRN"
             | "AUX"
             | "NUL"
+            | "COM0"
             | "COM1"
             | "COM2"
             | "COM3"
