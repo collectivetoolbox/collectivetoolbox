@@ -31,8 +31,8 @@ use crate::index_engine::check_has_full_text;
 use ctb_io::file::entity::FileEntityType;
 use regex::Regex;
 use serde::Serialize;
+use ctb_formats_time::{format_timestamp, parse_time_spec};
 use std::fmt::Write as _;
-use std::time::{SystemTime, UNIX_EPOCH};
 use turso::{Builder, Value};
 
 /// A single matched entry returned from search.
@@ -583,109 +583,4 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     }
 
     Ok(ToolResult::immediate_ok(out.into_bytes()))
-}
-
-/// Parses an absolute epoch timestamp or relative duration like "7d", "24h", "60m".
-fn parse_time_spec(s: &str) -> Result<i64> {
-    let s = s.trim();
-    if let Ok(raw_sec) = s.parse::<i64>() {
-        return Ok(raw_sec);
-    }
-
-    let now_sec = <i64 as TryFrom<_>>::try_from(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .context("Clock error")?
-            .as_secs(),
-    )?;
-
-    let (num_part, multiplier) = if let Some(sub) = s.strip_suffix(['s', 'S']) {
-        (sub, 1_i64)
-    } else if let Some(sub) = s.strip_suffix(['m', 'M']) {
-        (sub, 60_i64)
-    } else if let Some(sub) = s.strip_suffix(['h', 'H']) {
-        (sub, 3600_i64)
-    } else if let Some(sub) = s.strip_suffix(['d', 'D']) {
-        (sub, 86400_i64)
-    } else if let Some(sub) = s.strip_suffix(['w', 'W']) {
-        (sub, 604_800_i64)
-    } else {
-        anyhow::bail!("Unrecognized time format: {s}. Expected timestamp or relative duration like '7d'");
-    };
-
-    let val: i64 = num_part
-        .parse()
-        .with_context(|| format!("Invalid number in duration: {s}"))?;
-
-    let delta = val.saturating_mul(multiplier);
-    Ok(now_sec.saturating_sub(delta))
-}
-
-#[expect(
-    clippy::expect_used,
-    reason = "Divisors 4, 100, and 400 are non-zero constants"
-)]
-fn is_leap_year(year: u64) -> bool {
-    (year.checked_rem(4).expect("divisor 4 is non-zero") == 0
-        && year.checked_rem(100).expect("divisor 100 is non-zero") != 0)
-        || (year.checked_rem(400).expect("divisor 400 is non-zero") == 0)
-}
-
-#[expect(
-    clippy::expect_used,
-    reason = "Checked operations with non-zero constants and range-checked non-negative values are infallible"
-)]
-fn format_timestamp(sec: i64) -> String {
-    // Basic UTC representation YYYY-MM-DD HH:MM
-    let u_sec = u64::try_from(sec.max(0))
-        .expect("clamped to non-negative i64 which fits in u64");
-    let d = std::time::Duration::from_secs(u_sec);
-    let days = d
-        .as_secs()
-        .checked_div(86400)
-        .expect("divisor 86400 is non-zero");
-    let rem = d
-        .as_secs()
-        .checked_rem(86400)
-        .expect("divisor 86400 is non-zero");
-    let hours = rem.checked_div(3600).expect("divisor 3600 is non-zero");
-    let mins = rem
-        .checked_rem(3600)
-        .expect("divisor 3600 is non-zero")
-        .checked_div(60)
-        .expect("divisor 60 is non-zero");
-
-    // Approximate days to year-month-day for human display
-    let mut year = 1970_u64;
-    let mut day_count = days;
-    loop {
-        let leap = is_leap_year(year);
-        let days_in_year = if leap { 366 } else { 365 };
-        if day_count >= days_in_year {
-            day_count = day_count.saturating_sub(days_in_year);
-            year = year.saturating_add(1);
-        } else {
-            break;
-        }
-    }
-
-    let leap = is_leap_year(year);
-    let month_days = [
-        31_u64,
-        if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
-    ];
-
-    let mut month = 1_usize;
-    for &m_days in &month_days {
-        if day_count >= m_days {
-            day_count = day_count.saturating_sub(m_days);
-            month = month.saturating_add(1);
-        } else {
-            break;
-        }
-    }
-    let day = day_count.saturating_add(1);
-
-    format!("{year:04}-{month:02}-{day:02} {hours:02}:{mins:02}")
 }

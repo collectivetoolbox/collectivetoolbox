@@ -40,6 +40,7 @@ ctb-formats-pem = { path = "pem" }
 ctb-formats-stagel = { path = "stagel" }
 ctb-formats-syndication = { path = "syndication" }
 ctb-formats-text-extraction = { path = "text_extraction" }
+ctb-formats-time = { path = "time" }
 ctb-formats-troff = { path = "troff" }
 ctb-formats-unicode = { path = "unicode" }
 ctb-formats-uri = { path = "uri" }

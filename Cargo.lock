@@ -2663,6 +2663,7 @@ dependencies = [
  "ctb-formats-stagel",
  "ctb-formats-syndication",
  "ctb-formats-text-extraction",
+ "ctb-formats-time",
  "ctb-formats-troff",
  "ctb-formats-unicode",
  "ctb-formats-uri",
@@ -3106,6 +3107,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-time"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "jiff",
+]
+
+[[package]]
 name = "ctb-formats-troff"
 version = "0.0.0"
 dependencies = [
@@ -3287,6 +3297,7 @@ dependencies = [
  "clap",
  "ctb-formats-checksum",
  "ctb-formats-text-extraction",
+ "ctb-formats-time",
  "ctb-io",
  "ctb-utilities",
  "filetime",
@@ -3712,6 +3723,7 @@ dependencies = [
  "ctb-formats-stagel",
  "ctb-formats-syndication",
  "ctb-formats-text-extraction",
+ "ctb-formats-time",
  "ctb-formats-troff",
  "ctb-formats-unicode",
  "ctb-formats-uri",
@@ -7217,6 +7229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4603d3033e49e2b0e31229fcab20a5d40089c607d975cd9c80551dc69eed9102"
 dependencies = [
  "jiff-static",
+ "jiff-tzdb",
  "jiff-tzdb-platform",
  "log",
  "portable-atomic",

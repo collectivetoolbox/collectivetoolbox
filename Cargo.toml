@@ -115,6 +115,7 @@ ctb-formats-pem = { path = "src/formats/pem" }
 ctb-formats-stagel = { path = "src/formats/stagel" }
 ctb-formats-syndication = { path = "src/formats/syndication" }
 ctb-formats-text-extraction = { path = "src/formats/text_extraction" }
+ctb-formats-time = { path = "src/formats/time" }
 ctb-formats-troff = { path = "src/formats/troff" }
 ctb-formats-unicode = { path = "src/formats/unicode" }
 ctb-formats-uri = { path = "src/formats/uri" }
