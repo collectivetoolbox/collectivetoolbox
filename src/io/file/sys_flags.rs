@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later AND Apache-2.0 AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from Swift System: Apache-2.0
+// SPDX-License-Identifier for parts derived from FreeBSD and OpenBSD: BSD-3-Clause
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -20,13 +21,40 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Platform-specific adapters for reading and writing OS file flags.
 
-/* License information for parts derived from the Swift System open source project - see license at end of this file:
+// See full license details at end of this file
+
+// License information for parts derived from FreeBSD:
+
+/*
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+// See full license details at end of this file
+
+/* License information for parts derived from OpenBSD:
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+// See full license details at end of this file
+
+/* License information for parts derived from the Swift System open source project:
 
 // Copyright (c) 2025 - 2026 Apple Inc. and the Swift System project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
 */
+// See full license details at end of this file
 
 /* Swift provides this helpful table (from Sources/System/FileSystem/FileFlags.swift https://github.com/apple/swift-system/blob/1b452c2996c677d8e435bf0b766fc927176d8c77/Sources/System/FileSystem/FileFlags.swift):
 
@@ -59,6 +87,76 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // | system           | N/A           | UF_SYSTEM     | N/A           |
 // | snapshot         | N/A           | SF_SNAPSHOT   | N/A           |
 // |------------------|---------------|---------------|---------------|
+
+*/
+
+/* From FreeBSD stat.h:
+
+
+/*
+ * Definitions of flags stored in file flags word.
+ *
+ * Super-user and owner changeable flags.
+ */
+#define	UF_SETTABLE	0x0000ffff	/* mask of owner changeable flags */
+#define	UF_NODUMP	0x00000001	/* do not dump file */
+#define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
+#define	UF_APPEND	0x00000004	/* writes to file may only append */
+#define	UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+#define	UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+/*
+ * These two bits are defined in MacOS X.  They are not currently used in
+ * FreeBSD.
+ */
+#if 0
+#define	UF_COMPRESSED	0x00000020	/* file is compressed */
+#define	UF_TRACKED	0x00000040	/* renames and deletes are tracked */
+#endif
+
+#define	UF_SYSTEM	0x00000080	/* Windows system file bit */
+#define	UF_SPARSE	0x00000100	/* sparse file */
+#define	UF_OFFLINE	0x00000200	/* file is offline */
+#define	UF_REPARSE	0x00000400	/* Windows reparse point file bit */
+#define	UF_ARCHIVE	0x00000800	/* file needs to be archived */
+#define	UF_READONLY	0x00001000	/* Windows readonly file bit */
+#define	UF_NOCACHE	0x00002000	/* don't cache file data (NFSv4) */
+/* This is the same as the MacOS X definition of UF_HIDDEN. */
+#define	UF_HIDDEN	0x00008000	/* file is hidden */
+
+/*
+ * Super-user changeable flags.
+ */
+#define	SF_SETTABLE	0xffff0000	/* mask of superuser changeable flags */
+#define	SF_ARCHIVED	0x00010000	/* file is archived */
+#define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
+#define	SF_APPEND	0x00040000	/* writes to file may only append */
+#define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
+#define	SF_SNAPSHOT	0x00200000	/* snapshot inode */
+
+/* st_bsdflags */
+#define	SFBSD_NAMEDATTR	0x0001		/* file is named attribute or dir */
+*/
+
+/* From OpenBSD stat.h:
+
+
+/*
+ * Definitions of flags stored in file flags word.
+ *
+ * Super-user and owner changeable flags.
+ */
+#define	UF_SETTABLE	0x0000ffff	/* mask of owner changeable flags */
+#define	UF_NODUMP	0x00000001	/* do not dump file */
+#define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
+#define	UF_APPEND	0x00000004	/* writes to file may only append */
+#define	UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+/*
+ * Super-user changeable flags.
+ */
+#define	SF_SETTABLE	0xffff0000	/* mask of superuser changeable flags */
+#define	SF_ARCHIVED	0x00010000	/* file is archived */
+#define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
+#define	SF_APPEND	0x00040000	/* writes to file may only append */
 
 */
 
@@ -681,3 +779,77 @@ License for parts derived from Swift:
     otherwise be required by Sections 4(a), 4(b) and 4(d) of the License.
 
 */
+
+/* License for parts derived from FreeBSD:
+ *-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/* License for parts derived from OpenBSD:
+*-
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)stat.h	8.9 (Berkeley) 8/17/94
+ */

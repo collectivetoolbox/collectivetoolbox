@@ -100,8 +100,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_supports_control_characters() {
-        unimplemented!()
-         super::supports_control_characters();
+        let _ = super::supports_control_characters();
     }
 
 }
