@@ -37,6 +37,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 /// The concrete filesystem or archive kind of a file entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -281,10 +282,17 @@ impl FileEntity {
             path.file_name().map_or_else(PathBuf::new, PathBuf::from)
         };
 
+        let read_time = Some(SystemTime::now());
+
         // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
 
         let raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
+
+        let enclosing_path = match base_dir {
+            Some(base) => Some(base.to_path_buf()),
+            None => path.parent().map(Path::to_path_buf),
+        };
 
         let identity = FileIdentity {
             origin: FileOrigin::Filesystem {
@@ -295,6 +303,7 @@ impl FileEntity {
                 canonical_path: canonical,
             },
             relative_path,
+            enclosing_path,
             raw_relative_path,
             raw_filename: filename_bytes,
             nlink,
@@ -308,6 +317,7 @@ impl FileEntity {
             timestamps,
             flags,
             platform_raw_flags: platform_raw,
+            read_time,
         };
 
         // Determine entity kind
@@ -421,5 +431,25 @@ impl FileEntity {
     #[must_use]
     pub const fn is_symlink(&self) -> bool {
         matches!(self.kind, FileEntityKind::Symlink { .. })
+    }
+
+    /// Returns the original enclosing directory if available.
+    #[must_use]
+    pub fn enclosing_path(&self) -> Option<&Path> {
+        self.identity.enclosing_path.as_deref()
+    }
+
+    /// Returns the timestamp documenting when this file record was
+    /// read/inspected from the filesystem (current as of).
+    #[must_use]
+    pub const fn is_current_as_of(&self) -> Option<SystemTime> {
+        self.metadata.read_time
+    }
+
+    /// Returns the time when this file entity was read from the filesystem, if
+    /// captured.
+    #[must_use]
+    pub const fn read_time(&self) -> Option<SystemTime> {
+        self.metadata.read_time
     }
 }

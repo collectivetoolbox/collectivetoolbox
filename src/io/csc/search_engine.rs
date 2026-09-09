@@ -74,6 +74,32 @@ struct ResolvedSearch {
 }
 
 fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<ResolvedSearch>> {
+    let explicit_keyword = if args.keyword.is_empty() {
+        args.keyword_path.clone()
+    } else {
+        Some(args.keyword.join(" "))
+    };
+
+    let has_explicit = args.regex_path.is_some()
+        || args.regex.is_some()
+        || args.regex_text.is_some()
+        || args.regex_name.is_some()
+        || args.glob_path.is_some()
+        || args.path_glob.is_some()
+        || args.glob_text.is_some()
+        || args.glob_name.is_some()
+        || args.name_glob.is_some()
+        || explicit_keyword.is_some()
+        || args.keyword_text.is_some()
+        || args.keyword_name.is_some();
+
+    if has_explicit && !args.query.is_empty() {
+        anyhow::bail!(
+            "Cannot specify both explicit search filter flags and positional query terms: {}",
+            args.query.join(" ")
+        );
+    }
+
     // 1. Explicit regex options
     if let Some(pat) = args.regex_path.as_deref().or(args.regex.as_deref()) {
         return Ok(Some(ResolvedSearch {
@@ -129,11 +155,11 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
     }
 
     // 3. Explicit keyword options
-    if let Some(pat) = args.keyword_path.as_deref().or(args.keyword.as_deref()) {
+    if let Some(pat) = explicit_keyword {
         return Ok(Some(ResolvedSearch {
             kind: SearchKind::Keyword,
             target: SearchTarget::Path,
-            pattern: pat.to_string(),
+            pattern: pat,
         }));
     }
     if let Some(ref pat) = args.keyword_text {
@@ -503,7 +529,7 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
                 SearchTarget::Text => {
                     re.is_match(&path)
                         || re.is_match(&filename)
-                        || full_text.as_deref().map_or(false, |t| re.is_match(t))
+                        || full_text.as_deref().is_some_and(|t| re.is_match(t))
                 }
             };
             if !is_matched {

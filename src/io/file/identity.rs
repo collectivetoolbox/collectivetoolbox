@@ -74,6 +74,9 @@ pub struct FileIdentity {
     pub origin: FileOrigin,
     /// Logical relative path within the operation or archive.
     pub relative_path: PathBuf,
+    /// Original enclosing directory or root path from which relative_path was
+    /// resolved, if applicable.
+    pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
     pub raw_relative_path: Vec<u8>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
@@ -92,6 +95,22 @@ impl FileIdentity {
             &self.raw_relative_path
         } else {
             self.relative_path.as_os_str().as_encoded_bytes()
+        }
+    }
+
+    /// Returns the full original path if `enclosing_path` is present, otherwise
+    /// falls back to origin's canonical path if available.
+    #[must_use]
+    pub fn full_original_path(&self) -> Option<PathBuf> {
+        if let Some(ref base) = self.enclosing_path {
+            Some(base.join(&self.relative_path))
+        } else {
+            match &self.origin {
+                FileOrigin::Filesystem { canonical_path, .. } => {
+                    Some(canonical_path.clone())
+                }
+                _ => None,
+            }
         }
     }
 }

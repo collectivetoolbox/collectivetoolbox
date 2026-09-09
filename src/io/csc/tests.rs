@@ -1125,10 +1125,15 @@ mod csc_tests {
 
         let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
 
+        let read_time_expected = std::time::SystemTime::UNIX_EPOCH
+            .checked_add(std::time::Duration::from_secs(1_700_000_000))
+            .expect("valid timestamp");
+
         let file_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from("hello.txt"),
+                enclosing_path: Some(src.clone()),
                 raw_relative_path: b"hello.txt".to_vec(),
                 raw_filename: b"hello.txt".to_vec(),
                 nlink: 1,
@@ -1150,6 +1155,7 @@ mod csc_tests {
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: Some(read_time_expected),
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1164,6 +1170,7 @@ mod csc_tests {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from("link.txt"),
+                enclosing_path: None,
                 raw_relative_path: b"link.txt".to_vec(),
                 raw_filename: b"link.txt".to_vec(),
                 nlink: 2,
@@ -1185,6 +1192,7 @@ mod csc_tests {
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1202,6 +1210,8 @@ mod csc_tests {
         assert!(snap.is_committed(b"link.txt"));
 
         let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
+        assert_eq!(read_file.identity.enclosing_path, Some(src.clone()));
+        assert_eq!(read_file.metadata.read_time, Some(read_time_expected));
         if let FileEntityKind::Regular { size, sha256, .. } = &read_file.kind {
             assert_eq!(*size, 42);
             assert_eq!(*sha256, [0xAB; 32]);
@@ -1268,7 +1278,7 @@ mod csc_tests {
             context: None,
             name_glob: None,
             path_glob: None,
-            keyword: None,
+            keyword: Vec::new(),
             regex: None,
             source: None,
             mtime_after: None,
@@ -1913,6 +1923,35 @@ mod csc_tests {
         } else {
             panic!("Expected immediate result");
         }
+
+        // 6. Multi-argument keyword search (-k with multiple parameters vs single argument with space)
+        let mut search_k_multi = default_fsearch_args(db_path.clone());
+        search_k_multi.keyword = vec!["sample".to_string(), "txt".to_string()];
+        let res_k_multi = run_fsearch(search_k_multi).await.expect("search -k multiple terms");
+        let s_multi = if let ToolResult::Immediate { stdout, .. } = res_k_multi {
+            String::from_utf8_lossy(&stdout).to_string()
+        } else {
+            panic!("Expected immediate result");
+        };
+
+        let mut search_k_joined = default_fsearch_args(db_path.clone());
+        search_k_joined.keyword = vec!["sample txt".to_string()];
+        let res_k_joined = run_fsearch(search_k_joined).await.expect("search -k single term with space");
+        let s_joined = if let ToolResult::Immediate { stdout, .. } = res_k_joined {
+            String::from_utf8_lossy(&stdout).to_string()
+        } else {
+            panic!("Expected immediate result");
+        };
+
+        assert_eq!(s_multi, s_joined, "-k 'a' 'b' must produce identical results to -k 'a b'");
+        assert!(s_multi.contains("sample.txt"));
+
+        // 7. Rejection of conflicting explicit option and positional query
+        let mut search_conflict = default_fsearch_args(db_path.clone());
+        search_conflict.keyword = vec!["sample".to_string()];
+        search_conflict.query = vec!["unexpected_trailing_positional".to_string()];
+        let err_conflict = run_fsearch(search_conflict).await.err().expect("must fail on mixed explicit option and query");
+        assert!(err_conflict.to_string().contains("Cannot specify both explicit search filter flags and positional query terms"));
     }
 
     #[crate::ctb_test("tokio")]

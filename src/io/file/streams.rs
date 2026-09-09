@@ -165,6 +165,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                enclosing_path: None,
                 raw_relative_path: name_bytes.clone(),
                 raw_filename: name_bytes,
                 nlink: 1,
@@ -186,6 +187,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Regular {
                 size,

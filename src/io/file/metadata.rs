@@ -26,6 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::time::SystemTime;
+
 /// Operating system family where raw bits or file descriptors originated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OsFamily {
@@ -296,4 +298,16 @@ pub struct FileMetadata {
     pub flags: Vec<FileFlag>,
     /// Raw platform-specific flags if captured on a native filesystem.
     pub platform_raw_flags: Option<PlatformRawFlags>,
+    /// Timestamp when this file record was read/inspected from the filesystem,
+    /// documenting when that file is current as of.
+    pub read_time: Option<SystemTime>,
+}
+
+impl FileMetadata {
+    /// Returns the timestamp documenting when this file record was
+    /// read/inspected from the filesystem (current as of).
+    #[must_use]
+    pub const fn current_as_of(&self) -> Option<SystemTime> {
+        self.read_time
+    }
 }

@@ -428,39 +428,39 @@ pub struct FsearchArgs {
     pub query: Vec<String>,
 
     /// Regular expression pattern to match against path and filename.
-    #[arg(long = "regex-path", alias = "rp")]
+    #[arg(long = "regex-path", alias = "rp", conflicts_with = "query")]
     pub regex_path: Option<String>,
 
     /// Regular expression pattern to match against path, filename, and full text content.
-    #[arg(long = "regex-text", alias = "rt")]
+    #[arg(long = "regex-text", alias = "rt", conflicts_with = "query")]
     pub regex_text: Option<String>,
 
     /// Regular expression pattern to match against filename only.
-    #[arg(long = "regex-name", alias = "rn")]
+    #[arg(long = "regex-name", alias = "rn", conflicts_with = "query")]
     pub regex_name: Option<String>,
 
     /// Glob pattern to match against relative path and filename.
-    #[arg(long = "glob-path", alias = "gp")]
+    #[arg(long = "glob-path", alias = "gp", conflicts_with = "query")]
     pub glob_path: Option<String>,
 
     /// Glob pattern to match against relative path, filename, and full text content.
-    #[arg(long = "glob-text", alias = "gt")]
+    #[arg(long = "glob-text", alias = "gt", conflicts_with = "query")]
     pub glob_text: Option<String>,
 
     /// Glob pattern to match against filename only.
-    #[arg(long = "glob-name", alias = "gn")]
+    #[arg(long = "glob-name", alias = "gn", conflicts_with = "query")]
     pub glob_name: Option<String>,
 
     /// Keyword match across relative path and filename.
-    #[arg(long = "keyword-path", alias = "kp")]
+    #[arg(long = "keyword-path", alias = "kp", conflicts_with = "query")]
     pub keyword_path: Option<String>,
 
     /// Keyword match across relative path, filename, and full text content.
-    #[arg(long = "keyword-text", alias = "kt")]
+    #[arg(long = "keyword-text", alias = "kt", conflicts_with = "query")]
     pub keyword_text: Option<String>,
 
     /// Keyword match on filename only.
-    #[arg(long = "keyword-name", alias = "kn")]
+    #[arg(long = "keyword-name", alias = "kn", conflicts_with = "query")]
     pub keyword_name: Option<String>,
 
     /// Print n lines around first match of full text.
@@ -468,19 +468,24 @@ pub struct FsearchArgs {
     pub context: Option<usize>,
 
     /// Glob pattern to match against filename (e.g. "*.rs", "*test*"). Legacy alias for --glob-name.
-    #[arg(short = 'n', long = "name")]
+    #[arg(short = 'n', long = "name", conflicts_with = "query")]
     pub name_glob: Option<String>,
 
     /// Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Legacy alias for --glob-path.
-    #[arg(short = 'p', long = "path")]
+    #[arg(short = 'p', long = "path", conflicts_with = "query")]
     pub path_glob: Option<String>,
 
-    /// Substring keyword to match in path or filename. Legacy alias for --keyword-path.
-    #[arg(short = 'k', long = "keyword")]
-    pub keyword: Option<String>,
+    /// One or more keyword terms to match in path or filename. Legacy alias for --keyword-path.
+    #[arg(
+        short = 'k',
+        long = "keyword",
+        num_args = 1..,
+        conflicts_with = "query"
+    )]
+    pub keyword: Vec<String>,
 
     /// Regular expression pattern to match against path. Legacy alias for --regex-path.
-    #[arg(short = 'r', long = "regex")]
+    #[arg(short = 'r', long = "regex", conflicts_with = "query")]
     pub regex: Option<String>,
 
     /// Filter by source name tag.

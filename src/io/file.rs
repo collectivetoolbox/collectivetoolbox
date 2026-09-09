@@ -202,6 +202,7 @@ mod tests {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: rel_path.clone(),
+                enclosing_path: None,
                 raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
                 raw_filename: b"test_file.bin".to_vec(),
                 nlink: 1,
@@ -223,6 +224,7 @@ mod tests {
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -433,6 +435,7 @@ mod tests {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: rel_path.clone(),
+                enclosing_path: None,
                 raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
                 raw_filename: b"test.txt".to_vec(),
                 nlink: 1,
@@ -454,6 +457,7 @@ mod tests {
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -478,6 +482,51 @@ mod tests {
         assert_eq!(receipt.bytes_written, size);
         assert_eq!(receipt.sha256, Some(sha256));
         assert!(dest_root.join("convenience").join("test.txt").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_from_filesystem_enclosing_path_and_read_time() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let base = temp_dir.path().join("enclosing_base");
+        fs::create_dir_all(&base).unwrap();
+        let sub = base.join("subdir");
+        fs::create_dir_all(&sub).unwrap();
+        let file_path = sub.join("sample.txt");
+        fs::write(&file_path, b"Hello world").unwrap();
+
+        let before = std::time::SystemTime::now();
+
+        // 1. With base_dir
+        let entity_with_base = FileEntity::from_filesystem(&file_path, Some(&base))
+            .expect("read from filesystem with base_dir");
+        assert_eq!(entity_with_base.enclosing_path(), Some(base.as_path()));
+        assert_eq!(
+            entity_with_base.identity.relative_path,
+            PathBuf::from("subdir/sample.txt")
+        );
+        assert_eq!(
+            entity_with_base.identity.full_original_path(),
+            Some(file_path.clone())
+        );
+        let read_t1 = entity_with_base
+            .is_current_as_of()
+            .expect("read_time should be captured");
+        assert!(read_t1 >= before);
+        assert!(read_t1 <= std::time::SystemTime::now());
+
+        // 2. Without base_dir (base_dir is None)
+        let entity_no_base = FileEntity::from_filesystem(&file_path, None)
+            .expect("read from filesystem without base_dir");
+        assert_eq!(entity_no_base.enclosing_path(), Some(sub.as_path()));
+        assert_eq!(
+            entity_no_base.identity.relative_path,
+            PathBuf::from("sample.txt")
+        );
+        assert_eq!(
+            entity_no_base.identity.full_original_path(),
+            Some(file_path)
+        );
+        assert!(entity_no_base.is_current_as_of().is_some());
     }
 }
 

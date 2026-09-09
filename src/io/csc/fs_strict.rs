@@ -94,6 +94,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from(&info.name),
+                enclosing_path: None,
                 raw_relative_path: name_bytes.clone(),
                 raw_filename: name_bytes,
                 nlink: 1,
@@ -115,6 +116,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -168,6 +170,7 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
         },
         flags: Vec::new(),
         platform_raw_flags: None,
+        read_time: None,
     };
 
     apply_entity_metadata(dest, &meta, is_symlink, true, true)

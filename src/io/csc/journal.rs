@@ -463,6 +463,15 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
     write_bytes(w, entity.identity.path_bytes())?;
     write_bytes(w, &entity.identity.raw_filename)?;
+    match &entity.identity.enclosing_path {
+        Some(p) => {
+            w.write_all(&[1])?;
+            write_bytes(w, p.as_os_str().as_encoded_bytes())?;
+        }
+        None => {
+            w.write_all(&[0])?;
+        }
+    }
     write_u64(w, entity.identity.nlink)?;
     let (device_id, _inode) = match &entity.identity.origin {
         FileOrigin::Filesystem { key, .. } => (key.device_id, key.inode),
@@ -492,6 +501,17 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         entity.metadata.timestamps.birthtime_sec,
         entity.metadata.timestamps.birthtime_nsec,
     )?;
+    let (read_sec, read_nsec) = match entity.metadata.read_time {
+        Some(t) => match t.duration_since(UNIX_EPOCH) {
+            Ok(d) => {
+                let s = i64::try_from(d.as_secs()).unwrap_or(0);
+                (Some(s), Some(d.subsec_nanos()))
+            }
+            Err(_) => (None, None),
+        },
+        None => (None, None),
+    };
+    write_opt_timestamp(w, read_sec, read_nsec)?;
     write_u32(w, u32::try_from(entity.metadata.flags.len())?)?;
     for flag in &entity.metadata.flags {
         write_flag(w, *flag)?;
@@ -560,6 +580,14 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
 fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> {
     let raw_rel_path = read_bytes(&mut r)?;
     let raw_filename = read_bytes(&mut r)?;
+    let has_enc = read_u8(&mut r)?;
+    let enclosing_path = if has_enc == 1 {
+        let enc_bytes = read_bytes(&mut r)?;
+        let is_windows = origin_platform == PLATFORM_WINDOWS;
+        Some(resolve_relative_path_for_os(&enc_bytes, is_windows)?)
+    } else {
+        None
+    };
     let nlink = read_u64(&mut r)?;
     let has_grp = read_u8(&mut r)?;
     let (hardlink_group, origin_device_id) = if has_grp == 1 {
@@ -580,6 +608,12 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let ctime_sec = read_i64(&mut r)?;
     let ctime_nsec = read_u32(&mut r)?;
     let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut r)?;
+    let (read_sec, read_nsec) = read_opt_timestamp(&mut r)?;
+    let read_time = read_sec.and_then(|sec| {
+        let nsec = read_nsec.unwrap_or(0);
+        let u_sec = u64::try_from(sec.max(0)).ok()?;
+        UNIX_EPOCH.checked_add(std::time::Duration::new(u_sec, nsec))
+    });
 
     let flag_count = read_u32(&mut r)?;
     let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
@@ -646,6 +680,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                enclosing_path: None,
                 raw_relative_path: sname_bytes.clone(),
                 raw_filename: sname_bytes,
                 nlink: 1,
@@ -667,6 +702,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
+                read_time: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -704,6 +740,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         identity: FileIdentity {
             origin,
             relative_path,
+            enclosing_path,
             raw_relative_path: raw_rel_path,
             raw_filename,
             nlink,
@@ -725,6 +762,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             },
             flags,
             platform_raw_flags: None,
+            read_time,
         },
         kind,
         streams,

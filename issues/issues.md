@@ -30,13 +30,6 @@
 
 ### csc
 
-Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
-
-- [x] Configurable journal path
-
-- [x] Add a way to flush deleted files from fsindex
-
-- [x] Appended indices should be deduplicated by path
 
 Add a Dc to represent long Dcs
 
@@ -48,7 +41,16 @@ Pull and export oldest container
 
 Pan procedure export
 
-File with Swift table didn't have all cases
+Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
+
+- [x] Configurable journal path
+
+- [x] Add a way to flush deleted files from fsindex
+
+- [x] Appended indices should be deduplicated by path
+
+
+File flags did not have complete implementation
 
 Skip fwrite based on checksum?
 
@@ -60,9 +62,9 @@ Skip fwrite based on checksum?
 
 - [x] `cscv` in best-effort mode shouldn't say `Directory matches manifest perfectly.` if it doesn't - it should say something like `Directory matches manifest in best-effort mode; ignored 1234 ownership differences and 2345 timestamp differences.`
 
-fsearch `-k` should either be able to accept a single argument, or clearly document that it is able to consume multiple parameters. `-k 'new begun'` finds nothing; `-k 'new' 'begun'` finds something.
+- [x] fsearch `-k` should either be able to accept a single argument, or clearly document that it is able to consume multiple parameters. `-k 'new begun'` finds nothing; `-k 'new' 'begun'` finds something.
 
-For maximum fidelity, File struct should probably retain the original enclosing path too, even if the relative path is what's being used. For File structs read from a filesystem, they should probably also include a time of read, documenting when that File is current as of.
+- [x] For maximum fidelity, File struct should probably retain the original enclosing path too, even if the relative path is what's being used. For File structs read from a filesystem, they should probably also include a time of read, documenting when that File is current as of.
 
 Use Turso FTS for full-text search in fsindex/fsearch if it doesn't already.
 
