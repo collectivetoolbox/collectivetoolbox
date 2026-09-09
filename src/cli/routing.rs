@@ -316,7 +316,7 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox range_gen 1 10\n  1\n  2\n  3\n  4\n  5\n  6\n  7\n  8\n  9\n  10\n\n  $ ctoolbox range_gen -s 2 1 10\n  1\n  3\n  5\n  7\n  9\n\n  $ ctoolbox range_gen -b 16 -t -S, 18D0C 18D12\n  18D0C,18D0D,18D0E,18D0F,18D10,18D11,18D12,\n\n  $ ctoolbox range_gen -b hex 0x00 0x10\n  00\n  01\n  02\n  03\n  04\n  05\n  06\n  07\n  08\n  09\n  0A\n  0B\n  0C\n  0D\n  0E\n  0F\n  10"
     )]
     RangeGen(ctb_formats_math::range_generator::RangeGenArgs),
-    /// Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
+    /// Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future.
     #[command(
         name = "character_description",
         alias = "character-description",
@@ -430,19 +430,19 @@ pub enum Command {
         /// Optional name of the macro/procedure (if provided, `input_file` is parsed as a whole .pan database)
         macro_name: Option<String>,
     },
-    /// Convert a PDF file to text output
+    /// Convert a PDF file to text output. Not yet implemented.
     #[command(name = "pdf2txt")]
     Pdf2Txt {
         /// Input PDF file path (or - for stdin)
         pdf_file: PathBuf,
     },
-    /// Convert a PDF file to JSON output
+    /// Convert a PDF file to JSON output. Not yet implemented.
     #[command(name = "pdf2json")]
     Pdf2Json {
         /// Input PDF file path (or - for stdin)
         pdf_file: PathBuf,
     },
-    /// Convert a PDF file to Markdown output
+    /// Convert a PDF file to Markdown output. Not yet implemented.
     #[command(name = "pdf2md")]
     Pdf2Md {
         /// Input PDF file path (or - for stdin)

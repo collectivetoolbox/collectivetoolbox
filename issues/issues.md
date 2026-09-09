@@ -32,11 +32,11 @@
 
 Uninformative error: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
 
-Configurable journal path
+- [x] Configurable journal path
 
-Add a way to flush deleted files from fsindex
+- [x] Add a way to flush deleted files from fsindex
 
-Appended indices should be deduplicated by path
+- [x] Appended indices should be deduplicated by path
 
 Add a Dc to represent long Dcs
 

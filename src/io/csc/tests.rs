@@ -83,6 +83,7 @@ mod csc_tests {
         CscArgs {
             paths,
             resume: None,
+            journal_path: None,
             state_dir: Some(state_dir),
             verbose: true,
             progress: false,
@@ -1258,6 +1259,8 @@ mod csc_tests {
         let args_a = FsindexArgs {
             targets: vec![src_a.clone()],
             database: Some(db_path.clone()),
+            journal_path: None,
+            flush_deleted: false,
             source_name: Some("source_a_tag".to_string()),
             resume: false,
             resume_journal: None,
@@ -1277,6 +1280,8 @@ mod csc_tests {
         let args_b = FsindexArgs {
             targets: vec![src_b.clone()],
             database: Some(db_path.clone()),
+            journal_path: None,
+            flush_deleted: false,
             source_name: Some("source_b_tag".to_string()),
             resume: false,
             resume_journal: None,
@@ -1648,6 +1653,293 @@ mod csc_tests {
                 "Best effort mode must tolerate 1s timestamp difference: {out}"
             );
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_configurable_journal_path() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+        fs::write(src.join("test.txt"), b"Configurable journal test").expect("write test.txt");
+
+        let custom_journal = state.join("my_backup.cscjournal");
+        let custom_desc = state.join("my_backup.cscdesc");
+
+        let mut args = default_test_args(vec![src.clone(), dest.clone()], state.clone());
+        args.journal_path = Some(custom_journal.clone());
+
+        let res = run_csc(args.clone()).expect("run csc with explicit journal path");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        assert!(custom_journal.exists(), "Explicit .cscjournal must be created");
+        assert!(custom_desc.exists(), "Explicit .cscdesc must be created");
+        assert!(dest.join("test.txt").exists(), "Destination file must exist");
+
+        // Attempting to run again with the same journal path without --resume must fail
+        let err = match run_csc(args) {
+            Err(e) => e,
+            Ok(_) => panic!("Expected error when journal already exists"),
+        };
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("already exists"),
+            "Must reject overwriting existing journal file: {err_msg}"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_configurable_journal_path() {
+        use crate::args::FsindexArgs;
+        use crate::index_engine::run_fsindex;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("item.txt"), b"Item content").expect("write item.txt");
+
+        let custom_journal = temp.path().join("custom_index.cscjournal");
+        let custom_desc = temp.path().join("custom_index.cscdesc");
+
+        let args = FsindexArgs {
+            targets: vec![src.clone()],
+            database: None,
+            journal_path: Some(custom_journal.clone()),
+            flush_deleted: false,
+            source_name: None,
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: true,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+        };
+
+        let res = run_fsindex(args.clone()).await.expect("run fsindex with explicit journal_path");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        assert!(custom_journal.exists(), "Custom journal must exist");
+        assert!(custom_desc.exists(), "Custom desc must exist");
+
+        // Running again without --resume must error
+        let err = match run_fsindex(args).await {
+            Err(e) => e,
+            Ok(_) => panic!("Expected error when journal already exists"),
+        };
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("already exists"),
+            "Must reject overwriting existing journal file: {err_msg}"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_flush_deleted_files_from_index() {
+        use crate::args::FsindexArgs;
+        use crate::index_engine::run_fsindex;
+        use crate::journal::read_journal_snapshot;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("files");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("a.txt"), b"File A").expect("write a.txt");
+        fs::write(src.join("b.txt"), b"File B").expect("write b.txt");
+        fs::write(src.join("c.txt"), b"File C").expect("write c.txt");
+
+        let journal_path = temp.path().join("files.cscjournal");
+        let db_path = temp.path().join("files.cscindex.sqlite");
+
+        // 1. Initial index
+        let args_init = FsindexArgs {
+            targets: vec![src.clone()],
+            database: Some(db_path.clone()),
+            journal_path: Some(journal_path.clone()),
+            flush_deleted: false,
+            source_name: Some("test_src".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+        };
+        run_fsindex(args_init).await.expect("initial fsindex");
+
+        // Verify all 3 files exist in the database
+        {
+            let db_str = db_path.to_string_lossy().to_string();
+            let db = Builder::new_local(&db_str).build().await.expect("open db");
+            let conn = db.connect().expect("connect db");
+            let mut count_stmt = conn.prepare("SELECT COUNT(*) FROM entries").await.expect("prepare count");
+            let mut rows = count_stmt.query(()).await.expect("query count");
+            let total: i64 = match rows.next().await.expect("row").expect("some row").get_value(0) {
+                Ok(Value::Integer(n)) => n,
+                _ => panic!("Expected integer count"),
+            };
+            // 3 regular files + 1 root directory entry
+            assert_eq!(total, 4);
+        }
+
+        // 2. Delete b.txt from disk
+        fs::remove_file(src.join("b.txt")).expect("remove b.txt");
+
+        let snap_before = read_journal_snapshot(&journal_path).expect("read snap");
+        assert!(
+            snap_before.is_committed(b"b.txt"),
+            "Journal must contain b.txt before flush"
+        );
+
+        // 3. Run fsindex again with the journal path and --flush-deleted
+        let args_flush = FsindexArgs {
+            targets: vec![journal_path.clone()],
+            database: Some(db_path.clone()),
+            journal_path: None,
+            flush_deleted: true,
+            source_name: Some("test_src".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+        };
+        let res_flush = run_fsindex(args_flush).await.expect("run fsindex flush");
+        if let ToolResult::Immediate { stdout, .. } = res_flush {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(
+                out_str.contains("Entries flushed:  1"),
+                "Output must report 1 flushed entry: {out_str}"
+            );
+        }
+
+        // 4. Verify b.txt is gone from database, while a.txt and c.txt remain
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str).build().await.expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        let mut check_b = conn
+            .prepare("SELECT COUNT(*) FROM entries WHERE filename = 'b.txt'")
+            .await
+            .expect("prepare check_b");
+        let mut b_rows = check_b.query(()).await.expect("query b");
+        let b_count: i64 = match b_rows.next().await.expect("row").expect("some row").get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected integer count"),
+        };
+        assert_eq!(b_count, 0, "b.txt must be flushed from SQLite index");
+
+        let mut check_a = conn
+            .prepare("SELECT COUNT(*) FROM entries WHERE filename = 'a.txt'")
+            .await
+            .expect("prepare check_a");
+        let mut a_rows = check_a.query(()).await.expect("query a");
+        let a_count: i64 = match a_rows.next().await.expect("row").expect("some row").get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected integer count"),
+        };
+        assert_eq!(a_count, 1, "a.txt must remain in SQLite index");
+
+        // 5. Verify the journal file was completely untouched
+        let snap_after = read_journal_snapshot(&journal_path).expect("read snap after");
+        assert!(
+            snap_after.is_committed(b"b.txt"),
+            "Journal file must be untouched and still contain b.txt"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_appended_indices_deduplicated_by_path() {
+        use crate::args::FsindexArgs;
+        use crate::index_engine::run_fsindex;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src1 = temp.path().join("src1");
+        let src2 = temp.path().join("src2");
+        fs::create_dir_all(&src1).expect("create src1");
+        fs::create_dir_all(&src2).expect("create src2");
+
+        // Version 1 of shared file
+        fs::write(src1.join("shared.txt"), b"version 1").expect("write v1");
+        // Version 2 of shared file (longer content)
+        fs::write(src2.join("shared.txt"), b"version 2 longer content").expect("write v2");
+
+        let db_path = temp.path().join("dedup.cscindex.sqlite");
+
+        // Index source 1
+        let args1 = FsindexArgs {
+            targets: vec![src1.clone()],
+            database: Some(db_path.clone()),
+            journal_path: None,
+            flush_deleted: false,
+            source_name: Some("source_1".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+        };
+        run_fsindex(args1).await.expect("index src1");
+
+        // Index source 2 into same database (append)
+        let args2 = FsindexArgs {
+            targets: vec![src2.clone()],
+            database: Some(db_path.clone()),
+            journal_path: None,
+            flush_deleted: false,
+            source_name: Some("source_2".to_string()),
+            resume: false,
+            resume_journal: None,
+            checksum: false,
+            journal_only: false,
+            batch_size: 50,
+            quiet: true,
+            one_file_system: false,
+        };
+        run_fsindex(args2).await.expect("index src2");
+
+        // Verify deduplication: exactly 1 entry for shared.txt with updated size
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str).build().await.expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*), size, s.name FROM entries e JOIN sources s ON e.source_id = s.id WHERE e.path = 'shared.txt'")
+            .await
+            .expect("prepare stmt");
+        let mut rows = stmt.query(()).await.expect("query");
+        let row = rows.next().await.expect("row").expect("some row");
+
+        let count: i64 = match row.get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected count integer"),
+        };
+        let size: i64 = match row.get_value(1) {
+            Ok(Value::Integer(s)) => s,
+            _ => panic!("Expected size integer"),
+        };
+        let src_name: String = match row.get_value(2) {
+            Ok(Value::Text(s)) => s,
+            _ => panic!("Expected source name text"),
+        };
+
+        assert_eq!(count, 1, "Appended index must deduplicate entries with the same path");
+        assert_eq!(size, 24, "Entry must be updated with the latest appended data");
+        assert_eq!(src_name, "source_2", "Source tag must be updated to the latest source");
     }
 }
 

@@ -63,13 +63,22 @@ pub fn derive_source_name(journal_path: &Path, explicit_name: Option<&str>) -> S
 /// Executes directory indexing into a .cscjournal and/or compiles journals into
 /// an indexed SQLite database.
 pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
-    anyhow::ensure!(!args.targets.is_empty(), "Must provide at least one target path");
+    let mut targets = args.targets.clone();
+    if targets.is_empty() {
+        if let Some(ref jp) = args.journal_path {
+            targets.push(jp.clone());
+        }
+    }
+    anyhow::ensure!(
+        !targets.is_empty(),
+        "Must provide at least one target path or --journal-path"
+    );
 
     let progress = Progress::new(!args.quiet);
     let mut journal_paths: Vec<PathBuf> = Vec::new();
 
     // 1. Process targets (traverse directories into journals, or collect existing journals)
-    for target in &args.targets {
+    for target in &targets {
         if target.is_dir() {
             let journal_path = index_directory_to_journal(target, &args, &progress)?;
             journal_paths.push(journal_path);
@@ -80,6 +89,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     }
 
     if args.journal_only {
+        anyhow::ensure!(
+            !args.flush_deleted,
+            "--flush-deleted operates on the database index, but --journal-only was specified"
+        );
         let mut msg = String::new();
         for p in &journal_paths {
             writeln!(msg, "Generated journal: {}", p.display())?;
@@ -91,8 +104,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     let db_path = if let Some(ref db) = args.database {
         db.clone()
     } else {
-        let first_target = args
-            .targets
+        let first_target = targets
             .first()
             .context("No target paths provided to index")?;
         // Reason for fallback: target path lacking valid UTF-8 filename defaults to "index" database stem
@@ -110,6 +122,43 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
         parent.join(format!("{stem_trimmed}.cscindex.sqlite"))
     };
 
+    let all_targets_are_journals = targets.iter().all(|t| !t.is_dir());
+
+    if all_targets_are_journals && args.flush_deleted {
+        anyhow::ensure!(
+            db_path.exists(),
+            "Database file does not exist: {}",
+            db_path.display()
+        );
+        let db_path_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_path_str).build().await?;
+        let conn = db.connect()?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+        init_database_schema(&conn).await?;
+
+        let mut total_flushed: u64 = 0;
+        let mut sources_checked: usize = 0;
+        for j_path in &journal_paths {
+            let explicit_name = if journal_paths.len() == 1 {
+                args.source_name.as_deref()
+            } else {
+                None
+            };
+            let flushed =
+                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress).await?;
+            total_flushed = total_flushed.saturating_add(flushed);
+            sources_checked = sources_checked.saturating_add(1);
+        }
+
+        let mut summary = String::new();
+        writeln!(summary, "--- FSINDEX Summary ---")?;
+        writeln!(summary, "Database:         {}", db_path.display())?;
+        writeln!(summary, "Sources checked:  {sources_checked}")?;
+        writeln!(summary, "Entries flushed:  {total_flushed}")?;
+        writeln!(summary, "Status:           Indexing completed successfully.")?;
+        return Ok(ToolResult::immediate_ok(summary.into_bytes()));
+    }
+
     // 3. Connect to Turso SQLite database and create schema
     let db_path_str = db_path.to_string_lossy().to_string();
     let db = Builder::new_local(&db_path_str).build().await?;
@@ -117,6 +166,20 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     conn.busy_timeout(std::time::Duration::from_millis(5000))?;
 
     init_database_schema(&conn).await?;
+
+    let mut total_flushed: u64 = 0;
+    if args.flush_deleted {
+        for j_path in &journal_paths {
+            let explicit_name = if journal_paths.len() == 1 {
+                args.source_name.as_deref()
+            } else {
+                None
+            };
+            let flushed =
+                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress).await?;
+            total_flushed = total_flushed.saturating_add(flushed);
+        }
+    }
 
     // 4. Ingest each journal into the database
     let mut total_indexed_files: u64 = 0;
@@ -149,6 +212,9 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     writeln!(summary, "Database:         {}", db_path.display())?;
     writeln!(summary, "Sources indexed:  {sources_indexed}")?;
     writeln!(summary, "Entries inserted: {total_indexed_files}")?;
+    if args.flush_deleted {
+        writeln!(summary, "Entries flushed:  {total_flushed}")?;
+    }
     writeln!(summary, "Status:           Indexing completed successfully.")?;
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
@@ -166,6 +232,8 @@ fn index_directory_to_journal(
     let (mut journal, snapshot) = if args.resume || args.resume_journal.is_some() {
         let journal_path = if let Some(ref rj) = args.resume_journal {
             resolve_journal_path(rj)?
+        } else if let Some(ref jp) = args.journal_path {
+            resolve_journal_path(jp)?
         } else {
             resolve_journal_path(&target_dir)?
         };
@@ -175,20 +243,38 @@ fn index_directory_to_journal(
         let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
         (jw, Some(snap))
     } else {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .context("Clock before epoch")?;
-        let secs = now.as_secs();
-        let pid = std::process::id();
-        // Reason for fallback: When directory has no component name, default to "dir".
-        let dir_stem = target_dir
-            .file_name()
-            .map_or("dir", |s| s.to_str().unwrap_or("dir"));
+        let (journal_path, desc_path) = if let Some(ref custom_jp) = args.journal_path {
+            let jp = if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+                custom_jp.with_extension("cscjournal")
+            } else if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+                custom_jp.clone()
+            } else {
+                custom_jp.with_extension("cscjournal")
+            };
+            let dp = jp.with_extension("cscdesc");
+            anyhow::ensure!(
+                !jp.exists() && !dp.exists(),
+                "Journal file already exists at {}: will not overwrite existing file (pass --resume to resume an interrupted session)",
+                jp.display()
+            );
+            (jp, dp)
+        } else {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .context("Clock before epoch")?;
+            let secs = now.as_secs();
+            let pid = std::process::id();
+            // Reason for fallback: When directory has no component name, default to "dir".
+            let dir_stem = target_dir
+                .file_name()
+                .map_or("dir", |s| s.to_str().unwrap_or("dir"));
 
-        // Reason for fallback: When target directory has no parent, default to current working directory ".".
-        let parent = target_dir.parent().unwrap_or(Path::new("."));
-        let journal_path = parent.join(format!("{dir_stem}_{secs}_{pid}.cscjournal"));
-        let desc_path = parent.join(format!("{dir_stem}_{secs}_{pid}.cscdesc"));
+            // Reason for fallback: When target directory has no parent, default to current working directory ".".
+            let parent = target_dir.parent().unwrap_or(Path::new("."));
+            let jp = parent.join(format!("{dir_stem}_{secs}_{pid}.cscjournal"));
+            let dp = parent.join(format!("{dir_stem}_{secs}_{pid}.cscdesc"));
+            (jp, dp)
+        };
 
         progress.message(&format!("Creating state journal: {}", journal_path.display()));
         let jw = JournalWriter::create_at_path(
@@ -349,7 +435,7 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     .await?;
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_filename ON entries(filename)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_path ON entries(path)", ()).await?;
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_path ON entries(path)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_parent ON entries(parent_dir)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_source ON entries(source_id)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_mtime ON entries(mtime_sec)", ()).await?;
@@ -420,7 +506,21 @@ async fn ingest_journal_snapshot(
         source_id, path, filename, parent_dir, kind, size,
         mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
         symlink_target, sha256
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(path) DO UPDATE SET
+        source_id = excluded.source_id,
+        filename = excluded.filename,
+        parent_dir = excluded.parent_dir,
+        kind = excluded.kind,
+        size = excluded.size,
+        mtime_sec = excluded.mtime_sec,
+        mtime_nsec = excluded.mtime_nsec,
+        ctime_sec = excluded.ctime_sec,
+        ctime_nsec = excluded.ctime_nsec,
+        mode = excluded.mode,
+        nlink = excluded.nlink,
+        symlink_target = excluded.symlink_target,
+        sha256 = excluded.sha256";
 
     for (chunk_idx, chunk) in chunks.enumerate() {
         conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
@@ -508,4 +608,91 @@ async fn ingest_journal_snapshot(
     }
 
     Ok(inserted_count)
+}
+
+/// Iterates through the SQLite index associated with the given journal, checks
+/// whether each file remains on disk, and deletes nonexistent files from the
+/// index.
+///
+/// Note: The `.cscjournal` file itself is completely untouched.
+pub async fn flush_deleted_files_from_index(
+    conn: &Connection,
+    journal_path: &Path,
+    explicit_name: Option<&str>,
+    progress: &Progress,
+) -> Result<u64> {
+    let snapshot = read_journal_snapshot(journal_path)?;
+    let root_dir = snapshot
+        .sources
+        .first()
+        .unwrap_or(&snapshot.destination);
+
+    anyhow::ensure!(
+        root_dir.exists(),
+        "Root directory {} recorded in journal {} does not exist",
+        root_dir.display(),
+        journal_path.display()
+    );
+
+    let src_path_str = journal_path.to_string_lossy().to_string();
+    let src_name = derive_source_name(journal_path, explicit_name);
+    let mut stmt = conn
+        .prepare("SELECT id FROM sources WHERE journal_path = ? OR name = ?")
+        .await?;
+    let mut rows = stmt
+        .query(vec![Value::Text(src_path_str), Value::Text(src_name)])
+        .await?;
+
+    let source_id = if let Some(row) = rows.next().await? {
+        if let Ok(Value::Integer(id)) = row.get_value(0) {
+            id
+        } else {
+            return Ok(0);
+        }
+    } else {
+        return Ok(0);
+    };
+
+    let mut entries_stmt = conn
+        .prepare("SELECT id, path FROM entries WHERE source_id = ?")
+        .await?;
+    let mut entries_rows = entries_stmt.query(vec![Value::Integer(source_id)]).await?;
+
+    let mut ids_to_delete: Vec<i64> = Vec::new();
+
+    while let Some(row) = entries_rows.next().await? {
+        let Ok(Value::Integer(entry_id)) = row.get_value(0) else {
+            continue;
+        };
+        let Ok(Value::Text(rel_path_str)) = row.get_value(1) else {
+            continue;
+        };
+
+        let full_path = root_dir.join(&rel_path_str);
+        if std::fs::symlink_metadata(&full_path).is_err() {
+            ids_to_delete.push(entry_id);
+        }
+    }
+
+    if ids_to_delete.is_empty() {
+        progress.message("No deleted files found in index.");
+        return Ok(0);
+    }
+
+    let count = u64::try_from(ids_to_delete.len())?;
+    progress.message(&format!("Flushing {count} deleted file(s) from index..."));
+
+    for chunk in ids_to_delete.chunks(500) {
+        conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
+        for id in chunk {
+            conn.execute(
+                "DELETE FROM entries WHERE id = ?",
+                vec![Value::Integer(*id)],
+            )
+            .await?;
+        }
+        conn.execute("COMMIT", ()).await?;
+    }
+
+    Ok(count)
 }

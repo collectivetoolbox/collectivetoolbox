@@ -308,6 +308,8 @@ Arguments:
 Options:
       --resume <STATE_FILE>
           Path to a state file (.cscjournal or .cscdesc) from which to resume an interrupted run. When specified, source and destination paths should not be passed
+      --journal-path <JOURNAL_PATH>
+          Explicit path for the state journal file (.cscjournal)
       --state-dir <DIR>
           Directory in which to store state files (default: user's home folder)
   -v, --verbose
@@ -629,6 +631,9 @@ Arguments:
 
 Options:
   -d, --db <DATABASE>              Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed)
+      --journal-path <JOURNAL_PATH>
+                                   Explicit path for the state journal file (.cscjournal)
+      --flush-deleted              Flush deleted files that no longer exist on disk from the database index
   -s, --source-name <SOURCE_NAME>  Override the source name tag stored in the database (default: journal basename without extension)
       --resume                     Resume an interrupted directory indexing session from an existing journal
       --resume-journal <JOURNAL>   Explicit path to a journal file when resuming

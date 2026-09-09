@@ -380,10 +380,10 @@ mod tests {
         assert!(docs.contains("ctoolbox warcat"));
         assert!(docs.contains("ctoolbox warcat export"));
 
-        // If running in repository workspace, ensure docs/cli/commands.md is written / up to date
+        // If running in repository workspace, ensure docs/cli/commands.generated.md is written / up to date
         if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
             let path = std::path::Path::new(&manifest_dir)
-                .join("../../docs/cli/commands.md");
+                .join("../../docs/cli/commands.generated.md");
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }

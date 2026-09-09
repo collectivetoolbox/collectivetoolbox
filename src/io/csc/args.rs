@@ -57,6 +57,10 @@ pub struct CscArgs {
     #[arg(long, value_name = "STATE_FILE")]
     pub resume: Option<PathBuf>,
 
+    /// Explicit path for the state journal file (.cscjournal).
+    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    pub journal_path: Option<PathBuf>,
+
     /// Directory in which to store state files (default: user's home folder).
     #[arg(long, value_name = "DIR")]
     pub state_dir: Option<PathBuf>,
@@ -320,12 +324,20 @@ impl CscVerifyArgs {
 )]
 pub struct FsindexArgs {
     /// Target directory or .cscjournal file(s) to index.
-    #[arg(value_name = "PATH", required = true, num_args = 1..)]
+    #[arg(value_name = "PATH", num_args = 0..)]
     pub targets: Vec<PathBuf>,
 
     /// Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed).
     #[arg(short = 'd', long = "db", value_name = "DATABASE")]
     pub database: Option<PathBuf>,
+
+    /// Explicit path for the state journal file (.cscjournal).
+    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    pub journal_path: Option<PathBuf>,
+
+    /// Flush deleted files that no longer exist on disk from the database index.
+    #[arg(long = "flush-deleted")]
+    pub flush_deleted: bool,
 
     /// Override the source name tag stored in the database (default: journal basename without extension).
     #[arg(short = 's', long = "source-name")]

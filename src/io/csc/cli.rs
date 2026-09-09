@@ -93,7 +93,24 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         let (resolved, dest_path) = resolve_tasks(&args.paths)?;
         let sources: Vec<PathBuf> = resolved.iter().map(|t| t.source_root.clone()).collect();
 
-        let jw = JournalWriter::create_new(&home_dir, &sources, &dest_path)?;
+        let jw = if let Some(ref custom_jp) = args.journal_path {
+            let journal_path = if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+                custom_jp.with_extension("cscjournal")
+            } else if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+                custom_jp.clone()
+            } else {
+                custom_jp.with_extension("cscjournal")
+            };
+            let desc_path = journal_path.with_extension("cscdesc");
+            anyhow::ensure!(
+                !journal_path.exists() && !desc_path.exists(),
+                "Journal file already exists at {}: will not overwrite existing file (pass --resume to resume an interrupted run)",
+                journal_path.display()
+            );
+            JournalWriter::create_at_path(&journal_path, &desc_path, &sources, &dest_path)?
+        } else {
+            JournalWriter::create_new(&home_dir, &sources, &dest_path)?
+        };
         progress.message(&format!("State journal: {}", jw.journal_path().display()));
         (resolved, jw, None)
     };
