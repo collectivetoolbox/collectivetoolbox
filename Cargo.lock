@@ -3281,6 +3281,7 @@ name = "ctb-io"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "ctb-formats-checksum",
  "ctb-io-webui",
  "ctb-utilities",

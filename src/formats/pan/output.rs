@@ -260,7 +260,7 @@ pub fn pan_to_macro(
 /// alongside the PAN file (or in the current directory if input is from stdin).
 /// Errors if the target folder already exists.
 ///
-/// Procedure names are sanitized with `ctb_io::file::clean_file_names` to
+/// Procedure names are sanitized with `ctb_io::file::clean_file_name` to
 /// ensure valid filenames and avoid overly long paths. Name collisions are
 /// disambiguated with numeric suffixes; if a unique filename cannot be found,
 /// returns an error.
@@ -323,7 +323,7 @@ pub fn export_pan_procedures(
             String::new()
         };
 
-        let clean_stem = ctb_io::file::clean_file_names(
+        let clean_stem = ctb_io::file::clean_file_name(
             &macro_info.name,
             Some(&target_dir),
         );

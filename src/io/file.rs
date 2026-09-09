@@ -40,7 +40,10 @@ pub mod sys_flags;
 pub mod verifier;
 
 pub use block_device_size::query_block_device_size;
-pub use clean_name::{MAX_FILENAME_BYTES, clean_file_name, clean_file_names};
+pub use clean_name::{
+    MAX_FILENAME_BYTES, clean_file_name, clean_file_name_unix,
+    clean_file_name_windows,
+};
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
