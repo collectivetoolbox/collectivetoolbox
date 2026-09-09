@@ -37,11 +37,7 @@ pub mod syntax;
 pub mod updater;
 pub mod validation;
 
-pub use dc::{
-    SHORT_DC_REGION_END, SHORT_DC_REGION_START, split_dc_aliases_column,
-    validate_all_dc_files, validate_all_dc_files_from_disk,
-    validate_dc_category_file, validate_dc_files_data,
-};
+pub use dc::{SHORT_DC_REGION_END, SHORT_DC_REGION_START};
 pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{
     FORMAT_REGION_END, FORMAT_REGION_START,
@@ -72,13 +68,20 @@ pub use updater::{
     generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
     write_csv_file,
 };
+pub use validation::{
+    split_dc_aliases_column, validate_all_data_tables,
+    validate_all_data_tables_embedded, validate_all_data_tables_from_repo,
+    validate_all_dc_files, validate_all_dc_files_from_disk,
+    validate_dc_category_file, validate_dc_files_data,
+};
 
 use include_dir::{Dir, include_dir};
-use std::collections::HashSet;
-use std::path::Path;
+
+pub static DC_CATEGORIES_DIR: Dir =
+    include_dir!("$CARGO_MANIFEST_DIR/data/categories");
 
 pub static DCTEXT_CATEGORIES_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/../dctext/data/categories");
+    include_dir!("$CARGO_MANIFEST_DIR/data/categories");
 
 pub static FORMATS_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../utilities/data/formats");
@@ -86,19 +89,4 @@ pub static FORMATS_CATEGORIES_DIR: Dir =
 pub static STORAGE_MINIMAL_DATA_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../../storage/minimal/data");
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-}
 

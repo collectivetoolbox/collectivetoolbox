@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Schema validator and facet splitter for Document Character category tables (`src/formats/dctext/data/categories/*.csv`).
+//! Constants and definitions for Document Character (Dc) data.
 
 #[expect(
     unused_imports,
@@ -26,17 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::report::ValidationReport;
-use crate::dc_def::DcDefn;
-use crate::shared::{
-    BidiClass, GeneralCategory, split_comma_separated_items,
-    validate_bidi_class, validate_combining_class, validate_general_category,
-};
-use crate::syntax::{
-    CharTarget, parse_dc_syntax, parse_target_token, validate_dc_syntax,
-};
-use include_dir::Dir;
-use std::collections::{HashMap, HashSet};
-
 pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const SHORT_DC_REGION_END: u128 = 2_228_223;
+
+pub use crate::validation::{
+    split_dc_aliases_column, validate_all_dc_files,
+    validate_all_dc_files_from_disk, validate_dc_category_file,
+    validate_dc_files_data,
+};
