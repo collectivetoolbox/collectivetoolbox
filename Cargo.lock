@@ -3032,6 +3032,7 @@ dependencies = [
  "csv",
  "ctb-formats-applescript",
  "ctb-formats-encoding",
+ "ctb-io",
  "ctb-utilities",
  "dateparser",
  "fancy-regex",
@@ -3044,6 +3045,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

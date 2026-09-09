@@ -32,8 +32,9 @@ SOFTWARE.
 )]
 use crate::utilities::*;
 
+use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::parser;
 
@@ -251,6 +252,139 @@ pub fn pan_to_macro(
     macro_name: &str,
 ) -> anyhow::Result<String> {
     pan_to_macro_with_encoding(pan_file, macro_name, PanCsvEncoding::Windows)
+}
+
+/// Export all procedures from a PAN file into individual files within a folder.
+///
+/// If `output_dir` is not specified, creates a folder named `<stem>_procedures`
+/// alongside the PAN file (or in the current directory if input is from stdin).
+/// Errors if the target folder already exists.
+///
+/// Procedure names are sanitized with `ctb_io::file::clean_file_names` to
+/// ensure valid filenames and avoid overly long paths. Name collisions are
+/// disambiguated with numeric suffixes; if a unique filename cannot be found,
+/// returns an error.
+pub fn export_pan_procedures(
+    pan_file: &Path,
+    pan_data: &[u8],
+    output_dir: Option<&Path>,
+    extension: Option<&str>,
+    encoding: PanCsvEncoding,
+) -> anyhow::Result<String> {
+    let pan = parser::parse_pan(pan_data)?;
+
+    let target_dir = match output_dir {
+        Some(dir) => dir.to_path_buf(),
+        None => {
+            if pan_file.as_os_str() == "-" {
+                PathBuf::from("pan_procedures")
+            } else {
+                // Reason for fallback: when input file path has no valid stem or non-UTF8 name, defaults to "pan" folder prefix
+                let stem = pan_file
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("pan");
+                let folder_name = format!("{stem}_procedures");
+                match pan_file.parent().filter(|p| !p.as_os_str().is_empty()) {
+                    Some(parent) => parent.join(folder_name),
+                    None => PathBuf::from(folder_name),
+                }
+            }
+        }
+    };
+
+    if target_dir.exists() {
+        bail!(
+            "Target directory already exists: {}",
+            target_dir.display()
+        );
+    }
+
+    fs::create_dir_all(&target_dir).with_context(|| {
+        format!(
+            "Failed to create procedure export directory: {}",
+            target_dir.display()
+        )
+    })?;
+
+    let mut exported_count: usize = 0;
+    let mut seen_names: HashSet<String> = HashSet::new();
+
+    let ext_str = extension
+        .map(|e| e.trim_start_matches('.'))
+        .filter(|e| !e.is_empty());
+
+    for macro_info in &pan.macros {
+        let code = if let Some(raw) = macro_info.raw_code_bytes() {
+            format_procedure_code(raw, encoding)?
+        } else if let Some(ref c) = macro_info.code {
+            c.clone()
+        } else {
+            String::new()
+        };
+
+        let clean_stem = ctb_io::file::clean_file_names(
+            &macro_info.name,
+            Some(&target_dir),
+        );
+        let base_name = clean_stem.to_string_lossy();
+        let base_name = if base_name.is_empty() {
+            "unnamed"
+        } else {
+            &base_name
+        };
+
+        let initial_candidate = match ext_str {
+            Some(ext) => format!("{base_name}.{ext}"),
+            None => base_name.to_string(),
+        };
+
+        let mut final_filename = None;
+        if !seen_names.contains(&initial_candidate)
+            && !target_dir.join(&initial_candidate).exists()
+        {
+            final_filename = Some(initial_candidate);
+        } else {
+            let mut suffix: usize = 2;
+            while suffix <= 1000 {
+                let candidate = match ext_str {
+                    Some(ext) => format!("{base_name}_{suffix}.{ext}"),
+                    None => format!("{base_name}_{suffix}"),
+                };
+                if candidate.len() <= ctb_io::file::MAX_FILENAME_BYTES
+                    && !seen_names.contains(&candidate)
+                    && !target_dir.join(&candidate).exists()
+                {
+                    final_filename = Some(candidate);
+                    break;
+                }
+                suffix = suffix.saturating_add(1);
+            }
+        }
+
+        let Some(filename) = final_filename else {
+            bail!(
+                "Cannot find a usable unique filename for procedure '{}' in {}",
+                macro_info.name,
+                target_dir.display()
+            );
+        };
+
+        seen_names.insert(filename.clone());
+        let file_path = target_dir.join(&filename);
+        fs::write(&file_path, code.as_bytes()).with_context(|| {
+            format!(
+                "Failed to write procedure file: {}",
+                file_path.display()
+            )
+        })?;
+        exported_count = exported_count.saturating_add(1);
+    }
+
+    Ok(format!(
+        "Exported {exported_count} procedure(s) to {}\n",
+        target_dir.display()
+    ))
 }
 
 /// Read a PAN file from disk and return macro procedure code bytes for stdout.
@@ -1130,6 +1264,168 @@ mod tests {
         };
         let csv_output = pan_to_csv_with_options(&sample_bytes, &options)?;
         ensure!(!csv_output.is_empty());
+        Ok(())
+    }
+
+    fn build_sample_pan_with_macros(
+        macros: &[(&str, &[u8])],
+    ) -> anyhow::Result<Vec<u8>> {
+        let mut pan_bytes = Vec::new();
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+        // Prelude entry
+        pan_bytes.push(0x00);
+        pan_bytes.push(4);
+        pan_bytes.extend_from_slice(b"TEST");
+        pan_bytes.push(0);
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+
+        // Build MACROS section payload
+        let mut payload = Vec::new();
+        for &(name, code) in macros {
+            let name_bytes = name.as_bytes();
+            let name_len = u8::try_from(name_bytes.len())
+                .context("Macro name too long")?;
+            let code_len = u16::try_from(code.len())
+                .context("Macro code too long")?;
+            let macro_rec_size = usize::from(name_len)
+                .saturating_add(usize::from(code_len))
+                .saturating_add(8);
+            let rec_size_u32 = u32::try_from(macro_rec_size)
+                .context("Record size overflow")?;
+            payload.extend_from_slice(&rec_size_u32.to_le_bytes());
+            payload.push(0x84);
+            payload.push(name_len);
+            payload.extend_from_slice(name_bytes);
+            payload.extend_from_slice(&code_len.to_le_bytes());
+            payload.extend_from_slice(code);
+        }
+
+        let section_size = payload.len().saturating_add(12);
+        let sec_size_u32 = u32::try_from(section_size)
+            .context("Section size overflow")?;
+        pan_bytes.extend_from_slice(&sec_size_u32.to_le_bytes());
+        pan_bytes.push(0x83);
+        pan_bytes.push(6);
+        pan_bytes.extend_from_slice(b"MACROS");
+        pan_bytes.extend_from_slice(&payload);
+
+        Ok(pan_bytes)
+    }
+
+    #[crate::ctb_test]
+    fn test_export_pan_procedures_creates_files_and_sanitizes_names()
+    -> anyhow::Result<()> {
+        let pan_bytes = build_sample_pan_with_macros(&[
+            (".Initialize", b"global x\rx=1"),
+            ("Reports/2026\0", b"message \"Done\""),
+        ])?;
+
+        let temp = tempfile::tempdir()?;
+        let out_dir = temp.path().join("procedures");
+
+        let summary = export_pan_procedures(
+            Path::new("dummy.pan"),
+            &pan_bytes,
+            Some(&out_dir),
+            None,
+            PanCsvEncoding::Utf8,
+        )?;
+
+        ensure!(summary.contains("Exported 2 procedure(s)"));
+        ensure!(out_dir.join(".Initialize").exists());
+        ensure!(out_dir.join("Reports⌿2026").exists());
+
+        let code1 = fs::read_to_string(out_dir.join(".Initialize"))?;
+        ensure!(code1 == "global x\nx=1\n");
+
+        let code2 = fs::read_to_string(out_dir.join("Reports⌿2026"))?;
+        ensure!(code2 == "message \"Done\"\n");
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_export_pan_procedures_with_extension() -> anyhow::Result<()> {
+        let pan_bytes = build_sample_pan_with_macros(&[
+            (".Initialize", b"global x"),
+            ("Reports/Q1", b"message \"Q1\""),
+        ])?;
+
+        let temp = tempfile::tempdir()?;
+        let out_dir = temp.path().join("procedures_ext");
+
+        export_pan_procedures(
+            Path::new("dummy.pan"),
+            &pan_bytes,
+            Some(&out_dir),
+            Some("estes"),
+            PanCsvEncoding::Utf8,
+        )?;
+
+        ensure!(out_dir.join(".Initialize.estes").exists());
+        ensure!(out_dir.join("Reports⌿Q1.estes").exists());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_export_pan_procedures_errors_when_target_dir_exists()
+    -> anyhow::Result<()> {
+        let pan_bytes = build_sample_pan_with_macros(&[
+            (".Initialize", b"global x"),
+        ])?;
+
+        let temp = tempfile::tempdir()?;
+        let out_dir = temp.path().join("already_exists");
+        fs::create_dir(&out_dir)?;
+
+        let result = export_pan_procedures(
+            Path::new("dummy.pan"),
+            &pan_bytes,
+            Some(&out_dir),
+            None,
+            PanCsvEncoding::Utf8,
+        );
+
+        ensure!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        ensure!(err.contains("Target directory already exists"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_export_pan_procedures_disambiguates_duplicate_names()
+    -> anyhow::Result<()> {
+        let pan_bytes = build_sample_pan_with_macros(&[
+            ("Calculate", b"x=1"),
+            ("Calculate", b"x=2"),
+            ("Calculate", b"x=3"),
+        ])?;
+
+        let temp = tempfile::tempdir()?;
+        let out_dir = temp.path().join("dup_procedures");
+
+        export_pan_procedures(
+            Path::new("dummy.pan"),
+            &pan_bytes,
+            Some(&out_dir),
+            None,
+            PanCsvEncoding::Utf8,
+        )?;
+
+        ensure!(out_dir.join("Calculate").exists());
+        ensure!(out_dir.join("Calculate_2").exists());
+        ensure!(out_dir.join("Calculate_3").exists());
+
+        let code1 = fs::read_to_string(out_dir.join("Calculate"))?;
+        let code2 = fs::read_to_string(out_dir.join("Calculate_2"))?;
+        let code3 = fs::read_to_string(out_dir.join("Calculate_3"))?;
+
+        ensure!(code1 == "x=1\n");
+        ensure!(code2 == "x=2\n");
+        ensure!(code3 == "x=3\n");
+
         Ok(())
     }
 }

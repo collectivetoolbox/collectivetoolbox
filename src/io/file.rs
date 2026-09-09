@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 pub mod block_device_size;
+pub mod clean_name;
 pub mod entity;
 pub mod identity;
 pub mod materializer;
@@ -39,6 +40,7 @@ pub mod sys_flags;
 pub mod verifier;
 
 pub use block_device_size::query_block_device_size;
+pub use clean_name::{MAX_FILENAME_BYTES, clean_file_name, clean_file_names};
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{

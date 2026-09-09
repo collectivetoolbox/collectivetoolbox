@@ -70,6 +70,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "ia"
             | "pan2csv"
             | "pan2macro"
+            | "pan2procedures"
             | "panmacro2ast"
             | "stagel-bootstrap-parse"
             | "stagel-bootstrap-convert"
@@ -411,6 +412,21 @@ pub enum Command {
         pan_file: PathBuf,
         /// Name of the macro/procedure to extract
         macro_name: String,
+    },
+    /// Export procedures from a .pan file into a directory of individual procedure files
+    #[command(name = "pan2procedures")]
+    Pan2Procedures {
+        /// Optional output directory (defaults to <pan_stem>_procedures)
+        #[arg(long, short = 'o')]
+        output_dir: Option<PathBuf>,
+        /// Optional procedure file extension (e.g. "estes", defaults to no extension)
+        #[arg(long, short = 'e')]
+        extension: Option<String>,
+        /// Output character encoding (utf8, mac, windows)
+        #[arg(long, default_value = "utf8")]
+        encoding: String,
+        /// Input PAN file path
+        pan_file: PathBuf,
     },
     /// Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if `macro_name` is provided) and write to stdout
     #[command(name = "panmacro2ast")]
@@ -1021,6 +1037,18 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             .into_bytes();
             Ok(ToolResult::immediate_ok(output))
         }
+        Command::Pan2Procedures {
+            output_dir,
+            extension,
+            encoding,
+            pan_file,
+        } => ctb_formats_pan::cli::pan2procedures(
+            pan_file.as_path(),
+            output_dir.as_deref(),
+            extension.as_deref(),
+            &encoding,
+            read_file_or_stdin,
+        ),
         Command::PanMacro2Ast {
             input_encoding,
             output_encoding,
@@ -1382,6 +1410,7 @@ mod tests {
             "hex2dec",
             "dec2hex",
             "hexfmt",
+            "pan2procedures",
             "x86-instruction-sets",
             "json-escape",
             "jq",

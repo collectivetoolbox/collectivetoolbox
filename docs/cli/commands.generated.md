@@ -26,7 +26,7 @@ Commands:
   short-fmt                  Convert short Format ID to Global Graph ID or show Format metadata
   gid                        Convert Global Graph ID to short representation or show full metadata
   range_gen                  Generate a range of numbers in various bases
-  character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
+  character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
   ia                         Internet Archive utilities
@@ -35,10 +35,11 @@ Commands:
   stagel-bootstrap-convert   Translate a StageL file using the bootstrap compiler
   pan2parsejson              Convert a .pan file to JSON of parse (writes to stdout)
   pan2macro                  Extract a macro/procedure from a .pan file (writes to stdout)
+  pan2procedures             Export procedures from a .pan file into a directory of individual procedure files
   panmacro2ast               Parse a macro/procedure into AST JSON from a macro code file (or whole .pan database if `macro_name` is provided) and write to stdout
-  pdf2txt                    Convert a PDF file to text output
-  pdf2json                   Convert a PDF file to JSON output
-  pdf2md                     Convert a PDF file to Markdown output
+  pdf2txt                    Convert a PDF file to text output. Not yet implemented
+  pdf2json                   Convert a PDF file to JSON output. Not yet implemented
+  pdf2md                     Convert a PDF file to Markdown output. Not yet implemented
   warcat                     WARC archiving tool
   ctb-asset-bundle-extract   Extract a ctoolbox asset bundle to a directory tree
   js-lint                    Lint JavaScript and TypeScript sources
@@ -47,7 +48,7 @@ Commands:
   validate-docker-image      Validate a docker save image tarball
   csc                        Checksummed copy with rsync-compatible resolution and post-flush verification
   csc-verify                 Verify a directory against a manifest recorded by csc
-  fsindex                    Index directories into resumable state journals and compile into Turso SQLite databases
+  fsindex                    Index a directory or csc manifest for quick searching
   fsearch                    Fast indexed search against a .cscindex.sqlite database
   csum                       Calculate checksum for a file or stdin
   compress                   Compress a file or stdin using single-stream compression format
@@ -215,7 +216,7 @@ Examples:
 ### `ctoolbox character_description`
 
 ```text
-Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings
+Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future
 
 Usage: ctoolbox character_description [OPTIONS] [INPUT]
 
@@ -326,10 +327,16 @@ Options:
           When target file exists, checksum source and destination and skip copying if identical. Default is to overwrite atomically
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
-      --copy-block-devices
-          Permit copying block device nodes
-      --backup-count <BACKUP_COUNT>
-          Number of entries to roll back on resume to guarantee consistency [default: 500]
+      --copy-specials-as-specials
+          Recreate special files (FIFOs, device nodes) faithfully as special nodes. Default is to skip special files
+      --copy-block-devices-as-regular-files
+          Copy block devices by reading their data and creating regular files
+  -x, --one-file-system
+          Stay on the current filesystem and do not cross mount boundaries
+      --best-effort-metadata
+          Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
+      --check-atime
+          Explicitly check access time (atime) differences in post-copy verification
   -n, --dry-run
           Perform a dry run without copying or modifying destination files
   -h, --help
@@ -349,8 +356,9 @@ Arguments:
 
 Options:
       --no-drop-caches    Skip dropping OS kernel caches and per-file cache eviction before reading
-      --ignore-atime      Ignore access time (atime) differences
-      --ignore-mtime      Ignore modification time (mtime) differences
+      --ignore-atime      Ignore access time (atime) differences during verification (defaults to true)
+      --check-atime       Explicitly check access time (atime) differences during verification
+      --ignore-mtime      Ignore modification time (mtime) differences during verification
       --ignore-ctime      Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
       --check-ctime       Explicitly enforce status/metadata change time (ctime) verification
       --ignore-owner      Ignore ownership (UID and GID) differences
@@ -361,6 +369,8 @@ Options:
       --ignore <IGNORE>   Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
       --format <FORMAT>   Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
   -q, --quiet             Only report discrepancies or errors, suppressing informational progress
+      --best-effort       Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
+      --allow-incomplete  Allow verifying against a manifest that failed, was aborted, or has not completed verification
   -h, --help              Print help (see more with '--help')
 ```
 
@@ -593,17 +603,27 @@ Supported compression formats:
 ```text
 Fast indexed search against a .cscindex.sqlite database
 
-Usage: ctoolbox fsearch [OPTIONS] <DATABASE> [PATTERN]
+Usage: ctoolbox fsearch [OPTIONS] <DATABASE> [QUERY]...
 
 Arguments:
   <DATABASE>  Path to the *.cscindex.sqlite database file
-  [PATTERN]   Search pattern or glob (matched against filename unless --path or --regex is specified)
+  [QUERY]...  Search pattern or terms (matched as glob if 1 argument with '*', or keyword search if multiple arguments or without '*')
 
 Options:
-  -n, --name <NAME_GLOB>             Glob pattern to match against filename (e.g. "*.rs", "*test*")
-  -p, --path <PATH_GLOB>             Glob pattern to match against relative path (e.g. "src/**/tests.rs")
-  -k, --keyword <KEYWORD>            Substring keyword to match in path or filename
-  -r, --regex <REGEX>                Regular expression pattern to match against path
+      --regex-path <REGEX_PATH>      Regular expression pattern to match against path and filename
+      --regex-text <REGEX_TEXT>      Regular expression pattern to match against path, filename, and full text content
+      --regex-name <REGEX_NAME>      Regular expression pattern to match against filename only
+      --glob-path <GLOB_PATH>        Glob pattern to match against relative path and filename
+      --glob-text <GLOB_TEXT>        Glob pattern to match against relative path, filename, and full text content
+      --glob-name <GLOB_NAME>        Glob pattern to match against filename only
+      --keyword-path <KEYWORD_PATH>  Keyword match across relative path and filename
+      --keyword-text <KEYWORD_TEXT>  Keyword match across relative path, filename, and full text content
+      --keyword-name <KEYWORD_NAME>  Keyword match on filename only
+  -C, --context <CONTEXT>            Print n lines around first match of full text
+  -n, --name <NAME_GLOB>             Glob pattern to match against filename (e.g. "*.rs", "*test*"). Legacy alias for --glob-name
+  -p, --path <PATH_GLOB>             Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Legacy alias for --glob-path
+  -k, --keyword <KEYWORD>...         One or more keyword terms to match in path or filename. Legacy alias for --keyword-path
+  -r, --regex <REGEX>                Regular expression pattern to match against path. Legacy alias for --regex-path
   -s, --source <SOURCE>              Filter by source name tag
       --mtime-after <MTIME_AFTER>    Filter entries modified on or after this Unix timestamp or relative duration (e.g. "1725600000", "7d", "24h")
       --mtime-before <MTIME_BEFORE>  Filter entries modified on or before this Unix timestamp or relative duration
@@ -622,26 +642,28 @@ Options:
 ### `ctoolbox fsindex`
 
 ```text
-Index directories into resumable state journals and compile into Turso SQLite databases
+Index a directory or csc manifest for quick searching
 
-Usage: ctoolbox fsindex [OPTIONS] <PATH>...
+Usage: ctoolbox fsindex [OPTIONS] [PATH]...
 
 Arguments:
-  <PATH>...  Target directory or .cscjournal file(s) to index
+  [PATH]...  Target directory or .cscjournal file(s) to index
 
 Options:
-  -d, --db <DATABASE>              Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed)
-      --journal-path <JOURNAL_PATH>
-                                   Explicit path for the state journal file (.cscjournal)
-      --flush-deleted              Flush deleted files that no longer exist on disk from the database index
-  -s, --source-name <SOURCE_NAME>  Override the source name tag stored in the database (default: journal basename without extension)
-      --resume                     Resume an interrupted directory indexing session from an existing journal
-      --resume-journal <JOURNAL>   Explicit path to a journal file when resuming
-      --checksum                   Compute cryptographic SHA-256 digests for file contents (slow on large filesystems; default is metadata-only)
-      --journal-only               Only generate the *.cscjournal file; do not compile into SQLite database
-      --batch-size <BATCH_SIZE>    Number of entries to commit per transaction batch during traversal and ingestion [default: 500]
-  -q, --quiet                      Suppress progress output
-  -h, --help                       Print help
+  -d, --db <DATABASE>                Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed)
+      --journal-path <JOURNAL_PATH>  Explicit path for the state journal file (.cscjournal)
+      --flush-deleted                Flush deleted files that no longer exist on disk from the database index
+  -s, --source-name <SOURCE_NAME>    Override the source name tag stored in the database (default: journal basename without extension)
+      --resume                       Resume an interrupted directory indexing session from an existing journal
+      --resume-journal <JOURNAL>     Explicit path to a journal file when resuming
+      --checksum                     Compute cryptographic SHA-256 digests for file contents (slow on large filesystems; default is metadata-only)
+      --journal-only                 Only generate the *.cscjournal file; do not compile into SQLite database
+      --batch-size <BATCH_SIZE>      Number of entries to commit per transaction batch during traversal and ingestion [default: 500]
+  -q, --quiet                        Suppress progress output
+  -x, --one-file-system              Stay on the current filesystem and do not cross mount boundaries
+      --fulltext                     Extract and index file contents for full-text search
+      --fulltext-max <SIZE>          Maximum file size to extract for full-text indexing (e.g. "20k", "64k", "1M"). Defaults to 20k [default: 20k]
+  -h, --help                         Print help
 ```
 
 ### `ctoolbox gdb_instructions_generate`
@@ -1241,6 +1263,23 @@ Options:
   -h, --help  Print help
 ```
 
+### `ctoolbox pan2procedures`
+
+```text
+Export procedures from a .pan file into a directory of individual procedure files
+
+Usage: ctoolbox pan2procedures [OPTIONS] <PAN_FILE>
+
+Arguments:
+  <PAN_FILE>  Input PAN file path
+
+Options:
+  -o, --output-dir <OUTPUT_DIR>  Optional output directory (defaults to <pan_stem>_procedures)
+  -e, --extension <EXTENSION>    Optional procedure file extension (e.g. "estes", defaults to no extension)
+      --encoding <ENCODING>      Output character encoding (utf8, mac, windows) [default: utf8]
+  -h, --help                     Print help
+```
+
 ### `ctoolbox panmacro2ast`
 
 ```text
@@ -1264,7 +1303,7 @@ Options:
 ### `ctoolbox pdf2json`
 
 ```text
-Convert a PDF file to JSON output
+Convert a PDF file to JSON output. Not yet implemented
 
 Usage: ctoolbox pdf2json <PDF_FILE>
 
@@ -1278,7 +1317,7 @@ Options:
 ### `ctoolbox pdf2md`
 
 ```text
-Convert a PDF file to Markdown output
+Convert a PDF file to Markdown output. Not yet implemented
 
 Usage: ctoolbox pdf2md <PDF_FILE>
 
@@ -1292,7 +1331,7 @@ Options:
 ### `ctoolbox pdf2txt`
 
 ```text
-Convert a PDF file to text output
+Convert a PDF file to text output. Not yet implemented
 
 Usage: ctoolbox pdf2txt <PDF_FILE>
 
