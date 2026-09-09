@@ -37,7 +37,10 @@ pub mod syntax;
 pub mod updater;
 pub mod validation;
 
-pub use dc::{SHORT_DC_REGION_END, SHORT_DC_REGION_START};
+pub use dc::{
+    GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+};
 pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{
     FORMAT_REGION_END, FORMAT_REGION_START,

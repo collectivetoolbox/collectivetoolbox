@@ -29,6 +29,16 @@ use crate::utilities::*;
 pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const SHORT_DC_REGION_END: u128 = 2_228_223;
 
+/// Short Dc ID for embedding long (global graph) Dc IDs (Dc 308).
+pub const SHORT_DC_LONG_DC: u32 = 308;
+/// Global Graph ID for Dc 308 (`1_114_420`).
+pub const GID_LONG_DC: u128 = 1_114_420;
+
+/// Short Dc ID for escape / ignore following Dc (Dc 255).
+pub const SHORT_DC_ESCAPE: u32 = 255;
+/// Global Graph ID for Dc 255 (`1_114_367`).
+pub const GID_ESCAPE: u128 = 1_114_367;
+
 pub use crate::validation::{
     split_dc_aliases_column, validate_all_dc_files,
     validate_all_dc_files_from_disk, validate_dc_category_file,

@@ -32,6 +32,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
+pub use ctb_formats_dc_data::dc::{
+    GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+};
 pub use ctb_formats_utilities::ConversionOutput;
 use ctb_formats_utilities::FormatLog;
 
@@ -258,32 +262,84 @@ pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
     dclist_to_dctext(&dclist)
 }
 
-/// Converts a EITE DcArray (short Dcs, `&[u32]`) to a `DcList` (`Vec<u128>`).
+/// Converts an EITE DcArray (short Dcs, `&[u32]`) to a `DcList` (`Vec<u128>`).
 ///
-/// Each short Dc ID `c` is mapped to its long global graph Dc ID (`1114112 + c`).
+/// Handles:
+/// - Escaped Dc 308 (`[255, 308]` -> long Dc `1_114_420`).
+/// - Escaped Dc 255 (`[255, 255]` -> long Dc `1_114_367`).
+/// - Standalone Dc 255 (`[255]` -> long Dc `1_114_367`).
+/// - Embedded long Dc IDs (`[308, ...DcNumber...]` -> decoded `u128` long Dc ID).
+/// - Direct short Dcs `c` -> mapped to `SHORT_DC_OFFSET + c` (`1_114_112 + c`).
 pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut log = FormatLog::default();
-    let max_known = ctb_formats_eite::dc::maximum_known_short_dc()?;
     let mut list = Vec::with_capacity(dc_array.len());
+    let mut i = 0usize;
 
-    for (idx, &dc) in dc_array.iter().enumerate() {
-        let dc_usize = if let Ok(val) = usize::try_from(dc) {
-            val
-        } else {
-            log.warn(&format!(
-                "Short Dc ID {dc} at index {idx} overflows usize"
-            ));
-            usize::MAX
+    while i < dc_array.len() {
+        let Some(&dc) = dc_array.get(i) else {
+            break;
         };
 
-        if dc_usize > max_known {
+        if dc == SHORT_DC_ESCAPE {
+            if let Some(&next_dc) = dc_array.get(i.saturating_add(1)) {
+                if next_dc == SHORT_DC_LONG_DC {
+                    list.push(GID_LONG_DC);
+                    i = i.saturating_add(2);
+                    continue;
+                }
+                if next_dc == SHORT_DC_ESCAPE {
+                    list.push(GID_ESCAPE);
+                    i = i.saturating_add(2);
+                    continue;
+                }
+            }
+            list.push(GID_ESCAPE);
+            i = i.saturating_add(1);
+            continue;
+        }
+
+        if dc == SHORT_DC_LONG_DC {
+            if let Some(rest) = dc_array.get(i.saturating_add(1)..) {
+                match read_dc_number_short(rest) {
+                    Ok((int_val, consumed)) => {
+                        if int_val >= 0 {
+                            if let Ok(abs_u128) =
+                                u128::try_from(int_val.unsigned_abs_ref())
+                            {
+                                list.push(abs_u128);
+                                i = i.saturating_add(1).saturating_add(consumed);
+                                continue;
+                            }
+                        }
+                        log.warn(&format!(
+                            "Embedded long Dc ID {int_val} at index {i} cannot be represented as u128"
+                        ));
+                    }
+                    Err(e) => {
+                        log.warn(&format!(
+                            "Unescaped Dc 308 at index {i} not followed by valid Dc number: {e}"
+                        ));
+                    }
+                }
+            } else {
+                log.warn(&format!(
+                    "Unescaped Dc 308 at end of stream (index {i}) missing Dc number"
+                ));
+            }
+            list.push(GID_LONG_DC);
+            i = i.saturating_add(1);
+            continue;
+        }
+
+        if dc > ctb_formats_eite::encoding::pack32::PACK32_MAX {
             log.warn(&format!(
-                "Short Dc ID {dc} at index {idx} exceeds maximum known short Dc ID ({max_known})"
+                "Short Dc ID {dc} at index {i} exceeds pack32 maximum range (1114111)"
             ));
         }
 
         let long_dc_id = SHORT_DC_OFFSET.saturating_add(u128::from(dc));
         list.push(long_dc_id);
+        i = i.saturating_add(1);
     }
 
     Ok(ConversionOutput::new(list, log))
@@ -300,88 +356,36 @@ pub fn dcarray_to_dctext(
 
 /// Converts a `DcList` (`&[u128]`) to an EITE DcArray (short Dcs, `Vec<u32>`).
 ///
-/// Note: DcText / DcList is a superset of short Dcs, so this is a lossy operation.
-/// Known short Dcs are converted back to their original `u32` value (`1114112 + c` -> `c`).
-/// Runs of unmappable UTF-8 characters are embedded into encapsulated UTF-8 ranges
-/// (short Dcs 191..192), while out-of-range Dc IDs are substituted with
-/// replacement Dc ID (`207`).
+/// Directly represents Document Characters in range `1_114_112..=2_228_223`
+/// ([`SHORT_DC_REGION_START`]..=[`SHORT_DC_REGION_END`], short IDs `0..=1_114_111`),
+/// with escaping for Dc 308 (`[255, 308]`) and Dc 255 (`[255, 255]`).
+/// All other long Dcs (`<= 0x10_FFFF` Unicode codepoints and `> 2_228_223` out-of-range IDs)
+/// are embedded via Dc 308 (`[308, ...u128_to_dc_number_short(dcid)...]`).
 pub fn dclist_to_dcarray(
     dclist: &[u128],
 ) -> Result<ConversionOutput<Vec<u32>>> {
-    let mut log = FormatLog::default();
-    let max_known_u128 = u128::try_from(
-        ctb_formats_eite::dc::maximum_known_short_dc()?,
-    )
-    .map_err(|e| {
-        anyhow::anyhow!("Failed to convert maximum_known_short_dc to u128: {e}")
-    })?;
-
+    let log = FormatLog::default();
     let mut result = Vec::new();
-    let mut utf8_chunk = String::new();
-    let utf8_settings =
-        ctb_formats_eite::formats::utf8::UTF8FormatSettings::default();
-
-    let flush_utf8_chunk = |chunk: &mut String,
-                            res: &mut Vec<u32>,
-                            l: &mut FormatLog|
-     -> Result<()> {
-        if !chunk.is_empty() {
-            let (dcs, chunk_log) =
-                ctb_formats_eite::formats::utf8::dca_from_utf8(
-                    chunk.as_bytes(),
-                    &utf8_settings,
-                )?;
-            res.extend(dcs);
-            l.merge(&chunk_log);
-            chunk.clear();
-        }
-        Ok(())
-    };
 
     for &dcid in dclist {
-        if dcid >= SHORT_DC_OFFSET {
-            let diff = dcid.saturating_sub(SHORT_DC_OFFSET);
-            if diff <= max_known_u128 {
-                if let Ok(short_dc) = u32::try_from(diff) {
-                    flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                    result.push(short_dc);
-                    continue;
-                }
-            }
-            flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-            log.warn(&format!(
-                "Dc ID {dcid} exceeds maximum short Dc ID range, replaced with 207"
-            ));
-            result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
-        } else if dcid <= 0x10_FFFF {
-            if let Ok(cp_u32) = u32::try_from(dcid) {
-                if let Some(ch) = char::from_u32(cp_u32) {
-                    utf8_chunk.push(ch);
-                } else {
-                    flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                    log.warn(&format!(
-                        "Invalid Unicode codepoint {dcid}, replaced with 207"
-                    ));
-                    result
-                        .push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
-                }
-            } else {
-                flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-                log.warn(&format!(
-                    "DcID {dcid} overflows u32, replaced with 207"
-                ));
-                result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
-            }
+        if dcid == GID_LONG_DC {
+            result.push(SHORT_DC_ESCAPE);
+            result.push(SHORT_DC_LONG_DC);
+        } else if dcid == GID_ESCAPE {
+            result.push(SHORT_DC_ESCAPE);
+            result.push(SHORT_DC_ESCAPE);
+        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dcid) {
+            let diff = dcid.saturating_sub(SHORT_DC_REGION_START);
+            let short_dc = u32::try_from(diff)
+                .context("Direct short Dc offset exceeds u32 range")?;
+            result.push(short_dc);
         } else {
-            flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
-            log.warn(&format!(
-                "Dc ID {dcid} outside short Dc range, replaced with 207"
-            ));
-            result.push(ctb_formats_eite::dc::DC_REPLACEMENT_UNAVAIL_DC);
+            result.push(SHORT_DC_LONG_DC);
+            let num_dcs = u128_to_dc_number_short(dcid)?;
+            result.extend(num_dcs);
         }
     }
 
-    flush_utf8_chunk(&mut utf8_chunk, &mut result, &mut log)?;
     Ok(ConversionOutput::new(result, log))
 }
 
@@ -492,25 +496,107 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_dctext_to_dcarray_lossy_warnings() {
-        // Out-of-range DcText Dc ID (e.g. 1114500)
-        let lossy_input = b"@1114500@";
+    fn test_dctext_to_dcarray_direct_short_dc() {
+        // DcText Dc ID 1114500 (offset 388, valid direct short Dc)
+        let input = b"@1114500@";
         let out =
-            dctext_to_dcarray(lossy_input).expect("conversion should succeed");
-        assert!(out.log.has_warnings());
-        assert_eq!(out.result, vec![207]);
+            dctext_to_dcarray(input).expect("conversion should succeed");
+        assert!(!out.log.has_warnings());
+        assert_eq!(out.result, vec![388]);
+
+        let back = dcarray_to_dclist(&out.result)
+            .expect("reverse conversion should succeed");
+        assert_eq!(back.result, vec![1_114_500]);
     }
 
     #[crate::ctb_test]
-    fn test_dctext_to_dcarray_encapsulated_utf8() {
-        // Unmappable UTF-8 character 🥴 (U+1F974)
-        let unmappable_input = "hi 🥴 bye".as_bytes();
-        let out = dctext_to_dcarray(unmappable_input)
-            .expect("conversion should succeed");
-        assert!(out.log.has_warnings());
-        // Should contain short Dcs for "hi ", then 191 (start encapsulation), Base64 Dcs, 192 (end encapsulation), then " bye"
-        assert!(out.result.contains(&191));
-        assert!(out.result.contains(&192));
+    fn test_dclist_to_dcarray_dc308_embedding_roundtrip() {
+        // Format ID (2228423), 32-bit+ ID (4294967296), and large global ID (100000000000)
+        let original_dclist = vec![2_228_423, 4_294_967_296, 100_000_000_000];
+        let array_out =
+            dclist_to_dcarray(&original_dclist).expect("should succeed");
+        assert!(!array_out.log.has_warnings());
+        assert!(array_out.result.contains(&SHORT_DC_LONG_DC));
+
+        let back = dcarray_to_dclist(&array_out.result)
+            .expect("reverse conversion should succeed");
+        assert!(!back.log.has_warnings());
+        assert_eq!(back.result, original_dclist);
+    }
+
+    #[crate::ctb_test]
+    fn test_dclist_to_dcarray_unicode_lossless_roundtrip() {
+        // Unicode codepoints: 'A' (65), ' ' (32), emoji 🥴 (129396), surrogate 0xD800 (55296)
+        let original_dclist = vec![65, 32, 129_396, 55_296];
+        let array_out =
+            dclist_to_dcarray(&original_dclist).expect("should succeed");
+        assert!(!array_out.log.has_warnings());
+        assert!(array_out.result.contains(&SHORT_DC_LONG_DC));
+
+        let back = dcarray_to_dclist(&array_out.result)
+            .expect("reverse conversion should succeed");
+        assert!(!back.log.has_warnings());
+        assert_eq!(back.result, original_dclist);
+    }
+
+    #[crate::ctb_test]
+    fn test_dc308_escaping_roundtrip() {
+        // Long Dc 1114420 (Dc 308) escaped with 255 -> [255, 308]
+        let original_dclist = vec![GID_LONG_DC];
+        let array_out =
+            dclist_to_dcarray(&original_dclist).expect("should succeed");
+        assert_eq!(array_out.result, vec![SHORT_DC_ESCAPE, SHORT_DC_LONG_DC]);
+
+        let back = dcarray_to_dclist(&array_out.result)
+            .expect("reverse conversion should succeed");
+        assert_eq!(back.result, original_dclist);
+    }
+
+    #[crate::ctb_test]
+    fn test_dc255_escaping_roundtrip() {
+        // Long Dc 1114367 (Dc 255) escaped with 255 -> [255, 255]
+        let original_dclist = vec![GID_ESCAPE];
+        let array_out =
+            dclist_to_dcarray(&original_dclist).expect("should succeed");
+        assert_eq!(array_out.result, vec![SHORT_DC_ESCAPE, SHORT_DC_ESCAPE]);
+
+        let back = dcarray_to_dclist(&array_out.result)
+            .expect("reverse conversion should succeed");
+        assert_eq!(back.result, original_dclist);
+    }
+
+    #[crate::ctb_test]
+    fn test_dc308_followed_by_dc_number_disambiguation() {
+        // Long Dc 1114420 followed by a Dc number in DcList
+        let original_dclist = vec![
+            GID_LONG_DC,
+            GID_BEGIN_NUMBER,
+            GID_FORMAT_199,
+            GID_BASE64_START,
+            GID_END_NUMBER,
+        ];
+        let array_out =
+            dclist_to_dcarray(&original_dclist).expect("should succeed");
+        assert_eq!(
+            array_out.result.get(0..2),
+            Some(&[SHORT_DC_ESCAPE, SHORT_DC_LONG_DC][..])
+        );
+
+        let back = dcarray_to_dclist(&array_out.result)
+            .expect("reverse conversion should succeed");
+        assert_eq!(back.result, original_dclist);
+    }
+
+    #[crate::ctb_test]
+    fn test_dcarray_to_dclist_standalone_dc308() {
+        // Standalone short Dc 308 not followed by a Dc number (graceful fallback)
+        let dc_array = vec![SHORT_DC_LONG_DC, 65];
+        let back = dcarray_to_dclist(&dc_array).expect("should succeed");
+        assert!(back.log.has_warnings());
+        assert_eq!(
+            back.result,
+            vec![GID_LONG_DC, SHORT_DC_OFFSET.saturating_add(65)]
+        );
     }
 
     #[crate::ctb_test]
@@ -525,4 +611,26 @@ mod tests {
             "hi @1114112@ @L42@ @2147483648@"
         );
     }
+
+    // #[crate::ctb_test]
+    // fn test_dctext_to_dcarray_lossy_warnings() {
+    //     // Out-of-range DcText Dc ID (e.g. 1114500)
+    //     let lossy_input = b"@1114500@";
+    //     let out =
+    //         dctext_to_dcarray(lossy_input).expect("conversion should succeed");
+    //     assert!(out.log.has_warnings());
+    //     assert_eq!(out.result, vec![207]);
+    // }
+
+    // #[crate::ctb_test]
+    // fn test_dctext_to_dcarray_encapsulated_utf8() {
+    //     // Unmappable UTF-8 character 🥴 (U+1F974)
+    //     let unmappable_input = "hi 🥴 bye".as_bytes();
+    //     let out = dctext_to_dcarray(unmappable_input)
+    //         .expect("conversion should succeed");
+    //     assert!(out.log.has_warnings());
+    //     // Should contain short Dcs for "hi ", then 191 (start encapsulation), Base64 Dcs, 192 (end encapsulation), then " bye"
+    //     assert!(out.result.contains(&191));
+    //     assert!(out.result.contains(&192));
+    // }
 }
