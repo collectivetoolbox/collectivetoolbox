@@ -26,11 +26,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::utilities::cli::is_stderr_interactive;
+use crate::utilities::cli::{is_stderr_interactive, supports_control_characters};
+use crate::utilities::string::format_percentage;
 
+use std::collections::HashMap;
 use std::io::{Write, stderr};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
+
+/// Unique identifier for an ongoing progress task.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TaskId(pub u64);
 
 /// Resolves whether progress updates should be displayed based on CLI flags
 /// `--progress` and `--no-progress`, falling back to whether standard error is interactive.
@@ -44,15 +51,44 @@ pub fn should_show_progress(progress: bool, no_progress: bool) -> bool {
     }
 }
 
+/// Resolves whether cursor control characters (ANSI escapes, carriage returns)
+/// should be used when rendering progress formatting.
+pub fn should_use_controls() -> bool {
+    supports_control_characters()
+}
+
+#[derive(Debug)]
+struct TaskInfo {
+    name: String,
+    total_items: Option<u64>,
+    items_done: u64,
+    last_render: Instant,
+    last_milestone_pct: Option<u32>,
+}
+
+#[derive(Debug)]
+struct ProgressState {
+    next_task_id: u64,
+    tasks: HashMap<TaskId, TaskInfo>,
+}
+
 /// Abstraction for displaying progress events. Currently only is hooked up for
 /// CLI, but it could be made to work with a GUI too I think, without callers
 /// needing to know whether they're calling a GUI, CLI, or neither.
 ///
-/// Encapsulates terminal checks, progress messages, step tracking, and status/percentage updates.
-#[derive(Debug, Clone, Default)]
+/// Encapsulates terminal checks, progress messages, step tracking, task progress,
+/// and status/percentage updates.
+#[derive(Debug, Clone)]
 pub struct Progress {
     enabled: bool,
+    state: Arc<Mutex<ProgressState>>,
     needs_newline: Arc<AtomicBool>,
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Self::new(false)
+    }
 }
 
 impl PartialEq for Progress {
@@ -68,6 +104,10 @@ impl Progress {
     pub fn new(enabled: bool) -> Self {
         Self {
             enabled,
+            state: Arc::new(Mutex::new(ProgressState {
+                next_task_id: 1,
+                tasks: HashMap::new(),
+            })),
             needs_newline: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -81,6 +121,159 @@ impl Progress {
     /// Returns whether progress reporting is active.
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// Starts a new ongoing task with an item/task name and an optional known total count.
+    /// Returns a [`TaskId`] used for subsequent progress updates and completion.
+    pub fn start_task(&self, name: &str, total_items: Option<u64>) -> TaskId {
+        if !self.enabled {
+            return TaskId(0);
+        }
+
+        let Ok(mut state) = self.state.lock() else {
+            return TaskId(0);
+        };
+
+        let id = TaskId(state.next_task_id);
+        state.next_task_id = state.next_task_id.saturating_add(1);
+
+        state.tasks.insert(
+            id,
+            TaskInfo {
+                name: name.to_string(),
+                total_items,
+                items_done: 0,
+                last_render: Instant::now(),
+                last_milestone_pct: None,
+            },
+        );
+
+        if should_use_controls() {
+            eprint!("\r\x1b[K[{name}] Starting...");
+            let _ = stderr().flush();
+            self.needs_newline.store(true, Ordering::SeqCst);
+        } else {
+            if let Some(total) = total_items {
+                eprintln!("[{name}] Starting... (0/{total})");
+            } else {
+                eprintln!("[{name}] Starting...");
+            }
+            let _ = stderr().flush();
+            self.needs_newline.store(false, Ordering::SeqCst);
+        }
+
+        id
+    }
+
+    /// Updates progress on an active task.
+    ///
+    /// For interactive terminals with control character support, updates are rendered
+    /// inline and throttled to at most once per second (1000ms) to avoid deselecting
+    /// terminal text during selection.
+    ///
+    /// For dumb terminals or teleprinters without control character support, updates are
+    /// written as fresh full lines at a lower rate (at most every 5 seconds, or on 10%
+    /// progress milestones).
+    pub fn update_task(&self, task_id: TaskId, items_done: u64, detail: Option<&str>) {
+        if !self.enabled {
+            return;
+        }
+
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+
+        let Some(task) = state.tasks.get_mut(&task_id) else {
+            return;
+        };
+
+        task.items_done = items_done;
+        let elapsed = task.last_render.elapsed();
+
+        let pct_opt = task.total_items.and_then(|total| {
+            format_percentage(u128::from(items_done), u128::from(total))
+        });
+        let is_100_pct = pct_opt.as_ref().map_or(false, |p| p.whole == "100");
+
+        let detail_suffix = detail.map_or(String::new(), |d| format!(" ({d})"));
+
+        if should_use_controls() {
+            // Interactive terminal: throttle to at most once per second (1000ms)
+            if elapsed.as_millis() >= 1000 || is_100_pct {
+                if let Some(ref pct) = pct_opt {
+                    let total = task.total_items.unwrap_or(0);
+                    eprint!(
+                        "\r\x1b[K[{}] {}/{}... {pct}{detail_suffix}",
+                        task.name, task.items_done, total
+                    );
+                } else {
+                    eprint!(
+                        "\r\x1b[K[{}] {} items...{detail_suffix}",
+                        task.name, task.items_done
+                    );
+                }
+                let _ = stderr().flush();
+                self.needs_newline.store(true, Ordering::SeqCst);
+                task.last_render = Instant::now();
+            }
+        } else {
+            // Teleprinter / dumb terminal: emit fresh full lines throttled to at most
+            // every 5 seconds, or on 10% milestone increments (10%, 20%, 30%, ...)
+            let milestone = pct_opt.as_ref().and_then(|pct| {
+                pct.whole.parse::<u32>().ok().map(|w| w.checked_div(10).unwrap_or(0))
+            });
+            let is_new_milestone = match (milestone, task.last_milestone_pct) {
+                (Some(m), Some(prev)) => m > prev,
+                (Some(m), None) => m > 0,
+                _ => false,
+            };
+
+            if elapsed.as_secs() >= 5 || is_new_milestone || is_100_pct {
+                if let Some(ref pct) = pct_opt {
+                    let total = task.total_items.unwrap_or(0);
+                    eprintln!(
+                        "[{}] {}/{} ({pct}){detail_suffix}",
+                        task.name, task.items_done, total
+                    );
+                } else {
+                    eprintln!(
+                        "[{}] {} items...{detail_suffix}",
+                        task.name, task.items_done
+                    );
+                }
+                let _ = stderr().flush();
+                self.needs_newline.store(false, Ordering::SeqCst);
+                task.last_render = Instant::now();
+                if let Some(m) = milestone {
+                    task.last_milestone_pct = Some(m);
+                }
+            }
+        }
+    }
+
+    /// Finishes an active task and outputs its final completion state cleanly.
+    pub fn finish_task(&self, task_id: TaskId, detail: Option<&str>) {
+        if !self.enabled {
+            return;
+        }
+
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+
+        let Some(task) = state.tasks.remove(&task_id) else {
+            return;
+        };
+
+        let detail_str = detail.map_or(String::new(), |d| format!(" ({d})"));
+
+        if should_use_controls() {
+            eprintln!("\r\x1b[K[{}] Completed{detail_str}.", task.name);
+        } else {
+            eprintln!("[{}] Completed{detail_str}.", task.name);
+        }
+        let _ = stderr().flush();
+        self.needs_newline.store(false, Ordering::SeqCst);
     }
 
     /// Emits a high-level informational message (e.g. "Downloading item 'xyz' to ./dest").
@@ -118,12 +311,25 @@ impl Progress {
         }
     }
 
-    /// Reports periodic percentage or item progress (e.g. "Downloading file... 45.2%").
-    pub fn update_progress(&self, item: &str, percent: f32) {
+    /// Legacy / convenience progress update function.
+    ///
+    /// If `percent` is `Some(p)`, displays percentage; if `None`, displays status without percentage.
+    pub fn update_progress(&self, item: &str, percent: Option<f32>) {
         if self.enabled {
-            eprint!("\r{item}... {percent:.1}%");
+            let use_controls = should_use_controls();
+            if use_controls {
+                if let Some(p) = percent {
+                    eprint!("\r\x1b[K{item}... {p:.1}%");
+                } else {
+                    eprint!("\r\x1b[K{item}...");
+                }
+            } else if let Some(p) = percent {
+                eprintln!("{item}... {p:.1}%");
+            } else {
+                eprintln!("{item}...");
+            }
             let _ = stderr().flush();
-            self.needs_newline.store(true, Ordering::SeqCst);
+            self.needs_newline.store(use_controls, Ordering::SeqCst);
         }
     }
 
@@ -172,13 +378,31 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_task_based_progress() {
+        let progress = Progress::new(true);
+        assert!(progress.is_enabled());
+
+        // Indeterminate task (no total)
+        let t1 = progress.start_task("Copying", None);
+        progress.update_task(t1, 10, Some("500 bytes"));
+        progress.finish_task(t1, Some("10 files, 500 bytes"));
+
+        // Determinate task (with total)
+        let t2 = progress.start_task("Verifying", Some(100));
+        progress.update_task(t2, 50, None);
+        progress.update_task(t2, 100, None);
+        progress.finish_task(t2, Some("100 files"));
+    }
+
+    #[crate::ctb_test]
     fn test_cli_progress_methods_no_panic() {
         let progress = Progress::new(false);
         assert!(!progress.is_enabled());
         progress.message("test");
         progress.start_step(1, 2, "step");
         progress.finish_step(Some("detail"));
-        progress.update_progress("item", 50.0);
+        progress.update_progress("item", Some(50.0));
+        progress.update_progress("item", None);
         progress.finish_progress();
 
         let enabled_progress = Progress::new(true);

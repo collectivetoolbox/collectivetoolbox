@@ -284,6 +284,30 @@ impl std::fmt::Display for DiffKind {
     }
 }
 
+/// Summary of differences that were ignored due to best-effort mode or ignore flags.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct IgnoredDifferences {
+    pub ownership: usize,
+    pub timestamps: usize,
+    pub permissions: usize,
+    pub flags: usize,
+}
+
+impl IgnoredDifferences {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.ownership == 0 && self.timestamps == 0 && self.permissions == 0 && self.flags == 0
+    }
+
+    #[must_use]
+    pub fn total(&self) -> usize {
+        self.ownership
+            .saturating_add(self.timestamps)
+            .saturating_add(self.permissions)
+            .saturating_add(self.flags)
+    }
+}
+
 /// Options controlling which attributes and checks are audited by `audit_entity`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntityAuditOptions {
@@ -380,17 +404,21 @@ pub fn try_drop_system_caches() {
 /// `O_NOATIME` to prevent modifying access times. If `O_NOATIME` is unavailable
 /// (e.g. unprivileged non-owner), access and modification times are restored
 /// immediately after payload verification so no modified state remains.
+/// Audits a materialized filesystem entry at `path` against an `expected` FileEntity definition,
+/// returning both detected discrepancies and a count of differences that were ignored due to
+/// best-effort tolerance or ignore options.
 #[expect(clippy::too_many_lines, reason = "Comprehensive audit of all entity attributes, hashes, streams, and extents")]
-pub fn audit_entity(
+pub fn audit_entity_detailed(
     path: &Path,
     expected: &FileEntity,
     options: &EntityAuditOptions,
-) -> Result<Vec<DiffKind>> {
+) -> Result<(Vec<DiffKind>, IgnoredDifferences)> {
     let mut diffs = Vec::new();
+    let mut ignored = IgnoredDifferences::default();
 
     let dest_meta = match std::fs::symlink_metadata(path) {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(vec![DiffKind::MissingOnDisk]);
+            return Ok((vec![DiffKind::MissingOnDisk], ignored));
         }
         Err(err) => {
             return Err(err).with_context(|| {
@@ -423,116 +451,152 @@ pub fn audit_entity(
             expected: expected_str,
             actual: describe_file_type(&dest_meta),
         });
-        return Ok(diffs);
+        return Ok((diffs, ignored));
     }
 
     // 2. Mode / Permissions (skip symlinks as their permissions are not meaningful on Linux)
-    if !options.ignore_perms && !expected.is_symlink() {
+    if !expected.is_symlink() {
         let expected_mode = expected.metadata.mode & 0o7777;
         let actual_mode = dest_meta.mode() & 0o7777;
         if expected_mode != actual_mode {
-            diffs.push(DiffKind::ModeMismatch {
-                expected: format!("{expected_mode:#05o}"),
-                actual: format!("{actual_mode:#05o}"),
-            });
+            if options.ignore_perms {
+                ignored.permissions = ignored.permissions.saturating_add(1);
+            } else {
+                diffs.push(DiffKind::ModeMismatch {
+                    expected: format!("{expected_mode:#05o}"),
+                    actual: format!("{actual_mode:#05o}"),
+                });
+            }
         }
     }
 
     // 3. Ownership
-    let ignore_owner = options.ignore_owner
-        || (options.best_effort && !nix::unistd::getuid().is_root());
-    if !ignore_owner {
-        if dest_meta.uid() != expected.metadata.uid {
-            diffs.push(DiffKind::UidMismatch {
-                expected: expected.metadata.uid,
-                actual: dest_meta.uid(),
-            });
-        }
-        if dest_meta.gid() != expected.metadata.gid {
-            diffs.push(DiffKind::GidMismatch {
-                expected: expected.metadata.gid,
-                actual: dest_meta.gid(),
-            });
+    let uid_diff = dest_meta.uid() != expected.metadata.uid;
+    let gid_diff = dest_meta.gid() != expected.metadata.gid;
+    if uid_diff || gid_diff {
+        let ignore_owner = options.ignore_owner
+            || (options.best_effort && !nix::unistd::getuid().is_root());
+        if ignore_owner {
+            ignored.ownership = ignored.ownership.saturating_add(1);
+        } else {
+            if uid_diff {
+                diffs.push(DiffKind::UidMismatch {
+                    expected: expected.metadata.uid,
+                    actual: dest_meta.uid(),
+                });
+            }
+            if gid_diff {
+                diffs.push(DiffKind::GidMismatch {
+                    expected: expected.metadata.gid,
+                    actual: dest_meta.gid(),
+                });
+            }
         }
     }
 
     // 4. Timestamps
-    if !options.ignore_mtime {
-        let actual_sec = dest_meta.mtime();
-        // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
-        let actual_nsec = u32::try_from(dest_meta.mtime_nsec()).unwrap_or(0);
-        let mtime_mismatch = if options.best_effort {
-            (actual_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() > 2
+    let actual_mtime_sec = dest_meta.mtime();
+    let actual_mtime_nsec = u32::try_from(dest_meta.mtime_nsec()).unwrap_or(0);
+    let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
+        || actual_mtime_nsec != expected.metadata.timestamps.mtime_nsec;
+    if mtime_mismatch {
+        if options.ignore_mtime {
+            ignored.timestamps = ignored.timestamps.saturating_add(1);
+        } else if options.best_effort {
+            if (actual_mtime_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() <= 2 {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
+            } else {
+                diffs.push(DiffKind::MtimeMismatch {
+                    expected_sec: expected.metadata.timestamps.mtime_sec,
+                    expected_nsec: expected.metadata.timestamps.mtime_nsec,
+                    actual_sec: actual_mtime_sec,
+                    actual_nsec: actual_mtime_nsec,
+                });
+            }
         } else {
-            actual_sec != expected.metadata.timestamps.mtime_sec
-                || actual_nsec != expected.metadata.timestamps.mtime_nsec
-        };
-        if mtime_mismatch {
             diffs.push(DiffKind::MtimeMismatch {
                 expected_sec: expected.metadata.timestamps.mtime_sec,
                 expected_nsec: expected.metadata.timestamps.mtime_nsec,
-                actual_sec,
-                actual_nsec,
+                actual_sec: actual_mtime_sec,
+                actual_nsec: actual_mtime_nsec,
             });
         }
     }
 
-    if !options.ignore_atime {
-        let actual_sec = dest_meta.atime();
-        // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
-        let actual_nsec = u32::try_from(dest_meta.atime_nsec()).unwrap_or(0);
-        let atime_mismatch = if options.best_effort {
-            (actual_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() > 2
+    let actual_atime_sec = dest_meta.atime();
+    let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec()).unwrap_or(0);
+    let atime_mismatch = actual_atime_sec != expected.metadata.timestamps.atime_sec
+        || actual_atime_nsec != expected.metadata.timestamps.atime_nsec;
+    if atime_mismatch {
+        if options.ignore_atime {
+            if options.best_effort {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
+            }
+        } else if options.best_effort {
+            if (actual_atime_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() <= 2 {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
+            } else {
+                diffs.push(DiffKind::AtimeMismatch {
+                    expected_sec: expected.metadata.timestamps.atime_sec,
+                    expected_nsec: expected.metadata.timestamps.atime_nsec,
+                    actual_sec: actual_atime_sec,
+                    actual_nsec: actual_atime_nsec,
+                });
+            }
         } else {
-            actual_sec != expected.metadata.timestamps.atime_sec
-                || actual_nsec != expected.metadata.timestamps.atime_nsec
-        };
-        if atime_mismatch {
             diffs.push(DiffKind::AtimeMismatch {
                 expected_sec: expected.metadata.timestamps.atime_sec,
                 expected_nsec: expected.metadata.timestamps.atime_nsec,
-                actual_sec,
-                actual_nsec,
+                actual_sec: actual_atime_sec,
+                actual_nsec: actual_atime_nsec,
             });
         }
     }
 
-    if !options.ignore_ctime {
-        let actual_sec = dest_meta.ctime();
-        // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
-        let actual_nsec = u32::try_from(dest_meta.ctime_nsec()).unwrap_or(0);
-        let ctime_mismatch = if options.best_effort {
-            (actual_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() > 2
+    let actual_ctime_sec = dest_meta.ctime();
+    let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec()).unwrap_or(0);
+    let ctime_mismatch = actual_ctime_sec != expected.metadata.timestamps.ctime_sec
+        || actual_ctime_nsec != expected.metadata.timestamps.ctime_nsec;
+    if ctime_mismatch && !options.ignore_ctime {
+        if options.best_effort {
+            if (actual_ctime_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() <= 2 {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
+            } else {
+                diffs.push(DiffKind::CtimeMismatch {
+                    expected_sec: expected.metadata.timestamps.ctime_sec,
+                    expected_nsec: expected.metadata.timestamps.ctime_nsec,
+                    actual_sec: actual_ctime_sec,
+                    actual_nsec: actual_ctime_nsec,
+                });
+            }
         } else {
-            actual_sec != expected.metadata.timestamps.ctime_sec
-                || actual_nsec != expected.metadata.timestamps.ctime_nsec
-        };
-        if ctime_mismatch {
             diffs.push(DiffKind::CtimeMismatch {
                 expected_sec: expected.metadata.timestamps.ctime_sec,
                 expected_nsec: expected.metadata.timestamps.ctime_nsec,
-                actual_sec,
-                actual_nsec,
+                actual_sec: actual_ctime_sec,
+                actual_nsec: actual_ctime_nsec,
             });
         }
     }
 
     // 5. File Flags
-    if !options.ignore_flags {
-        if let Ok((actual_flags, _)) = query_file_flags(path, expected.is_symlink()) {
-            let mut exp_names: Vec<String> = expected
-                .metadata
-                .flags
-                .iter()
-                .map(|f| f.name().to_string())
-                .collect();
-            let mut act_names: Vec<String> = actual_flags
-                .iter()
-                .map(|f| f.name().to_string())
-                .collect();
-            exp_names.sort();
-            act_names.sort();
-            if exp_names != act_names {
+    if let Ok((actual_flags, _)) = query_file_flags(path, expected.is_symlink()) {
+        let mut exp_names: Vec<String> = expected
+            .metadata
+            .flags
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect();
+        let mut act_names: Vec<String> = actual_flags
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect();
+        exp_names.sort();
+        act_names.sort();
+        if exp_names != act_names {
+            if options.ignore_flags {
+                ignored.flags = ignored.flags.saturating_add(1);
+            } else {
                 diffs.push(DiffKind::FlagsMismatch {
                     expected: exp_names,
                     actual: act_names,
@@ -701,6 +765,24 @@ pub fn audit_entity(
         }
     }
 
+    Ok((diffs, ignored))
+}
+
+/// Audits an on-disk filesystem entry at `path` against an `expected` entity.
+///
+/// Returns a list of detected discrepancies (`Vec<DiffKind>`). An empty return
+/// indicates the entry on disk completely matches the expected entity.
+///
+/// This audit is guaranteed to be non-invasive: on Linux, files are opened with
+/// `O_NOATIME` to prevent modifying access times. If `O_NOATIME` is unavailable
+/// (e.g. unprivileged non-owner), access and modification times are restored
+/// immediately after payload verification so no modified state remains.
+pub fn audit_entity(
+    path: &Path,
+    expected: &FileEntity,
+    options: &EntityAuditOptions,
+) -> Result<Vec<DiffKind>> {
+    let (diffs, _) = audit_entity_detailed(path, expected, options)?;
     Ok(diffs)
 }
 

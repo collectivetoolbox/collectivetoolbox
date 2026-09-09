@@ -66,6 +66,7 @@ mod csc_tests {
             format: VerifyOutputFormat::Text,
             quiet: false,
             best_effort: false,
+            allow_incomplete: false,
         }
     }
 
@@ -1962,5 +1963,106 @@ mod csc_tests {
         search_ctx.context = Some(2);
         let err_ctx = run_fsearch(search_ctx).await.err().expect("must fail context on non-fulltext db");
         assert!(err_ctx.to_string().contains("not indexed with --fulltext"));
+    }
+
+    #[crate::ctb_test]
+    fn test_cscv_disallows_incomplete_manifest_by_default() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_incomplete");
+        let dest = temp.path().join("dest_incomplete");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("data.txt"), b"Incomplete test").expect("write file");
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        args.no_verify_after = true;
+        args.verify_after = false;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        let journal = find_cscjournal(&state);
+
+        // Verification without --allow-incomplete must fail
+        let verify_args = default_verify_args(journal.clone(), None);
+        let err = run_csc_verify(&verify_args).err().expect("must fail on incomplete manifest");
+        assert!(err.to_string().contains("incomplete or was not marked finished"));
+
+        // Verification with --allow-incomplete must succeed
+        let mut allow_args = default_verify_args(journal, None);
+        allow_args.allow_incomplete = true;
+        let res2 = run_csc_verify(&allow_args).expect("run verifier with allow_incomplete");
+        match res2 {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest perfectly"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_cscv_best_effort_reporting() {
+        use filetime::{FileTime, set_file_mtime};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_be");
+        let dest = temp.path().join("dest_be");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("item.txt");
+        fs::write(&file, b"best effort test payload").expect("write file");
+
+        let args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        run_csc(args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+
+        // Modify mtime on destination by 1 second
+        let dest_file = dest.join("item.txt");
+        let meta = fs::metadata(&dest_file).expect("metadata");
+        let mtime_sec = meta.mtime();
+        set_file_mtime(&dest_file, FileTime::from_unix_time(mtime_sec.saturating_add(1), 0))
+            .expect("set mtime");
+
+        // Strict verification: fails with MtimeMismatch
+        let strict_args = default_verify_args(journal.clone(), None);
+        let res = run_csc_verify(&strict_args).expect("run strict verifier");
+        match res {
+            ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Mtime mismatch"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Best-effort verification: passes, reports ignored differences, and does NOT claim perfection
+        let mut be_args = default_verify_args(journal, None);
+        be_args.best_effort = true;
+        let res2 = run_csc_verify(&be_args).expect("run best effort verifier");
+        match res2 {
+            ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode; ignored 1 timestamp difference."));
+                assert!(!out.contains("Directory matches manifest perfectly"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
     }
 }

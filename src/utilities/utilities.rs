@@ -74,7 +74,9 @@ pub use crate::string::{
     format_bytes_decimal, format_permissions, octal_mode_to_letters, parse_bytes,
     parse_bytes_u128,
 };
-pub use crate::ui::progress::Progress;
+pub use crate::ui::progress::{
+    Progress, TaskId, should_show_progress, should_use_controls,
+};
 pub use crate::utilities_json_json as json;
 pub use anyhow;
 pub use anyhow::{Context, Result, bail, ensure};

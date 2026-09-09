@@ -30,7 +30,7 @@
 
 ### csc
 
-Uninformative error: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
+Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
 
 - [x] Configurable journal path
 
@@ -52,13 +52,13 @@ File with Swift table didn't have all cases
 
 Skip fwrite based on checksum?
 
-Progress always says "0.0%". I guess if it doesn't know what the total is, it should hide the percentage. Trying to estimate would probably be too slow.
+- [x] Progress always says "0.0%". I guess if it doesn't know what the total is, it should hide the percentage. Trying to estimate would probably be too slow.
 
-`cscv` should disallow verifying from a failed or truncated manifest by default (since it can be very misleading), but provide an option to allow it.
+- [x] `cscv` should disallow verifying from a failed or truncated manifest by default (since it can be very misleading), but provide an option to allow it.
 
-And make sure a manifest is not marked finished (and thus verifiable by cscv) until it has finished *the full verification pass*.
+- [x] And make sure a manifest is not marked finished (and thus verifiable by cscv) until it has finished *the full verification pass*.
 
-`cscv` in best-effort mode shouldn't say `Directory matches manifest perfectly.` if it doesn't - it should say something like `Directory matches manifest in best-effort mode; ignored 1234 ownership differences and 2345 timestamp differences.`
+- [x] `cscv` in best-effort mode shouldn't say `Directory matches manifest perfectly.` if it doesn't - it should say something like `Directory matches manifest in best-effort mode; ignored 1234 ownership differences and 2345 timestamp differences.`
 
 fsearch `-k` should either be able to accept a single argument, or clearly document that it is able to consume multiple parameters. `-k 'new begun'` finds nothing; `-k 'new' 'begun'` finds something.
 
@@ -66,7 +66,7 @@ For maximum fidelity, File struct should probably retain the original enclosing 
 
 Use Turso FTS for full-text search in fsindex/fsearch if it doesn't already.
 
-Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
+- [x] Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
 
 Full-text fsindex?
 

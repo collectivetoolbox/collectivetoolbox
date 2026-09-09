@@ -44,7 +44,6 @@ use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_
 use std::collections::HashMap;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
 
 /// Summary stats from a copy run.
 #[derive(Debug, Clone, Default)]
@@ -109,7 +108,7 @@ pub fn execute_copy_pipeline(
     }
 
     let mut uncommitted_count: usize = 0;
-    let mut last_progress_render = Instant::now();
+    let copy_task = progress.start_task("Copying", None);
 
     let options = MaterializeOptions {
         dry_run: args.dry_run,
@@ -224,17 +223,9 @@ pub fn execute_copy_pipeline(
                             uncommitted_count = 0;
                         }
 
-                        if progress.is_enabled()
-                            && last_progress_render.elapsed().as_millis() > 100
-                        {
-                            progress.update_progress(
-                                &format!(
-                                    "[Copying] {} files ({} bytes)",
-                                    stats.files_copied, stats.bytes_copied
-                                ),
-                                0.0,
-                            );
-                            last_progress_render = Instant::now();
+                        if progress.is_enabled() {
+                            let detail = format!("{} bytes", stats.bytes_copied);
+                            progress.update_task(copy_task, stats.files_copied, Some(&detail));
                         }
                     }
                 }
@@ -366,13 +357,8 @@ pub fn execute_copy_pipeline(
     }
 
     if progress.is_enabled() && stats.files_copied > 0 {
-        progress.update_progress(
-            &format!(
-                "[Copying] {} files ({} bytes)",
-                stats.files_copied, stats.bytes_copied
-            ),
-            0.0,
-        );
+        let detail = format!("{} files ({} bytes)", stats.files_copied, stats.bytes_copied);
+        progress.finish_task(copy_task, Some(&detail));
     }
 
     // =========================================================================
@@ -382,7 +368,16 @@ pub fn execute_copy_pipeline(
         progress.message("[Verifying] Flushing caches and verifying checksums...");
         try_drop_system_caches();
 
-        for (_src_path, dest_path, entity) in &files_to_verify {
+        let total_to_verify = u64::try_from(files_to_verify.len()).unwrap_or(0);
+        let verify_task = progress.start_task("Verifying", Some(total_to_verify));
+
+        for (src_path, dest_path, entity) in &files_to_verify {
+            verify_materialized_entity_ext(
+                src_path,
+                entity,
+                !args.best_effort_metadata,
+                args.check_atime,
+            )?;
             verify_materialized_entity_ext(
                 dest_path,
                 entity,
@@ -391,34 +386,17 @@ pub fn execute_copy_pipeline(
             )?;
             stats.files_verified = stats.files_verified.saturating_add(1);
 
-            if progress.is_enabled() && last_progress_render.elapsed().as_millis() > 100 {
-                progress.update_progress(
-                    &format!(
-                        "[Verifying] {}/{} verified",
-                        stats.files_verified,
-                        files_to_verify.len()
-                    ),
-                    0.0,
-                );
-                last_progress_render = Instant::now();
+            if progress.is_enabled() {
+                progress.update_task(verify_task, stats.files_verified, None);
             }
         }
 
-        if progress.is_enabled() && !files_to_verify.is_empty() {
-            progress.update_progress(
-                &format!(
-                    "[Verifying] {}/{} verified",
-                    stats.files_verified,
-                    files_to_verify.len()
-                ),
-                0.0,
-            );
+        if progress.is_enabled() {
+            progress.finish_task(verify_task, Some("Verification complete"));
         }
     }
 
-    progress.finish_progress();
-
-    if !args.dry_run {
+    if args.should_verify_after() && !args.dry_run {
         journal.mark_completed()?;
     }
 

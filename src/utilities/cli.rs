@@ -75,3 +75,33 @@ use std::io::IsTerminal;
 pub fn is_stderr_interactive() -> bool {
     std::io::stderr().is_terminal()
 }
+
+/// Returns true if standard error is connected to an interactive terminal that supports
+/// cursor control characters (ANSI escapes, carriage return).
+pub fn supports_control_characters() -> bool {
+    if !is_stderr_interactive() {
+        return false;
+    }
+    if let Ok(term) = std::env::var("TERM") {
+        if term == "dumb" || term.is_empty() {
+            return false;
+        }
+    } else {
+        #[cfg(unix)]
+        return false;
+    }
+    true
+}
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_supports_control_characters() {
+        unimplemented!()
+         super::supports_control_characters();
+    }
+
+}

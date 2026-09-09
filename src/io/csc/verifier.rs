@@ -31,10 +31,10 @@ use crate::utilities::*;
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
 use crate::journal::{read_journal_snapshot, resolve_journal_path};
 use crate::verify_cache::check_cache_flush_privileges;
-pub use ctb_io::file::verifier::{DiffKind, StreamDiffKind};
+pub use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, StreamDiffKind};
 use ctb_io::file::entity::FileEntityKind;
 use ctb_io::file::identity::resolve_relative_path_for_os;
-use ctb_io::file::verifier::{audit_entity, try_drop_system_caches};
+use ctb_io::file::verifier::{audit_entity_detailed, try_drop_system_caches};
 use crate::journal::PLATFORM_WINDOWS;
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
@@ -60,6 +60,8 @@ pub struct VerificationReport {
     pub changed_entries: Vec<EntryDiff>,
     pub missing_entries: Vec<PathBuf>,
     pub untracked_entries: Vec<PathBuf>,
+    pub ignored_differences: IgnoredDifferences,
+    pub best_effort: bool,
 }
 
 impl VerificationReport {
@@ -82,10 +84,47 @@ impl VerificationReport {
         let _ = writeln!(out, "Target Directory: {}", self.target_directory.display());
 
         if self.is_clean() {
-            let _ = writeln!(
-                out,
-                "Status:           OK - Directory matches manifest perfectly."
-            );
+            if self.best_effort && !self.ignored_differences.is_empty() {
+                let mut parts = Vec::new();
+                if self.ignored_differences.ownership > 0 {
+                    parts.push(format!(
+                        "{} ownership difference{}",
+                        self.ignored_differences.ownership,
+                        if self.ignored_differences.ownership == 1 { "" } else { "s" }
+                    ));
+                }
+                if self.ignored_differences.timestamps > 0 {
+                    parts.push(format!(
+                        "{} timestamp difference{}",
+                        self.ignored_differences.timestamps,
+                        if self.ignored_differences.timestamps == 1 { "" } else { "s" }
+                    ));
+                }
+                if self.ignored_differences.permissions > 0 {
+                    parts.push(format!(
+                        "{} permission difference{}",
+                        self.ignored_differences.permissions,
+                        if self.ignored_differences.permissions == 1 { "" } else { "s" }
+                    ));
+                }
+                if self.ignored_differences.flags > 0 {
+                    parts.push(format!(
+                        "{} flag difference{}",
+                        self.ignored_differences.flags,
+                        if self.ignored_differences.flags == 1 { "" } else { "s" }
+                    ));
+                }
+                let details = parts.join(" and ");
+                let _ = writeln!(
+                    out,
+                    "Status:           OK - Directory matches manifest in best-effort mode; ignored {details}."
+                );
+            } else {
+                let _ = writeln!(
+                    out,
+                    "Status:           OK - Directory matches manifest perfectly."
+                );
+            }
             let _ = writeln!(
                 out,
                 "Verified Entries: {} (0 discrepancies)",
@@ -152,6 +191,13 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let journal_path = resolve_journal_path(&args.manifest)?;
     let snapshot = read_journal_snapshot(&journal_path)?;
 
+    if !snapshot.is_completed && !args.allow_incomplete {
+        anyhow::bail!(
+            "Manifest at {} is incomplete or was not marked finished (transfer failed, truncated, or post-copy verification was not run). Pass --allow-incomplete to verify anyway.",
+            journal_path.display()
+        );
+    }
+
     let target_dir = if let Some(ref custom_dir) = args.dir {
         custom_dir.clone()
     } else {
@@ -180,6 +226,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut missing_entries = Vec::new();
     let mut matched_entries = 0_usize;
     let mut verified_paths = HashSet::new();
+    let mut total_ignored = IgnoredDifferences::default();
 
     let total_manifest_entries = snapshot
         .committed_entities
@@ -277,7 +324,12 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 }
             }
             _ => {
-                let diffs = audit_entity(&full_path, entity, &audit_options)?;
+                let (diffs, ignored) = audit_entity_detailed(&full_path, entity, &audit_options)?;
+                total_ignored.ownership = total_ignored.ownership.saturating_add(ignored.ownership);
+                total_ignored.timestamps = total_ignored.timestamps.saturating_add(ignored.timestamps);
+                total_ignored.permissions = total_ignored.permissions.saturating_add(ignored.permissions);
+                total_ignored.flags = total_ignored.flags.saturating_add(ignored.flags);
+
                 if diffs.is_empty() {
                     matched_entries = matched_entries.saturating_add(1);
                 } else if diffs == vec![DiffKind::MissingOnDisk] {
@@ -339,6 +391,8 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         changed_entries,
         missing_entries,
         untracked_entries,
+        ignored_differences: total_ignored,
+        best_effort: args.best_effort,
     })
 }
 

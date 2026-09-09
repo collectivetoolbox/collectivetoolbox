@@ -231,6 +231,15 @@ pub struct CscVerifyArgs {
     /// up to 2 seconds and ignores ownership mismatches if running unprivileged.
     #[arg(long)]
     pub best_effort: bool,
+
+    /// Allow verifying against a manifest that failed, was aborted, or has not completed verification.
+    #[arg(
+        long = "allow-incomplete",
+        alias = "allow-failed",
+        alias = "allow-truncated",
+        default_value_t = false
+    )]
+    pub allow_incomplete: bool,
 }
 
 impl CscVerifyArgs {

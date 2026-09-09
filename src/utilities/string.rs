@@ -440,6 +440,29 @@ pub fn explode_escaped(s: &str, separator: &str) -> Vec<String> {
     split_escaped_trim(s, separator)
 }
 
+/// Formatted whole and fractional components of a percentage value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormattedPercentage {
+    pub whole: String,
+    pub frac: String,
+}
+
+impl std::fmt::Display for FormattedPercentage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}%", self.whole, self.frac)
+    }
+}
+
+/// Formats a numerator and denominator as a percentage into whole and fractional string parts.
+/// Returns `None` if `den == 0`.
+pub fn format_percentage(num: u128, den: u128) -> Option<FormattedPercentage> {
+    let pct_x10 = num.saturating_mul(1000).checked_div(den)?;
+    Some(FormattedPercentage {
+        whole: pct_x10.checked_div(10)?.min(100).to_string(),
+        frac: pct_x10.checked_rem(10)?.to_string(),
+    })
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -613,6 +636,30 @@ mod tests {
         let codepoints = parse_hex_codepoints("25a0 U+03b4 0x0394")?;
         assert_eq!(codepoints, vec!['■', 'δ', 'Δ']);
         Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_format_percentage() {
+        assert_eq!(format_percentage(0, 0), None);
+        let p = format_percentage(0, 100).expect("should format");
+        assert_eq!(p.whole, "0");
+        assert_eq!(p.frac, "0");
+        assert_eq!(p.to_string(), "0.0%");
+
+        let p = format_percentage(50, 100).expect("should format");
+        assert_eq!(p.whole, "50");
+        assert_eq!(p.frac, "0");
+        assert_eq!(p.to_string(), "50.0%");
+
+        let p = format_percentage(1, 3).expect("should format");
+        assert_eq!(p.whole, "33");
+        assert_eq!(p.frac, "3");
+        assert_eq!(p.to_string(), "33.3%");
+
+        let p = format_percentage(150, 100).expect("should format");
+        assert_eq!(p.whole, "100");
+        assert_eq!(p.frac, "0");
+        assert_eq!(p.to_string(), "100.0%");
     }
 }
 
