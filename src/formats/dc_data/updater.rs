@@ -33,7 +33,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const DC_REGION_START: u128 = 1_114_112;
+pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 
 /// Summary statistics for category table ID assignment and synchronization.
@@ -295,7 +295,7 @@ pub fn assign_and_update_dc_categories(
                 let new_short = max_short_id.saturating_add(1);
                 max_short_id = new_short;
                 let new_dc =
-                    DC_REGION_START.saturating_add(u128::from(new_short));
+                    SHORT_DC_REGION_START.saturating_add(u128::from(new_short));
 
                 if let Some(cell) = row.get_mut(0) {
                     *cell = new_dc.to_string();
@@ -310,7 +310,7 @@ pub fn assign_and_update_dc_categories(
             } else if let Some(short_str) = row.get(1) {
                 if let Ok(s_id) = short_str.trim().parse::<u32>() {
                     let expected_dc =
-                        DC_REGION_START.saturating_add(u128::from(s_id));
+                        SHORT_DC_REGION_START.saturating_add(u128::from(s_id));
                     let current_dc = match row.first() {
                         Some(s) => s.trim(),
                         None => "",
@@ -739,6 +739,6 @@ mod tests {
         let auto_row = &updated_rows[2];
         // Must be assigned 21 (max_id + 1), NEVER backfilling 1..19!
         assert_eq!(auto_row[1], "21");
-        assert_eq!(auto_row[0], (DC_REGION_START + 21).to_string());
+        assert_eq!(auto_row[0], (SHORT_DC_REGION_START + 21).to_string());
     }
 }

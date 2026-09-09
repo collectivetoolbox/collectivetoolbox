@@ -39,8 +39,8 @@ use crate::dcal::dcal_to_dclist;
 
 const FORMAT_REGION_START: u128 = 2_228_224;
 const FORMAT_REGION_END: u128 = 3_342_335;
-const DC_REGION_START: u128 = 1_114_112;
-const DC_REGION_END: u128 = 2_228_223;
+const SHORT_DC_REGION_START: u128 = 1_114_112;
+const SHORT_DC_REGION_END: u128 = 2_228_223;
 
 /// Formats a single Global Graph ID (or Unicode codepoint / Dc / Format ID) into a description line.
 #[must_use]
@@ -51,8 +51,8 @@ pub fn describe_graph_id(id: u128, options: DescriptionOptions) -> String {
         }
     }
 
-    if (DC_REGION_START..=DC_REGION_END).contains(&id) {
-        let diff = id.saturating_sub(DC_REGION_START);
+    if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&id) {
+        let diff = id.saturating_sub(SHORT_DC_REGION_START);
         if let Ok(short_dc) = u32::try_from(diff) {
             return describe_dc_id(id, short_dc);
         }

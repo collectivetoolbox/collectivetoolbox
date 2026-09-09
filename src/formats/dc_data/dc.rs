@@ -38,5 +38,5 @@ use crate::syntax::{
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
 
-pub const DC_REGION_START: u128 = 1_114_112;
-pub const DC_REGION_END: u128 = 2_228_223;
+pub const SHORT_DC_REGION_START: u128 = 1_114_112;
+pub const SHORT_DC_REGION_END: u128 = 2_228_223;

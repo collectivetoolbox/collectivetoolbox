@@ -175,26 +175,26 @@ pub fn validate_dc_category_file(
             continue;
         };
 
-        let expected_dc = DC_REGION_START.saturating_add(u128::from(short_id));
+        let expected_dc = SHORT_DC_REGION_START.saturating_add(u128::from(short_id));
         if dc_id != expected_dc {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some("Dc"),
                 format!(
-                    "Global Dc ID ({dc_id}) does not match DC_REGION_START + Short ID ({expected_dc})"
+                    "Global Dc ID ({dc_id}) does not match SHORT_DC_REGION_START + Short ID ({expected_dc})"
                 ),
                 Some("Ensure Dc ID is offset from Short ID by 1114112"),
             );
         }
 
-        if !(DC_REGION_START..=DC_REGION_END).contains(&dc_id) {
+        if !(SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some("Dc"),
                 format!(
-                    "Dc ID {dc_id} is out of the Document Characters region bounds ({DC_REGION_START}..={DC_REGION_END})"
+                    "Dc ID {dc_id} is out of the Document Characters region bounds ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})"
                 ),
                 Some("Verify region boundaries"),
             );

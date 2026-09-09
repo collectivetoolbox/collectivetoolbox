@@ -30,15 +30,15 @@ use anyhow::Result;
 
 pub const UNICODE_REGION_START: u128 = 0;
 pub const UNICODE_REGION_END: u128 = 1_114_111;
-pub const DC_REGION_START: u128 = 1_114_112;
-pub const DC_REGION_END: u128 = 2_228_223;
+pub const SHORT_DC_REGION_START: u128 = 1_114_112;
+pub const SHORT_DC_REGION_END: u128 = 2_228_223;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
 
 /// Converts a short Document Character (Dc) ID to its Global Graph ID.
 #[must_use]
 pub fn dc_to_gid(dc_id: u64) -> u128 {
-    DC_REGION_START.saturating_add(u128::from(dc_id))
+    SHORT_DC_REGION_START.saturating_add(u128::from(dc_id))
 }
 
 /// Converts a short Format ID to its Global Graph ID.
@@ -52,8 +52,8 @@ pub fn format_to_gid(fmt_id: u64) -> u128 {
 pub fn gid_to_short(gid: u128) -> String {
     if gid <= UNICODE_REGION_END {
         format!("uni:{gid}")
-    } else if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
-        format!("dc:{offset}", offset = gid.saturating_sub(DC_REGION_START))
+    } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
+        format!("dc:{offset}", offset = gid.saturating_sub(SHORT_DC_REGION_START))
     } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
         format!(
             "fmt:{offset}",

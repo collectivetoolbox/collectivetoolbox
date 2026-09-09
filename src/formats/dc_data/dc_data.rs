@@ -38,7 +38,7 @@ pub mod updater;
 pub mod validation;
 
 pub use dc::{
-    DC_REGION_END, DC_REGION_START, split_dc_aliases_column,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START, split_dc_aliases_column,
     validate_all_dc_files, validate_all_dc_files_from_disk,
     validate_dc_category_file, validate_dc_files_data,
 };

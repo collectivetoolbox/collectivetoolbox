@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use anyhow::{Context, Result, ensure};
 use ctb_storage_minimal::global_graph_layout::{
-    DC_REGION_END, DC_REGION_START, FORMAT_REGION_END, FORMAT_REGION_START,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START, FORMAT_REGION_END, FORMAT_REGION_START,
     UNICODE_REGION_END, dc_to_gid, format_to_gid, get_block_name_for_id,
     gid_to_short,
 };
@@ -147,8 +147,8 @@ pub fn parse_graph_or_short_id(input: &str) -> Result<u128> {
 /// Executes the `short-dc` CLI command.
 pub fn execute_cli_short_dc(args: &ShortDcArgs) -> Result<String> {
     let gid = parse_graph_or_short_id(&args.id)?;
-    let dc_id = if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
-        u32::try_from(gid.saturating_sub(DC_REGION_START))
+    let dc_id = if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
+        u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
             .context("Failed to convert Dc ID to u32")?
     } else {
         u32::try_from(parse_number_literal(&args.id)?)
@@ -197,8 +197,8 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
                     cp,
                 );
             Ok(format!("{gid}\n{desc}\n"))
-        } else if (DC_REGION_START..=DC_REGION_END).contains(&gid) {
-            let dc_id = u32::try_from(gid.saturating_sub(DC_REGION_START))
+        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
+            let dc_id = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
                 .context("Invalid Dc ID range")?;
             let desc = ctb_formats_eite::dc::describe_dc(dc_id)?;
             Ok(format!("{desc}\n"))

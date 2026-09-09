@@ -48,7 +48,7 @@ Here is a comprehensive review of the current design across [formats.csv](file:/
 
 | Source File | Location | Current Role & Observations |
 | :--- | :--- | :--- |
-| **`global-graph-layout.csv`** | [`src/storage/minimal/data/`](file:///workspaces/ctoolbox/src/storage/minimal/data/global-graph-layout.csv) | Defines partition ranges (`Unicode`, `Document Characters`, `Formats and Filters`, `Reserved`, `System`). Range boundaries are duplicated in [global_graph_layout.rs](file:///workspaces/ctoolbox/src/storage/minimal/global_graph_layout.rs#L31-L36) as `const UNICODE_REGION_START`, `DC_REGION_START`, etc. |
+| **`global-graph-layout.csv`** | [`src/storage/minimal/data/`](file:///workspaces/ctoolbox/src/storage/minimal/data/global-graph-layout.csv) | Defines partition ranges (`Unicode`, `Document Characters`, `Formats and Filters`, `Reserved`, `System`). Range boundaries are duplicated in [global_graph_layout.rs](file:///workspaces/ctoolbox/src/storage/minimal/global_graph_layout.rs#L31-L36) as `const UNICODE_REGION_START`, `SHORT_DC_REGION_START`, etc. |
 | **`formats.csv`** | [`src/formats/utilities/data/`](file:///workspaces/ctoolbox/src/formats/utilities/data/formats.csv) | Modern registry of formats with 18 columns (`Ident`, `Category`, `Layer`, `MIME`, `Extensions`, `Support levels -1..=5`, `BaseFormat`, etc.). Parsed at runtime in [format_info.rs](file:///workspaces/ctoolbox/src/formats/utilities/format_info.rs#L56-L129) via `LazyLock<HashMap<usize, FormatInfo>>`. |
 | **`DcData.csv`** | [`src/formats/eite/data/`](file:///workspaces/ctoolbox/src/formats/eite/data/DcData.csv) | Classic Dc registry (304+ rows) containing character attributes, bidi classes, combining classes, and DSL syntax expressions in the `Aliases` column (`:[246 247] [^248 255]+ ~`, `<equiv>`, `<ambiguous>`, `>32`). Currently trapped in `ctb_formats_eite` despite being edited for new Dcs. |
 
@@ -128,7 +128,7 @@ In the CSVs, specify which entries emit constants:
   ```rust
   // Auto-generated in built/dc_constants.rs:
   pub const DC_NULL: u32 = 0;
-  pub const GID_DC_NULL: u128 = 1_114_112; // DC_REGION_START + 0
+  pub const GID_DC_NULL: u128 = 1_114_112; // SHORT_DC_REGION_START + 0
 
   pub const DC_BEGIN_NUMBER: u32 = 6;
   pub const GID_DC_BEGIN_NUMBER: u128 = 1_114_118;
@@ -137,7 +137,7 @@ In the CSVs, specify which entries emit constants:
   pub const GID_BASE64_START: u128 = 1_114_239;
   ```
 - **Approach B (Layout-Aware Formulas)**:
-  Because `global-graph-layout.csv` defines `DC_REGION_START = 1_114_112` and `FORMAT_REGION_START = 2_228_224`, the codegen automatically computes `GID_*` constants using `dc_to_gid` and `format_to_gid` at generation time. No developer ever has to do manual arithmetic for global IDs again.
+  Because `global-graph-layout.csv` defines `SHORT_DC_REGION_START = 1_114_112` and `FORMAT_REGION_START = 2_228_224`, the codegen automatically computes `GID_*` constants using `dc_to_gid` and `format_to_gid` at generation time. No developer ever has to do manual arithmetic for global IDs again.
 
 ---
 
@@ -146,7 +146,7 @@ In the CSVs, specify which entries emit constants:
 1. **Identifier & Range Invariants**:
    - Ensure all IDs are non-negative and strictly unique within each table.
    - For `global-graph-layout.csv`: Ensure no overlapping regions; verify that each region's `Last ID - First ID + 1 == Count`.
-   - Verify that all `Dc` short IDs fit within `0..=(DC_REGION_END - DC_REGION_START)`.
+   - Verify that all `Dc` short IDs fit within `0..=(SHORT_DC_REGION_END - SHORT_DC_REGION_START)`.
    - Verify that all `Format` short IDs fit within `0..=(FORMAT_REGION_END - FORMAT_REGION_START)`.
 2. **Schema & Field Types**:
    - `Bidi class`: Must be one of `BN, ON, WS, ES, CS, EN, ET, B, L, R, AL, ...`.

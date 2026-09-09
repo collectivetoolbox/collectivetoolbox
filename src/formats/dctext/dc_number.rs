@@ -39,7 +39,7 @@ use crate::utilities::*;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use ctb_formats_math::base::{Base, format_natural, parse_natural};
-use ctb_storage_minimal::global_graph_layout::{DC_REGION_START, dc_to_gid};
+use ctb_storage_minimal::global_graph_layout::{SHORT_DC_REGION_START, dc_to_gid};
 use malachite::{Integer, Natural};
 
 /// Short Dc ID for `Begin number` (Dc 6).
@@ -173,7 +173,7 @@ pub fn global_dc_to_base64_char(gid: u128) -> Result<char> {
             || gid == GID_BASE64_PADDING,
         "Global ID {gid} is not a valid Base64 encapsulation Dc"
     );
-    let short_dc = u32::try_from(gid.saturating_sub(DC_REGION_START))
+    let short_dc = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
         .context("Global ID exceeds short Dc range")?;
     short_dc_to_base64_char(short_dc)
 }
