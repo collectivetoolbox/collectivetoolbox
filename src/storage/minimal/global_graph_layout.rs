@@ -35,6 +35,10 @@ pub const SHORT_DC_REGION_END: u128 = 2_228_223;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
 
+/// Static embedded CSV bytes for the global graph layout table.
+pub static GLOBAL_GRAPH_LAYOUT_CSV: &[u8] =
+    include_bytes!("data/global-graph-layout.csv");
+
 /// Converts a short Document Character (Dc) ID to its Global Graph ID.
 #[must_use]
 pub fn dc_to_gid(dc_id: u64) -> u128 {

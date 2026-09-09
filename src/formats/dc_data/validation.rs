@@ -43,9 +43,7 @@ use crate::shared::{
 use crate::syntax::{
     CharTarget, parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
-use crate::{
-    DC_CATEGORIES_DIR, FORMATS_CATEGORIES_DIR, STORAGE_MINIMAL_DATA_DIR,
-};
+use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
 
 /// Runs comprehensive validation across all repository data tables strictly in memory
 /// using the embedded directory asset bundles.
@@ -58,23 +56,11 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     let mut report = ValidationReport::new();
 
     // 1. Validate Global Graph Layout table
-    if let Some(file) =
-        STORAGE_MINIMAL_DATA_DIR.get_file("global-graph-layout.csv")
-    {
-        validate_layout_table(
-            file.contents(),
-            "storage/minimal/data/global-graph-layout.csv",
-            &mut report,
-        );
-    } else {
-        report.add_error(
-            "storage/minimal/data/global-graph-layout.csv",
-            None,
-            None,
-            "Could not locate global-graph-layout.csv",
-            Some("Ensure file exists in storage/minimal/data/"),
-        );
-    }
+    validate_layout_table(
+        ctb_storage_minimal::global_graph_layout::GLOBAL_GRAPH_LAYOUT_CSV,
+        "storage/minimal/data/global-graph-layout.csv",
+        &mut report,
+    );
 
     // 2. Validate Formats category files
     let format_rows =
@@ -83,11 +69,22 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         format_rows.iter().map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
-    let dc_rows = validate_all_dc_files(
-        &DC_CATEGORIES_DIR,
-        &known_format_ids,
-        &mut report,
-    );
+    let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
+        validate_all_dc_files(
+            dc_dir,
+            &known_format_ids,
+            &mut report,
+        )
+    } else {
+        report.add_error(
+            "data/categories",
+            None,
+            None,
+            "Could not locate embedded categories directory",
+            None,
+        );
+        Vec::new()
+    };
 
     // 4. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows

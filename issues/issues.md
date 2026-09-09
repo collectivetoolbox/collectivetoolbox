@@ -41,6 +41,8 @@ Pull and export oldest container
 
 Pan procedure export
 
+"// FIXME: Remove probably/possibly"
+
 Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
 
 - [x] Configurable journal path

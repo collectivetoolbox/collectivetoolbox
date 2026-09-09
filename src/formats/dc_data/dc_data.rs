@@ -84,19 +84,18 @@ pub use validation::{
 
 use include_dir::{Dir, include_dir};
 
-pub static DC_DATA_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/data");
+static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
-pub static DC_CATEGORIES_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/data/categories");
+/// Returns the raw bytes of an embedded data file within the `dc_data` asset directory.
+pub fn get_dc_data_file(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&DC_DATA_DIR, key)
+}
 
-pub static DCTEXT_CATEGORIES_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/data/categories");
+pub(crate) fn get_dc_categories_dir() -> Option<&'static Dir<'static>> {
+    DC_DATA_DIR.get_dir("categories")
+}
 
 pub static FORMATS_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/../utilities/data/formats");
-
-pub static STORAGE_MINIMAL_DATA_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/../../storage/minimal/data");
 
 

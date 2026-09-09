@@ -223,81 +223,6 @@ fn describe_general_category(type_code: &str) -> String {
     }
 }
 
-/// Formats detailed character metadata for a short Document Character (Dc) ID.
-///
-/// Output format includes the Global Graph ID (offset by 1,114,112), name, category,
-/// bidirectional class, combining class, type, syntax, aliases, and description.
-pub fn describe_dc(dc_id: u32) -> Result<String> {
-    ensure!(is_known_dc(dc_id)?, "Unknown Dc ID: {dc_id}");
-
-    let gid = 1_114_112_u128.saturating_add(u128::from(dc_id));
-    let name = dc_get_name(dc_id)?;
-    let combining = dc_get_combining_class(dc_id)?;
-    let bidi = dc_get_bidi_class(dc_id)?;
-    let casing = dc_get_casing(dc_id)?;
-    let dc_type = dc_get_type(dc_id)?;
-    let script = dc_get_script(dc_id)?;
-    let aliases_raw = dc_get_complex_traits(dc_id)?;
-    let desc = dc_get_description(dc_id)?;
-
-    let mut lines = Vec::new();
-    lines.push(format!("{gid}"));
-    lines.push(name);
-    lines.push(String::new());
-
-    if !script.is_empty() {
-        lines.push(format!("Category: {script}"));
-    }
-    if !bidi.is_empty() {
-        lines.push(format!("Bidirectional class: {bidi}"));
-    }
-    if !combining.is_empty() {
-        lines.push(format!("Combining class: {combining}"));
-    }
-    if !dc_type.is_empty() {
-        lines.push(format!(
-            "Type: {expanded}",
-            expanded = format_dc_type(&dc_type)
-        ));
-    }
-    if !casing.is_empty() {
-        lines.push(format!("Casing: {casing}"));
-    }
-
-    if !aliases_raw.is_empty() {
-        let (aliases, xrefs, decomps, syntax) =
-            ctb_formats_dc_data::split_dc_aliases_column(&aliases_raw);
-
-        if let Some(syn) = syntax {
-            lines.push(format!("Syntax: {syn}"));
-        }
-        if !aliases.is_empty() {
-            lines.push(format!(
-                "Aliases: {aliases}",
-                aliases = aliases.join(", ")
-            ));
-        }
-        if !xrefs.is_empty() {
-            lines.push(format!(
-                "Cross-references: {xrefs}",
-                xrefs = xrefs.join(", ")
-            ));
-        }
-        if !decomps.is_empty() {
-            lines.push(format!(
-                "Decomposition: {decomps}",
-                decomps = decomps.join(", ")
-            ));
-        }
-    }
-
-    if !desc.is_empty() {
-        lines.push(format!("Description: {desc}"));
-    }
-
-    Ok(lines.join("\n"))
-}
-
 pub fn is_dc_base64_encapsulation_character(dc: u32) -> bool {
     (127..=190).contains(&dc) || dc == 195
 }
@@ -509,16 +434,6 @@ mod tests {
         ];
         let result = bytes_to_dc_encapsulated_binary(input)?;
         assert_eq!(result, expected);
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_describe_dc_296() -> Result<()> {
-        let desc = describe_dc(296)?;
-        assert_eq!(
-            desc,
-            "1114408\nNext number is a Dc-equivalent reference to a local node/document\n\nCategory: Miscellaneous\nBidirectional class: BN\nCombining class: 0\nType: !Cx (Control: Dc special)\nSyntax: :~ [number]"
-        );
         Ok(())
     }
 }

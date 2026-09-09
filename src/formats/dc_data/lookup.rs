@@ -34,13 +34,13 @@ use anyhow::{Result, anyhow};
 use crate::dc_def::DcDefn;
 use crate::report::ValidationReport;
 use crate::validation::validate_all_dc_files;
-use crate::{DC_CATEGORIES_DIR, DC_DATA_DIR};
+use crate::{get_dc_categories_dir, get_dc_data_file};
 
 static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
     // 1. Primary: load from embedded DcList.generated.json if present
-    if let Some(file) = DC_DATA_DIR.get_file("DcList.generated.json") {
+    if let Some(bytes) = get_dc_data_file("DcList.generated.json") {
         if let Ok(mut defns) =
-            serde_json::from_slice::<Vec<DcDefn>>(file.contents())
+            serde_json::from_slice::<Vec<DcDefn>>(&bytes)
         {
             defns.sort_by_key(|d| d.short_id);
             return defns;
@@ -50,19 +50,22 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
     // 2. Fallback: validate and parse directly from embedded categories
     let mut report = ValidationReport::new();
     let known_format_ids = HashSet::new();
-    let mut defns = validate_all_dc_files(
-        &DC_CATEGORIES_DIR,
-        &known_format_ids,
-        &mut report,
-    );
+    let mut defns = if let Some(dc_dir) = get_dc_categories_dir() {
+        validate_all_dc_files(
+            dc_dir,
+            &known_format_ids,
+            &mut report,
+        )
+    } else {
+        Vec::new()
+    };
     defns.sort_by_key(|d| d.short_id);
     defns
 });
 
 static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     // If DcList.generated.csv is available, parse directly for exact CSV text representation
-    if let Some(file) = DC_DATA_DIR.get_file("DcList.generated.csv") {
-        let vec_bytes = file.contents().to_vec();
+    if let Some(vec_bytes) = get_dc_data_file("DcList.generated.csv") {
         if let Ok(table) = csv_tools::parse_csv_reader(
             &vec_bytes,
             csv_tools::CsvParseOptions {
@@ -100,6 +103,7 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     }
 
     // Fallback: Construct 9-column rows from ALL_DC_DEFNS
+    // FIXME: Remove probably/possibly
     let defns = get_all_dc_defns();
     let mut rows = Vec::with_capacity(defns.len());
     for d in defns {
