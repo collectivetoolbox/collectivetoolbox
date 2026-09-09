@@ -170,7 +170,283 @@ use crate::utilities::*;
 use crate::file::metadata::{FileFlag, OsFamily, PlatformRawFlags};
 use std::path::Path;
 
+// Darwin file flag constants from Darwin <sys/stat.h>
+pub const DARWIN_UF_NODUMP: u32 = 0x0000_0001;
+pub const DARWIN_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const DARWIN_UF_APPEND: u32 = 0x0000_0004;
+pub const DARWIN_UF_OPAQUE: u32 = 0x0000_0008;
+pub const DARWIN_UF_COMPRESSED: u32 = 0x0000_0020;
+pub const DARWIN_UF_TRACKED: u32 = 0x0000_0040;
+pub const DARWIN_UF_DATAVAULT: u32 = 0x0000_0080;
+pub const DARWIN_UF_HIDDEN: u32 = 0x0000_8000;
+pub const DARWIN_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const DARWIN_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const DARWIN_SF_APPEND: u32 = 0x0004_0000;
+pub const DARWIN_SF_RESTRICTED: u32 = 0x0008_0000;
+pub const DARWIN_SF_NOUNLINK: u32 = 0x0010_0000;
+pub const DARWIN_SF_FIRMLINK: u32 = 0x0080_0000;
+pub const DARWIN_SF_DATALESS: u32 = 0x4000_0000;
+
+/// Mask of user- and superuser-settable flags on Darwin
+/// (`UF_SETTABLE | SF_SETTABLE`).
+pub const DARWIN_SETTABLE_MASK: u32 = 0x3fff_ffff;
+
+// FreeBSD file flag constants from FreeBSD <sys/stat.h>
+pub const FREEBSD_UF_NODUMP: u32 = 0x0000_0001;
+pub const FREEBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const FREEBSD_UF_APPEND: u32 = 0x0000_0004;
+pub const FREEBSD_UF_OPAQUE: u32 = 0x0000_0008;
+pub const FREEBSD_UF_NOUNLINK: u32 = 0x0000_0010;
+pub const FREEBSD_UF_SYSTEM: u32 = 0x0000_0080;
+pub const FREEBSD_UF_SPARSE: u32 = 0x0000_0100;
+pub const FREEBSD_UF_OFFLINE: u32 = 0x0000_0200;
+pub const FREEBSD_UF_REPARSE: u32 = 0x0000_0400;
+pub const FREEBSD_UF_READONLY: u32 = 0x0000_1000;
+pub const FREEBSD_UF_HIDDEN: u32 = 0x0000_8000;
+pub const FREEBSD_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const FREEBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const FREEBSD_SF_APPEND: u32 = 0x0004_0000;
+pub const FREEBSD_SF_NOUNLINK: u32 = 0x0010_0000;
+pub const FREEBSD_SF_SNAPSHOT: u32 = 0x0020_0000;
+
+/// Mask of settable flags on FreeBSD (excludes `SF_SNAPSHOT` which is
+/// system-maintained).
+pub const FREEBSD_SETTABLE_MASK: u32 = 0xffff_ffff & !FREEBSD_SF_SNAPSHOT;
+
+// OpenBSD file flag constants from OpenBSD <sys/stat.h>
+pub const OPENBSD_UF_NODUMP: u32 = 0x0000_0001;
+pub const OPENBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const OPENBSD_UF_APPEND: u32 = 0x0000_0004;
+pub const OPENBSD_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const OPENBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const OPENBSD_SF_APPEND: u32 = 0x0004_0000;
+
+/// Mask of settable flags on OpenBSD.
+pub const OPENBSD_SETTABLE_MASK: u32 = 0xffff_ffff;
+
+/// Parses a Darwin `st_flags` bitmask into semantic `FileFlag`s and indicates
+/// if any unparsed bits remain.
+#[must_use]
+pub fn parse_darwin_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
+    let mut flags = Vec::new();
+    let mut mapped_mask: u32 = 0;
+
+    macro_rules! map_flag {
+        ($bit:expr, $variant:expr) => {
+            if (raw_val & $bit) != 0 {
+                flags.push($variant);
+                mapped_mask |= $bit;
+            }
+        };
+    }
+
+    map_flag!(DARWIN_UF_NODUMP, FileFlag::NoDump);
+    map_flag!(DARWIN_UF_IMMUTABLE, FileFlag::UserImmutable);
+    map_flag!(DARWIN_UF_APPEND, FileFlag::UserAppend);
+    map_flag!(DARWIN_UF_OPAQUE, FileFlag::Opaque);
+    map_flag!(DARWIN_UF_COMPRESSED, FileFlag::Compressed);
+    map_flag!(DARWIN_UF_TRACKED, FileFlag::Tracked);
+    map_flag!(DARWIN_UF_DATAVAULT, FileFlag::DataVault);
+    map_flag!(DARWIN_UF_HIDDEN, FileFlag::Hidden);
+    map_flag!(DARWIN_SF_ARCHIVED, FileFlag::Archived);
+    map_flag!(DARWIN_SF_IMMUTABLE, FileFlag::SystemImmutable);
+    map_flag!(DARWIN_SF_APPEND, FileFlag::SystemAppend);
+    map_flag!(DARWIN_SF_RESTRICTED, FileFlag::Restricted);
+    map_flag!(DARWIN_SF_NOUNLINK, FileFlag::SystemNoUnlink);
+    map_flag!(DARWIN_SF_FIRMLINK, FileFlag::Firmlink);
+    map_flag!(DARWIN_SF_DATALESS, FileFlag::Dataless);
+
+    let has_unparsed = (raw_val & !mapped_mask) != 0;
+    (flags, has_unparsed)
+}
+
+/// Encodes a slice of `FileFlag`s into a Darwin `st_flags` bitmask.
+///
+/// If `strict_lossless` is true, returns an error if any flag is not supported
+/// on Darwin.
+pub fn darwin_flags_to_mask(
+    flags: &[FileFlag],
+    strict_lossless: bool,
+    path: &Path,
+) -> Result<u32> {
+    let mut mask: u32 = 0;
+    for flag in flags {
+        match flag {
+            FileFlag::NoDump => mask |= DARWIN_UF_NODUMP,
+            FileFlag::UserImmutable => mask |= DARWIN_UF_IMMUTABLE,
+            FileFlag::UserAppend => mask |= DARWIN_UF_APPEND,
+            FileFlag::Opaque => mask |= DARWIN_UF_OPAQUE,
+            FileFlag::Compressed => mask |= DARWIN_UF_COMPRESSED,
+            FileFlag::Tracked => mask |= DARWIN_UF_TRACKED,
+            FileFlag::DataVault => mask |= DARWIN_UF_DATAVAULT,
+            FileFlag::Hidden => mask |= DARWIN_UF_HIDDEN,
+            FileFlag::Archived => mask |= DARWIN_SF_ARCHIVED,
+            FileFlag::SystemImmutable => mask |= DARWIN_SF_IMMUTABLE,
+            FileFlag::SystemAppend => mask |= DARWIN_SF_APPEND,
+            FileFlag::Restricted => mask |= DARWIN_SF_RESTRICTED,
+            FileFlag::SystemNoUnlink => mask |= DARWIN_SF_NOUNLINK,
+            FileFlag::Firmlink => mask |= DARWIN_SF_FIRMLINK,
+            FileFlag::Dataless => mask |= DARWIN_SF_DATALESS,
+            other => {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Cannot losslessly apply flag {:?} on darwin for {}",
+                        other,
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+    Ok(mask)
+}
+
+/// Parses a FreeBSD `st_flags` bitmask into semantic `FileFlag`s and indicates
+/// if any unparsed bits remain.
+#[must_use]
+pub fn parse_freebsd_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
+    let mut flags = Vec::new();
+    let mut mapped_mask: u32 = 0;
+
+    macro_rules! map_flag {
+        ($bit:expr, $variant:expr) => {
+            if (raw_val & $bit) != 0 {
+                flags.push($variant);
+                mapped_mask |= $bit;
+            }
+        };
+    }
+
+    map_flag!(FREEBSD_UF_NODUMP, FileFlag::NoDump);
+    map_flag!(FREEBSD_UF_IMMUTABLE, FileFlag::UserImmutable);
+    map_flag!(FREEBSD_UF_APPEND, FileFlag::UserAppend);
+    map_flag!(FREEBSD_UF_OPAQUE, FileFlag::Opaque);
+    map_flag!(FREEBSD_UF_NOUNLINK, FileFlag::UserNoUnlink);
+    map_flag!(FREEBSD_UF_SYSTEM, FileFlag::System);
+    map_flag!(FREEBSD_UF_SPARSE, FileFlag::Sparse);
+    map_flag!(FREEBSD_UF_OFFLINE, FileFlag::Offline);
+    map_flag!(FREEBSD_UF_REPARSE, FileFlag::Reparse);
+    map_flag!(FREEBSD_UF_READONLY, FileFlag::ReadOnly);
+    map_flag!(FREEBSD_UF_HIDDEN, FileFlag::Hidden);
+    map_flag!(FREEBSD_SF_ARCHIVED, FileFlag::Archived);
+    map_flag!(FREEBSD_SF_IMMUTABLE, FileFlag::SystemImmutable);
+    map_flag!(FREEBSD_SF_APPEND, FileFlag::SystemAppend);
+    map_flag!(FREEBSD_SF_NOUNLINK, FileFlag::SystemNoUnlink);
+    map_flag!(FREEBSD_SF_SNAPSHOT, FileFlag::Snapshot);
+
+    let has_unparsed = (raw_val & !mapped_mask) != 0;
+    (flags, has_unparsed)
+}
+
+/// Encodes a slice of `FileFlag`s into a FreeBSD `st_flags` bitmask.
+///
+/// If `strict_lossless` is true, returns an error if any flag is not supported
+/// on FreeBSD.
+pub fn freebsd_flags_to_mask(
+    flags: &[FileFlag],
+    strict_lossless: bool,
+    path: &Path,
+) -> Result<u32> {
+    let mut mask: u32 = 0;
+    for flag in flags {
+        match flag {
+            FileFlag::NoDump => mask |= FREEBSD_UF_NODUMP,
+            FileFlag::UserImmutable => mask |= FREEBSD_UF_IMMUTABLE,
+            FileFlag::UserAppend => mask |= FREEBSD_UF_APPEND,
+            FileFlag::Opaque => mask |= FREEBSD_UF_OPAQUE,
+            FileFlag::UserNoUnlink => mask |= FREEBSD_UF_NOUNLINK,
+            FileFlag::System => mask |= FREEBSD_UF_SYSTEM,
+            FileFlag::Sparse => mask |= FREEBSD_UF_SPARSE,
+            FileFlag::Offline => mask |= FREEBSD_UF_OFFLINE,
+            FileFlag::Reparse => mask |= FREEBSD_UF_REPARSE,
+            FileFlag::ReadOnly => mask |= FREEBSD_UF_READONLY,
+            FileFlag::Hidden => mask |= FREEBSD_UF_HIDDEN,
+            FileFlag::Archived => mask |= FREEBSD_SF_ARCHIVED,
+            FileFlag::SystemImmutable => mask |= FREEBSD_SF_IMMUTABLE,
+            FileFlag::SystemAppend => mask |= FREEBSD_SF_APPEND,
+            FileFlag::SystemNoUnlink => mask |= FREEBSD_SF_NOUNLINK,
+            FileFlag::Snapshot => mask |= FREEBSD_SF_SNAPSHOT,
+            other => {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Cannot losslessly apply flag {:?} on freebsd for {}",
+                        other,
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+    Ok(mask)
+}
+
+/// Parses an OpenBSD `st_flags` bitmask into semantic `FileFlag`s and indicates
+/// if any unparsed bits remain.
+#[must_use]
+pub fn parse_openbsd_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
+    let mut flags = Vec::new();
+    let mut mapped_mask: u32 = 0;
+
+    macro_rules! map_flag {
+        ($bit:expr, $variant:expr) => {
+            if (raw_val & $bit) != 0 {
+                flags.push($variant);
+                mapped_mask |= $bit;
+            }
+        };
+    }
+
+    map_flag!(OPENBSD_UF_NODUMP, FileFlag::NoDump);
+    map_flag!(OPENBSD_UF_IMMUTABLE, FileFlag::UserImmutable);
+    map_flag!(OPENBSD_UF_APPEND, FileFlag::UserAppend);
+    map_flag!(OPENBSD_SF_ARCHIVED, FileFlag::Archived);
+    map_flag!(OPENBSD_SF_IMMUTABLE, FileFlag::SystemImmutable);
+    map_flag!(OPENBSD_SF_APPEND, FileFlag::SystemAppend);
+
+    let has_unparsed = (raw_val & !mapped_mask) != 0;
+    (flags, has_unparsed)
+}
+
+/// Encodes a slice of `FileFlag`s into an OpenBSD `st_flags` bitmask.
+///
+/// If `strict_lossless` is true, returns an error if any flag is not supported
+/// on OpenBSD.
+pub fn openbsd_flags_to_mask(
+    flags: &[FileFlag],
+    strict_lossless: bool,
+    path: &Path,
+) -> Result<u32> {
+    let mut mask: u32 = 0;
+    for flag in flags {
+        match flag {
+            FileFlag::NoDump => mask |= OPENBSD_UF_NODUMP,
+            FileFlag::UserImmutable => mask |= OPENBSD_UF_IMMUTABLE,
+            FileFlag::UserAppend => mask |= OPENBSD_UF_APPEND,
+            FileFlag::Archived => mask |= OPENBSD_SF_ARCHIVED,
+            FileFlag::SystemImmutable => mask |= OPENBSD_SF_IMMUTABLE,
+            FileFlag::SystemAppend => mask |= OPENBSD_SF_APPEND,
+            other => {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Cannot losslessly apply flag {:?} on openbsd for {}",
+                        other,
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+    Ok(mask)
+}
+
 /// Reads OS-specific flags from `path`.
+#[cfg_attr(
+    target_os = "openbsd",
+    expect(
+        unsafe_code,
+        reason = "OpenBSD st_flags inspection requires unsafe libc lstat FFI"
+    )
+)]
 pub fn query_file_flags(
     path: &Path,
     is_symlink: bool,
@@ -245,31 +521,7 @@ pub fn query_file_flags(
         let meta = std::fs::symlink_metadata(path)?;
         let raw_val = meta.st_flags();
 
-        let mut flags = Vec::new();
-        let mut mapped_mask: u32 = 0;
-
-        macro_rules! map_darwin_flag {
-            ($c_flag:expr, $variant:expr) => {
-                let mask: u32 = $c_flag;
-                if (raw_val & mask) != 0 {
-                    flags.push($variant);
-                    mapped_mask |= mask;
-                }
-            };
-        }
-
-        map_darwin_flag!(libc::UF_NODUMP, FileFlag::NoDump);
-        map_darwin_flag!(libc::UF_IMMUTABLE, FileFlag::UserImmutable);
-        map_darwin_flag!(libc::UF_APPEND, FileFlag::UserAppend);
-        map_darwin_flag!(libc::UF_OPAQUE, FileFlag::Opaque);
-        map_darwin_flag!(libc::UF_COMPRESSED, FileFlag::Compressed);
-        map_darwin_flag!(libc::UF_TRACKED, FileFlag::Tracked);
-        map_darwin_flag!(libc::UF_HIDDEN, FileFlag::Hidden);
-        map_darwin_flag!(libc::SF_ARCHIVED, FileFlag::Archived);
-        map_darwin_flag!(libc::SF_IMMUTABLE, FileFlag::SystemImmutable);
-        map_darwin_flag!(libc::SF_APPEND, FileFlag::SystemAppend);
-
-        let has_unparsed = (raw_val & !mapped_mask) != 0;
+        let (flags, has_unparsed) = parse_darwin_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
 
         let platform_raw = PlatformRawFlags {
@@ -287,30 +539,7 @@ pub fn query_file_flags(
         let meta = std::fs::symlink_metadata(path)?;
         let raw_val = meta.st_flags();
 
-        let mut flags = Vec::new();
-        let mut mapped_mask: u32 = 0;
-
-        macro_rules! map_freebsd_flag {
-            ($c_flag:expr, $variant:expr) => {
-                let mask: u32 = $c_flag;
-                if (raw_val & mask) != 0 {
-                    flags.push($variant);
-                    mapped_mask |= mask;
-                }
-            };
-        }
-
-        map_freebsd_flag!(libc::UF_NODUMP, FileFlag::NoDump);
-        map_freebsd_flag!(libc::UF_IMMUTABLE, FileFlag::UserImmutable);
-        map_freebsd_flag!(libc::UF_APPEND, FileFlag::UserAppend);
-        map_freebsd_flag!(libc::UF_OPAQUE, FileFlag::Opaque);
-        map_freebsd_flag!(libc::UF_NOUNLINK, FileFlag::UserNoUnlink);
-        map_freebsd_flag!(libc::SF_ARCHIVED, FileFlag::Archived);
-        map_freebsd_flag!(libc::SF_IMMUTABLE, FileFlag::SystemImmutable);
-        map_freebsd_flag!(libc::SF_APPEND, FileFlag::SystemAppend);
-        map_freebsd_flag!(libc::SF_NOUNLINK, FileFlag::SystemNoUnlink);
-
-        let has_unparsed = (raw_val & !mapped_mask) != 0;
+        let (flags, has_unparsed) = parse_freebsd_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
 
         let platform_raw = PlatformRawFlags {
@@ -322,7 +551,40 @@ pub fn query_file_flags(
         Ok((flags, Some(platform_raw)))
     }
 
-    #[cfg(not(any(target_os = "linux", target_vendor = "apple", target_os = "freebsd")))]
+    #[cfg(target_os = "openbsd")]
+    {
+        use std::ffi::CString;
+        use std::mem::MaybeUninit;
+        use std::os::unix::ffi::OsStrExt;
+
+        let c_path = CString::new(path.as_os_str().as_bytes())?;
+        let mut stat_buf = MaybeUninit::<libc::stat>::uninit();
+        let res = unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
+        if res != 0 {
+            let err = std::io::Error::last_os_error();
+            anyhow::bail!("lstat failed for {}: {err}", path.display());
+        }
+        let stat_buf = unsafe { stat_buf.assume_init() };
+        let raw_val = stat_buf.st_flags;
+
+        let (flags, has_unparsed) = parse_openbsd_flags(raw_val);
+        let raw_u64 = u64::from(raw_val);
+
+        let platform_raw = PlatformRawFlags {
+            source_os: OsFamily::OpenBSD,
+            raw_value: raw_u64,
+            has_unparsed_flags: has_unparsed,
+        };
+
+        Ok((flags, Some(platform_raw)))
+    }
+
+    #[cfg(not(any(
+        target_os = "linux",
+        target_vendor = "apple",
+        target_os = "freebsd",
+        target_os = "openbsd"
+    )))]
     {
         let _ = path;
         Ok((Vec::new(), None))
@@ -331,10 +593,10 @@ pub fn query_file_flags(
 
 /// Applies file flags to `path`.
 ///
-/// If `strict_lossless` is true, fails with an error if flags cannot be losslessly
-/// transferred.
+/// If `strict_lossless` is true, fails with an error if flags cannot be
+/// losslessly transferred.
 #[cfg_attr(
-    any(target_vendor = "apple", target_os = "freebsd"),
+    any(target_vendor = "apple", target_os = "freebsd", target_os = "openbsd"),
     expect(
         unsafe_code,
         reason = "Invoking BSD chflags system call requires unsafe C FFI"
@@ -468,58 +730,17 @@ pub fn apply_file_flags(
         }
 
         if target_mask == 0 {
-            for flag in flags {
-                match flag {
-                    FileFlag::NoDump => target_mask |= libc::UF_NODUMP,
-                    FileFlag::UserImmutable => {
-                        target_mask |= libc::UF_IMMUTABLE;
-                    }
-                    FileFlag::UserAppend => {
-                        target_mask |= libc::UF_APPEND;
-                    }
-                    FileFlag::Opaque => {
-                        target_mask |= libc::UF_OPAQUE;
-                    }
-                    FileFlag::Archived => {
-                        target_mask |= libc::SF_ARCHIVED;
-                    }
-                    FileFlag::SystemImmutable => {
-                        target_mask |= libc::SF_IMMUTABLE;
-                    }
-                    FileFlag::SystemAppend => {
-                        target_mask |= libc::SF_APPEND;
-                    }
-                    #[cfg(target_vendor = "apple")]
-                    FileFlag::Compressed => {
-                        target_mask |= libc::UF_COMPRESSED;
-                    }
-                    #[cfg(target_vendor = "apple")]
-                    FileFlag::Tracked => {
-                        target_mask |= libc::UF_TRACKED;
-                    }
-                    #[cfg(any(target_vendor = "apple", target_os = "freebsd"))]
-                    FileFlag::Hidden => {
-                        target_mask |= libc::UF_HIDDEN;
-                    }
-                    #[cfg(target_os = "freebsd")]
-                    FileFlag::UserNoUnlink => {
-                        target_mask |= libc::UF_NOUNLINK;
-                    }
-                    #[cfg(target_os = "freebsd")]
-                    FileFlag::SystemNoUnlink => {
-                        target_mask |= libc::SF_NOUNLINK;
-                    }
-                    other => {
-                        if strict_lossless {
-                            anyhow::bail!(
-                                "Cannot losslessly apply flag {:?} on {} for {}",
-                                other,
-                                OsFamily::CURRENT.as_str(),
-                                path.display()
-                            );
-                        }
-                    }
-                }
+            #[cfg(target_vendor = "apple")]
+            {
+                target_mask = darwin_flags_to_mask(flags, strict_lossless, path)?;
+            }
+            #[cfg(target_os = "freebsd")]
+            {
+                target_mask = freebsd_flags_to_mask(flags, strict_lossless, path)?;
+            }
+            #[cfg(target_os = "openbsd")]
+            {
+                target_mask = openbsd_flags_to_mask(flags, strict_lossless, path)?;
             }
         }
 
@@ -529,14 +750,60 @@ pub fn apply_file_flags(
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
             #[cfg(target_os = "freebsd")]
             let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
+            #[cfg(target_os = "openbsd")]
+            let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
 
-            if res != 0 && strict_lossless {
+            if res != 0 {
+                // In best-effort mode, if setting all flags failed (e.g. due to
+                // read-only or kernel-managed flags like SF_DATALESS or
+                // SF_SNAPSHOT), retry with only settable flags so
+                // user-modifiable flags are written as well as possible.
+                if !strict_lossless {
+                    #[cfg(target_vendor = "apple")]
+                    let settable_mask = target_mask & DARWIN_SETTABLE_MASK;
+                    #[cfg(target_os = "freebsd")]
+                    let settable_mask = target_mask & FREEBSD_SETTABLE_MASK;
+                    #[cfg(target_os = "openbsd")]
+                    let settable_mask = target_mask & OPENBSD_SETTABLE_MASK;
+
+                    if settable_mask != target_mask && settable_mask != 0 {
+                        #[cfg(target_vendor = "apple")]
+                        let retry_res =
+                            unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
+                        #[cfg(target_os = "freebsd")]
+                        let retry_res = unsafe {
+                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
+                        };
+                        #[cfg(target_os = "openbsd")]
+                        let retry_res =
+                            unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
+
+                        if retry_res == 0 {
+                            log_fmt!(
+                                "chflags partially applied settable flags ({:#x} of {:#x}) for {}",
+                                settable_mask,
+                                target_mask,
+                                path.display()
+                            );
+                            return Ok(());
+                        }
+                    }
+                }
+
                 let err = std::io::Error::last_os_error();
-                anyhow::bail!(
-                    "chflags failed to apply flags ({:#x}) to {}: {err}",
-                    target_mask,
-                    path.display()
-                );
+                if strict_lossless {
+                    anyhow::bail!(
+                        "chflags failed to apply flags ({:#x}) to {}: {err}",
+                        target_mask,
+                        path.display()
+                    );
+                } else {
+                    log_fmt!(
+                        "chflags failed to apply flags ({:#x}) to {}: {err} (proceeding best-effort)",
+                        target_mask,
+                        path.display()
+                    );
+                }
             }
         }
 
@@ -558,6 +825,223 @@ pub fn apply_file_flags(
         }
         let _ = path;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[crate::ctb_test]
+    fn test_darwin_flags_table_mapping() {
+        let darwin_table = [
+            (FileFlag::NoDump, DARWIN_UF_NODUMP),
+            (FileFlag::UserImmutable, DARWIN_UF_IMMUTABLE),
+            (FileFlag::UserAppend, DARWIN_UF_APPEND),
+            (FileFlag::Opaque, DARWIN_UF_OPAQUE),
+            (FileFlag::Compressed, DARWIN_UF_COMPRESSED),
+            (FileFlag::Tracked, DARWIN_UF_TRACKED),
+            (FileFlag::DataVault, DARWIN_UF_DATAVAULT),
+            (FileFlag::Hidden, DARWIN_UF_HIDDEN),
+            (FileFlag::Archived, DARWIN_SF_ARCHIVED),
+            (FileFlag::SystemImmutable, DARWIN_SF_IMMUTABLE),
+            (FileFlag::SystemAppend, DARWIN_SF_APPEND),
+            (FileFlag::Restricted, DARWIN_SF_RESTRICTED),
+            (FileFlag::SystemNoUnlink, DARWIN_SF_NOUNLINK),
+            (FileFlag::Firmlink, DARWIN_SF_FIRMLINK),
+            (FileFlag::Dataless, DARWIN_SF_DATALESS),
+        ];
+
+        let mut combined_mask = 0u32;
+        let mut all_flags = Vec::new();
+        for (flag, bit) in darwin_table {
+            let (parsed, has_unparsed) = parse_darwin_flags(bit);
+            assert_eq!(parsed, vec![flag]);
+            assert!(!has_unparsed);
+
+            let mask = darwin_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, bit);
+
+            combined_mask |= bit;
+            all_flags.push(flag);
+        }
+
+        let (parsed_all, has_unparsed_all) = parse_darwin_flags(combined_mask);
+        assert_eq!(parsed_all.len(), 15);
+        assert!(!has_unparsed_all);
+
+        let encoded_all = darwin_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        assert_eq!(encoded_all, combined_mask);
+
+        // Unknown bit sets has_unparsed
+        let (_, unparsed) = parse_darwin_flags(combined_mask | 0x8000_0000);
+        assert!(unparsed);
+
+        // 7 flags documented as N/A for Darwin in the Swift System table
+        let darwin_unsupported = [
+            FileFlag::UserNoUnlink,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Sparse,
+            FileFlag::System,
+            FileFlag::Snapshot,
+        ];
+        for unsupported in darwin_unsupported {
+            assert!(
+                darwin_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on Darwin in strict_lossless mode"
+            );
+            assert_eq!(
+                darwin_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_freebsd_flags_table_mapping() {
+        let freebsd_table = [
+            (FileFlag::NoDump, FREEBSD_UF_NODUMP),
+            (FileFlag::UserImmutable, FREEBSD_UF_IMMUTABLE),
+            (FileFlag::UserAppend, FREEBSD_UF_APPEND),
+            (FileFlag::Opaque, FREEBSD_UF_OPAQUE),
+            (FileFlag::UserNoUnlink, FREEBSD_UF_NOUNLINK),
+            (FileFlag::System, FREEBSD_UF_SYSTEM),
+            (FileFlag::Sparse, FREEBSD_UF_SPARSE),
+            (FileFlag::Offline, FREEBSD_UF_OFFLINE),
+            (FileFlag::Reparse, FREEBSD_UF_REPARSE),
+            (FileFlag::ReadOnly, FREEBSD_UF_READONLY),
+            (FileFlag::Hidden, FREEBSD_UF_HIDDEN),
+            (FileFlag::Archived, FREEBSD_SF_ARCHIVED),
+            (FileFlag::SystemImmutable, FREEBSD_SF_IMMUTABLE),
+            (FileFlag::SystemAppend, FREEBSD_SF_APPEND),
+            (FileFlag::SystemNoUnlink, FREEBSD_SF_NOUNLINK),
+            (FileFlag::Snapshot, FREEBSD_SF_SNAPSHOT),
+        ];
+
+        let mut combined_mask = 0u32;
+        let mut all_flags = Vec::new();
+        for (flag, bit) in freebsd_table {
+            let (parsed, has_unparsed) = parse_freebsd_flags(bit);
+            assert_eq!(parsed, vec![flag]);
+            assert!(!has_unparsed);
+
+            let mask = freebsd_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, bit);
+
+            combined_mask |= bit;
+            all_flags.push(flag);
+        }
+
+        let (parsed_all, has_unparsed_all) = parse_freebsd_flags(combined_mask);
+        assert_eq!(parsed_all.len(), 16);
+        assert!(!has_unparsed_all);
+
+        let encoded_all = freebsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        assert_eq!(encoded_all, combined_mask);
+
+        // Unknown bit sets has_unparsed
+        let (_, unparsed) = parse_freebsd_flags(combined_mask | 0x0040_0000);
+        assert!(unparsed);
+
+        // 6 flags documented as N/A for FreeBSD in the Swift System table
+        let freebsd_unsupported = [
+            FileFlag::Compressed,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+        ];
+        for unsupported in freebsd_unsupported {
+            assert!(
+                freebsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on FreeBSD in strict_lossless mode"
+            );
+            assert_eq!(
+                freebsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_openbsd_flags_table_mapping() {
+        let openbsd_table = [
+            (FileFlag::NoDump, OPENBSD_UF_NODUMP),
+            (FileFlag::UserImmutable, OPENBSD_UF_IMMUTABLE),
+            (FileFlag::UserAppend, OPENBSD_UF_APPEND),
+            (FileFlag::Archived, OPENBSD_SF_ARCHIVED),
+            (FileFlag::SystemImmutable, OPENBSD_SF_IMMUTABLE),
+            (FileFlag::SystemAppend, OPENBSD_SF_APPEND),
+        ];
+
+        let mut combined_mask = 0u32;
+        let mut all_flags = Vec::new();
+        for (flag, bit) in openbsd_table {
+            let (parsed, has_unparsed) = parse_openbsd_flags(bit);
+            assert_eq!(parsed, vec![flag]);
+            assert!(!has_unparsed);
+
+            let mask = openbsd_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, bit);
+
+            combined_mask |= bit;
+            all_flags.push(flag);
+        }
+
+        let (parsed_all, has_unparsed_all) = parse_openbsd_flags(combined_mask);
+        assert_eq!(parsed_all.len(), 6);
+        assert!(!has_unparsed_all);
+
+        let encoded_all = openbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        assert_eq!(encoded_all, combined_mask);
+
+        // Unknown bit (such as 0x8 UF_OPAQUE which OpenBSD does not map) sets has_unparsed
+        let (_, unparsed) = parse_openbsd_flags(combined_mask | 0x0000_0008);
+        assert!(unparsed);
+
+        // 16 flags documented as N/A for OpenBSD in the Swift System table
+        let openbsd_unsupported = [
+            FileFlag::Opaque,
+            FileFlag::Hidden,
+            FileFlag::SystemNoUnlink,
+            FileFlag::Compressed,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+            FileFlag::UserNoUnlink,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Sparse,
+            FileFlag::System,
+            FileFlag::Snapshot,
+        ];
+        for unsupported in openbsd_unsupported {
+            assert!(
+                openbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on OpenBSD in strict_lossless mode"
+            );
+            assert_eq!(
+                openbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
     }
 }
 
