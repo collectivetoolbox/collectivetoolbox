@@ -65,6 +65,13 @@ impl EiteData {
         let mut loaded_datasets = Vec::new();
 
         for dataset_name in list_dc_datasets() {
+            if dataset_name == "DcData" {
+                let rows = ctb_formats_dc_data::get_eite_dc_data_rows().to_vec();
+                data.insert(dataset_name.to_string(), rows);
+                loaded_datasets.push(dataset_name.to_string());
+                continue;
+            }
+
             let path = format!("{dataset_name}.csv");
             // Try to load the asset
             let dataset_bytes = crate::get_eite_data(&path)
@@ -111,7 +118,11 @@ impl EiteData {
             .data
             .get(dataset)
             .with_context(|| format!("dataset not loaded: {dataset}"))?;
-        Ok(rows.len().saturating_sub(2))
+        if dataset == "DcData" {
+            Ok(rows.len())
+        } else {
+            Ok(rows.len().saturating_sub(2))
+        }
     }
 
     fn dc_data_get_column(
@@ -356,9 +367,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_data_loaded() -> Result<()> {
-        assert_eq!(dc_dataset_length("DcData")?, 304);
-        assert_eq!(get_dc_count()?, 304);
-        assert_eq!(maximum_known_short_dc()?, 303);
+        assert_eq!(dc_dataset_length("DcData")?, 309);
+        assert_eq!(get_dc_count()?, 309);
+        assert_eq!(maximum_known_short_dc()?, 308);
         assert!(is_format("unicode"));
         assert!(is_format("utf8"));
         Ok(())

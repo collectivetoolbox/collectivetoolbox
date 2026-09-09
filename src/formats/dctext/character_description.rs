@@ -27,20 +27,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow};
 pub use ctb_formats_unicode::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe as describe_unicode, describe_codepoint,
     describe_codepoint_with_options,
     describe_with_options as describe_unicode_with_options,
 };
+use ctb_storage_minimal::global_graph_layout::{
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
+    SHORT_DC_REGION_START, dc_to_gid,
+};
 
 use crate::dcal::dcal_to_dclist;
-
-const FORMAT_REGION_START: u128 = 2_228_224;
-const FORMAT_REGION_END: u128 = 3_342_335;
-const SHORT_DC_REGION_START: u128 = 1_114_112;
-const SHORT_DC_REGION_END: u128 = 2_228_223;
 
 /// Formats a single Global Graph ID (or Unicode codepoint / Dc / Format ID) into a description line.
 #[must_use]
@@ -69,34 +68,37 @@ pub fn describe_graph_id(id: u128, options: DescriptionOptions) -> String {
 }
 
 fn describe_dc_id(gid: u128, short_dc: u32) -> String {
-    let (is_known, name) = match ctb_formats_eite::dc::dc_get_name(short_dc) {
-        Ok(n) => (true, n),
-        Err(_) => (false, format!("<unknown Dc {short_dc}>")),
+    let short_usize = match usize::try_from(short_dc) {
+        Ok(idx) => idx,
+        Err(_) => return format!("{gid} : <unknown Dc {short_dc}>"),
     };
 
-    // Reason for fallback: Dc characters without registered complex traits have no annotations
-    let aliases_raw = ctb_formats_eite::dc::dc_get_complex_traits(short_dc)
-        .unwrap_or_default();
+    let defn = ctb_formats_dc_data::get_dc_defn(short_usize);
+    let (is_known, name) = match defn {
+        Some(d) => (true, d.name.clone()),
+        None => (false, format!("<unknown Dc {short_dc}>")),
+    };
 
     let mut annotations = Vec::new();
     let mut abbreviation = None;
 
-    if !aliases_raw.is_empty() {
-        for item in aliases_raw.split(',') {
-            let trimmed = item.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            if let Some(syntax) = trimmed.strip_prefix(':') {
-                let syntax_str = format!(":{syntax}");
-                annotations.push(format!("syntax: `{syntax_str}`"));
-            } else if trimmed.starts_with('<') && trimmed.ends_with('>') {
-                annotations.push(trimmed.to_string());
-            } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
+    if let Some(d) = defn {
+        if let Some(syntax) = &d.syntax {
+            annotations.push(format!("syntax: `{}`", syntax.raw));
+        }
+        for alias in &d.aliases {
+            let trimmed = alias.trim();
+            if trimmed.starts_with('[') && trimmed.ends_with(']') {
                 abbreviation = Some(trimmed.to_string());
             } else {
                 annotations.push(trimmed.to_string());
             }
+        }
+        for xref in &d.cross_references {
+            annotations.push(xref.clone());
+        }
+        for decomp in &d.decompositions {
+            annotations.push(decomp.clone());
         }
     }
 
@@ -117,6 +119,72 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
     }
 
     out
+}
+
+/// Formats detailed character metadata for a short Document Character (Dc) ID.
+pub fn describe_dc(short_dc: u32) -> Result<String> {
+    let short_usize = usize::try_from(short_dc)
+        .context("Dc ID exceeds usize range")?;
+    let defn = ctb_formats_dc_data::get_dc_defn(short_usize)
+        .ok_or_else(|| anyhow!("Unknown Dc ID: {short_dc}"))?;
+
+    let gid = dc_to_gid(u64::from(short_dc));
+
+    let mut lines = Vec::new();
+    lines.push(format!("{gid}"));
+    lines.push(defn.name.clone());
+    lines.push(String::new());
+
+    if !defn.script.is_empty() {
+        lines.push(format!("Category: {}", defn.script));
+    }
+    let bidi = defn.bidi_class.as_str();
+    if !bidi.is_empty() {
+        lines.push(format!("Bidirectional class: {bidi}"));
+    }
+    lines.push(format!("Combining class: {}", defn.combining_class));
+
+    let cat_str = defn.general_category.as_str();
+    if !cat_str.is_empty() {
+        let desc = match cat_str {
+            "!Cx" => "Control: Dc special".to_string(),
+            other => ctb_formats_utilities::describe_general_category(other),
+        };
+        let type_desc = if desc == cat_str {
+            cat_str.to_string()
+        } else {
+            format!("{cat_str} ({desc})")
+        };
+        lines.push(format!("Type: {type_desc}"));
+    }
+
+    if let Some(casing) = defn.casing_partner {
+        lines.push(format!("Casing: {casing}"));
+    }
+
+    if let Some(syntax) = &defn.syntax {
+        lines.push(format!("Syntax: {}", syntax.raw));
+    }
+    if !defn.aliases.is_empty() {
+        lines.push(format!("Aliases: {}", defn.aliases.join(", ")));
+    }
+    if !defn.cross_references.is_empty() {
+        lines.push(format!(
+            "Cross-references: {}",
+            defn.cross_references.join(", ")
+        ));
+    }
+    if !defn.decompositions.is_empty() {
+        lines.push(format!(
+            "Decomposition: {}",
+            defn.decompositions.join(", ")
+        ));
+    }
+    if !defn.description.is_empty() {
+        lines.push(format!("Description: {}", defn.description));
+    }
+
+    Ok(lines.join("\n"))
 }
 
 fn describe_format_id(gid: u128, short_fmt: usize) -> String {

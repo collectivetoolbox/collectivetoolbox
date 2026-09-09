@@ -26,8 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub const SHORT_DC_REGION_START: u128 = 1_114_112;
-pub const SHORT_DC_REGION_END: u128 = 2_228_223;
+pub use ctb_storage_minimal::global_graph_layout::{
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+};
 
 /// Short Dc ID for embedding long (global graph) Dc IDs (Dc 308).
 pub const SHORT_DC_LONG_DC: u32 = 308;

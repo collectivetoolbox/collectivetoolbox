@@ -38,7 +38,6 @@ use const_default::ConstDefault;
 use ctb_formats_eite::dc::{
     DC_END_ENCAPSULATION_UTF8, DC_START_ENCAPSULATION_UTF8,
     dc_encapsulated_raw_to_bytes, is_dc_base64_encapsulation_character,
-    maximum_known_short_dc,
 };
 use ctb_formats_eite::encoding::basenb::{
     byte_array_from_basenb_17_utf8, byte_array_to_basenb_17_utf8,
@@ -117,8 +116,9 @@ pub fn dclist_to_utf8(
     let mut out = Vec::new();
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
-    let max_short_u128 = u128::try_from(maximum_known_short_dc()?)
-        .map_err(|e| anyhow!("Failed to convert maximum_known_short_dc: {e}"))?;
+    let max_short_u128 =
+        u128::try_from(ctb_formats_dc_data::maximum_known_short_dc())
+            .map_err(|e| anyhow!("Failed to convert maximum_known_short_dc: {e}"))?;
 
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
     let end_uuid_bytes = dcl_basenb_end_uuid_bytes()?;

@@ -28,12 +28,10 @@ use crate::utilities::*;
 
 use crate::report::ValidationReport;
 
-pub const EXPECTED_UNICODE_START: u128 = 0;
-pub const EXPECTED_UNICODE_END: u128 = 1_114_111;
-pub const EXPECTED_DC_START: u128 = 1_114_112;
-pub const EXPECTED_DC_END: u128 = 2_228_223;
-pub const EXPECTED_FORMAT_START: u128 = 2_228_224;
-pub const EXPECTED_FORMAT_END: u128 = 3_342_335;
+pub use ctb_storage_minimal::global_graph_layout::{
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
+    SHORT_DC_REGION_START, UNICODE_REGION_END, UNICODE_REGION_START,
+};
 
 /// A validated row from `global-graph-layout.csv`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -233,15 +231,15 @@ pub fn validate_layout_table(
 
     // Verify key landmark regions
     if let Some(unicode_row) = rows.first() {
-        if unicode_row.first_id != EXPECTED_UNICODE_START
-            || unicode_row.last_id != EXPECTED_UNICODE_END
+        if unicode_row.first_id != UNICODE_REGION_START
+            || unicode_row.last_id != UNICODE_REGION_END
         {
             report.add_error(
                 file_path,
                 Some(unicode_row.line_number),
                 Some("Block name"),
                 format!(
-                    "Unicode region bounds mismatch: expected 0..={EXPECTED_UNICODE_END}, found {}..={}",
+                    "Unicode region bounds mismatch: expected 0..={UNICODE_REGION_END}, found {}..={}",
                     unicode_row.first_id, unicode_row.last_id
                 ),
                 Some("Restore canonical Unicode bounds"),
@@ -250,15 +248,15 @@ pub fn validate_layout_table(
     }
 
     if let Some(dc_row) = rows.get(1) {
-        if dc_row.first_id != EXPECTED_DC_START
-            || dc_row.last_id != EXPECTED_DC_END
+        if dc_row.first_id != SHORT_DC_REGION_START
+            || dc_row.last_id != SHORT_DC_REGION_END
         {
             report.add_error(
                 file_path,
                 Some(dc_row.line_number),
                 Some("Block name"),
                 format!(
-                    "Dc region bounds mismatch: expected {EXPECTED_DC_START}..={EXPECTED_DC_END}, found {}..={}",
+                    "Dc region bounds mismatch: expected {SHORT_DC_REGION_START}..={SHORT_DC_REGION_END}, found {}..={}",
                     dc_row.first_id, dc_row.last_id
                 ),
                 Some("Restore canonical Dc region bounds"),
@@ -267,15 +265,15 @@ pub fn validate_layout_table(
     }
 
     if let Some(fmt_row) = rows.get(2) {
-        if fmt_row.first_id != EXPECTED_FORMAT_START
-            || fmt_row.last_id != EXPECTED_FORMAT_END
+        if fmt_row.first_id != FORMAT_REGION_START
+            || fmt_row.last_id != FORMAT_REGION_END
         {
             report.add_error(
                 file_path,
                 Some(fmt_row.line_number),
                 Some("Block name"),
                 format!(
-                    "Format region bounds mismatch: expected {EXPECTED_FORMAT_START}..={EXPECTED_FORMAT_END}, found {}..={}",
+                    "Format region bounds mismatch: expected {FORMAT_REGION_START}..={FORMAT_REGION_END}, found {}..={}",
                     fmt_row.first_id, fmt_row.last_id
                 ),
                 Some("Restore canonical Formats region bounds"),

@@ -37,8 +37,9 @@ use crate::syntax::parse_dc_syntax;
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
 
-pub const FORMAT_REGION_START: u128 = 2_228_224;
-pub const FORMAT_REGION_END: u128 = 3_342_335;
+pub use ctb_storage_minimal::global_graph_layout::{
+    FORMAT_REGION_END, FORMAT_REGION_START,
+};
 
 /// Parses and validates a single format category CSV file.
 pub fn validate_formats_category_file(

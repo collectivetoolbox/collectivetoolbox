@@ -31,6 +31,7 @@ pub mod dc;
 pub mod dc_def;
 pub mod format;
 pub mod layout;
+pub mod lookup;
 pub mod report;
 pub mod shared;
 pub mod syntax;
@@ -48,9 +49,12 @@ pub use format::{
     validate_format_files_data, validate_formats_category_file,
 };
 pub use layout::{
-    EXPECTED_DC_END, EXPECTED_DC_START, EXPECTED_FORMAT_END,
-    EXPECTED_FORMAT_START, EXPECTED_UNICODE_END, EXPECTED_UNICODE_START,
-    ParsedLayoutRow, validate_layout_table,
+    ParsedLayoutRow, UNICODE_REGION_END, UNICODE_REGION_START,
+    validate_layout_table,
+};
+pub use lookup::{
+    get_all_dc_defns, get_dc_count, get_dc_defn, get_dc_name,
+    get_eite_dc_data_rows, maximum_known_short_dc,
 };
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use shared::{
@@ -79,6 +83,9 @@ pub use validation::{
 };
 
 use include_dir::{Dir, include_dir};
+
+pub static DC_DATA_DIR: Dir =
+    include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub static DC_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/data/categories");

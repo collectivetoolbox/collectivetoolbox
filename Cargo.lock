@@ -2844,6 +2844,7 @@ dependencies = [
  "csv",
  "ctb-formats-base16b",
  "ctb-formats-base64",
+ "ctb-formats-dc-data",
  "ctb-formats-math",
  "ctb-formats-utf8",
  "ctb-formats-utilities",

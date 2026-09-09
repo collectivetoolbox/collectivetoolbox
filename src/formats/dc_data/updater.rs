@@ -33,8 +33,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const SHORT_DC_REGION_START: u128 = 1_114_112;
-pub const FORMAT_REGION_START: u128 = 2_228_224;
+pub use ctb_storage_minimal::global_graph_layout::{
+    FORMAT_REGION_START, SHORT_DC_REGION_START,
+};
 
 /// Summary statistics for category table ID assignment and synchronization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

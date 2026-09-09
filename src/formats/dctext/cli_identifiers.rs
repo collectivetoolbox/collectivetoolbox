@@ -156,7 +156,7 @@ pub fn execute_cli_short_dc(args: &ShortDcArgs) -> Result<String> {
     };
 
     if args.info {
-        let desc = ctb_formats_eite::dc::describe_dc(dc_id)?;
+        let desc = crate::character_description::describe_dc(dc_id)?;
         Ok(format!("{desc}\n"))
     } else {
         let full_gid = dc_to_gid(u64::from(dc_id));
@@ -200,7 +200,7 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
         } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
             let dc_id = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
                 .context("Invalid Dc ID range")?;
-            let desc = ctb_formats_eite::dc::describe_dc(dc_id)?;
+            let desc = crate::character_description::describe_dc(dc_id)?;
             Ok(format!("{desc}\n"))
         } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
             let fmt_id =
@@ -256,6 +256,25 @@ mod tests {
         );
         assert!(out_info.contains("Type: !Cx (Control: Dc special)"));
         assert!(out_info.contains("Syntax: :~ [number]"));
+
+        let out_308 = execute_cli_short_dc(&ShortDcArgs {
+            id: "308".to_string(),
+            info: false,
+        })
+        .expect("short-dc 308");
+        assert_eq!(out_308, "1114420\n");
+
+        let out_308_info = execute_cli_short_dc(&ShortDcArgs {
+            id: "308".to_string(),
+            info: true,
+        })
+        .expect("short-dc -i 308");
+        assert!(
+            out_308_info.starts_with(
+                "1114420\nNext number is a long (global graph) Dc"
+            )
+        );
+        assert!(out_308_info.contains("Syntax: :~ [number]"));
     }
 
     #[crate::ctb_test]

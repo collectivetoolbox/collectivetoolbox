@@ -60,8 +60,7 @@ pub fn is_known_dc(v: u32) -> Result<bool> {
 }
 
 pub fn maximum_known_short_dc() -> Result<usize> {
-    let len = dc_dataset_length("DcData")?;
-    len.checked_sub(1).context("Failed to get maximum known Dc")
+    Ok(ctb_formats_dc_data::maximum_known_short_dc())
 }
 
 /// Return true if Dc should be treated as a newline (coarse heuristic).
@@ -164,7 +163,7 @@ pub fn dc_get_description(dc: u32) -> Result<String> {
 
 /// Return length of the primary '`DcData`' dataset.
 pub fn get_dc_count() -> Result<usize> {
-    dc_dataset_length("DcData")
+    Ok(ctb_formats_dc_data::get_dc_count())
 }
 
 /// Extract an entire column (by field number) from a dataset.
@@ -266,46 +265,28 @@ pub fn describe_dc(dc_id: u32) -> Result<String> {
     }
 
     if !aliases_raw.is_empty() {
-        let mut syntax_items = Vec::new();
-        let mut xref_items = Vec::new();
-        let mut decomp_items = Vec::new();
-        let mut alias_items = Vec::new();
+        let (aliases, xrefs, decomps, syntax) =
+            ctb_formats_dc_data::split_dc_aliases_column(&aliases_raw);
 
-        for item in aliases_raw.split(',') {
-            let trimmed = item.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            if trimmed.starts_with(':') {
-                syntax_items.push(trimmed);
-            } else if trimmed.starts_with('>') {
-                xref_items.push(trimmed);
-            } else if trimmed.starts_with('<') {
-                decomp_items.push(trimmed);
-            } else {
-                alias_items.push(trimmed);
-            }
+        if let Some(syn) = syntax {
+            lines.push(format!("Syntax: {syn}"));
         }
-
-        if !syntax_items.is_empty() {
-            lines.push(format!("Syntax: {syn}", syn = syntax_items.join(", ")));
-        }
-        if !alias_items.is_empty() {
+        if !aliases.is_empty() {
             lines.push(format!(
                 "Aliases: {aliases}",
-                aliases = alias_items.join(", ")
+                aliases = aliases.join(", ")
             ));
         }
-        if !xref_items.is_empty() {
+        if !xrefs.is_empty() {
             lines.push(format!(
                 "Cross-references: {xrefs}",
-                xrefs = xref_items.join(", ")
+                xrefs = xrefs.join(", ")
             ));
         }
-        if !decomp_items.is_empty() {
+        if !decomps.is_empty() {
             lines.push(format!(
                 "Decomposition: {decomps}",
-                decomps = decomp_items.join(", ")
+                decomps = decomps.join(", ")
             ));
         }
     }

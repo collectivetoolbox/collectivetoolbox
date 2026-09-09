@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
 pub use ctb_formats_unicode::cli::{
@@ -46,46 +46,7 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
     if trimmed.is_empty() {
         bail!("Empty codepoint argument");
     }
-    if let Some(rest) = trimmed
-        .strip_prefix("dc:")
-        .or_else(|| trimmed.strip_prefix("Dc:"))
-    {
-        let short = parse_u128_literal(rest)?;
-        return Ok(1_114_112_u128.saturating_add(short));
-    }
-    if let Some(rest) = trimmed
-        .strip_prefix("fmt:")
-        .or_else(|| trimmed.strip_prefix("Fmt:"))
-    {
-        let short = parse_u128_literal(rest)?;
-        return Ok(2_228_224_u128.saturating_add(short));
-    }
-    if let Some(rest) = trimmed
-        .strip_prefix("uni:")
-        .or_else(|| trimmed.strip_prefix("Uni:"))
-    {
-        return parse_u128_literal(rest);
-    }
-    if let Some(rest) = trimmed
-        .strip_prefix("U+")
-        .or_else(|| trimmed.strip_prefix("u+"))
-    {
-        return u128::from_str_radix(rest, 16).map_err(|e| {
-            anyhow!("Invalid Unicode hex codepoint '{trimmed}': {e}")
-        });
-    }
-    parse_u128_literal(trimmed)
-}
-
-fn parse_u128_literal(s: &str) -> Result<u128> {
-    let s = s.trim();
-    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        u128::from_str_radix(hex, 16)
-            .map_err(|e| anyhow!("Invalid hex literal '{s}': {e}"))
-    } else {
-        s.parse::<u128>()
-            .map_err(|e| anyhow!("Invalid integer literal '{s}': {e}"))
-    }
+    crate::cli_identifiers::parse_graph_or_short_id(trimmed)
 }
 
 /// Supported input serialization formats for character descriptions.
