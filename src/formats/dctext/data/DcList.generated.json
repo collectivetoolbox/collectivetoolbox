@@ -6396,5 +6396,44 @@
     "description": "",
     "source_file": "el.csv",
     "line_number": 41
+  },
+  {
+    "dc_id": 1114420,
+    "short_id": 308,
+    "name": "Next number is a long (global graph) Dc",
+    "category": "miscellaneous",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Miscellaneous",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Used to embed Dcs outside of 32-bit range into short Dc range",
+    "source_file": "miscellaneous.csv",
+    "line_number": 7
   }
 ]

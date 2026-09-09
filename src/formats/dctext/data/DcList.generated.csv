@@ -307,3 +307,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114417,305,End set text color,0,BN,,!Cx,Styling,,
 1114418,306,Built-in type identifier: Routine name,0,BN,,!Cx,EL Types,RoutineName,Subtype of string
 1114419,307,void lang.invoke(Routine | RoutineName),0,BN,,!Cx,EL Routines,,
+1114420,308,Next number is a long (global graph) Dc,0,BN,,!Cx,Miscellaneous,:~ [number],Used to embed Dcs outside of 32-bit range into short Dc range
