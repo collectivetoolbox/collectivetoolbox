@@ -2601,7 +2601,7 @@ dependencies = [
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
- "ctb-formats-dctext",
+ "ctb-formats-dcstring",
  "ctb-formats-docker",
  "ctb-formats-eite",
  "ctb-formats-hexdump",
@@ -2638,10 +2638,10 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
- "ctb-formats-dc-data",
+ "ctb-formats-dcdata",
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
- "ctb-formats-dctext",
+ "ctb-formats-dcstring",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
@@ -2755,7 +2755,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-formats-dc-data"
+name = "ctb-formats-dcdata"
 version = "0.0.0"
 dependencies = [
  "csv",
@@ -2793,12 +2793,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-formats-dctext"
+name = "ctb-formats-dcstring"
 version = "0.0.0"
 dependencies = [
  "clap",
  "const-default",
- "ctb-formats-dc-data",
+ "ctb-formats-dcdata",
  "ctb-formats-eite",
  "ctb-formats-math",
  "ctb-formats-unicode",
@@ -2844,7 +2844,7 @@ dependencies = [
  "csv",
  "ctb-formats-base16b",
  "ctb-formats-base64",
- "ctb-formats-dc-data",
+ "ctb-formats-dcdata",
  "ctb-formats-math",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
@@ -3366,7 +3366,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "ctb-build-support",
- "ctb-formats-dctext",
+ "ctb-formats-dcstring",
  "ctb-formats-eite",
  "ctb-formats-hexdump",
  "ctb-formats-html",
@@ -3470,7 +3470,7 @@ dependencies = [
  "ctb-api-client",
  "ctb-build-support",
  "ctb-formats-ctb-asset-bundle",
- "ctb-formats-dctext",
+ "ctb-formats-dcstring",
  "ctb-formats-html",
  "ctb-formats-troff",
  "ctb-formats-utilities",
@@ -3733,10 +3733,10 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
- "ctb-formats-dc-data",
+ "ctb-formats-dcdata",
  "ctb-formats-dceutils",
  "ctb-formats-dct-el",
- "ctb-formats-dctext",
+ "ctb-formats-dcstring",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",

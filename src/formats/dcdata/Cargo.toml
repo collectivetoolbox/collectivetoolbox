@@ -1,9 +1,9 @@
 [package]
-name = "ctb-formats-dc-data"
+name = "ctb-formats-dcdata"
 edition = "2024"
 
 [lib]
-path="dc_data.rs"
+path="dcdata.rs"
 crate-type = ["lib"]
 
 [[bin]]

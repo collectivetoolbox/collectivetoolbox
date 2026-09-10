@@ -18,7 +18,7 @@ None.
 
 ## Proposed Changes
 
-### `ctb-formats-dctext`
+### `ctb-formats-dcstring`
 
 #### [MODIFY] [Cargo.toml](~/ctoolbox/src/formats/dctext/Cargo.toml)
 - Add `ctb-formats-utf8 = { path = "../utf8" }` dependency if needed for UTF-8 helpers and replacement character constants.
@@ -70,7 +70,7 @@ None.
 
 ### Automated Tests
 - Run quick type checking: `./lint --quick`
-- Run unit tests for `ctb-formats-dctext`: `cargo test -p ctb-formats-dctext`
+- Run unit tests for `ctb-formats-dcstring`: `cargo test -p ctb-formats-dcstring`
 
 ### Manual Verification
 - Verify that `canonicalize_equivalent_dcs` maps classic Dcs (e.g. Dc 65 -> 'A') to Unicode bytes and parses legacy base64 embeds (191..base64..192) into UTF-8 bytes when enabled.

@@ -19,7 +19,7 @@ ctb-formats-multipart = { path = "../../formats/multipart" }
 ctb-formats-pem = { path = "../../formats/pem" }
 ctb-formats-syndication = { path = "../../formats/syndication" }
 ctb-formats-useragent = { path = "../../formats/useragent" }
-ctb-formats-dctext = { path = "../../formats/dctext" }
+ctb-formats-dcstring = { path = "../../formats/dctext" }
 ctb-formats-eite = { path = "../../formats/eite" }
 ctb-formats-math = { path = "../../formats/math" }
 
