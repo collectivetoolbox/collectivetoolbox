@@ -1,9 +1,9 @@
 [package]
-name = "ctb-io-csc"
+name = "ctb-io-file"
 edition = "2024"
 
 [lib]
-path = "csc.rs"
+path = "file.rs"
 crate-type = ["lib"]
 
 [dependencies]

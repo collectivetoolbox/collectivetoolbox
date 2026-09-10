@@ -128,6 +128,7 @@ ctb-formats-wfscan = { path = "src/formats/wfscan" }
 ctb-formats-wtf8 = { path = "src/formats/wtf8" }
 ctb-formats-x86 = { path = "src/formats/x86" }
 ctb-io = { path = "src/io" }
+ctb-io-file = { path = "src/io/file" }
 ctb-io-webui = { path = "src/io/webui" }
 ctb-io-csc = { path = "src/io/csc" }
 ctb-api-client = { path = "src/io/api_client" }
