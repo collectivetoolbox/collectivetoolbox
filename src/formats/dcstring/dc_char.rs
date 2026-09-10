@@ -28,7 +28,8 @@ use crate::utilities::*;
 
 use std::fmt;
 
-use crate::{SHORT_DC_OFFSET, encode_utf_8e_128_buf};
+use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
 /// A single Document Character (Dc) or Unicode codepoint, represented as a
 /// 128-bit integer.
@@ -93,18 +94,18 @@ impl DcChar {
     }
 
     /// Returns `true` if this character is a short Document Character
-    /// (in range `SHORT_DC_OFFSET..SHORT_DC_OFFSET + 0x100000`).
+    /// (in range `SHORT_DC_REGION_START..SHORT_DC_REGION_START + 0x100000`).
     #[must_use]
     pub const fn is_short_dc(self) -> bool {
-        self.0 >= SHORT_DC_OFFSET
-            && self.0 < SHORT_DC_OFFSET.saturating_add(0x10_0000)
+        self.0 >= SHORT_DC_REGION_START
+            && self.0 < SHORT_DC_REGION_START.saturating_add(0x10_0000)
     }
 
     /// Converts this character to a short Document Character number if in range.
     #[must_use]
     pub fn to_short_dc(self) -> Option<u32> {
         if self.is_short_dc() {
-            u32::try_from(self.0.saturating_sub(SHORT_DC_OFFSET)).ok()
+            u32::try_from(self.0.saturating_sub(SHORT_DC_REGION_START)).ok()
         } else {
             None
         }

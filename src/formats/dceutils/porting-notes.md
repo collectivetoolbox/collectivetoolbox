@@ -76,5 +76,3 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
      test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      ```
-
-Details on file modifications and verification results are saved in [walkthrough.md](.gemini/antigravity-ide/brain/85d9b627-32e7-4976-9892-ef7baf66a863/walkthrough.md) and [task.md](.gemini/antigravity-ide/brain/85d9b627-32e7-4976-9892-ef7baf66a863/task.md).

@@ -39,7 +39,7 @@ use ctb_storage_minimal::global_graph_layout::{
     SHORT_DC_REGION_START, dc_to_gid,
 };
 
-use crate::dcal::dcal_to_dclist;
+use crate::converters::dcal::dcal_to_dclist;
 
 /// Formats a single Global Graph ID (or Unicode codepoint / Dc / Format ID) into a description line.
 #[must_use]

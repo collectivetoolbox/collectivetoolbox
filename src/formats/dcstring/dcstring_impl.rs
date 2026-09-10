@@ -30,9 +30,9 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use crate::{
-    DcChar, DcStr, DcUtfError, encode_utf_8e_128_buf, validate_dcutf,
-};
+use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
+
+use crate::{DcChar, DcStr, DcUtfError, validate_dcutf};
 
 /// An owned, growable string buffer containing valid UTF-8e-128 (DcUtf) data.
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -307,6 +307,8 @@ impl fmt::Debug for DcString {
 )]
 mod tests {
     use super::*;
+    use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+    use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
     #[crate::ctb_test]
     fn test_dc_char() {
@@ -322,13 +324,13 @@ mod tests {
         let c_at = DcChar::from_char('@');
         assert_eq!(format!("{c_at}"), "@@");
 
-        let c_short = DcChar(SHORT_DC_OFFSET + 42);
+        let c_short = DcChar(SHORT_DC_REGION_START + 42);
         assert_eq!(c_short.as_char(), None);
         assert!(!c_short.is_ascii());
         assert!(!c_short.is_unicode());
         assert!(c_short.is_short_dc());
         assert_eq!(c_short.to_short_dc(), Some(42));
-        assert_eq!(format!("{c_short}"), format!("@{}@", SHORT_DC_OFFSET + 42));
+        assert_eq!(format!("{c_short}"), format!("@{}@", SHORT_DC_REGION_START + 42));
 
         // Surrogate codepoint (allowed in DcUtf as a Unicode codepoint, but not a scalar char)
         let c_surrogate = DcChar(0xDBFF);
@@ -343,11 +345,11 @@ mod tests {
         s.push('h');
         s.push('i');
         s.push_str(" ");
-        s.push(DcChar(SHORT_DC_OFFSET));
+        s.push(DcChar(SHORT_DC_REGION_START));
 
         assert_eq!(
             s.len(),
-            3 + DcChar(SHORT_DC_OFFSET).len_utf_8e_128()
+            3 + DcChar(SHORT_DC_REGION_START).len_utf_8e_128()
         );
         assert!(!s.is_empty());
         assert!(s.is_char_boundary(0));
@@ -361,7 +363,7 @@ mod tests {
         let sub = &s[0..2];
         assert_eq!(sub.as_bytes(), b"hi");
         assert_eq!(sub.as_str(), Some("hi"));
-        assert_eq!(s.as_str(), None); // contains SHORT_DC_OFFSET (0xFF)
+        assert_eq!(s.as_str(), None); // contains SHORT_DC_REGION_START (0xFF)
 
         // Iteration
         let chars: Vec<DcChar> = s.chars().collect();
@@ -371,7 +373,7 @@ mod tests {
                 DcChar::from_char('h'),
                 DcChar::from_char('i'),
                 DcChar::from_char(' '),
-                DcChar(SHORT_DC_OFFSET)
+                DcChar(SHORT_DC_REGION_START)
             ]
         );
 
@@ -380,7 +382,7 @@ mod tests {
         assert_eq!(
             rev_chars,
             vec![
-                DcChar(SHORT_DC_OFFSET),
+                DcChar(SHORT_DC_REGION_START),
                 DcChar::from_char(' '),
                 DcChar::from_char('i'),
                 DcChar::from_char('h')
@@ -395,13 +397,13 @@ mod tests {
                 (0, DcChar::from_char('h')),
                 (1, DcChar::from_char('i')),
                 (2, DcChar::from_char(' ')),
-                (3, DcChar(SHORT_DC_OFFSET))
+                (3, DcChar(SHORT_DC_REGION_START))
             ]
         );
 
         // Mutation: pop
         let popped = s.pop();
-        assert_eq!(popped, Some(DcChar(SHORT_DC_OFFSET)));
+        assert_eq!(popped, Some(DcChar(SHORT_DC_REGION_START)));
         assert_eq!(s.as_str(), Some("hi "));
 
         // Mutation: truncate
@@ -420,7 +422,7 @@ mod tests {
         let mut buf = Vec::new();
         buf.extend_from_slice(b"abc");
         let mut dc_buf = [0u8; 24];
-        let n = encode_utf_8e_128_buf(&mut dc_buf, SHORT_DC_OFFSET + 100);
+        let n = encode_utf_8e_128_buf(&mut dc_buf, SHORT_DC_REGION_START + 100);
         buf.extend_from_slice(&dc_buf[..n]);
         assert!(validate_dcutf(&buf).is_ok());
 

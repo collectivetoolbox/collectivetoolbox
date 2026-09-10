@@ -32,14 +32,12 @@ use std::path::{Path, PathBuf};
 pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
-pub use crate as ctb_formats_dctext;
-
 use crate::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe_dcal, describe_dclist, describe_graph_id,
     describe_unicode_with_options,
 };
-use crate::dctext_to_dclist;
+use crate::converters::dctext::dctext_to_dclist;
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
     let trimmed = token.trim();
@@ -210,7 +208,7 @@ where
                     &input_bytes,
                     &ctb_formats_eite::formats::integer_list::IntegerListFormatSettings::default(),
                 )?;
-                let conv = crate::dcarray_to_dclist(&dca)?;
+                let conv = crate::converters::dctext::dcarray_to_dclist(&dca)?;
                 describe_dclist(&conv.result, options)
             }
             CharacterDescriptionInputFormat::DcText => {
@@ -338,7 +336,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_execute_cli_dctext_binary_dcutf_input() {
         let text = "hi @64@ @L42@";
-        let raw_bytes = crate::dctext_to_dcutf(text.as_bytes().to_vec());
+        let raw_bytes = crate::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec());
         let args = CharacterDescriptionArgs {
             from: CharacterDescriptionInputFormat::DcText,
             ..Default::default()

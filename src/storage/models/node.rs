@@ -278,7 +278,7 @@ impl Node {
 
         let redirect_text = format!("@1114409@@{allocated_id}@");
         let converted_data =
-            ctb_formats_dcstring::dctext_to_dcutf(redirect_text.into_bytes());
+            ctb_formats_dcstring::dctext::dctext_to_dcutf(redirect_text.into_bytes());
 
         self.set_node_type(session_token, NodeType::System)?;
         self.set_data(session_token, &converted_data)?;

@@ -32,7 +32,6 @@ use ctb_storage_minimal::global_graph_layout::{
     UNICODE_REGION_END, dc_to_gid, format_to_gid, get_block_name_for_id,
     gid_to_short,
 };
-pub use crate as ctb_formats_dctext;
 
 /// Arguments for the `short-dc` CLI command.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]

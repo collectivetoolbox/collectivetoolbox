@@ -46,7 +46,8 @@ use ctb_formats_eite::encoding::basenb::{
 use ctb_formats_utf8::{UTF8_REPLACEMENT_CHARACTER, first_char_of_utf8_string};
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
-use crate::{DcList, SHORT_DC_OFFSET, dclist_to_dcutf, dcutf_to_dclist};
+use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+use super::dctext::{DcList, dclist_to_dcutf, dcutf_to_dclist};
 
 /// Raw 16-byte array for Start UUID: `1880aba3-21df-42b2-9c96-e32cd647ffc5`
 pub const DCL_BASENB_START_UUID_RAW: [u8; 16] = [
@@ -148,9 +149,9 @@ pub fn dclist_to_utf8(
             }
         }
 
-        // Case 2: Short Dc offset range (SHORT_DC_OFFSET..=SHORT_DC_OFFSET + max_short)
-        if dc >= SHORT_DC_OFFSET {
-            let diff = dc.saturating_sub(SHORT_DC_OFFSET);
+        // Case 2: Short Dc offset range (SHORT_DC_REGION_START..=SHORT_DC_REGION_START + max_short)
+        if dc >= SHORT_DC_REGION_START {
+            let diff = dc.saturating_sub(SHORT_DC_REGION_START);
             if diff <= max_short_u128 {
                 let short_dc = u32::try_from(diff)
                     .map_err(|e| anyhow!("Short Dc overflow: {e}"))?;
@@ -168,9 +169,9 @@ pub fn dclist_to_utf8(
                             let cur_dc = *dclist.get(j).expect(
                                 "j < dclist.len() guarantees in-bounds access",
                             );
-                            if cur_dc >= SHORT_DC_OFFSET {
+                            if cur_dc >= SHORT_DC_REGION_START {
                                 let cur_diff =
-                                    cur_dc.saturating_sub(SHORT_DC_OFFSET);
+                                    cur_dc.saturating_sub(SHORT_DC_REGION_START);
                                 if let Ok(cur_short) = u32::try_from(cur_diff)
                                 {
                                     if cur_short == DC_END_ENCAPSULATION_UTF8
@@ -197,7 +198,7 @@ pub fn dclist_to_utf8(
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
                                     if let Ok(k_short) = u32::try_from(
-                                        k_dc.saturating_sub(SHORT_DC_OFFSET),
+                                        k_dc.saturating_sub(SHORT_DC_REGION_START),
                                     ) {
                                         inner_dcs.push(k_short);
                                     }
@@ -321,8 +322,8 @@ pub fn dclist_from_utf8(
     let mut result = Vec::new();
     let mut remaining = utf8_bytes;
 
-    let start_uuid = dcl_basenb_start_uuid_bytes()?;
-    let end_uuid = dcl_basenb_end_uuid_bytes()?;
+    let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
+    let end_uuid_bytes = dcl_basenb_end_uuid_bytes()?;
 
     while !remaining.is_empty() {
         if settings.dcl_basenb_enabled {
@@ -335,12 +336,12 @@ pub fn dclist_from_utf8(
                     false
                 }
             } else {
-                remaining.starts_with(&start_uuid)
+                remaining.starts_with(&start_uuid_bytes)
             };
 
             if is_start_basenb {
                 if !settings.dcl_basenb_fragment_enabled {
-                    if let Some(rem) = remaining.get(start_uuid.len()..) {
+                    if let Some(rem) = remaining.get(start_uuid_bytes.len()..) {
                         remaining = rem;
                     } else {
                         remaining = &[];
@@ -368,8 +369,8 @@ pub fn dclist_from_utf8(
                     Some(consumed_total)
                 } else {
                     remaining
-                        .windows(end_uuid.len())
-                        .position(|w| w == end_uuid)
+                        .windows(end_uuid_bytes.len())
+                        .position(|w| w == end_uuid_bytes)
                 };
 
                 if let Some(pos) = end_pos {
@@ -458,7 +459,7 @@ pub fn dclist_from_utf8(
                             remaining = &[];
                         }
                     } else if let Some(rem) =
-                        remaining.get(pos.saturating_add(end_uuid.len())..)
+                        remaining.get(pos.saturating_add(end_uuid_bytes.len())..)
                     {
                         remaining = rem;
                     } else {
@@ -537,7 +538,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_basenb_armored_roundtrip() {
-        let unmappable_dc = SHORT_DC_OFFSET + 999_999;
+        let unmappable_dc = SHORT_DC_REGION_START + 999_999;
         let input: DcList = vec![72, 105, unmappable_dc, 33];
         let mut settings = DcListUtf8Settings::default();
         settings.dcl_basenb_enabled = true;
@@ -549,7 +550,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_basenb_fragment_roundtrip() {
-        let unmappable_dc = SHORT_DC_OFFSET + 888_888;
+        let unmappable_dc = SHORT_DC_REGION_START + 888_888;
         let input: DcList = vec![65, unmappable_dc, 66];
         let mut settings = DcListUtf8Settings::default();
         settings.dcl_basenb_enabled = true;
@@ -562,7 +563,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_replacement_and_skip() {
-        let unmappable_dc = SHORT_DC_OFFSET + 777_777;
+        let unmappable_dc = SHORT_DC_REGION_START + 777_777;
         let input: DcList = vec![65, unmappable_dc, 66];
 
         // Replacement mode
@@ -583,7 +584,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_dclist_utf8_canonicalize_equivalent_dcs() {
         // Short Dc 65 maps to 'P'
-        let short_p = SHORT_DC_OFFSET + 65;
+        let short_p = SHORT_DC_REGION_START + 65;
         let input: DcList = vec![short_p];
 
         // Without canonicalization: treated as unmappable (replaced with \u{FFFD} by default)

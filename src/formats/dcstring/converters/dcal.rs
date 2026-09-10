@@ -33,7 +33,7 @@ use crate::utilities::*;
 use anyhow::Result;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
-use crate::DcList;
+use super::dctext::DcList;
 
 /// Converts a Dcal document (`&[u8]`) into a `DcList` (`Vec<u128>`).
 ///

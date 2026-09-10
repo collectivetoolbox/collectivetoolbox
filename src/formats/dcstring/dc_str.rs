@@ -32,7 +32,9 @@ use std::ops::{
     RangeTo, RangeToInclusive,
 };
 
-use crate::{DcChar, DcString, DcUtfError, decode_utf_8e_128_buf};
+use ctb_formats_utf_8e_128::decode_utf_8e_128_buf;
+
+use crate::{DcChar, DcString, DcUtfError};
 
 /// A borrowed string slice containing valid UTF-8e-128 (DcUtf) data.
 #[repr(transparent)]

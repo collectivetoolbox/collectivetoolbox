@@ -43,7 +43,7 @@ use crate::dc_number::{
 };
 use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
-use crate::dc_string::DcString;
+use crate::DcString;
 use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
 
 /// A list of global graph Document Character IDs represented as `u128` values.
@@ -323,7 +323,7 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
             ));
         }
 
-        let long_dc_id = SHORT_DC_OFFSET.saturating_add(u128::from(dc));
+        let long_dc_id = SHORT_DC_REGION_START.saturating_add(u128::from(dc));
         list.push(long_dc_id);
         i = i.saturating_add(1);
     }
@@ -597,7 +597,7 @@ mod tests {
         assert!(back.log.has_warnings());
         assert_eq!(
             back.result,
-            vec![GID_LONG_DC, SHORT_DC_OFFSET.saturating_add(65)]
+            vec![GID_LONG_DC, SHORT_DC_REGION_START.saturating_add(65)]
         );
     }
 
