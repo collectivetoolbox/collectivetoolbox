@@ -413,7 +413,7 @@ pub fn validate_formats_category_file(
 
         rows.push(DcDefn {
             dc_id,
-            short_id,
+            short_id: Some(short_id),
             ident: if ident.is_empty() { None } else { Some(ident) },
             name: effective_label,
             category: formatted_category,
@@ -482,24 +482,25 @@ where
         );
 
         for row in rows {
-            if let Some((prev_file, prev_line)) =
-                short_id_map.get(&row.short_id)
-            {
-                report.add_error(
-                    &row.source_file,
-                    Some(row.line_number),
-                    Some("Short"),
-                    format!(
-                        "Duplicate Short Format ID {} already defined in {prev_file}:{prev_line}",
-                        row.short_id
-                    ),
-                    Some("Assign a unique Short ID to each format"),
-                );
-            } else {
-                short_id_map.insert(
-                    row.short_id,
-                    (row.source_file.clone(), row.line_number),
-                );
+            if let Some(short_id) = row.short_id {
+                if let Some((prev_file, prev_line)) =
+                    short_id_map.get(&short_id)
+                {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Short"),
+                        format!(
+                            "Duplicate Short Format ID {short_id} already defined in {prev_file}:{prev_line}",
+                        ),
+                        Some("Assign a unique Short ID to each format"),
+                    );
+                } else {
+                    short_id_map.insert(
+                        short_id,
+                        (row.source_file.clone(), row.line_number),
+                    );
+                }
             }
 
             if let Some(ident) = &row.ident {
@@ -527,7 +528,7 @@ where
 
     // Validate that Short Format IDs form a contiguous sequence starting from 0 with no gaps/holes
     let known_fmt_ids: HashSet<usize> =
-        all_rows.iter().map(|r| r.short_id).collect();
+        all_rows.iter().filter_map(|r| r.short_id).collect();
     if let Some(&max_id) = known_fmt_ids.iter().max() {
         let mut missing_ids = Vec::new();
         for id in 0..=max_id {

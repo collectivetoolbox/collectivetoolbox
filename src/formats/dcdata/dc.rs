@@ -40,6 +40,22 @@ pub const SHORT_DC_ESCAPE: u32 = 255;
 /// Global Graph ID for Dc 255 (`1_114_367`).
 pub const GID_ESCAPE: u128 = 1_114_367;
 
+/// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
+#[must_use]
+pub fn short_to_long_dc(short_id: u32) -> u128 {
+    SHORT_DC_REGION_START.saturating_add(u128::from(short_id))
+}
+
+/// Converts a long (Global Graph) Document Character ID to its short Dc ID, if within short range.
+#[must_use]
+pub fn long_to_short_dc(dc_id: u128) -> Option<u32> {
+    if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {
+        u32::try_from(dc_id.saturating_sub(SHORT_DC_REGION_START)).ok()
+    } else {
+        None
+    }
+}
+
 pub use crate::validation::{
     split_dc_aliases_column, validate_all_dc_files,
     validate_all_dc_files_from_disk, validate_dc_category_file,

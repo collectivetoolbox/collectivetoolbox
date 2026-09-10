@@ -42,7 +42,7 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
         if let Ok(mut defns) =
             serde_json::from_slice::<Vec<DcDefn>>(&bytes)
         {
-            defns.sort_by_key(|d| d.short_id);
+            defns.sort_by_key(|d| d.dc_id);
             return defns;
         }
     }
@@ -59,7 +59,7 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
     } else {
         Vec::new()
     };
-    defns.sort_by_key(|d| d.short_id);
+    defns.sort_by_key(|d| d.dc_id);
     defns
 });
 
@@ -77,6 +77,14 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
             let mut rows = Vec::with_capacity(table.row_count());
             for i in 0..table.row_count() {
                 if let Some(row) = table.row(i) {
+                    // Only include rows with a valid Short ID for EITE's DcData dataset
+                    let has_short_id = row
+                        .get(1)
+                        .is_some_and(|s| s.trim().parse::<u32>().is_ok());
+                    if !has_short_id {
+                        continue;
+                    }
+
                     // Slicing columns 1..=9 maps:
                     // 1: Short ID (col 0 in EITE)
                     // 2: Name (col 1 in EITE)
@@ -103,33 +111,50 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     panic!("Could not find DcData. It must have been generated first.")
 });
 
-/// Returns a static slice of all Document Character definitions sorted by short ID.
+/// Returns a static slice of all Document Character definitions sorted by long ID (`dc_id`).
 pub fn get_all_dc_defns() -> &'static [DcDefn] {
     &ALL_DC_DEFNS
 }
 
+/// Looks up a Document Character definition by long (Global Graph) ID.
+pub fn get_dc_defn(dc_id: u128) -> Option<&'static DcDefn> {
+    let defns = get_all_dc_defns();
+    defns
+        .binary_search_by_key(&dc_id, |d| d.dc_id)
+        .ok()
+        .map(|idx| &defns[idx])
+}
+
 /// Looks up a Document Character definition by short ID (0-indexed).
-pub fn get_dc_defn(short_id: usize) -> Option<&'static DcDefn> {
-    get_all_dc_defns().get(short_id)
+pub fn get_short_dc_defn(short_id: usize) -> Option<&'static DcDefn> {
+    let short_u32 = u32::try_from(short_id).ok()?;
+    get_dc_defn(crate::dc::short_to_long_dc(short_u32))
 }
 
 /// Returns the highest known short Document Character ID.
 pub fn maximum_known_short_dc() -> usize {
-    get_all_dc_defns().last().map_or(0, |d| d.short_id)
+    get_all_dc_defns()
+        .iter()
+        .filter_map(|d| d.short_id)
+        .max()
+        .unwrap_or(0)
 }
 
-/// Returns the total count of registered Document Characters.
+/// Returns the total count of registered short Document Characters.
 pub fn get_dc_count() -> usize {
-    get_all_dc_defns().len()
+    get_eite_dc_data_rows().len()
+}
+
+/// Returns the canonical name of a Document Character by long (Global Graph) ID.
+pub fn get_dc_name(dc_id: u128) -> Result<String> {
+    get_dc_defn(dc_id)
+        .map(|d| d.name.clone())
+        .ok_or_else(|| anyhow!("Unknown Dc ID: {dc_id}"))
 }
 
 /// Returns the canonical name of a short Document Character.
-pub fn get_dc_name(short_id: u32) -> Result<String> {
-    let usize_id = usize::try_from(short_id)
-        .map_err(|e| anyhow!("Invalid short Dc ID {short_id}: {e}"))?;
-    get_dc_defn(usize_id)
-        .map(|d| d.name.clone())
-        .ok_or_else(|| anyhow!("Unknown short Dc ID: {short_id}"))
+pub fn get_short_dc_name(short_id: u32) -> Result<String> {
+    get_dc_name(crate::dc::short_to_long_dc(short_id))
 }
 
 /// Returns the pre-formatted 9-column rows expected by EITE's `"DcData"` dataset.
@@ -154,21 +179,28 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_lookup_basic() {
-        let dc0 = get_dc_defn(0).expect("Dc 0 exists");
+        let dc0 = get_short_dc_defn(0).expect("Dc 0 exists");
         assert_eq!(dc0.name, "Null");
         assert_eq!(dc0.category, "controls");
 
-        let dc6 = get_dc_defn(6).expect("Dc 6 exists");
+        let dc0_long = get_dc_defn(crate::dc::short_to_long_dc(0)).expect("Dc 0 long ID exists");
+        assert_eq!(dc0_long.name, "Null");
+
+        let dc6 = get_short_dc_defn(6).expect("Dc 6 exists");
         assert_eq!(dc6.name, "Begin number");
 
         let max_dc = maximum_known_short_dc();
         assert!(max_dc >= 308);
         assert_eq!(get_dc_count(), max_dc + 1);
 
-        let dc308 = get_dc_defn(308).expect("Dc 308 exists");
+        let dc308 = get_short_dc_defn(308).expect("Dc 308 exists");
         assert_eq!(dc308.name, "Next number is a long (global graph) Dc");
         assert_eq!(
-            get_dc_name(308).unwrap(),
+            get_short_dc_name(308).unwrap(),
+            "Next number is a long (global graph) Dc"
+        );
+        assert_eq!(
+            get_dc_name(crate::dc::short_to_long_dc(308)).unwrap(),
             "Next number is a long (global graph) Dc"
         );
     }
@@ -181,7 +213,7 @@ mod tests {
         let row0 = &rows[0];
         assert_eq!(row0.len(), 9);
         assert_eq!(row0[0], "0");
-        assert_eq!(row0[1], "Null");
+        assert_eq!(row0[1], "!Null");
 
         let row308 = &rows[308];
         assert_eq!(row308.len(), 9);

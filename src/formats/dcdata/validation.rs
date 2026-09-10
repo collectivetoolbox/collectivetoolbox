@@ -66,7 +66,7 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     let format_rows =
         validate_all_format_files(&FORMATS_CATEGORIES_DIR, &mut report);
     let known_format_ids: HashSet<usize> =
-        format_rows.iter().map(|r| r.short_id).collect();
+        format_rows.iter().filter_map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
     let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
@@ -89,12 +89,12 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     // 4. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id.unwrap_or(0), r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id.unwrap_or(0), r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
@@ -132,7 +132,7 @@ pub fn validate_all_data_tables_from_repo(
     let format_rows =
         validate_all_format_files_from_disk(&formats_dir, &mut report);
     let known_format_ids: HashSet<usize> =
-        format_rows.iter().map(|r| r.short_id).collect();
+        format_rows.iter().filter_map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
     let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
@@ -145,12 +145,12 @@ pub fn validate_all_data_tables_from_repo(
     // 4. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id.unwrap_or(0), r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     let format_labels: Vec<(usize, &str, &str)> = format_rows
         .iter()
-        .map(|r| (r.short_id, r.name.as_str(), r.source_file.as_str()))
+        .map(|r| (r.short_id.unwrap_or(0), r.name.as_str(), r.source_file.as_str()))
         .collect();
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
@@ -283,62 +283,159 @@ pub fn validate_dc_category_file(
             continue;
         }
 
-        let short_id = if let Ok(v) = short_str.parse::<u32>() {
-            v
+        let is_generated_csv = file_path.ends_with(".generated.csv");
+        let (dc_id, is_unicode_char) = if let Some(hex_part) = dc_str.strip_prefix('u') {
+            // Strictly u<hex> format: 1..=6 lowercase hex digits
+            if (1..=6).contains(&hex_part.len())
+                && hex_part.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+            {
+                if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
+                    if cp <= 0x10_FFFF {
+                        (u128::from(cp), true)
+                    } else {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Dc"),
+                            format!("Unicode codepoint 'u{hex_part}' exceeds maximum Unicode 0x10FFFF"),
+                            Some("Ensure codepoint is within 0x0..=0x10FFFF"),
+                        );
+                        continue;
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Dc"),
+                        format!("Invalid hex in Unicode reference: '{dc_str}'"),
+                        Some("Must be 'u' followed by valid lowercase hex"),
+                    );
+                    continue;
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Dc"),
+                    format!("Invalid Unicode notation '{dc_str}': must be 'u' followed by 1..=6 lowercase hex digits (e.g. u0020, u0b)"),
+                    Some("Only lowercase u<hex> is permitted for Unicode characters in category tables"),
+                );
+                continue;
+            }
+        } else if let Ok(v) = dc_str.parse::<u128>() {
+            if v <= 1_114_111 {
+                if is_generated_csv {
+                    (v, true)
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Dc"),
+                        format!("Unicode character must use 'u<hex>' format in category tables, found decimal integer: '{dc_str}'"),
+                        Some("Use 'u<hex>' (e.g. u0a, u85) for Unicode characters in category CSVs"),
+                    );
+                    continue;
+                }
+            } else {
+                (v, false)
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
-                Some("Short"),
-                format!("Invalid Short Dc ID integer: '{short_str}'"),
-                Some("Must be a non-negative integer"),
+                Some("Dc"),
+                format!("Invalid Global Dc ID integer or Unicode reference: '{dc_str}'"),
+                Some("Must be an integer within Document Character region or 'u<hex>' for Unicode characters"),
             );
             continue;
         };
 
-        let dc_id = if let Ok(v) = dc_str.parse::<u128>() {
-            v
+        let short_id = if is_unicode_char {
+            if short_str.is_empty() || short_str.starts_with("308") {
+                None
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Short"),
+                    format!("Invalid Short ID for Unicode character: '{short_str}'"),
+                    Some("Short ID for Unicode characters must be blank or start with 308"),
+                );
+                None
+            }
         } else {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Dc"),
-                format!("Invalid Global Dc ID integer: '{dc_str}'"),
-                Some("Must be an integer within Document Character region"),
-            );
-            continue;
+            let parsed_short = if let Ok(v) = short_str.parse::<u32>() {
+                v
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Short"),
+                    format!("Invalid Short Dc ID integer: '{short_str}'"),
+                    Some("Must be a non-negative integer"),
+                );
+                continue;
+            };
+
+            let expected_dc = SHORT_DC_REGION_START.saturating_add(u128::from(parsed_short));
+            if dc_id != expected_dc {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Dc"),
+                    format!(
+                        "Global Dc ID ({dc_id}) does not match SHORT_DC_REGION_START + Short ID ({expected_dc})"
+                    ),
+                    Some("Ensure Dc ID is offset from Short ID by 1114112"),
+                );
+            }
+
+            if !(SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Dc"),
+                    format!(
+                        "Dc ID {dc_id} is out of the Document Characters region bounds ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})"
+                    ),
+                    Some("Verify region boundaries"),
+                );
+            }
+
+            let Ok(short_id_usize) = usize::try_from(parsed_short) else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Short"),
+                    format!("Short ID {parsed_short} exceeds usize limits"),
+                    Some("Ensure Short ID fits in machine usize"),
+                );
+                continue;
+            };
+
+            Some(short_id_usize)
         };
 
-        let expected_dc = SHORT_DC_REGION_START.saturating_add(u128::from(short_id));
-        if dc_id != expected_dc {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Dc"),
-                format!(
-                    "Global Dc ID ({dc_id}) does not match SHORT_DC_REGION_START + Short ID ({expected_dc})"
-                ),
-                Some("Ensure Dc ID is offset from Short ID by 1114112"),
-            );
-        }
-
-        if !(SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Dc"),
-                format!(
-                    "Dc ID {dc_id} is out of the Document Characters region bounds ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})"
-                ),
-                Some("Verify region boundaries"),
-            );
-        }
-
-        let is_deprecated = raw_name.starts_with('!');
-        let name = if let Some(stripped) = raw_name.strip_prefix('!') {
-            stripped.trim().to_string()
+        let (name, is_deprecated) = if is_unicode_char {
+            let cp = u32::try_from(dc_id).unwrap_or(0);
+            let uni_name = ctb_formats_unicode::get_unicode_name(cp)
+                .unwrap_or_else(|| {
+                    if let Some(stripped) = raw_name.strip_prefix('!') {
+                        stripped.trim().to_string()
+                    } else {
+                        raw_name.trim().to_string()
+                    }
+                });
+            let dep = ctb_formats_unicode::is_deprecated_unicode(cp);
+            (uni_name, dep)
         } else {
-            raw_name.trim().to_string()
+            let dep = raw_name.starts_with('!');
+            let n = if let Some(stripped) = raw_name.strip_prefix('!') {
+                stripped.trim().to_string()
+            } else {
+                raw_name.trim().to_string()
+            };
+            (n, dep)
         };
 
         let combining_class = match validate_combining_class(&combining_str) {
@@ -398,8 +495,18 @@ pub fn validate_dc_category_file(
             }
         };
 
-        let (aliases, cross_references, decompositions, raw_dc_syntax) =
+        let (mut aliases, cross_references, decompositions, raw_dc_syntax) =
             split_dc_aliases_column(&raw_aliases);
+
+        if is_unicode_char && !raw_name.is_empty() {
+            let clean_raw = raw_name.trim_start_matches('!').trim();
+            if !clean_raw.is_empty()
+                && !clean_raw.eq_ignore_ascii_case(&name)
+                && !aliases.iter().any(|a| a.eq_ignore_ascii_case(clean_raw))
+            {
+                aliases.insert(0, clean_raw.to_string());
+            }
+        }
 
         let dc_syntax = if let Some(raw_syn) = &raw_dc_syntax {
             match parse_dc_syntax(raw_syn) {
@@ -419,20 +526,9 @@ pub fn validate_dc_category_file(
             None
         };
 
-        let Ok(short_id_usize) = usize::try_from(short_id) else {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Short"),
-                format!("Short ID {short_id} exceeds usize limits"),
-                Some("Ensure Short ID fits in machine usize"),
-            );
-            continue;
-        };
-
         rows.push(DcDefn {
             dc_id,
-            short_id: short_id_usize,
+            short_id,
             ident: None,
             name,
             category: category.clone(),
@@ -563,6 +659,7 @@ where
 {
     let mut all_rows = Vec::new();
     let mut short_id_map: HashMap<usize, (String, usize)> = HashMap::new();
+    let mut dc_id_map: HashMap<u128, (String, usize)> = HashMap::new();
 
     for (path_str, contents) in files {
         if !path_str.ends_with(".csv")
@@ -575,40 +672,57 @@ where
         let rows = validate_dc_category_file(contents, path_str, report);
 
         for row in rows {
-            if let Some((prev_file, prev_line)) =
-                short_id_map.get(&row.short_id)
-            {
+            if let Some(short_id) = row.short_id {
+                if let Some((prev_file, prev_line)) =
+                    short_id_map.get(&short_id)
+                {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Short"),
+                        format!(
+                            "Duplicate Short Dc ID {short_id} already defined in {prev_file}:{prev_line}",
+                        ),
+                        Some("Assign a unique Short ID to each Document Character"),
+                    );
+                } else {
+                    short_id_map.insert(
+                        short_id,
+                        (row.source_file.clone(), row.line_number),
+                    );
+                }
+            }
+
+            if let Some((prev_file, prev_line)) = dc_id_map.get(&row.dc_id) {
                 report.add_error(
                     &row.source_file,
                     Some(row.line_number),
-                    Some("Short"),
+                    Some("Dc"),
                     format!(
-                        "Duplicate Short Dc ID {} already defined in {prev_file}:{prev_line}",
-                        row.short_id
+                        "Duplicate Dc ID {} already defined in {prev_file}:{prev_line}",
+                        row.dc_id
                     ),
-                    Some("Assign a unique Short ID to each Document Character"),
+                    Some("Ensure each character has a unique Dc ID"),
                 );
             } else {
-                short_id_map.insert(
-                    row.short_id,
-                    (row.source_file.clone(), row.line_number),
-                );
+                dc_id_map.insert(row.dc_id, (row.source_file.clone(), row.line_number));
             }
 
             all_rows.push(row);
         }
     }
 
-    // Reason for fallback: short ID values are within u32 range, default to 0 if out of range for syntax checks
     let known_dc_ids: HashSet<u32> = all_rows
         .iter()
-        .map(|r| u32::try_from(r.short_id).unwrap_or(0))
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
     let deprecated_dc_ids: HashSet<u32> = all_rows
         .iter()
         .filter(|r| r.is_deprecated)
-        .filter_map(|r| u32::try_from(r.short_id).ok())
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
     // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
@@ -705,8 +819,9 @@ where
         }
 
         if let Some(syntax_rule) = &row.syntax {
-            // Reason for fallback: short ID values fit u32, default to 0 if conversion fails
-            let short_id_u32 = u32::try_from(row.short_id).unwrap_or(0);
+            // Reason for fallback: short ID values fit u32, default to 0 if conversion fails or None
+            let short_id_u32 =
+                row.short_id.and_then(|id| u32::try_from(id).ok()).unwrap_or(0);
             validate_dc_syntax(
                 syntax_rule,
                 short_id_u32,
@@ -917,7 +1032,7 @@ mod tests {
 
         // Run gap validation logic
         let known_dc_ids: HashSet<usize> =
-            rows.iter().map(|r| r.short_id).collect();
+            rows.iter().filter_map(|r| r.short_id).collect();
         if let Some(&max_id) = known_dc_ids.iter().max() {
             let mut missing_ids = Vec::new();
             for id in 0..=max_id {

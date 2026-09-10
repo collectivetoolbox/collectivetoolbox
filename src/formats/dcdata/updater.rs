@@ -228,6 +228,7 @@ pub fn assign_and_update_dc_categories(
             if file_name.ends_with(".csv")
                 && file_name != "schema.csv"
                 && !file_name.ends_with(".generated.csv")
+                && file_name != "unicode-clarifications.csv"
             {
                 csv_paths.push(path);
             }
@@ -244,6 +245,11 @@ pub fn assign_and_update_dc_categories(
         for row in &rows {
             if is_empty_row(row) {
                 continue;
+            }
+            if let Some(dc_str) = row.first() {
+                if dc_str.trim().starts_with('u') || dc_str.trim().starts_with('U') {
+                    continue;
+                }
             }
             if let Some(short_str) = row.get(1) {
                 if let Ok(id) = short_str.trim().parse::<u32>() {
@@ -272,6 +278,11 @@ pub fn assign_and_update_dc_categories(
         for row in &mut rows {
             if is_empty_row(row) {
                 continue;
+            }
+            if let Some(dc_str) = row.first() {
+                if dc_str.trim().starts_with('u') || dc_str.trim().starts_with('U') {
+                    continue;
+                }
             }
 
             // Ensure row has at least 2 columns for Dc and Short ID
@@ -587,8 +598,18 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                     && !file_name.ends_with(".generated.csv")
                 {
                     let (_, rows) = read_csv_file(&path)?;
-                    for row in rows {
+                    for mut row in rows {
                         if !is_empty_row(&row) {
+                            if let Some(dc_cell) = row.first_mut() {
+                                if let Some(hex_part) = dc_cell.strip_prefix('u') {
+                                    if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
+                                        *dc_cell = cp.to_string();
+                                        if let Some(short_cell) = row.get_mut(1) {
+                                            short_cell.clear();
+                                        }
+                                    }
+                                }
+                            }
                             all_dc_rows.push(row);
                         }
                     }
@@ -616,7 +637,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         stats.dc_records_merged = all_dc_rows.len();
 
         let known_format_ids: HashSet<usize> =
-            parsed_formats.iter().map(|r| r.short_id).collect();
+            parsed_formats.iter().filter_map(|r| r.short_id).collect();
 
         let mut dc_report = ValidationReport::new();
         let mut parsed_dcs = crate::dc::validate_all_dc_files_from_disk(

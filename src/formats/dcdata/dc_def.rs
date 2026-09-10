@@ -62,7 +62,8 @@ pub struct FormatDetails {
 pub struct DcDefn {
     // Identity & Core Display
     pub dc_id: u128,
-    pub short_id: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_id: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ident: Option<String>,
     pub name: String,

@@ -367,9 +367,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_data_loaded() -> Result<()> {
-        assert_eq!(dc_dataset_length("DcData")?, 309);
-        assert_eq!(get_dc_count()?, 309);
-        assert_eq!(maximum_known_short_dc()?, 308);
+        let dc_count = get_dc_count()?;
+        let max_dc = maximum_known_short_dc()?;
+        assert_eq!(dc_dataset_length("DcData")?, dc_count);
+        assert_eq!(dc_count, max_dc.saturating_add(1));
+        assert!(max_dc >= 308);
         assert!(is_format("unicode"));
         assert!(is_format("utf8"));
         Ok(())

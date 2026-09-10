@@ -55,7 +55,7 @@ const JAMO_T_TABLE: [&str; 28] = [
 ];
 
 /// Computes the algorithmic Hangul syllable name for a code point if applicable.
-fn hangul_syllable_name(cp: u32) -> Option<String> {
+pub(crate) fn hangul_syllable_name(cp: u32) -> Option<String> {
     if (HANGUL_S_BASE..HANGUL_S_BASE.saturating_add(HANGUL_S_COUNT))
         .contains(&cp)
     {

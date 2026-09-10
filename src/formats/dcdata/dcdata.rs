@@ -42,7 +42,8 @@ pub mod validation;
 
 pub use dc::{
     GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
-    SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START, long_to_short_dc,
+    short_to_long_dc,
 };
 pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{
@@ -56,7 +57,8 @@ pub use layout::{
 };
 pub use lookup::{
     get_all_dc_defns, get_dc_count, get_dc_defn, get_dc_name,
-    get_eite_dc_data_rows, maximum_known_short_dc,
+    get_eite_dc_data_rows, get_short_dc_defn, get_short_dc_name,
+    maximum_known_short_dc,
 };
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use shared::{
