@@ -135,7 +135,7 @@ pub fn validate_all_data_tables_from_repo(
         format_rows.iter().map(|r| r.short_id).collect();
 
     // 3. Validate Document Characters category files
-    let dc_dir = repo_root.join("src/formats/dc_data/data/categories");
+    let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
     let dc_rows = validate_all_dc_files_from_disk(
         &dc_dir,
         &known_format_ids,
@@ -736,7 +736,7 @@ pub fn validate_all_dc_files(
     }
     validate_dc_files_data(
         files,
-        "src/formats/dc_data/data/categories/",
+        "src/formats/dcdata/data/categories/",
         known_format_ids,
         report,
     )
@@ -945,7 +945,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let repo = temp_dir.path();
 
-        let dc_cats = repo.join("src/formats/dc_data/data/categories");
+        let dc_cats = repo.join("src/formats/dcdata/data/categories");
         let fmt_cats = repo.join("src/formats/utilities/data/formats");
         std::fs::create_dir_all(&dc_cats).unwrap();
         std::fs::create_dir_all(&fmt_cats).unwrap();
@@ -964,7 +964,7 @@ mod tests {
             "Description".to_string(),
         ];
         write_csv_file(
-            &repo.join("src/formats/dc_data/data/schema.csv"),
+            &repo.join("src/formats/dcdata/data/schema.csv"),
             &dc_schema_header,
             &[],
         )
@@ -1093,7 +1093,7 @@ mod tests {
 
         // Verify generated DcList.generated.csv contents and order
         let (dc_gen_hdr, dc_gen_rows) = read_csv_file(
-            &repo.join("src/formats/dc_data/data/DcList.generated.csv"),
+            &repo.join("src/formats/dcdata/data/DcList.generated.csv"),
         )
         .unwrap();
         assert_eq!(dc_gen_hdr, dc_schema_header);
@@ -1116,7 +1116,7 @@ mod tests {
         assert_eq!(fmt_gen_rows[1][1], "1");
 
         // Verify generated JSON files
-        let dc_json_path = repo.join("src/formats/dc_data/data/DcList.generated.json");
+        let dc_json_path = repo.join("src/formats/dcdata/data/DcList.generated.json");
         assert!(dc_json_path.exists());
         let dc_json_str = std::fs::read_to_string(&dc_json_path).unwrap();
         assert!(dc_json_str.contains("CustomDc"));

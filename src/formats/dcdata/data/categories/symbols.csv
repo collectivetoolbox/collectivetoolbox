@@ -15,4 +15,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114395,283,"!Association football, emoji style",0,ON,,So,Emoji,"<style>u26bd, <equiv>u26bd ufe0f",
 1114396,284,"Association football, emoji style, bouncing",0,ON,,So,Emoji,<approx>u26bd ufe0e,
 1114397,285,"Association football, emoji style, rolling",0,ON,,So,Emoji,<approx>u26bd ufe0f,
-,,Solid vertical line,0,ON,,Sm,Symbols,<approx>u7c,Glyph variant of U+007C. Broken variant is unambiguously U+00A6.
+1114421,309,Solid vertical line,0,ON,,Sm,Symbols,<style>u7c,Glyph variant of U+007C. Broken variant is unambiguously U+00A6.

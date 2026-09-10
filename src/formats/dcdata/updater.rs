@@ -201,14 +201,14 @@ pub fn write_csv_file(
 }
 
 /// Scans and automatically assigns Short and Global Dc IDs in Document Character
-/// category CSV files (`src/formats/dc_data/data/categories/*.csv`).
+/// category CSV files (`src/formats/dcdata/data/categories/*.csv`).
 ///
 /// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
 /// monotonically without backfilling any preexisting gaps.
 pub fn assign_and_update_dc_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
-    let categories_dir = repo_root.join("src/formats/dc_data/data/categories");
+    let categories_dir = repo_root.join("src/formats/dcdata/data/categories");
     if !categories_dir.is_dir() {
         bail!(
             "Dc categories directory not found at {}",
@@ -561,9 +561,9 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 
     // 2. Generate DcList.generated.csv and DcList.generated.json
     let categories_dir =
-        repo_root.join("src/formats/dc_data/data/categories");
+        repo_root.join("src/formats/dcdata/data/categories");
     if categories_dir.is_dir() {
-        let schema_path = repo_root.join("src/formats/dc_data/data/schema.csv");
+        let schema_path = repo_root.join("src/formats/dcdata/data/schema.csv");
         let (canonical_header, _) =
             read_csv_file(&schema_path).with_context(|| {
                 format!(
@@ -611,7 +611,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         });
 
         let target_path =
-            repo_root.join("src/formats/dc_data/data/DcList.generated.csv");
+            repo_root.join("src/formats/dcdata/data/DcList.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
         stats.dc_records_merged = all_dc_rows.len();
 
@@ -627,7 +627,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         parsed_dcs.sort_by_key(|r| r.dc_id);
 
         let json_target_path =
-            repo_root.join("src/formats/dc_data/data/DcList.generated.json");
+            repo_root.join("src/formats/dcdata/data/DcList.generated.json");
         let json_data = serde_json::to_string_pretty(&parsed_dcs)
             .context("Failed to serialize DcList to JSON")?;
         fs::write(&json_target_path, format!("{json_data}\n")).with_context(
@@ -674,7 +674,7 @@ mod tests {
         // Create simulated category files with IDs [0, 10, 20] and one "AUTO" entry
         let temp_dir = tempfile::tempdir().unwrap();
         let cat_dir =
-            temp_dir.path().join("src/formats/dc_data/data/categories");
+            temp_dir.path().join("src/formats/dcdata/data/categories");
         fs::create_dir_all(&cat_dir).unwrap();
 
         let header = vec![

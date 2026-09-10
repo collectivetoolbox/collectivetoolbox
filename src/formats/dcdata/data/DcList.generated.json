@@ -8,8 +8,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u00"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -25,8 +27,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u40"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -321,8 +325,10 @@
     "bidi_class": "WS",
     "general_category": "Zs",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u20"
+    ],
     "aliases": [
       "word separator"
     ],
@@ -340,8 +346,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u21"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -357,8 +365,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u22"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -374,8 +384,10 @@
     "bidi_class": "ET",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u23"
+    ],
     "aliases": [
       "octothorpe",
       "hash",
@@ -395,8 +407,10 @@
     "bidi_class": "ET",
     "general_category": "Sc",
     "script": "Financial",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u24"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -412,8 +426,10 @@
     "bidi_class": "ET",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u25"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -423,14 +439,16 @@
   {
     "dc_id": 1114136,
     "short_id": 24,
-    "name": "And",
+    "name": "Ampersand",
     "category": "punctuation",
     "combining_class": 0,
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u26"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -446,8 +464,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u27"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -463,8 +483,10 @@
     "bidi_class": "ON",
     "general_category": "Ps",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u28"
+    ],
     "aliases": [
       "left bracket"
     ],
@@ -482,8 +504,10 @@
     "bidi_class": "ON",
     "general_category": "Pe",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u29"
+    ],
     "aliases": [
       "right bracket"
     ],
@@ -501,8 +525,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u2a"
+    ],
     "aliases": [
       "star"
     ],
@@ -520,7 +546,7 @@
     "bidi_class": "ES",
     "general_category": "Sm",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u2b"
     ],
@@ -539,8 +565,10 @@
     "bidi_class": "CS",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u2c"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -557,7 +585,9 @@
     "general_category": "Pd",
     "script": "Punctuation",
     "is_deprecated": false,
-    "decompositions": [],
+    "decompositions": [
+      "<approx>u2d"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -574,7 +604,9 @@
     "general_category": "Po",
     "script": "Punctuation",
     "is_deprecated": false,
-    "decompositions": [],
+    "decompositions": [
+      "<approx>u2e"
+    ],
     "aliases": [
       "period"
     ],
@@ -592,8 +624,10 @@
     "bidi_class": "CS",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u2f"
+    ],
     "aliases": [
       "virgule",
       "stroke",
@@ -613,7 +647,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u30"
     ],
@@ -632,7 +666,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u31"
     ],
@@ -651,7 +685,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u32"
     ],
@@ -670,7 +704,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u33"
     ],
@@ -689,7 +723,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u34"
     ],
@@ -708,7 +742,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u35"
     ],
@@ -727,7 +761,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u36"
     ],
@@ -746,7 +780,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u37"
     ],
@@ -765,7 +799,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u38"
     ],
@@ -784,7 +818,7 @@
     "bidi_class": "EN",
     "general_category": "Nd",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u39"
     ],
@@ -803,8 +837,10 @@
     "bidi_class": "CS",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u3a"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -820,8 +856,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u3b"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -837,7 +875,7 @@
     "bidi_class": "ON",
     "general_category": "Sm",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u3c"
     ],
@@ -856,7 +894,7 @@
     "bidi_class": "ON",
     "general_category": "Sm",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u3d"
     ],
@@ -875,7 +913,7 @@
     "bidi_class": "ON",
     "general_category": "Sm",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u3e"
     ],
@@ -894,8 +932,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u3f"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -912,7 +952,7 @@
     "casing_partner": 82,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u41"
     ],
@@ -932,7 +972,7 @@
     "casing_partner": 83,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u42"
     ],
@@ -952,7 +992,7 @@
     "casing_partner": 84,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u43"
     ],
@@ -972,7 +1012,7 @@
     "casing_partner": 85,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u44"
     ],
@@ -992,7 +1032,7 @@
     "casing_partner": 86,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u45"
     ],
@@ -1012,7 +1052,7 @@
     "casing_partner": 87,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u46"
     ],
@@ -1032,7 +1072,7 @@
     "casing_partner": 88,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u47"
     ],
@@ -1052,7 +1092,7 @@
     "casing_partner": 89,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u48"
     ],
@@ -1072,7 +1112,7 @@
     "casing_partner": 90,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u49"
     ],
@@ -1092,7 +1132,7 @@
     "casing_partner": 91,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4a"
     ],
@@ -1112,7 +1152,7 @@
     "casing_partner": 92,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4b"
     ],
@@ -1132,7 +1172,7 @@
     "casing_partner": 93,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4c"
     ],
@@ -1152,7 +1192,7 @@
     "casing_partner": 94,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4d"
     ],
@@ -1172,7 +1212,7 @@
     "casing_partner": 95,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4e"
     ],
@@ -1192,7 +1232,7 @@
     "casing_partner": 96,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u4f"
     ],
@@ -1212,7 +1252,7 @@
     "casing_partner": 97,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u50"
     ],
@@ -1232,7 +1272,7 @@
     "casing_partner": 98,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u51"
     ],
@@ -1252,7 +1292,7 @@
     "casing_partner": 99,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u52"
     ],
@@ -1272,7 +1312,7 @@
     "casing_partner": 100,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u53"
     ],
@@ -1292,7 +1332,7 @@
     "casing_partner": 101,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u54"
     ],
@@ -1312,7 +1352,7 @@
     "casing_partner": 102,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u55"
     ],
@@ -1332,7 +1372,7 @@
     "casing_partner": 103,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u56"
     ],
@@ -1352,7 +1392,7 @@
     "casing_partner": 104,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u57"
     ],
@@ -1372,7 +1412,7 @@
     "casing_partner": 105,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u58"
     ],
@@ -1392,7 +1432,7 @@
     "casing_partner": 106,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u59"
     ],
@@ -1412,7 +1452,7 @@
     "casing_partner": 107,
     "general_category": "Lu",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u5a"
     ],
@@ -1431,8 +1471,10 @@
     "bidi_class": "ON",
     "general_category": "Ps",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u5b"
+    ],
     "aliases": [
       "left square bracket"
     ],
@@ -1450,8 +1492,10 @@
     "bidi_class": "ON",
     "general_category": "Po",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u5c"
+    ],
     "aliases": [
       "backslash"
     ],
@@ -1469,8 +1513,10 @@
     "bidi_class": "ON",
     "general_category": "Pe",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u5d"
+    ],
     "aliases": [
       "right square bracket"
     ],
@@ -1488,8 +1534,10 @@
     "bidi_class": "ON",
     "general_category": "Sk",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u5e"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -1505,8 +1553,10 @@
     "bidi_class": "ON",
     "general_category": "Pc",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u5f"
+    ],
     "aliases": [
       "low line"
     ],
@@ -1524,8 +1574,10 @@
     "bidi_class": "ON",
     "general_category": "Sk",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u60"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -1542,7 +1594,7 @@
     "casing_partner": 50,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u61"
     ],
@@ -1562,7 +1614,7 @@
     "casing_partner": 51,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u62"
     ],
@@ -1582,7 +1634,7 @@
     "casing_partner": 52,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u63"
     ],
@@ -1602,7 +1654,7 @@
     "casing_partner": 53,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u64"
     ],
@@ -1622,7 +1674,7 @@
     "casing_partner": 54,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u65"
     ],
@@ -1642,7 +1694,7 @@
     "casing_partner": 55,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u66"
     ],
@@ -1662,7 +1714,7 @@
     "casing_partner": 56,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u67"
     ],
@@ -1682,7 +1734,7 @@
     "casing_partner": 57,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u68"
     ],
@@ -1702,7 +1754,7 @@
     "casing_partner": 58,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u69"
     ],
@@ -1722,7 +1774,7 @@
     "casing_partner": 59,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6a"
     ],
@@ -1742,7 +1794,7 @@
     "casing_partner": 60,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6b"
     ],
@@ -1762,7 +1814,7 @@
     "casing_partner": 61,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6c"
     ],
@@ -1782,7 +1834,7 @@
     "casing_partner": 62,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6d"
     ],
@@ -1802,7 +1854,7 @@
     "casing_partner": 63,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6e"
     ],
@@ -1822,7 +1874,7 @@
     "casing_partner": 64,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u6f"
     ],
@@ -1842,7 +1894,7 @@
     "casing_partner": 65,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u70"
     ],
@@ -1862,7 +1914,7 @@
     "casing_partner": 66,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u71"
     ],
@@ -1882,7 +1934,7 @@
     "casing_partner": 67,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u72"
     ],
@@ -1902,7 +1954,7 @@
     "casing_partner": 68,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u73"
     ],
@@ -1922,7 +1974,7 @@
     "casing_partner": 69,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u74"
     ],
@@ -1942,7 +1994,7 @@
     "casing_partner": 70,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u75"
     ],
@@ -1962,7 +2014,7 @@
     "casing_partner": 71,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u76"
     ],
@@ -1982,7 +2034,7 @@
     "casing_partner": 72,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u77"
     ],
@@ -2002,7 +2054,7 @@
     "casing_partner": 73,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u78"
     ],
@@ -2022,7 +2074,7 @@
     "casing_partner": 74,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u79"
     ],
@@ -2042,7 +2094,7 @@
     "casing_partner": 75,
     "general_category": "Ll",
     "script": "Latin",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u7a"
     ],
@@ -2061,8 +2113,10 @@
     "bidi_class": "ON",
     "general_category": "Ps",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u7b"
+    ],
     "aliases": [
       "left curly bracket"
     ],
@@ -2080,14 +2134,16 @@
     "bidi_class": "ON",
     "general_category": "Sm",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u7c"
+    ],
     "aliases": [
       "vertical bar",
       "pipe"
     ],
     "cross_references": [],
-    "description": "",
+    "description": "Glyph might use a solid or broken line. U+00A6 seems to be unambiguously broken; Unicode doesn't seem to provide an unambiguously solid one.",
     "source_file": "symbols.csv",
     "line_number": 11
   },
@@ -2100,8 +2156,10 @@
     "bidi_class": "ON",
     "general_category": "Pe",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u7d"
+    ],
     "aliases": [
       "right curly bracket"
     ],
@@ -2119,8 +2177,10 @@
     "bidi_class": "ON",
     "general_category": "Sm",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u7e"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2204,8 +2264,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u08"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2221,8 +2283,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u09"
+    ],
     "aliases": [
       "character tabulation",
       "tab"
@@ -2241,9 +2305,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>257 119"
+      "<ambiguous>257 119",
+      "<equiv>u0b"
     ],
     "aliases": [],
     "cross_references": [],
@@ -2260,9 +2325,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<equiv>240 239"
+      "<equiv>240 239",
+      "<equiv>u85"
     ],
     "aliases": [
       "line feed",
@@ -2282,9 +2348,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>119 239"
+      "<ambiguous>119 239",
+      "<equiv>u0a"
     ],
     "aliases": [],
     "cross_references": [],
@@ -2301,9 +2368,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>119 240 294"
+      "<ambiguous>119 240 294",
+      "<equiv>u0d"
     ],
     "aliases": [],
     "cross_references": [],
@@ -3527,8 +3595,10 @@
     "bidi_class": "WS",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u0c"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3748,7 +3818,7 @@
     "bidi_class": "ON",
     "general_category": "So",
     "script": "Miscellaneous",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>ufffd"
     ],
@@ -3786,8 +3856,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u01"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3803,8 +3875,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u02"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3820,8 +3894,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u03"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3837,8 +3913,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u04"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3854,8 +3932,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u05"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3871,8 +3951,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u06"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3888,8 +3970,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u07"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3905,9 +3989,13 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
-    "aliases": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u0e"
+    ],
+    "aliases": [
+      "locking-shift one"
+    ],
     "cross_references": [],
     "description": "",
     "source_file": "controls.csv",
@@ -3922,9 +4010,13 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
-    "aliases": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u0f"
+    ],
+    "aliases": [
+      "locking-shift zero"
+    ],
     "cross_references": [],
     "description": "",
     "source_file": "controls.csv",
@@ -3939,8 +4031,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u10"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3956,8 +4050,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u11"
+    ],
     "aliases": [
       "xon",
       "resume transmission"
@@ -3976,8 +4072,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u12"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -3993,8 +4091,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u13"
+    ],
     "aliases": [
       "xoff",
       "pause transmission"
@@ -4013,8 +4113,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u14"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4030,8 +4132,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u15"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4047,8 +4151,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u16"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4064,8 +4170,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u17"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4081,8 +4189,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u18"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4098,8 +4208,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u19"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4115,8 +4227,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1a"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4132,8 +4246,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1b"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4149,8 +4265,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1c"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4166,8 +4284,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1d"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4183,8 +4303,10 @@
     "bidi_class": "B",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1e"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4200,8 +4322,10 @@
     "bidi_class": "S",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u1f"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4217,9 +4341,10 @@
     "bidi_class": "ES",
     "general_category": "Pd",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>31 237"
+      "<ambiguous>31 237",
+      "<equiv>u2d"
     ],
     "aliases": [],
     "cross_references": [],
@@ -4236,8 +4361,10 @@
     "bidi_class": "BN",
     "general_category": "Cc",
     "script": "Controls",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u7f"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -4287,7 +4414,7 @@
     "bidi_class": "ES",
     "general_category": "Sm",
     "script": "Mathematics",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
       "<equiv>u2212"
     ],
@@ -4306,9 +4433,10 @@
     "bidi_class": "CS",
     "general_category": "Po",
     "script": "Punctuation",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>12 32"
+      "<ambiguous>12 32",
+      "<equiv>u2e"
     ],
     "aliases": [],
     "cross_references": [],
@@ -4864,7 +4992,9 @@
     "general_category": "Cc",
     "script": "Punctuation",
     "is_deprecated": false,
-    "decompositions": [],
+    "decompositions": [
+      "<approx>u0b"
+    ],
     "aliases": [
       "line tabulation"
     ],
@@ -5762,8 +5892,10 @@
     "bidi_class": "ON",
     "general_category": "So",
     "script": "Symbols",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u26bd"
+    ],
     "aliases": [
       "soccer ball",
       "foot ball"
@@ -5782,9 +5914,10 @@
     "bidi_class": "ON",
     "general_category": "So",
     "script": "Symbols",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<style>281"
+      "<style>u26bd",
+      "<equiv>u26bd ufe0e"
     ],
     "aliases": [],
     "cross_references": [],
@@ -5801,9 +5934,10 @@
     "bidi_class": "ON",
     "general_category": "So",
     "script": "Emoji",
-    "is_deprecated": false,
+    "is_deprecated": true,
     "decompositions": [
-      "<style>281"
+      "<style>u26bd",
+      "<equiv>u26bd ufe0f"
     ],
     "aliases": [],
     "cross_references": [],
@@ -5822,7 +5956,7 @@
     "script": "Emoji",
     "is_deprecated": false,
     "decompositions": [
-      "<approx>283"
+      "<approx>u26bd ufe0e"
     ],
     "aliases": [],
     "cross_references": [],
@@ -5841,7 +5975,7 @@
     "script": "Emoji",
     "is_deprecated": false,
     "decompositions": [
-      "<approx>283"
+      "<approx>u26bd ufe0f"
     ],
     "aliases": [],
     "cross_references": [],
@@ -5994,8 +6128,10 @@
     "bidi_class": "WS",
     "general_category": "Zl",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u2028"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph.",
@@ -6011,8 +6147,10 @@
     "bidi_class": "B",
     "general_category": "Zp",
     "script": "Punctuation",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>u2029"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "This is the Unicode U+2029.",
@@ -6435,5 +6573,24 @@
     "description": "Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back.",
     "source_file": "miscellaneous.csv",
     "line_number": 7
+  },
+  {
+    "dc_id": 1114421,
+    "short_id": 309,
+    "name": "Solid vertical line",
+    "category": "symbols",
+    "combining_class": 0,
+    "bidi_class": "ON",
+    "general_category": "Sm",
+    "script": "Symbols",
+    "is_deprecated": false,
+    "decompositions": [
+      "<style>u7c"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Glyph variant of U+007C. Broken variant is unambiguously U+00A6.",
+    "source_file": "symbols.csv",
+    "line_number": 18
   }
 ]
