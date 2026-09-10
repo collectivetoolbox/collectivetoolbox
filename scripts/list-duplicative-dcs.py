@@ -193,8 +193,10 @@ def load_eite_mappings(
 
 
 def load_dc_definitions(workspace_root: Path) -> Dict[int, Dict[str, Any]]:
-    """Load all short Dc definitions from src/formats/dc_data/data/categories/*.csv."""
-    categories_dir = workspace_root / "src/formats/dc_data/data/categories"
+    """Load all short Dc definitions from categories CSVs."""
+    categories_dir = workspace_root / "src/formats/dcdata/data/categories"
+    if not categories_dir.is_dir():
+        categories_dir = workspace_root / "src/formats/dcdata/data/categories"
     dcs: Dict[int, Dict[str, Any]] = {}
 
     for csv_file in sorted(glob.glob(str(categories_dir / "*.csv"))):
