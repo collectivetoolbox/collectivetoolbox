@@ -27,6 +27,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+pub use crate as ctb_formats_dc_data;
+
 pub mod dc;
 pub mod dc_def;
 pub mod format;

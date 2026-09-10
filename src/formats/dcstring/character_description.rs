@@ -73,7 +73,7 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
         Err(_) => return format!("{gid} : <unknown Dc {short_dc}>"),
     };
 
-    let defn = ctb_formats_dc_data::get_dc_defn(short_usize);
+    let defn = ctb_formats_dcdata::get_dc_defn(short_usize);
     let (is_known, name) = match defn {
         Some(d) => (true, d.name.clone()),
         None => (false, format!("<unknown Dc {short_dc}>")),
@@ -125,7 +125,7 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
 pub fn describe_dc(short_dc: u32) -> Result<String> {
     let short_usize = usize::try_from(short_dc)
         .context("Dc ID exceeds usize range")?;
-    let defn = ctb_formats_dc_data::get_dc_defn(short_usize)
+    let defn = ctb_formats_dcdata::get_dc_defn(short_usize)
         .ok_or_else(|| anyhow!("Unknown Dc ID: {short_dc}"))?;
 
     let gid = dc_to_gid(u64::from(short_dc));

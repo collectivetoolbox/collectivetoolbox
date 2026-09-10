@@ -32,9 +32,7 @@ use std::ops::{
     RangeTo, RangeToInclusive,
 };
 
-use crate::{
-    DcChar, DcString, DcUtfError, decode_utf_8e_128_buf, validate_dcutf,
-};
+use crate::{DcChar, DcString, DcUtfError, decode_utf_8e_128_buf};
 
 /// A borrowed string slice containing valid UTF-8e-128 (DcUtf) data.
 #[repr(transparent)]
@@ -66,7 +64,8 @@ impl DcStr {
     #[must_use]
     #[expect(
         unsafe_code,
-        reason = "DcStr is #[repr(transparent)] around [u8], so &[u8] and &DcStr have identical layout"
+        clippy::transmute_ptr_to_ptr,
+        reason = "DcStr is #[repr(transparent)] around [u8], so &[u8] and &DcStr have identical layout; pointer casts require as which is denied by clippy"
     )]
     pub const unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         // Safety: Caller guarantees bytes are valid UTF-8e-128, and DcStr is #[repr(transparent)] around [u8].
@@ -96,7 +95,8 @@ impl DcStr {
     /// The caller must ensure that `bytes` contains valid UTF-8e-128 data.
     #[expect(
         unsafe_code,
-        reason = "DcStr is #[repr(transparent)] around [u8], so &mut [u8] and &mut DcStr have identical layout"
+        clippy::transmute_ptr_to_ptr,
+        reason = "DcStr is #[repr(transparent)] around [u8], so &mut [u8] and &mut DcStr have identical layout; pointer casts require as which is denied by clippy"
     )]
     pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Self {
         // Safety: Caller guarantees bytes are valid UTF-8e-128, and DcStr is #[repr(transparent)] around [u8].
@@ -417,3 +417,73 @@ impl Iterator for DcCharIndices<'_> {
 }
 
 impl std::iter::FusedIterator for DcCharIndices<'_> {}
+
+/// Validates that a byte slice contains valid UTF-8e-128 (DcUtf) data.
+///
+/// # Errors
+/// Returns `DcUtfError` specifying the first invalid byte index and error length.
+pub fn validate_dcutf(bytes: &[u8]) -> Result<(), DcUtfError> {
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let Some(slice) = bytes.get(i..) else { break };
+        if let Some((_val, size)) = decode_utf_8e_128_buf(slice) {
+            i = i.saturating_add(size);
+        } else {
+            let error_len = determine_error_len(slice);
+            return Err(DcUtfError {
+                valid_up_to: i,
+                error_len,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn determine_error_len(slice: &[u8]) -> Option<usize> {
+    let first = *slice.first()?;
+    if first == 0xFF {
+        let &h = slice.get(1)?;
+        if (h & 0xC0) != 0x80 {
+            return Some(1);
+        }
+        let l = usize::from(h & 0x3F);
+        if l == 0 || l > 22 {
+            return Some(2);
+        }
+        let expected = l.saturating_add(2);
+        if slice.len() < expected {
+            for i in 2..slice.len() {
+                if (slice.get(i).copied()? & 0xC0) != 0x80 {
+                    return Some(i);
+                }
+            }
+            return None;
+        }
+        return Some(expected);
+    }
+
+    if first < 0x80 {
+        return Some(1);
+    }
+
+    let expected_len = if (first & 0xE0) == 0xC0 {
+        2
+    } else if (first & 0xF0) == 0xE0 {
+        3
+    } else if (first & 0xF8) == 0xF0 {
+        4
+    } else {
+        return Some(1);
+    };
+
+    if slice.len() < expected_len {
+        for i in 1..slice.len() {
+            if (slice.get(i).copied()? & 0xC0) != 0x80 {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    Some(expected_len)
+}

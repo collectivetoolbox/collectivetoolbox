@@ -32,7 +32,7 @@ use anyhow::Result;
 
 use crate::node::{Node, NodeType};
 use crate::user::User;
-use ctb_formats_dctext::dctext_to_dcutf;
+use ctb_formats_dcstring::dctext_to_dcutf;
 
 #[derive(Debug, Default)]
 pub struct Graph {

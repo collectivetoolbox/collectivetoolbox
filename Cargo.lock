@@ -2640,8 +2640,8 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",
- "ctb-formats-dct-el",
  "ctb-formats-dcstring",
+ "ctb-formats-dct-el",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
@@ -2784,15 +2784,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-formats-dct-el"
-version = "0.0.0"
-dependencies = [
- "ctb-formats-utilities",
- "ctb-utilities",
- "include_dir",
-]
-
-[[package]]
 name = "ctb-formats-dcstring"
 version = "0.0.0"
 dependencies = [
@@ -2809,6 +2800,15 @@ dependencies = [
  "ctb-utilities",
  "malachite",
  "tempfile",
+]
+
+[[package]]
+name = "ctb-formats-dct-el"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
@@ -3735,8 +3735,8 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",
- "ctb-formats-dct-el",
  "ctb-formats-dcstring",
+ "ctb-formats-dct-el",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",

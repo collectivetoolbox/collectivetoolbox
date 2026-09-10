@@ -60,7 +60,7 @@ pub fn is_known_dc(v: u32) -> Result<bool> {
 }
 
 pub fn maximum_known_short_dc() -> Result<usize> {
-    Ok(ctb_formats_dc_data::maximum_known_short_dc())
+    Ok(ctb_formats_dcdata::maximum_known_short_dc())
 }
 
 /// Return true if Dc should be treated as a newline (coarse heuristic).
@@ -163,7 +163,7 @@ pub fn dc_get_description(dc: u32) -> Result<String> {
 
 /// Return length of the primary '`DcData`' dataset.
 pub fn get_dc_count() -> Result<usize> {
-    Ok(ctb_formats_dc_data::get_dc_count())
+    Ok(ctb_formats_dcdata::get_dc_count())
 }
 
 /// Extract an entire column (by field number) from a dataset.

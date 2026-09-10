@@ -66,7 +66,7 @@ impl EiteData {
 
         for dataset_name in list_dc_datasets() {
             if dataset_name == "DcData" {
-                let rows = ctb_formats_dc_data::get_eite_dc_data_rows().to_vec();
+                let rows = ctb_formats_dcdata::get_eite_dc_data_rows().to_vec();
                 data.insert(dataset_name.to_string(), rows);
                 loaded_datasets.push(dataset_name.to_string());
                 continue;

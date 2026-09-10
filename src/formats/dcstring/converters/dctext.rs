@@ -24,68 +24,29 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Output format is sort of UTF-8 text. For normal Unicode input characters, the output character is the same. For DcIds less than or equal to 1114111 (the largest Unicode character, I believe), the output character is the corresponding "generalized UTF-8", the numeric value encoded in the same underlying algorithm as UTF-8. For DcIds greater than 1114111 and not prefixed with an L, the output character is the decimal DcId represented by extending the usual algorithm of UTF-8 encoding, but for those larger numbers. For DcIds prefixed with an L, the output is equivalent to @1114408@ (short Dc 296) followed by a Dc number for the number that followed the L (the L is just a shorthand for that 1114408 Dc). That is to say, it's not a true Unicode encoding, it's simply using an extension of the algorithm underlying UTF-8 as a convenient encoding of ints.
 //! Currently, DcList is used as the internal format for pivoting between other formats, but DcUtf might make more sense eventually for space efficiency.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-pub use ctb_formats_utf_8e_128::{
-    DcChar, DcCharIndices, DcChars, DcStr, DcString, DcUtfError,
-    decode_utf_8e_128, encode_utf_8e_128_buf, validate_dcutf,
-};
-pub use ctb_formats_dc_data::dc::{
+use anyhow::Result;
+use ctb_formats_utilities::{ConversionOutput, FormatLog};
+use ctb_formats_dcdata::dc::{
     GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
     SHORT_DC_REGION_END, SHORT_DC_REGION_START,
 };
-pub use ctb_formats_utilities::ConversionOutput;
-use ctb_formats_utilities::FormatLog;
-
-pub mod character_description;
-pub mod cli;
-pub mod cli_identifiers;
-pub mod dc_number;
-pub mod dcal;
-pub mod dcutf;
-pub mod utf8;
-
-pub use dc_number::{
-    GID_BASE64_END, GID_BASE64_PADDING, GID_BASE64_START, GID_BEGIN_NUMBER,
-    GID_END_NUMBER, GID_FORMAT_199, GID_NEGATIVE, GID_POSITIVE,
-    SHORT_DC_BASE64_END, SHORT_DC_BASE64_PADDING, SHORT_DC_BASE64_START,
-    SHORT_DC_BEGIN_NUMBER, SHORT_DC_END_NUMBER, SHORT_DC_NEGATIVE,
-    SHORT_DC_POSITIVE, SHORT_ID_FORMAT_199, base64_char_to_global_dc,
-    base64_char_to_short_dc, base64_str_to_global_dcs, base64_str_to_short_dcs,
-    global_dc_to_base64_char, global_dcs_to_base64_str,
-    i128_to_dc_number_global, i128_to_dc_number_short,
-    integer_to_dc_number_global, integer_to_dc_number_short,
-    natural_to_dc_number_global, natural_to_dc_number_short,
-    parse_dc_number_global, parse_dc_number_global_i128, parse_dc_number_short,
-    parse_dc_number_short_i128, read_dc_number_global, read_dc_number_short,
-    short_dc_to_base64_char, short_dcs_to_base64_str, u128_to_dc_number_global,
+use crate::dc_number::{
+    integer_to_dc_number_global, read_dc_number_global, read_dc_number_short,
     u128_to_dc_number_short,
 };
+use crate::dc_char::DcChar;
+use crate::dc_str::DcStr;
+use crate::dc_string::DcString;
+use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
 
-pub use character_description::{
-    describe_dcal, describe_dclist, describe_graph_id,
-};
-pub use cli::{
-    CharacterDescriptionArgs, CharacterDescriptionInputFormat,
-    execute_cli_character_description,
-};
-pub use cli_identifiers::{
-    GidArgs, ShortDcArgs, ShortFmtArgs, execute_cli_gid, execute_cli_short_dc,
-    execute_cli_short_fmt, parse_graph_or_short_id,
-};
-pub use dcal::{dcal_to_dclist, dclist_to_dcal};
-pub use utf8::{
-    DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
-};
-
-/// Base offset for short Document Characters in the global graph layout.
-/// Short Dc 0 starts at 1114112 (0x110000).
-pub const SHORT_DC_OFFSET: u128 = 1_114_112;
+pub use crate::SHORT_DC_OFFSET;
 
 /// A list of global graph Document Character IDs represented as `u128` values.
 pub type DcList = Vec<u128>;
@@ -473,6 +434,7 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 )]
 mod tests {
     use super::*;
+    use crate::dc_number::*;
 
     #[crate::ctb_test]
     fn test_format_blob_preview() {

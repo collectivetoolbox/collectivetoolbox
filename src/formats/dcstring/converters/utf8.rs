@@ -117,7 +117,7 @@ pub fn dclist_to_utf8(
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
     let max_short_u128 =
-        u128::try_from(ctb_formats_dc_data::maximum_known_short_dc())
+        u128::try_from(ctb_formats_dcdata::maximum_known_short_dc())
             .map_err(|e| anyhow!("Failed to convert maximum_known_short_dc: {e}"))?;
 
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
@@ -526,10 +526,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dclist_utf8_basic_unicode() {
-        let input: DcList = vec![72, 101, 108, 108, 111, 32, 129314]; // "Hello 🤢"
+        let input: DcList = vec![72, 101, 108, 108, 111, 32, 128514]; // "Hello 😂"
         let settings = DcListUtf8Settings::default();
         let conv = dclist_to_utf8(&input, &settings).unwrap();
-        assert_eq!(String::from_utf8(conv.result.clone()).unwrap(), "Hello 🤢");
+        assert_eq!(String::from_utf8(conv.result.clone()).unwrap(), "Hello 😂");
 
         let back = dclist_from_utf8(&conv.result, &settings).unwrap();
         assert_eq!(back.result, input);

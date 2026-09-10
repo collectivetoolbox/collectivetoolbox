@@ -17,12 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Implements DcText and related formats DcList and DcUTF. These formats are
-//! encodings for sequences of integer global graph IDs (which are long Dcs).
-//! Format looks like (w/o backticks): `Unicode (UTF-8) text @123@miesu@214748364@@L662@`
-//! where `Unicode text` is actual unicode text, and between each pair of @ signs, is a DcId. A DcId can be any int 128 bits (u128) in decimal, and it may have an `L` prefix.
-//! Output format is sort of UTF-8 text. For normal Unicode input characters, the output character is the same. For DcIds less than or equal to 1114111 (the largest Unicode character, I believe), the output character is the corresponding "generalized UTF-8", the numeric value encoded in the same underlying algorithm as UTF-8. For DcIds greater than 1114111 and not prefixed with an L, the output character is the decimal DcId represented by extending the usual algorithm of UTF-8 encoding, but for those larger numbers. For DcIds prefixed with an L, the output is equivalent to @1114408@ (short Dc 296) followed by a Dc number for the number that followed the L (the L is just a shorthand for that 1114408 Dc). That is to say, it's not a true Unicode encoding, it's simply using an extension of the algorithm underlying UTF-8 as a convenient encoding of ints.
-//! Currently, DcList is used as the internal format for pivoting between other formats, but DcUtf might make more sense eventually for space efficiency.
+//! Document String (`DcString`, `DcStr`), Document Character (`DcChar`), and
+//! related Document Text formats (`DcText`, `DcList`, `DcUtf`).
 
 #[expect(
     unused_imports,
@@ -32,22 +28,39 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub use ctb_formats_utf_8e_128::{
-    DcChar, DcCharIndices, DcChars, DcStr, DcString, DcUtfError,
-    decode_utf_8e_128, encode_utf_8e_128_buf, validate_dcutf,
+    decode_utf_8e_128, decode_utf_8e_128_buf, encode_utf_8e_128,
+    encode_utf_8e_128_buf,
 };
-pub use ctb_formats_dc_data::dc::{
+pub use ctb_formats_dcdata as ctb_formats_dc_data;
+pub use crate as ctb_formats_dctext;
+pub use ctb_formats_dcdata::dc::{
     GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
     SHORT_DC_REGION_END, SHORT_DC_REGION_START,
 };
 pub use ctb_formats_utilities::ConversionOutput;
-use ctb_formats_utilities::FormatLog;
 
 pub mod character_description;
 pub mod cli;
 pub mod cli_identifiers;
+pub mod converters;
+pub mod dc_char;
 pub mod dc_number;
-pub mod dcal;
-pub mod utf8;
+pub mod dc_str;
+pub mod dc_string;
+pub mod error;
+
+pub use dc_char::DcChar;
+pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
+pub use dc_string::DcString;
+pub use error::DcUtfError;
+
+pub use converters::{
+    DcList, dcarray_to_dclist, dcarray_to_dctext, dcal, dcal_to_dclist,
+    dclist_to_dcal, dclist_to_dcarray, dclist_to_dctext, dclist_to_dcutf,
+    dcstring_to_dctext, dctext, dctext_to_dcarray, dctext_to_dclist,
+    dctext_to_dcstring, dctext_to_dcutf, dcutf_to_dclist, dcutf_to_dctext,
+    format_blob_preview, utf8,
+};
 
 pub use dc_number::{
     GID_BASE64_END, GID_BASE64_PADDING, GID_BASE64_START, GID_BEGIN_NUMBER,
@@ -77,14 +90,13 @@ pub use cli_identifiers::{
     GidArgs, ShortDcArgs, ShortFmtArgs, execute_cli_gid, execute_cli_short_dc,
     execute_cli_short_fmt, parse_graph_or_short_id,
 };
-pub use dcal::{dcal_to_dclist, dclist_to_dcal};
-pub use utf8::{
+pub use converters::utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };
 
 /// Base offset for short Document Characters in the global graph layout.
-/// Short Dc 0 starts at 1114112 (0x110000).
-pub use dc_data::layout::SHORT_DC_OFFSET: u128 = 1_114_112;
+/// Short Dc 0 starts at 1,114,112 (0x110000).
+pub const SHORT_DC_OFFSET: u128 = 1_114_112;
 
 #[cfg(test)]
 #[allow(

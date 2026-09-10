@@ -293,7 +293,7 @@ pub enum Command {
         alias = "shortdc",
         after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
     )]
-    ShortDc(ctb_formats_dctext::cli_identifiers::ShortDcArgs),
+    ShortDc(ctb_formats_dcstring::cli_identifiers::ShortDcArgs),
     /// Convert short Format ID to Global Graph ID or show Format metadata
     #[command(
         name = "short-fmt",
@@ -301,7 +301,7 @@ pub enum Command {
         alias = "shortfmt",
         after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
     )]
-    ShortFmt(ctb_formats_dctext::cli_identifiers::ShortFmtArgs),
+    ShortFmt(ctb_formats_dcstring::cli_identifiers::ShortFmtArgs),
     /// Convert Global Graph ID to short representation or show full metadata
     #[command(
         name = "gid",
@@ -309,7 +309,7 @@ pub enum Command {
         alias = "graph_id",
         after_help = "Examples:\n  $ ctoolbox gid --s 1114408\n  dc:296\n\n  $ ctoolbox gid -i 1114408"
     )]
-    Gid(ctb_formats_dctext::cli_identifiers::GidArgs),
+    Gid(ctb_formats_dcstring::cli_identifiers::GidArgs),
     /// Generate a range of numbers in various bases
     #[command(
         name = "range_gen",
@@ -324,7 +324,7 @@ pub enum Command {
         alias = "chardesc",
         after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
     )]
-    CharacterDescription(ctb_formats_dctext::cli::CharacterDescriptionArgs),
+    CharacterDescription(ctb_formats_dcstring::cli::CharacterDescriptionArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
@@ -914,21 +914,21 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::ShortDc(args) => {
             let output =
-                ctb_formats_dctext::cli_identifiers::execute_cli_short_dc(
+                ctb_formats_dcstring::cli_identifiers::execute_cli_short_dc(
                     args,
                 )?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::ShortFmt(args) => {
             let output =
-                ctb_formats_dctext::cli_identifiers::execute_cli_short_fmt(
+                ctb_formats_dcstring::cli_identifiers::execute_cli_short_fmt(
                     args,
                 )?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::Gid(args) => {
             let output =
-                ctb_formats_dctext::cli_identifiers::execute_cli_gid(args)?;
+                ctb_formats_dcstring::cli_identifiers::execute_cli_gid(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
         Command::RangeGen(args) => {
@@ -938,7 +938,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::CharacterDescription(args) => {
             let out =
-                ctb_formats_dctext::cli::execute_cli_character_description(
+                ctb_formats_dcstring::cli::execute_cli_character_description(
                     args.clone(),
                     read_file_or_stdin,
                 )?;

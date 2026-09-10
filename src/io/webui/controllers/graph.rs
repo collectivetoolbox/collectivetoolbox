@@ -74,7 +74,7 @@ pub async fn get_nodes_index(
     let nodes_list: Vec<_> = nodes
         .into_iter()
         .map(|node| {
-            let preview = ctb_formats_dctext::format_blob_preview(
+            let preview = ctb_formats_dcstring::format_blob_preview(
                 &node.data,
                 node.node_type == NodeType::Statements
                     || node.node_type == NodeType::System,
@@ -173,7 +173,7 @@ pub async fn get_nodes_view(
 
     let display_content = if is_statements {
         let dctext_bytes =
-            ctb_formats_dctext::dcutf_to_dctext(node.data.clone());
+            ctb_formats_dcstring::dcutf_to_dctext(node.data.clone());
         String::from_utf8_lossy(&dctext_bytes).into_owned()
     } else {
         String::from_utf8_lossy(&node.data).into_owned()
@@ -1132,7 +1132,7 @@ mod tests {
         assert_eq!(updated_node.node_type, NodeType::System);
 
         let dctext_bytes =
-            ctb_formats_dctext::dcutf_to_dctext(updated_node.data);
+            ctb_formats_dcstring::dcutf_to_dctext(updated_node.data);
         let redirect_dctext = String::from_utf8(dctext_bytes).unwrap();
         assert_eq!(redirect_dctext, format!("@1114409@@{target_id}@"));
 

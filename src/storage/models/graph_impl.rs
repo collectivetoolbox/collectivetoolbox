@@ -406,7 +406,7 @@ pub async fn get_formatted_table_data(
                         } else {
                             false
                         };
-                        ctb_formats_dctext::format_blob_preview(&v, is_dctext)
+                        ctb_formats_dcstring::format_blob_preview(&v, is_dctext)
                     }
                 }
                 Err(_) => "ERROR".to_string(),
