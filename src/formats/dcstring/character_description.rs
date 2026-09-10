@@ -68,11 +68,6 @@ pub fn describe_graph_id(id: u128, options: DescriptionOptions) -> String {
 }
 
 fn describe_dc_id(gid: u128, short_dc: u32) -> String {
-    let short_usize = match usize::try_from(short_dc) {
-        Ok(idx) => idx,
-        Err(_) => return format!("{gid} : <unknown Dc {short_dc}>"),
-    };
-
     let defn = ctb_formats_dcdata::get_dc_defn(gid);
     let (is_known, name) = match defn {
         Some(d) => (true, d.name.clone()),

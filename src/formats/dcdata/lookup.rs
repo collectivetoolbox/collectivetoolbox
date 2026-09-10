@@ -203,6 +203,11 @@ mod tests {
             get_dc_name(crate::dc::short_to_long_dc(308)).unwrap(),
             "Next number is a long (global graph) Dc"
         );
+
+        let u10 = get_dc_defn(10).expect("Unicode clarification 10 exists");
+        assert_eq!(u10.name, "LINE FEED");
+        assert_eq!(u10.category, "unicode-clarifications");
+        assert_eq!(get_dc_name(10).unwrap(), "LINE FEED");
     }
 
     #[crate::ctb_test]

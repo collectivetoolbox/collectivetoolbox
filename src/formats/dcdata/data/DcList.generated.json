@@ -1,5 +1,123 @@
 [
   {
+    "dc_id": 10,
+    "name": "LINE FEED",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "B",
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>119 239"
+    ],
+    "aliases": [
+      "<control> LINE FEED"
+    ],
+    "cross_references": [],
+    "description": "This is the ASCII/Unicode 10 (0x0A).",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 4
+  },
+  {
+    "dc_id": 11,
+    "name": "LINE TABULATION",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>257 119"
+    ],
+    "aliases": [
+      "<control> LINE TABULATION"
+    ],
+    "cross_references": [],
+    "description": "Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 2
+  },
+  {
+    "dc_id": 13,
+    "name": "CARRIAGE RETURN",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "B",
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>119 240 294"
+    ],
+    "aliases": [
+      "<control> CARRIAGE RETURN"
+    ],
+    "cross_references": [],
+    "description": "This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 45,
+    "name": "HYPHEN-MINUS",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "ES",
+    "general_category": "Pd",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>31 237"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 46,
+    "name": "FULL STOP",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "CS",
+    "general_category": "Po",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>12 32"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Full stop or decimal point",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 133,
+    "name": "NEXT LINE",
+    "category": "unicode-clarifications",
+    "combining_class": 0,
+    "bidi_class": "B",
+    "general_category": "Cc",
+    "script": "Punctuation",
+    "is_deprecated": false,
+    "decompositions": [
+      "<equiv>240 239"
+    ],
+    "aliases": [
+      "<control> NEXT LINE",
+      "line feed",
+      "end of line"
+    ],
+    "cross_references": [],
+    "description": "This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator.",
+    "source_file": "unicode-clarifications.csv",
+    "line_number": 3
+  },
+  {
     "dc_id": 1114112,
     "short_id": 0,
     "name": "Null",
@@ -2307,7 +2425,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>257 119",
       "<equiv>u0b"
     ],
     "aliases": [],
@@ -2327,7 +2444,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<equiv>240 239",
       "<equiv>u85"
     ],
     "aliases": [
@@ -2350,7 +2466,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>119 239",
       "<equiv>u0a"
     ],
     "aliases": [],
@@ -2370,7 +2485,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>119 240 294",
       "<equiv>u0d"
     ],
     "aliases": [],
@@ -4343,7 +4457,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>31 237",
       "<equiv>u2d"
     ],
     "aliases": [],
@@ -4435,7 +4548,6 @@
     "script": "Punctuation",
     "is_deprecated": true,
     "decompositions": [
-      "<ambiguous>12 32",
       "<equiv>u2e"
     ],
     "aliases": [],
