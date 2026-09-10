@@ -117,6 +117,18 @@ pub struct CscArgs {
     #[arg(long)]
     pub check_atime: bool,
 
+    /// Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion.
+    #[arg(long)]
+    pub delete_manifest_after: bool,
+
+    /// Recursive copy (default for csc; accepted for cp compatibility).
+    #[arg(short = 'r', short_alias = 'R', long = "recursive")]
+    pub recursive: bool,
+
+    /// Archive mode (preserves metadata, symlinks, and recurses; default for csc; accepted for cp compatibility).
+    #[arg(short = 'a', long = "archive")]
+    pub archive: bool,
+
     /// Perform a dry run without copying or modifying destination files.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
@@ -535,5 +547,72 @@ pub struct FsearchArgs {
     /// Output formatting mode (`path`, `long`, or `json`).
     #[arg(long, value_enum, default_value_t = SearchOutputFormat::Path)]
     pub format: SearchOutputFormat,
+}
+
+/// Command-line arguments for the `mv` command.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "mv",
+    about = "Move files without copying when possible, or run verified cross-device copy",
+    long_about = "Move files or directories. Attempts atomic O(1) rename on the same filesystem. If moving across filesystems (EXDEV), falls back to verified checksummed copying and only unlinks source files upon successful verification."
+)]
+pub struct MvArgs {
+    /// Source path(s) followed by target destination path.
+    #[arg(value_name = "PATHS", required = true, num_args = 2..)]
+    pub paths: Vec<PathBuf>,
+
+    /// Enable verbose diagnostic output.
+    #[arg(short, long)]
+    pub verbose: bool,
+
+    /// Display real-time progress indicators (default: enabled).
+    #[arg(long, default_value_t = true, overrides_with = "no_progress")]
+    pub progress: bool,
+
+    /// Disable progress display.
+    #[arg(long, overrides_with = "progress")]
+    pub no_progress: bool,
+
+    /// Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled).
+    #[arg(long, default_value_t = true, overrides_with = "no_verify_after")]
+    pub verify_after: bool,
+
+    /// Skip the post-flush verification pass on cross-device moves.
+    #[arg(long, overrides_with = "verify_after")]
+    pub no_verify_after: bool,
+
+    /// Relax strict metadata requirements when cross-device copy occurs.
+    #[arg(long)]
+    pub best_effort_metadata: bool,
+
+    /// Force overwrite destination without prompt (accepted for mv compatibility).
+    #[arg(short = 'f', long = "force")]
+    pub force: bool,
+
+    /// Perform a dry run without moving or deleting files.
+    #[arg(short = 'n', long)]
+    pub dry_run: bool,
+}
+
+impl MvArgs {
+    /// Resolves whether progress display is active.
+    #[must_use]
+    pub fn should_show_progress(&self) -> bool {
+        if self.no_progress {
+            false
+        } else {
+            self.progress
+        }
+    }
+
+    /// Resolves whether post-flush verification is active.
+    #[must_use]
+    pub fn should_verify_after(&self) -> bool {
+        if self.no_verify_after {
+            false
+        } else {
+            self.verify_after
+        }
+    }
 }
 

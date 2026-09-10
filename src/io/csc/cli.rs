@@ -124,6 +124,19 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         &progress,
     )?;
 
+    let journal_path = journal.journal_path().to_path_buf();
+    let desc_path = journal.desc_path().to_path_buf();
+    drop(journal);
+
+    if args.delete_manifest_after {
+        if journal_path.exists() {
+            let _ = std::fs::remove_file(&journal_path);
+        }
+        if desc_path.exists() {
+            let _ = std::fs::remove_file(&desc_path);
+        }
+    }
+
     let elapsed = start_time.elapsed().as_secs_f64();
 
     // 3. Format result summary

@@ -135,7 +135,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
         });
     }
 
-    ctb_io::file::write_streams(dest, &attached, true)
+    ctb_io::file::write_streams(dest, None, &attached, true)
 }
 
 /// Applies permissions, ownership, and timestamps from `source_meta` to `dest`.
@@ -173,5 +173,5 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
         read_time: None,
     };
 
-    apply_entity_metadata(dest, &meta, is_symlink, true, true)
+    apply_entity_metadata(dest, None, &meta, is_symlink, true, true)
 }

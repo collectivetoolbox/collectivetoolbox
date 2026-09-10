@@ -38,8 +38,9 @@ use crate::utilities::*;
 )]
 #[cfg(test)]
 mod csc_tests {
-    use crate::args::{CscArgs, CscVerifyArgs, VerifyOutputFormat};
+    use crate::args::{CscArgs, CscVerifyArgs, MvArgs, VerifyOutputFormat};
     use crate::cli::run_csc;
+    use crate::move_engine::run_mv;
     use crate::verifier::run_csc_verify;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
@@ -98,6 +99,9 @@ mod csc_tests {
             one_file_system: false,
             best_effort_metadata: false,
             check_atime: false,
+            delete_manifest_after: false,
+            recursive: true,
+            archive: true,
             dry_run: false,
         }
     }
@@ -2102,6 +2106,173 @@ mod csc_tests {
                 assert!(!out.contains("Directory matches manifest perfectly"));
             }
             ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_delete_manifest_after() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_del_manifest");
+        let dest = temp.path().join("dest_del_manifest");
+        let state = temp.path().join("state_del_manifest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state dir");
+
+        fs::write(src.join("test.txt"), b"Manifest should be deleted after copy").expect("write file");
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        args.delete_manifest_after = true;
+
+        let res = run_csc(args).expect("run csc with delete_manifest_after");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             1"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(dest.join("test.txt").exists());
+
+        // Verify that no .cscjournal or .cscdesc files exist in the state directory
+        for entry in fs::read_dir(&state).expect("read state dir") {
+            let entry = entry.expect("entry");
+            let ext = entry.path().extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
+            assert_ne!(ext, "cscjournal", "State journal should have been deleted");
+            assert_ne!(ext, "cscdesc", "Descriptor file should have been deleted");
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_same_filesystem() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("mv_src");
+        let dest = temp.path().join("mv_dest");
+        fs::create_dir_all(&src).expect("create src dir");
+
+        let file_path = src.join("move_me.txt");
+        fs::write(&file_path, b"Move this file atomically").expect("write file");
+
+        let target_file = dest.join("move_me.txt");
+        let args = MvArgs {
+            paths: vec![file_path.clone(), target_file.clone()],
+            verbose: true,
+            progress: false,
+            no_progress: true,
+            verify_after: true,
+            no_verify_after: false,
+            best_effort_metadata: false,
+            force: false,
+            dry_run: false,
+        };
+
+        let res = run_mv(args).expect("run mv");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Items renamed (same filesystem): 1"));
+                assert!(out.contains("Move completed successfully"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(!file_path.exists(), "Source file should no longer exist");
+        assert!(target_file.exists(), "Destination file should exist");
+        let content = fs::read(&target_file).expect("read dest");
+        assert_eq!(content, b"Move this file atomically");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_directory_tree() {
+        let temp = tempdir().expect("create tempdir");
+        let src_dir = temp.path().join("mv_dir_src");
+        let dest_dir = temp.path().join("mv_dir_dest");
+        fs::create_dir_all(src_dir.join("subdir")).expect("create src tree");
+
+        fs::write(src_dir.join("file1.txt"), b"Content 1").expect("write file1");
+        fs::write(src_dir.join("subdir").join("file2.txt"), b"Content 2").expect("write file2");
+
+        let args = MvArgs {
+            paths: vec![src_dir.clone(), dest_dir.clone()],
+            verbose: true,
+            progress: false,
+            no_progress: true,
+            verify_after: true,
+            no_verify_after: false,
+            best_effort_metadata: false,
+            force: false,
+            dry_run: false,
+        };
+
+        let res = run_mv(args).expect("run mv on dir");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Move completed successfully"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(!src_dir.exists(), "Source directory should no longer exist");
+        assert!(dest_dir.join("file1.txt").exists());
+        assert!(dest_dir.join("subdir").join("file2.txt").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_target_error_reporting_shows_target_file() {
+        let temp = tempdir().expect("create tempdir");
+        let scratch_file = temp.path().join("scratch.csc-tmp.12345");
+        fs::write(&scratch_file, b"data").expect("write scratch");
+
+        let intended_target = temp.path().join("my_real_file.bin");
+
+        // Non-root user cannot chown to root (uid 0) unless running as root
+        if nix::unistd::geteuid().as_raw() != 0 {
+            let meta = ctb_io::file::FileMetadata {
+                mode: 0o644,
+                uid: 0,
+                gid: 0,
+                timestamps: ctb_io::file::FileTimestamps {
+                    atime_sec: 1_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+            };
+
+            let err = ctb_io::file::apply_entity_metadata(
+                &scratch_file,
+                Some(&intended_target),
+                &meta,
+                false,
+                false,
+                true, // strict_lossless
+            )
+            .unwrap_err();
+
+            let err_msg = format!("{err:#}");
+            // The error MUST mention the intended destination path, and NOT the scratch temp file!
+            assert!(
+                err_msg.contains("my_real_file.bin"),
+                "Error message should mention the intended target file: {err_msg}"
+            );
+            assert!(
+                !err_msg.contains("scratch.csc-tmp.12345"),
+                "Error message should NOT mention the scratch temp path: {err_msg}"
+            );
         }
     }
 }

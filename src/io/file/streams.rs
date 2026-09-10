@@ -220,16 +220,18 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
 /// Fails with a hard error if the target filesystem cannot preserve them.
 pub fn write_streams(
     dest: &Path,
+    target_display_path: Option<&Path>,
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
+    let display_target = target_display_path.unwrap_or(dest);
     for stream in streams {
         let name_os = stream.name.as_os_str();
         let Some(data) = &stream.data else {
             anyhow::bail!(
                 "Stream {:?} on {} has no in-memory payload to write",
                 stream.name.to_string_lossy(),
-                dest.display()
+                display_target.display()
             );
         };
 
@@ -238,7 +240,7 @@ pub fn write_streams(
                 anyhow::bail!(
                     "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
                     stream.name.to_string_lossy(),
-                    dest.display(),
+                    display_target.display(),
                     e
                 );
             }

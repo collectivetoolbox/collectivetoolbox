@@ -86,8 +86,8 @@ fn is_windows_illegal_char(c: char) -> bool {
 
 /// DOS has extra requirements on filenames too: 8+3; may not start with 0xE5
 fn is_dos_illegal_char(c: char) -> bool {
-    is_windows_illegal_char ||
-    matches!(c, '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '%' | '/' | '"' | '*' | ':' | '?' | '+' | ',' | ';' | '=' |'[' | ']' | '!' | '@' )
+    is_windows_illegal_char(c) ||
+    matches!(c, '+' | ',' | ';' | '=' |'[' | ']' | '!' | '@' )
 }
 
 /// Returns true if the character is an ASCII/Unicode control character or line/

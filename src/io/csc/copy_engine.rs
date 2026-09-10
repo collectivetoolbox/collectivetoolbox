@@ -333,7 +333,7 @@ pub fn execute_copy_pipeline(
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
                 verify_directory_filenames_exact(&fixup.dest_path, &expected_refs)?;
 
-                if let Err(e) = write_streams(&fixup.dest_path, &fixup.dir_entity.streams, true) {
+                if let Err(e) = write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, true) {
                     log_fmt!(
                         "Writing directory streams failed for {}: {e}",
                         fixup.dest_path.display()
@@ -341,6 +341,7 @@ pub fn execute_copy_pipeline(
                 }
                 if let Err(e) = apply_entity_metadata(
                     &fixup.dest_path,
+                    None,
                     &fixup.dir_entity.metadata,
                     false,
                     true,
@@ -534,6 +535,7 @@ fn copy_single_item(
                         if !args.dry_run {
                             apply_entity_metadata(
                                 dest_path,
+                                None,
                                 &entity.metadata,
                                 false,
                                 true,
@@ -557,13 +559,20 @@ fn copy_single_item(
 
     // Materialize payload
     let receipt = if args.dry_run {
-        materialize_entity(&entity, None, dest_dir, options)?
+        materialize_entity(&entity, None, dest_dir, options)
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
         let mut payload = DiskPayloadSource::open(src_path)?;
-        materialize_entity(&entity, Some(&mut payload), dest_dir, options)?
+        materialize_entity(&entity, Some(&mut payload), dest_dir, options)
     } else {
-        materialize_entity(&entity, None, dest_dir, options)?
-    };
+        materialize_entity(&entity, None, dest_dir, options)
+    }
+    .with_context(|| {
+        format!(
+            "copying '{}' -> '{}'",
+            src_path.display(),
+            dest_path.display()
+        )
+    })?;
 
     // Verify source wasn't modified concurrently during copy
     let after_meta = std::fs::symlink_metadata(src_path)?;

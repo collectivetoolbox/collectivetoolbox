@@ -288,6 +288,11 @@ impl JournalWriter {
     }
 
     #[must_use]
+    pub fn desc_path(&self) -> &Path {
+        &self.desc_path
+    }
+
+    #[must_use]
     pub fn destination(&self) -> &Path {
         &self.destination
     }

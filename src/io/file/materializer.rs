@@ -89,11 +89,13 @@ pub struct MaterializeReceipt {
 /// Applies ownership, permissions, and timestamps from `meta` to `dest`.
 pub fn apply_entity_metadata(
     dest: &Path,
+    target_display_path: Option<&Path>,
     meta: &FileMetadata,
     is_symlink: bool,
     apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<()> {
+    let display_target = target_display_path.unwrap_or(dest);
     let mode = meta.mode;
     let uid = meta.uid;
     let gid = meta.gid;
@@ -136,12 +138,12 @@ pub fn apply_entity_metadata(
             if strict_lossless {
                 anyhow::bail!(
                     "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
-                    dest.display()
+                    display_target.display()
                 );
             }
             log_fmt!(
                 "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
-                dest.display()
+                display_target.display()
             );
         }
     }
@@ -152,12 +154,12 @@ pub fn apply_entity_metadata(
         if let Err(e) = std::fs::set_permissions(dest, perms) {
             if strict_lossless {
                 return Err(e).with_context(|| {
-                    format!("Failed to set permissions on {}", dest.display())
+                    format!("Failed to set permissions on {}", display_target.display())
                 });
             }
             log_fmt!(
                 "Failed to set permissions on {}: {e} (proceeding best-effort)",
-                dest.display()
+                display_target.display()
             );
         }
     }
@@ -175,12 +177,12 @@ pub fn apply_entity_metadata(
     if let Err(e) = time_res {
         if strict_lossless {
             return Err(e).with_context(|| {
-                format!("Failed to set file timestamps on {}", dest.display())
+                format!("Failed to set file timestamps on {}", display_target.display())
             });
         }
         log_fmt!(
             "Failed to set file timestamps on {}: {e} (proceeding best-effort)",
-            dest.display()
+            display_target.display()
         );
     }
 
@@ -274,6 +276,7 @@ pub fn materialize_entity(
             )?;
             apply_entity_metadata(
                 &dest_path,
+                None,
                 &entity.metadata,
                 true,
                 true,
@@ -304,9 +307,10 @@ pub fn materialize_entity(
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
             let _dir_fd =
                 dest_dir.ensure_dir_all(&entity.identity.relative_path, options.path_policy)?;
-            write_streams(&dest_path, &entity.streams, options.strict_lossless)?;
+            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             apply_entity_metadata(
                 &dest_path,
+                None,
                 &entity.metadata,
                 false,
                 true,
@@ -334,6 +338,7 @@ pub fn materialize_entity(
             )?;
             apply_entity_metadata(
                 &dest_path,
+                None,
                 &entity.metadata,
                 false,
                 true,
@@ -475,11 +480,17 @@ pub fn materialize_entity(
             let temp_path = parent_dir.join(&temp_name);
 
             // Write attached streams (xattrs, resource forks)
-            write_streams(&temp_path, &entity.streams, options.strict_lossless)?;
+            write_streams(
+                &temp_path,
+                Some(&dest_path),
+                &entity.streams,
+                options.strict_lossless,
+            )?;
 
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             apply_entity_metadata(
                 &temp_path,
+                Some(&dest_path),
                 &entity.metadata,
                 false,
                 false,

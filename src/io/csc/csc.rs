@@ -36,6 +36,7 @@ pub mod verify_cache;
 pub mod verifier;
 pub mod index_engine;
 pub mod search_engine;
+pub mod move_engine;
 
 #[cfg(test)]
 #[allow(

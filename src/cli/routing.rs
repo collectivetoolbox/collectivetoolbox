@@ -514,6 +514,12 @@ pub enum Command {
     /// Checksummed copy with rsync-compatible resolution and post-flush verification
     #[command(name = "csc")]
     Csc(ctb_io_csc::args::CscArgs),
+    /// Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+    #[command(name = "cp")]
+    Cp(ctb_io_csc::args::CscArgs),
+    /// Move files or directories without copying when possible, or run verified cross-device copy
+    #[command(name = "mv")]
+    Mv(ctb_io_csc::args::MvArgs),
     /// Verify a directory against a manifest recorded by csc
     #[command(name = "csc-verify", alias = "cscv")]
     CscVerify(ctb_io_csc::args::CscVerifyArgs),
@@ -1153,6 +1159,12 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             )
         }
         Command::Csc(args) => ctb_io_csc::cli::run_csc(args.clone()),
+        Command::Cp(args) => {
+            let mut cp_args = args.clone();
+            cp_args.delete_manifest_after = true;
+            ctb_io_csc::cli::run_csc(cp_args)
+        }
+        Command::Mv(args) => ctb_io_csc::move_engine::run_mv(args.clone()),
         Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args),
         Command::Fsindex(args) => ctb_io_csc::index_engine::run_fsindex(args.clone()).await,
         Command::Fsearch(args) => ctb_io_csc::search_engine::run_fsearch(args.clone()).await,
