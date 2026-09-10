@@ -36,7 +36,7 @@ use std::fmt::Write as _;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use turso::{Builder, Connection, Value};
+use turso::{Connection, Value};
 
 /// Derives a clean, trimmed source name for the database from a journal path.
 #[must_use]
@@ -130,11 +130,13 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             "Database file does not exist: {}",
             db_path.display()
         );
-        let db_path_str = db_path.to_string_lossy().to_string();
-        let db = Builder::new_local(&db_path_str)
-            .experimental_index_method(true)
-            .build()
-            .await?;
+        let db = crate::index_meta::open_index_database(
+            &db_path,
+            args.encrypt,
+            args.password_file.as_deref(),
+            args.password_stdin,
+        )
+        .await?;
         let conn = db.connect()?;
         conn.busy_timeout(std::time::Duration::from_millis(5000))?;
         init_database_schema(&conn).await?;
@@ -163,11 +165,13 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     }
 
     // 3. Connect to Turso SQLite database and create schema
-    let db_path_str = db_path.to_string_lossy().to_string();
-    let db = Builder::new_local(&db_path_str)
-        .experimental_index_method(true)
-        .build()
-        .await?;
+    let db = crate::index_meta::open_index_database(
+        &db_path,
+        args.encrypt,
+        args.password_file.as_deref(),
+        args.password_stdin,
+    )
+    .await?;
     let conn = db.connect()?;
     conn.busy_timeout(std::time::Duration::from_millis(5000))?;
 
@@ -238,7 +242,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
         sources_indexed = sources_indexed.saturating_add(1);
 
         if idx.saturating_add(1) < journal_paths.len() {
-            progress.message(&format!("Glommed {} into database", src_name));
+            progress.message(&format!("Appended {} into database", src_name));
         }
     }
 

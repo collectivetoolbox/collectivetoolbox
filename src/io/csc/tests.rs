@@ -1264,6 +1264,9 @@ mod csc_tests {
             one_file_system: false,
             fulltext: false,
             fulltext_max: "20k".to_string(),
+            encrypt: false,
+            password_file: None,
+            password_stdin: false,
         }
     }
 
@@ -1297,6 +1300,8 @@ mod csc_tests {
             sort_desc: false,
             limit: None,
             format: crate::args::SearchOutputFormat::Path,
+            password_file: None,
+            password_stdin: false,
         }
     }
 
@@ -1332,10 +1337,10 @@ mod csc_tests {
             _ => panic!("Expected immediate tool result"),
         }
 
-        // 2. Glom source_b into the same database
+        // 2. append source_b into the same database
         let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
         args_b.source_name = Some("source_b_tag".to_string());
-        let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (glom)");
+        let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (append)");
         match res_b {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate tool result"),
@@ -2391,6 +2396,226 @@ mod csc_tests {
                 assert!(out.contains(&format!("Bytes transferred:        {payload_len}")));
             }
             _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_encrypted_fsindex_and_fsearch() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use crate::index_meta::{is_database_encrypted, load_index_meta, resolve_meta_path};
+        use std::io::Read;
+
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("secret_src");
+        fs::create_dir_all(src.join("sub")).expect("create dirs");
+        fs::write(src.join("secret_doc.txt"), b"Confidential memo").expect("write doc");
+        fs::write(src.join("sub/notes.md"), b"Secret notes").expect("write notes");
+
+        let pw_file = temp.path().join("correct_pw.txt");
+        fs::write(&pw_file, b"super-secret-index-pass-987\n").expect("write pw");
+
+        let db_path = temp.path().join("encrypted.cscindex.sqlite");
+
+        // 1. Index with encryption
+        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        idx_args.encrypt = true;
+        idx_args.password_file = Some(pw_file.clone());
+
+        let res = run_fsindex(idx_args).await.expect("run encrypted fsindex");
+        match res {
+            ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Indexing completed successfully"));
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // 2. Verify database exists and has b"Turso" magic header
+        assert!(db_path.exists());
+        let is_enc = is_database_encrypted(&db_path).expect("check encrypted");
+        assert!(is_enc, "Database should be detected as encrypted via Turso header");
+
+        let mut f = std::fs::File::open(&db_path).expect("open db");
+        let mut magic = [0u8; 5];
+        f.read_exact(&mut magic).expect("read magic header");
+        assert_eq!(&magic, b"Turso");
+
+        // 3. Verify companion *.cscidxmeta exists and has valid metadata
+        let meta_path = resolve_meta_path(&db_path);
+        assert!(meta_path.exists(), "Companion *.cscidxmeta must exist");
+        let meta = load_index_meta(&meta_path).expect("load metadata");
+        assert_eq!(meta.cipher, "aegis256");
+        assert_eq!(meta.kdf, "argon2id");
+        assert_eq!(meta.format_version, 1);
+        assert!(!meta.wrapped_dek.is_empty());
+        assert!(!meta.kek_params.salt_base64.is_empty());
+
+        // 4. Query with fsearch using correct password file
+        let mut search_args = default_fsearch_args(db_path.clone());
+        search_args.query = vec!["*.txt".to_string()];
+        search_args.password_file = Some(pw_file.clone());
+
+        let search_res = run_fsearch(search_args).await.expect("run fsearch");
+        match search_res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("secret_doc.txt"));
+                assert!(!out.contains("notes.md"));
+            }
+            _ => panic!("Expected immediate result"),
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_encrypted_fsindex_wrong_password_rejected() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("secure_src");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("vault.data"), b"Treasury records").expect("write vault");
+
+        let correct_pw = temp.path().join("correct.txt");
+        let wrong_pw = temp.path().join("wrong.txt");
+        fs::write(&correct_pw, b"valid-pass-1234\n").expect("write correct pw");
+        fs::write(&wrong_pw, b"incorrect-pass-5678\n").expect("write wrong pw");
+
+        let db_path = temp.path().join("secure_vault.cscindex.sqlite");
+
+        // Index with encryption
+        let mut idx_args = default_fsindex_args(vec![src], Some(db_path.clone()));
+        idx_args.encrypt = true;
+        idx_args.password_file = Some(correct_pw);
+        run_fsindex(idx_args).await.expect("run encrypted fsindex");
+
+        // Attempt search with wrong password
+        let mut search_args = default_fsearch_args(db_path);
+        search_args.query = vec!["vault*".to_string()];
+        search_args.password_file = Some(wrong_pw);
+
+        let err = match run_fsearch(search_args).await {
+            Ok(_) => panic!("fsearch with wrong password should fail"),
+            Err(e) => e,
+        };
+        let err_msg = format!("{err:#}");
+        assert!(
+            err_msg.contains("Incorrect password") || err_msg.contains("password"),
+            "Expected password rejection, got: {err_msg}"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_encrypted_fsindex_append_and_flush() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+
+        let temp = tempdir().expect("tempdir");
+        let src_a = temp.path().join("src_a");
+        let src_b = temp.path().join("src_b");
+        fs::create_dir_all(&src_a).expect("create src_a");
+        fs::create_dir_all(&src_b).expect("create src_b");
+
+        let file_to_delete = src_a.join("temporary.log");
+        fs::write(&file_to_delete, b"temporary log line").expect("write temp log");
+        fs::write(src_a.join("permanent.txt"), b"permanent text").expect("write perm text");
+        fs::write(src_b.join("appended.txt"), b"appended text").expect("write appended text");
+
+        let pw_file = temp.path().join("vault_pw.txt");
+        fs::write(&pw_file, b"vault-pass-alpha\n").expect("write pw");
+
+        let db_path = temp.path().join("shared_vault.cscindex.sqlite");
+
+        let journal_a = temp.path().join("src_a.cscjournal");
+
+        // 1. Initial index of src_a with encryption
+        let mut args_a = default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
+        args_a.journal_path = Some(journal_a.clone());
+        args_a.encrypt = true;
+        args_a.password_file = Some(pw_file.clone());
+        run_fsindex(args_a).await.expect("index src_a");
+
+        // 2. append src_b into existing encrypted index
+        let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
+        args_b.password_file = Some(pw_file.clone());
+        run_fsindex(args_b).await.expect("append src_b");
+
+        // Search: should find permanent.txt and appended.txt
+        let mut s1 = default_fsearch_args(db_path.clone());
+        s1.query = vec!["*.txt".to_string()];
+        s1.password_file = Some(pw_file.clone());
+        let res1 = run_fsearch(s1).await.expect("search both sources");
+        if let ToolResult::Immediate { stdout, .. } = res1 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("permanent.txt"));
+            assert!(out.contains("appended.txt"));
+        }
+
+        // 3. Delete temporary.log and flush deleted using journal_a
+        fs::remove_file(&file_to_delete).expect("remove temporary.log");
+        let mut args_flush = default_fsindex_args(vec![journal_a], Some(db_path.clone()));
+        args_flush.flush_deleted = true;
+        args_flush.password_file = Some(pw_file.clone());
+        let res_flush = run_fsindex(args_flush).await.expect("flush deleted");
+        if let ToolResult::Immediate { stdout, .. } = res_flush {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Entries flushed:  1"));
+        }
+
+        // Search: temporary.log should no longer be indexed
+        let mut s2 = default_fsearch_args(db_path);
+        s2.query = vec!["temporary.log".to_string()];
+        s2.password_file = Some(pw_file);
+        let res2 = run_fsearch(s2).await.expect("search flushed");
+        if let ToolResult::Immediate { stdout, .. } = res2 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(!out.contains("temporary.log"));
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_unencrypted_index_no_metadata_file() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use crate::index_meta::{is_database_encrypted, resolve_meta_path};
+        use std::io::Read;
+
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("public_src");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("public.txt"), b"Public domain data").expect("write public.txt");
+
+        let db_path = temp.path().join("public.cscindex.sqlite");
+
+        // Index WITHOUT --encrypt
+        let idx_args = default_fsindex_args(vec![src], Some(db_path.clone()));
+        run_fsindex(idx_args).await.expect("index unencrypted");
+
+        // 1. Verify db exists and is standard SQLite (not Turso encrypted)
+        assert!(db_path.exists());
+        let is_enc = is_database_encrypted(&db_path).expect("check encrypted");
+        assert!(!is_enc, "Unencrypted index must NOT be detected as encrypted");
+
+        let mut f = std::fs::File::open(&db_path).expect("open db");
+        let mut magic = [0u8; 16];
+        f.read_exact(&mut magic).expect("read sqlite header");
+        assert_eq!(&magic, b"SQLite format 3\0");
+
+        // 2. Verify companion *.cscidxmeta file DOES NOT exist
+        let meta_path = resolve_meta_path(&db_path);
+        assert!(!meta_path.exists(), "Unencrypted index must NOT create a *.cscidxmeta companion file");
+
+        // 3. Search without any password flags
+        let mut s_args = default_fsearch_args(db_path);
+        s_args.query = vec!["public.txt".to_string()];
+        let res = run_fsearch(s_args).await.expect("search unencrypted");
+        if let ToolResult::Immediate { stdout, exit_code, .. } = res {
+            assert_eq!(exit_code, 0);
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("public.txt"));
         }
     }
 }

@@ -73,7 +73,7 @@ Commands:
 
 Options:
       --ctoolbox-ipc-port <CTOOLBOX_IPC_PORT>
-          
+
       --no-update
           Skip automatic update checks on startup
       --use-bundled-tls-validator
@@ -650,7 +650,7 @@ Arguments:
   [PATH]...  Target directory or .cscjournal file(s) to index
 
 Options:
-  -d, --db <DATABASE>                Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed)
+  -d, --db <DATABASE>                Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (appended)
       --journal-path <JOURNAL_PATH>  Explicit path for the state journal file (.cscjournal)
       --flush-deleted                Flush deleted files that no longer exist on disk from the database index
   -s, --source-name <SOURCE_NAME>    Override the source name tag stored in the database (default: journal basename without extension)
@@ -1124,8 +1124,8 @@ Usage: ctoolbox js-lint [OPTIONS] [FILES]...
        ctoolbox js-lint <COMMAND>
 
 Commands:
-  rules  
-  run    
+  rules
+  run
 
 Arguments:
   [FILES]...  Set the input file to use
@@ -1146,7 +1146,7 @@ Arguments:
   [RULE_NAME]  Show detailed information about rule. If omitted, show the list of all rules
 
 Options:
-      --json  
+      --json
   -h, --help  Print help
 ```
 

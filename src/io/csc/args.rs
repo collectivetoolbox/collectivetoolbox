@@ -353,7 +353,7 @@ pub struct FsindexArgs {
     #[arg(value_name = "PATH", num_args = 0..)]
     pub targets: Vec<PathBuf>,
 
-    /// Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (glommed).
+    /// Target database path (*.cscindex.sqlite). If the database exists, new journals will be appended (appended).
     #[arg(short = 'd', long = "db", value_name = "DATABASE")]
     pub database: Option<PathBuf>,
 
@@ -404,6 +404,18 @@ pub struct FsindexArgs {
     /// Maximum file size to extract for full-text indexing (e.g. "20k", "64k", "1M"). Defaults to 20k.
     #[arg(long = "fulltext-max", default_value = "20k", value_name = "SIZE")]
     pub fulltext_max: String,
+
+    /// Password-protect the SQLite index using Turso native page-level encryption (aegis256) and store metadata in *.cscidxmeta.
+    #[arg(long = "encrypt", alias = "password-protect")]
+    pub encrypt: bool,
+
+    /// Read password from the specified file instead of prompting.
+    #[arg(long = "password-file", value_name = "FILE")]
+    pub password_file: Option<PathBuf>,
+
+    /// Read password from standard input instead of prompting.
+    #[arg(long = "password-stdin")]
+    pub password_stdin: bool,
 }
 
 /// Output format for search results.
@@ -552,6 +564,14 @@ pub struct FsearchArgs {
     /// Output formatting mode (`path`, `long`, or `json`).
     #[arg(long, value_enum, default_value_t = SearchOutputFormat::Path)]
     pub format: SearchOutputFormat,
+
+    /// Read password from the specified file when querying an encrypted index.
+    #[arg(long = "password-file", value_name = "FILE")]
+    pub password_file: Option<PathBuf>,
+
+    /// Read password from standard input when querying an encrypted index.
+    #[arg(long = "password-stdin")]
+    pub password_stdin: bool,
 }
 
 /// Command-line arguments for the `mv` command.

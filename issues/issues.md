@@ -54,7 +54,7 @@ File flags did not have complete implementation
 
 - [x] Skip fwrite based on checksum: materializer-driven smart update and lossless metadata synchronization by default, with --always-overwrite option
 
-Password-protectable fsindex?
+- [x] Password-protectable fsindex: Turso native page-level AEAD encryption (aegis256), Argon2id key derivation, AES-256-GCM wrapped DEK, companion *.cscidxmeta metadata file, and transparent b"Turso" magic header detection
 
 - [x] csc --delete-manifest-after option, and `cp` as an alias for it? and mv that moves if possible or `csc --delete-manifest-after` if it needs to move across filesystems
 

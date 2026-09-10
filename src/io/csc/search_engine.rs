@@ -33,7 +33,7 @@ use regex::Regex;
 use serde::Serialize;
 use ctb_formats_time::{format_timestamp, parse_time_spec};
 use std::fmt::Write as _;
-use turso::{Builder, Value};
+use turso::Value;
 
 /// A single matched entry returned from search.
 #[derive(Debug, Clone, Serialize)]
@@ -290,11 +290,13 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
         args.database.display()
     );
 
-    let db_path_str = args.database.to_string_lossy().to_string();
-    let db = Builder::new_local(&db_path_str)
-        .experimental_index_method(true)
-        .build()
-        .await?;
+    let db = crate::index_meta::open_index_database(
+        &args.database,
+        false,
+        args.password_file.as_deref(),
+        args.password_stdin,
+    )
+    .await?;
     let conn = db.connect()?;
 
     let has_full_text = check_has_full_text(&conn).await?;
