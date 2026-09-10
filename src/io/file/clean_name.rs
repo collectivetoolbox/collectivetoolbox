@@ -84,6 +84,12 @@ fn is_windows_illegal_char(c: char) -> bool {
     matches!(c, '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '%')
 }
 
+/// DOS has extra requirements on filenames too: 8+3; may not start with 0xE5
+fn is_dos_illegal_char(c: char) -> bool {
+    is_windows_illegal_char ||
+    matches!(c, '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '%' | '/' | '"' | '*' | ':' | '?' | '+' | ',' | ';' | '=' |'[' | ']' | '!' | '@' )
+}
+
 /// Returns true if the character is an ASCII/Unicode control character or line/
 /// paragraph separator that should be dropped.
 fn is_control_or_separator(c: char) -> bool {
@@ -133,7 +139,7 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "PRN"
             | "AUX"
             | "NUL"
-            | "COM0"
+            | "COM0" // Maybe
             | "COM1"
             | "COM2"
             | "COM3"
@@ -152,7 +158,14 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "LPT7"
             | "LPT8"
             | "LPT9"
+            // DOS limits, but I think not NTFS?
+            | "LST"
             | "CLOCK$"
+            | "$IDLE$"
+            | "CONFIG$"
+            | "KEYBD$"
+            | "SCREEN$"
+            // maybe issues
             | "CONIN$"
             | "CONOUT$"
     )
@@ -452,6 +465,14 @@ mod tests {
         assert_eq!(
             clean_file_name_unix("CON", None).to_string_lossy(),
             "CON"
+        );
+        assert_eq!(
+            clean_file_name_unix(".", None).to_string_lossy(),
+            "unnamed"
+        );
+        assert_eq!(
+            clean_file_name_unix("..", None).to_string_lossy(),
+            "unnamed"
         );
         assert_eq!(
             clean_file_name_unix("Procedure/With/Slash\0", None)
