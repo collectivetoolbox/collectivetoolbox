@@ -39,8 +39,6 @@ Deprecate Dcs duplicating Unicode
 
 Pull and export oldest container
 
-"// FIXME: Remove probably/possibly"
-
 - [x] Configurable journal path
 
 - [x] Add a way to flush deleted files from fsindex
