@@ -69,55 +69,28 @@ pub fn is_deprecated_unicode(cp: u32) -> bool {
         .contains32(cp)
 }
 
-/// Returns the official canonical Unicode character name for a code point,
-/// including standard names, control character names, and algorithmic names.
+/// Returns the official canonical Unicode character name for a code point
+/// for a specific Unicode version, including standard names, control character
+/// names, and algorithmic names.
+#[must_use]
+pub fn get_unicode_name_for_version(
+    cp: u32,
+    version: UnicodeVersion,
+) -> Option<String> {
+    let tables = data::get_tables(version);
+    character_description::get_unicode_character_name(
+        tables,
+        cp,
+        DescriptionMode::Standard,
+    )
+}
+
+/// Returns the official canonical Unicode character name for a code point
+/// in the current supported Unicode standard, including standard names, control
+/// character names, and algorithmic names.
 #[must_use]
 pub fn get_unicode_name(cp: u32) -> Option<String> {
-    if cp > 0x10_FFFF {
-        return None;
-    }
-    let tables = data::get_tables(data::UnicodeVersion::V17_0);
-    let char_info = tables.char_data.get(&cp);
-    let alias_entry = tables.name_aliases.get(&cp);
-
-    // Control characters
-    let is_ctrl = char_info.is_some_and(|info| info.is_control)
-        || (0x0000..=0x001F).contains(&cp)
-        || (0x007F..=0x009F).contains(&cp);
-
-    if is_ctrl {
-        if let Some(info) = char_info {
-            if let Some(ref name) = info.nameslist_control_name {
-                return Some(name.clone());
-            }
-        }
-        if let Some(entry) = alias_entry {
-            if let Some(ref name) = entry.control {
-                return Some(name.clone());
-            }
-        }
-        return Some(format!("<control-{cp:04X}>"));
-    }
-
-    if let Some(hangul) = character_description::hangul_syllable_name(cp) {
-        return Some(hangul);
-    }
-    if tables.is_cjk_unified_ideograph(cp) {
-        return Some(format!("CJK UNIFIED IDEOGRAPH-{cp:04X}"));
-    }
-    if tables.is_tangut_ideograph(cp) {
-        return Some(format!("TANGUT IDEOGRAPH-{cp:04X}"));
-    }
-    if tables.is_khitan_character(cp) {
-        return Some(format!("KHITAN SMALL SCRIPT CHARACTER-{cp:04X}"));
-    }
-    if let Some(info) = char_info {
-        if !info.name.is_empty() && !info.name.starts_with('<') {
-            return Some(info.name.clone());
-        }
-    }
-
-    None
+    get_unicode_name_for_version(cp, UnicodeVersion::V17_0)
 }
 
 #[cfg(test)]
@@ -186,5 +159,22 @@ mod tests {
         assert_eq!(get_unicode_name(0x002E).as_deref(), Some("FULL STOP"));
         assert_eq!(get_unicode_name(0x0085).as_deref(), Some("NEXT LINE"));
         assert_eq!(get_unicode_name(0x0041).as_deref(), Some("LATIN CAPITAL LETTER A"));
+        assert_eq!(get_unicode_name(0xAC00).as_deref(), Some("HANGUL SYLLABLE GA"));
+        assert_eq!(
+            get_unicode_name(0x4E00).as_deref(),
+            Some("CJK UNIFIED IDEOGRAPH-4E00")
+        );
+        assert_eq!(
+            get_unicode_name(0x13460).as_deref(),
+            Some("EGYPTIAN HIEROGLYPH A001F")
+        );
+        assert_eq!(get_unicode_name(0x11_0000), None);
+
+        // Version-specific checks
+        assert_eq!(
+            get_unicode_name_for_version(0x0041, UnicodeVersion::V15_0)
+                .as_deref(),
+            Some("LATIN CAPITAL LETTER A")
+        );
     }
 }

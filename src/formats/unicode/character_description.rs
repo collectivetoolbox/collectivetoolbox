@@ -31,8 +31,8 @@ use crate::utilities::*;
 
 pub use crate::data::UnicodeVersion;
 use crate::data::{
-    KHITAN_DATA, UNIHAN_DATA, find_block_with_version, get_tables,
-    is_noncharacter,
+    KHITAN_DATA, UNIHAN_DATA, UnicodeDataTables, find_block_with_version,
+    get_tables, is_noncharacter,
 };
 
 const HANGUL_S_BASE: u32 = 0xAC00;
@@ -149,6 +149,91 @@ impl DescriptionOptions {
     }
 }
 
+/// Returns true if a code point is a control character according to UCD data
+/// or C0/C1 ranges.
+#[must_use]
+pub(crate) fn is_control_codepoint(tables: &UnicodeDataTables, cp: u32) -> bool {
+    tables.char_data.get(&cp).is_some_and(|info| info.is_control)
+        || (0x0000..=0x001F).contains(&cp)
+        || (0x007F..=0x009F).contains(&cp)
+}
+
+/// Resolves the canonical Unicode character name for a code point using the
+/// provided UCD tables and description mode.
+///
+/// This handles control character names (from NamesList or NameAliases),
+/// algorithmic character names (Hangul syllables, CJK unified ideographs,
+/// Tangut ideographs, Khitan small script characters, Egyptian hieroglyphs),
+/// and standard character names from UnicodeData.txt / NamesList.txt.
+#[must_use]
+pub(crate) fn get_unicode_character_name(
+    tables: &UnicodeDataTables,
+    cp: u32,
+    mode: DescriptionMode,
+) -> Option<String> {
+    if cp > 0x10_FFFF {
+        return None;
+    }
+
+    let char_info = tables.char_data.get(&cp);
+    let alias_entry = tables.name_aliases.get(&cp);
+
+    // Control characters
+    if is_control_codepoint(tables, cp) {
+        if let Some(info) = char_info {
+            if let Some(ref name) = info.nameslist_control_name {
+                return Some(name.clone());
+            }
+        }
+        if let Some(entry) = alias_entry {
+            if let Some(ref name) = entry.control {
+                return Some(name.clone());
+            }
+        }
+        return Some(format!("<control-{cp:04X}>"));
+    }
+
+    if let Some(hangul) = hangul_syllable_name(cp) {
+        return Some(hangul);
+    }
+    if tables.is_cjk_unified_ideograph(cp) {
+        if mode == DescriptionMode::WucCompat
+            && ((0xF900..=0xFAFF).contains(&cp)
+                || (0x2F800..=0x2FA1F).contains(&cp))
+        {
+            return Some(format!("CJK COMPATIBILITY IDEOGRAPH-{cp:04X}"));
+        }
+        return Some(format!("CJK UNIFIED IDEOGRAPH-{cp:04X}"));
+    }
+    if tables.is_tangut_ideograph(cp) {
+        return Some(format!("TANGUT IDEOGRAPH-{cp:04X}"));
+    }
+    if tables.is_khitan_character(cp) {
+        return Some(format!("KHITAN SMALL SCRIPT CHARACTER-{cp:04X}"));
+    }
+    if (0x13460..=0x143FA).contains(&cp) {
+        if mode == DescriptionMode::Standard {
+            if let Some(entry) = tables.unikemet_data.get(&cp) {
+                if let Some(ref unik) = entry.unik_code {
+                    return Some(format!("EGYPTIAN HIEROGLYPH {unik}"));
+                }
+            }
+        }
+        if let Some(info) = char_info {
+            if !info.name.is_empty() && !info.name.starts_with('<') {
+                return Some(info.name.clone());
+            }
+        }
+    }
+    if let Some(info) = char_info {
+        if !info.name.is_empty() && !info.name.starts_with('<') {
+            return Some(info.name.clone());
+        }
+    }
+
+    None
+}
+
 /// Formats a single Unicode code point into a detailed description string using default options.
 pub fn describe_codepoint(cp: u32) -> String {
     describe_codepoint_with_options(cp, DescriptionOptions::default())
@@ -205,11 +290,7 @@ pub fn describe_codepoint_with_options(
     let alias_entry = tables.name_aliases.get(&cp);
 
     // 4. Control Characters
-    let is_ctrl = char_info.is_some_and(|info| info.is_control)
-        || (0x0000..=0x001F).contains(&cp)
-        || (0x007F..=0x009F).contains(&cp);
-
-    if is_ctrl {
+    if is_control_codepoint(tables, cp) {
         let (control_name, abbr) = match options.control_name_format {
             ControlNameFormat::Wuc => {
                 let name = char_info
@@ -276,44 +357,7 @@ pub fn describe_codepoint_with_options(
     }
 
     // 5. Named Unicode Characters & Algorithmic Ranges
-    let mut primary_name: Option<String> = None;
-
-    if let Some(hangul) = hangul_syllable_name(cp) {
-        primary_name = Some(hangul);
-    } else if tables.is_cjk_unified_ideograph(cp) {
-        if options.mode == DescriptionMode::WucCompat
-            && ((0xF900..=0xFAFF).contains(&cp)
-                || (0x2F800..=0x2FA1F).contains(&cp))
-        {
-            primary_name =
-                Some(format!("CJK COMPATIBILITY IDEOGRAPH-{cp:04X}"));
-        } else {
-            primary_name = Some(format!("CJK UNIFIED IDEOGRAPH-{cp:04X}"));
-        }
-    } else if tables.is_tangut_ideograph(cp) {
-        primary_name = Some(format!("TANGUT IDEOGRAPH-{cp:04X}"));
-    } else if tables.is_khitan_character(cp) {
-        primary_name = Some(format!("KHITAN SMALL SCRIPT CHARACTER-{cp:04X}"));
-    } else if (0x13460..=0x143FA).contains(&cp) {
-        if options.mode == DescriptionMode::Standard {
-            if let Some(entry) = tables.unikemet_data.get(&cp) {
-                if let Some(ref unik) = entry.unik_code {
-                    primary_name = Some(format!("EGYPTIAN HIEROGLYPH {unik}"));
-                }
-            }
-        }
-        if primary_name.is_none() {
-            if let Some(info) = char_info {
-                if !info.name.is_empty() && !info.name.starts_with('<') {
-                    primary_name = Some(info.name.clone());
-                }
-            }
-        }
-    } else if let Some(info) = char_info {
-        if !info.name.is_empty() && !info.name.starts_with('<') {
-            primary_name = Some(info.name.clone());
-        }
-    }
+    let primary_name = get_unicode_character_name(tables, cp, options.mode);
 
     // 6. Unassigned / Reserved Code Points
     let Some(mut name) = primary_name else {

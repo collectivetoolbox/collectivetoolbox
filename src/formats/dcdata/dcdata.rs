@@ -80,7 +80,7 @@ pub use updater::{
     write_csv_file,
 };
 pub use validation::{
-    split_dc_aliases_column, validate_all_data_tables,
+    parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,
     validate_all_data_tables_embedded, validate_all_data_tables_from_repo,
     validate_all_dc_files, validate_all_dc_files_from_disk,
     validate_dc_aliases_spacing, validate_dc_category_file,
