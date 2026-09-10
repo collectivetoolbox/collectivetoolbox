@@ -52,7 +52,7 @@ File flags did not have complete implementation
 
 - [x] Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
 
-Skip fwrite based on checksum?
+- [x] Skip fwrite based on checksum: materializer-driven smart update and lossless metadata synchronization by default, with --always-overwrite option
 
 Password-protectable fsindex?
 

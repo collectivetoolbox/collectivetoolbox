@@ -87,8 +87,8 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
                     // 7: Script (col 6 in EITE)
                     // 8: Aliases/syntax/xref (col 7 in EITE)
                     // 9: Description (col 8 in EITE)
-                    if row.len() >= 10 {
-                        let eite_row: Vec<String> = row[1..10]
+                    if let Some(slice) = row.get(1..10) {
+                        let eite_row: Vec<String> = slice
                             .iter()
                             .map(|s| s.trim().to_string())
                             .collect();
@@ -96,51 +96,11 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
                     }
                 }
             }
-            if !rows.is_empty() {
-                return rows;
-            }
+            return rows;
         }
     }
 
-    // Fallback: Construct 9-column rows from ALL_DC_DEFNS
-    // FIXME: Remove probably/possibly
-    let defns = get_all_dc_defns();
-    let mut rows = Vec::with_capacity(defns.len());
-    for d in defns {
-        let mut aliases_parts = Vec::new();
-        if let Some(syntax) = &d.syntax {
-            aliases_parts.push(syntax.raw.clone());
-        }
-        for alias in &d.aliases {
-            aliases_parts.push(alias.clone());
-        }
-        for xref in &d.cross_references {
-            aliases_parts.push(xref.clone());
-        }
-        for decomp in &d.decompositions {
-            aliases_parts.push(decomp.clone());
-        }
-        let aliases_joined = aliases_parts.join(", ");
-
-        let name_field = if d.is_deprecated {
-            format!("!{}", d.name)
-        } else {
-            d.name.clone()
-        };
-
-        rows.push(vec![
-            d.short_id.to_string(),
-            name_field,
-            d.combining_class.to_string(),
-            d.bidi_class.as_str().to_string(),
-            d.casing_partner.map_or(String::new(), |c| c.to_string()),
-            d.general_category.as_str().to_string(),
-            d.script.clone(),
-            aliases_joined,
-            d.description.clone(),
-        ]);
-    }
-    rows
+    panic!("Could not find DcData. It must have been generated first.")
 });
 
 /// Returns a static slice of all Document Character definitions sorted by short ID.
