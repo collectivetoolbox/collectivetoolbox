@@ -31,7 +31,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
+pub use ctb_formats_utf_8e_128::{
+    DcChar, DcCharIndices, DcChars, DcStr, DcString, DcUtfError,
+    decode_utf_8e_128, encode_utf_8e_128_buf, validate_dcutf,
+};
 pub use ctb_formats_dc_data::dc::{
     GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
     SHORT_DC_REGION_END, SHORT_DC_REGION_START,
@@ -247,19 +250,42 @@ pub fn dcutf_to_dclist(document: &[u8]) -> DcList {
     list
 }
 
+/// Parses a DcText document (`&[u8]`) directly into a `DcString`.
+///
+/// # Errors
+/// Returns an error if the document contains invalid UTF-8 or malformed syntax.
+pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
+    let out = dctext_to_dclist(document)?;
+    let mut dc_string = DcString::with_capacity(document.len());
+    for &dc in &out.result {
+        dc_string.push(DcChar(dc));
+    }
+    Ok(ConversionOutput::new(dc_string, out.log))
+}
+
+/// Serializes a `DcStr` to DcText format bytes (`Vec<u8>`).
+#[must_use]
+pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
+    let dclist = s.to_dclist();
+    dclist_to_dctext(&dclist)
+}
+
 /// Converts DcText format bytes to DcUtf format bytes.
 pub fn dctext_to_dcutf(document: Vec<u8>) -> Vec<u8> {
-    let dclist = match dctext_to_dclist(&document) {
-        Ok(out) => out.result,
-        Err(_) => Vec::new(),
-    };
-    dclist_to_dcutf(&dclist)
+    dctext_to_dcstring(&document).map_or_else(
+        |_| Vec::new(),
+        |out| out.result.into_bytes(),
+    )
 }
 
 /// Converts DcUtf format bytes to DcText format bytes.
 pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
-    let dclist = dcutf_to_dclist(&document);
-    dclist_to_dctext(&dclist)
+    if let Ok(dc_str) = DcStr::from_bytes(&document) {
+        dcstring_to_dctext(dc_str)
+    } else {
+        let dclist = dcutf_to_dclist(&document);
+        dclist_to_dctext(&dclist)
+    }
 }
 
 /// Converts an EITE DcArray (short Dcs, `&[u32]`) to a `DcList` (`Vec<u128>`).
@@ -476,6 +502,21 @@ mod tests {
         // Should match original
         let expected_roundtrip = "hi @@ @@ A \u{80} there 🥴 @L42@ noncharacter \u{10ffff} surrogate @56191@ unicode null \u{0} dc null @1114112@ @2147483648@ 2^128-1 @340282366920938463463374607431768211455@";
         assert!(roundtrip_str.eq(expected_roundtrip));
+    }
+
+    #[crate::ctb_test]
+    fn test_dctext_to_dcstring() {
+        let text = "hi @64@ @@ @65@ @128@ there 🥴 @L42@";
+        let out = dctext_to_dcstring(text.as_bytes()).unwrap();
+        let dc_string = out.result;
+        assert_eq!(
+            dc_string.as_bytes(),
+            dctext_to_dcutf(text.as_bytes().to_vec()).as_slice()
+        );
+
+        let roundtrip = dcstring_to_dctext(&dc_string);
+        let roundtrip_str = String::from_utf8(roundtrip).unwrap();
+        assert_eq!(roundtrip_str, "hi @@ @@ A \u{80} there 🥴 @L42@");
     }
 
     #[crate::ctb_test]
