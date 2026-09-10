@@ -206,6 +206,262 @@ pub fn split_dc_aliases_column(
     (aliases, cross_references, decompositions, dc_syntax)
 }
 
+/// Validates spacing and formatting conventions in the Aliases column.
+///
+/// Ensures:
+/// - No leading or trailing whitespace in the cell.
+/// - Every comma is followed by exactly one space (no missing space, no
+///   multiple spaces).
+/// - No whitespace before a comma.
+/// - No empty elements or misplaced commas (leading/trailing/consecutive
+///   commas).
+/// - Decompositions (`<tag>...`):
+///   - No whitespace inside the tag brackets (e.g. `< approx>`, `<approx >`).
+///   - No whitespace immediately following the closing `>` (e.g. `<approx> 0`
+///     has extra space before 0).
+///   - Tokens in decomposition payload are separated by single spaces.
+/// - Cross-references (`>...`):
+///   - No whitespace immediately following `>` (e.g. `> 32` has extra space
+///     before 32).
+/// - Plain aliases and syntax declarations:
+///   - No multiple consecutive spaces.
+pub fn validate_dc_aliases_spacing(
+    raw: &str,
+    file_path: &str,
+    line_no: usize,
+    report: &mut ValidationReport,
+) {
+    if raw.trim().is_empty() {
+        if !raw.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                format!("Cell consists solely of whitespace in Aliases column: '{raw}'"),
+                Some("Leave the Aliases column blank if there are no aliases"),
+            );
+        }
+        return;
+    }
+
+    if raw.starts_with(char::is_whitespace) {
+        report.add_error(
+            file_path,
+            Some(line_no),
+            Some("Aliases"),
+            format!("Cell has leading whitespace in Aliases column: '{raw}'"),
+            Some("Remove leading spaces from the Aliases cell"),
+        );
+    }
+    if raw.ends_with(char::is_whitespace) {
+        report.add_error(
+            file_path,
+            Some(line_no),
+            Some("Aliases"),
+            format!("Cell has trailing whitespace in Aliases column: '{raw}'"),
+            Some("Remove trailing spaces from the Aliases cell"),
+        );
+    }
+
+    let chars: Vec<(usize, char)> = raw.char_indices().collect();
+    let num_chars = chars.len();
+
+    // 1. Comma checks
+    for (i, &(byte_idx, ch)) in chars.iter().enumerate() {
+        if ch != ',' {
+            continue;
+        }
+
+        // Check space before comma
+        if i > 0 {
+            if let Some(&(_, prev_ch)) = chars.get(i.saturating_sub(1)) {
+                if prev_ch.is_whitespace() {
+                    let snippet_start = byte_idx.saturating_sub(10);
+                    let snippet_end = byte_idx.saturating_add(1).min(raw.len());
+                    let snippet = raw.get(snippet_start..snippet_end).unwrap_or(",");
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Aliases"),
+                        format!("Extra space before ',' in Aliases column: '{snippet}'"),
+                        Some("Do not place spaces before commas"),
+                    );
+                }
+            }
+        } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                format!("Leading comma in Aliases column: '{raw}'"),
+                Some("Remove leading comma"),
+            );
+        }
+
+        // Check space after comma
+        let next_i = i.saturating_add(1);
+        if next_i >= num_chars {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                format!("Trailing comma in Aliases column: '{raw}'"),
+                Some("Remove trailing comma"),
+            );
+        } else if let Some(&(_, next_ch)) = chars.get(next_i) {
+            if next_ch == ',' {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Consecutive commas in Aliases column: '{raw}'"),
+                    Some("Remove redundant comma"),
+                );
+            } else if next_ch != ' ' {
+                let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Missing space after ',' in Aliases column: '{snippet}'"),
+                    Some("Ensure every comma is followed by a single space (e.g. ', ')"),
+                );
+            } else {
+                let next_next_i = next_i.saturating_add(1);
+                if let Some(&(_, after_space_ch)) = chars.get(next_next_i) {
+                    if after_space_ch.is_whitespace() {
+                        let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                        let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Aliases"),
+                            format!("Multiple spaces after ',' in Aliases column: '{snippet}'"),
+                            Some("Use exactly one space after each comma"),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Decomposition tag checks: <tag>...
+    let mut search_idx = 0usize;
+    while let Some(rel_open) = raw.get(search_idx..).and_then(|s| s.find('<')) {
+        let open_idx = search_idx.saturating_add(rel_open);
+        if let Some(rel_close) = raw.get(open_idx..).and_then(|s| s.find('>')) {
+            let close_idx = open_idx.saturating_add(rel_close);
+            let tag_name = raw
+                .get(open_idx.saturating_add(1)..close_idx)
+                .unwrap_or("");
+            let tag_full = raw
+                .get(open_idx..close_idx.saturating_add(1))
+                .unwrap_or("<>");
+
+            if tag_name.starts_with(char::is_whitespace) {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Extra space after '<' in decomposition tag: '{tag_full}'"),
+                    Some("Remove leading space inside '<...>' tag"),
+                );
+            }
+            if tag_name.ends_with(char::is_whitespace) {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Extra space before '>' in decomposition tag: '{tag_full}'"),
+                    Some("Remove trailing space inside '<...>' tag"),
+                );
+            }
+
+            let after_close = raw.get(close_idx.saturating_add(1)..).unwrap_or("");
+            if after_close.starts_with(char::is_whitespace) {
+                let first_token = after_close
+                    .split(|c: char| c.is_whitespace() || c == ',')
+                    .find(|s| !s.is_empty())
+                    .unwrap_or("");
+                let full_sample = if first_token.is_empty() {
+                    tag_full.to_string()
+                } else {
+                    format!("{tag_full} {first_token}")
+                };
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    if first_token.is_empty() {
+                        format!("Extra space after closing tag in decomposition: '{tag_full}'")
+                    } else {
+                        format!("Extra space before '{first_token}' in decomposition: '{full_sample}'")
+                    },
+                    Some(
+                        "Decomposition tags must be followed immediately by target without spaces (e.g. '<tag>{token}')",
+                    ),
+                );
+            }
+
+            // Check multiple consecutive spaces between tokens in decomposition payload
+            let next_comma_rel = after_close.find(',').unwrap_or(after_close.len());
+            let payload = after_close.get(..next_comma_rel).unwrap_or("");
+            let payload_trimmed = payload.trim();
+            if payload_trimmed.contains("  ") {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!(
+                        "Multiple spaces between tokens in decomposition payload: '{tag_full}{payload}'"
+                    ),
+                    Some("Use single spaces between decomposition tokens"),
+                );
+            }
+
+            search_idx = close_idx.saturating_add(1);
+        } else {
+            search_idx = open_idx.saturating_add(1);
+        }
+    }
+
+    // 3. Item-level checks: cross-references and multiple consecutive spaces in plain aliases
+    for item in raw.split(',') {
+        let item_trimmed = item.trim();
+        if item_trimmed.is_empty() {
+            continue;
+        }
+
+        // Cross-reference checks: >target
+        if let Some(rest) = item_trimmed.strip_prefix('>') {
+            if !rest.starts_with('<') && rest.starts_with(char::is_whitespace) {
+                let token = rest.split_whitespace().next().unwrap_or("");
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Extra space before '{token}' in cross-reference: '> {token}'"),
+                    Some(
+                        "Cross-reference '>' must be followed immediately by target without spaces (e.g. '>{token}')",
+                    ),
+                );
+            }
+        } else if !item_trimmed.starts_with('<') && !item_trimmed.starts_with(':') {
+            // Plain alias
+            if item_trimmed.contains("  ") {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases"),
+                    format!("Multiple consecutive spaces in alias: '{item_trimmed}'"),
+                    Some("Use single spaces between words in alias names"),
+                );
+            }
+        }
+    }
+}
+
 /// Parses and validates a single Dc category CSV file.
 pub fn validate_dc_category_file(
     csv_bytes: &[u8],
@@ -288,7 +544,8 @@ pub fn validate_dc_category_file(
         let casing_str = get_str(5);
         let general_cat_str = get_str(6);
         let script = get_str(7);
-        let raw_aliases = get_str(8);
+        let raw_aliases_untrimmed = row.get(8).map_or("", |s| s.as_str());
+        let raw_aliases = raw_aliases_untrimmed.trim().to_string();
         let description = get_str(9);
 
         if dc_str.is_empty() && short_str.is_empty() && raw_name.is_empty() {
@@ -506,6 +763,15 @@ pub fn validate_dc_category_file(
                 GeneralCategory::NonUnicodeControl
             }
         };
+
+        if !raw_aliases_untrimmed.is_empty() {
+            validate_dc_aliases_spacing(
+                raw_aliases_untrimmed,
+                file_path,
+                line_no,
+                report,
+            );
+        }
 
         let (mut aliases, cross_references, decompositions, raw_dc_syntax) =
             split_dc_aliases_column(&raw_aliases);
@@ -1567,6 +1833,148 @@ mod tests {
             &mut report_valid,
         );
         assert!(!report_valid.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_aliases_spacing_validation() {
+        // 1. Contrived example with two spacing errors:
+        //    "<approx> 0,<equiv>u15"
+        //    - extra space before 0
+        //    - missing space after ,
+        let mut report_contrived = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "<approx> 0,<equiv>u15",
+            "test/categories.csv",
+            2,
+            &mut report_contrived,
+        );
+        assert!(report_contrived.has_errors());
+        assert_eq!(report_contrived.error_count(), 2);
+        let report_text = report_contrived.format_report();
+        assert!(
+            report_text.contains("Extra space before '0' in decomposition")
+        );
+        assert!(
+            report_text.contains("Missing space after ',' in Aliases column")
+        );
+
+        // 2. Extra space before comma: "<approx>0 , <equiv>u15"
+        let mut report_space_before_comma = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "<approx>0 , <equiv>u15",
+            "test/categories.csv",
+            2,
+            &mut report_space_before_comma,
+        );
+        assert!(report_space_before_comma.has_errors());
+        assert!(
+            report_space_before_comma
+                .format_report()
+                .contains("Extra space before ','")
+        );
+
+        // 3. Multiple spaces after comma: "<approx>0,  <equiv>u15"
+        let mut report_multiple_spaces = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "<approx>0,  <equiv>u15",
+            "test/categories.csv",
+            2,
+            &mut report_multiple_spaces,
+        );
+        assert!(report_multiple_spaces.has_errors());
+        assert!(
+            report_multiple_spaces
+                .format_report()
+                .contains("Multiple spaces after ','")
+        );
+
+        // 4. Extra space after '>' in cross-reference: "> 32"
+        let mut report_xref_space = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "> 32",
+            "test/categories.csv",
+            2,
+            &mut report_xref_space,
+        );
+        assert!(report_xref_space.has_errors());
+        assert!(
+            report_xref_space
+                .format_report()
+                .contains("Extra space before '32' in cross-reference")
+        );
+
+        // 5. Extra space inside tag name: "< approx>0"
+        let mut report_tag_space = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "< approx>0",
+            "test/categories.csv",
+            2,
+            &mut report_tag_space,
+        );
+        assert!(report_tag_space.has_errors());
+        assert!(
+            report_tag_space
+                .format_report()
+                .contains("Extra space after '<'")
+        );
+
+        // 6. Cell leading and trailing whitespace
+        let mut report_cell_ws = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            " <approx>0",
+            "test/categories.csv",
+            2,
+            &mut report_cell_ws,
+        );
+        assert!(report_cell_ws.has_errors());
+        assert!(
+            report_cell_ws
+                .format_report()
+                .contains("Cell has leading whitespace")
+        );
+
+        // 7. Multiple spaces in alias name: "word  separator"
+        let mut report_alias_spaces = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "word  separator",
+            "test/categories.csv",
+            2,
+            &mut report_alias_spaces,
+        );
+        assert!(report_alias_spaces.has_errors());
+        assert!(
+            report_alias_spaces
+                .format_report()
+                .contains("Multiple consecutive spaces in alias")
+        );
+
+        // 8. Correctly formatted aliases pass without any error
+        let mut report_ok = ValidationReport::default();
+        validate_dc_aliases_spacing(
+            "<approx>0, <equiv>u15",
+            "test/categories.csv",
+            2,
+            &mut report_ok,
+        );
+        validate_dc_aliases_spacing(
+            "word separator, <equiv>u20, >32, <approx>u2d",
+            "test/categories.csv",
+            2,
+            &mut report_ok,
+        );
+        validate_dc_aliases_spacing(
+            "line feed, end of line, <equiv>240 239",
+            "test/categories.csv",
+            2,
+            &mut report_ok,
+        );
+        validate_dc_aliases_spacing(
+            ":~ [number]",
+            "test/categories.csv",
+            2,
+            &mut report_ok,
+        );
+        assert!(!report_ok.has_errors());
     }
 }
 

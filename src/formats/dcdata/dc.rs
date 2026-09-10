@@ -58,6 +58,6 @@ pub fn long_to_short_dc(dc_id: u128) -> Option<u32> {
 
 pub use crate::validation::{
     split_dc_aliases_column, validate_all_dc_files,
-    validate_all_dc_files_from_disk, validate_dc_category_file,
-    validate_dc_files_data,
+    validate_all_dc_files_from_disk, validate_dc_aliases_spacing,
+    validate_dc_category_file, validate_dc_files_data,
 };
