@@ -463,6 +463,8 @@ fn validate_target_token(
     line_no: usize,
     col_name: &str,
     known_dc_ids: &HashSet<u32>,
+    deprecated_dc_ids: Option<&HashSet<u32>>,
+    tag_name: Option<&str>,
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
 ) {
@@ -509,6 +511,18 @@ fn validate_target_token(
                     ),
                     Some("Ensure referenced Unicode character exists in Unicode standard"),
                 );
+            } else if let Some(tag) = tag_name {
+                if ctb_formats_unicode::is_deprecated_unicode(cp) {
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!(
+                            "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Unicode character 'u{cp:04x}' (U+{cp:04X})"
+                        ),
+                        Some("Canonical equivalencies and approximations must target active, non-deprecated Unicode characters"),
+                    );
+                }
             }
         }
         CharTarget::Dc(target_dc) => {
@@ -520,6 +534,18 @@ fn validate_target_token(
                     format!("Referenced Dc ID '{target_dc}' does not exist in Document Characters registry"),
                     Some("Ensure referenced Dc ID is defined in a Dc category file"),
                 );
+            } else if let (Some(dep_ids), Some(tag)) = (deprecated_dc_ids, tag_name) {
+                if dep_ids.contains(&target_dc) {
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!(
+                            "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Dc ID '{target_dc}'"
+                        ),
+                        Some("Canonical equivalencies and approximations must target active, non-deprecated Document Characters"),
+                    );
+                }
             }
         }
     }
@@ -579,6 +605,12 @@ where
         .map(|r| u32::try_from(r.short_id).unwrap_or(0))
         .collect();
 
+    let deprecated_dc_ids: HashSet<u32> = all_rows
+        .iter()
+        .filter(|r| r.is_deprecated)
+        .filter_map(|r| u32::try_from(r.short_id).ok())
+        .collect();
+
     // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
     if let Some(&max_id) = known_dc_ids.iter().max() {
         let mut missing_ids = Vec::new();
@@ -633,15 +665,30 @@ where
                 row.line_number,
                 "Aliases (cross-reference)",
                 &known_dc_ids,
+                None,
+                None,
                 known_format_ids,
                 report,
             );
         }
 
         for decomp in &row.decompositions {
-            let Some((_tag, payload)) = decomp.split_once('>') else {
+            let Some((tag_raw, payload)) = decomp.split_once('>') else {
                 continue;
             };
+            let tag_name = tag_raw.trim_start_matches('<').trim();
+            let enforce_deprecation = tag_name == "equiv" || tag_name == "approx";
+            let tag_opt = if enforce_deprecation {
+                Some(tag_name)
+            } else {
+                None
+            };
+            let dep_opt = if enforce_deprecation {
+                Some(&deprecated_dc_ids)
+            } else {
+                None
+            };
+
             for token in payload.split_whitespace() {
                 validate_target_token(
                     token,
@@ -649,6 +696,8 @@ where
                     row.line_number,
                     "Aliases (decomposition)",
                     &known_dc_ids,
+                    dep_opt,
+                    tag_opt,
                     known_format_ids,
                     report,
                 );
@@ -1300,6 +1349,97 @@ mod tests {
                 .format_report()
                 .contains("Row has 4 columns, expected 5")
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_equiv_and_approx_deprecated_target_validation() {
+        let known_formats: HashSet<usize> = HashSet::new();
+
+        // 1. <equiv> referencing deprecated Dc (Short ID 0 is !Null)
+        let mut report_equiv_dc = ValidationReport::default();
+        let csv_equiv_dc = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,!Null,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<equiv>0,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_equiv_dc[..])],
+            "test",
+            &known_formats,
+            &mut report_equiv_dc,
+        );
+        assert!(report_equiv_dc.has_errors());
+        assert!(
+            report_equiv_dc
+                .format_report()
+                .contains("references deprecated Dc ID '0'")
+        );
+
+        // 2. <approx> referencing deprecated Dc (Short ID 0 is !Null)
+        let mut report_approx_dc = ValidationReport::default();
+        let csv_approx_dc = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,!Null,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<approx>0,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_approx_dc[..])],
+            "test",
+            &known_formats,
+            &mut report_approx_dc,
+        );
+        assert!(report_approx_dc.has_errors());
+        assert!(
+            report_approx_dc
+                .format_report()
+                .contains("references deprecated Dc ID '0'")
+        );
+
+        // 3. <equiv> referencing deprecated Unicode codepoint (u17a3)
+        let mut report_equiv_uni = ValidationReport::default();
+        let csv_equiv_uni = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<equiv>u17a3,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_equiv_uni[..])],
+            "test",
+            &known_formats,
+            &mut report_equiv_uni,
+        );
+        assert!(report_equiv_uni.has_errors());
+        assert!(
+            report_equiv_uni
+                .format_report()
+                .contains("references deprecated Unicode character 'u17a3' (U+17A3)")
+        );
+
+        // 4. <approx> referencing deprecated Unicode codepoint (u0149)
+        let mut report_approx_uni = ValidationReport::default();
+        let csv_approx_uni = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<approx>u0149,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_approx_uni[..])],
+            "test",
+            &known_formats,
+            &mut report_approx_uni,
+        );
+        assert!(report_approx_uni.has_errors());
+        assert!(
+            report_approx_uni
+                .format_report()
+                .contains("references deprecated Unicode character 'u0149' (U+0149)")
+        );
+
+        // 5. Cross references and <ambiguous> may reference deprecated Dcs without error
+        let mut report_allowed = ValidationReport::default();
+        let csv_allowed = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,!Null,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,\">0, <ambiguous>0\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_allowed[..])],
+            "test",
+            &known_formats,
+            &mut report_allowed,
+        );
+        assert!(!report_allowed.has_errors());
+
+        // 6. Valid non-deprecated <equiv> and <approx> targets pass
+        let mut report_valid = ValidationReport::default();
+        let csv_valid = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,\"<equiv>u0020, <approx>0\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_valid[..])],
+            "test",
+            &known_formats,
+            &mut report_valid,
+        );
+        assert!(!report_valid.has_errors());
     }
 }
 

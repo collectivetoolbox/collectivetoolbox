@@ -62,6 +62,13 @@ pub fn is_format_char(c: char) -> bool {
     general_category(c) == GeneralCategory::Format
 }
 
+/// Returns true if the character is marked deprecated in the Unicode standard.
+#[must_use]
+pub fn is_deprecated_unicode(cp: u32) -> bool {
+    icu_properties::CodePointSetData::new::<icu_properties::props::Deprecated>()
+        .contains32(cp)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -102,5 +109,20 @@ mod tests {
         assert_eq!(general_category('1'), GeneralCategory::DecimalNumber);
         assert_eq!(general_category('\u{200E}'), GeneralCategory::Format);
         assert_eq!(general_category('\n'), GeneralCategory::Control);
+    }
+
+    #[crate::ctb_test]
+    fn test_deprecated_unicode_detection() {
+        // Deprecated characters in Unicode standard (from PropList.txt Deprecated property)
+        assert!(is_deprecated_unicode(0x0149)); // U+0149 LATIN SMALL LETTER N PRECEDED BY APOSTROPHE
+        assert!(is_deprecated_unicode(0x17A3)); // U+17A3 KHMER INDEPENDENT VOWEL QAQ
+        assert!(is_deprecated_unicode(0x206A)); // U+206A INHIBIT SYMMETRIC SWAPPING
+        assert!(is_deprecated_unicode(0x2329)); // U+2329 LEFT-POINTING ANGLE BRACKET
+
+        // Non-deprecated characters
+        assert!(!is_deprecated_unicode(0x0041)); // 'A'
+        assert!(!is_deprecated_unicode(0x0020)); // Space
+        assert!(!is_deprecated_unicode(0x2212)); // Minus
+        assert!(!is_deprecated_unicode(0xFFFD)); // Replacement character
     }
 }
