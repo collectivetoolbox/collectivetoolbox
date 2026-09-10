@@ -47,6 +47,7 @@ pub mod cli;
 pub mod cli_identifiers;
 pub mod dc_number;
 pub mod dcal;
+pub mod dcutf;
 pub mod utf8;
 
 pub use dc_number::{
@@ -674,4 +675,139 @@ mod tests {
     //     assert!(out.result.contains(&191));
     //     assert!(out.result.contains(&192));
     // }
+
+
+    #[crate::ctb_test]
+    fn test_dc_char() {
+        let c_ascii = DcChar::from_char('A');
+        assert_eq!(c_ascii.as_char(), Some('A'));
+        assert!(c_ascii.is_ascii());
+        assert!(c_ascii.is_unicode());
+        assert!(c_ascii.is_unicode_scalar());
+        assert!(!c_ascii.is_short_dc());
+        assert_eq!(c_ascii.to_short_dc(), None);
+        assert_eq!(format!("{c_ascii}"), "A");
+
+        let c_at = DcChar::from_char('@');
+        assert_eq!(format!("{c_at}"), "@@");
+
+        let c_short = DcChar(SHORT_DC_OFFSET + 42);
+        assert_eq!(c_short.as_char(), None);
+        assert!(!c_short.is_ascii());
+        assert!(!c_short.is_unicode());
+        assert!(c_short.is_short_dc());
+        assert_eq!(c_short.to_short_dc(), Some(42));
+        assert_eq!(format!("{c_short}"), format!("@{}@", SHORT_DC_OFFSET + 42));
+
+        // Surrogate codepoint (allowed in DcUtf as a Unicode codepoint, but not a scalar char)
+        let c_surrogate = DcChar(0xDBFF);
+        assert_eq!(c_surrogate.as_char(), None);
+        assert!(c_surrogate.is_unicode());
+        assert!(!c_surrogate.is_unicode_scalar());
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_string_and_dc_str() {
+        let mut s = DcString::new();
+        s.push('h');
+        s.push('i');
+        s.push_str(" ");
+        s.push(DcChar(SHORT_DC_OFFSET));
+
+        assert_eq!(
+            s.len(),
+            3 + DcChar(SHORT_DC_OFFSET).len_utf_8e_128()
+        );
+        assert!(!s.is_empty());
+        assert!(s.is_char_boundary(0));
+        assert!(s.is_char_boundary(1));
+        assert!(s.is_char_boundary(2));
+        assert!(s.is_char_boundary(3));
+        assert!(!s.is_char_boundary(4)); // interior byte of 0xFF sequence
+        assert!(s.is_char_boundary(s.len()));
+
+        // Slicing
+        let sub = &s[0..2];
+        assert_eq!(sub.as_bytes(), b"hi");
+        assert_eq!(sub.as_str(), Some("hi"));
+        assert_eq!(s.as_str(), None); // contains SHORT_DC_OFFSET (0xFF)
+
+        // Iteration
+        let chars: Vec<DcChar> = s.chars().collect();
+        assert_eq!(
+            chars,
+            vec![
+                DcChar::from_char('h'),
+                DcChar::from_char('i'),
+                DcChar::from_char(' '),
+                DcChar(SHORT_DC_OFFSET)
+            ]
+        );
+
+        // Reverse iteration
+        let rev_chars: Vec<DcChar> = s.chars().rev().collect();
+        assert_eq!(
+            rev_chars,
+            vec![
+                DcChar(SHORT_DC_OFFSET),
+                DcChar::from_char(' '),
+                DcChar::from_char('i'),
+                DcChar::from_char('h')
+            ]
+        );
+
+        // Character indices
+        let indices: Vec<(usize, DcChar)> = s.char_indices().collect();
+        assert_eq!(
+            indices,
+            vec![
+                (0, DcChar::from_char('h')),
+                (1, DcChar::from_char('i')),
+                (2, DcChar::from_char(' ')),
+                (3, DcChar(SHORT_DC_OFFSET))
+            ]
+        );
+
+        // Mutation: pop
+        let popped = s.pop();
+        assert_eq!(popped, Some(DcChar(SHORT_DC_OFFSET)));
+        assert_eq!(s.as_str(), Some("hi "));
+
+        // Mutation: truncate
+        s.truncate(2);
+        assert_eq!(s.as_str(), Some("hi"));
+
+        // Mutation: retain
+        s.retain(|c| c != DcChar::from_char('i'));
+        assert_eq!(s.as_str(), Some("h"));
+    }
+
+    #[crate::ctb_test]
+    fn test_validation_and_errors() {
+        assert!(validate_dcutf(b"hello world").is_ok());
+
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"abc");
+        let mut dc_buf = [0u8; 24];
+        let n = encode_utf_8e_128_buf(&mut dc_buf, SHORT_DC_OFFSET + 100);
+        buf.extend_from_slice(&dc_buf[..n]);
+        assert!(validate_dcutf(&buf).is_ok());
+
+        // Invalid continuation byte as start
+        let err = validate_dcutf(b"abc\x80def").unwrap_err();
+        assert_eq!(err.valid_up_to(), 3);
+        assert_eq!(err.error_len(), Some(1));
+
+        // Truncated extended sequence
+        let err = validate_dcutf(b"\xFF\x84\x81").unwrap_err();
+        assert_eq!(err.valid_up_to(), 0);
+        assert_eq!(err.error_len(), None);
+
+        // Safe conversion via from_bytes
+        let dc_str = DcStr::from_bytes(b"hello").unwrap();
+        assert_eq!(dc_str.as_str(), Some("hello"));
+
+        let dc_string = DcString::from_dcutf(buf).unwrap();
+        assert_eq!(dc_string.chars().count(), 4);
+    }
 }

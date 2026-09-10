@@ -38,7 +38,7 @@ pub use error::DcUtfError;
 
 /// Base offset for short Document Characters in the global graph layout.
 /// Short Dc 0 starts at 1,114,112 (0x110000).
-pub const SHORT_DC_OFFSET: u128 = 1_114_112;
+use dc_data::layout::SHORT_DC_OFFSET: u128 = 1_114_112;
 
 // FIXME: Can this be simplified by leaning on Rust's native UTF-8 en/decoding?
 
