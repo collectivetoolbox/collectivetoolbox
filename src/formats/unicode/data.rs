@@ -98,6 +98,7 @@ pub struct UnicodeCharInfo {
     pub name: String,
     pub informative_aliases: Vec<String>,
     pub is_control: bool,
+    pub general_category: String,
     pub nameslist_control_name: Option<String>,
     pub nameslist_control_abbr: Option<String>,
 }
@@ -183,6 +184,20 @@ impl UnicodeDataTables {
             || (0xE000..=0xF8FF).contains(&cp)
             || (0xF0000..=0xFFFFD).contains(&cp)
             || (0x100000..=0x10FFFD).contains(&cp)
+    }
+
+    /// Returns the general category abbreviation (e.g. "Cf", "Cc", "Lu") for a code point from UCD.
+    #[must_use]
+    pub fn get_general_category(&self, cp: u32) -> Option<&str> {
+        self.char_data
+            .get(&cp)
+            .map(|info| info.general_category.as_str())
+    }
+
+    /// Returns true if the code point has General Category "Cf" (Format) in this UCD dataset.
+    #[must_use]
+    pub fn is_format_char(&self, cp: u32) -> bool {
+        self.get_general_category(cp) == Some("Cf")
     }
 }
 
@@ -281,6 +296,7 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                     name: name.trim().to_string(),
                     informative_aliases: Vec::new(),
                     is_control,
+                    general_category: cat.trim().to_string(),
                     nameslist_control_name: None,
                     nameslist_control_abbr: None,
                 },

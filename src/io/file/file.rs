@@ -19,12 +19,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Universal file representation, streams, metadata, and materialization engine.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
+    reason = "Standard workspace crate prelude"
 )]
-use crate::utilities::*;
+pub(crate) use ctb_utilities::*;
+
+// Internal compatibility alias while migrating from module to crate
+pub(crate) mod file {
+    pub use crate::*;
+}
 
 pub mod block_device_size;
 pub mod clean_name;

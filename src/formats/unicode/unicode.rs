@@ -48,3 +48,59 @@ pub use data::{
 pub use ctb_utilities::circular_dep_unicode::*;
 
 pub use ctb_formats_utilities::describe_general_category;
+pub use icu_properties::props::GeneralCategory;
+
+/// Returns the Unicode General Category for a character using compiled ICU4X data.
+#[must_use]
+pub fn general_category(c: char) -> GeneralCategory {
+    icu_properties::CodePointMapData::<GeneralCategory>::new().get(c)
+}
+
+/// Returns true if the character belongs to General Category Cf (Format).
+#[must_use]
+pub fn is_format_char(c: char) -> bool {
+    general_category(c) == GeneralCategory::Format
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_format_char_detection() {
+        // Cf characters
+        assert!(is_format_char('\u{00AD}')); // Soft hyphen
+        assert!(is_format_char('\u{200E}')); // LRM
+        assert!(is_format_char('\u{200F}')); // RLM
+        assert!(is_format_char('\u{061C}')); // ALM
+        assert!(is_format_char('\u{200B}')); // ZWSP
+        assert!(is_format_char('\u{202A}')); // LRE
+        assert!(is_format_char('\u{2060}')); // Word joiner
+
+        // Non-Cf characters
+        assert!(!is_format_char('a'));
+        assert!(!is_format_char(' '));
+        assert!(!is_format_char('\n'));
+        assert!(!is_format_char('1'));
+        assert!(!is_format_char('\u{2028}')); // Line separator (Zl)
+    }
+
+    #[crate::ctb_test]
+    fn test_general_category_lookup() {
+        assert_eq!(general_category('A'), GeneralCategory::UppercaseLetter);
+        assert_eq!(general_category('a'), GeneralCategory::LowercaseLetter);
+        assert_eq!(general_category('1'), GeneralCategory::DecimalNumber);
+        assert_eq!(general_category('\u{200E}'), GeneralCategory::Format);
+        assert_eq!(general_category('\n'), GeneralCategory::Control);
+    }
+}

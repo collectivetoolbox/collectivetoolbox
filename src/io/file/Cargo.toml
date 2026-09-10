@@ -8,13 +8,15 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
-ctb-io = { path = ".." }
-ctb-io-file = { path = "../file" }
+ctb-formats-unicode = { path = "../../formats/unicode" }
 ctb-formats-checksum = { path = "../../formats/checksum" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }
 clap = { version = "4.5", features = ["derive"] }
-nix = { version = "0.30", features = ["fs", "mman", "user"] }
+nix = { version = "0.30", features = ["fs", "mman", "user", "ioctl"] }
+libc = "0.2"
+rustix = { version = "0.38", features = ["fs"] }
+cfg-if = "1.0"
 xattr = "1.6"
 filetime = "0.2"
 anyhow = "1.0"

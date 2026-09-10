@@ -99,28 +99,7 @@ fn is_control_or_separator(c: char) -> bool {
 /// Returns true if the character is a Unicode formatting character (General
 /// Category Cf) that should be converted to an underscore.
 fn is_unicode_format_char(c: char) -> bool {
-    matches!(
-        c,
-        '\u{00AD}'
-            | '\u{0600}'..='\u{0605}'
-            | '\u{061C}'
-            | '\u{06DD}'
-            | '\u{070F}'
-            | '\u{08E2}'
-            | '\u{180E}'
-            | '\u{200B}'..='\u{200F}'
-            | '\u{202A}'..='\u{202E}'
-            | '\u{2060}'..='\u{2064}'
-            | '\u{2066}'..='\u{206F}'
-            | '\u{FFF9}'..='\u{FFFB}'
-            | '\u{110BD}'
-            | '\u{110CD}'
-            | '\u{13430}'..='\u{13438}'
-            | '\u{1BCA0}'..='\u{1BCA3}'
-            | '\u{1D173}'..='\u{1D17A}'
-            | '\u{E0001}'
-            | '\u{E0020}'..='\u{E007F}'
-    )
+    ctb_formats_unicode::is_format_char(c)
 }
 
 /// Returns true if the character is trimmed when appearing at the end of a
@@ -293,7 +272,8 @@ pub fn clean_file_name_unix<P: AsRef<Path>>(
         current_bytes = current_bytes.saturating_add(ch_len);
     }
 
-    if cleaned.is_empty() {
+    if cleaned.is_empty() || cleaned == "." || cleaned == ".." {
+        cleaned.clear();
         cleaned.push_str("unnamed");
     }
 
