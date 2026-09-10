@@ -47,6 +47,8 @@ Commands:
   js-test                    Run JavaScript tests
   validate-docker-image      Validate a docker save image tarball
   csc                        Checksummed copy with rsync-compatible resolution and post-flush verification
+  cp                         Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+  mv                         Move files or directories without copying when possible, or run verified cross-device copy
   csc-verify                 Verify a directory against a manifest recorded by csc
   fsindex                    Index a directory or csc manifest for quick searching
   fsearch                    Fast indexed search against a .cscindex.sqlite database
@@ -73,7 +75,7 @@ Commands:
 
 Options:
       --ctoolbox-ipc-port <CTOOLBOX_IPC_PORT>
-
+          
       --no-update
           Skip automatic update checks on startup
       --use-bundled-tls-validator
@@ -296,6 +298,61 @@ Supported compression formats:
   lzo: LZO compression
 ```
 
+### `ctoolbox cp`
+
+```text
+Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+
+Usage: ctoolbox cp [OPTIONS] [PATHS]...
+
+Arguments:
+  [PATHS]...  Source path(s) and destination path. If resuming, paths are restored from the state file
+
+Options:
+      --resume <STATE_FILE>
+          Path to a state file (.cscjournal or .cscdesc) from which to resume an interrupted run. When specified, source and destination paths should not be passed
+      --journal-path <JOURNAL_PATH>
+          Explicit path for the state journal file (.cscjournal)
+      --state-dir <DIR>
+          Directory in which to store state files (default: user's home folder)
+  -v, --verbose
+          Verbose output showing each file copied and verified
+      --progress
+          Display real-time progress indicators (default: enabled)
+      --no-progress
+          Disable progress display
+      --verify-after
+          Recalculate checksums after flushing OS caches (default: enabled)
+      --no-verify-after
+          Skip the post-flush verification pass
+      --always-overwrite
+          Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
+      --skip-existing-checksum
+          Alias for default checksum skipping behavior (retained for backward compatibility)
+      --on-source-change <ON_SOURCE_CHANGE>
+          Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
+      --copy-specials-as-specials
+          Recreate special files (FIFOs, device nodes) faithfully as special nodes. Default is to skip special files
+      --copy-block-devices-as-regular-files
+          Copy block devices by reading their data and creating regular files
+  -x, --one-file-system
+          Stay on the current filesystem and do not cross mount boundaries
+      --best-effort-metadata
+          Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
+      --check-atime
+          Explicitly check access time (atime) differences in post-copy verification
+      --delete-manifest-after
+          Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion
+  -r, --recursive
+          Recursive copy (default for csc; accepted for cp compatibility)
+  -a, --archive
+          Archive mode (preserves metadata, symlinks, and recurses; default for csc; accepted for cp compatibility)
+  -n, --dry-run
+          Perform a dry run without copying or modifying destination files
+  -h, --help
+          Print help (see more with '--help')
+```
+
 ### `ctoolbox csc`
 
 ```text
@@ -323,8 +380,10 @@ Options:
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
           Skip the post-flush verification pass
+      --always-overwrite
+          Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
       --skip-existing-checksum
-          When target file exists, checksum source and destination and skip copying if identical. Default is to overwrite atomically
+          Alias for default checksum skipping behavior (retained for backward compatibility)
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
       --copy-specials-as-specials
@@ -337,6 +396,12 @@ Options:
           Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
       --check-atime
           Explicitly check access time (atime) differences in post-copy verification
+      --delete-manifest-after
+          Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion
+  -r, --recursive
+          Recursive copy (default for csc; accepted for cp compatibility)
+  -a, --archive
+          Archive mode (preserves metadata, symlinks, and recurses; default for csc; accepted for cp compatibility)
   -n, --dry-run
           Perform a dry run without copying or modifying destination files
   -h, --help
@@ -636,6 +701,8 @@ Options:
       --desc                         Sort in descending order
   -l, --limit <LIMIT>                Maximum number of search results to return
       --format <FORMAT>              Output formatting mode (`path`, `long`, or `json`) [default: path] [possible values: path, long, json]
+      --password-file <FILE>         Read password from the specified file when querying an encrypted index
+      --password-stdin               Read password from standard input when querying an encrypted index
   -h, --help                         Print help (see more with '--help')
 ```
 
@@ -663,6 +730,9 @@ Options:
   -x, --one-file-system              Stay on the current filesystem and do not cross mount boundaries
       --fulltext                     Extract and index file contents for full-text search
       --fulltext-max <SIZE>          Maximum file size to extract for full-text indexing (e.g. "20k", "64k", "1M"). Defaults to 20k [default: 20k]
+      --encrypt                      Password-protect the SQLite index using Turso native page-level encryption (aegis256) and store metadata in *.cscidxmeta
+      --password-file <FILE>         Read password from the specified file instead of prompting
+      --password-stdin               Read password from standard input instead of prompting
   -h, --help                         Print help
 ```
 
@@ -1124,8 +1194,8 @@ Usage: ctoolbox js-lint [OPTIONS] [FILES]...
        ctoolbox js-lint <COMMAND>
 
 Commands:
-  rules
-  run
+  rules  
+  run    
 
 Arguments:
   [FILES]...  Set the input file to use
@@ -1146,7 +1216,7 @@ Arguments:
   [RULE_NAME]  Show detailed information about rule. If omitted, show the list of all rules
 
 Options:
-      --json
+      --json  
   -h, --help  Print help
 ```
 
@@ -1208,6 +1278,28 @@ Options:
       --version <VERSION>        Release version to fetch. Defaults to latest
       --server-url <SERVER_URL>  URL of the update server. Defaults to the configured server URL
   -h, --help                     Print help
+```
+
+### `ctoolbox mv`
+
+```text
+Move files or directories without copying when possible, or run verified cross-device copy
+
+Usage: ctoolbox mv [OPTIONS] <PATHS> <PATHS>...
+
+Arguments:
+  <PATHS> <PATHS>...  Source path(s) followed by target destination path
+
+Options:
+  -v, --verbose               Enable verbose diagnostic output
+      --progress              Display real-time progress indicators (default: enabled)
+      --no-progress           Disable progress display
+      --verify-after          Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
+      --no-verify-after       Skip the post-flush verification pass on cross-device moves
+      --best-effort-metadata  Relax strict metadata requirements when cross-device copy occurs
+  -f, --force                 Force overwrite destination without prompt (accepted for mv compatibility)
+  -n, --dry-run               Perform a dry run without moving or deleting files
+  -h, --help                  Print help
 ```
 
 ### `ctoolbox pan2csv`

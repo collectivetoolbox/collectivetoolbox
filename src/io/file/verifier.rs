@@ -496,7 +496,8 @@ pub fn audit_entity_detailed(
 
     // 4. Timestamps
     let actual_mtime_sec = dest_meta.mtime();
-    let actual_mtime_nsec = u32::try_from(dest_meta.mtime_nsec()).unwrap_or(0);
+    let actual_mtime_nsec = u32::try_from(dest_meta.mtime_nsec())
+        .context("Failed to convert mtime nanoseconds to u32")?;
     let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
         || actual_mtime_nsec != expected.metadata.timestamps.mtime_nsec;
     if mtime_mismatch {
@@ -524,7 +525,8 @@ pub fn audit_entity_detailed(
     }
 
     let actual_atime_sec = dest_meta.atime();
-    let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec()).unwrap_or(0);
+    let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec())
+        .context("Failed to convert atime nanoseconds to u32")?;
     let atime_mismatch = actual_atime_sec != expected.metadata.timestamps.atime_sec
         || actual_atime_nsec != expected.metadata.timestamps.atime_nsec;
     if atime_mismatch {
@@ -554,7 +556,8 @@ pub fn audit_entity_detailed(
     }
 
     let actual_ctime_sec = dest_meta.ctime();
-    let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec()).unwrap_or(0);
+    let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
+        .context("Failed to convert ctime nanoseconds to u32")?;
     let ctime_mismatch = actual_ctime_sec != expected.metadata.timestamps.ctime_sec
         || actual_ctime_nsec != expected.metadata.timestamps.ctime_nsec;
     if ctime_mismatch && !options.ignore_ctime {
@@ -751,15 +754,13 @@ pub fn audit_entity_detailed(
 
         // If O_NOATIME was not usable, restore original observed atime/mtime
         if !opened_with_noatime {
-            // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
             let orig_atime = FileTime::from_unix_time(
-                dest_meta.atime(),
-                u32::try_from(dest_meta.atime_nsec()).unwrap_or(0),
+                actual_atime_sec,
+                actual_atime_nsec,
             );
-            // Reason for fallback: Filesystems without sub-second timestamp resolution or negative nsec return 0 nanoseconds.
             let orig_mtime = FileTime::from_unix_time(
-                dest_meta.mtime(),
-                u32::try_from(dest_meta.mtime_nsec()).unwrap_or(0),
+                actual_mtime_sec,
+                actual_mtime_nsec,
             );
             let _ = set_file_times(path, orig_atime, orig_mtime);
         }

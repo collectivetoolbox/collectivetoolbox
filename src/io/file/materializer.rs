@@ -104,6 +104,7 @@ pub fn apply_entity_metadata(
     apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<()> {
+    // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
     let mode = meta.mode;
     let uid = meta.uid;

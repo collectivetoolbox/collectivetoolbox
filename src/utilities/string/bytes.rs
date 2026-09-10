@@ -73,6 +73,7 @@ pub fn parse_bytes_u128(s: &str) -> Result<u128> {
         anyhow::bail!("Empty size string");
     }
 
+    // Reason for fallback: strings consisting entirely of digits end at the string boundary
     let num_end = s
         .find(|c: char| !c.is_ascii_digit())
         .unwrap_or(s.len());

@@ -199,9 +199,12 @@ pub fn create_encrypted_index_meta(password: &Password) -> Result<(FsIndexMeta, 
     wrapped.extend_from_slice(&ciphertext);
 
     // 5. Build metadata struct
+    // Reason for fallback: system time before UNIX epoch or integer overflow defaults to timestamp 0
     let now_sec = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0));
+        .ok()
+        .and_then(|d| i64::try_from(d.as_secs()).ok())
+        .unwrap_or(0);
 
     let meta = FsIndexMeta {
         format_version: 1,
@@ -356,9 +359,11 @@ pub async fn open_index_database(
 ) -> Result<turso::Database> {
     let db_path_str = db_path.to_string_lossy().to_string();
     let exists = db_path.exists();
+    // Reason for fallback: nameless or non-UTF-8 path defaults to standard database identifier "index"
     let db_name = db_path
         .file_name()
-        .map_or("index", |n| n.to_str().unwrap_or("index"));
+        .and_then(|n| n.to_str())
+        .unwrap_or("index");
 
     if exists {
         let is_enc = is_database_encrypted(db_path)?;

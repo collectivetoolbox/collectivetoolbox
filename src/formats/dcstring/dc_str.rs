@@ -53,7 +53,7 @@ impl DcStr {
         validate_dcutf(bytes)?;
         #[expect(
             unsafe_code,
-            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been verified as valid UTF-8e-128"
+            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid UTF-8e-128"
         )]
         // Safety: bytes have been verified as valid UTF-8e-128.
         Ok(unsafe { Self::from_bytes_unchecked(bytes) })
@@ -85,7 +85,7 @@ impl DcStr {
         validate_dcutf(bytes)?;
         #[expect(
             unsafe_code,
-            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been verified as valid UTF-8e-128"
+            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid UTF-8e-128"
         )]
         // Safety: bytes have been verified as valid UTF-8e-128.
         Ok(unsafe { Self::from_bytes_unchecked_mut(bytes) })
@@ -164,7 +164,7 @@ impl DcStr {
             let slice = self.inner.get(start..end)?;
             #[expect(
                 unsafe_code,
-                reason = "Subslice is bounded by verified char boundaries of a valid DcStr"
+                reason = "Subslice is bounded by checked char boundaries of a valid DcStr"
             )]
             // Safety: Subslice is bounded by verified char boundaries of a valid DcStr.
             Some(unsafe { Self::from_bytes_unchecked(slice) })
@@ -250,7 +250,7 @@ impl Index<Range<usize>> for DcStr {
     #[inline]
     #[expect(
         clippy::expect_used,
-        reason = "Range bounds are verified by preceding assertions and len check"
+        reason = "Range bounds are ensured by preceding assertions and len check"
     )]
     fn index(&self, range: Range<usize>) -> &Self::Output {
         let (start, end) = (range.start, range.end);
@@ -269,7 +269,7 @@ impl Index<Range<usize>> for DcStr {
             .expect("range bounds verified preceding index");
         #[expect(
             unsafe_code,
-            reason = "Subslice is bounded by verified char boundaries"
+            reason = "Subslice is bounded by checked char boundaries"
         )]
         // Safety: Subslice is bounded by verified char boundaries.
         unsafe {

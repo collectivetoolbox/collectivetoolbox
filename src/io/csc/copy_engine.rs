@@ -370,7 +370,7 @@ pub fn execute_copy_pipeline(
         progress.message("[Verifying] Flushing caches and verifying checksums...");
         try_drop_system_caches();
 
-        let total_to_verify = u64::try_from(files_to_verify.len()).unwrap_or(0);
+        let total_to_verify = u64::try_from(files_to_verify.len())?;
         let verify_task = progress.start_task("Verifying", Some(total_to_verify));
 
         for (src_path, dest_path, entity) in &files_to_verify {

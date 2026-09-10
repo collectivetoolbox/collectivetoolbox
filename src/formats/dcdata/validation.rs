@@ -252,6 +252,7 @@ pub fn parse_dc_aliases_column(
                         if prev_ch.is_whitespace() {
                             let snippet_start = byte_idx.saturating_sub(10);
                             let snippet_end = byte_idx.saturating_add(1).min(raw.len());
+                            // Reason for fallback: context slice might not align on UTF-8 char boundary, so default to comma
                             let snippet = raw.get(snippet_start..snippet_end).unwrap_or(",");
                             report.add_error(
                                 file_path,
@@ -293,6 +294,7 @@ pub fn parse_dc_aliases_column(
                         );
                     } else if next_ch != ' ' {
                         let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                        // Reason for fallback: context slice might not align on UTF-8 char boundary, so default to comma
                         let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
                         report.add_error(
                             file_path,
@@ -306,6 +308,7 @@ pub fn parse_dc_aliases_column(
                         if let Some(&(_, after_space_ch)) = chars.get(next_next_i) {
                             if after_space_ch.is_whitespace() {
                                 let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                                // Reason for fallback: context slice might not align on UTF-8 char boundary, so default to comma
                                 let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
                                 report.add_error(
                                     file_path,
@@ -321,17 +324,28 @@ pub fn parse_dc_aliases_column(
                     }
                 }
 
-                let item_raw = raw.get(item_start..byte_idx).unwrap_or("");
-                process_alias_item(
-                    item_raw,
-                    file_path,
-                    line_no,
-                    report,
-                    &mut aliases,
-                    &mut cross_references,
-                    &mut decompositions,
-                    &mut dc_syntax,
-                );
+                if let Some(item_raw) = raw.get(item_start..byte_idx) {
+                    process_alias_item(
+                        item_raw,
+                        file_path,
+                        line_no,
+                        report,
+                        &mut aliases,
+                        &mut cross_references,
+                        &mut decompositions,
+                        &mut dc_syntax,
+                    );
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Aliases"),
+                        format!(
+                            "Invalid character boundary slice range {item_start}..{byte_idx} in Aliases column"
+                        ),
+                        Some("Ensure Aliases column contains valid UTF-8 characters"),
+                    );
+                }
 
                 item_start = byte_idx.saturating_add(1);
             }
@@ -339,17 +353,28 @@ pub fn parse_dc_aliases_column(
         }
     }
 
-    let last_raw = raw.get(item_start..).unwrap_or("");
-    process_alias_item(
-        last_raw,
-        file_path,
-        line_no,
-        report,
-        &mut aliases,
-        &mut cross_references,
-        &mut decompositions,
-        &mut dc_syntax,
-    );
+    if let Some(last_raw) = raw.get(item_start..) {
+        process_alias_item(
+            last_raw,
+            file_path,
+            line_no,
+            report,
+            &mut aliases,
+            &mut cross_references,
+            &mut decompositions,
+            &mut dc_syntax,
+        );
+    } else {
+        report.add_error(
+            file_path,
+            Some(line_no),
+            Some("Aliases"),
+            format!(
+                "Invalid trailing character boundary slice range {item_start}.. in Aliases column"
+            ),
+            Some("Ensure Aliases column contains valid UTF-8 characters"),
+        );
+    }
 
     (aliases, cross_references, decompositions, dc_syntax)
 }
@@ -382,6 +407,7 @@ fn process_alias_item(
         *dc_syntax = Some(item_trimmed.to_string());
     } else if let Some(rest) = item_trimmed.strip_prefix('>') {
         if !rest.starts_with('<') && rest.starts_with(char::is_whitespace) {
+            // Reason for fallback: missing token following whitespace defaults to empty string
             let token = rest.split_whitespace().next().unwrap_or("");
             report.add_error(
                 file_path,
@@ -396,7 +422,13 @@ fn process_alias_item(
         cross_references.push(item_trimmed.to_string());
     } else if item_trimmed.starts_with('<') {
         if let Some((tag_raw, payload)) = item_trimmed.split_once('>') {
-            let tag_name = tag_raw.strip_prefix('<').unwrap_or(tag_raw);
+            #[expect(
+                clippy::expect_used,
+                reason = "item_trimmed starts with '<', so split_once('>') prefix tag_raw is guaranteed to start with '<'"
+            )]
+            let tag_name = tag_raw
+                .strip_prefix('<')
+                .expect("tag_raw is guaranteed to start with '<'");
             let tag_full = format!("{tag_raw}>");
 
             if tag_name.starts_with(char::is_whitespace) {
@@ -419,6 +451,7 @@ fn process_alias_item(
             }
 
             if payload.starts_with(char::is_whitespace) {
+                // Reason for fallback: decomposition without non-empty payload tokens defaults to empty string
                 let first_token = payload
                     .split(|c: char| c.is_whitespace() || c == ',')
                     .find(|s| !s.is_empty())
@@ -543,12 +576,20 @@ pub fn validate_dc_category_file(
         }
     }
 
-    // Reason for fallback: file paths without stems default to "general" category
-    let category = std::path::Path::new(file_path)
+    let Some(category) = std::path::Path::new(file_path)
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("general")
-        .to_string();
+    else {
+        report.add_error(
+            file_path,
+            None,
+            None,
+            format!("Invalid category file path: unable to determine category name from '{file_path}'"),
+            Some("Ensure category files have a valid filename stem (e.g. 'latin.csv')"),
+        );
+        return Vec::new();
+    };
+    let category = category.to_string();
 
     for i in 0..table.row_count() {
         let line_no = i.saturating_add(2);
@@ -567,7 +608,7 @@ pub fn validate_dc_category_file(
             );
         }
 
-        // Reason for fallback: missing columns produce empty string so schema validation can report column count error
+        // Reason for fallback: out-of-bounds column indices on malformed rows default to empty string so schema validation can report all diagnostics without indexing panics
         let get_str = |idx: usize| -> String {
             row.get(idx).map_or(String::new(), |s| s.trim().to_string())
         };
@@ -580,7 +621,7 @@ pub fn validate_dc_category_file(
         let casing_str = get_str(5);
         let general_cat_str = get_str(6);
         let script = get_str(7);
-        let raw_aliases_untrimmed = row.get(8).map_or("", |s| s.as_str());
+        let raw_aliases_untrimmed = get_str(8);
         let description = get_str(9);
 
         if dc_str.is_empty() && short_str.is_empty() && raw_name.is_empty() {
@@ -721,7 +762,12 @@ pub fn validate_dc_category_file(
         };
 
         let (name, is_deprecated) = if is_unicode_char {
-            let cp = u32::try_from(dc_id).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "is_unicode_char guarantees dc_id was constructed from a u32 <= 0x10_FFFF"
+            )]
+            let cp = u32::try_from(dc_id).expect("dc_id fits in u32 for unicode chars");
+            // Reason for fallback: characters without standard Unicode names use raw name from CSV category definition
             let uni_name = ctb_formats_unicode::get_unicode_name(cp)
                 .unwrap_or_else(|| {
                     if let Some(stripped) = raw_name.strip_prefix('!') {
@@ -801,7 +847,7 @@ pub fn validate_dc_category_file(
 
         let (mut aliases, cross_references, decompositions, raw_dc_syntax) =
             parse_dc_aliases_column(
-                raw_aliases_untrimmed,
+                &raw_aliases_untrimmed,
                 file_path,
                 line_no,
                 report,
@@ -1128,9 +1174,28 @@ where
         }
 
         if let Some(syntax_rule) = &row.syntax {
-            // Reason for fallback: short ID values fit u32, default to 0 if conversion fails or None
-            let short_id_u32 =
-                row.short_id.and_then(|id| u32::try_from(id).ok()).unwrap_or(0);
+            let Some(short_id) = row.short_id else {
+                report.add_error(
+                    &row.source_file,
+                    Some(row.line_number),
+                    Some("Aliases"),
+                    "Document Character syntax rule defined on an entry without a valid Short ID",
+                    Some("Assign a Short ID to characters that define syntax rules"),
+                );
+                continue;
+            };
+
+            let Ok(short_id_u32) = u32::try_from(short_id) else {
+                report.add_error(
+                    &row.source_file,
+                    Some(row.line_number),
+                    Some("Short"),
+                    format!("Short ID {short_id} exceeds u32 limits for syntax rule validation"),
+                    Some("Ensure Short ID fits in u32"),
+                );
+                continue;
+            };
+
             validate_dc_syntax(
                 syntax_rule,
                 short_id_u32,

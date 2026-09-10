@@ -124,8 +124,12 @@ impl DcChar {
         } else if self.0 <= 0x10_FFFF {
             4
         } else {
+            #[expect(
+                clippy::expect_used,
+                reason = "u128 leading zeros is at most 128, which fits in usize on all supported platforms"
+            )]
             let leading_zeros =
-                usize::try_from(self.0.leading_zeros()).unwrap_or(0);
+                usize::try_from(self.0.leading_zeros()).expect("leading zeros <= 128 fits in usize");
             let bits = 128usize.saturating_sub(leading_zeros);
             let l = bits.div_ceil(6).max(1);
             2usize.saturating_add(l)
@@ -143,7 +147,13 @@ impl DcChar {
     pub fn encode(self) -> Vec<u8> {
         let mut buf = [0u8; 24];
         let n = self.encode_buf(&mut buf);
-        buf.get(..n).map_or_else(Vec::new, <[u8]>::to_vec)
+        #[expect(
+            clippy::expect_used,
+            reason = "encode_buf returns index within the 24-byte stack buffer"
+        )]
+        buf.get(..n)
+            .expect("encode_buf returns valid slice of buffer")
+            .to_vec()
     }
 }
 

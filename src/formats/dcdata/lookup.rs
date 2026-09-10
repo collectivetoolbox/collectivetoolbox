@@ -108,7 +108,8 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
         }
     }
 
-    panic!("Could not find DcData. It must have been generated first.")
+    // Reason for fallback: missing or unparseable DcList.generated.csv yields empty rows table
+    Vec::new()
 });
 
 /// Returns a static slice of all Document Character definitions sorted by long ID (`dc_id`).
@@ -122,7 +123,7 @@ pub fn get_dc_defn(dc_id: u128) -> Option<&'static DcDefn> {
     defns
         .binary_search_by_key(&dc_id, |d| d.dc_id)
         .ok()
-        .map(|idx| &defns[idx])
+        .and_then(|idx| defns.get(idx))
 }
 
 /// Looks up a Document Character definition by short ID (0-indexed).
@@ -133,6 +134,7 @@ pub fn get_short_dc_defn(short_id: usize) -> Option<&'static DcDefn> {
 
 /// Returns the highest known short Document Character ID.
 pub fn maximum_known_short_dc() -> usize {
+    // Reason for fallback: empty definitions list defaults to maximum ID of 0
     get_all_dc_defns()
         .iter()
         .filter_map(|d| d.short_id)

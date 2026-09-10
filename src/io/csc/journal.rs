@@ -507,13 +507,14 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         entity.metadata.timestamps.birthtime_nsec,
     )?;
     let (read_sec, read_nsec) = match entity.metadata.read_time {
-        Some(t) => match t.duration_since(UNIX_EPOCH) {
-            Ok(d) => {
-                let s = i64::try_from(d.as_secs()).unwrap_or(0);
-                (Some(s), Some(d.subsec_nanos()))
-            }
-            Err(_) => (None, None),
-        },
+        Some(t) => {
+            let d = t
+                .duration_since(UNIX_EPOCH)
+                .context("Read time timestamp is before Unix epoch")?;
+            let s = i64::try_from(d.as_secs())
+                .context("Read time seconds exceed i64::MAX")?;
+            (Some(s), Some(d.subsec_nanos()))
+        }
         None => (None, None),
     };
     write_opt_timestamp(w, read_sec, read_nsec)?;
@@ -614,11 +615,23 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let ctime_nsec = read_u32(&mut r)?;
     let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut r)?;
     let (read_sec, read_nsec) = read_opt_timestamp(&mut r)?;
-    let read_time = read_sec.and_then(|sec| {
-        let nsec = read_nsec.unwrap_or(0);
-        let u_sec = u64::try_from(sec.max(0)).ok()?;
-        UNIX_EPOCH.checked_add(std::time::Duration::new(u_sec, nsec))
-    });
+    let read_time = match (read_sec, read_nsec) {
+        (Some(sec), Some(nsec)) => {
+            let u_sec = u64::try_from(sec)
+                .context("Journal read_time seconds is negative")?;
+            anyhow::ensure!(
+                nsec < 1_000_000_000,
+                "Journal read_time nanoseconds out of range: {nsec}"
+            );
+            let duration = std::time::Duration::new(u_sec, nsec);
+            let time = UNIX_EPOCH
+                .checked_add(duration)
+                .context("Journal read_time timestamp overflow")?;
+            Some(time)
+        }
+        (None, None) => None,
+        _ => anyhow::bail!("Journal read_time has mismatched sec/nsec components"),
+    };
 
     let flag_count = read_u32(&mut r)?;
     let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);

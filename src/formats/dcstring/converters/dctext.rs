@@ -232,6 +232,7 @@ pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
 
 /// Converts DcText format bytes to DcUtf format bytes.
 pub fn dctext_to_dcutf(document: Vec<u8>) -> Vec<u8> {
+    // Reason for fallback: invalid DcText cannot be converted to DcUtf and defaults to empty byte sequence per function contract
     dctext_to_dcstring(&document).map_or_else(
         |_| Vec::new(),
         |out| out.result.into_bytes(),

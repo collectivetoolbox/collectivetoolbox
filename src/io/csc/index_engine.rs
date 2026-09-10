@@ -180,7 +180,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     let is_fulltext = args.fulltext || args.fulltext_max != "20k";
     let fulltext_limit = if is_fulltext {
         let parsed = parse_bytes(&args.fulltext_max)?;
-        Some(usize::try_from(parsed).unwrap_or(20480))
+        Some(usize::try_from(parsed).context("fulltext_max size exceeds memory limits")?)
     } else {
         None
     };
@@ -558,6 +558,7 @@ async fn ingest_journal_snapshot(
     let total_chunks = chunks.len();
 
     let has_full_text = check_has_full_text(conn).await?;
+    // Reason for fallback: snapshot without explicit sources defaults to indexing destination directory
     let root_dir = snapshot
         .sources
         .first()
@@ -692,6 +693,7 @@ async fn ingest_journal_snapshot(
                 } else {
                     None
                 };
+                // Reason for fallback: absent full-text content maps to SQL NULL in database column
                 params.push(full_text_val.map_or(Value::Null, Value::Text));
             }
 
@@ -726,6 +728,7 @@ pub async fn flush_deleted_files_from_index(
     progress: &Progress,
 ) -> Result<u64> {
     let snapshot = read_journal_snapshot(journal_path)?;
+    // Reason for fallback: snapshot without explicit sources defaults to inspecting destination directory
     let root_dir = snapshot
         .sources
         .first()

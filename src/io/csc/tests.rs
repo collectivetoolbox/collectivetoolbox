@@ -1248,6 +1248,66 @@ mod csc_tests {
         assert_eq!(recovered.last_batch_id, snap.last_batch_id);
     }
 
+    #[crate::ctb_test]
+    fn test_journal_pre_epoch_read_time_rejected() {
+        use crate::journal::JournalWriter;
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        std::fs::create_dir_all(&src).expect("create src");
+        std::fs::create_dir_all(&dest).expect("create dest");
+
+        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+
+        let pre_epoch_time = std::time::SystemTime::UNIX_EPOCH
+            .checked_sub(std::time::Duration::from_secs(10))
+            .expect("valid pre-epoch time");
+
+        let file_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("pre_epoch.txt"),
+                enclosing_path: Some(src),
+                raw_relative_path: b"pre_epoch.txt".to_vec(),
+                raw_filename: b"pre_epoch.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: Some(pre_epoch_time),
+            },
+            kind: FileEntityKind::Regular {
+                size: 0,
+                sha256: [0; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        writer.record_entity(&file_entity);
+        assert!(writer.commit_batch().is_err());
+    }
+
     fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathBuf>) -> crate::args::FsindexArgs {
         crate::args::FsindexArgs {
             targets,

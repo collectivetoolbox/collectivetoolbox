@@ -168,7 +168,7 @@ impl Deref for DcString {
     fn deref(&self) -> &Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcString inner bytes are verified valid UTF-8e-128"
+            reason = "DcString inner bytes are validated valid UTF-8e-128"
         )]
         // Safety: DcString inner bytes are guaranteed to be valid UTF-8e-128.
         unsafe {
@@ -182,7 +182,7 @@ impl DerefMut for DcString {
     fn deref_mut(&mut self) -> &mut Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcString inner bytes are verified valid UTF-8e-128"
+            reason = "DcString inner bytes are validated valid UTF-8e-128"
         )]
         // Safety: DcString inner bytes are guaranteed to be valid UTF-8e-128.
         unsafe {

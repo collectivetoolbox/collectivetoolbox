@@ -193,14 +193,17 @@ impl Progress {
         let pct_opt = task.total_items.and_then(|total| {
             format_percentage(u128::from(items_done), u128::from(total))
         });
+        // Reason for fallback: unformatted or absent percentage defaults to false for 100% completion check
         let is_100_pct = pct_opt.as_ref().map_or(false, |p| p.whole == "100");
 
+        // Reason for fallback: absent task detail string defaults to empty suffix
         let detail_suffix = detail.map_or(String::new(), |d| format!(" ({d})"));
 
         if should_use_controls() {
             // Interactive terminal: throttle to at most once per second (1000ms)
             if elapsed.as_millis() >= 1000 || is_100_pct {
                 if let Some(ref pct) = pct_opt {
+                    // Reason for fallback: indeterminate total items count displays as 0 in progress fraction
                     let total = task.total_items.unwrap_or(0);
                     eprint!(
                         "\r\x1b[K[{}] {}/{}... {pct}{detail_suffix}",
@@ -220,6 +223,7 @@ impl Progress {
             // Teleprinter / dumb terminal: emit fresh full lines throttled to at most
             // every 5 seconds, or on 10% milestone increments (10%, 20%, 30%, ...)
             let milestone = pct_opt.as_ref().and_then(|pct| {
+                // Reason for fallback: invalid division or parse failure defaults to milestone 0
                 pct.whole.parse::<u32>().ok().map(|w| w.checked_div(10).unwrap_or(0))
             });
             let is_new_milestone = match (milestone, task.last_milestone_pct) {
@@ -230,6 +234,7 @@ impl Progress {
 
             if elapsed.as_secs() >= 5 || is_new_milestone || is_100_pct {
                 if let Some(ref pct) = pct_opt {
+                    // Reason for fallback: indeterminate total items count displays as 0 in progress fraction
                     let total = task.total_items.unwrap_or(0);
                     eprintln!(
                         "[{}] {}/{} ({pct}){detail_suffix}",
@@ -265,6 +270,7 @@ impl Progress {
             return;
         };
 
+        // Reason for fallback: absent task detail string defaults to empty string
         let detail_str = detail.map_or(String::new(), |d| format!(" ({d})"));
 
         if should_use_controls() {

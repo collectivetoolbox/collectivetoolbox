@@ -224,6 +224,7 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
+    // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
     for stream in streams {
         let name_os = stream.name.as_os_str();
