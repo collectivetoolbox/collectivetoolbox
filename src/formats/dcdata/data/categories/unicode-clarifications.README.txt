@@ -1,0 +1,7 @@
+This file provides additional cross-references and comments for Unicode characters.
+
+Unicode-specific APIs in ctoolbox shouldn't use this data; it should only be used when looking up these Unicode characters using Dc APIs.
+
+The only parts of this file to pay attention to clarifications are the Aliases etc. and notes; the rest should be ignored in favor of Unicode's own data.
+
+So, even when looking up a Unicode character that's listed in that file using the `dc_data` APIs, it should still use the Unicode character name and properties, and only supplement it with the extra aliases/xrefs/decompositions/description.
