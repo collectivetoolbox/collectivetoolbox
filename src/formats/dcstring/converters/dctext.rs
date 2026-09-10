@@ -46,8 +46,6 @@ use crate::dc_str::DcStr;
 use crate::dc_string::DcString;
 use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
 
-pub use crate::SHORT_DC_OFFSET;
-
 /// A list of global graph Document Character IDs represented as `u128` values.
 pub type DcList = Vec<u128>;
 
