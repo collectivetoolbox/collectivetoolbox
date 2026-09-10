@@ -34,8 +34,9 @@ use crate::file::path_policy::{
 };
 use crate::file::payload::{Extent, PayloadSource};
 use crate::file::sandboxable_dir::SandboxableDir;
-use crate::file::streams::write_streams;
-use crate::file::sys_flags::apply_file_flags;
+use crate::file::streams::{read_and_hash_streams, write_streams};
+use crate::file::sys_flags::{apply_file_flags, query_file_flags};
+use crate::file::verifier::{EntityAuditOptions, audit_entity_detailed};
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
 use nix::fcntl::{AT_FDCWD, AtFlags as NixAtFlags};
@@ -43,13 +44,14 @@ use nix::unistd::{Gid, Uid, fchownat};
 use rustix::fd::AsFd;
 use rustix::fs::AtFlags;
 use std::fs::Permissions;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 /// Execution options for file materialization.
 #[derive(Debug, Clone)]
+#[expect(clippy::struct_excessive_bools, reason = "Configuration flags for materialization fidelity")]
 pub struct MaterializeOptions {
     /// If true, calculate operations without modifying the filesystem.
     pub dry_run: bool,
@@ -61,6 +63,9 @@ pub struct MaterializeOptions {
     pub path_policy: PathTraversalPolicy,
     /// Permit creating special nodes (FIFOs, character and block devices).
     pub copy_specials: bool,
+    /// If true, always overwrite the destination by recreating the payload and metadata atomically,
+    /// skipping any in-place reuse even if payload checksums match.
+    pub force_overwrite: bool,
 }
 
 impl Default for MaterializeOptions {
@@ -71,6 +76,7 @@ impl Default for MaterializeOptions {
             symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
+            force_overwrite: false,
         }
     }
 }
@@ -84,6 +90,9 @@ pub struct MaterializeReceipt {
     pub bytes_written: u64,
     /// Computed cryptographic SHA-256 digest of the data fork.
     pub sha256: Option<[u8; 32]>,
+    /// True if an existing identical destination was preserved and metadata updated in-place
+    /// without re-writing payload data.
+    pub skipped_identical: bool,
 }
 
 /// Applies ownership, permissions, and timestamps from `meta` to `dest`.
@@ -260,6 +269,7 @@ pub fn materialize_entity(
                 FileEntityKind::Regular { sha256, .. } => Some(*sha256),
                 _ => None,
             },
+            skipped_identical: false,
         });
     }
 
@@ -287,6 +297,7 @@ pub fn materialize_entity(
                 destination_path: dest_path,
                 bytes_written: 0,
                 sha256: None,
+                skipped_identical: false,
             })
         }
         FileEntityKind::Hardlink {
@@ -302,6 +313,7 @@ pub fn materialize_entity(
                 destination_path: dest_path,
                 bytes_written: 0,
                 sha256: None,
+                skipped_identical: false,
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
@@ -320,6 +332,7 @@ pub fn materialize_entity(
                 destination_path: dest_path,
                 bytes_written: 0,
                 sha256: None,
+                skipped_identical: false,
             })
         }
         FileEntityKind::Fifo
@@ -348,6 +361,7 @@ pub fn materialize_entity(
                 destination_path: dest_path,
                 bytes_written: 0,
                 sha256: None,
+                skipped_identical: false,
             })
         }
         FileEntityKind::Socket => {
@@ -368,6 +382,19 @@ pub fn materialize_entity(
             is_sparse,
             extents,
         } => {
+            if !options.force_overwrite {
+                if let Some(receipt) = try_update_existing_regular_entity(
+                    &dest_path,
+                    entity,
+                    *size,
+                    expected_sha256,
+                    *is_sparse,
+                    options,
+                )? {
+                    return Ok(receipt);
+                }
+            }
+
             let Some(source) = payload else {
                 anyhow::bail!(
                     "PayloadSource required to materialize regular file: {}",
@@ -529,6 +556,7 @@ pub fn materialize_entity(
                 destination_path: dest_path,
                 bytes_written: initial_size,
                 sha256: Some(computed_sha256),
+                skipped_identical: false,
             })
         }
     }
@@ -591,4 +619,218 @@ pub fn materialize_entity_at_path(
 ) -> Result<MaterializeReceipt> {
     let dest_dir = SandboxableDir::create_or_open(dest_root)?;
     materialize_entity(entity, payload, &dest_dir, options)
+}
+
+/// Attempts to validate and losslessly update an existing regular file in-place
+/// without re-writing payload bytes if the content hash and structure match.
+#[expect(clippy::too_many_lines, reason = "Comprehensive in-place entity validation and lossless metadata reconciliation")]
+fn try_update_existing_regular_entity(
+    dest_path: &Path,
+    entity: &FileEntity,
+    size: u64,
+    expected_sha256: &[u8; 32],
+    is_sparse: bool,
+    options: &MaterializeOptions,
+) -> Result<Option<MaterializeReceipt>> {
+    let dest_meta = match std::fs::symlink_metadata(dest_path) {
+        Ok(m) => m,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => {
+            return Err(err).with_context(|| {
+                format!("Failed to query metadata for {}", dest_path.display())
+            });
+        }
+    };
+
+    // 1. Must be a regular file
+    if !dest_meta.is_file() {
+        return Ok(None);
+    }
+
+    // 2. Size must match
+    if dest_meta.len() != size {
+        return Ok(None);
+    }
+
+    // 3. Inode must not be hardlinked to other files
+    if dest_meta.nlink() > 1 {
+        return Ok(None);
+    }
+
+    // 4. Sparseness check: verify allocated blocks vs hole structure
+    let dest_is_sparse = dest_meta.blocks().saturating_mul(512) < size;
+    if is_sparse != dest_is_sparse {
+        return Ok(None);
+    }
+
+    // 5. If expected hash is sentinel [0; 32], we cannot safely skip without payload verification
+    if *expected_sha256 == [0_u8; 32] {
+        return Ok(None);
+    }
+
+    // 6. Compute SHA-256 digest of dest_path non-invasively
+    #[cfg(target_os = "linux")]
+    let mut file = {
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut opts = std::fs::File::options();
+        opts.read(true);
+        opts.custom_flags(nix::libc::O_NOATIME);
+        match opts.open(dest_path) {
+            Ok(f) => f,
+            Err(_) => match std::fs::File::open(dest_path) {
+                Ok(f) => f,
+                Err(_) => return Ok(None),
+            },
+        }
+    };
+    #[cfg(not(target_os = "linux"))]
+    let mut file = match std::fs::File::open(dest_path) {
+        Ok(f) => f,
+        Err(_) => return Ok(None),
+    };
+
+    let mut hasher = Sha256Stream::new();
+    let mut buf = vec![0_u8; 64 * 1024];
+    loop {
+        let n = match file.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => return Ok(None),
+        };
+        let slice = buf
+            .get(..n)
+            .context("Buffer slice index out of bounds during hash check")?;
+        hasher.update(slice);
+    }
+    drop(file);
+
+    let computed_sha256 = hasher.finalize();
+    if computed_sha256 != *expected_sha256 {
+        return Ok(None);
+    }
+
+    // 7. Reconcile extended attributes (streams)
+    let on_disk_streams = match read_and_hash_streams(dest_path) {
+        Ok(s) => s,
+        Err(e) => {
+            if options.strict_lossless {
+                return Err(e);
+            }
+            Vec::new()
+        }
+    };
+
+    // Remove any extra streams that do not exist on the source entity
+    for disk_stream in &on_disk_streams {
+        let exists_in_source = entity
+            .streams
+            .iter()
+            .any(|s| s.name == disk_stream.name);
+        if !exists_in_source {
+            let res = xattr::remove(dest_path, disk_stream.name.as_os_str());
+            if let Err(e) = res {
+                if options.strict_lossless {
+                    log_fmt!(
+                        "Could not remove extra stream {:?} in-place from {}: {e}; falling through to atomic replacement",
+                        disk_stream.name.to_string_lossy(),
+                        dest_path.display()
+                    );
+                    return Ok(None);
+                }
+            }
+        }
+    }
+
+    // Write missing or mismatched streams
+    for stream in &entity.streams {
+        let matches_on_disk = on_disk_streams.iter().any(|d| {
+            d.name == stream.name
+                && match (&d.entity.kind, &stream.entity.kind) {
+                    (
+                        FileEntityKind::Regular { sha256: d_hash, .. },
+                        FileEntityKind::Regular { sha256: s_hash, .. },
+                    ) => d_hash == s_hash,
+                    _ => false,
+                }
+        });
+
+        if !matches_on_disk {
+            write_streams(
+                dest_path,
+                Some(dest_path),
+                std::slice::from_ref(stream),
+                options.strict_lossless,
+            )?;
+        }
+    }
+
+    // 8. File Flags: clear any conflicting flags (e.g. immutable) before updating metadata
+    if let Ok((current_flags, _)) = query_file_flags(dest_path, false) {
+        #[cfg(target_os = "linux")]
+        if !current_flags.is_empty() && entity.metadata.flags.is_empty() {
+            use rustix::fs::{IFlags, ioctl_setflags};
+            if let Ok(f) = std::fs::OpenOptions::new().write(true).open(dest_path) {
+                if let Err(err) = ioctl_setflags(&f, IFlags::empty()) {
+                    if options.strict_lossless {
+                        log_fmt!(
+                            "Warning: could not clear file flags for {}: {err}",
+                            dest_path.display()
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // 9. Apply ownership, permissions, and timestamps (defer flags to next step)
+    apply_entity_metadata(
+        dest_path,
+        Some(dest_path),
+        &entity.metadata,
+        false,
+        false,
+        options.strict_lossless,
+    )?;
+
+    // 10. Apply final file flags
+    if !entity.metadata.flags.is_empty() || entity.metadata.platform_raw_flags.is_some() {
+        apply_file_flags(
+            dest_path,
+            &entity.metadata.flags,
+            entity.metadata.platform_raw_flags.as_ref(),
+            options.strict_lossless,
+        )?;
+    }
+
+    // 11. Strict lossless audit
+    if options.strict_lossless {
+        let audit_opts = EntityAuditOptions {
+            ignore_atime: true,
+            ignore_mtime: false,
+            ignore_ctime: true,
+            ignore_owner: false,
+            ignore_perms: false,
+            ignore_flags: false,
+            ignore_xattrs: false,
+            check_sparse: true,
+            drop_caches: false,
+            best_effort: false,
+        };
+        let (diffs, _) = audit_entity_detailed(dest_path, entity, &audit_opts)?;
+        if !diffs.is_empty() {
+            log_fmt!(
+                "In-place metadata update on {} had discrepancies ({:?}); falling through to atomic replacement",
+                dest_path.display(),
+                diffs
+            );
+            return Ok(None);
+        }
+    }
+
+    Ok(Some(MaterializeReceipt {
+        destination_path: dest_path.to_path_buf(),
+        bytes_written: 0,
+        sha256: Some(computed_sha256),
+        skipped_identical: true,
+    }))
 }

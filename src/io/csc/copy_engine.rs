@@ -116,6 +116,7 @@ pub fn execute_copy_pipeline(
         symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
         path_policy: PathTraversalPolicy::StrictSandboxed,
         copy_specials: args.copy_specials_as_specials,
+        force_overwrite: args.always_overwrite,
     };
 
     // =========================================================================
@@ -510,53 +511,6 @@ fn copy_single_item(
         _ => 0,
     };
 
-    // Check pre-existing identical file if --skip-existing-checksum is enabled
-    if args.skip_existing_checksum && dest_path.is_file() {
-        if let Ok(dest_meta) = dest_path.metadata() {
-            if dest_meta.len() == initial_size {
-                if let Ok(dest_entity) = FileEntity::from_filesystem(dest_path, None) {
-                    let hashes_match = match (&entity.kind, &dest_entity.kind) {
-                        (
-                            FileEntityKind::Regular { sha256: s, .. },
-                            FileEntityKind::Regular { sha256: d, .. },
-                        ) => s == d,
-                        _ => false,
-                    };
-
-                    let streams_match = entity.streams.len() == dest_entity.streams.len()
-                        && entity.streams.iter().all(|s| {
-                            dest_entity
-                                .streams
-                                .iter()
-                                .any(|d| d.name == s.name && d.entity.kind.kind_sha256() == s.entity.kind.kind_sha256())
-                        });
-
-                    if hashes_match && streams_match {
-                        if !args.dry_run {
-                            apply_entity_metadata(
-                                dest_path,
-                                None,
-                                &entity.metadata,
-                                false,
-                                true,
-                                options.strict_lossless,
-                            )?;
-                        }
-                        stats.files_skipped_identical =
-                            stats.files_skipped_identical.saturating_add(1);
-                        record_journal_entry(journal, dest_path, &entity);
-                        files_to_verify.push((
-                            src_path.to_path_buf(),
-                            dest_path.to_path_buf(),
-                            entity,
-                        ));
-                        return Ok(true);
-                    }
-                }
-            }
-        }
-    }
-
     // Materialize payload
     let receipt = if args.dry_run {
         materialize_entity(&entity, None, dest_dir, options)
@@ -596,7 +550,11 @@ fn copy_single_item(
         );
     }
 
-    stats.files_copied = stats.files_copied.saturating_add(1);
+    if receipt.skipped_identical {
+        stats.files_skipped_identical = stats.files_skipped_identical.saturating_add(1);
+    } else {
+        stats.files_copied = stats.files_copied.saturating_add(1);
+    }
     stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
 
     if let FileEntityKind::Regular { ref mut sha256, .. } = entity.kind {
@@ -646,15 +604,4 @@ fn record_journal_entry(
     journal.record_entity(&journal_entity);
 }
 
-trait FileEntityKindExt {
-    fn kind_sha256(&self) -> Option<[u8; 32]>;
-}
 
-impl FileEntityKindExt for FileEntityKind {
-    fn kind_sha256(&self) -> Option<[u8; 32]> {
-        match self {
-            Self::Regular { sha256, .. } => Some(*sha256),
-            _ => None,
-        }
-    }
-}

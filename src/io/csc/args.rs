@@ -85,9 +85,14 @@ pub struct CscArgs {
     #[arg(long, overrides_with = "verify_after")]
     pub no_verify_after: bool,
 
-    /// When target file exists, checksum source and destination and skip copying
-    /// if identical. Default is to overwrite atomically.
-    #[arg(long)]
+    /// Always overwrite destination files by rewriting payload and metadata,
+    /// even if destination exists with identical checksum. Default is to reuse
+    /// matching payload and losslessly update metadata in-place.
+    #[arg(long, default_value_t = false)]
+    pub always_overwrite: bool,
+
+    /// Alias for default checksum skipping behavior (retained for backward compatibility).
+    #[arg(long, default_value_t = true, overrides_with = "always_overwrite")]
     pub skip_existing_checksum: bool,
 
     /// Behavior when a source file is modified during copy.

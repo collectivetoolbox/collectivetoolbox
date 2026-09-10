@@ -44,7 +44,7 @@ mod csc_tests {
     use crate::verifier::run_csc_verify;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
-    use std::os::unix::fs::MetadataExt;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use std::path::{Path, PathBuf};
     use tempfile::tempdir;
 
@@ -92,7 +92,8 @@ mod csc_tests {
             no_progress: true,
             verify_after: true,
             no_verify_after: false,
-            skip_existing_checksum: false,
+            always_overwrite: false,
+            skip_existing_checksum: true,
             on_source_change: crate::args::SourceChangePolicy::Error,
             copy_specials_as_specials: false,
             copy_block_devices_as_regular_files: false,
@@ -2273,6 +2274,123 @@ mod csc_tests {
                 !err_msg.contains("scratch.csc-tmp.12345"),
                 "Error message should NOT mention the scratch temp path: {err_msg}"
             );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_default_skips_identical_file_and_updates_metadata() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_skip");
+        let dest = temp.path().join("dest_skip");
+        let state1 = temp.path().join("state_dir1");
+        let state2 = temp.path().join("state_dir2");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state1).expect("create state1");
+        fs::create_dir_all(&state2).expect("create state2");
+
+        let file_path = src.join("doc.txt");
+        let payload = b"Lossless smart skipping integration test payload";
+        fs::write(&file_path, payload).expect("write initial file");
+        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o600)).expect("chmod initial");
+
+        // First copy: fresh write of 1 file
+        let args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state1,
+        );
+        let res1 = run_csc(args1).expect("first copy");
+        match res1 {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             1"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        let dest_file = dest.join("doc.txt");
+        assert_eq!(fs::read(&dest_file).expect("read dest"), payload);
+        let meta1 = fs::metadata(&dest_file).expect("dest meta");
+        assert_eq!(meta1.permissions().mode() & 0o7777, 0o600);
+
+        // Update metadata on source file (change mode to 0o644)
+        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o644)).expect("chmod updated");
+
+        // Second copy: default behavior should skip payload rewrite and losslessly update metadata in-place
+        let args2 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state2,
+        );
+        let res2 = run_csc(args2).expect("second copy with smart skip");
+        match res2 {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             0"));
+                assert!(out.contains("Files skipped (identical): 1"));
+                assert!(out.contains("Bytes transferred:        0"));
+                assert!(out.contains("Files verified:           1"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Verify that destination metadata was updated in-place to 0o644
+        let meta2 = fs::metadata(&dest_file).expect("dest meta after update");
+        assert_eq!(meta2.permissions().mode() & 0o7777, 0o644);
+        assert_eq!(fs::read(&dest_file).expect("read dest after update"), payload);
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_always_overwrite_rewrites_identical_file() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_always");
+        let dest = temp.path().join("dest_always");
+        let state1 = temp.path().join("state_dir1");
+        let state2 = temp.path().join("state_dir2");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state1).expect("create state1");
+        fs::create_dir_all(&state2).expect("create state2");
+
+        let file_path = src.join("data.bin");
+        let payload = b"Always overwrite payload verification";
+        fs::write(&file_path, payload).expect("write data");
+
+        // First copy
+        let args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state1,
+        );
+        run_csc(args1).expect("first copy");
+
+        // Second copy with always_overwrite = true
+        let mut args2 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state2,
+        );
+        args2.always_overwrite = true;
+
+        let res2 = run_csc(args2).expect("always overwrite copy");
+        match res2 {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             1"));
+                let payload_len = payload.len();
+                assert!(out.contains(&format!("Bytes transferred:        {payload_len}")));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
         }
     }
 }

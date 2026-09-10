@@ -225,7 +225,7 @@ impl FileFlag {
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "nodump" | "dump" => Some(Self::NoDump),
-            "uchg" | "u體change" | "uimmutable" => Some(Self::UserImmutable),
+            "uchg" | "uchange" | "uimmutable" => Some(Self::UserImmutable),
             "uappnd" | "uappend" => Some(Self::UserAppend),
             "opaque" => Some(Self::Opaque),
             "hidden" => Some(Self::Hidden),

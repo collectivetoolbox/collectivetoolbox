@@ -27,8 +27,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::file::identity::{FileIdentity, FileOrigin, InodeKey};
+use crate::file::materializer::{MaterializeOptions, MaterializeReceipt};
 use crate::file::metadata::{FileMetadata, FileTimestamps};
-use crate::file::payload::{Extent, get_file_extents};
+use crate::file::payload::{Extent, PayloadSource, get_file_extents};
+use crate::file::sandboxable_dir::SandboxableDir;
 use crate::file::streams::{AttachedStream, read_and_hash_streams};
 use crate::file::sys_flags::query_file_flags;
 use ctb_formats_checksum::Sha256Stream;
@@ -212,6 +214,26 @@ pub struct FileEntity {
 }
 
 impl FileEntity {
+    /// Materializes this entity onto the filesystem within a [`SandboxableDir`].
+    pub fn materialize(
+        &self,
+        payload: Option<&mut dyn PayloadSource>,
+        dest_dir: &SandboxableDir,
+        options: &MaterializeOptions,
+    ) -> Result<MaterializeReceipt> {
+        crate::file::materializer::materialize_entity(self, payload, dest_dir, options)
+    }
+
+    /// Materializes this entity onto the filesystem given a destination root path.
+    pub fn materialize_at_path(
+        &self,
+        payload: Option<&mut dyn PayloadSource>,
+        dest_root: &Path,
+        options: &MaterializeOptions,
+    ) -> Result<MaterializeReceipt> {
+        crate::file::materializer::materialize_entity_at_path(self, payload, dest_root, options)
+    }
+
     /// Inspects an existing filesystem entry at `path` and builds a full `FileEntity`.
     ///
     /// If `base_dir` is provided, `identity.relative_path` is calculated relative
