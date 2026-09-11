@@ -48,6 +48,8 @@ apt-get update && apt-get install -y \
 apt-get remove -y nodejs npm python3 python3-minimal python2 perl perl-base java-common default-jre default-jdk 2>/dev/null || true
 apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" perl perl-base "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true
 apt-get autoremove --purge -y 2>/dev/null || true
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/*
 
 if [[ -d /usr/local/share/nvm ]]; then
     rm -r /usr/local/share/nvm
@@ -242,6 +244,9 @@ rustup default 1.92
 # Ensure cargo-deny uses sparse protocol for crates.io to check for yanked crates
 export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
+# Reduce size of test artifacts in CI by stripping full debuginfo from tests
+export CARGO_PROFILE_TEST_DEBUG="line-tables-only"
+
 echo "Adding musl target..."
 rustup target add x86_64-unknown-linux-musl
 rustup target add i586-unknown-linux-musl
@@ -273,6 +278,6 @@ echo "Running offline build..."
 # Cargo deny produces an enormous amount of output when running in Docker, due
 # to being unable to check for yanked crates for some reason. It does finish
 # eventually though.
-./build --release --offline all
+./build --release --offline --clean-targets all
 
 echo "CI Build Inner completed successfully!"

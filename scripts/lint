@@ -38,6 +38,7 @@ if [[ -z "${CTB_SKIP_DOCS:-}" ]]; then
         cargo doc --workspace --no-deps --target=x86_64-unknown-linux-musl || exit 1
         mkdir -p built/docs
         cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
+        rm -rf target/x86_64-unknown-linux-musl/doc target/doc
     fi
 fi
 

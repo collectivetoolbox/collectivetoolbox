@@ -68,9 +68,16 @@ build_installer="true"
 lints="true"
 branding="false"
 offline=""
+clean_targets=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --clean-targets)
+            clean_targets="true"
+            ;;
+        --no-clean-targets)
+            clean_targets="false"
+            ;;
         --release)
             if [[ "$selected_release" == "debug" ]]; then
                 echo "--release and --debug are mutually exclusive." >&2
@@ -185,6 +192,14 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+if [[ -z "$clean_targets" ]]; then
+    if [[ "$platform" == "all" ]]; then
+        clean_targets="true"
+    else
+        clean_targets="false"
+    fi
+fi
+
 cp .cargo/config.default.toml .cargo/config.toml
 
 if [[ "$offline" == "--offline" ]]; then
@@ -220,6 +235,9 @@ if [[ "$build_docs" == "true" ]]; then
     cargo doc --workspace --offline --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
     mkdir -p built/docs
     cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
+    if [[ "$clean_targets" == "true" ]]; then
+        rm -rf target/x86_64-unknown-linux-musl/doc target/doc
+    fi
 fi
 
 supported_platforms=(
@@ -400,6 +418,11 @@ for p in "${platforms[@]}"; do
         fi
     fi
 
+    if [[ "$run_tests" == "true" && "$release" == "release" && "$clean_targets" == "true" ]]; then
+        echo "Cleaning test debug artifacts for $target to conserve disk space..."
+        rm -rf "target/$target/debug"
+    fi
+
     if [[ "$build_binaries" == "true" ]]; then
         if [[ "$release" == "release" ]]; then
             CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --release
@@ -506,6 +529,11 @@ for p in "${platforms[@]}"; do
                 fi
             fi
         fi
+    fi
+
+    if [[ "$clean_targets" == "true" ]]; then
+        echo "Cleaning target artifacts for $target..."
+        rm -rf "target/$target"
     fi
 done
 
