@@ -15,6 +15,7 @@ ENV GUILE_WARN_DEPRECATED=no
 ENV container=docker
 
 RUN set -eux; \
+    dpkg --add-architecture i386; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         acl \
@@ -38,6 +39,7 @@ RUN set -eux; \
         proot \
         tar \
         wine \
+        wine32:i386 \
         wine64 \
         xz-utils \
         xxd; \

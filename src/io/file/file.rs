@@ -85,6 +85,7 @@ pub use verifier::{
 )]
 mod tests {
     use super::*;
+    use ctb_formats_checksum::Sha256Stream;
     #[cfg(unix)]
     use rustix::fd::AsFd;
     use std::fs;

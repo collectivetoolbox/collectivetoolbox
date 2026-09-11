@@ -27,6 +27,7 @@ if command -v npm >/dev/null 2>&1; then
     npm uninstall -g typescript playwright 2>/dev/null || true
 fi
 
+dpkg --add-architecture i386 || true
 apt-get update && apt-get install -y \
     curl \
     git \
@@ -40,6 +41,7 @@ apt-get update && apt-get install -y \
     file \
     mingw-w64 \
     wine \
+    wine32:i386 \
     wine64 \
     xz-utils
 
