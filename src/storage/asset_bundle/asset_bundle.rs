@@ -29,7 +29,7 @@ pub(crate) use ctb_utilities::utilities::*;
 use ctb_formats_ctb_asset_bundle as asset_bundle_format;
 use glob::Pattern;
 use memmap2::Mmap;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fs::{self, File};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
@@ -52,12 +52,230 @@ const EXPECTED_V86_RESOURCE_BUNDLE_SHA256: Option<&str> =
 static PROJECT_ASSETS: OnceLock<Result<ResourceBundle, String>> =
     OnceLock::new();
 
+const CHUNK_SIZE: u64 = 128 * 1024 * 1024;
+const MAX_CACHED_CHUNKS: usize = 4;
+
+#[derive(Debug, Clone)]
+enum EntryLocation {
+    Direct {
+        mmap_index: usize,
+        data_range: Range<usize>,
+    },
+    Chunked {
+        chunked_bundle_index: usize,
+        data_offset: u64,
+        data_len: u64,
+    },
+}
+
 #[derive(Debug)]
 struct ResourceBundleEntry {
     path: String,
     flags: u32,
-    mmap_index: usize,
-    data_range: Range<usize>,
+    location: EntryLocation,
+}
+
+#[derive(Debug)]
+struct ChunkCache {
+    chunks: HashMap<u64, Arc<Mmap>>,
+    order: VecDeque<u64>,
+    max_chunks: usize,
+}
+
+impl ChunkCache {
+    fn new(max_chunks: usize) -> Self {
+        Self {
+            chunks: HashMap::new(),
+            order: VecDeque::new(),
+            max_chunks,
+        }
+    }
+
+    fn get(&mut self, chunk_idx: u64) -> Option<Arc<Mmap>> {
+        if let Some(mmap) = self.chunks.get(&chunk_idx) {
+            if let Some(pos) = self.order.iter().position(|&k| k == chunk_idx) {
+                self.order.remove(pos);
+                self.order.push_back(chunk_idx);
+            }
+            Some(Arc::clone(mmap))
+        } else {
+            None
+        }
+    }
+
+    fn insert(&mut self, chunk_idx: u64, mmap: Arc<Mmap>) {
+        if self.chunks.contains_key(&chunk_idx) {
+            if let Some(pos) = self.order.iter().position(|&k| k == chunk_idx) {
+                self.order.remove(pos);
+            }
+        } else if self.chunks.len() >= self.max_chunks {
+            if let Some(oldest) = self.order.pop_front() {
+                self.chunks.remove(&oldest);
+            }
+        }
+        self.chunks.insert(chunk_idx, mmap);
+        self.order.push_back(chunk_idx);
+    }
+}
+
+#[derive(Debug)]
+struct ChunkedResourceBundle {
+    file: Arc<File>,
+    file_len: u64,
+    cache: RwLock<ChunkCache>,
+}
+
+impl ChunkedResourceBundle {
+    fn open(
+        bundle_path: &Path,
+    ) -> Result<(Self, Vec<asset_bundle_format::RawAssetBundleEntry>)> {
+        let file = open_resource_bundle_file(bundle_path)?;
+        let file_len = file
+            .metadata()
+            .with_context(|| format!("Failed to stat {}", bundle_path.display()))?
+            .len();
+
+        let initial_map_len = std::cmp::min(file_len, CHUNK_SIZE);
+        let initial_map_usize = usize::try_from(initial_map_len)
+            .context("initial chunk map len overflow usize")?;
+
+        #[expect(unsafe_code, reason = "Mmap requires unsafe")]
+        // SAFETY: The resource bundle file is not modified by other processes
+        // during read-only mapping.
+        let chunk_0 = unsafe {
+            memmap2::MmapOptions::new()
+                .offset(0)
+                .len(initial_map_usize)
+                .map(&file)
+        }
+        .with_context(|| {
+            format!(
+                "Failed to map header chunk of {}",
+                bundle_path.display()
+            )
+        })?;
+
+        let (header, raw_entries) =
+            asset_bundle_format::parse_asset_bundle_metadata(&chunk_0)
+                .with_context(|| {
+                    format!(
+                        "Failed to parse metadata of {}",
+                        bundle_path.display()
+                    )
+                })?;
+
+        verify_bundle_integrity(
+            &bundle_path.display().to_string(),
+            &header,
+            EXPECTED_V86_RESOURCE_BUNDLE_UUID,
+            EXPECTED_V86_RESOURCE_BUNDLE_SHA256,
+        )?;
+
+        let mut cache = ChunkCache::new(MAX_CACHED_CHUNKS);
+        cache.insert(0, Arc::new(chunk_0));
+
+        let bundle = Self {
+            file: Arc::new(file),
+            file_len,
+            cache: RwLock::new(cache),
+        };
+
+        Ok((bundle, raw_entries))
+    }
+
+    fn get_chunk(&self, chunk_idx: u64) -> Result<Arc<Mmap>> {
+        if let Ok(mut cache) = self.cache.write() {
+            if let Some(cached) = cache.get(chunk_idx) {
+                return Ok(cached);
+            }
+
+            let chunk_offset = chunk_idx
+                .checked_mul(CHUNK_SIZE)
+                .context("Chunk offset overflow")?;
+            let remaining = self
+                .file_len
+                .checked_sub(chunk_offset)
+                .context("Chunk offset exceeds file length")?;
+            let map_len = std::cmp::min(remaining, CHUNK_SIZE);
+            let map_len_usize = usize::try_from(map_len)
+                .context("Chunk length overflow usize")?;
+
+            #[expect(unsafe_code, reason = "Mmap requires unsafe")]
+            // SAFETY: The resource bundle file is not modified by other processes
+            // during read-only mapping.
+            let mmap = unsafe {
+                memmap2::MmapOptions::new()
+                    .offset(chunk_offset)
+                    .len(map_len_usize)
+                    .map(&*self.file)
+            }
+            .with_context(|| {
+                format!(
+                    "Failed to map chunk {chunk_idx} at offset {chunk_offset}"
+                )
+            })?;
+
+            let mmap_arc = Arc::new(mmap);
+            cache.insert(chunk_idx, Arc::clone(&mmap_arc));
+            Ok(mmap_arc)
+        } else {
+            bail!("Chunk cache lock poisoned")
+        }
+    }
+
+    fn get_bytes(&self, data_offset: u64, data_len: u64) -> Option<Vec<u8>> {
+        if data_len == 0 {
+            return Some(Vec::new());
+        }
+
+        let data_end = data_offset.checked_add(data_len)?;
+        if data_end > self.file_len {
+            return None;
+        }
+        let data_len_usize = usize::try_from(data_len).ok()?;
+
+        let last_byte_offset = data_end.checked_sub(1)?;
+        let start_chunk = data_offset.checked_div(CHUNK_SIZE)?;
+        let end_chunk = last_byte_offset.checked_div(CHUNK_SIZE)?;
+
+        if start_chunk == end_chunk {
+            let chunk = self.get_chunk(start_chunk).ok()?;
+            let chunk_base = start_chunk.checked_mul(CHUNK_SIZE)?;
+            let start_in_chunk =
+                usize::try_from(data_offset.checked_sub(chunk_base)?).ok()?;
+            let end_in_chunk =
+                usize::try_from(data_end.checked_sub(chunk_base)?).ok()?;
+            let slice = chunk.get(start_in_chunk..end_in_chunk)?;
+            return Some(slice.to_vec());
+        }
+
+        let mut out = Vec::with_capacity(data_len_usize);
+        let mut cur_chunk_idx = start_chunk;
+        while cur_chunk_idx <= end_chunk {
+            let chunk = self.get_chunk(cur_chunk_idx).ok()?;
+            let chunk_base = cur_chunk_idx.checked_mul(CHUNK_SIZE)?;
+            let chunk_len = u64::try_from(chunk.len()).ok()?;
+
+            let sub_start_u64 = if cur_chunk_idx == start_chunk {
+                data_offset.checked_sub(chunk_base)?
+            } else {
+                0
+            };
+            let sub_end_u64 = if cur_chunk_idx == end_chunk {
+                data_end.checked_sub(chunk_base)?
+            } else {
+                chunk_len
+            };
+            let sub_start = usize::try_from(sub_start_u64).ok()?;
+            let sub_end = usize::try_from(sub_end_u64).ok()?;
+            let slice = chunk.get(sub_start..sub_end)?;
+            out.extend_from_slice(slice);
+
+            cur_chunk_idx = cur_chunk_idx.checked_add(1)?;
+        }
+
+        Some(out)
+    }
 }
 
 #[derive(Debug)]
@@ -65,6 +283,7 @@ struct ResourceBundle {
     entries: Vec<ResourceBundleEntry>,
     entry_by_path: HashMap<String, usize>,
     mmaps: Vec<Mmap>,
+    chunked_bundles: Vec<ChunkedResourceBundle>,
     delta_cache: RwLock<HashMap<String, Arc<Vec<u8>>>>,
 }
 
@@ -283,8 +502,10 @@ impl ResourceBundle {
                             entries.push(ResourceBundleEntry {
                                 path: inner_entry.path.clone(),
                                 flags: inner_entry.flags,
-                                mmap_index: 0,
-                                data_range: abs_start..abs_end,
+                                location: EntryLocation::Direct {
+                                    mmap_index: 0,
+                                    data_range: abs_start..abs_end,
+                                },
                             });
                             entry_by_path.insert(inner_entry.path, entry_index);
                         }
@@ -297,57 +518,47 @@ impl ResourceBundle {
             entries.push(ResourceBundleEntry {
                 path: parsed_entry.path.clone(),
                 flags: parsed_entry.flags,
-                mmap_index: 0,
-                data_range: parsed_entry.data_range,
+                location: EntryLocation::Direct {
+                    mmap_index: 0,
+                    data_range: parsed_entry.data_range,
+                },
             });
             entry_by_path.insert(parsed_entry.path, entry_index);
         }
 
-        let mut mmaps = vec![main_mmap];
+        let mmaps = vec![main_mmap];
+        let mut chunked_bundles = Vec::new();
 
         // Try loading separate v86_images.rsrc if present
         let v86_path = bundle_path.with_file_name("v86_images.rsrc");
         if v86_path.is_file() {
-            let v86_file =
-                open_resource_bundle_file(&v86_path).with_context(|| {
-                    format!(
-                        "Failed to open v86 resource bundle {}",
-                        v86_path.display()
-                    )
-                })?;
-            #[expect(unsafe_code, reason = "Mmap requires unsafe")]
-            // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
-            let v86_mmap =
-                unsafe { Mmap::map(&v86_file) }.with_context(|| {
-                    format!(
-                        "Failed to map v86 resource bundle {}",
-                        v86_path.display()
-                    )
-                })?;
-            let parsed_v86 = asset_bundle_format::parse_asset_bundle(&v86_mmap)
-                .with_context(|| {
-                    format!(
-                        "Failed to parse v86 resource bundle {}",
-                        v86_path.display()
-                    )
-                })?;
-            verify_bundle_integrity(
-                &v86_path.display().to_string(),
-                &parsed_v86.header,
-                EXPECTED_V86_RESOURCE_BUNDLE_UUID,
-                EXPECTED_V86_RESOURCE_BUNDLE_SHA256,
-            )?;
-            let mmap_idx = mmaps.len();
-            mmaps.push(v86_mmap);
-            for parsed_entry in parsed_v86.entries {
-                let entry_index = entries.len();
-                entries.push(ResourceBundleEntry {
-                    path: parsed_entry.path.clone(),
-                    flags: parsed_entry.flags,
-                    mmap_index: mmap_idx,
-                    data_range: parsed_entry.data_range,
-                });
-                entry_by_path.insert(parsed_entry.path, entry_index);
+            let load_result = (|| -> Result<()> {
+                let (chunked_bundle, raw_entries) =
+                    ChunkedResourceBundle::open(&v86_path)?;
+                let chunked_idx = chunked_bundles.len();
+                chunked_bundles.push(chunked_bundle);
+
+                for parsed_entry in raw_entries {
+                    let entry_index = entries.len();
+                    entries.push(ResourceBundleEntry {
+                        path: parsed_entry.path.clone(),
+                        flags: parsed_entry.flags,
+                        location: EntryLocation::Chunked {
+                            chunked_bundle_index: chunked_idx,
+                            data_offset: parsed_entry.data_offset,
+                            data_len: parsed_entry.data_len,
+                        },
+                    });
+                    entry_by_path.insert(parsed_entry.path, entry_index);
+                }
+                Ok(())
+            })();
+
+            if let Err(err) = load_result {
+                warn_fmt!(
+                    "v86 resource bundle at {} could not be loaded: {err:#}; v86 VM assets will not be loaded",
+                    v86_path.display()
+                );
             }
         } else {
             warn!(
@@ -360,19 +571,47 @@ impl ResourceBundle {
             entries,
             entry_by_path,
             mmaps,
+            chunked_bundles,
             delta_cache: RwLock::new(HashMap::new()),
         })
     }
 
     fn get_asset_vec(&self, key: &str) -> Option<Vec<u8>> {
         let normalized = normalize_asset_key(key);
-        let index = self.entry_by_path.get(normalized)?;
+        let index = self.entry_by_path.get(normalized).or_else(|| {
+            if let Some(tail) = normalized
+                .strip_prefix("vendor/v86_images/")
+                .or_else(|| normalized.strip_prefix("v86_images/"))
+            {
+                let alias = format!("images/{tail}");
+                self.entry_by_path.get(&alias)
+            } else {
+                None
+            }
+        })?;
         let entry = self.entries.get(*index)?;
-        let mmap = self.mmaps.get(entry.mmap_index)?;
-        let raw_slice = mmap.get(entry.data_range.clone())?;
+
+        let raw_vec = match &entry.location {
+            EntryLocation::Direct {
+                mmap_index,
+                data_range,
+            } => {
+                let mmap = self.mmaps.get(*mmap_index)?;
+                let raw_slice = mmap.get(data_range.clone())?;
+                raw_slice.to_vec()
+            }
+            EntryLocation::Chunked {
+                chunked_bundle_index,
+                data_offset,
+                data_len,
+            } => {
+                let chunked = self.chunked_bundles.get(*chunked_bundle_index)?;
+                chunked.get_bytes(*data_offset, *data_len)?
+            }
+        };
 
         if entry.flags & asset_bundle_format::ASSET_FLAG_DELTA == 0 {
-            return Some(raw_slice.to_vec());
+            return Some(raw_vec);
         }
 
         if let Ok(cache) = self.delta_cache.read() {
@@ -382,7 +621,7 @@ impl ResourceBundle {
         }
 
         let (base_path, delta_bytes) =
-            asset_bundle_format::delta::decode_delta_payload(raw_slice).ok()?;
+            asset_bundle_format::delta::decode_delta_payload(&raw_vec).ok()?;
         let base_bytes = self.get_asset_vec(base_path)?;
         let target_bytes =
             asset_bundle_format::delta::decode_delta(&base_bytes, delta_bytes)
@@ -452,6 +691,48 @@ fn normalize_asset_key(key: &str) -> &str {
 )]
 mod tests {
     use super::*;
+
+    #[expect(unsafe_code, reason = "Mmap in test requires unsafe")]
+    #[crate::ctb_test]
+    fn test_chunk_cache_eviction() {
+        use tempfile::NamedTempFile;
+
+        let temp_file = NamedTempFile::new().expect("create temp file");
+        // SAFETY: Temporary file is private and not modified concurrently during read-only mapping.
+        let mmap = unsafe { Mmap::map(temp_file.as_file()).expect("mmap temp file") };
+        let arc_mmap = Arc::new(mmap);
+
+        let mut cache = ChunkCache::new(2);
+        cache.insert(0, Arc::clone(&arc_mmap));
+        cache.insert(1, Arc::clone(&arc_mmap));
+        assert!(cache.get(0).is_some());
+
+        // Inserting chunk 2 should evict chunk 1 (since chunk 0 was recently accessed)
+        cache.insert(2, Arc::clone(&arc_mmap));
+        assert!(cache.get(0).is_some());
+        assert!(cache.get(1).is_none());
+        assert!(cache.get(2).is_some());
+    }
+
+    #[crate::ctb_test]
+    fn test_v86_images_chunked_loading_if_present() {
+        if let Ok(v86_path) =
+            find_resource_bundle_path().map(|p| p.with_file_name("v86_images.rsrc"))
+        {
+            if v86_path.is_file() {
+                let asset = get_asset("vendor/v86_images/guix/guix-fs.json");
+                assert!(
+                    asset.is_some(),
+                    "Expected vendor/v86_images/guix/guix-fs.json to be loaded via chunked bundle"
+                );
+                let bytes = asset.unwrap();
+                assert!(
+                    !bytes.is_empty() && bytes[0] == b'{',
+                    "Expected guix-fs.json to be non-empty JSON"
+                );
+            }
+        }
+    }
 
     #[crate::ctb_test]
     fn cargo_release_binary_uses_workspace_built_bundle() {

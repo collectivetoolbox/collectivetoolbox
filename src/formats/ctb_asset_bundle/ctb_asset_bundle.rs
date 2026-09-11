@@ -190,6 +190,14 @@ pub struct AssetBundleHeader {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawAssetBundleEntry {
+    pub path: String,
+    pub flags: u32,
+    pub data_offset: u64,
+    pub data_len: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssetBundleEntry {
     pub path: String,
     pub flags: u32,
@@ -752,7 +760,11 @@ pub fn parse_asset_bundle_header(bytes: &[u8]) -> Result<AssetBundleHeader> {
     Ok(parse_asset_bundle_header_inner(bytes)?.header)
 }
 
-pub fn parse_asset_bundle(bytes: &[u8]) -> Result<ParsedAssetBundle> {
+/// Parses the header and entry table metadata from an asset bundle without
+/// requiring the entire data payload to be memory mapped.
+pub fn parse_asset_bundle_metadata(
+    bytes: &[u8],
+) -> Result<(AssetBundleHeader, Vec<RawAssetBundleEntry>)> {
     let parsed_header = parse_asset_bundle_header_inner(bytes)?;
     let header = parsed_header.header;
     let header_size = parsed_header.header_size;
@@ -791,20 +803,18 @@ pub fn parse_asset_bundle(bytes: &[u8]) -> Result<ParsedAssetBundle> {
                 .checked_add(12)
                 .context("entry flags offset overflow")?,
         )?;
-        let data_offset = usize::try_from(read_u64(
+        let data_offset = read_u64(
             bytes,
             entry_offset
                 .checked_add(16)
                 .context("entry data offset overflow")?,
-        )?)
-        .context("data offset overflow")?;
-        let data_len = usize::try_from(read_u64(
+        )?;
+        let data_len = read_u64(
             bytes,
             entry_offset
                 .checked_add(24)
                 .context("entry data len offset overflow")?,
-        )?)
-        .context("data length overflow")?;
+        )?;
 
         let path_end = path_offset
             .checked_add(path_len)
@@ -821,17 +831,37 @@ pub fn parse_asset_bundle(bytes: &[u8]) -> Result<ParsedAssetBundle> {
             "Duplicate bundle path {path}"
         );
 
+        entries.push(RawAssetBundleEntry {
+            path,
+            flags,
+            data_offset,
+            data_len,
+        });
+    }
+
+    Ok((header, entries))
+}
+
+pub fn parse_asset_bundle(bytes: &[u8]) -> Result<ParsedAssetBundle> {
+    let (header, raw_entries) = parse_asset_bundle_metadata(bytes)?;
+    let mut entries = Vec::with_capacity(raw_entries.len());
+    for raw in raw_entries {
+        let data_offset = usize::try_from(raw.data_offset)
+            .context("data offset overflow usize")?;
+        let data_len = usize::try_from(raw.data_len)
+            .context("data length overflow usize")?;
         let data_end = data_offset
             .checked_add(data_len)
             .context("data range overflow")?;
         ensure!(
             bytes.get(data_offset..data_end).is_some(),
-            "Data range out of bounds for {path}"
+            "Data range out of bounds for {}",
+            raw.path
         );
 
         entries.push(AssetBundleEntry {
-            path,
-            flags,
+            path: raw.path,
+            flags: raw.flags,
             data_range: data_offset..data_end,
         });
     }
