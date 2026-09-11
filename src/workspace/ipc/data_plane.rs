@@ -19,9 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! High-throughput IPC data plane and shared memory descriptor transfer.
 
-#[cfg(unix)]
 use crate::error::Error;
-#[cfg(unix)]
 use crate::multiplex::session::Session;
 #[expect(
     unused_imports,
@@ -31,7 +29,6 @@ use crate::multiplex::session::Session;
 use crate::utilities::*;
 
 pub use ctb_utilities::shared_memory;
-#[cfg(unix)]
 use ctb_utilities::shared_memory::{ProducerBlob, SharedBlobDescriptor};
 
 // ============================================================================
@@ -120,4 +117,28 @@ pub async fn send_producer_blob_fd<S: Session>(
     blob: &ProducerBlob,
 ) -> Result<(), Error> {
     send_blob_fd(session, &blob.descriptor).await
+}
+
+#[cfg(not(unix))]
+pub async fn send_blob_fd<S: Session + ?Sized>(
+    _session: &S,
+    _descriptor: &SharedBlobDescriptor,
+) -> Result<(), Error> {
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub async fn recv_blob_fd<S: Session + ?Sized>(
+    _session: &S,
+    descriptor: &SharedBlobDescriptor,
+) -> Result<SharedBlobDescriptor, Error> {
+    Ok(descriptor.clone())
+}
+
+#[cfg(not(unix))]
+pub async fn send_producer_blob_fd<S: Session>(
+    _session: &S,
+    _blob: &ProducerBlob,
+) -> Result<(), Error> {
+    Ok(())
 }

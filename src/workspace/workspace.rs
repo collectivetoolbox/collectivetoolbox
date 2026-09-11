@@ -46,7 +46,6 @@ use std::sync::OnceLock;
 use std::path::PathBuf;
 
 use anyhow::Result;
-#[cfg(unix)]
 use ctb_workspace_ipc::services::parent::ParentMessageEvent;
 use ctb_workspace_ipc::workspace_runner::workspace_runtime::{
     ResolvedParentMessage, WorkspaceRuntime,

@@ -132,19 +132,19 @@ fi
 
 # Test pack (0x1F 0x1E) format
 echo "Testing pack format..."
-$CARGO_CMD compress pack "$TEST_FILE" -o "$TMP_DIR/sample.txt.z" --force
-MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.z" | tr -d ' \n' | cut -c 1-4)
+$CARGO_CMD compress pack "$TEST_FILE" -o "$TMP_DIR/sample_pack.txt.z" --force
+MAGIC=$(od -An -t x1 "$TMP_DIR/sample_pack.txt.z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f1e" ]; then
     echo "Error: Magic header expected 1f1e, got $MAGIC"
     exit 1
 fi
 echo "Verifying pack magic header 1f1e... OK"
 
-$CARGO_CMD decompress pack "$TMP_DIR/sample.txt.z" -o "$TMP_DIR/pack_decompressed.txt" --force
+$CARGO_CMD decompress pack "$TMP_DIR/sample_pack.txt.z" -o "$TMP_DIR/pack_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/pack_decompressed.txt" || exit 1
 
 if command -v gzip >/dev/null 2>&1; then
-    gzip -d -c "$TMP_DIR/sample.txt.z" > "$TMP_DIR/pack_gzip_out.txt"
+    gzip -d -c "$TMP_DIR/sample_pack.txt.z" > "$TMP_DIR/pack_gzip_out.txt"
     cmp "$TEST_FILE" "$TMP_DIR/pack_gzip_out.txt" || exit 1
     echo "Verifying GNU gzip decompression of pack format... OK"
 fi

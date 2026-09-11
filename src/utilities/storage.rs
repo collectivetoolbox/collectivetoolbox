@@ -76,8 +76,10 @@ fn _get_known_folder(folder_id: &windows_sys::core::GUID) -> Option<PathBuf> {
     use windows_sys::Win32::UI::Shell::SHGetKnownFolderPath;
 
     let mut path_ptr = std::ptr::null_mut();
-    // KF_FLAG_DEFAULT is 0. hToken is 0 (current user).
-    let res = unsafe { SHGetKnownFolderPath(folder_id, 0, 0, &mut path_ptr) };
+    // KF_FLAG_DEFAULT is 0. hToken is null (current user).
+    let res = unsafe {
+        SHGetKnownFolderPath(folder_id, 0, std::ptr::null_mut(), &mut path_ptr)
+    };
 
     if res == S_OK && !path_ptr.is_null() {
         let mut len = 0;

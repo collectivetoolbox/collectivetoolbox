@@ -42,7 +42,7 @@ use bytes::{Bytes, BytesMut};
 #[cfg(not(unix))]
 use futures::{SinkExt, StreamExt};
 use interprocess::local_socket::{
-    GenericFilePath, ListenerOptions,
+    GenericFilePath, GenericNamespaced, ListenerOptions,
     tokio::{Listener as TokioListener, Stream as TokioStream, prelude::*},
 };
 #[cfg(unix)]

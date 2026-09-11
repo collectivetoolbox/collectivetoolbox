@@ -66,8 +66,6 @@ use fs2::FileExt; // Cross-platform advisory file locking
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
-#[cfg(windows)]
-use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread::ThreadId;
@@ -416,33 +414,56 @@ pub fn check_filesystem_lock_support() -> Result<()> {
         bail!("Incompatible filesystem");
     }
 
-    // Clean up
+    // Clean up: drop file handle before removing as Windows requires it
+    drop(file);
     debug_fmt!("Removing {}", test_path.display());
     fs::remove_file(&test_path)?;
     debug_fmt!("Removing dir {}", test_dir.display());
     fs::remove_dir(&test_dir)?;
-    drop(file); // Unlock
     Ok(())
 }
 
 pub fn get_inode_or_file_index(path: &Path) -> Result<u64> {
-    let path_meta = fs::metadata(path)?;
     #[cfg(unix)]
-    let path_inode = path_meta.ino();
+    {
+        let path_meta = fs::metadata(path)?;
+        Ok(path_meta.ino())
+    }
     #[cfg(windows)]
-    let path_inode = path_meta.file_index();
-
-    Ok(path_inode)
+    {
+        let file = fs::File::open(path)?;
+        get_inode_or_file_index_from_descriptor(&file)
+    }
 }
 
+#[allow(unsafe_code, reason = "Unsafe Windows FFI to query file index by handle")]
 pub fn get_inode_or_file_index_from_descriptor(file: &File) -> Result<u64> {
-    let file_meta = file.metadata()?;
     #[cfg(unix)]
-    let file_inode = file_meta.ino();
+    {
+        let file_meta = file.metadata()?;
+        Ok(file_meta.ino())
+    }
     #[cfg(windows)]
-    let file_inode = file_meta.file_index();
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Foundation::HANDLE;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+        };
 
-    Ok(file_inode)
+        let handle: HANDLE = file.as_raw_handle();
+        let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+        let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
+        if ok == 0 {
+            bail!("GetFileInformationByHandle failed");
+        }
+        let high = u64::from(info.nFileIndexHigh);
+        let low = u64::from(info.nFileIndexLow);
+        let shifted = high
+            .checked_shl(32)
+            .ok_or_else(|| anyhow::anyhow!("shift overflow"))?;
+        Ok(shifted | low)
+    }
 }
 
 pub fn path_and_descriptor_match(path: &Path, file: &File) -> Result<bool> {

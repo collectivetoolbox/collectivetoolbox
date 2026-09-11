@@ -43,7 +43,6 @@ use ctb_workspace_ipc::auth::capability::CapabilitySet;
 use ctb_utilities::ipc::service_traits::renderer::{
     RenderMode, RenderSettings, RenderTarget,
 };
-#[cfg(unix)]
 use ctb_workspace_ipc::services::parent::ParentMessageEvent;
 use ctb_workspace_ipc::workspace_runner::workspace_runtime::{
     ResolvedParentMessage, WorkspaceRuntime,

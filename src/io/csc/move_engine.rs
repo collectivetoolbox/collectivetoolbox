@@ -83,7 +83,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             }
             std::fs::rename(&task.source_root, &task.target_root)
         } else {
-            Err(std::io::Error::from_raw_os_error(nix::libc::EXDEV))
+            Err(std::io::Error::from(std::io::ErrorKind::CrossesDevices))
         };
 
         match rename_res {
@@ -97,7 +97,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     ));
                 }
             }
-            Err(err) if err.raw_os_error() == Some(nix::libc::EXDEV) => {
+            Err(err) if is_cross_device_error(&err) => {
                 progress.message(&format!(
                     "Cross-device move detected for {}: copying with verification...",
                     task.source_root.display()
@@ -208,4 +208,19 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     writeln!(summary, "Status:                          Move completed successfully.")?;
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
+}
+
+fn is_cross_device_error(err: &std::io::Error) -> bool {
+    if err.kind() == std::io::ErrorKind::CrossesDevices {
+        return true;
+    }
+    #[cfg(unix)]
+    if err.raw_os_error() == Some(18) {
+        return true;
+    }
+    #[cfg(windows)]
+    if err.raw_os_error() == Some(17) {
+        return true;
+    }
+    false
 }

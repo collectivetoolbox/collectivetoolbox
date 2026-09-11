@@ -33,19 +33,25 @@ use crate::file::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
 use crate::file::payload::{Extent, PayloadSource};
-use crate::file::sandboxable_dir::SandboxableDir;
-use crate::file::streams::{read_and_hash_streams, write_streams};
+use crate::file::sandboxable_dir::{DirHandleRef, SandboxableDir};
+use crate::file::streams::{read_and_hash_streams, remove_stream, write_streams};
 use crate::file::sys_flags::{apply_file_flags, query_file_flags};
 use crate::file::verifier::{EntityAuditOptions, audit_entity_detailed};
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
+#[cfg(unix)]
 use nix::fcntl::{AT_FDCWD, AtFlags as NixAtFlags};
+#[cfg(unix)]
 use nix::unistd::{Gid, Uid, fchownat};
+#[cfg(unix)]
 use rustix::fd::AsFd;
+#[cfg(unix)]
 use rustix::fs::AtFlags;
 use std::fs::Permissions;
 use std::io::{Read, Seek, SeekFrom, Write};
+#[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
@@ -118,47 +124,51 @@ pub fn apply_entity_metadata(
         meta.timestamps.mtime_nsec,
     );
 
-    // 1. Ownership: check if dest already has the desired UID/GID
     let dest_meta = if is_symlink {
         std::fs::symlink_metadata(dest)
     } else {
         std::fs::metadata(dest)
     };
 
-    let needs_chown = match dest_meta {
-        Ok(ref dm) => dm.uid() != uid || dm.gid() != gid,
-        Err(_) => true,
-    };
-
-    if needs_chown {
-        let uid_obj = Some(Uid::from_raw(uid));
-        let gid_obj = Some(Gid::from_raw(gid));
-        let chown_res = if is_symlink {
-            fchownat(
-                AT_FDCWD,
-                dest,
-                uid_obj,
-                gid_obj,
-                NixAtFlags::AT_SYMLINK_NOFOLLOW,
-            )
-        } else {
-            nix::unistd::chown(dest, uid_obj, gid_obj)
+    // 1. Ownership: check if dest already has the desired UID/GID
+    #[cfg(unix)]
+    {
+        let needs_chown = match dest_meta {
+            Ok(ref dm) => dm.uid() != uid || dm.gid() != gid,
+            Err(_) => true,
         };
-        if let Err(err) = chown_res {
-            if strict_lossless {
-                anyhow::bail!(
-                    "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
+
+        if needs_chown {
+            let uid_obj = Some(Uid::from_raw(uid));
+            let gid_obj = Some(Gid::from_raw(gid));
+            let chown_res = if is_symlink {
+                fchownat(
+                    AT_FDCWD,
+                    dest,
+                    uid_obj,
+                    gid_obj,
+                    NixAtFlags::AT_SYMLINK_NOFOLLOW,
+                )
+            } else {
+                nix::unistd::chown(dest, uid_obj, gid_obj)
+            };
+            if let Err(err) = chown_res {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
+                        display_target.display()
+                    );
+                }
+                log_fmt!(
+                    "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
                     display_target.display()
                 );
             }
-            log_fmt!(
-                "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
-                display_target.display()
-            );
         }
     }
 
     // 2. Permissions (symlink permissions are fixed on Linux)
+    #[cfg(unix)]
     if !is_symlink {
         let perms = Permissions::from_mode(mode);
         if let Err(e) = std::fs::set_permissions(dest, perms) {
@@ -227,8 +237,11 @@ pub fn verify_filename_exact_bytes(
             format!("Error reading entry in directory: {}", parent_dir.display())
         })?;
         let entry_name = entry.file_name();
-        let entry_bytes = entry_name.as_bytes();
-        if entry_bytes == expected_filename_bytes {
+        #[cfg(unix)]
+        let entry_matches = entry_name.as_bytes() == expected_filename_bytes;
+        #[cfg(not(unix))]
+        let entry_matches = entry_name.to_string_lossy().as_bytes() == expected_filename_bytes;
+        if entry_matches {
             matched = true;
             break;
         }
@@ -529,6 +542,7 @@ pub fn materialize_entity(
             temp_file.sync_data()?;
             drop(temp_file);
 
+            #[cfg(unix)]
             rustix::fs::fsync(&parent_dir_fd).with_context(|| {
                 format!("Failed to sync parent directory: {}", parent_dir.display())
             })?;
@@ -537,6 +551,7 @@ pub fn materialize_entity(
             dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
             cleanup_guard.active = false;
 
+            #[cfg(unix)]
             rustix::fs::fsync(&parent_dir_fd).with_context(|| {
                 format!("Failed to sync parent directory: {}", parent_dir.display())
             })?;
@@ -564,7 +579,7 @@ pub fn materialize_entity(
 }
 
 struct TempFileCleanupGuard<'a> {
-    parent_fd: rustix::fd::BorrowedFd<'a>,
+    parent_fd: DirHandleRef<'a>,
     temp_name: String,
     active: bool,
 }
@@ -572,7 +587,10 @@ struct TempFileCleanupGuard<'a> {
 impl Drop for TempFileCleanupGuard<'_> {
     fn drop(&mut self) {
         if self.active {
+            #[cfg(unix)]
             let _ = rustix::fs::unlinkat(&self.parent_fd, &self.temp_name, AtFlags::empty());
+            #[cfg(not(unix))]
+            let _ = std::fs::remove_file(self.parent_fd.path.join(&self.temp_name));
         }
     }
 }
@@ -598,7 +616,10 @@ pub fn verify_directory_filenames_exact(
         let entry = entry.with_context(|| {
             format!("Error reading entry in directory: {}", dir_path.display())
         })?;
+        #[cfg(unix)]
         found.insert(entry.file_name().as_bytes().to_vec());
+        #[cfg(not(unix))]
+        found.insert(entry.file_name().to_string_lossy().as_bytes().to_vec());
     }
 
     for expected in expected_filenames {
@@ -654,14 +675,18 @@ fn try_update_existing_regular_entity(
     }
 
     // 3. Inode must not be hardlinked to other files
+    #[cfg(unix)]
     if dest_meta.nlink() > 1 {
         return Ok(None);
     }
 
     // 4. Sparseness check: verify allocated blocks vs hole structure
-    let dest_is_sparse = dest_meta.blocks().saturating_mul(512) < size;
-    if is_sparse != dest_is_sparse {
-        return Ok(None);
+    #[cfg(unix)]
+    {
+        let dest_is_sparse = dest_meta.blocks().saturating_mul(512) < size;
+        if is_sparse != dest_is_sparse {
+            return Ok(None);
+        }
     }
 
     // 5. If expected hash is sentinel [0; 32], we cannot safely skip without payload verification
@@ -728,7 +753,7 @@ fn try_update_existing_regular_entity(
             .iter()
             .any(|s| s.name == disk_stream.name);
         if !exists_in_source {
-            let res = xattr::remove(dest_path, disk_stream.name.as_os_str());
+            let res = remove_stream(dest_path, disk_stream.name.as_os_str());
             if let Err(e) = res {
                 if options.strict_lossless {
                     log_fmt!(

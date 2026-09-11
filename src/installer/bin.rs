@@ -45,29 +45,36 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use ctb_utilities::anyhow;
 
+#[cfg(unix)]
 use nix::libc::{
     MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit, syscall,
 };
 
-#[expect(
-    unsafe_code,
-    reason = "installer process locking syscalls require unsafe"
+#[cfg_attr(
+    unix,
+    expect(
+        unsafe_code,
+        reason = "installer process locking syscalls require unsafe"
+    )
 )]
 fn main() -> anyhow::Result<()> {
-    // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
-    // SAFETY: Calling mlockall is standard Unix process lifecycle configuration and safe to execute.
-    unsafe {
-        syscall(mlockall(MCL_CURRENT | MCL_FUTURE).into());
-    }
+    #[cfg(unix)]
+    {
+        // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
+        // SAFETY: Calling mlockall is standard Unix process lifecycle configuration and safe to execute.
+        unsafe {
+            syscall(mlockall(MCL_CURRENT | MCL_FUTURE).into());
+        }
 
-    // Try to prevent core dumps
-    let limit = rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    // SAFETY: setrlimit configuration using standard structs is safe.
-    unsafe {
-        setrlimit(RLIMIT_CORE, &raw const limit);
+        // Try to prevent core dumps
+        let limit = rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+        // SAFETY: setrlimit configuration using standard structs is safe.
+        unsafe {
+            setrlimit(RLIMIT_CORE, &raw const limit);
+        }
     }
 
     let result =

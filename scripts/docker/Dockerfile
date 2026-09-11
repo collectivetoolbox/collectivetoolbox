@@ -28,6 +28,7 @@ RUN set -eux; \
         file \
         git \
         locales \
+        mingw-w64 \
         musl-tools \
         nodejs \
         npm \
@@ -36,6 +37,8 @@ RUN set -eux; \
         pkg-config \
         proot \
         tar \
+        wine \
+        wine64 \
         xz-utils \
         xxd; \
     locale-gen en_US.UTF-8; \
@@ -60,6 +63,7 @@ RUN set -eux; \
     rustup target add i586-unknown-linux-musl; \
     rustup target add i586-unknown-linux-gnu; \
     rustup target add wasm32-unknown-unknown; \
+    rustup target add x86_64-pc-windows-gnu; \
     cargo install --locked cargo-deny
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

@@ -42,6 +42,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::Result;
 use ctb_utilities::anyhow;
 
+#[cfg(unix)]
 use nix::libc::{
     MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit, syscall,
 };
@@ -63,18 +64,21 @@ fn is_not_found_error(err: &anyhow::Error) -> bool {
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-    // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
-    unsafe {
-        syscall(mlockall(MCL_CURRENT | MCL_FUTURE).into());
-    }
+    #[cfg(unix)]
+    {
+        // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
+        unsafe {
+            syscall(mlockall(MCL_CURRENT | MCL_FUTURE).into());
+        }
 
-    // Try to prevent core dumps
-    let limit = rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    unsafe {
-        setrlimit(RLIMIT_CORE, &raw const limit);
+        // Try to prevent core dumps
+        let limit = rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+        unsafe {
+            setrlimit(RLIMIT_CORE, &raw const limit);
+        }
     }
 
     let result =

@@ -24,19 +24,18 @@ use anyhow::{Context, Result};
 
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::{
-    CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE,
+    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, GetLastError, HANDLE,
+    INVALID_HANDLE_VALUE,
 };
 
 #[cfg(windows)]
 use windows_sys::Win32::System::Memory::{
     CreateFileMappingW, FILE_MAP_READ, FILE_MAP_WRITE, MapViewOfFile,
-    PAGE_READWRITE, UnmapViewOfFile,
+    MEMORY_MAPPED_VIEW_ADDRESS, PAGE_READWRITE, UnmapViewOfFile,
 };
 
 #[cfg(windows)]
-use windows_sys::Win32::System::Threading::{
-    DUPLICATE_SAME_ACCESS, DuplicateHandle, GetCurrentProcess,
-};
+use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 #[allow(unsafe_code)]
 #[cfg(windows)]
@@ -47,10 +46,13 @@ fn last_err(msg: &str) -> anyhow::Error {
 
 #[cfg(windows)]
 fn to_handle(raw: u64) -> Result<HANDLE> {
-    // HANDLE is pointer-sized; reject truncation on 32-bit.
-    let h = usize::try_from(raw).context("HANDLE value does not fit usize")?;
-    let h = isize::try_from(h).context("HANDLE value does not fit isize")?;
-    Ok(h)
+    let addr = usize::try_from(raw).context("HANDLE value does not fit usize")?;
+    Ok(std::ptr::without_provenance_mut(addr))
+}
+
+#[cfg(windows)]
+fn handle_to_u64(handle: HANDLE) -> Result<u64> {
+    u64::try_from(handle.addr()).context("HANDLE value does not fit u64")
 }
 
 #[allow(unsafe_code)]
@@ -71,10 +73,10 @@ pub fn create_file_mapping(size: u64) -> Result<u64> {
             std::ptr::null(),
         )
     };
-    if handle == 0 {
+    if handle.is_null() || handle == INVALID_HANDLE_VALUE {
         return Err(last_err("CreateFileMappingW failed"));
     }
-    u64::try_from(handle).context("HANDLE value does not fit u64")
+    handle_to_u64(handle)
 }
 
 #[allow(unsafe_code)]
@@ -82,7 +84,7 @@ pub fn create_file_mapping(size: u64) -> Result<u64> {
 pub fn duplicate_handle_current(handle: u64) -> Result<u64> {
     let src = unsafe { GetCurrentProcess() };
     let h = to_handle(handle)?;
-    let mut out: HANDLE = 0;
+    let mut out: HANDLE = std::ptr::null_mut();
 
     let ok = unsafe {
         DuplicateHandle(
@@ -98,7 +100,7 @@ pub fn duplicate_handle_current(handle: u64) -> Result<u64> {
     if ok == 0 {
         return Err(last_err("DuplicateHandle failed"));
     }
-    u64::try_from(out).context("duplicated HANDLE does not fit u64")
+    handle_to_u64(out)
 }
 
 #[allow(unsafe_code)]
@@ -124,6 +126,16 @@ impl MappingView {
     pub fn as_ptr(&self) -> *const u8 {
         self.ptr
     }
+
+    #[allow(unsafe_code)]
+    pub fn as_slice(&self) -> &[u8] {
+        if self.ptr.is_null() {
+            &[]
+        } else {
+            // SAFETY: ptr is non-null and valid for len bytes
+            unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+        }
+    }
 }
 
 #[allow(unsafe_code)]
@@ -132,11 +144,12 @@ impl Drop for MappingView {
     fn drop(&mut self) {
         unsafe {
             if !self.ptr.is_null() {
-                let ptr: *mut core::ffi::c_void = self.ptr.cast();
-                let ptr: *const core::ffi::c_void = ptr;
-                let _ = UnmapViewOfFile(ptr);
+                let view = MEMORY_MAPPED_VIEW_ADDRESS {
+                    Value: self.ptr.cast(),
+                };
+                let _ = UnmapViewOfFile(view);
             }
-            if self.handle != 0 {
+            if !self.handle.is_null() && self.handle != INVALID_HANDLE_VALUE {
                 let _ = CloseHandle(self.handle);
             }
         }
@@ -151,8 +164,8 @@ pub fn map_view_read(handle: u64, len: usize) -> Result<MappingView> {
     let dup = duplicate_handle_current(handle)?;
     let h = to_handle(dup)?;
 
-    let ptr = unsafe { MapViewOfFile(h, FILE_MAP_READ, 0, 0, len) };
-    let ptr: *mut u8 = ptr.cast();
+    let view = unsafe { MapViewOfFile(h, FILE_MAP_READ, 0, 0, len) };
+    let ptr: *mut u8 = view.Value.cast();
     if ptr.is_null() {
         // Ensure the duplicated handle is closed.
         let _ = unsafe { CloseHandle(h) };
@@ -173,8 +186,8 @@ pub fn write_mapping(handle: u64, data: &[u8]) -> Result<()> {
     let dup = duplicate_handle_current(handle)?;
     let h = to_handle(dup)?;
 
-    let ptr = unsafe { MapViewOfFile(h, FILE_MAP_WRITE, 0, 0, len) };
-    let ptr: *mut u8 = ptr.cast();
+    let view = unsafe { MapViewOfFile(h, FILE_MAP_WRITE, 0, 0, len) };
+    let ptr: *mut u8 = view.Value.cast();
     if ptr.is_null() {
         let _ = unsafe { CloseHandle(h) };
         return Err(last_err("MapViewOfFile(FILE_MAP_WRITE) failed"));
@@ -183,9 +196,7 @@ pub fn write_mapping(handle: u64, data: &[u8]) -> Result<()> {
     // Safety: ptr is valid for `len` bytes for this view; copy in-bounds.
     unsafe {
         std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, len);
-        let ptr_void: *mut core::ffi::c_void = ptr.cast();
-        let ptr_void: *const core::ffi::c_void = ptr_void;
-        let _ = UnmapViewOfFile(ptr_void);
+        let _ = UnmapViewOfFile(view);
         let _ = CloseHandle(h);
     }
 

@@ -36,7 +36,7 @@ use crate::utilities::*;
     clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod csc_tests {
     use crate::args::{CscArgs, CscVerifyArgs, MvArgs, VerifyOutputFormat};
     use crate::cli::run_csc;
@@ -294,6 +294,7 @@ mod csc_tests {
         }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_xattrs_and_streams_preserved() {
         let temp = tempdir().expect("create tempdir");

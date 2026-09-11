@@ -25,31 +25,43 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg(windows)]
 
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+
 use std::collections::HashMap;
+use std::process::Stdio;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use process_wrap::tokio::{CommandWrap, JobObject};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
 
 use crate::error::Error;
-use crate::types::ChildKind;
 use crate::types::{ConnectionId, ProcessId};
+use ipc::ChildKind;
 
 use super::{ChildHandle, ProcessManager, SpawnParams};
 
+#[derive(Debug)]
 struct ChildEntry {
-    child: Box<dyn process_wrap::tokio::ChildWrapper>,
+    child: Arc<Mutex<Box<dyn process_wrap::tokio::ChildWrapper>>>,
     handle: ChildHandle,
 }
 
+#[derive(Debug)]
 struct Inner {
     children: HashMap<ProcessId, ChildEntry>,
 }
 
 /// Tokio-based Windows process manager.
+#[derive(Debug)]
 pub struct TokioProcessManager {
     inner: Arc<Mutex<Inner>>,
 }
@@ -65,7 +77,6 @@ impl TokioProcessManager {
     }
 
     fn to_err(e: anyhow::Error) -> Error {
-        // Map anyhow::Error to crate error. Assumes Error: From<anyhow::Error>.
         Error::from(e)
     }
 }
@@ -76,9 +87,20 @@ impl ProcessManager for TokioProcessManager {
         &self,
         params: SpawnParams,
     ) -> Result<ChildHandle, Error> {
-        // Spawn the process using process-wrap with JobObject wrapper.
-        let mut cmd = CommandWrap::with_new(&params.program, |command| {
+        let program = if let Some(p) = params.program {
+            p
+        } else {
+            if params.kind == ChildKind::External {
+                return Err(Error::from(anyhow!(
+                    "No program specified for child process"
+                )));
+            }
+            std::env::current_exe()?.into_os_string().into_string()?
+        };
+
+        let mut cmd = CommandWrap::with_new(&program, |command| {
             command.args(&params.args);
+            command.stdin(Stdio::piped());
             for (k, v) in &params.env {
                 command.env(k, v);
             }
@@ -88,51 +110,55 @@ impl ProcessManager for TokioProcessManager {
         });
         cmd.wrap(JobObject);
 
-        let child = cmd
+        let mut child = cmd
             .spawn()
-            .with_context(|| "failed to spawn child")
+            .context("failed to spawn child")
             .map_err(Self::to_err)?;
+
+        let token = params.capabilities.token.0.clone();
+        if !token.is_empty() {
+            if let Some(stdin) = child.stdin() {
+                stdin
+                    .write_all(token.as_bytes())
+                    .await
+                    .map_err(Error::from)?;
+                stdin
+                    .write_all(b"\n")
+                    .await
+                    .map_err(Error::from)?;
+            }
+        }
 
         let pid = ProcessId::new();
 
         let handle = ChildHandle {
             pid,
-            kind: params.kind.clone(),
+            kind: params.kind,
             parent: params.parent,
             connection: None,
         };
 
+        let child_arc = Arc::new(Mutex::new(child));
         {
             let mut inner = self.inner.lock().await;
             inner.children.insert(
                 pid,
                 ChildEntry {
-                    child,
+                    child: Arc::clone(&child_arc),
                     handle: handle.clone(),
                 },
             );
         }
 
-        // Cleanup on exit.
-        let inner_arc = self.inner.clone();
+        let inner_arc = Arc::clone(&self.inner);
+        let child_for_reaper = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            let mut remove_me: Option<ProcessId> = None;
             {
-                let mut inner = inner_arc.lock().await;
-                if let Some(entry) = inner.children.get_mut(&pid) {
-                    let wait_fut = entry.child.wait();
-                    drop(inner);
-                    let _ = wait_fut.await;
-                } else {
-                    return;
-                }
+                let mut c = child_for_reaper.lock().await;
+                let _ = c.wait().await;
             }
             let mut inner = inner_arc.lock().await;
-            if let Some(entry) = inner.children.remove(&pid) {
-                remove_me = Some(pid);
-            }
-            drop(inner);
-            // Job cleanup is handled by process-wrap's JobObject on drop.
+            let _ = inner.children.remove(&pid);
         });
 
         Ok(handle)
@@ -145,7 +171,7 @@ impl ProcessManager for TokioProcessManager {
     ) -> Result<(), Error> {
         let mut inner = self.inner.lock().await;
         let Some(entry) = inner.children.get_mut(&pid) else {
-            return Err(Self::to_err(anyhow::anyhow!("unknown pid {:?}", pid)));
+            return Err(Self::to_err(anyhow!("unknown pid {:?}", pid)));
         };
         entry.handle.connection = Some(conn);
         Ok(())
@@ -164,21 +190,18 @@ impl ProcessManager for TokioProcessManager {
         let child = {
             let inner = self.inner.lock().await;
             let Some(entry) = inner.children.get(&pid) else {
-                // Nothing to terminate.
                 return Ok(());
             };
-            entry.child.clone() // Clone if needed; process-wrap's Child may support cloning or use Arc.
+            Arc::clone(&entry.child)
         };
 
-        // Terminate the entire job (tree). If not force, emulate grace period.
         if !force {
             sleep(Duration::from_millis(200)).await;
         }
 
-        child
-            .kill()
-            .await
-            .with_context(|| "failed to terminate job")
+        let mut c = child.lock().await;
+        c.start_kill()
+            .context("failed to terminate job")
             .map_err(Self::to_err)?;
 
         Ok(())
@@ -198,19 +221,20 @@ impl ProcessManager for TokioProcessManager {
 )]
 mod tests {
     use super::*;
+    use crate::auth::capability::CapabilityBundle;
     use crate::process_manager::SpawnParams;
 
     #[crate::ctb_test("tokio")]
-    async fn terminate_noop_graceful() -> anyhow::Result<()> {
+    async fn terminate_noop_graceful() -> Result<()> {
         let pm = TokioProcessManager::new();
         let params = SpawnParams {
-            kind: Default::default(), // Assumes Default; adjust if needed.
+            kind: ChildKind::External,
             parent: None,
             program: Some("cmd.exe".to_string()),
             args: vec!["/C".into(), "exit".into(), "/B".into(), "0".into()],
             env: vec![],
             cwd: None,
-            capabilities: Default::default(), // Assumes Default; adjust if needed.
+            capabilities: CapabilityBundle::default(),
         };
 
         let ch = pm.spawn_child(params).await?;
@@ -223,11 +247,10 @@ mod tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn terminate_long_running_force() -> anyhow::Result<()> {
+    async fn terminate_long_running_force() -> Result<()> {
         let pm = TokioProcessManager::new();
-        // Use ping to simulate a sleep.
         let params = SpawnParams {
-            kind: Default::default(),
+            kind: ChildKind::External,
             parent: None,
             program: Some("cmd.exe".to_string()),
             args: vec![
@@ -239,7 +262,7 @@ mod tests {
             ],
             env: vec![],
             cwd: None,
-            capabilities: Default::default(),
+            capabilities: CapabilityBundle::default(),
         };
 
         let ch = pm.spawn_child(params).await?;

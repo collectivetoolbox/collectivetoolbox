@@ -33,6 +33,7 @@ use crate::journal::{
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::collections::VecDeque;
 use std::fmt::Write as _;
+#[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -325,8 +326,10 @@ fn index_directory_to_journal(
         (jw, None)
     };
 
+    #[cfg(unix)]
     let root_meta = std::fs::symlink_metadata(&target_dir)
         .with_context(|| format!("Failed to read metadata for target: {}", target_dir.display()))?;
+    #[cfg(unix)]
     let root_dev = root_meta.dev();
 
     let mut dir_queue: VecDeque<PathBuf> = VecDeque::new();
@@ -386,6 +389,7 @@ fn index_directory_to_journal(
                 }
             };
 
+            #[cfg(unix)]
             if args.one_file_system && entry_sym_meta.dev() != root_dev {
                 continue;
             }

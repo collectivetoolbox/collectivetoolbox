@@ -39,9 +39,12 @@ use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::ffi::OsString;
 use std::fs::Metadata;
+#[cfg(unix)]
 use std::os::unix::ffi::OsStringExt;
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 /// Information about an extended attribute, ACL, or alternate stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,7 +72,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
         let data = s.data.unwrap_or_default();
         streams.push((
             StreamInfo {
-                name: OsString::from_vec(s.name.0),
+                name: s.name.as_os_str().to_os_string(),
                 size,
                 sha256,
             },
@@ -140,6 +143,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
 
 /// Applies permissions, ownership, and timestamps from `source_meta` to `dest`.
 /// Fails with a hard error if ownership or permissions cannot be preserved.
+#[cfg(unix)]
 pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> Result<()> {
     let mode = source_meta.permissions().mode();
     let uid = source_meta.uid();
@@ -174,4 +178,68 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
     };
 
     apply_entity_metadata(dest, None, &meta, is_symlink, true, true)
+}
+
+/// Applies timestamps and basic attributes from `source_meta` to `dest` on non-Unix platforms.
+#[cfg(not(unix))]
+pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> Result<()> {
+    let (mtime_sec, mtime_nsec) = match source_meta.modified() {
+        Ok(t) => match t.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(d) => (
+                // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0 as fallback epoch
+                i64::try_from(d.as_secs()).unwrap_or(0),
+                d.subsec_nanos(),
+            ),
+            Err(e) => (
+                // Reason for fallback: pre-epoch duration exceeding i64 limit clamps to 0
+                -i64::try_from(e.duration().as_secs()).unwrap_or(0),
+                0,
+            ),
+        },
+        Err(_) => (0, 0),
+    };
+    let (atime_sec, atime_nsec) = match source_meta.accessed() {
+        Ok(t) => match t.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(d) => (
+                // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0 as fallback epoch
+                i64::try_from(d.as_secs()).unwrap_or(0),
+                d.subsec_nanos(),
+            ),
+            Err(e) => (
+                // Reason for fallback: pre-epoch duration exceeding i64 limit clamps to 0
+                -i64::try_from(e.duration().as_secs()).unwrap_or(0),
+                0,
+            ),
+        },
+        Err(_) => (0, 0),
+    };
+
+    let mode = if source_meta.permissions().readonly() {
+        0o444
+    } else if source_meta.is_dir() {
+        0o755
+    } else {
+        0o644
+    };
+
+    let meta = FileMetadata {
+        mode,
+        uid: 0,
+        gid: 0,
+        timestamps: FileTimestamps {
+            atime_sec,
+            atime_nsec,
+            mtime_sec,
+            mtime_nsec,
+            ctime_sec: mtime_sec,
+            ctime_nsec: mtime_nsec,
+            birthtime_sec: None,
+            birthtime_nsec: None,
+        },
+        flags: Vec::new(),
+        platform_raw_flags: None,
+        read_time: None,
+    };
+
+    apply_entity_metadata(dest, None, &meta, is_symlink, false, false)
 }

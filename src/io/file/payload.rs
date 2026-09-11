@@ -26,9 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+#[cfg(unix)]
 use nix::unistd::{Whence, lseek};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+#[cfg(unix)]
 use std::os::fd::AsFd;
 use std::path::{Path, PathBuf};
 
@@ -76,6 +78,7 @@ impl Extent {
 }
 
 /// Discovers the extent map (data and holes) of a file using `SEEK_DATA` / `SEEK_HOLE`.
+#[cfg(unix)]
 pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>> {
     if file_size == 0 {
         return Ok(Vec::new());
@@ -150,6 +153,18 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
     }
 
     Ok(extents)
+}
+
+/// Fallback extent map for non-Unix platforms (e.g. Windows) where SEEK_DATA/SEEK_HOLE are not available.
+#[cfg(not(unix))]
+pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
+    if file_size == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![Extent::Data {
+        offset: 0,
+        length: file_size,
+    }])
 }
 
 /// Abstract streaming provider for file payload data and extents.

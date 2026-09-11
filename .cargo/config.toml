@@ -10,6 +10,10 @@ incremental = false
 [target.i586-unknown-linux-musl]
 linker = "scripts/i586-musl-gcc"
 
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-gcc-ar"
+
 # Must have [env] table as last entry in config.toml so config.vendored.toml can append to it
 [env]
 # Resolves 'scripts/i586-musl-gcc' relative to this config file

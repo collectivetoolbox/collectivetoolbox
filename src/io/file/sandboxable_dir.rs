@@ -35,14 +35,41 @@ use crate::file::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, validate_symlink_target,
 };
 
+#[cfg(unix)]
 use rustix::fd::{AsFd, BorrowedFd, OwnedFd};
+#[cfg(unix)]
 use rustix::fs::{AtFlags, Mode, OFlags, linkat, mkdirat, open, openat, renameat, symlinkat, unlinkat};
 
 #[cfg(target_os = "linux")]
 use rustix::fs::{ResolveFlags, openat2};
 
+#[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
+
+#[cfg(unix)]
+pub type DirHandle = OwnedFd;
+#[cfg(unix)]
+pub type DirHandleRef<'a> = BorrowedFd<'a>;
+
+#[cfg(not(unix))]
+#[derive(Debug, Clone)]
+pub struct DirHandle {
+    pub(crate) path: PathBuf,
+}
+
+#[cfg(not(unix))]
+#[derive(Debug, Clone, Copy)]
+pub struct DirHandleRef<'a> {
+    pub(crate) path: &'a Path,
+}
+
+#[cfg(not(unix))]
+impl DirHandle {
+    pub fn as_fd(&self) -> DirHandleRef<'_> {
+        DirHandleRef { path: &self.path }
+    }
+}
 
 /// A filesystem directory root that can enforce strict sandboxed containment
 /// or permit verbatim fidelity depending on configuration.
@@ -54,6 +81,7 @@ use std::path::{Component, Path, PathBuf};
 #[derive(Debug)]
 pub struct SandboxableDir {
     root_path: PathBuf,
+    #[cfg(unix)]
     root_fd: OwnedFd,
 }
 
@@ -66,17 +94,31 @@ impl SandboxableDir {
         let path = path.as_ref();
         // Reason for fallback: If path canonicalization fails (e.g. in restricted environments), attempt direct opening with the verbatim path.
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-        let fd = open(
-            &canonical,
-            OFlags::DIRECTORY | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .with_context(|| format!("Failed to open directory root: {}", canonical.display()))?;
+        #[cfg(unix)]
+        {
+            let fd = open(
+                &canonical,
+                OFlags::DIRECTORY | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .with_context(|| format!("Failed to open directory root: {}", canonical.display()))?;
 
-        Ok(Self {
-            root_path: canonical,
-            root_fd: fd,
-        })
+            Ok(Self {
+                root_path: canonical,
+                root_fd: fd,
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            anyhow::ensure!(
+                canonical.is_dir(),
+                "Path is not a directory: {}",
+                canonical.display()
+            );
+            Ok(Self {
+                root_path: canonical,
+            })
+        }
     }
 
     /// Creates the directory (and any parents) if missing, then opens it.
@@ -95,8 +137,15 @@ impl SandboxableDir {
     }
 
     /// Borrowed file descriptor of the root directory.
+    #[cfg(unix)]
     pub fn root_fd(&self) -> BorrowedFd<'_> {
         self.root_fd.as_fd()
+    }
+
+    /// Borrowed handle of the root directory.
+    #[cfg(not(unix))]
+    pub fn root_fd(&self) -> DirHandleRef<'_> {
+        DirHandleRef { path: &self.root_path }
     }
 
     /// Ensures that all directory components in `rel_dir` exist under the root,
@@ -105,11 +154,12 @@ impl SandboxableDir {
     /// Under `StrictSandboxed`, this traverses step-by-step with `O_NOFOLLOW`
     /// (and on Linux, attempts fast `openat2` with `RESOLVE_BENEATH`),
     /// guaranteeing that no intermediate symlink is traversed.
+    #[cfg(unix)]
     pub fn ensure_dir_all(
         &self,
         rel_dir: &Path,
         policy: PathTraversalPolicy,
-    ) -> Result<OwnedFd> {
+    ) -> Result<DirHandle> {
         if rel_dir.as_os_str().is_empty() || rel_dir == Path::new(".") {
             return self
                 .root_fd
@@ -218,6 +268,49 @@ impl SandboxableDir {
         Ok(current_fd)
     }
 
+    /// Ensures that all directory components in `rel_dir` exist under the root.
+    #[cfg(not(unix))]
+    pub fn ensure_dir_all(
+        &self,
+        rel_dir: &Path,
+        policy: PathTraversalPolicy,
+    ) -> Result<DirHandle> {
+        if rel_dir.as_os_str().is_empty() || rel_dir == Path::new(".") {
+            return Ok(DirHandle {
+                path: self.root_path.clone(),
+            });
+        }
+
+        let full_path = self.root_path.join(rel_dir);
+        if policy == PathTraversalPolicy::StrictSandboxed {
+            for comp in rel_dir.components() {
+                match comp {
+                    Component::CurDir | Component::Normal(_) => {}
+                    Component::ParentDir => {
+                        anyhow::bail!(
+                            "Path traversal rejected: path contains '..' parent directory component: {}",
+                            rel_dir.display()
+                        );
+                    }
+                    Component::Prefix(_) | Component::RootDir => {
+                        anyhow::bail!(
+                            "Path traversal rejected: path contains root or prefix component: {}",
+                            rel_dir.display()
+                        );
+                    }
+                }
+            }
+        }
+
+        if !full_path.exists() {
+            std::fs::create_dir_all(&full_path).with_context(|| {
+                format!("Failed to create directory '{}'", full_path.display())
+            })?;
+        }
+
+        Ok(DirHandle { path: full_path })
+    }
+
     /// Resolves the parent directory of `rel_path`, ensuring all parent directories
     /// exist, and returns the open parent directory file descriptor alongside
     /// the leaf file name.
@@ -225,7 +318,7 @@ impl SandboxableDir {
         &self,
         rel_path: &Path,
         policy: PathTraversalPolicy,
-    ) -> Result<(OwnedFd, PathBuf)> {
+    ) -> Result<(DirHandle, PathBuf)> {
         let clean_path = if policy == PathTraversalPolicy::StrictSandboxed && rel_path.is_absolute()
         {
             // Re-root absolute path safely beneath the destination root
@@ -243,6 +336,7 @@ impl SandboxableDir {
             .file_name()
             .context("Target path has no file name component")?;
 
+        #[cfg(unix)]
         let parent_fd = match parent {
             Some(p) if !p.as_os_str().is_empty() && p != Path::new(".") => {
                 self.ensure_dir_all(p, policy)?
@@ -253,13 +347,24 @@ impl SandboxableDir {
                 .context("Failed to clone root directory fd")?,
         };
 
+        #[cfg(not(unix))]
+        let parent_fd = match parent {
+            Some(p) if !p.as_os_str().is_empty() && p != Path::new(".") => {
+                self.ensure_dir_all(p, policy)?
+            }
+            _ => DirHandle {
+                path: self.root_path.clone(),
+            },
+        };
+
         Ok((parent_fd, PathBuf::from(file_name)))
     }
 
     /// Creates an exclusive atomic temporary file directly inside `parent_dir_fd`.
+    #[cfg(unix)]
     pub fn create_temp_file(
         &self,
-        parent_dir_fd: &BorrowedFd<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         temp_name: impl AsRef<std::ffi::OsStr>,
         mode: u32,
     ) -> Result<std::fs::File> {
@@ -280,10 +385,34 @@ impl SandboxableDir {
         Ok(std::fs::File::from(fd))
     }
 
+    /// Creates an exclusive atomic temporary file directly inside `parent_dir_fd`.
+    #[cfg(not(unix))]
+    pub fn create_temp_file(
+        &self,
+        parent_dir_fd: &DirHandleRef<'_>,
+        temp_name: impl AsRef<std::ffi::OsStr>,
+        _mode: u32,
+    ) -> Result<std::fs::File> {
+        let file_path = parent_dir_fd.path.join(temp_name.as_ref());
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&file_path)
+            .with_context(|| {
+                format!(
+                    "Failed to create atomic temporary file: {}",
+                    file_path.display()
+                )
+            })?;
+        Ok(file)
+    }
+
     /// Atomically renames `temp_name` to `final_name` within `parent_dir_fd`.
+    #[cfg(unix)]
     pub fn commit_atomic_file(
         &self,
-        parent_dir_fd: &BorrowedFd<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         temp_name: impl AsRef<std::ffi::OsStr>,
         final_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
@@ -299,10 +428,34 @@ impl SandboxableDir {
         Ok(())
     }
 
+    /// Atomically renames `temp_name` to `final_name` within `parent_dir_fd`.
+    #[cfg(not(unix))]
+    pub fn commit_atomic_file(
+        &self,
+        parent_dir_fd: &DirHandleRef<'_>,
+        temp_name: impl AsRef<std::ffi::OsStr>,
+        final_name: impl AsRef<std::ffi::OsStr>,
+    ) -> Result<()> {
+        let temp_path = parent_dir_fd.path.join(temp_name.as_ref());
+        let final_path = parent_dir_fd.path.join(final_name.as_ref());
+        if final_path.exists() {
+            let _ = std::fs::remove_file(&final_path);
+        }
+        std::fs::rename(&temp_path, &final_path).with_context(|| {
+            format!(
+                "Failed to atomically rename {} to {}",
+                temp_path.display(),
+                final_path.display()
+            )
+        })?;
+        Ok(())
+    }
+
     /// Creates a symbolic link directly inside `parent_dir_fd`.
+    #[cfg(unix)]
     pub fn create_symlink(
         &self,
-        parent_dir_fd: &BorrowedFd<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         link_name: impl AsRef<std::ffi::OsStr>,
         target_bytes: &[u8],
         policy: SymlinkValidationPolicy,
@@ -324,11 +477,36 @@ impl SandboxableDir {
         Ok(())
     }
 
+    /// Creates a symbolic link directly inside `parent_dir_fd`.
+    #[cfg(not(unix))]
+    pub fn create_symlink(
+        &self,
+        parent_dir_fd: &DirHandleRef<'_>,
+        link_name: impl AsRef<std::ffi::OsStr>,
+        target_bytes: &[u8],
+        policy: SymlinkValidationPolicy,
+    ) -> Result<()> {
+        let link_os = link_name.as_ref();
+        let symlink_path = parent_dir_fd.path.join(link_os);
+        validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
+        let target_str = std::str::from_utf8(target_bytes)
+            .context("Target bytes for symlink are not valid UTF-8 on Windows")?;
+        let target_path = Path::new(target_str);
+        #[cfg(windows)]
+        {
+            if std::os::windows::fs::symlink_file(target_path, &symlink_path).is_err() {
+                let _ = std::os::windows::fs::symlink_dir(target_path, &symlink_path);
+            }
+        }
+        Ok(())
+    }
+
     /// Creates a hard link to `target_rel` inside `parent_dir_fd`.
+    #[cfg(unix)]
     pub fn create_hardlink(
         &self,
         target_rel: &Path,
-        parent_dir_fd: &BorrowedFd<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
@@ -351,10 +529,34 @@ impl SandboxableDir {
         Ok(())
     }
 
+    /// Creates a hard link to `target_rel` inside `parent_dir_fd`.
+    #[cfg(not(unix))]
+    pub fn create_hardlink(
+        &self,
+        target_rel: &Path,
+        parent_dir_fd: &DirHandleRef<'_>,
+        link_name: impl AsRef<std::ffi::OsStr>,
+    ) -> Result<()> {
+        let link_path = parent_dir_fd.path.join(link_name.as_ref());
+        let target_path = self.root_path.join(target_rel);
+        if link_path.exists() {
+            let _ = std::fs::remove_file(&link_path);
+        }
+        std::fs::hard_link(&target_path, &link_path).with_context(|| {
+            format!(
+                "Failed to create hardlink to {} as {} in sandboxed parent",
+                target_path.display(),
+                link_path.display()
+            )
+        })?;
+        Ok(())
+    }
+
     /// Creates a special file (FIFO, Character Device, Block Device) inside `parent_dir_fd`.
+    #[cfg(unix)]
     pub fn create_special(
         &self,
-        parent_dir_fd: &BorrowedFd<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         name: impl AsRef<std::ffi::OsStr>,
         kind: &FileEntityKind,
         mode: u32,
@@ -414,9 +616,25 @@ impl SandboxableDir {
         }
         Ok(())
     }
+
+    /// Creates a special file (FIFO, Character Device, Block Device) inside `parent_dir_fd`.
+    #[cfg(not(unix))]
+    pub fn create_special(
+        &self,
+        _parent_dir_fd: &DirHandleRef<'_>,
+        name: impl AsRef<std::ffi::OsStr>,
+        _kind: &FileEntityKind,
+        _mode: u32,
+    ) -> Result<()> {
+        anyhow::bail!(
+            "Special files (FIFOs, devices) are not supported on non-Unix platforms: {}",
+            name.as_ref().to_string_lossy()
+        );
+    }
 }
 
 /// Helper that unlinks an existing entry inside a directory, ignoring `NotFound`.
+#[cfg(unix)]
 fn unlink_if_exists(parent_dir_fd: BorrowedFd<'_>, name: &std::ffi::OsStr) -> Result<()> {
     match unlinkat(parent_dir_fd, name, AtFlags::empty()) {
         Ok(()) => Ok(()),

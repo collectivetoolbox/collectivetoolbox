@@ -42,6 +42,7 @@ use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
 use std::collections::HashMap;
+#[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 
@@ -174,6 +175,7 @@ pub fn execute_copy_pipeline(
 
                     let entry_sym_meta = std::fs::symlink_metadata(&entry_src)?;
 
+                    #[cfg(unix)]
                     if args.one_file_system && entry_sym_meta.dev() != src_meta.dev() {
                         continue;
                     }
@@ -504,7 +506,9 @@ fn copy_single_item(
     }
 
     // 5. Regular files: Sparse support, in-flight SHA-256, atomic rename
+    #[cfg(unix)]
     let captured_mtime = entity.metadata.timestamps.mtime_sec;
+    #[cfg(unix)]
     let captured_ctime = entity.metadata.timestamps.ctime_sec;
     let initial_size = match &entity.kind {
         FileEntityKind::Regular { size, .. } => *size,
@@ -530,17 +534,24 @@ fn copy_single_item(
 
     // Verify source wasn't modified concurrently during copy
     let after_meta = std::fs::symlink_metadata(src_path)?;
+    #[cfg(unix)]
     let is_block_device_as_regular = args.copy_block_devices_as_regular_files
         && after_meta.file_type().is_block_device();
-    if !is_block_device_as_regular
-        && (after_meta.mtime() != captured_mtime
-            || after_meta.ctime() != captured_ctime
-            || after_meta.size() != initial_size)
-    {
+    #[cfg(not(unix))]
+    let is_block_device_as_regular = false;
+
+    #[cfg(unix)]
+    let changed = after_meta.mtime() != captured_mtime
+        || after_meta.ctime() != captured_ctime
+        || after_meta.len() != initial_size;
+    #[cfg(not(unix))]
+    let changed = after_meta.len() != initial_size;
+
+    if !is_block_device_as_regular && changed {
         if args.on_source_change == SourceChangePolicy::Error {
             let _ = std::fs::remove_file(dest_path);
             anyhow::bail!(
-                "Source file {} was modified concurrently during copy (mtime/ctime/size changed)",
+                "Source file {} was modified concurrently during copy (size changed)",
                 src_path.display()
             );
         }

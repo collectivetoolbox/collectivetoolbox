@@ -166,6 +166,13 @@ while [[ $# -gt 0 ]]; do
             echo "Unknown option: $1" >&2
             exit 1
             ;;
+        windows-amd64)
+            if [[ -n "$platform" ]]; then
+                echo "Only one platform argument is supported." >&2
+                exit 1
+            fi
+            platform="windows-x64"
+            ;;
         *)
             if [[ -n "$platform" ]]; then
                 echo "Only one platform argument is supported." >&2
@@ -220,8 +227,8 @@ supported_platforms=(
     "linux-x86"
     "linux-x64-gnu"
     "linux-x86-gnu"
+    "windows-x64"
     # Future:
-    # "windows-x64"
     # "mac-x64"
     # "mac-arm64"
 )
@@ -234,6 +241,19 @@ detect_platform() {
     local os arch
     os="$(uname -s)"
     arch="$(uname -m)"
+
+    if [[ "$os" =~ ^(MINGW|MSYS|CYGWIN) || "$os" == "Windows_NT" ]]; then
+        case "$arch" in
+            x86_64|amd64)
+                printf '%s' "windows-x64"
+                return 0
+                ;;
+            *)
+                echo "Unsupported Windows architecture for auto-detect: $arch" >&2
+                exit 1
+                ;;
+        esac
+    fi
 
     if [[ "$os" != "Linux" ]]; then
         echo "Unsupported host OS for auto-detect: $os" >&2
@@ -346,15 +366,32 @@ for p in "${platforms[@]}"; do
         if [[ "$target" == i586-* || "$target" == i686-* || "$p" == *"x86"* ]]; then
             test_exclude=(--exclude ctb-nopersonality)
         fi
+        if [[ "$target" == *windows* ]]; then
+            test_exclude=(--exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
+        fi
+
+        extra_test_args=()
+        if [[ "$target" == *windows* ]]; then
+            export WINEDEBUG="-all"
+            if command -v wine64 >/dev/null 2>&1; then
+                export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
+            elif command -v wine >/dev/null 2>&1; then
+                export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine"
+            else
+                extra_test_args=(--no-run)
+                echo "Could not find WINE to run tests."
+                exit 1
+            fi
+        fi
 
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --no-fail-fast --target "$target" -- --nocapture || exit 1
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --examples --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --examples --no-fail-fast --target "$target" -- --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --no-fail-fast --target "$target" -- || exit 1
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" --examples --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS -Awarnings" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --examples --no-fail-fast --target "$target" -- || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then
@@ -381,6 +418,11 @@ for p in "${platforms[@]}"; do
 
     if [[ "$build_binaries" == "true" ]]; then
         mkdir -p built/"$p"
+
+        exe_suffix=""
+        if [[ "$target" == *windows* ]]; then
+            exe_suffix=".exe"
+        fi
 
         # Confirm that the built binary is statically linked
         if [[ "$target" == *"linux-musl" ]]; then
@@ -432,9 +474,9 @@ for p in "${platforms[@]}"; do
             echo "Skipping static linkage check for target $target"
         fi
 
-        cp "target/$target/$release/ctoolbox" built/"$p"/
+        cp "target/$target/$release/ctoolbox${exe_suffix}" built/"$p"/
         if [[ "$build_installer" == "true" ]]; then
-            cp "target/$target/$release/ctoolbox-installer" built/"$p"/
+            cp "target/$target/$release/ctoolbox-installer${exe_suffix}" built/"$p"/
         fi
         echo "Built for platform $p"
         cp built/ctoolbox.rsrc built/"$p"/
@@ -443,10 +485,25 @@ for p in "${platforms[@]}"; do
         fi
 
         # Run CLI compression tests against the built binary if it is runnable by host
-        if [[ "$run_tests" == "true" && -x "built/$p/ctoolbox" ]]; then
-            if "built/$p/ctoolbox" --version >/dev/null 2>&1; then
-                echo "=== Running CLI compression tests against built/$p/ctoolbox ==="
-                bash scripts/test-compression-cli "built/$p/ctoolbox" || exit 1
+        if [[ "$run_tests" == "true" ]]; then
+            target_bin="built/$p/ctoolbox${exe_suffix}"
+            if [[ -f "$target_bin" ]]; then
+                run_prefix=""
+                if [[ "$target" == *windows* ]]; then
+                    export WINEDEBUG="-all"
+                    if command -v wine64 >/dev/null 2>&1; then
+                        run_prefix="wine64 "
+                    elif command -v wine >/dev/null 2>&1; then
+                        run_prefix="wine "
+                    fi
+                fi
+
+                if [[ -n "$run_prefix" || "$target" == *"linux"* ]]; then
+                    if ${run_prefix}"$target_bin" --version >/dev/null 2>&1; then
+                        echo "=== Running CLI compression tests against $target_bin ==="
+                        bash scripts/test-compression-cli "${run_prefix}$PWD/$target_bin" || exit 1
+                    fi
+                fi
             fi
         fi
     fi

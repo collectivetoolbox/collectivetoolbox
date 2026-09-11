@@ -39,6 +39,7 @@ use crate::journal::PLATFORM_WINDOWS;
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
+#[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -288,21 +289,29 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                     std::fs::symlink_metadata(&tgt_full),
                 ) {
                     (Ok(m1), Ok(m2)) => {
-                        if m1.ino() != m2.ino() || m1.dev() != m2.dev() {
-                            changed_entries.push(EntryDiff {
-                                relative_path: rel_path.clone(),
-                                differences: vec![DiffKind::HardlinkMismatch {
-                                    expected_target: tgt_rel,
-                                    details: format!(
-                                        "Inodes differ: ({}:{}) vs ({}:{})",
-                                        m1.dev(),
-                                        m1.ino(),
-                                        m2.dev(),
-                                        m2.ino()
-                                    ),
-                                }],
-                            });
-                        } else {
+                        #[cfg(unix)]
+                        {
+                            if m1.ino() != m2.ino() || m1.dev() != m2.dev() {
+                                changed_entries.push(EntryDiff {
+                                    relative_path: rel_path.clone(),
+                                    differences: vec![DiffKind::HardlinkMismatch {
+                                        expected_target: tgt_rel,
+                                        details: format!(
+                                            "Inodes differ: ({}:{}) vs ({}:{})",
+                                            m1.dev(),
+                                            m1.ino(),
+                                            m2.dev(),
+                                            m2.ino()
+                                        ),
+                                    }],
+                                });
+                            } else {
+                                matched_entries = matched_entries.saturating_add(1);
+                            }
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            let _ = (m1, m2);
                             matched_entries = matched_entries.saturating_add(1);
                         }
                     }

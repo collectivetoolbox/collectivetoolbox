@@ -54,8 +54,8 @@ pub fn tickcount() -> Result<i64> {
 #[allow(unsafe_code)]
 #[cfg(target_os = "windows")]
 fn nanos_since_boot() -> Result<u128> {
-    #[link(name = "Kernel32")]
-    extern "system" {
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
         fn GetTickCount64() -> u64;
     }
 

@@ -32,14 +32,15 @@ use crate::file::streams::read_and_hash_streams;
 use crate::file::sys_flags::query_file_flags;
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times};
+#[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::os::unix::ffi::OsStringExt;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// Nature of a stream or extended attribute discrepancy.
@@ -378,7 +379,14 @@ fn describe_file_type(meta: &std::fs::Metadata) -> String {
 
 /// Drops system page cache pages for a specific file descriptor.
 pub fn evict_fd_cache(file: &File) {
-    let _ = posix_fadvise(file, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED);
+    #[cfg(unix)]
+    {
+        let _ = posix_fadvise(file, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED);
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = file;
+    }
 }
 
 /// Attempts to drop system-wide cache pages on Linux if running with privileges.
@@ -455,6 +463,7 @@ pub fn audit_entity_detailed(
     }
 
     // 2. Mode / Permissions (skip symlinks as their permissions are not meaningful on Linux)
+    #[cfg(unix)]
     if !expected.is_symlink() {
         let expected_mode = expected.metadata.mode & 0o7777;
         let actual_mode = dest_meta.mode() & 0o7777;
@@ -471,41 +480,69 @@ pub fn audit_entity_detailed(
     }
 
     // 3. Ownership
-    let uid_diff = dest_meta.uid() != expected.metadata.uid;
-    let gid_diff = dest_meta.gid() != expected.metadata.gid;
-    if uid_diff || gid_diff {
-        let ignore_owner = options.ignore_owner
-            || (options.best_effort && !nix::unistd::getuid().is_root());
-        if ignore_owner {
-            ignored.ownership = ignored.ownership.saturating_add(1);
-        } else {
-            if uid_diff {
-                diffs.push(DiffKind::UidMismatch {
-                    expected: expected.metadata.uid,
-                    actual: dest_meta.uid(),
-                });
-            }
-            if gid_diff {
-                diffs.push(DiffKind::GidMismatch {
-                    expected: expected.metadata.gid,
-                    actual: dest_meta.gid(),
-                });
+    #[cfg(unix)]
+    {
+        let uid_diff = dest_meta.uid() != expected.metadata.uid;
+        let gid_diff = dest_meta.gid() != expected.metadata.gid;
+        if uid_diff || gid_diff {
+            let is_root = nix::unistd::getuid().is_root();
+
+            let ignore_owner = options.ignore_owner
+                || (options.best_effort && !is_root);
+            if ignore_owner {
+                ignored.ownership = ignored.ownership.saturating_add(1);
+            } else {
+                if uid_diff {
+                    diffs.push(DiffKind::UidMismatch {
+                        expected: expected.metadata.uid,
+                        actual: dest_meta.uid(),
+                    });
+                }
+                if gid_diff {
+                    diffs.push(DiffKind::GidMismatch {
+                        expected: expected.metadata.gid,
+                        actual: dest_meta.gid(),
+                    });
+                }
             }
         }
     }
 
     // 4. Timestamps
+    #[cfg(unix)]
     let actual_mtime_sec = dest_meta.mtime();
+    #[cfg(unix)]
     let actual_mtime_nsec = u32::try_from(dest_meta.mtime_nsec())
         .context("Failed to convert mtime nanoseconds to u32")?;
-    let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
-        || actual_mtime_nsec != expected.metadata.timestamps.mtime_nsec;
-    if mtime_mismatch {
-        if options.ignore_mtime {
-            ignored.timestamps = ignored.timestamps.saturating_add(1);
-        } else if options.best_effort {
-            if (actual_mtime_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() <= 2 {
+    #[cfg(unix)]
+    let actual_atime_sec = dest_meta.atime();
+    #[cfg(unix)]
+    let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec())
+        .context("Failed to convert atime nanoseconds to u32")?;
+    #[cfg(unix)]
+    let actual_ctime_sec = dest_meta.ctime();
+    #[cfg(unix)]
+    let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
+        .context("Failed to convert ctime nanoseconds to u32")?;
+
+    #[cfg(unix)]
+    {
+        let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
+            || actual_mtime_nsec != expected.metadata.timestamps.mtime_nsec;
+        if mtime_mismatch {
+            if options.ignore_mtime {
                 ignored.timestamps = ignored.timestamps.saturating_add(1);
+            } else if options.best_effort {
+                if (actual_mtime_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() <= 2 {
+                    ignored.timestamps = ignored.timestamps.saturating_add(1);
+                } else {
+                    diffs.push(DiffKind::MtimeMismatch {
+                        expected_sec: expected.metadata.timestamps.mtime_sec,
+                        expected_nsec: expected.metadata.timestamps.mtime_nsec,
+                        actual_sec: actual_mtime_sec,
+                        actual_nsec: actual_mtime_nsec,
+                    });
+                }
             } else {
                 diffs.push(DiffKind::MtimeMismatch {
                     expected_sec: expected.metadata.timestamps.mtime_sec,
@@ -514,29 +551,29 @@ pub fn audit_entity_detailed(
                     actual_nsec: actual_mtime_nsec,
                 });
             }
-        } else {
-            diffs.push(DiffKind::MtimeMismatch {
-                expected_sec: expected.metadata.timestamps.mtime_sec,
-                expected_nsec: expected.metadata.timestamps.mtime_nsec,
-                actual_sec: actual_mtime_sec,
-                actual_nsec: actual_mtime_nsec,
-            });
         }
-    }
 
-    let actual_atime_sec = dest_meta.atime();
-    let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec())
-        .context("Failed to convert atime nanoseconds to u32")?;
-    let atime_mismatch = actual_atime_sec != expected.metadata.timestamps.atime_sec
-        || actual_atime_nsec != expected.metadata.timestamps.atime_nsec;
-    if atime_mismatch {
-        if options.ignore_atime {
-            if options.best_effort {
-                ignored.timestamps = ignored.timestamps.saturating_add(1);
-            }
-        } else if options.best_effort {
-            if (actual_atime_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() <= 2 {
-                ignored.timestamps = ignored.timestamps.saturating_add(1);
+        let actual_atime_sec = dest_meta.atime();
+        let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec())
+            .context("Failed to convert atime nanoseconds to u32")?;
+        let atime_mismatch = actual_atime_sec != expected.metadata.timestamps.atime_sec
+            || actual_atime_nsec != expected.metadata.timestamps.atime_nsec;
+        if atime_mismatch {
+            if options.ignore_atime {
+                if options.best_effort {
+                    ignored.timestamps = ignored.timestamps.saturating_add(1);
+                }
+            } else if options.best_effort {
+                if (actual_atime_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() <= 2 {
+                    ignored.timestamps = ignored.timestamps.saturating_add(1);
+                } else {
+                    diffs.push(DiffKind::AtimeMismatch {
+                        expected_sec: expected.metadata.timestamps.atime_sec,
+                        expected_nsec: expected.metadata.timestamps.atime_nsec,
+                        actual_sec: actual_atime_sec,
+                        actual_nsec: actual_atime_nsec,
+                    });
+                }
             } else {
                 diffs.push(DiffKind::AtimeMismatch {
                     expected_sec: expected.metadata.timestamps.atime_sec,
@@ -545,25 +582,25 @@ pub fn audit_entity_detailed(
                     actual_nsec: actual_atime_nsec,
                 });
             }
-        } else {
-            diffs.push(DiffKind::AtimeMismatch {
-                expected_sec: expected.metadata.timestamps.atime_sec,
-                expected_nsec: expected.metadata.timestamps.atime_nsec,
-                actual_sec: actual_atime_sec,
-                actual_nsec: actual_atime_nsec,
-            });
         }
-    }
 
-    let actual_ctime_sec = dest_meta.ctime();
-    let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
-        .context("Failed to convert ctime nanoseconds to u32")?;
-    let ctime_mismatch = actual_ctime_sec != expected.metadata.timestamps.ctime_sec
-        || actual_ctime_nsec != expected.metadata.timestamps.ctime_nsec;
-    if ctime_mismatch && !options.ignore_ctime {
-        if options.best_effort {
-            if (actual_ctime_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() <= 2 {
-                ignored.timestamps = ignored.timestamps.saturating_add(1);
+        let actual_ctime_sec = dest_meta.ctime();
+        let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
+            .context("Failed to convert ctime nanoseconds to u32")?;
+        let ctime_mismatch = actual_ctime_sec != expected.metadata.timestamps.ctime_sec
+            || actual_ctime_nsec != expected.metadata.timestamps.ctime_nsec;
+        if ctime_mismatch && !options.ignore_ctime {
+            if options.best_effort {
+                if (actual_ctime_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() <= 2 {
+                    ignored.timestamps = ignored.timestamps.saturating_add(1);
+                } else {
+                    diffs.push(DiffKind::CtimeMismatch {
+                        expected_sec: expected.metadata.timestamps.ctime_sec,
+                        expected_nsec: expected.metadata.timestamps.ctime_nsec,
+                        actual_sec: actual_ctime_sec,
+                        actual_nsec: actual_ctime_nsec,
+                    });
+                }
             } else {
                 diffs.push(DiffKind::CtimeMismatch {
                     expected_sec: expected.metadata.timestamps.ctime_sec,
@@ -572,13 +609,6 @@ pub fn audit_entity_detailed(
                     actual_nsec: actual_ctime_nsec,
                 });
             }
-        } else {
-            diffs.push(DiffKind::CtimeMismatch {
-                expected_sec: expected.metadata.timestamps.ctime_sec,
-                expected_nsec: expected.metadata.timestamps.ctime_nsec,
-                actual_sec: actual_ctime_sec,
-                actual_nsec: actual_ctime_nsec,
-            });
         }
     }
 
@@ -617,7 +647,7 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            expected_map.insert(OsString::from_vec(s.name.0.clone()), hash);
+            expected_map.insert(s.name.as_os_str().to_os_string(), hash);
         }
 
         let mut disk_map: HashMap<OsString, [u8; 32]> = HashMap::new();
@@ -626,7 +656,7 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            disk_map.insert(OsString::from_vec(s.name.0.clone()), hash);
+            disk_map.insert(s.name.as_os_str().to_os_string(), hash);
         }
 
         for (exp_name, exp_hash) in &expected_map {
@@ -753,6 +783,7 @@ pub fn audit_entity_detailed(
         }
 
         // If O_NOATIME was not usable, restore original observed atime/mtime
+        #[cfg(unix)]
         if !opened_with_noatime {
             let orig_atime = FileTime::from_unix_time(
                 actual_atime_sec,

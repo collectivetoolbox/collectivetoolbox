@@ -27,7 +27,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 /// Policy controlling whether symlink targets are allowed to reference outside
@@ -248,7 +247,13 @@ pub fn validate_symlink_target(
             );
         }
         SymlinkValidationPolicy::RejectEscapingSymlinks => {
-            let target_os = OsStr::from_bytes(target_bytes);
+            #[cfg(unix)]
+            let target_os = <OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(target_bytes);
+            #[cfg(not(unix))]
+            // Reason for fallback: invalid UTF-8 bytes for symlink target fall back to empty path which is safely rejected by escaping checks
+            let target_str = std::str::from_utf8(target_bytes).unwrap_or("");
+            #[cfg(not(unix))]
+            let target_os = OsStr::new(target_str);
             let target_path = Path::new(target_os);
             let resolved = if target_path.is_absolute() {
                 target_path.to_path_buf()

@@ -1,7 +1,7 @@
 {
   "name": "Antigravity Sandbox",
   "build": {
-    "dockerfile": "Dockerfile",
+    "dockerfile": "../Dockerfile",
     "options": [
       "--network=host"
     ]

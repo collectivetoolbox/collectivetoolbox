@@ -202,7 +202,7 @@ where
                 .inner
                 .recv_frame()
                 .await?
-                .map(|frame| (frame, Vec::new()));
+                .map(|frame| (frame, Vec::<i32>::new()));
 
             let Some((frame, fds)) = maybe else {
                 return Ok(None);

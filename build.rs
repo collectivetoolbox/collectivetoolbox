@@ -81,7 +81,20 @@ fn main() -> Result<()> {
         == "windows"
     {
         let mut res = winresource::WindowsResource::new();
-        res.set_icon("../assets/web/favicon.ico");
+        let is_branding =
+            env::var("CTB_BRANDING").map(|v| v == "true").unwrap_or(false);
+        let official_icon =
+            manifest_path.join("assets/web/official-branding/favicon.ico");
+        let generic_icon =
+            manifest_path.join("assets/web/generic-branding/favicon.ico");
+        let icon_path = if is_branding && official_icon.is_file() {
+            official_icon
+        } else {
+            generic_icon
+        };
+        if icon_path.is_file() {
+            res.set_icon(icon_path.to_string_lossy().as_ref());
+        }
         res.compile()?;
     }
 

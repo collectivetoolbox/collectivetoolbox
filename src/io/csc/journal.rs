@@ -34,6 +34,7 @@ use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -104,10 +105,11 @@ impl JournalWriter {
         sources: &[PathBuf],
         destination: &Path,
     ) -> Result<Self> {
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
+        let mut opts = OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)]
+        opts.mode(0o600);
+        let file = opts
             .open(journal_path)
             .with_context(|| {
                 format!(

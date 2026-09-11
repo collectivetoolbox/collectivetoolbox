@@ -85,9 +85,10 @@ pub use verifier::{
 )]
 mod tests {
     use super::*;
-    use ctb_formats_checksum::Sha256Stream;
+    #[cfg(unix)]
     use rustix::fd::AsFd;
     use std::fs;
+    #[cfg(unix)]
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use std::path::PathBuf;
 
@@ -196,6 +197,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_materialize_and_verify_regular_file() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -303,6 +305,7 @@ mod tests {
         assert!(res.is_err(), "Must reject path escaping root via ..");
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_ensure_sandboxed_dir_all_rejects_symlink_poisoning() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -324,6 +327,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_symlink_target_nonexistent_leaf_with_poisoned_ancestor() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -384,6 +388,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sandboxable_dir_verbatim_external_symlink_and_no_follow() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -430,6 +435,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sandboxable_dir_materialize_entity_at_path() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -540,6 +546,7 @@ mod tests {
         assert!(entity_no_base.is_current_as_of().is_some());
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_materialize_entity_skips_identical_payload_and_updates_metadata() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -626,6 +633,7 @@ mod tests {
             .expect("verification of smart-updated entity");
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_materialize_entity_force_overwrite() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -696,6 +704,7 @@ mod tests {
         assert!(!r2.skipped_identical);
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_materialize_entity_payload_mismatch_rewrites_atomic() {
         let temp_dir = tempfile::tempdir().unwrap();

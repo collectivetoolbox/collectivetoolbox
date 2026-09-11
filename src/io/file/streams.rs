@@ -32,6 +32,7 @@ use crate::file::metadata::{FileMetadata, FileTimestamps};
 use crate::file::payload::Extent;
 use ctb_formats_checksum::Sha256Stream;
 use std::ffi::OsStr;
+#[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -67,7 +68,18 @@ impl StreamName {
     /// Converts to an `OsStr` reference.
     #[must_use]
     pub fn as_os_str(&self) -> &OsStr {
-        OsStr::from_bytes(&self.0)
+        #[cfg(unix)]
+        {
+            OsStr::from_bytes(&self.0)
+        }
+        #[cfg(not(unix))]
+        {
+            if let Ok(s) = std::str::from_utf8(&self.0) {
+                OsStr::new(s)
+            } else {
+                OsStr::new("")
+            }
+        }
     }
 }
 
@@ -120,6 +132,7 @@ pub struct AttachedStream {
 }
 
 /// Reads all extended attributes, resource forks, and security labels from `path`.
+#[cfg(unix)]
 pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     let mut streams = Vec::new();
 
@@ -215,9 +228,16 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     Ok(streams)
 }
 
+/// Reads all extended attributes, resource forks, and security labels from `path`.
+#[cfg(not(unix))]
+pub fn read_and_hash_streams(_path: &Path) -> Result<Vec<AttachedStream>> {
+    Ok(Vec::new())
+}
+
 /// Writes all attached streams (xattrs, resource forks) to `dest`.
 ///
 /// Fails with a hard error if the target filesystem cannot preserve them.
+#[cfg(unix)]
 pub fn write_streams(
     dest: &Path,
     target_display_path: Option<&Path>,
@@ -246,6 +266,33 @@ pub fn write_streams(
                 );
             }
         }
+    }
+    Ok(())
+}
+
+/// Writes all attached streams (xattrs, resource forks) to `dest`.
+#[cfg(not(unix))]
+pub fn write_streams(
+    _dest: &Path,
+    _target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+) -> Result<()> {
+    if !streams.is_empty() && strict_lossless {
+        anyhow::bail!("Target platform does not support xattrs/streams");
+    }
+    Ok(())
+}
+
+/// Remove an attached stream/xattr from `path`.
+pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
+    #[cfg(unix)]
+    {
+        xattr::remove(path, name)?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, name);
     }
     Ok(())
 }

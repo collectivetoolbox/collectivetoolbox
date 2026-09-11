@@ -35,11 +35,14 @@ use std::path::Path;
 /// Checks if global kernel cache dropping is available.
 /// If not, prints an immediate warning as required.
 pub fn check_cache_flush_privileges() {
+    #[cfg(unix)]
     let has_privileges = nix::unistd::geteuid().is_root()
         || std::fs::OpenOptions::new()
             .write(true)
             .open("/proc/sys/vm/drop_caches")
             .is_ok();
+    #[cfg(not(unix))]
+    let has_privileges = true;
 
     if !has_privileges {
         eprintln!(

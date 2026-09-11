@@ -143,8 +143,6 @@ ctb-utilities = { path = "src/utilities" }
 ctb-unwrap-or-lint = { path = "src/build_support/ctb_unwrap_or_lint" }
 ctb-workspace = { path = "src/workspace" }
 ctb-workspace-ipc = { path = "src/workspace/ipc" }
-ctb-workspace-x11-client = { path = "src/workspace/x11_client" }
-ctb-workspace-x11-client-egui = { path = "src/workspace/x11_client_egui" }
 ctb-v86-posix-init = { path = "src/v86_posix_init" }
 
 # NOTE: These are not normal dependencies. They're proc-macros, which need their
@@ -161,7 +159,6 @@ nix = { version = "0.30", features = ["fs", "signal"] }
 # Dependencies to use later: "chacha20poly1305", "opaque-ke", "roaring"
 
 # sevenz-rust2 = { version = "0.20.2", features = ["brotli", "deflate", "lz4"] }
-xkbcommon-rs = "0.1.2"
 deno_lint = "0.84.1"
 rustls = "0.23"
 
@@ -275,5 +272,10 @@ xkbcommon-rs = { path = "vendor/xkbcommon-rs" }
 yaxi = { path = "vendor/yaxi" }
 warcat = { path = "vendor/warcat" }
 
-[target.'cfg(target_arch = "x86_64")'.dependencies]
+[target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 ctb-nopersonality = { path = "src/nopersonality" }
+
+[target.'cfg(unix)'.dependencies]
+ctb-workspace-x11-client = { path = "src/workspace/x11_client" }
+ctb-workspace-x11-client-egui = { path = "src/workspace/x11_client_egui" }
+xkbcommon-rs = "0.1.2"

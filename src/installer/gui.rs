@@ -65,6 +65,7 @@ use crate::install::{
 };
 use crate::manifest::ReleaseManifest;
 use crate::workflow;
+#[cfg(unix)]
 use ctb_workspace_x11_client_egui::run_app_with_x11_client_backend;
 
 use egui_software_backend::{
@@ -1447,6 +1448,7 @@ impl egui_software_backend::App for InstallerApp {
     }
 }
 
+#[cfg(unix)]
 fn should_preflight_x11() -> bool {
     if std::env::var_os("WAYLAND_DISPLAY").is_some() {
         return false;
@@ -1473,13 +1475,13 @@ pub fn run_installer() -> Result<()> {
         .inner_size(Some(egui::Vec2::new(600.0, 500.0)))
         .min_inner_size(Some(egui::Vec2::new(320.0, 320.0)));
 
+    #[cfg(unix)]
     if should_preflight_x11() {
-        run_app_with_x11_client_backend(&settings, InstallerApp::new)
-            .map_err(|e| anyhow::anyhow!("Failed to run installer: {e}"))
-    } else {
-        run_app_with_software_backend(settings, InstallerApp::new)
-            .map_err(|e| anyhow::anyhow!("Failed to run installer: {e}"))
+        return run_app_with_x11_client_backend(&settings, InstallerApp::new)
+            .map_err(|e| anyhow::anyhow!("Failed to run installer: {e}"));
     }
+    run_app_with_software_backend(settings, InstallerApp::new)
+        .map_err(|e| anyhow::anyhow!("Failed to run installer: {e}"))
 }
 
 /// Runs the GUI installer in repair mode.
@@ -1494,13 +1496,13 @@ pub fn run_repair() -> Result<()> {
         .inner_size(Some(egui::Vec2::new(600.0, 500.0)))
         .min_inner_size(Some(egui::Vec2::new(320.0, 320.0)));
 
+    #[cfg(unix)]
     if should_preflight_x11() {
-        run_app_with_x11_client_backend(&settings, InstallerApp::new_repair)
-            .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"))
-    } else {
-        run_app_with_software_backend(settings, InstallerApp::new_repair)
-            .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"))
+        return run_app_with_x11_client_backend(&settings, InstallerApp::new_repair)
+            .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"));
     }
+    run_app_with_software_backend(settings, InstallerApp::new_repair)
+        .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"))
 }
 
 /// Runs the GUI installer in uninstall mode.
@@ -1515,13 +1517,13 @@ pub fn run_uninstall() -> Result<()> {
         .inner_size(Some(egui::Vec2::new(600.0, 500.0)))
         .min_inner_size(Some(egui::Vec2::new(320.0, 320.0)));
 
+    #[cfg(unix)]
     if should_preflight_x11() {
-        run_app_with_x11_client_backend(&settings, InstallerApp::new_uninstall)
-            .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"))
-    } else {
-        run_app_with_software_backend(settings, InstallerApp::new_uninstall)
-            .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"))
+        return run_app_with_x11_client_backend(&settings, InstallerApp::new_uninstall)
+            .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"));
     }
+    run_app_with_software_backend(settings, InstallerApp::new_uninstall)
+        .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"))
 }
 
 #[cfg(test)]
@@ -1549,6 +1551,7 @@ mod tests {
         assert!(core.unwrap().required);
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_should_preflight_x11_without_display() {
         let previous_display = std::env::var_os("DISPLAY");

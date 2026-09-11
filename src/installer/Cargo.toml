@@ -18,8 +18,7 @@ ctb-formats-hexdump = { path = "../formats/hexdump" }
 ctb-formats-lnk = { path = "../formats/lnk" }
 ctb-formats-alias = { path = "../formats/alias" }
 ctb-storage-minimal = { path = "../storage/minimal" }
-ctb-workspace-x11-client = { path = "../workspace/x11_client" }
-ctb-workspace-x11-client-egui = { path = "../workspace/x11_client_egui" }
+
 
 include_dir = { version = "0.7.4", features = ["glob"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -48,9 +47,7 @@ rand_core06 = { package = "rand_core", version = "0.6.4" }
 dark-light = { git = "https://github.com/rust-dark-light/dark-light.git", rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961" }
 sys-locale = "0.3.2"
 clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
-nix = { version = "0.30", features = ["fs", "signal"] }
 rustls = "0.23"
-
 
 # Note: Linking will fail without setting this for egui-winit.
 egui-winit = { version = "0.33.3", features = ["accesskit", "clipboard", "links", "wayland"], default-features = false }
@@ -75,3 +72,8 @@ tokio = { version = "1.49", features = ["full", "test-util"] }
 
 [lints]
 workspace = true
+
+[target.'cfg(unix)'.dependencies]
+ctb-workspace-x11-client = { path = "../workspace/x11_client" }
+ctb-workspace-x11-client-egui = { path = "../workspace/x11_client_egui" }
+nix = { version = "0.30", features = ["fs", "signal"] }

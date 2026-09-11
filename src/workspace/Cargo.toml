@@ -18,8 +18,6 @@ ctb-renderer = { path = "../renderer" }
 ctb-runtime = { path = "../runtime" }
 ctb-storage = { path = "../storage" }
 ctb-storage-minimal = { path = "../storage/minimal" }
-ctb-workspace-x11-client = { path = "x11_client" }
-ctb-workspace-x11-client-egui = { path = "x11_client_egui" }
 ctb-workspace-ipc = { path = "./ipc" }
 
 portpicker = "0.1.1"
@@ -44,6 +42,10 @@ reqwest = "0.13.4"
 # Axum for tests
 axum = { version = "0.8.8", features = [ "multipart", "macros" ] }
 axum-server = { version = "0.8.0", features = [ "tls-rustls" ] }
+
+[target.'cfg(unix)'.dependencies]
+ctb-workspace-x11-client = { path = "x11_client" }
+ctb-workspace-x11-client-egui = { path = "x11_client_egui" }
 
 [lints]
 workspace = true

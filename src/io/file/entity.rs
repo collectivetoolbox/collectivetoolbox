@@ -36,10 +36,10 @@ use crate::file::sys_flags::query_file_flags;
 use ctb_formats_checksum::Sha256Stream;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+#[cfg(unix)]
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 
 /// The concrete filesystem or archive kind of a file entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,34 +256,80 @@ impl FileEntity {
         let sym_meta = std::fs::symlink_metadata(path)
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
 
-        let dev = sym_meta.dev();
-        let ino = sym_meta.ino();
-        let nlink = sym_meta.nlink();
-        let mode = sym_meta.mode();
-        let uid = sym_meta.uid();
-        let gid = sym_meta.gid();
         let file_type = sym_meta.file_type();
         let is_symlink = file_type.is_symlink();
 
-        let atime_sec = sym_meta.atime();
-        let atime_nsec = u32::try_from(sym_meta.atime_nsec())
-            .context("Failed to convert atime nanoseconds to u32")?;
-        let mtime_sec = sym_meta.mtime();
-        let mtime_nsec = u32::try_from(sym_meta.mtime_nsec())
-            .context("Failed to convert mtime nanoseconds to u32")?;
-        let ctime_sec = sym_meta.ctime();
-        let ctime_nsec = u32::try_from(sym_meta.ctime_nsec())
-            .context("Failed to convert ctime nanoseconds to u32")?;
+        #[cfg(unix)]
+        let (dev, ino, nlink, mode, uid, gid, timestamps) = {
+            let dev = sym_meta.dev();
+            let ino = sym_meta.ino();
+            let nlink = sym_meta.nlink();
+            let mode = sym_meta.mode();
+            let uid = sym_meta.uid();
+            let gid = sym_meta.gid();
+            let atime_sec = sym_meta.atime();
+            let atime_nsec = u32::try_from(sym_meta.atime_nsec())
+                .context("Failed to convert atime nanoseconds to u32")?;
+            let mtime_sec = sym_meta.mtime();
+            let mtime_nsec = u32::try_from(sym_meta.mtime_nsec())
+                .context("Failed to convert mtime nanoseconds to u32")?;
+            let ctime_sec = sym_meta.ctime();
+            let ctime_nsec = u32::try_from(sym_meta.ctime_nsec())
+                .context("Failed to convert ctime nanoseconds to u32")?;
 
-        let timestamps = FileTimestamps {
-            atime_sec,
-            atime_nsec,
-            mtime_sec,
-            mtime_nsec,
-            ctime_sec,
-            ctime_nsec,
-            birthtime_sec: None,
-            birthtime_nsec: None,
+            (
+                dev,
+                ino,
+                nlink,
+                mode,
+                uid,
+                gid,
+                FileTimestamps {
+                    atime_sec,
+                    atime_nsec,
+                    mtime_sec,
+                    mtime_nsec,
+                    ctime_sec,
+                    ctime_nsec,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+            )
+        };
+
+        #[cfg(not(unix))]
+        let (dev, ino, nlink, mode, uid, gid, timestamps) = {
+            // Reason for fallback: filesystems without modified timestamp support default to UNIX_EPOCH
+            let mtime = sym_meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+            // Reason for fallback: pre-epoch or error duration defaults to Duration::ZERO
+            let mtime_dur = mtime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
+            // Reason for fallback: filesystems without accessed timestamp support default to modified time
+            let atime = sym_meta.accessed().unwrap_or(mtime);
+            // Reason for fallback: pre-epoch or error duration defaults to Duration::ZERO
+            let atime_dur = atime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
+            let mode = if sym_meta.is_dir() { 0o755 } else { 0o644 };
+
+            (
+                0_u64,
+                0_u64,
+                1_u64,
+                mode,
+                0_u32,
+                0_u32,
+                FileTimestamps {
+                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
+                    atime_sec: i64::try_from(atime_dur.as_secs()).unwrap_or(0),
+                    atime_nsec: atime_dur.subsec_nanos(),
+                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
+                    mtime_sec: i64::try_from(mtime_dur.as_secs()).unwrap_or(0),
+                    mtime_nsec: mtime_dur.subsec_nanos(),
+                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
+                    ctime_sec: i64::try_from(mtime_dur.as_secs()).unwrap_or(0),
+                    ctime_nsec: mtime_dur.subsec_nanos(),
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                },
+            )
         };
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
@@ -291,7 +337,7 @@ impl FileEntity {
         // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
         let filename_bytes = path
             .file_name()
-            .map_or_else(Vec::new, |f| f.as_bytes().to_vec());
+            .map_or_else(Vec::new, |f| f.as_encoded_bytes().to_vec());
 
         // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
         let relative_path = if let Some(base) = base_dir {
@@ -342,12 +388,31 @@ impl FileEntity {
             read_time,
         };
 
+        #[cfg(unix)]
+        let special_kind = if file_type.is_fifo() {
+            Some(FileEntityKind::Fifo)
+        } else if file_type.is_char_device() {
+            Some(FileEntityKind::CharDevice {
+                rdev: sym_meta.rdev(),
+            })
+        } else if file_type.is_block_device() {
+            Some(FileEntityKind::BlockDevice {
+                rdev: sym_meta.rdev(),
+            })
+        } else if file_type.is_socket() {
+            Some(FileEntityKind::Socket)
+        } else {
+            None
+        };
+        #[cfg(not(unix))]
+        let special_kind: Option<FileEntityKind> = None;
+
         // Determine entity kind
         let kind = if file_type.is_symlink() {
             let target = std::fs::read_link(path)
                 .with_context(|| format!("Failed to read symlink target for {}", path.display()))?;
             FileEntityKind::Symlink {
-                target: target.as_os_str().as_bytes().to_vec(),
+                target: target.as_os_str().as_encoded_bytes().to_vec(),
             }
         } else if file_type.is_dir() {
             // Check if directory is a macOS bundle (e.g. .app, .framework)
@@ -367,31 +432,21 @@ impl FileEntity {
             } else {
                 FileEntityKind::Directory
             }
-        } else if file_type.is_fifo() {
-            FileEntityKind::Fifo
-        } else if file_type.is_char_device() {
-            FileEntityKind::CharDevice {
-                rdev: sym_meta.rdev(),
-            }
-        } else if file_type.is_block_device() {
-            FileEntityKind::BlockDevice {
-                rdev: sym_meta.rdev(),
-            }
-        } else if file_type.is_socket() {
-            FileEntityKind::Socket
+        } else if let Some(sk) = special_kind {
+            sk
         } else if (mode & 0xF000) == 0xD000 {
             // S_IFDOOR
             FileEntityKind::Door
         } else if !compute_hash {
             FileEntityKind::Regular {
-                size: sym_meta.size(),
+                size: sym_meta.len(),
                 sha256: [0_u8; 32],
                 is_sparse: false,
                 extents: Vec::new(),
             }
         } else {
             // Regular file: discover extents and compute SHA-256
-            let size = sym_meta.size();
+            let size = sym_meta.len();
             let mut file = File::open(path)
                 .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
             let extents = get_file_extents(&file, size)?;

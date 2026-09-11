@@ -23,6 +23,7 @@ use core::panic;
 
 // Allow proc-macro expansions to refer to this crate as `::ctb_utilities`.
 extern crate self as ctb_utilities;
+#[cfg(unix)]
 use fork::{Fork, daemon};
 use passwords::PasswordGenerator;
 use serde::Serialize;
@@ -574,9 +575,18 @@ pub fn upgrade_in_place(
 }
 
 pub fn fork(path: &PathBuf, args: Vec<&str>) {
-    if let Ok(Fork::Child) = daemon(false, false) {
-        if let Err(_e) = Command::new(path).args(args).output() {
-            log!("failed to execute process: {e:?}");
+    #[cfg(unix)]
+    {
+        if let Ok(Fork::Child) = daemon(false, false) {
+            if let Err(e) = Command::new(path).args(args).output() {
+                log!("failed to execute process: {e:?}");
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        if let Err(e) = Command::new(path).args(args).spawn() {
+            log!("failed to spawn process: {e:?}");
         }
     }
 }
