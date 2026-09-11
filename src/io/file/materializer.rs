@@ -110,6 +110,8 @@ pub fn apply_entity_metadata(
     apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<()> {
+    #[cfg(not(unix))]
+    anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
     let mode = meta.mode;
@@ -240,7 +242,7 @@ pub fn verify_filename_exact_bytes(
         #[cfg(unix)]
         let entry_matches = entry_name.as_bytes() == expected_filename_bytes;
         #[cfg(not(unix))]
-        let entry_matches = entry_name.to_string_lossy().as_bytes() == expected_filename_bytes;
+        let entry_matches = entry_name.as_encoded_bytes() == expected_filename_bytes;
         if entry_matches {
             matched = true;
             break;
@@ -265,6 +267,8 @@ pub fn materialize_entity(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
+    #[cfg(not(unix))]
+    anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
     let dest_path = resolve_and_validate_path(
         dest_dir.root_path(),
         &entity.identity.relative_path,
@@ -306,6 +310,7 @@ pub fn materialize_entity(
                 true,
                 options.strict_lossless,
             )?;
+            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -371,6 +376,7 @@ pub fn materialize_entity(
                 true,
                 options.strict_lossless,
             )?;
+            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -441,6 +447,18 @@ pub fn materialize_entity(
             let initial_size = *size;
 
             if *is_sparse {
+                let mut extent_end = 0_u64;
+                for extent in extents {
+                    let (offset, length) = match extent {
+                        Extent::Data { offset, length } | Extent::Hole { offset, length } => {
+                            (*offset, *length)
+                        }
+                    };
+                    anyhow::ensure!(offset == extent_end && length > 0, "Invalid sparse extent layout");
+                    extent_end = offset.checked_add(length).context("Sparse extent overflow")?;
+                    anyhow::ensure!(extent_end <= initial_size, "Sparse extent exceeds payload size");
+                }
+                anyhow::ensure!(extent_end == initial_size, "Sparse extents do not cover payload");
                 for extent in extents {
                     match extent {
                         Extent::Data { offset, length } => {
@@ -456,9 +474,7 @@ pub fn materialize_entity(
                                     .get_mut(..to_read)
                                     .context("Buffer slice index out of bounds for read")?;
                                 let n = source.read(buf_slice)?;
-                                if n == 0 {
-                                    break;
-                                }
+                                anyhow::ensure!(n != 0, "Unexpected EOF in sparse payload for {}", dest_path.display());
                                 let write_slice = buf
                                     .get(..n)
                                     .context("Buffer slice index out of bounds for write")?;
@@ -490,17 +506,21 @@ pub fn materialize_entity(
             } else {
                 source.seek(SeekFrom::Start(0))?;
                 let mut buf = vec![0_u8; 64 * 1024];
+                let mut written = 0_u64;
                 loop {
                     let n = source.read(&mut buf)?;
                     if n == 0 {
                         break;
                     }
+                    written = written.checked_add(u64::try_from(n)?).context("Payload size overflow")?;
+                    anyhow::ensure!(written <= initial_size, "Payload grew during copy of {}", dest_path.display());
                     let slice = buf
                         .get(..n)
                         .context("Buffer slice index out of bounds for write")?;
                     temp_file.write_all(slice)?;
                     hasher.update(slice);
                 }
+                anyhow::ensure!(written == initial_size, "Unexpected EOF in payload for {}", dest_path.display());
             }
 
             let computed_sha256 = hasher.finalize();
@@ -520,14 +540,6 @@ pub fn materialize_entity(
             };
             let temp_path = parent_dir.join(&temp_name);
 
-            // Write attached streams (xattrs, resource forks)
-            write_streams(
-                &temp_path,
-                Some(&dest_path),
-                &entity.streams,
-                options.strict_lossless,
-            )?;
-
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             apply_entity_metadata(
                 &temp_path,
@@ -538,8 +550,24 @@ pub fn materialize_entity(
                 options.strict_lossless,
             )?;
 
+            // Write attached streams (xattrs, resource forks)
+            write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+
+            if options.strict_lossless {
+                let mut expected = entity.clone();
+                if let FileEntityKind::Regular { sha256, .. } = &mut expected.kind {
+                    *sha256 = computed_sha256;
+                }
+                let audit_options = EntityAuditOptions {
+                    ignore_flags: true,
+                    ..EntityAuditOptions::default()
+                };
+                let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;
+                anyhow::ensure!(differences.is_empty(), "Staged file failed fidelity verification for {}: {:?}", dest_path.display(), differences);
+            }
+
             // Sync temp file and parent directory
-            temp_file.sync_data()?;
+            temp_file.sync_all()?;
             drop(temp_file);
 
             #[cfg(unix)]
@@ -619,7 +647,7 @@ pub fn verify_directory_filenames_exact(
         #[cfg(unix)]
         found.insert(entry.file_name().as_bytes().to_vec());
         #[cfg(not(unix))]
-        found.insert(entry.file_name().to_string_lossy().as_bytes().to_vec());
+        found.insert(entry.file_name().as_encoded_bytes().to_vec());
     }
 
     for expected in expected_filenames {
@@ -675,6 +703,8 @@ fn try_update_existing_regular_entity(
     }
 
     // 3. Inode must not be hardlinked to other files
+    #[cfg(not(unix))]
+    return Ok(None);
     #[cfg(unix)]
     if dest_meta.nlink() > 1 {
         return Ok(None);
@@ -753,7 +783,7 @@ fn try_update_existing_regular_entity(
             .iter()
             .any(|s| s.name == disk_stream.name);
         if !exists_in_source {
-            let res = remove_stream(dest_path, disk_stream.name.as_os_str());
+            let res = remove_stream(dest_path, disk_stream.name.as_os_str()?);
             if let Err(e) = res {
                 if options.strict_lossless {
                     log_fmt!(

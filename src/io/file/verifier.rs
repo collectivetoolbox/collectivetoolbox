@@ -35,7 +35,7 @@ use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 #[cfg(unix)]
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -421,6 +421,10 @@ pub fn audit_entity_detailed(
     expected: &FileEntity,
     options: &EntityAuditOptions,
 ) -> Result<(Vec<DiffKind>, IgnoredDifferences)> {
+    #[cfg(not(unix))]
+    anyhow::ensure!(options.ignore_owner && options.ignore_perms && options.ignore_flags
+        && options.ignore_atime && options.ignore_mtime && options.ignore_ctime && !options.check_sparse,
+        "Native metadata and sparse auditing is not implemented on this platform");
     let mut diffs = Vec::new();
     let mut ignored = IgnoredDifferences::default();
 
@@ -437,6 +441,19 @@ pub fn audit_entity_detailed(
     };
 
     // 1. File Type Check
+    #[cfg(unix)]
+    let special_matches = match &expected.kind {
+        FileEntityKind::Fifo => dest_meta.file_type().is_fifo(),
+        FileEntityKind::CharDevice { rdev } => dest_meta.file_type().is_char_device() && dest_meta.rdev() == *rdev,
+        FileEntityKind::BlockDevice { rdev } => dest_meta.file_type().is_block_device() && dest_meta.rdev() == *rdev,
+        FileEntityKind::Socket => dest_meta.file_type().is_socket(),
+        FileEntityKind::Door => dest_meta.mode() & 0xF000 == 0xD000,
+        _ => true,
+    };
+    #[cfg(not(unix))]
+    let special_matches = expected.is_regular() || expected.is_dir() || expected.is_symlink();
+    anyhow::ensure!(!matches!(expected.kind, FileEntityKind::Hardlink { .. }),
+        "Hardlink auditing requires the manifest root to resolve the target");
     let type_matches = if expected.is_symlink() {
         dest_meta.is_symlink()
     } else if expected.is_dir() {
@@ -444,7 +461,7 @@ pub fn audit_entity_detailed(
     } else if matches!(expected.kind, FileEntityKind::Regular { .. }) {
         dest_meta.is_file()
     } else {
-        true
+        special_matches
     };
 
     if !type_matches {
@@ -453,7 +470,7 @@ pub fn audit_entity_detailed(
         } else if expected.is_dir() {
             "directory".to_string()
         } else {
-            "regular file".to_string()
+            expected.kind.kind_str().to_string()
         };
         diffs.push(DiffKind::TypeMismatch {
             expected: expected_str,
@@ -613,7 +630,8 @@ pub fn audit_entity_detailed(
     }
 
     // 5. File Flags
-    if let Ok((actual_flags, _)) = query_file_flags(path, expected.is_symlink()) {
+    if !options.ignore_flags {
+        let (actual_flags, _) = query_file_flags(path, expected.is_symlink())?;
         let mut exp_names: Vec<String> = expected
             .metadata
             .flags
@@ -638,8 +656,8 @@ pub fn audit_entity_detailed(
         }
     }
 
-    // 6. Streams and Extended Attributes (skip symlinks)
-    if !options.ignore_xattrs && !expected.is_symlink() {
+    // 6. Streams and Extended Attributes
+    if !options.ignore_xattrs {
         let on_disk_streams = read_and_hash_streams(path)?;
         let mut expected_map: HashMap<OsString, [u8; 32]> = HashMap::new();
         for s in &expected.streams {
@@ -647,7 +665,7 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            expected_map.insert(s.name.as_os_str().to_os_string(), hash);
+            expected_map.insert(s.name.as_os_str()?.to_os_string(), hash);
         }
 
         let mut disk_map: HashMap<OsString, [u8; 32]> = HashMap::new();
@@ -656,7 +674,7 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            disk_map.insert(s.name.as_os_str().to_os_string(), hash);
+            disk_map.insert(s.name.as_os_str()?.to_os_string(), hash);
         }
 
         for (exp_name, exp_hash) in &expected_map {
@@ -708,7 +726,7 @@ pub fn audit_entity_detailed(
         size: expected_size,
         sha256: expected_sha256,
         is_sparse,
-        extents: ref expected_extents,
+        ..
     } = expected.kind
     {
         let actual_size = dest_meta.len();
@@ -751,7 +769,7 @@ pub fn audit_entity_detailed(
         if options.check_sparse && is_sparse {
             let actual_extents = get_file_extents(&file, actual_size)?;
             let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
-            let expected_has_holes = expected_extents.iter().any(Extent::is_hole);
+            let expected_has_holes = is_sparse;
             if actual_has_holes != expected_has_holes {
                 diffs.push(DiffKind::SparseHoleMismatch {
                     expected_has_holes,
@@ -846,27 +864,29 @@ pub fn verify_materialized_entity_ext(
     options.best_effort = !strict_lossless;
 
     let diffs = audit_entity(dest_path, entity, &options)?;
-    if let Some(first) = diffs.first() {
+    for difference in &diffs {
         if strict_lossless {
             anyhow::bail!(
-                "Verification failure on {}: {first}",
+                "Verification failure on {}: {difference}",
                 dest_path.display()
             );
         } else {
-            match first {
+            match difference {
                 DiffKind::ContentHashMismatch { .. }
                 | DiffKind::SizeMismatch { .. }
                 | DiffKind::MissingOnDisk
                 | DiffKind::TypeMismatch { .. }
-                | DiffKind::SymlinkTargetMismatch { .. } => {
+                | DiffKind::SymlinkTargetMismatch { .. }
+                | DiffKind::StreamMismatch { .. }
+                | DiffKind::HardlinkMismatch { .. } => {
                     anyhow::bail!(
-                        "Verification payload integrity failure on {}: {first}",
+                        "Verification payload integrity failure on {}: {difference}",
                         dest_path.display()
                     );
                 }
                 _ => {
                     warn_fmt!(
-                        "Verification metadata warning on {}: {first}",
+                        "Verification metadata warning on {}: {difference}",
                         dest_path.display()
                     );
                 }

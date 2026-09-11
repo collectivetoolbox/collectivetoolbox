@@ -268,6 +268,31 @@ mod tests {
         let target_path = dest_root.join(&rel_path);
         verify_materialized_entity(&target_path, &entity, true)
             .expect("independent verification of materialized entity");
+
+        for (is_sparse, extents, bytes) in [
+            (false, Vec::new(), payload_bytes[..4].to_vec()),
+            (false, Vec::new(), vec![1_u8; payload_bytes.len() + 1]),
+            (true, vec![Extent::Data { offset: 0, length: size }], payload_bytes[..4].to_vec()),
+            (true, vec![Extent::Hole { offset: 1, length: size }], payload_bytes.to_vec()),
+            (true, Vec::new(), payload_bytes.to_vec()),
+        ] {
+            let mut invalid_entity = entity.clone();
+            invalid_entity.kind = FileEntityKind::Regular {
+                size,
+                sha256: [0_u8; 32],
+                is_sparse,
+                extents,
+            };
+            let mut invalid_payload = MemoryPayloadSource::new(bytes).unwrap();
+            assert!(materialize_entity(
+                &invalid_entity,
+                Some(&mut invalid_payload),
+                &dest_dir,
+                &options,
+            ).is_err());
+            assert_eq!(fs::read(&target_path).unwrap(), payload_bytes);
+            assert_eq!(fs::read_dir(target_path.parent().unwrap()).unwrap().count(), 1);
+        }
     }
 
     #[crate::ctb_test]
@@ -289,6 +314,64 @@ mod tests {
             res.is_err(),
             "RejectAllSymlinks policy must reject any symlink creation"
         );
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_best_effort_never_hides_payload_corruption() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("payload");
+        fs::write(&path, b"original").unwrap();
+        let expected = FileEntity::from_filesystem(&path, None).unwrap();
+        fs::write(&path, b"tampered").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(verify_materialized_entity(&path, &expected, false).is_err());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_failed_node_replacement_preserves_destination() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("destination");
+        fs::write(&path, b"keep this data").unwrap();
+        let root = SandboxableDir::open(temp.path()).unwrap();
+        assert!(root.create_hardlink(PathBuf::from("missing").as_path(), &root.root_fd(), "destination").is_err());
+        assert!(root.create_symlink(&root.root_fd(), "destination", b"invalid\0target", SymlinkValidationPolicy::PreserveVerbatim).is_err());
+        assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600).is_err());
+        assert_eq!(fs::read(path).unwrap(), b"keep this data");
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_stream_corruption_and_special_type_mismatch() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::write(&source, b"payload").unwrap();
+        fs::write(&destination, b"old data").unwrap();
+        xattr::set(&source, "user.stream", b"original").unwrap();
+        let mut entity = FileEntity::from_filesystem(&source, None).unwrap();
+        let mut streams = entity.streams.clone();
+        streams[0].data = Some(b"tampered".to_vec());
+        assert!(write_streams(&destination, None, &streams, false).is_err());
+        assert!(xattr::get(&destination, "user.stream").unwrap().is_none());
+        entity.kind = FileEntityKind::Fifo;
+        assert!(verify_materialized_entity(&source, &entity, false).is_err());
+    }
+
+    #[cfg(not(unix))]
+    #[crate::ctb_test]
+    fn test_unsupported_fidelity_fails_explicitly() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("source");
+        fs::write(&path, b"original").unwrap();
+        assert!(FileEntity::from_filesystem(&path, None).is_err());
+        assert!(read_and_hash_streams(&path).is_err());
+        assert!(StreamName::from_bytes(b"invalid\xff").as_os_str().is_err());
+        let root = SandboxableDir::open(temp.path()).unwrap();
+        assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source").is_err());
+        assert_eq!(fs::read(path).unwrap(), b"original");
     }
 
     #[crate::ctb_test]

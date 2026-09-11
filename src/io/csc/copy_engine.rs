@@ -27,10 +27,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
-use crate::journal::{JournalSnapshot, JournalWriter, PLATFORM_WINDOWS};
+use crate::journal::{JournalSnapshot, JournalWriter};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{FileOrigin, resolve_relative_path_for_os};
+use ctb_io::file::identity::FileOrigin;
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
     verify_directory_filenames_exact,
@@ -58,10 +58,12 @@ pub struct CopyStats {
     pub special_files_created: u64,
     pub special_files_skipped: u64,
     pub files_verified: u64,
+    pub(crate) copied_entities: Vec<(PathBuf, PathBuf, FileEntity)>,
 }
 
 /// Deferred symlink to materialize in Pass 2.
 struct DeferredSymlink {
+    src_path: PathBuf,
     dest_path: PathBuf,
     entity: FileEntity,
     dest_dir_root: PathBuf,
@@ -69,6 +71,7 @@ struct DeferredSymlink {
 
 /// Deferred directory metadata fixup item for Pass 3.
 struct DeferredDirFixup {
+    src_path: PathBuf,
     dest_path: PathBuf,
     dir_entity: FileEntity,
     expected_filenames: Vec<Vec<u8>>,
@@ -82,25 +85,12 @@ pub fn execute_copy_pipeline(
     snapshot: Option<&JournalSnapshot>,
     progress: &Progress,
 ) -> Result<CopyStats> {
+    crate::path_resolution::validate_task_overlap(tasks)?;
     let mut stats = CopyStats::default();
     let mut hardlink_map: HashMap<(u64, u64), PathBuf> = HashMap::new();
     let mut deferred_dirs: Vec<DeferredDirFixup> = Vec::new();
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
-
-    // Restore hardlinks from snapshot if resuming (go through already-copied items and store their inodes in memory so we know we've already seen them)
-    if let Some(snap) = snapshot {
-        let is_windows = snap.origin_platform == PLATFORM_WINDOWS;
-        for (raw_rel, entity) in &snap.committed_entities {
-            if entity.identity.nlink > 1 {
-                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-                    if let Ok(rel_path) = resolve_relative_path_for_os(raw_rel, is_windows) {
-                        hardlink_map.entry((key.device_id, key.inode)).or_insert(rel_path);
-                    }
-                }
-            }
-        }
-    }
 
     if !args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files {
         progress.message(
@@ -198,6 +188,7 @@ pub fn execute_copy_pipeline(
                             sym_entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
                         sym_entity.identity.raw_filename = entry_name.as_encoded_bytes().to_vec();
                         deferred_symlinks.push(DeferredSymlink {
+                            src_path: entry_src,
                             dest_path: entry_tgt,
                             entity: sym_entity,
                             dest_dir_root: tgt_root.clone(),
@@ -234,6 +225,7 @@ pub fn execute_copy_pipeline(
                 }
 
                 deferred_dirs.push(DeferredDirFixup {
+                    src_path: curr_src,
                     dest_path: curr_tgt.clone(),
                     dir_entity: dir_entity.clone(),
                     expected_filenames,
@@ -265,6 +257,7 @@ pub fn execute_copy_pipeline(
                 sym_entity.identity.raw_filename =
                     target_file_name.as_encoded_bytes().to_vec();
                 deferred_symlinks.push(DeferredSymlink {
+                    src_path: src_root.clone(),
                     dest_path: tgt_root.clone(),
                     entity: sym_entity,
                     dest_dir_root: parent_dest.to_path_buf(),
@@ -294,15 +287,6 @@ pub fn execute_copy_pipeline(
         let dest_path = &symlink_item.dest_path;
         let entity = symlink_item.entity;
 
-        if let Some(snap) = snapshot {
-            let rel = compute_journal_relative_path(journal.destination(), dest_path);
-            let rel_bytes = rel.as_os_str().as_encoded_bytes();
-            let dest_bytes = dest_path.as_os_str().as_encoded_bytes();
-            if snap.is_committed(rel_bytes) || snap.is_committed(dest_bytes) {
-                continue;
-            }
-        }
-
         let dest_dir = if args.dry_run {
             SandboxableDir::open(".").context("Failed to open current directory in dry run")?
         } else {
@@ -323,7 +307,8 @@ pub fn execute_copy_pipeline(
         }
 
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
-        record_journal_entry(journal, dest_path, &entity);
+        record_journal_entry(journal, dest_path, &entity)?;
+        files_to_verify.push((symlink_item.src_path, dest_path.clone(), entity));
     }
 
     // =========================================================================
@@ -336,25 +321,19 @@ pub fn execute_copy_pipeline(
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
                 verify_directory_filenames_exact(&fixup.dest_path, &expected_refs)?;
 
-                if let Err(e) = write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, true) {
-                    log_fmt!(
-                        "Writing directory streams failed for {}: {e}",
-                        fixup.dest_path.display()
-                    );
-                }
-                if let Err(e) = apply_entity_metadata(
+                write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, !args.best_effort_metadata)?;
+                apply_entity_metadata(
                     &fixup.dest_path,
                     None,
                     &fixup.dir_entity.metadata,
                     false,
                     true,
                     !args.best_effort_metadata,
-                ) {
-                    log_fmt!(
-                        "Applying directory metadata failed for {}: {e}",
-                        fixup.dest_path.display()
-                    );
-                }
+                )?;
+                verify_materialized_entity_ext(&fixup.dest_path, &fixup.dir_entity, !args.best_effort_metadata, args.check_atime)?;
+                files_to_verify.push((fixup.src_path, fixup.dest_path, fixup.dir_entity));
+            } else {
+                anyhow::bail!("Destination directory disappeared: {}", fixup.dest_path.display());
             }
         }
         journal.commit_batch()?;
@@ -388,7 +367,9 @@ pub fn execute_copy_pipeline(
                 !args.best_effort_metadata,
                 args.check_atime,
             )?;
-            stats.files_verified = stats.files_verified.saturating_add(1);
+            if entity.is_regular() {
+                stats.files_verified = stats.files_verified.saturating_add(1);
+            }
 
             if progress.is_enabled() {
                 progress.update_task(verify_task, stats.files_verified, None);
@@ -404,6 +385,7 @@ pub fn execute_copy_pipeline(
         journal.mark_completed()?;
     }
 
+    stats.copied_entities = files_to_verify;
     Ok(stats)
 }
 
@@ -419,21 +401,11 @@ fn copy_single_item(
     options: &MaterializeOptions,
     args: &CscArgs,
     journal: &mut JournalWriter,
-    snapshot: Option<&JournalSnapshot>,
+    _snapshot: Option<&JournalSnapshot>,
     hardlink_map: &mut HashMap<(u64, u64), PathBuf>,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
 ) -> Result<bool> {
-    // 1. Check if already committed in snapshot
-    if let Some(snap) = snapshot {
-        let rel_dest = compute_journal_relative_path(journal.destination(), dest_path);
-        let rel_bytes = rel_dest.as_os_str().as_encoded_bytes();
-        let dest_bytes = dest_path.as_os_str().as_encoded_bytes();
-        if snap.is_committed(rel_bytes) || snap.is_committed(dest_bytes) {
-            return Ok(true);
-        }
-    }
-
     // 2. Discover full entity from filesystem
     let mut entity = FileEntity::from_filesystem(src_path, None)?;
     entity.identity.relative_path = dest_rel_path.to_path_buf();
@@ -443,23 +415,23 @@ fn copy_single_item(
     }
 
     // 3. Hardlink detection (nlink > 1)
-    if entity.identity.nlink > 1 {
+    if entity.identity.nlink > 1 && entity.is_regular() {
         let key = match &entity.identity.origin {
             FileOrigin::Filesystem { key, .. } => (key.device_id, key.inode),
-            _ => (0, 0),
+            _ => anyhow::bail!("Filesystem entity has no inode identity"),
         };
 
         if let Some(first_target_rel) = hardlink_map.get(&key) {
+            let original_entity = entity.clone();
             entity.kind = FileEntityKind::Hardlink {
                 target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
             };
             materialize_entity(&entity, None, dest_dir, options)?;
             stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
-            record_journal_entry(journal, dest_path, &entity);
+            record_journal_entry(journal, dest_path, &entity)?;
+            files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), original_entity));
             return Ok(true);
         }
-
-        hardlink_map.insert(key, entity.identity.relative_path.clone());
     }
 
     // 4. Special files (FIFOs, device nodes, sockets, doors)
@@ -495,7 +467,8 @@ fn copy_single_item(
             {
                 materialize_entity(&entity, None, dest_dir, options)?;
                 stats.special_files_created = stats.special_files_created.saturating_add(1);
-                record_journal_entry(journal, dest_path, &entity);
+                record_journal_entry(journal, dest_path, &entity)?;
+                files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
                 return Ok(true);
             } else {
                 stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
@@ -543,15 +516,18 @@ fn copy_single_item(
     #[cfg(unix)]
     let changed = after_meta.mtime() != captured_mtime
         || after_meta.ctime() != captured_ctime
+        || after_meta.mtime_nsec() != i64::from(entity.metadata.timestamps.mtime_nsec)
+        || after_meta.ctime_nsec() != i64::from(entity.metadata.timestamps.ctime_nsec)
         || after_meta.len() != initial_size;
     #[cfg(not(unix))]
-    let changed = after_meta.len() != initial_size;
+    let changed = after_meta.len() != initial_size
+        || filetime::FileTime::from_last_modification_time(&after_meta)
+            != filetime::FileTime::from_unix_time(entity.metadata.timestamps.mtime_sec, entity.metadata.timestamps.mtime_nsec);
 
     if !is_block_device_as_regular && changed {
         if args.on_source_change == SourceChangePolicy::Error {
-            let _ = std::fs::remove_file(dest_path);
             anyhow::bail!(
-                "Source file {} was modified concurrently during copy (size changed)",
+                "Source file {} was modified concurrently during copy (timestamps or size changed)",
                 src_path.display()
             );
         }
@@ -568,6 +544,15 @@ fn copy_single_item(
     }
     stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
 
+    if entity.identity.nlink > 1 && entity.is_regular() {
+        if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+            hardlink_map.insert(
+                (key.device_id, key.inode),
+                dest_dir.root_path().join(&entity.identity.relative_path),
+            );
+        }
+    }
+
     if let FileEntityKind::Regular { ref mut sha256, .. } = entity.kind {
         if *sha256 == [0_u8; 32] {
             if let Some(h) = receipt.sha256 {
@@ -576,7 +561,7 @@ fn copy_single_item(
         }
     }
 
-    record_journal_entry(journal, dest_path, &entity);
+    record_journal_entry(journal, dest_path, &entity)?;
     files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
 
     Ok(true)
@@ -607,12 +592,19 @@ fn record_journal_entry(
     journal: &mut JournalWriter,
     dest_path: &Path,
     entity: &FileEntity,
-) {
+) -> Result<()> {
     let mut journal_entity = entity.clone();
     let rel = compute_journal_relative_path(journal.destination(), dest_path);
     journal_entity.identity.relative_path = rel.clone();
     journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
+    if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
+        let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
+        let journal_root = std::fs::canonicalize(journal.destination())?;
+        *target_relative_path = compute_journal_relative_path(&journal_root, &target)
+            .as_os_str().as_encoded_bytes().to_vec();
+    }
     journal.record_entity(&journal_entity);
+    Ok(())
 }
 
 

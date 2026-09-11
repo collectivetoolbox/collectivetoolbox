@@ -216,6 +216,30 @@ mod csc_tests {
     }
 
     #[crate::ctb_test]
+    fn test_hardlinks_across_destination_roots() {
+        let temp = tempdir().unwrap();
+        let first = temp.path().join("first");
+        let second = temp.path().join("second");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir(&first).unwrap();
+        fs::create_dir(&second).unwrap();
+        fs::create_dir(&state).unwrap();
+        fs::write(first.join("shared"), b"shared data").unwrap();
+        fs::write(second.join("shared"), b"unrelated data").unwrap();
+        fs::hard_link(first.join("shared"), second.join("linked")).unwrap();
+        run_csc(default_test_args(vec![first, second, dest.clone()], state.clone())).unwrap();
+        assert_eq!(fs::read(dest.join("second/linked")).unwrap(), b"shared data");
+        assert_eq!(fs::read(dest.join("second/shared")).unwrap(), b"unrelated data");
+        assert_eq!(fs::metadata(dest.join("first/shared")).unwrap().ino(), fs::metadata(dest.join("second/linked")).unwrap().ino());
+        let result = run_csc_verify(&default_verify_args(find_cscjournal(&state), Some(dest))).unwrap();
+        match result {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate verification result"),
+        }
+    }
+
+    #[crate::ctb_test]
     fn test_skip_existing_checksum() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_skip");
@@ -340,6 +364,34 @@ mod csc_tests {
             .expect("get xattr 2")
             .expect("attr 2 exists");
         assert_eq!(val2, b"Multi-line\nstream\x00with\x01binary\xFFdata");
+    }
+
+    #[crate::ctb_test]
+    fn test_resume_repairs_committed_destination_without_nesting() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        let state = temp.path().join("state");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&state).unwrap();
+        fs::write(source.join("data"), b"original").unwrap();
+        let mut args = default_test_args(vec![source, destination.clone()], state.clone());
+        args.no_verify_after = true;
+        args.verify_after = false;
+        run_csc(args).unwrap();
+        fs::write(destination.join("data"), b"damaged!").unwrap();
+        let journal_path = find_cscjournal(&state);
+        {
+            use std::io::Write;
+            let mut journal = fs::OpenOptions::new().append(true).open(&journal_path).unwrap();
+            journal.write_all(b"damaged tail").unwrap();
+        }
+        let mut resume = default_test_args(Vec::new(), state.clone());
+        resume.resume = Some(journal_path.clone());
+        run_csc(resume).unwrap();
+        assert_eq!(fs::read(destination.join("data")).unwrap(), b"original");
+        assert!(!destination.join("source").exists());
+        assert!(crate::journal::read_journal_snapshot(&journal_path).unwrap().is_completed);
     }
 
     #[crate::ctb_test]
@@ -2289,6 +2341,53 @@ mod csc_tests {
         assert!(!src_dir.exists(), "Source directory should no longer exist");
         assert!(dest_dir.join("file1.txt").exists());
         assert!(dest_dir.join("subdir").join("file2.txt").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_cleanup_retains_uncopied_entries() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        fs::write(source.join("new-data"), b"not copied").unwrap();
+        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, true).unwrap();
+        let entries = vec![(source.clone(), destination, entity)];
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_cleanup_retains_changed_source() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::write(&source, b"original").unwrap();
+        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        fs::copy(&source, &destination).unwrap();
+        fs::write(&source, b"new data").unwrap();
+        let entries = vec![(source.clone(), destination, entity)];
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert_eq!(fs::read(source).unwrap(), b"new data");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_contents_fallback() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::create_dir_all(source.join("sub")).unwrap();
+        fs::write(source.join("sub/data"), b"move payload").unwrap();
+        run_mv(MvArgs {
+            paths: vec![source.join(""), destination.clone()],
+            verbose: false, progress: false, no_progress: true,
+            verify_after: false, no_verify_after: true,
+            best_effort_metadata: false, force: false, dry_run: false,
+        }).unwrap();
+        assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+        assert!(source.is_dir());
+        assert_eq!(fs::read_dir(source).unwrap().count(), 0);
     }
 
     #[crate::ctb_test]

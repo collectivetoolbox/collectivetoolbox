@@ -33,7 +33,7 @@ use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
@@ -73,6 +73,7 @@ pub struct JournalSnapshot {
     pub committed_entities: HashMap<Vec<u8>, FileEntity>,
     pub is_completed: bool,
     pub last_batch_id: u64,
+    pub valid_length: u64,
 }
 
 impl JournalSnapshot {
@@ -171,6 +172,8 @@ impl JournalWriter {
             .with_context(|| {
                 format!("Failed to reopen state journal: {}", journal_path.display())
             })?;
+        file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
+        file.sync_all()?;
 
         let mut total_bytes = 0_u64;
         let mut total_files = 0_u64;
@@ -360,6 +363,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
     let mut last_batch_id = 0_u64;
     let mut is_completed = false;
+    let mut valid_length = 0_u64;
 
     let mut tag_buf = [0_u8; 1];
     while reader.read_exact(&mut tag_buf).is_ok() {
@@ -377,9 +381,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 for _ in 0..src_count {
                     if let Ok(bytes) = read_bytes(&mut reader) {
                         let is_windows = origin_platform == PLATFORM_WINDOWS;
-                        // Reason for fallback: when cross-platform path resolution fails due to invalid characters or encoding, lossy UTF-8 conversion provides best-effort path
-                        let src_path = resolve_relative_path_for_os(&bytes, is_windows)
-                            .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&bytes).as_ref()));
+                        let src_path = resolve_relative_path_for_os(&bytes, is_windows)?;
                         sources.push(src_path);
                     } else {
                         valid_sources = false;
@@ -393,11 +395,11 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                     break;
                 };
                 let is_windows = origin_platform == PLATFORM_WINDOWS;
-                // Reason for fallback: when cross-platform path resolution fails due to invalid characters or encoding, lossy UTF-8 conversion provides best-effort path
-                destination = resolve_relative_path_for_os(&dest_bytes, is_windows)
-                    .unwrap_or_else(|_| PathBuf::from(String::from_utf8_lossy(&dest_bytes).as_ref()));
+                destination = resolve_relative_path_for_os(&dest_bytes, is_windows)?;
+                valid_length = reader.stream_position()?;
             }
             TAG_ENTITY => {
+                is_completed = false;
                 let Ok(payload_len) = read_u32(&mut reader) else {
                     break;
                 };
@@ -445,9 +447,12 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 last_batch_id = batch_id;
                 committed_entities.extend(pending_entities.drain());
                 batch_hasher = Sha256Stream::new();
+                valid_length = reader.stream_position()?;
             }
             TAG_JOB_COMPLETED => {
+                anyhow::ensure!(pending_entities.is_empty(), "Completion marker precedes batch commit");
                 is_completed = true;
+                valid_length = reader.stream_position()?;
             }
             _ => {
                 break;
@@ -455,6 +460,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         }
     }
 
+    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
     Ok(JournalSnapshot {
         sources,
         destination,
@@ -462,6 +468,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         committed_entities,
         is_completed,
         last_batch_id,
+        valid_length,
     })
 }
 
@@ -581,6 +588,15 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
             _ => [0_u8; 32],
         };
         w.write_all(&hash)?;
+    }
+    match &entity.identity.origin {
+        FileOrigin::Filesystem { key, canonical_path } => {
+            w.write_all(&[1])?;
+            write_u64(w, key.device_id)?;
+            write_u64(w, key.inode)?;
+            write_bytes(w, canonical_path.as_os_str().as_encoded_bytes())?;
+        }
+        _ => w.write_all(&[0])?,
     }
     Ok(())
 }
@@ -744,7 +760,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let is_windows = origin_platform == PLATFORM_WINDOWS;
     let relative_path = resolve_relative_path_for_os(&raw_rel_path, is_windows)?;
 
-    let origin = if let Some(grp) = hardlink_group {
+    let mut origin = if let Some(grp) = hardlink_group {
         FileOrigin::Filesystem {
             key: InodeKey {
                 device_id: origin_device_id,
@@ -755,6 +771,20 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     } else {
         FileOrigin::Synthetic
     };
+
+    let mut origin_tag = [0_u8; 1];
+    if r.read(&mut origin_tag)? != 0 {
+        match origin_tag {
+            [0] => {}
+            [1] => {
+                let device_id = read_u64(&mut r)?;
+                let inode = read_u64(&mut r)?;
+                let canonical_path = resolve_relative_path_for_os(&read_bytes(&mut r)?, is_windows)?;
+                origin = FileOrigin::Filesystem { key: InodeKey { device_id, inode }, canonical_path };
+            }
+            _ => anyhow::bail!("Invalid journal source identity tag"),
+        }
+    }
 
     Ok(FileEntity {
         identity: FileIdentity {

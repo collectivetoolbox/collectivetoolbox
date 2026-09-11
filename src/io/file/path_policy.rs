@@ -250,8 +250,8 @@ pub fn validate_symlink_target(
             #[cfg(unix)]
             let target_os = <OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(target_bytes);
             #[cfg(not(unix))]
-            // Reason for fallback: invalid UTF-8 bytes for symlink target fall back to empty path which is safely rejected by escaping checks
-            let target_str = std::str::from_utf8(target_bytes).unwrap_or("");
+            let target_str = std::str::from_utf8(target_bytes)
+                .context("Symlink target cannot be represented losslessly on this platform")?;
             #[cfg(not(unix))]
             let target_os = OsStr::new(target_str);
             let target_path = Path::new(target_os);

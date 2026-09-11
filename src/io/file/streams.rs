@@ -66,19 +66,14 @@ impl StreamName {
     }
 
     /// Converts to an `OsStr` reference.
-    #[must_use]
-    pub fn as_os_str(&self) -> &OsStr {
+    pub fn as_os_str(&self) -> Result<&OsStr> {
         #[cfg(unix)]
         {
-            OsStr::from_bytes(&self.0)
+            Ok(OsStr::from_bytes(&self.0))
         }
         #[cfg(not(unix))]
         {
-            if let Ok(s) = std::str::from_utf8(&self.0) {
-                OsStr::new(s)
-            } else {
-                OsStr::new("")
-            }
+            Ok(OsStr::new(std::str::from_utf8(&self.0).context("Stream name cannot be represented losslessly on this platform")?))
         }
     }
 }
@@ -154,7 +149,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
         let name_bytes = name_os.as_bytes().to_vec();
         let val = match xattr::get(path, &name_os) {
             Ok(Some(v)) => v,
-            Ok(None) => continue,
+            Ok(None) => anyhow::bail!("Stream {:?} disappeared while reading {}", name_os, path.display()),
             Err(e) => {
                 return Err(e).with_context(|| {
                     format!(
@@ -230,8 +225,8 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
 
 /// Reads all extended attributes, resource forks, and security labels from `path`.
 #[cfg(not(unix))]
-pub fn read_and_hash_streams(_path: &Path) -> Result<Vec<AttachedStream>> {
-    Ok(Vec::new())
+pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
+    anyhow::bail!("Lossless stream enumeration is not implemented on this platform: {}", path.display())
 }
 
 /// Writes all attached streams (xattrs, resource forks) to `dest`.
@@ -242,12 +237,12 @@ pub fn write_streams(
     dest: &Path,
     target_display_path: Option<&Path>,
     streams: &[AttachedStream],
-    strict_lossless: bool,
+    _strict_lossless: bool,
 ) -> Result<()> {
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
     for stream in streams {
-        let name_os = stream.name.as_os_str();
+        let name_os = stream.name.as_os_str()?;
         let Some(data) = &stream.data else {
             anyhow::bail!(
                 "Stream {:?} on {} has no in-memory payload to write",
@@ -256,15 +251,21 @@ pub fn write_streams(
             );
         };
 
+        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+            anyhow::bail!("Attached stream is not a regular payload");
+        };
+        let mut hasher = Sha256Stream::new();
+        hasher.update(data);
+        anyhow::ensure!(u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
+            "Attached stream payload does not match its descriptor: {:?}", stream.name.to_string_lossy());
+
         if let Err(e) = xattr::set(dest, name_os, data) {
-            if strict_lossless {
                 anyhow::bail!(
                     "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
                     stream.name.to_string_lossy(),
                     display_target.display(),
                     e
                 );
-            }
         }
     }
     Ok(())
@@ -276,9 +277,9 @@ pub fn write_streams(
     _dest: &Path,
     _target_display_path: Option<&Path>,
     streams: &[AttachedStream],
-    strict_lossless: bool,
+    _strict_lossless: bool,
 ) -> Result<()> {
-    if !streams.is_empty() && strict_lossless {
+    if !streams.is_empty() {
         anyhow::bail!("Target platform does not support xattrs/streams");
     }
     Ok(())
@@ -292,7 +293,7 @@ pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     }
     #[cfg(not(unix))]
     {
-        let _ = (path, name);
+        anyhow::bail!("Removing stream {name:?} is unsupported on this platform: {}", path.display());
     }
     Ok(())
 }

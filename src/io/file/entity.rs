@@ -248,6 +248,16 @@ impl FileEntity {
         Self::from_filesystem_internal(path, base_dir, false)
     }
 
+    #[cfg(not(unix))]
+    fn from_filesystem_internal(
+        path: &Path,
+        _base_dir: Option<&Path>,
+        _compute_hash: bool,
+    ) -> Result<Self> {
+        anyhow::bail!("Lossless filesystem capture (native identity, security metadata, and streams) is not implemented on this platform: {}", path.display())
+    }
+
+    #[cfg(unix)]
     fn from_filesystem_internal(
         path: &Path,
         base_dir: Option<&Path>,
@@ -291,41 +301,6 @@ impl FileEntity {
                     mtime_nsec,
                     ctime_sec,
                     ctime_nsec,
-                    birthtime_sec: None,
-                    birthtime_nsec: None,
-                },
-            )
-        };
-
-        #[cfg(not(unix))]
-        let (dev, ino, nlink, mode, uid, gid, timestamps) = {
-            // Reason for fallback: filesystems without modified timestamp support default to UNIX_EPOCH
-            let mtime = sym_meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            // Reason for fallback: pre-epoch or error duration defaults to Duration::ZERO
-            let mtime_dur = mtime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
-            // Reason for fallback: filesystems without accessed timestamp support default to modified time
-            let atime = sym_meta.accessed().unwrap_or(mtime);
-            // Reason for fallback: pre-epoch or error duration defaults to Duration::ZERO
-            let atime_dur = atime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
-            let mode = if sym_meta.is_dir() { 0o755 } else { 0o644 };
-
-            (
-                0_u64,
-                0_u64,
-                1_u64,
-                mode,
-                0_u32,
-                0_u32,
-                FileTimestamps {
-                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
-                    atime_sec: i64::try_from(atime_dur.as_secs()).unwrap_or(0),
-                    atime_nsec: atime_dur.subsec_nanos(),
-                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
-                    mtime_sec: i64::try_from(mtime_dur.as_secs()).unwrap_or(0),
-                    mtime_nsec: mtime_dur.subsec_nanos(),
-                    // Reason for fallback: timestamps exceeding i64::MAX seconds clamp to 0
-                    ctime_sec: i64::try_from(mtime_dur.as_secs()).unwrap_or(0),
-                    ctime_nsec: mtime_dur.subsec_nanos(),
                     birthtime_sec: None,
                     birthtime_nsec: None,
                 },
@@ -475,7 +450,7 @@ impl FileEntity {
             }
         };
 
-        let streams = if is_symlink || !compute_hash {
+        let streams = if !compute_hash {
             Vec::new()
         } else {
             read_and_hash_streams(path)?

@@ -312,7 +312,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                         #[cfg(not(unix))]
                         {
                             let _ = (m1, m2);
-                            matched_entries = matched_entries.saturating_add(1);
+                            anyhow::bail!("Native hardlink identity verification is not implemented on this platform");
                         }
                     }
                     (Err(_), _) => {

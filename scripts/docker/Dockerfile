@@ -195,6 +195,8 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         tmux \
+        ncdu \
+        ripgrep \
         # autoconf \
         # automake \
         # bison \

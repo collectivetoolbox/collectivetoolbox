@@ -70,16 +70,31 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
         let snap = read_journal_snapshot(&journal_path)?;
         if snap.is_completed {
-            let msg = format!(
-                "Session in {} is already marked Completed. No files remaining to resume.\n",
-                journal_path.display()
-            );
-            return Ok(ToolResult::immediate_ok(msg.into_bytes()));
+            progress.message("Session was completed; revalidating source and destination entries.");
         }
 
         let mut all_paths = snap.sources.clone();
         all_paths.push(snap.destination.clone());
-        let (resolved, _) = resolve_tasks(&all_paths)?;
+        let (mut resolved, _) = resolve_tasks(&all_paths)?;
+        for task in &mut resolved {
+            if !std::fs::symlink_metadata(&task.source_root)?.is_dir() {
+                continue;
+            }
+            let source_entity = ctb_io::file::FileEntity::from_filesystem_metadata_only(&task.source_root, None)?;
+            let recorded_root = snap.committed_entities.values().find(|entity| {
+                entity.is_dir() && matches!((&entity.identity.origin, &source_entity.identity.origin),
+                    (ctb_io::file::FileOrigin::Filesystem { key, .. },
+                     ctb_io::file::FileOrigin::Filesystem { key: source_key, .. })
+                    if key == source_key)
+            });
+            if let Some(entity) = recorded_root {
+                task.target_root = snap.destination.join(&entity.identity.relative_path);
+            } else {
+                anyhow::ensure!(task.copy_contents_only || !snap.destination.exists(),
+                    "Cannot safely recover the original directory destination from this journal");
+            }
+        }
+        crate::path_resolution::validate_task_overlap(&resolved)?;
 
         let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
         (resolved, jw, Some(snap))

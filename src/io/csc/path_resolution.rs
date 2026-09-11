@@ -43,10 +43,10 @@ pub struct ResolvedCopyTask {
 /// Checks if a path string ends with a directory terminator (`/` or `/.`).
 pub fn path_has_trailing_slash(path: &Path) -> bool {
     let bytes = path.as_os_str().as_encoded_bytes();
-    if bytes.ends_with(b"/") || bytes.ends_with(b"\\") {
+    if bytes.ends_with(b"/") || (cfg!(windows) && bytes.ends_with(b"\\")) {
         return true;
     }
-    if bytes.ends_with(b"/.") || bytes.ends_with(b"\\.") {
+    if bytes.ends_with(b"/.") || (cfg!(windows) && bytes.ends_with(b"\\.")) {
         return true;
     }
     false
@@ -78,14 +78,10 @@ pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBu
     let mut tasks = Vec::with_capacity(sources.len());
 
     for source in sources {
-        anyhow::ensure!(
-            source.exists(),
-            "Source path does not exist: {}",
-            source.display()
-        );
-
+        let source_meta = std::fs::symlink_metadata(source)
+            .with_context(|| format!("Source path does not exist: {}", source.display()))?;
         let src_has_slash = path_has_trailing_slash(source);
-        let src_is_dir = source.is_dir();
+        let src_is_dir = source_meta.is_dir();
 
         if src_is_dir {
             if src_has_slash {
@@ -142,7 +138,41 @@ pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBu
         }
     }
 
+    validate_task_overlap(&tasks)?;
     Ok((tasks, dest_path))
+}
+
+pub(crate) fn validate_task_overlap(tasks: &[ResolvedCopyTask]) -> Result<()> {
+    for source_task in tasks {
+        let source_meta = std::fs::symlink_metadata(&source_task.source_root)?;
+        let source = resolve_existing_ancestors(&source_task.source_root)?;
+        for target_task in tasks {
+            let target = resolve_existing_ancestors(&target_task.target_root)?;
+            anyhow::ensure!(source != target
+                && !(source_meta.is_dir() && target.starts_with(&source))
+                && !source.starts_with(&target),
+                "Source and destination overlap: {} -> {}", source.display(), target.display());
+            #[cfg(unix)]
+            if let Ok(target_meta) = std::fs::symlink_metadata(&target_task.target_root) {
+                use std::os::unix::fs::MetadataExt;
+                anyhow::ensure!(source_meta.dev() != target_meta.dev() || source_meta.ino() != target_meta.ino(),
+                    "Source and destination refer to the same inode");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn resolve_existing_ancestors(path: &Path) -> Result<PathBuf> {
+    match std::fs::canonicalize(path) {
+        Ok(resolved) => Ok(resolved),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let parent = path.parent().context("Path has no existing ancestor")?;
+            let parent = if parent.as_os_str().is_empty() { Path::new(".") } else { parent };
+            Ok(resolve_existing_ancestors(parent)?.join(path.file_name().context("Path has no filename")?))
+        }
+        Err(error) => Err(error).with_context(|| format!("Failed to resolve {}", path.display())),
+    }
 }
 
 #[cfg(test)]
@@ -204,5 +234,25 @@ mod tests {
             resolve_tasks(&[src_file, dest_dir.clone()]).expect("resolve");
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].target_root, dest_dir.join("file.txt"));
+    }
+
+    #[crate::ctb_test]
+    fn test_reject_overlapping_copy_paths() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        std::fs::create_dir(&source).unwrap();
+        assert!(resolve_tasks(&[source.join(""), source.clone()]).is_err());
+        assert!(resolve_tasks(&[source.clone(), source.join("nested/destination")]).is_err());
+        assert!(!source.join("nested").exists());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_resolve_dangling_symlink_source() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("dangling");
+        std::os::unix::fs::symlink("missing", &source).unwrap();
+        assert!(resolve_tasks(&[source, temp.path().join("destination")]).is_ok());
+        assert!(!path_has_trailing_slash(Path::new("literal\\")));
     }
 }

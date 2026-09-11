@@ -31,9 +31,10 @@ use crate::args::{CscArgs, MvArgs, SourceChangePolicy};
 use crate::copy_engine::execute_copy_pipeline;
 use crate::journal::JournalWriter;
 use crate::path_resolution::resolve_tasks;
+use ctb_io::file::{FileEntity, FileOrigin, verify_materialized_entity};
 use ctb_utilities::cli::ToolResult;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 /// Executes the `mv` command.
@@ -111,15 +112,15 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     verbose: args.verbose,
                     progress: args.progress,
                     no_progress: args.no_progress,
-                    verify_after: args.verify_after,
-                    no_verify_after: args.no_verify_after,
+                    verify_after: true,
+                    no_verify_after: false,
                     always_overwrite: args.force,
                     skip_existing_checksum: true,
                     on_source_change: SourceChangePolicy::Error,
                     copy_specials_as_specials: true,
                     copy_block_devices_as_regular_files: false,
                     one_file_system: false,
-                    best_effort_metadata: args.best_effort_metadata,
+                    best_effort_metadata: false,
                     check_atime: false,
                     delete_manifest_after: true,
                     recursive: true,
@@ -141,6 +142,10 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     &progress,
                 )?;
 
+                anyhow::ensure!(copy_stats.special_files_skipped == 0,
+                    "Move refused: some source entries could not be copied; all sources retained");
+                remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only)?;
+
                 // Delete manifest files upon successful copy
                 let j_path = journal.journal_path().to_path_buf();
                 let d_path = journal.desc_path().to_path_buf();
@@ -150,35 +155,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 }
                 if d_path.exists() {
                     let _ = std::fs::remove_file(&d_path);
-                }
-
-                // Copy and verification succeeded; unlink source
-                if task.source_root.is_dir() {
-                    if task.copy_contents_only {
-                        for entry in std::fs::read_dir(&task.source_root)? {
-                            let entry = entry?;
-                            let path = entry.path();
-                            if path.is_dir() {
-                                std::fs::remove_dir_all(&path)?;
-                            } else {
-                                std::fs::remove_file(&path)?;
-                            }
-                        }
-                    } else {
-                        std::fs::remove_dir_all(&task.source_root).with_context(|| {
-                            format!(
-                                "Failed to remove source directory after copy: {}",
-                                task.source_root.display()
-                            )
-                        })?;
-                    }
-                } else {
-                    std::fs::remove_file(&task.source_root).with_context(|| {
-                        format!(
-                            "Failed to remove source file after copy: {}",
-                            task.source_root.display()
-                        )
-                    })?;
                 }
 
                 moved_copied = moved_copied.saturating_add(copy_stats.files_copied);
@@ -223,4 +199,42 @@ fn is_cross_device_error(err: &std::io::Error) -> bool {
         return true;
     }
     false
+}
+
+pub(crate) fn remove_copied_sources(
+    entries: &[(PathBuf, PathBuf, FileEntity)],
+    source_root: &Path,
+    contents_only: bool,
+) -> Result<()> {
+    for (source, destination, entity) in entries {
+        verify_source_identity(source, entity)?;
+        verify_materialized_entity(source, entity, true)?;
+        verify_materialized_entity(destination, entity, true)?;
+    }
+    let mut ordered: Vec<_> = entries.iter().collect();
+    ordered.sort_by_key(|(source, _, _)| std::cmp::Reverse(source.components().count()));
+    for (source, destination, entity) in ordered {
+        verify_source_identity(source, entity)?;
+        if entity.is_dir() {
+            if !contents_only || source != source_root {
+                std::fs::remove_dir(source).with_context(|| format!("Source directory changed or could not be removed: {}", source.display()))?;
+            }
+        } else {
+            verify_materialized_entity(source, entity, true)?;
+            verify_materialized_entity(destination, entity, true)?;
+            std::fs::remove_file(source).with_context(|| format!("Failed to remove verified source: {}", source.display()))?;
+        }
+    }
+    Ok(())
+}
+
+fn verify_source_identity(source: &Path, expected: &FileEntity) -> Result<()> {
+    let actual = FileEntity::from_filesystem_metadata_only(source, None)?;
+    match (&actual.identity.origin, &expected.identity.origin) {
+        (FileOrigin::Filesystem { key: actual_key, .. }, FileOrigin::Filesystem { key: expected_key, .. }) => {
+            anyhow::ensure!(actual_key == expected_key, "Source entry was replaced: {}", source.display());
+        }
+        _ => anyhow::bail!("Source identity is unavailable: {}", source.display()),
+    }
+    Ok(())
 }

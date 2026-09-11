@@ -275,6 +275,8 @@ impl SandboxableDir {
         rel_dir: &Path,
         policy: PathTraversalPolicy,
     ) -> Result<DirHandle> {
+        anyhow::ensure!(policy != PathTraversalPolicy::StrictSandboxed,
+            "Descriptor-relative sandboxed traversal is not implemented on this platform");
         if rel_dir.as_os_str().is_empty() || rel_dir == Path::new(".") {
             return Ok(DirHandle {
                 path: self.root_path.clone(),
@@ -282,26 +284,6 @@ impl SandboxableDir {
         }
 
         let full_path = self.root_path.join(rel_dir);
-        if policy == PathTraversalPolicy::StrictSandboxed {
-            for comp in rel_dir.components() {
-                match comp {
-                    Component::CurDir | Component::Normal(_) => {}
-                    Component::ParentDir => {
-                        anyhow::bail!(
-                            "Path traversal rejected: path contains '..' parent directory component: {}",
-                            rel_dir.display()
-                        );
-                    }
-                    Component::Prefix(_) | Component::RootDir => {
-                        anyhow::bail!(
-                            "Path traversal rejected: path contains root or prefix component: {}",
-                            rel_dir.display()
-                        );
-                    }
-                }
-            }
-        }
-
         if !full_path.exists() {
             std::fs::create_dir_all(&full_path).with_context(|| {
                 format!("Failed to create directory '{}'", full_path.display())
@@ -438,9 +420,6 @@ impl SandboxableDir {
     ) -> Result<()> {
         let temp_path = parent_dir_fd.path.join(temp_name.as_ref());
         let final_path = parent_dir_fd.path.join(final_name.as_ref());
-        if final_path.exists() {
-            let _ = std::fs::remove_file(&final_path);
-        }
         std::fs::rename(&temp_path, &final_path).with_context(|| {
             format!(
                 "Failed to atomically rename {} to {}",
@@ -464,11 +443,10 @@ impl SandboxableDir {
         let symlink_path = self.root_path.join(link_os);
         validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
 
-        // Remove existing entry if present
-        unlink_if_exists(*parent_dir_fd, link_os)?;
-
         let target_os = std::ffi::OsStr::from_bytes(target_bytes);
-        symlinkat(target_os, parent_dir_fd, link_os).with_context(|| {
+        replace_node_atomically(*parent_dir_fd, link_os, |temporary| {
+            symlinkat(target_os, parent_dir_fd, temporary).context("Failed to stage symlink")
+        }).with_context(|| {
             format!(
                 "Failed to create symlink {} in sandboxed parent",
                 link_os.to_string_lossy()
@@ -481,24 +459,12 @@ impl SandboxableDir {
     #[cfg(not(unix))]
     pub fn create_symlink(
         &self,
-        parent_dir_fd: &DirHandleRef<'_>,
-        link_name: impl AsRef<std::ffi::OsStr>,
-        target_bytes: &[u8],
-        policy: SymlinkValidationPolicy,
+        _parent_dir_fd: &DirHandleRef<'_>,
+        _link_name: impl AsRef<std::ffi::OsStr>,
+        _target_bytes: &[u8],
+        _policy: SymlinkValidationPolicy,
     ) -> Result<()> {
-        let link_os = link_name.as_ref();
-        let symlink_path = parent_dir_fd.path.join(link_os);
-        validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
-        let target_str = std::str::from_utf8(target_bytes)
-            .context("Target bytes for symlink are not valid UTF-8 on Windows")?;
-        let target_path = Path::new(target_str);
-        #[cfg(windows)]
-        {
-            if std::os::windows::fs::symlink_file(target_path, &symlink_path).is_err() {
-                let _ = std::os::windows::fs::symlink_dir(target_path, &symlink_path);
-            }
-        }
-        Ok(())
+        anyhow::bail!("Lossless symlink creation requires native link type metadata on this platform")
     }
 
     /// Creates a hard link to `target_rel` inside `parent_dir_fd`.
@@ -510,16 +476,16 @@ impl SandboxableDir {
         link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
-        unlink_if_exists(*parent_dir_fd, link_os)?;
-
-        linkat(
+        replace_node_atomically(*parent_dir_fd, link_os, |temporary| {
+            linkat(
             &self.root_fd,
             target_rel,
             parent_dir_fd,
-            link_os,
+            temporary,
             AtFlags::empty(),
         )
-        .with_context(|| {
+        .context("Failed to stage hardlink")
+        }).with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",
                 target_rel.display(),
@@ -539,9 +505,6 @@ impl SandboxableDir {
     ) -> Result<()> {
         let link_path = parent_dir_fd.path.join(link_name.as_ref());
         let target_path = self.root_path.join(target_rel);
-        if link_path.exists() {
-            let _ = std::fs::remove_file(&link_path);
-        }
         std::fs::hard_link(&target_path, &link_path).with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",
@@ -562,13 +525,12 @@ impl SandboxableDir {
         mode: u32,
     ) -> Result<()> {
         let name_os = name.as_ref();
-        unlink_if_exists(*parent_dir_fd, name_os)?;
-
+        replace_node_atomically(*parent_dir_fd, name_os, |temporary| {
         match kind {
             FileEntityKind::Fifo => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name_os,
+                    temporary,
                     nix::sys::stat::SFlag::S_IFIFO,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     0,
@@ -583,7 +545,7 @@ impl SandboxableDir {
             FileEntityKind::CharDevice { rdev } => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name_os,
+                    temporary,
                     nix::sys::stat::SFlag::S_IFCHR,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     *rdev,
@@ -598,7 +560,7 @@ impl SandboxableDir {
             FileEntityKind::BlockDevice { rdev } => {
                 nix::sys::stat::mknodat(
                     parent_dir_fd,
-                    name_os,
+                    temporary,
                     nix::sys::stat::SFlag::S_IFBLK,
                     nix::sys::stat::Mode::from_bits_truncate(mode),
                     *rdev,
@@ -615,6 +577,7 @@ impl SandboxableDir {
             }
         }
         Ok(())
+        })
     }
 
     /// Creates a special file (FIFO, Character Device, Block Device) inside `parent_dir_fd`.
@@ -633,17 +596,20 @@ impl SandboxableDir {
     }
 }
 
-/// Helper that unlinks an existing entry inside a directory, ignoring `NotFound`.
 #[cfg(unix)]
-fn unlink_if_exists(parent_dir_fd: BorrowedFd<'_>, name: &std::ffi::OsStr) -> Result<()> {
-    match unlinkat(parent_dir_fd, name, AtFlags::empty()) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e).with_context(|| {
-            format!(
-                "Failed to unlink existing entry: {}",
-                name.to_string_lossy()
-            )
-        }),
+fn replace_node_atomically(
+    parent: BorrowedFd<'_>,
+    name: &std::ffi::OsStr,
+    create: impl FnOnce(&std::ffi::OsStr) -> Result<()>,
+) -> Result<()> {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temporary = format!(".csc-node.{}.{}", std::process::id(), sequence);
+    create(std::ffi::OsStr::new(&temporary))?;
+    if let Err(error) = renameat(parent, &temporary, parent, name) {
+        unlinkat(parent, &temporary, AtFlags::empty()).context("Failed to clean up staged node")?;
+        return Err(error).context("Failed to commit staged node");
     }
+    rustix::fs::fsync(parent).context("Failed to sync node parent directory")?;
+    Ok(())
 }

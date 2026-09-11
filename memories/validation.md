@@ -1,0 +1,3 @@
+- File/copy crate tests: `cargo test -p ctb-io-file -p ctb-io-csc --lib` (hyphenated package names).
+- Do not run scripts/format or scripts/format-quick for routine formatting: they auto-stage/commit and destructively clean vendor. Use rustfmt directly on touched files/lines.
+- Operator commits during work; blank git diff does not mean edits vanished. Inspect commit history and task baseline.
