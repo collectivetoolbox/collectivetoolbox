@@ -209,6 +209,18 @@ macro_rules! define_platform_flags {
     };
 }
 
+
+
+
+
+
+//DRAGONFLY/////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 /* From DragonFly BSD sys/sys/stat.h:
 
 https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;hb=HEAD (b4510a66558751a074cf6a0f30977b8639ce856f)
@@ -279,6 +291,18 @@ define_platform_flags! {
 
 /// Mask of settable flags on DragonFly BSD (`UF_SETTABLE | SF_SETTABLE`).
 pub const DRAGONFLY_SETTABLE_MASK: u32 = DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
+
+
+
+
+
+
+//FREEBSD///////////////////////////////////////////////////////////////////////
+
+
+
+
+
 
 /* From FreeBSD stat.h:
 
@@ -368,6 +392,18 @@ define_platform_flags! {
 pub const FREEBSD_SETTABLE_MASK: u32 =
     (FREEBSD_UF_SETTABLE | FREEBSD_SF_SETTABLE) & !FREEBSD_SF_SNAPSHOT;
 
+
+
+
+
+
+//OPENBSD///////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 /* From OpenBSD stat.h:
 
 
@@ -415,6 +451,18 @@ define_platform_flags! {
 
 /// Mask of settable flags on OpenBSD (`UF_SETTABLE | SF_SETTABLE`).
 pub const OPENBSD_SETTABLE_MASK: u32 = OPENBSD_UF_SETTABLE | OPENBSD_SF_SETTABLE;
+
+
+
+
+
+
+//DARWIN////////////////////////////////////////////////////////////////////////
+
+
+
+
+
 
 /* From Python - https://github.com/python/cpython/blob/f8f8c30ed4e20208e8badbc9e2fc3822e8db8e49/Modules/_stat.c -
 
@@ -571,6 +619,18 @@ define_platform_flags! {
 /// Mask of user- and superuser-settable flags on Darwin
 /// (`UF_SETTABLE | SF_SETTABLE`).
 pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
 
 /// Reads OS-specific flags from `path`.
 #[cfg_attr(
