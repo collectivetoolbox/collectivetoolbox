@@ -2661,6 +2661,7 @@ dependencies = [
  "ctb-formats-pem",
  "ctb-formats-perl",
  "ctb-formats-stagel",
+ "ctb-formats-string",
  "ctb-formats-syndication",
  "ctb-formats-text-extraction",
  "ctb-formats-time",
@@ -3084,6 +3085,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-string"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+]
+
+[[package]]
 name = "ctb-formats-syndication"
 version = "0.0.0"
 dependencies = [
@@ -3306,6 +3315,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "ctb-formats-checksum",
+ "ctb-formats-string",
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-io",
@@ -3758,6 +3768,7 @@ dependencies = [
  "ctb-formats-pem",
  "ctb-formats-perl",
  "ctb-formats-stagel",
+ "ctb-formats-string",
  "ctb-formats-syndication",
  "ctb-formats-text-extraction",
  "ctb-formats-time",

@@ -113,6 +113,7 @@ ctb-formats-perl = { path = "src/formats/perl" }
 ctb-formats-pdf = { path = "src/formats/pdf" }
 ctb-formats-pem = { path = "src/formats/pem" }
 ctb-formats-stagel = { path = "src/formats/stagel" }
+ctb-formats-string = { path = "src/formats/string" }
 ctb-formats-syndication = { path = "src/formats/syndication" }
 ctb-formats-text-extraction = { path = "src/formats/text_extraction" }
 ctb-formats-time = { path = "src/formats/time" }

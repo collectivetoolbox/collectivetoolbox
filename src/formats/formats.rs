@@ -64,6 +64,7 @@ pub use ctb_formats_pdf as pdf;
 pub use ctb_formats_pem as pem;
 pub use ctb_formats_perl as perl;
 pub use ctb_formats_stagel as stagel;
+pub use ctb_formats_string as string;
 pub use ctb_formats_text_extraction as text_extraction;
 pub use ctb_formats_time as time;
 pub use ctb_formats_troff as troff;

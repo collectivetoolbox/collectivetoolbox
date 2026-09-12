@@ -369,55 +369,8 @@ fn index_directory_to_journal(
     Ok(journal.journal_path().to_path_buf())
 }
 
-/// Splits a CamelCase string into its constituent subwords.
-#[must_use]
-pub fn split_camel_case(s: &str) -> Vec<String> {
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len();
-    if len == 0 {
-        return Vec::new();
-    }
+pub use ctb_formats_string::split_camel_case;
 
-    let mut words = Vec::new();
-    let mut start = 0;
-    for i in 1..len {
-        let Some(&prev) = chars.get(i.saturating_sub(1)) else {
-            continue;
-        };
-        let Some(&curr) = chars.get(i) else {
-            continue;
-        };
-        let next = chars.get(i.saturating_add(1)).copied();
-
-        let is_lower_to_upper = prev.is_lowercase() && curr.is_uppercase();
-        let is_upper_to_upper_then_lower = prev.is_uppercase()
-            && curr.is_uppercase()
-            && next.is_some_and(|n| n.is_lowercase());
-        let is_letter_to_digit = prev.is_alphabetic() && curr.is_ascii_digit();
-        let is_digit_to_letter = prev.is_ascii_digit() && curr.is_alphabetic();
-
-        if is_lower_to_upper
-            || is_upper_to_upper_then_lower
-            || is_letter_to_digit
-            || is_digit_to_letter
-        {
-            if let Some(slice) = chars.get(start..i) {
-                let word: String = slice.iter().collect();
-                if !word.is_empty() {
-                    words.push(word);
-                }
-            }
-            start = i;
-        }
-    }
-    if let Some(slice) = chars.get(start..len) {
-        let last: String = slice.iter().collect();
-        if !last.is_empty() {
-            words.push(last);
-        }
-    }
-    words
-}
 
 /// Generates an expanded set of search keywords for a filename or path component,
 /// splitting on punctuation, whitespace, and CamelCase word boundaries, and emitting
@@ -454,7 +407,7 @@ pub fn expand_search_keywords(text: &str) -> String {
                 for win in subwords.windows(win_size) {
                     let compound = win
                         .iter()
-                        .map(|s| s.to_ascii_lowercase())
+                        .map(|s: &String| s.to_ascii_lowercase())
                         .collect::<String>();
                     add_token(&compound);
                 }

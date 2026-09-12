@@ -44,6 +44,20 @@ pub struct FilesystemInfo {
     pub resolution_nsec: u32,
 }
 
+impl FilesystemInfo {
+    /// Returns whether this filesystem supports sparse files with holes, or `None` if unknown.
+    #[must_use]
+    pub fn supports_sparse(&self) -> Option<bool> {
+        match self.fs_type.as_str() {
+            "ext4" | "xfs" | "btrfs" | "zfs" | "f2fs" | "tmpfs" | "apfs" | "ntfs" | "refs" => {
+                Some(true)
+            }
+            "vfat" | "exfat" | "iso9660" | "udf" | "hfsplus" | "ramfs" => Some(false),
+            _ => None,
+        }
+    }
+}
+
 static FS_CACHE: LazyLock<RwLock<HashMap<u64, FilesystemInfo>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
@@ -585,5 +599,26 @@ mod tests {
 
         let not_found = std::io::Error::from(std::io::ErrorKind::NotFound);
         assert!(!is_cross_device_error(&not_found));
+    }
+
+    #[crate::ctb_test]
+    fn test_supports_sparse() {
+        let ext4_info = FilesystemInfo {
+            fs_type: "ext4".to_string(),
+            resolution_nsec: 1,
+        };
+        assert_eq!(ext4_info.supports_sparse(), Some(true));
+
+        let vfat_info = FilesystemInfo {
+            fs_type: "vfat".to_string(),
+            resolution_nsec: 2_000_000_000,
+        };
+        assert_eq!(vfat_info.supports_sparse(), Some(false));
+
+        let unknown_info = FilesystemInfo {
+            fs_type: "unknown".to_string(),
+            resolution_nsec: 1,
+        };
+        assert_eq!(unknown_info.supports_sparse(), None);
     }
 }

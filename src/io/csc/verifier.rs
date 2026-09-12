@@ -132,6 +132,13 @@ impl VerificationReport {
                         if self.ignored_differences.flags == 1 { "" } else { "s" }
                     ));
                 }
+                if self.ignored_differences.sparseness > 0 {
+                    parts.push(format!(
+                        "{} sparse file difference{}",
+                        self.ignored_differences.sparseness,
+                        if self.ignored_differences.sparseness == 1 { "" } else { "s" }
+                    ));
+                }
                 let details = parts.join(" and ");
                 let _ = writeln!(
                     out,
@@ -372,6 +379,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 total_ignored.timestamps = total_ignored.timestamps.saturating_add(ignored.timestamps);
                 total_ignored.permissions = total_ignored.permissions.saturating_add(ignored.permissions);
                 total_ignored.flags = total_ignored.flags.saturating_add(ignored.flags);
+                total_ignored.sparseness = total_ignored.sparseness.saturating_add(ignored.sparseness);
 
                 if diffs.is_empty() {
                     matched_entries = matched_entries.saturating_add(1);
@@ -486,6 +494,13 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                     "{} flag difference{}",
                     total_ignored.flags,
                     if total_ignored.flags == 1 { "" } else { "s" }
+                ));
+            }
+            if total_ignored.sparseness > 0 {
+                parts.push(format!(
+                    "{} sparse file difference{} (materialized without holes due to filesystem limitations)",
+                    total_ignored.sparseness,
+                    if total_ignored.sparseness == 1 { "" } else { "s" }
                 ));
             }
             caveats.push(format!("Best-effort mode: ignored {}", parts.join(" and ")));

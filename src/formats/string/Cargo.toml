@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-string"
+edition = "2024"
+
+[lib]
+path = "string.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+
+[lints]
+workspace = true
+

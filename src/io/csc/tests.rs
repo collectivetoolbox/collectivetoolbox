@@ -3211,6 +3211,7 @@ mod csc_tests {
                 timestamps: 2,
                 permissions: 0,
                 flags: 0,
+                sparseness: 0,
             },
             best_effort: true,
             caveats: vec![
@@ -3283,6 +3284,106 @@ mod csc_tests {
         }
 
         // Clean up cache
+        clear_filesystem_cache();
+    }
+
+    #[crate::ctb_test]
+    fn test_sparse_verification_best_effort_filesystem_support() {
+        use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
+        use std::io::{Seek, SeekFrom, Write};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_sparse");
+        let dest = temp.path().join("dest_sparse");
+        let state = temp.path().join("state_sparse");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
+
+        let sparse_src = src.join("sparse.bin");
+        let mut f = fs::File::create(&sparse_src).expect("create sparse src");
+        f.write_all(b"Header").expect("write header");
+        let seek_pos = 1024_u64.saturating_mul(1024);
+        f.seek(SeekFrom::Start(seek_pos)).expect("seek 1MB");
+        f.write_all(b"Tail").expect("write tail");
+        f.sync_data().expect("sync sparse src");
+        drop(f);
+
+        let args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        run_csc(args).expect("run csc");
+        let journal_path = find_cscjournal(&state);
+
+        // Overwrite destination file with non-sparse zero bytes
+        let dest_file_path = dest.join("sparse.bin");
+        let mut df = fs::File::create(&dest_file_path).expect("recreate dest non-sparse");
+        df.write_all(b"Header").expect("write header");
+        let zeroes_len = 1024_usize.saturating_mul(1024).saturating_sub(6);
+        let zeroes = vec![0_u8; zeroes_len];
+        df.write_all(&zeroes).expect("write zeroes");
+        df.write_all(b"Tail").expect("write tail");
+        df.sync_data().expect("sync non-sparse dest");
+        drop(df);
+
+        let meta = fs::metadata(&dest).expect("read dest metadata");
+        let dev_id = extract_device_id(&meta).expect("dev id");
+
+        // 1. On known sparse filesystem (e.g. ext4):
+        set_cached_filesystem_info(dev_id, FilesystemInfo {
+            fs_type: "ext4".to_string(),
+            resolution_nsec: 1,
+        });
+
+        // Strict mode fails
+        let mut strict_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        strict_args.best_effort = false;
+        strict_args.strict = true;
+        let res = run_csc_verify(&strict_args).expect("verify strict");
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // Best-effort mode ALSO fails because ext4 supports sparse files
+        let mut be_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        be_args.best_effort = true;
+        be_args.strict = false;
+        let res = run_csc_verify(&be_args).expect("verify best_effort on ext4");
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // 2. On filesystem without sparse support (e.g. vfat):
+        set_cached_filesystem_info(dev_id, FilesystemInfo {
+            fs_type: "vfat".to_string(),
+            resolution_nsec: 2_000_000_000,
+        });
+
+        // Strict mode still fails
+        let res_vfat_strict = run_csc_verify(&strict_args).expect("verify strict on vfat");
+        if let ToolResult::Immediate { stdout, .. } = res_vfat_strict {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // Best-effort mode succeeds, tolerates lost hole, and emits caveat!
+        let res_vfat_be = run_csc_verify(&be_args).expect("verify best_effort on vfat");
+        if let ToolResult::Immediate { stdout, .. } = res_vfat_be {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(
+                out.contains("OK - Directory matches manifest in best-effort mode; ignored ")
+                    && out.contains("1 sparse file difference"),
+                "Unexpected report output: {out}"
+            );
+            assert!(
+                out.contains("1 sparse file difference (materialized without holes due to filesystem limitations)"),
+                "Expected caveat not found in report: {out}"
+            );
+        }
+
         clear_filesystem_cache();
     }
 }

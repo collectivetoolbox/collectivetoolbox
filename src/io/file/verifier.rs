@@ -299,12 +299,17 @@ pub struct IgnoredDifferences {
     pub timestamps: usize,
     pub permissions: usize,
     pub flags: usize,
+    pub sparseness: usize,
 }
 
 impl IgnoredDifferences {
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.ownership == 0 && self.timestamps == 0 && self.permissions == 0 && self.flags == 0
+        self.ownership == 0
+            && self.timestamps == 0
+            && self.permissions == 0
+            && self.flags == 0
+            && self.sparseness == 0
     }
 
     #[must_use]
@@ -313,6 +318,7 @@ impl IgnoredDifferences {
             .saturating_add(self.timestamps)
             .saturating_add(self.permissions)
             .saturating_add(self.flags)
+            .saturating_add(self.sparseness)
     }
 }
 
@@ -832,10 +838,22 @@ pub fn audit_entity_detailed(
             let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
             let expected_has_holes = is_sparse;
             if actual_has_holes != expected_has_holes {
-                diffs.push(DiffKind::SparseHoleMismatch {
-                    expected_has_holes,
-                    actual_has_holes,
-                });
+                if expected_has_holes && !actual_has_holes && options.best_effort {
+                    let fs_info = crate::file::filesystem::query_filesystem_info(path, &dest_meta);
+                    if fs_info.supports_sparse() != Some(true) {
+                        ignored.sparseness = ignored.sparseness.saturating_add(1);
+                    } else {
+                        diffs.push(DiffKind::SparseHoleMismatch {
+                            expected_has_holes,
+                            actual_has_holes,
+                        });
+                    }
+                } else {
+                    diffs.push(DiffKind::SparseHoleMismatch {
+                        expected_has_holes,
+                        actual_has_holes,
+                    });
+                }
             }
             file.seek(SeekFrom::Start(0))?;
         }
