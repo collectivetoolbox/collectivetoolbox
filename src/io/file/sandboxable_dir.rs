@@ -38,7 +38,7 @@ use crate::file::path_policy::{
 #[cfg(unix)]
 use rustix::fd::{AsFd, BorrowedFd, OwnedFd};
 #[cfg(unix)]
-use rustix::fs::{AtFlags, Mode, OFlags, linkat, mkdirat, open, openat, renameat, symlinkat, unlinkat};
+use rustix::fs::{AtFlags, Mode, OFlags, linkat, mkdirat, open, openat, renameat, statat, symlinkat, unlinkat};
 
 #[cfg(target_os = "linux")]
 use rustix::fs::{ResolveFlags, openat2};
@@ -430,18 +430,19 @@ impl SandboxableDir {
         Ok(())
     }
 
-    /// Creates a symbolic link directly inside `parent_dir_fd`.
+    /// Creates a symbolic link directly inside `parent_dir_fd`, using the provided
+    /// full destination `symlink_path` for policy validation and platform placement.
     #[cfg(unix)]
-    pub fn create_symlink(
+    pub fn create_symlink_at(
         &self,
         parent_dir_fd: &DirHandleRef<'_>,
         link_name: impl AsRef<std::ffi::OsStr>,
+        symlink_path: &Path,
         target_bytes: &[u8],
         policy: SymlinkValidationPolicy,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
-        let symlink_path = self.root_path.join(link_os);
-        validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
+        validate_symlink_target(&self.root_path, symlink_path, target_bytes, policy)?;
 
         let target_os = std::ffi::OsStr::from_bytes(target_bytes);
         replace_node_atomically(*parent_dir_fd, link_os, |temporary| {
@@ -456,37 +457,76 @@ impl SandboxableDir {
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`.
-    #[cfg(windows)]
+    #[cfg(unix)]
     pub fn create_symlink(
         &self,
-        _parent_dir_fd: &DirHandleRef<'_>,
+        parent_dir_fd: &DirHandleRef<'_>,
         link_name: impl AsRef<std::ffi::OsStr>,
         target_bytes: &[u8],
         policy: SymlinkValidationPolicy,
     ) -> Result<()> {
+        let symlink_path = self.root_path.join(link_name.as_ref());
+        self.create_symlink_at(parent_dir_fd, link_name, &symlink_path, target_bytes, policy)
+    }
+
+    /// Creates a symbolic link directly inside `parent_dir_fd`, using the provided
+    /// full destination `symlink_path` for policy validation and platform placement.
+    #[cfg(windows)]
+    pub fn create_symlink_at(
+        &self,
+        _parent_dir_fd: &DirHandleRef<'_>,
+        _link_name: impl AsRef<std::ffi::OsStr>,
+        symlink_path: &Path,
+        target_bytes: &[u8],
+        policy: SymlinkValidationPolicy,
+    ) -> Result<()> {
         use std::os::windows::fs::symlink_file;
-        let link_os = link_name.as_ref();
-        let symlink_path = self.root_path.join(link_os);
-        validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
+        validate_symlink_target(&self.root_path, symlink_path, target_bytes, policy)?;
 
         let target_str = std::str::from_utf8(target_bytes)
             .context("Target bytes are not valid UTF-8 on Windows")?;
         let target_path = PathBuf::from(target_str.replace('/', "\\"));
 
         if symlink_path.exists() || symlink_path.is_symlink() {
-            let _ = std::fs::remove_file(&symlink_path);
-            let _ = std::fs::remove_dir(&symlink_path);
+            let _ = std::fs::remove_file(symlink_path);
+            let _ = std::fs::remove_dir(symlink_path);
         }
 
         let is_dir = target_path.is_dir();
         if is_dir {
-            std::os::windows::fs::symlink_dir(&target_path, &symlink_path)
+            std::os::windows::fs::symlink_dir(&target_path, symlink_path)
                 .context("Failed to create directory symlink")?;
         } else {
-            symlink_file(&target_path, &symlink_path)
+            symlink_file(&target_path, symlink_path)
                 .context("Failed to create file symlink")?;
         }
         Ok(())
+    }
+
+    /// Creates a symbolic link directly inside `parent_dir_fd`.
+    #[cfg(windows)]
+    pub fn create_symlink(
+        &self,
+        parent_dir_fd: &DirHandleRef<'_>,
+        link_name: impl AsRef<std::ffi::OsStr>,
+        target_bytes: &[u8],
+        policy: SymlinkValidationPolicy,
+    ) -> Result<()> {
+        let symlink_path = parent_dir_fd.path.join(link_name.as_ref());
+        self.create_symlink_at(parent_dir_fd, link_name, &symlink_path, target_bytes, policy)
+    }
+
+    /// Creates a symbolic link directly inside `parent_dir_fd`.
+    #[cfg(not(any(unix, windows)))]
+    pub fn create_symlink_at(
+        &self,
+        _parent_dir_fd: &DirHandleRef<'_>,
+        _link_name: impl AsRef<std::ffi::OsStr>,
+        _symlink_path: &Path,
+        _target_bytes: &[u8],
+        _policy: SymlinkValidationPolicy,
+    ) -> Result<()> {
+        anyhow::bail!("Lossless symlink creation requires native link type metadata on this platform")
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`.
@@ -510,6 +550,13 @@ impl SandboxableDir {
         link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
+        if let Ok(dest_stat) = statat(*parent_dir_fd, link_os, AtFlags::SYMLINK_NOFOLLOW) {
+            if let Ok(target_stat) = statat(&self.root_fd, target_rel, AtFlags::SYMLINK_NOFOLLOW) {
+                if dest_stat.st_dev == target_stat.st_dev && dest_stat.st_ino == target_stat.st_ino {
+                    return Ok(());
+                }
+            }
+        }
         replace_node_atomically(*parent_dir_fd, link_os, |temporary| {
             linkat(
             &self.root_fd,
@@ -641,9 +688,10 @@ fn replace_node_atomically(
     let temporary = format!(".csc-node.{}.{}", std::process::id(), sequence);
     create(std::ffi::OsStr::new(&temporary))?;
     if let Err(error) = renameat(parent, &temporary, parent, name) {
-        unlinkat(parent, &temporary, AtFlags::empty()).context("Failed to clean up staged node")?;
+        let _ = unlinkat(parent, &temporary, AtFlags::empty());
         return Err(error).context("Failed to commit staged node");
     }
+    let _ = unlinkat(parent, &temporary, AtFlags::empty());
     rustix::fs::fsync(parent).context("Failed to sync node parent directory")?;
     Ok(())
 }

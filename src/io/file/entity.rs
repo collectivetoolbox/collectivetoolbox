@@ -454,12 +454,23 @@ impl FileEntity {
         base_dir: Option<&Path>,
         compute_hash: bool,
     ) -> Result<Self> {
-        let sym_meta = std::fs::symlink_metadata(path)
+        let mut sym_meta = std::fs::symlink_metadata(path)
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
 
-        let file_type = sym_meta.file_type();
-        let is_symlink = file_type.is_symlink();
+        let is_symlink = sym_meta.file_type().is_symlink();
+        let symlink_target = if is_symlink {
+            let target = std::fs::read_link(path)
+                .with_context(|| format!("Failed to read symlink target for {}", path.display()))?;
+            // Re-read symlink metadata after reading target so captured timestamps and native
+            // metadata accurately reflect any atime modification performed by readlink on Linux.
+            sym_meta = std::fs::symlink_metadata(path)
+                .with_context(|| format!("Failed to re-read metadata for {}", path.display()))?;
+            Some(target.as_os_str().as_encoded_bytes().to_vec())
+        } else {
+            None
+        };
 
+        let file_type = sym_meta.file_type();
         let fs_info = crate::file::filesystem::query_filesystem_info(path, &sym_meta);
 
         #[cfg(unix)]
@@ -584,12 +595,8 @@ impl FileEntity {
         let special_kind: Option<FileEntityKind> = None;
 
         // Determine entity kind
-        let kind = if file_type.is_symlink() {
-            let target = std::fs::read_link(path)
-                .with_context(|| format!("Failed to read symlink target for {}", path.display()))?;
-            FileEntityKind::Symlink {
-                target: target.as_os_str().as_encoded_bytes().to_vec(),
-            }
+        let kind = if let Some(target) = symlink_target {
+            FileEntityKind::Symlink { target }
         } else if file_type.is_dir() {
             // Check if directory is a macOS bundle (e.g. .app, .framework)
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {

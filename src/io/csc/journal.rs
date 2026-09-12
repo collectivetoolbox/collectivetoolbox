@@ -95,6 +95,7 @@ pub struct JournalWriter {
     uncommitted_entities: Vec<FileEntity>,
     total_committed_files: u64,
     total_committed_bytes: u64,
+    snapshot: Option<JournalSnapshot>,
 }
 
 impl JournalWriter {
@@ -132,6 +133,7 @@ impl JournalWriter {
             uncommitted_entities: Vec::new(),
             total_committed_files: 0,
             total_committed_bytes: 0,
+            snapshot: None,
         };
 
         jw.write_session_header(sources, destination)?;
@@ -195,6 +197,7 @@ impl JournalWriter {
             uncommitted_entities: Vec::new(),
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
+            snapshot: Some(snapshot.clone()),
         })
     }
 
@@ -300,6 +303,11 @@ impl JournalWriter {
     #[must_use]
     pub fn destination(&self) -> &Path {
         &self.destination
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> Option<&JournalSnapshot> {
+        self.snapshot.as_ref()
     }
 }
 

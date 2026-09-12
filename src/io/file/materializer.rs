@@ -384,9 +384,10 @@ pub fn materialize_entity(
             if options.strict_lossless && entity.metadata.timestamps.birthtime_sec.is_some() {
                 anyhow::bail!("Cannot reproduce symlink birth time on this platform");
             }
-            dest_dir.create_symlink(
+            dest_dir.create_symlink_at(
                 &parent_dir_fd.as_fd(),
                 &file_name,
+                &dest_path,
                 target,
                 options.symlink_policy,
             )?;
@@ -800,7 +801,7 @@ fn try_update_existing_regular_entity(
     #[cfg(not(unix))]
     return Ok(None);
     #[cfg(unix)]
-    if dest_meta.nlink() > 1 {
+    if dest_meta.nlink() > entity.identity.nlink {
         return Ok(None);
     }
 
@@ -915,18 +916,17 @@ fn try_update_existing_regular_entity(
     }
 
     // 8. File Flags: clear any conflicting flags (e.g. immutable) before updating metadata
-    if let Ok((current_flags, _)) = query_file_flags(dest_path, false) {
-        #[cfg(target_os = "linux")]
-        if !current_flags.is_empty() && entity.metadata.flags.is_empty() {
-            use rustix::fs::{IFlags, ioctl_setflags};
-            if let Ok(f) = std::fs::OpenOptions::new().write(true).open(dest_path) {
-                if let Err(err) = ioctl_setflags(&f, IFlags::empty()) {
-                    if options.strict_lossless {
-                        log_fmt!(
-                            "Warning: could not clear file flags for {}: {err}",
-                            dest_path.display()
-                        );
-                    }
+    let (dest_flags, dest_raw) = query_file_flags(dest_path, false).unwrap_or_default();
+    #[cfg(target_os = "linux")]
+    if !dest_flags.is_empty() {
+        use rustix::fs::{IFlags, ioctl_setflags};
+        if let Ok(f) = std::fs::OpenOptions::new().write(true).open(dest_path) {
+            if let Err(err) = ioctl_setflags(&f, IFlags::empty()) {
+                if options.strict_lossless {
+                    log_fmt!(
+                        "Warning: could not clear file flags for {}: {err}",
+                        dest_path.display()
+                    );
                 }
             }
         }
@@ -943,7 +943,11 @@ fn try_update_existing_regular_entity(
     )?;
 
     // 10. Apply final file flags
-    if !entity.metadata.flags.is_empty() || entity.metadata.platform_raw_flags.is_some() {
+    if !entity.metadata.flags.is_empty()
+        || entity.metadata.platform_raw_flags.is_some()
+        || !dest_flags.is_empty()
+        || dest_raw.is_some()
+    {
         apply_file_flags(
             dest_path,
             &entity.metadata.flags,

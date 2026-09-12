@@ -833,7 +833,7 @@ pub fn audit_entity_detailed(
             evict_fd_cache(&file);
         }
 
-        if options.check_sparse && is_sparse {
+        if options.check_sparse {
             let actual_extents = get_file_extents(&file, actual_size)?;
             let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
             let expected_has_holes = is_sparse;

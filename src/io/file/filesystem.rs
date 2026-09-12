@@ -79,8 +79,11 @@ pub fn query_filesystem_info(path: &Path, meta: &Metadata) -> FilesystemInfo {
     // directly would follow the target (failing on dangling symlinks) and modify
     // the symlink's atime on Linux.
     let query_path = if meta.file_type().is_symlink() {
-        // Reason for fallback: root symlink or path without parent directory queries the path itself
-        path.parent().unwrap_or(path)
+        // Reason for fallback: root symlink or path without non-empty parent directory falls back to current working directory "."
+        match path.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p,
+            _ => Path::new("."),
+        }
     } else {
         path
     };

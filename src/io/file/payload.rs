@@ -107,7 +107,13 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
                 }
                 break;
             }
-            Err(_e) => {
+            Err(e)
+                if current_offset == 0
+                    && (e == nix::errno::Errno::EINVAL
+                        || e == nix::errno::Errno::ENOTTY
+                        || e == nix::errno::Errno::EOPNOTSUPP
+                        || e == nix::errno::Errno::ENOSYS) =>
+            {
                 // Filesystem does not support SEEK_DATA/SEEK_HOLE, treat whole file as data
                 let u_size = u64::try_from(size_i64)?;
                 return Ok(vec![Extent::Data {
@@ -115,11 +121,15 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
                     length: u_size,
                 }]);
             }
+            Err(e) => {
+                return Err(e).context("Failed querying file data extents via SEEK_DATA");
+            }
         };
 
-        if next_data > current_offset {
+        let next_data_clamped = next_data.min(size_i64);
+        if next_data_clamped > current_offset {
             // Hole between current_offset and next_data
-            let hole_len = next_data.saturating_sub(current_offset);
+            let hole_len = next_data_clamped.saturating_sub(current_offset);
             let u_hole_len = u64::try_from(hole_len)?;
             let u_curr = u64::try_from(current_offset)?;
             extents.push(Extent::Hole {
@@ -128,16 +138,28 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
             });
         }
 
+        if next_data >= size_i64 {
+            break;
+        }
+
         // Query next hole offset
         let next_hole = match lseek(fd, next_data, Whence::SeekHole) {
             Ok(off) => off,
-            Err(_) => size_i64,
+            Err(nix::errno::Errno::ENXIO) => size_i64,
+            Err(e) => {
+                return Err(e).context("Failed querying file hole extents via SEEK_HOLE");
+            }
         };
         let end_of_data = if next_hole > size_i64 {
             size_i64
         } else {
             next_hole
         };
+
+        anyhow::ensure!(
+            end_of_data > current_offset,
+            "SEEK_DATA/SEEK_HOLE failed to make forward progress from offset {current_offset}"
+        );
 
         let data_len = end_of_data.saturating_sub(next_data);
         let u_data_len = u64::try_from(data_len)?;
@@ -190,11 +212,37 @@ pub struct DiskPayloadSource {
 impl DiskPayloadSource {
     /// Opens an on-disk file and maps its sparse extents.
     pub fn open(path: &Path) -> Result<Self> {
-        let file = File::open(path)
+        let mut file = File::open(path)
             .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
         let meta = file.metadata()?;
-        let size = meta.len();
-        let extents = get_file_extents(&file, size)?;
+        #[cfg(unix)]
+        let is_block_device = {
+            use std::os::unix::fs::FileTypeExt;
+            meta.file_type().is_block_device()
+        };
+        #[cfg(not(unix))]
+        let is_block_device = false;
+
+        let size = if is_block_device {
+            query_block_device_size(&file)?
+        } else {
+            meta.len()
+        };
+
+        let extents = if is_block_device {
+            if size > 0 {
+                vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }]
+            } else {
+                Vec::new()
+            }
+        } else {
+            get_file_extents(&file, size)?
+        };
+
+        file.seek(SeekFrom::Start(0))?;
 
         Ok(Self {
             path: path.to_path_buf(),

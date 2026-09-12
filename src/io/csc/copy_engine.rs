@@ -105,6 +105,18 @@ pub fn execute_copy_pipeline(
     crate::path_resolution::validate_task_overlap(tasks)?;
     let mut stats = CopyStats::default();
     let mut hardlink_map: HashMap<(u64, u64), PathBuf> = HashMap::new();
+    if let Some(snap) = journal.snapshot() {
+        for entity in snap.committed_entities.values() {
+            if entity.identity.nlink > 1 && entity.is_regular() {
+                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+                    let dest_path = journal.destination().join(&entity.identity.relative_path);
+                    if dest_path.exists() {
+                        hardlink_map.insert((key.device_id, key.inode), dest_path);
+                    }
+                }
+            }
+        }
+    }
     let mut deferred_dirs: Vec<DeferredDirFixup> = Vec::new();
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
@@ -118,9 +130,10 @@ pub fn execute_copy_pipeline(
     let mut uncommitted_count: usize = 0;
     let copy_task = progress.start_task("Copying", None);
 
+    let strict_lossless = !args.best_effort_metadata && !args.allow_unknown_fs;
     let options = MaterializeOptions {
         dry_run: args.dry_run,
-        strict_lossless: !args.best_effort_metadata,
+        strict_lossless,
         symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
         path_policy: PathTraversalPolicy::StrictSandboxed,
         copy_specials: args.copy_specials_as_specials,
@@ -356,19 +369,19 @@ pub fn execute_copy_pipeline(
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
                 verify_directory_filenames_exact(&fixup.dest_path, &expected_refs)?;
 
-                write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, !args.best_effort_metadata)?;
+                write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)?;
                 apply_entity_metadata(
                     &fixup.dest_path,
                     None,
                     &fixup.dir_entity.metadata,
                     false,
                     true,
-                    !args.best_effort_metadata,
+                    strict_lossless,
                 )?;
                 verify_materialized_entity_ext(
                     &fixup.dest_path,
                     &fixup.dir_entity,
-                    !args.best_effort_metadata,
+                    strict_lossless,
                     args.should_check_atime(),
                     args.should_check_ctime(),
                 )?;
@@ -406,7 +419,7 @@ pub fn execute_copy_pipeline(
             verify_materialized_entity_ext(
                 dest_path,
                 entity,
-                !args.best_effort_metadata,
+                strict_lossless,
                 args.should_check_atime(),
                 args.should_check_ctime(),
             )?;
@@ -469,15 +482,22 @@ fn copy_single_item(
         };
 
         if let Some(first_target_rel) = hardlink_map.get(&key) {
-            let original_entity = entity.clone();
-            entity.kind = FileEntityKind::Hardlink {
-                target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
-            };
-            materialize_entity(&entity, None, dest_dir, options)?;
-            stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
-            record_journal_entry(journal, dest_path, &entity)?;
-            files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), original_entity));
-            return Ok(true);
+            let this_full_path = dest_dir.root_path().join(&entity.identity.relative_path);
+            let is_self = dest_path == first_target_rel
+                || this_full_path == *first_target_rel
+                || std::fs::canonicalize(dest_path).ok().as_deref()
+                    == std::fs::canonicalize(first_target_rel).ok().as_deref();
+            if !is_self {
+                let original_entity = entity.clone();
+                entity.kind = FileEntityKind::Hardlink {
+                    target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
+                };
+                materialize_entity(&entity, None, dest_dir, options)?;
+                stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
+                record_journal_entry(journal, dest_path, &entity)?;
+                files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), original_entity));
+                return Ok(true);
+            }
         }
     }
 
@@ -646,7 +666,8 @@ fn record_journal_entry(
     journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
         let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
-        let journal_root = std::fs::canonicalize(journal.destination())?;
+        let journal_root = std::fs::canonicalize(journal.destination())
+            .unwrap_or_else(|_| journal.destination().to_path_buf());
         *target_relative_path = compute_journal_relative_path(&journal_root, &target)
             .as_os_str().as_encoded_bytes().to_vec();
     }
