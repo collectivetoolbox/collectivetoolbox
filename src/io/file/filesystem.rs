@@ -153,22 +153,50 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
 }
 
 #[cfg(target_os = "linux")]
-fn statfs_f_type_to_u64(f_type: libc::__fsword_t) -> u64 {
-    if let Ok(val) = u64::try_from(f_type) {
-        val
-    } else {
-        let bytes = f_type.to_ne_bytes();
-        if bytes.len() == 4 {
-            if let Ok(b4) = <[u8; 4]>::try_from(bytes.as_slice()) {
-                return u64::from(u32::from_ne_bytes(b4));
-            }
-        }
-        if let Ok(b8) = <[u8; 8]>::try_from(bytes.as_slice()) {
-            let raw = u64::from_ne_bytes(b8);
-            return raw & 0xFFFF_FFFF;
-        }
-        0
+trait StatfsFType {
+    fn to_u64(self) -> u64;
+}
+
+#[cfg(target_os = "linux")]
+impl StatfsFType for i32 {
+    fn to_u64(self) -> u64 {
+        u64::from(u32::from_ne_bytes(self.to_ne_bytes()))
     }
+}
+
+#[cfg(target_os = "linux")]
+impl StatfsFType for u32 {
+    fn to_u64(self) -> u64 {
+        u64::from(self)
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl StatfsFType for i64 {
+    fn to_u64(self) -> u64 {
+        let raw = u64::from_ne_bytes(self.to_ne_bytes());
+        if raw > 0xFFFF_FFFF && (raw & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000) {
+            raw & 0xFFFF_FFFF
+        } else {
+            raw
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl StatfsFType for u64 {
+    fn to_u64(self) -> u64 {
+        if self > 0xFFFF_FFFF && (self & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000) {
+            self & 0xFFFF_FFFF
+        } else {
+            self
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn statfs_f_type_to_u64<T: StatfsFType>(f_type: T) -> u64 {
+    f_type.to_u64()
 }
 
 #[cfg(target_os = "linux")]

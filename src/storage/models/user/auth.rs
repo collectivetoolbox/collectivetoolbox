@@ -26,7 +26,9 @@ use crate::utilities::password::Password;
 use anyhow::Result;
 use argon2::Argon2;
 use argon2::password_hash::rand_core::OsRng;
-use argon2::password_hash::{PasswordHash, SaltString};
+#[cfg(any(debug_assertions, test))]
+use argon2::password_hash::PasswordHash;
+use argon2::password_hash::SaltString;
 use serde::{Deserialize, Serialize};
 use zeroize::ZeroizeOnDrop;
 
@@ -57,7 +59,7 @@ pub fn derive_kek(password: &Password) -> Result<(Vec<u8>, KekParams)> {
         if password.password == crate::user::TEST_USER_PASS.as_bytes() {
             // Hardcoded PHC string
 
-            use crate::user::TEST_USER_PHC;
+            use crate::utilities::password::TEST_USER_PHC;
             let parsed = PasswordHash::new(TEST_USER_PHC)
                 .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
             let salt_bytes = &mut [0u8; 16];
@@ -133,7 +135,7 @@ pub fn derive_kek_with_params(
     #[cfg(any(debug_assertions, test))]
     {
         if password.password == crate::user::TEST_USER_PASS.as_bytes() {
-            let parsed = PasswordHash::new(crate::user::TEST_USER_PHC)
+            let parsed = PasswordHash::new(crate::utilities::password::TEST_USER_PHC)
                 .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
             let hash = parsed
                 .hash
