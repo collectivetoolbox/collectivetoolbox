@@ -550,6 +550,7 @@ impl DirTraverser {
             let root_meta = std::fs::symlink_metadata(&self.root).with_context(|| {
                 format!("Failed to read metadata for root: {}", self.root.display())
             })?;
+            // Reason for fallback: root path without a file name component defaults to empty OsString
             let file_name = self
                 .root
                 .file_name()
@@ -709,6 +710,7 @@ impl DirTraverser {
                         }
                     };
 
+                    // Reason for fallback: path without a file name component defaults to empty OsString
                     let file_name = abs_path
                         .file_name()
                         .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
@@ -805,7 +807,9 @@ fn extract_inode_key(meta: &Metadata) -> Option<InodeKey> {
     }
     #[cfg(windows)]
     {
+        // Reason for fallback: when Windows volume serial number is unavailable, default device ID to 0
         let dev = meta.volume_serial_number().map_or(0_u64, u64::from);
+        // Reason for fallback: when Windows file index is unavailable, default inode to 0
         let ino = meta.file_index().unwrap_or(0_u64);
         Some(InodeKey {
             device_id: dev,

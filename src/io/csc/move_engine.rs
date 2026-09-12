@@ -63,6 +63,35 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     };
 
     for task in &tasks {
+        if !args.best_effort_metadata && !args.allow_unknown_fs {
+            if let Ok(src_meta) = std::fs::symlink_metadata(&task.source_root) {
+                let src_fs = ctb_io::file::query_filesystem_info(&task.source_root, &src_meta);
+                if src_fs.fs_type == "unknown" {
+                    anyhow::bail!(
+                        "Cannot detect filesystem type for source '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
+                        task.source_root.display()
+                    );
+                }
+            }
+            let tgt_existing = if task.target_root.exists() {
+                task.target_root.clone()
+            } else {
+                match ctb_io::file::resolve_existing_ancestors(&task.target_root) {
+                    Ok(ancestor) => ancestor,
+                    Err(_) => PathBuf::from("."),
+                }
+            };
+            if let Ok(tgt_meta) = std::fs::symlink_metadata(&tgt_existing) {
+                let tgt_fs = ctb_io::file::query_filesystem_info(&tgt_existing, &tgt_meta);
+                if tgt_fs.fs_type == "unknown" {
+                    anyhow::bail!(
+                        "Cannot detect filesystem type for destination '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
+                        task.target_root.display()
+                    );
+                }
+            }
+        }
+
         if args.dry_run {
             progress.message(&format!(
                 "[Dry run] Move {} -> {}",
@@ -119,7 +148,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     copy_specials_as_specials: true,
                     copy_block_devices_as_regular_files: false,
                     one_file_system: false,
-                    best_effort_metadata: false,
+                    best_effort_metadata: args.best_effort_metadata,
+                    allow_unknown_fs: args.allow_unknown_fs,
                     check_atime: false,
                     check_ctime: false,
                     strict: false,

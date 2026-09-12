@@ -65,6 +65,7 @@ pub fn query_filesystem_info(path: &Path, meta: &Metadata) -> FilesystemInfo {
     // directly would follow the target (failing on dangling symlinks) and modify
     // the symlink's atime on Linux.
     let query_path = if meta.file_type().is_symlink() {
+        // Reason for fallback: root symlink or path without parent directory queries the path itself
         path.parent().unwrap_or(path)
     } else {
         path
@@ -91,7 +92,23 @@ pub fn query_filesystem_resolution(path: &Path, meta: &Metadata) -> u32 {
     query_filesystem_info(path, meta).resolution_nsec
 }
 
-fn extract_device_id(meta: &Metadata) -> Option<u64> {
+/// Overrides cached filesystem info for a device/volume ID.
+pub fn set_cached_filesystem_info(dev_id: u64, info: FilesystemInfo) {
+    if let Ok(mut cache) = FS_CACHE.write() {
+        cache.insert(dev_id, info);
+    }
+}
+
+/// Clears the cached filesystem info.
+pub fn clear_filesystem_cache() {
+    if let Ok(mut cache) = FS_CACHE.write() {
+        cache.clear();
+    }
+}
+
+/// Extracts device/volume identifier from file metadata if available.
+#[must_use]
+pub fn extract_device_id(meta: &Metadata) -> Option<u64> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
@@ -160,7 +177,7 @@ trait StatfsFType {
 #[cfg(target_os = "linux")]
 impl StatfsFType for i32 {
     fn to_u64(self) -> u64 {
-        u64::from(u32::from_ne_bytes(self.to_ne_bytes()))
+        u64::from(u32::from_le_bytes(self.to_le_bytes()))
     }
 }
 
@@ -174,7 +191,7 @@ impl StatfsFType for u32 {
 #[cfg(target_os = "linux")]
 impl StatfsFType for i64 {
     fn to_u64(self) -> u64 {
-        let raw = u64::from_ne_bytes(self.to_ne_bytes());
+        let raw = u64::from_le_bytes(self.to_le_bytes());
         if raw > 0xFFFF_FFFF && (raw & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000) {
             raw & 0xFFFF_FFFF
         } else {
@@ -329,6 +346,7 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
     let fs_name_ptr = stat.f_fstypename.as_ptr().cast::<libc::c_char>();
     // SAFETY: f_fstypename is a null-terminated C string in statfs.
     let fs_name = unsafe { std::ffi::CStr::from_ptr(fs_name_ptr) };
+    // Reason for fallback: non-UTF8 filesystem name from statfs defaults to "unknown"
     let fs_str = fs_name.to_str().unwrap_or("unknown");
     map_bsd_fstype(fs_str)
 }
@@ -430,6 +448,7 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
         };
     }
 
+    // Reason for fallback: Windows volume buffer lacking null terminator uses full buffer length
     let len = fs_name_buf.iter().position(|&c| c == 0).unwrap_or(fs_name_buf.len());
     let fs_name = String::from_utf16_lossy(&fs_name_buf[..len]);
     map_windows_fstype(&fs_name)

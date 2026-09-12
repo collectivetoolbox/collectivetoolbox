@@ -266,20 +266,25 @@ impl DarwinAcl {
                     || parts.get(3).copied() == Some("deny"))
             {
                 // Format: tag:uuid:name:allow/deny:permissions[:flags]
+                // Reason for fallback: optional name or uuid field in Darwin ACL entry defaults to empty string
                 let qual = format!(
                     "{}:{}",
                     parts.get(1).unwrap_or(&""),
                     parts.get(2).unwrap_or(&"")
                 );
                 let allow = parts.get(3).copied() == Some("allow");
+                // Reason for fallback: missing permission field in Darwin ACL entry defaults to empty string
                 let perms = parts.get(4).unwrap_or(&"");
+                // Reason for fallback: optional inheritance flags default to empty string
                 let flags = parts.get(5).unwrap_or(&"");
                 (qual, allow, *perms, *flags)
             } else {
                 // Format: tag:qualifier:allow/deny:permissions[:flags]
                 let qual = (*parts.get(1).context("Missing qualifier")?).to_owned();
                 let allow = parts.get(2).copied() == Some("allow");
+                // Reason for fallback: missing permission field in Darwin ACL entry defaults to empty string
                 let perms = parts.get(3).unwrap_or(&"");
+                // Reason for fallback: optional inheritance flags default to empty string
                 let flags = parts.get(4).unwrap_or(&"");
                 (qual, allow, *perms, *flags)
             };
@@ -684,7 +689,8 @@ pub(crate) fn capture_bsd_acl_metadata(
         }
 
         if let Ok(parsed) = DarwinAcl::parse_text(&text) {
-            let count = u64::try_from(parsed.entries.len()).unwrap_or(0);
+            let count = u64::try_from(parsed.entries.len())
+                .context("Failed to convert entry count to u64")?;
             values.insert(
                 "acl.darwin.entry_count".to_owned(),
                 NativeMetadataValue::Unsigned(count),

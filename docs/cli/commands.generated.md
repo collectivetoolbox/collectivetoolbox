@@ -337,6 +337,8 @@ Options:
           Stay on the current filesystem and do not cross mount boundaries
       --best-effort-metadata
           Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
+      --allow-unknown-fs
+          Allow operation even if the filesystem type cannot be detected
       --check-atime
           Explicitly check access time (atime) differences in post-copy verification
       --check-ctime
@@ -394,6 +396,8 @@ Options:
           Stay on the current filesystem and do not cross mount boundaries
       --best-effort-metadata
           Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
+      --allow-unknown-fs
+          Allow operation even if the filesystem type cannot be detected
       --check-atime
           Explicitly check access time (atime) differences in post-copy verification
       --check-ctime
@@ -1337,6 +1341,7 @@ Options:
       --verify-after          Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
       --no-verify-after       Skip the post-flush verification pass on cross-device moves
       --best-effort-metadata  Relax strict metadata requirements when cross-device copy occurs
+      --allow-unknown-fs      Allow operation even if the filesystem type cannot be detected
   -f, --force                 Force overwrite destination without prompt (accepted for mv compatibility)
   -n, --dry-run               Perform a dry run without moving or deleting files
   -h, --help                  Print help

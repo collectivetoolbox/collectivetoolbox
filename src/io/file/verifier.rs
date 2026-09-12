@@ -569,6 +569,7 @@ pub fn audit_entity_detailed(
     #[cfg(unix)]
     {
         let dest_res = crate::filesystem::query_filesystem_resolution(path, &dest_meta);
+        // Reason for fallback: unspecified timestamp resolution defaults to 0 nanosecond tolerance
         let tolerance_nsec = dest_res.max(expected.metadata.timestamps.resolution_nsec.unwrap_or(0));
 
         let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
@@ -967,6 +968,7 @@ pub(crate) fn is_timestamp_acceptable_best_effort(
     tolerance_nsec: u32,
 ) -> bool {
     let sec_diff = actual_sec.saturating_sub(expected_sec);
+    // Reason for fallback: division calculation overflow fallback defaults to 2 seconds
     let sec_tol = i64::from(
         tolerance_nsec
             .saturating_add(999_999_999)

@@ -115,6 +115,10 @@ pub struct CscArgs {
     #[arg(long)]
     pub best_effort_metadata: bool,
 
+    /// Allow operation even if the filesystem type cannot be detected.
+    #[arg(long)]
+    pub allow_unknown_fs: bool,
+
     /// Explicitly check access time (atime) differences in post-copy verification.
     #[arg(long)]
     pub check_atime: bool,
@@ -659,6 +663,10 @@ pub struct MvArgs {
     /// Relax strict metadata requirements when cross-device copy occurs.
     #[arg(long)]
     pub best_effort_metadata: bool,
+
+    /// Allow operation even if the filesystem type cannot be detected.
+    #[arg(long)]
+    pub allow_unknown_fs: bool,
 
     /// Force overwrite destination without prompt (accepted for mv compatibility).
     #[arg(short = 'f', long = "force")]

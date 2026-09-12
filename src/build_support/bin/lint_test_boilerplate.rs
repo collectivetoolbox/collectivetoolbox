@@ -70,8 +70,14 @@ impl<'ast> Visit<'ast> for TestModuleVisitor<'_> {
     fn visit_item_mod(&mut self, item_mod: &'ast syn::ItemMod) {
         let is_tests_ident = item_mod.ident == "tests";
         let has_cfg_test = item_mod.attrs.iter().any(|attr| {
-            if attr.path().is_ident("cfg") {
-                return attr.meta.to_token_stream().to_string().contains("test");
+            if attr.path().is_ident("cfg")
+                && let syn::Meta::List(ref list) = attr.meta
+            {
+                let s = list.tokens.to_string();
+                if is_tests_ident {
+                    return s.contains("test");
+                }
+                return s.trim() == "test";
             }
             false
         });
@@ -97,8 +103,13 @@ impl TestModuleVisitor<'_> {
         let mut missing_lints = Vec::new();
 
         for attr in &item_mod.attrs {
-            if attr.path().is_ident("cfg") && attr.meta.to_token_stream().to_string().contains("test") {
-                cfg_span = Some((attr.span().start().line, attr.span().end().line));
+            if attr.path().is_ident("cfg")
+                && let syn::Meta::List(ref list) = attr.meta
+            {
+                let s = list.tokens.to_string();
+                if (item_mod.ident == "tests" && s.contains("test")) || s.trim() == "test" {
+                    cfg_span = Some((attr.span().start().line, attr.span().end().line));
+                }
             } else if attr.path().is_ident("allow") || attr.path().is_ident("expect") {
                 let attr_tokens = attr.to_token_stream().to_string();
                 if attr_tokens.contains("Standard repository test boilerplate")

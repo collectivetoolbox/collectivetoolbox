@@ -381,8 +381,12 @@ pub fn split_camel_case(s: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut start = 0;
     for i in 1..len {
-        let prev = chars.get(i.saturating_sub(1)).copied().unwrap_or('\0');
-        let curr = chars.get(i).copied().unwrap_or('\0');
+        let Some(&prev) = chars.get(i.saturating_sub(1)) else {
+            continue;
+        };
+        let Some(&curr) = chars.get(i) else {
+            continue;
+        };
         let next = chars.get(i.saturating_add(1)).copied();
 
         let is_lower_to_upper = prev.is_lowercase() && curr.is_uppercase();

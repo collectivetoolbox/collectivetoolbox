@@ -167,6 +167,7 @@ pub(crate) fn validate_task_overlap(tasks: &[ResolvedCopyTask]) -> Result<()> {
 )]
 mod tests {
     use super::*;
+    use std::path::Path;
     use tempfile::tempdir;
 
     #[crate::ctb_test]

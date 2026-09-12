@@ -99,6 +99,7 @@ mod csc_tests {
             copy_block_devices_as_regular_files: false,
             one_file_system: false,
             best_effort_metadata: true,
+            allow_unknown_fs: false,
             check_atime: false,
             check_ctime: false,
             strict: false,
@@ -2495,6 +2496,7 @@ mod csc_tests {
             verify_after: true,
             no_verify_after: false,
             best_effort_metadata: false,
+            allow_unknown_fs: false,
             force: false,
             dry_run: false,
         };
@@ -2533,6 +2535,7 @@ mod csc_tests {
             verify_after: true,
             no_verify_after: false,
             best_effort_metadata: false,
+            allow_unknown_fs: false,
             force: false,
             dry_run: false,
         };
@@ -2591,7 +2594,7 @@ mod csc_tests {
             paths: vec![source.join(""), destination.clone()],
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
-            best_effort_metadata: false, force: false, dry_run: false,
+            best_effort_metadata: false, allow_unknown_fs: false, force: false, dry_run: false,
         });
         if result.is_ok() {
             assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
@@ -3221,6 +3224,66 @@ mod csc_tests {
         assert!(!out3.contains("Directory matches manifest perfectly"));
         assert!(out3.contains("Caveats:"));
         assert!(out3.contains("ignored 2 timestamp differences"));
+    }
+
+    #[crate::ctb_test]
+    fn test_unknown_filesystem_error_and_allow_flags() {
+        use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+        fs::write(src.join("file.txt"), b"data").expect("write file");
+
+        let meta = fs::metadata(&src).expect("read src metadata");
+        let dev_id = extract_device_id(&meta).expect("dev id");
+
+        // Simulate unknown filesystem
+        set_cached_filesystem_info(dev_id, FilesystemInfo {
+            fs_type: "unknown".to_string(),
+            resolution_nsec: 1,
+        });
+
+        // 1. Without best-effort-metadata and without allow-unknown-fs -> should error
+        let mut args = default_test_args(vec![src.clone(), dest.clone()], state.clone());
+        args.best_effort_metadata = false;
+        args.allow_unknown_fs = false;
+        match crate::cli::run_csc(args) {
+            Err(err) => {
+                assert!(err.to_string().contains("Cannot detect filesystem type"));
+            }
+            Ok(_) => panic!("Expected error when filesystem is unknown"),
+        }
+
+        // 2. With allow-unknown-fs -> should succeed
+        let dest2 = temp.path().join("dest2");
+        let state2 = temp.path().join("state2");
+        fs::create_dir_all(&state2).expect("create state2");
+        let mut args2 = default_test_args(vec![src.clone(), dest2], state2);
+        args2.best_effort_metadata = false;
+        args2.allow_unknown_fs = true;
+        match crate::cli::run_csc(args2) {
+            Ok(_) => {}
+            Err(e) => panic!("run_csc failed with allow_unknown_fs: {e:?}"),
+        }
+
+        // 3. With best-effort-metadata -> should succeed
+        let dest3 = temp.path().join("dest3");
+        let state3 = temp.path().join("state3");
+        fs::create_dir_all(&state3).expect("create state3");
+        let mut args3 = default_test_args(vec![src.clone(), dest3], state3);
+        args3.best_effort_metadata = true;
+        args3.allow_unknown_fs = false;
+        match crate::cli::run_csc(args3) {
+            Ok(_) => {}
+            Err(e) => panic!("run_csc failed with best_effort_metadata: {e:?}"),
+        }
+
+        // Clean up cache
+        clear_filesystem_cache();
     }
 }
 

@@ -118,10 +118,43 @@ enumerated.
 - Crash durability depends on filesystem and storage behavior. Successful fsync
   is not proof against hardware faults; no power-failure injection was performed.
 - POSIX ctime is captured but is not generally assignable. Sparse verification
-  checks hole presence, not identical physical allocation.
+  checks hole presence, not identical physical allocation. * see below
 
 ## Validation
 
 Run `cargo test -p ctb-io-file -p ctb-io-csc --lib` for regression coverage.
 Compile Windows file tests with
 `cargo test -p ctb-io-file --lib --no-run --target x86_64-pc-windows-gnu`.
+
+
+## * Is Requiring Identical Holes or Allocation a Good Revision?
+
+#### A. Identical Physical Allocation: **No**
+Physical allocation refers to the underlying on-disk blocks (e.g. disk LBAs, physical cluster addresses, or allocation group extents queried via `FIEMAP`/`FIBMAP`).
+- Two distinct files on disk (or across two filesystems/drives) will virtually **never** have identical physical block addresses.
+- Physical allocation is internal to the underlying block layer and filesystem driver.
+
+#### B. Strict 1:1 Logical Hole Extents (`actual_extents == expected_extents`): **Generally No (with caveats)**
+Enforcing exact matching of extent boundaries (`actual_extents == expected_extents`) as a hard verification check creates significant issues across real-world filesystems:
+
+1. **Filesystem Block Size / Cluster Size Differences**:
+   - Ext4 defaults to 4 KiB blocks; XFS or ZFS may use 16 KiB, 64 KiB, or variable record sizes; FAT32/exFAT/NTFS use varying cluster sizes.
+   - A 4 KiB hole created on ext4 cannot physically exist as a hole on a filesystem formatted with 64 KiB blocks—the destination filesystem must either allocate the block and write zeroes or merge it into adjacent extents.
+2. **Unaligned Hole Boundaries**:
+   - Filesystems can only punch holes on filesystem block boundaries. If an application created a hole that does not start and end on block boundaries, the unaligned boundary bytes must be backed by allocated data blocks containing zeroes.
+3. **Extent Coalescing and Delayed Allocation (`delalloc`)**:
+   - Modern filesystems (Btrfs, XFS, Ext4) dynamically merge adjacent extents or hold unwritten/delayed allocations in cache. The extent map reported immediately after writes or `sync` can differ in extent counts and splits from the source without any change to the logical file.
+4. **Target Filesystem Without Sparse Support**:
+   - If copying to a target filesystem that does not support sparse files (e.g., FAT32, ISO9660, or certain SMB/NFS mounts), seeking past a hole will materialize as physical zeroes upon sync. The SHA-256 content verification will pass (all bytes match), but strict extent verification would fail.
+
+---
+
+### Conclusion & Possible Incremental Improvements
+
+The existing architecture already tracks and reproduces holes during read and materialization. Strict extent equality during verification would lead to false-positive verification errors whenever copying across different block sizes or filesystem types.
+
+If you want to improve sparse verification without causing false positives:
+- **Hole containment check (relaxed verification)**: Verify that any hole on the destination is contained within the expected hole ranges of the source, rather than expecting identical extent boundaries.
+- **Space-saving sanity check**: Check that `stat.st_blocks` on the destination is smaller than the logical size if the source was sparse and the target filesystem is known to support sparse files.
+
+(I think it's probably fine to accept just a check that it's sparse.)

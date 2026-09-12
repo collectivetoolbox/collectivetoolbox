@@ -77,6 +77,25 @@ struct DeferredDirFixup {
 }
 
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
+fn validate_filesystem_known(path: &Path, fs_type: Option<&str>, args: &CscArgs) -> Result<()> {
+    if !args.best_effort_metadata && !args.allow_unknown_fs {
+        if let Some(fs) = fs_type {
+            if fs == "unknown" {
+                anyhow::bail!(
+                    "Cannot detect filesystem type for '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
+                    path.display()
+                );
+            }
+        } else {
+            anyhow::bail!(
+                "Cannot detect filesystem type for '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
+                path.display()
+            );
+        }
+    }
+    Ok(())
+}
+
 pub fn execute_copy_pipeline(
     tasks: &[ResolvedCopyTask],
     args: &CscArgs,
@@ -122,6 +141,22 @@ pub fn execute_copy_pipeline(
             }
         };
 
+        let src_fs = ctb_io::file::query_filesystem_info(src_root, &src_meta);
+        validate_filesystem_known(src_root, Some(&src_fs.fs_type), args)?;
+
+        let tgt_existing = if tgt_root.exists() {
+            tgt_root.clone()
+        } else {
+            match ctb_io::file::resolve_existing_ancestors(tgt_root) {
+                Ok(ancestor) => ancestor,
+                Err(_) => PathBuf::from("."),
+            }
+        };
+        if let Ok(tgt_meta) = std::fs::symlink_metadata(&tgt_existing) {
+            let tgt_fs = ctb_io::file::query_filesystem_info(&tgt_existing, &tgt_meta);
+            validate_filesystem_known(tgt_root, Some(&tgt_fs.fs_type), args)?;
+        }
+
         if src_meta.is_dir() {
             let dest_dir = if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?
@@ -134,6 +169,7 @@ pub fn execute_copy_pipeline(
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
                 let dir_entity = FileEntity::from_filesystem(&curr_src, Some(src_root))?;
+                validate_filesystem_known(&curr_src, dir_entity.metadata.filesystem_type.as_deref(), args)?;
 
                 if !args.dry_run {
                     dest_dir.ensure_dir_all(
@@ -178,6 +214,7 @@ pub fn execute_copy_pipeline(
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         let mut sym_entity =
                             FileEntity::from_filesystem(&entry_src, Some(src_root))?;
+                        validate_filesystem_known(&entry_src, sym_entity.metadata.filesystem_type.as_deref(), args)?;
                         sym_entity.identity.relative_path = entry_rel;
                         sym_entity.identity.raw_relative_path =
                             sym_entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
@@ -245,6 +282,7 @@ pub fn execute_copy_pipeline(
 
             if src_meta.is_symlink() {
                 let mut sym_entity = FileEntity::from_filesystem(src_root, None)?;
+                validate_filesystem_known(src_root, sym_entity.metadata.filesystem_type.as_deref(), args)?;
                 sym_entity.identity.relative_path = target_rel_path.to_path_buf();
                 sym_entity.identity.raw_relative_path =
                     target_file_name.as_encoded_bytes().to_vec();
@@ -412,6 +450,7 @@ fn copy_single_item(
 ) -> Result<bool> {
     // 2. Discover full entity from filesystem
     let mut entity = FileEntity::from_filesystem(src_path, None)?;
+    validate_filesystem_known(src_path, entity.metadata.filesystem_type.as_deref(), args)?;
     entity.identity.relative_path = dest_rel_path.to_path_buf();
     entity.identity.raw_relative_path = dest_rel_path.as_os_str().as_encoded_bytes().to_vec();
     if let Some(fname) = dest_rel_path.file_name() {
