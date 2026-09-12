@@ -461,7 +461,13 @@ impl FileEntity {
                 u32::try_from(sym_meta.mtime_nsec())
                     .context("Failed to convert mtime nanoseconds to u32")?,
             );
-            let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+            let after_read = std::fs::symlink_metadata(path)
+                .with_context(|| format!("Failed to query symlink metadata for {}", path.display()))?;
+            if after_read.atime() != orig_atime.unix_seconds()
+                || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds())
+            {
+                let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+            }
             Some(target.as_os_str().as_encoded_bytes().to_vec())
         } else {
             None
@@ -703,7 +709,13 @@ impl FileEntity {
                 metadata.timestamps.mtime_sec,
                 metadata.timestamps.mtime_nsec,
             );
-            let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+            if let Ok(after_streams) = std::fs::symlink_metadata(path) {
+                if after_streams.atime() != orig_atime.unix_seconds()
+                    || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
+                {
+                    let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+                }
+            }
         }
 
         Ok(Self {
