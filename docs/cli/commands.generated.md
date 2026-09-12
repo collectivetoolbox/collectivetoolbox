@@ -318,9 +318,9 @@ Options:
   -v, --verbose
           Verbose output showing each file copied and verified
       --progress
-          Display real-time progress indicators (default: enabled)
+          Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
       --no-progress
-          Disable progress display
+          Disable progress display unconditionally
       --verify-after
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
@@ -373,9 +373,9 @@ Options:
   -v, --verbose
           Verbose output showing each file copied and verified
       --progress
-          Display real-time progress indicators (default: enabled)
+          Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
       --no-progress
-          Disable progress display
+          Disable progress display unconditionally
       --verify-after
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
@@ -1292,8 +1292,8 @@ Arguments:
 
 Options:
   -v, --verbose               Enable verbose diagnostic output
-      --progress              Display real-time progress indicators (default: enabled)
-      --no-progress           Disable progress display
+      --progress              Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
+      --no-progress           Disable progress display unconditionally
       --verify-after          Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
       --no-verify-after       Skip the post-flush verification pass on cross-device moves
       --best-effort-metadata  Relax strict metadata requirements when cross-device copy occurs

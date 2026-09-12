@@ -2854,4 +2854,72 @@ mod csc_tests {
             assert!(out.contains("public.txt"));
         }
     }
+
+    #[crate::ctb_test]
+    fn test_csc_and_mv_progress_resolution() {
+        use clap::Parser;
+
+        // Default without flags: neither progress nor no_progress
+        let args = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
+        assert!(!args.progress);
+        assert!(!args.no_progress);
+        // Fallback matches stderr interactivity
+        assert_eq!(
+            args.should_show_progress(),
+            ctb_utilities::cli::is_stderr_interactive()
+        );
+
+        // Explicit --progress
+        let args = CscArgs::try_parse_from(["csc", "--progress", "src", "dest"]).unwrap();
+        assert!(args.progress);
+        assert!(!args.no_progress);
+        assert!(args.should_show_progress());
+
+        // Explicit --no-progress
+        let args = CscArgs::try_parse_from(["csc", "--no-progress", "src", "dest"]).unwrap();
+        assert!(!args.progress);
+        assert!(args.no_progress);
+        assert!(!args.should_show_progress());
+
+        // Overrides: later flag wins
+        let args = CscArgs::try_parse_from([
+            "csc",
+            "--progress",
+            "--no-progress",
+            "src",
+            "dest",
+        ])
+        .unwrap();
+        assert!(!args.progress);
+        assert!(args.no_progress);
+        assert!(!args.should_show_progress());
+
+        let args = CscArgs::try_parse_from([
+            "csc",
+            "--no-progress",
+            "--progress",
+            "src",
+            "dest",
+        ])
+        .unwrap();
+        assert!(args.progress);
+        assert!(!args.no_progress);
+        assert!(args.should_show_progress());
+
+        // Same verification for MvArgs
+        let mv_args = MvArgs::try_parse_from(["mv", "src", "dest"]).unwrap();
+        assert!(!mv_args.progress);
+        assert!(!mv_args.no_progress);
+        assert_eq!(
+            mv_args.should_show_progress(),
+            ctb_utilities::cli::is_stderr_interactive()
+        );
+
+        let mv_args = MvArgs::try_parse_from(["mv", "--progress", "src", "dest"]).unwrap();
+        assert!(mv_args.should_show_progress());
+
+        let mv_args = MvArgs::try_parse_from(["mv", "--no-progress", "src", "dest"]).unwrap();
+        assert!(!mv_args.should_show_progress());
+    }
 }
+

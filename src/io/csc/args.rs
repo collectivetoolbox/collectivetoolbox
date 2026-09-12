@@ -69,11 +69,12 @@ pub struct CscArgs {
     #[arg(short = 'v', long)]
     pub verbose: bool,
 
-    /// Display real-time progress indicators when used interactively (default: enabled).
-    #[arg(long, default_value_t = true, overrides_with = "no_progress")]
+    /// Display real-time progress indicators (default: enabled when standard
+    /// error is connected to an interactive terminal).
+    #[arg(long, overrides_with = "no_progress")]
     pub progress: bool,
 
-    /// Disable progress display.
+    /// Disable progress display unconditionally.
     #[arg(long, overrides_with = "progress")]
     pub no_progress: bool,
 
@@ -141,13 +142,13 @@ pub struct CscArgs {
 
 impl CscArgs {
     /// Resolves whether progress display is active.
+    ///
+    /// Respects `--no-progress` (disabled) and `--progress` (forced enabled),
+    /// falling back to whether standard error is connected to an interactive
+    /// terminal.
     #[must_use]
     pub fn should_show_progress(&self) -> bool {
-        if self.no_progress {
-            false
-        } else {
-            self.progress
-        }
+        should_show_progress(self.progress, self.no_progress)
     }
 
     /// Resolves whether post-flush verification is active.
@@ -590,11 +591,12 @@ pub struct MvArgs {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Display real-time progress indicators when used interactively (default: enabled).
-    #[arg(long, default_value_t = true, overrides_with = "no_progress")]
+    /// Display real-time progress indicators (default: enabled when standard
+    /// error is connected to an interactive terminal).
+    #[arg(long, overrides_with = "no_progress")]
     pub progress: bool,
 
-    /// Disable progress display.
+    /// Disable progress display unconditionally.
     #[arg(long, overrides_with = "progress")]
     pub no_progress: bool,
 
@@ -621,13 +623,13 @@ pub struct MvArgs {
 
 impl MvArgs {
     /// Resolves whether progress display is active.
+    ///
+    /// Respects `--no-progress` (disabled) and `--progress` (forced enabled),
+    /// falling back to whether standard error is connected to an interactive
+    /// terminal.
     #[must_use]
     pub fn should_show_progress(&self) -> bool {
-        if self.no_progress {
-            false
-        } else {
-            self.progress
-        }
+        should_show_progress(self.progress, self.no_progress)
     }
 
     /// Resolves whether post-flush verification is active.
