@@ -666,6 +666,7 @@ fn record_journal_entry(
     journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
         let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
+        // Reason for fallback: if destination cannot be canonicalized, use destination path directly
         let journal_root = std::fs::canonicalize(journal.destination())
             .unwrap_or_else(|_| journal.destination().to_path_buf());
         *target_relative_path = compute_journal_relative_path(&journal_root, &target)

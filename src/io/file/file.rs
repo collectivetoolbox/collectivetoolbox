@@ -71,6 +71,7 @@ pub use path_policy::{
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
+    hash_payload_stream,
 };
 pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};

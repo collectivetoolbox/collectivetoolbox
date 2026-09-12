@@ -28,6 +28,7 @@ use crate::utilities::*;
 
 #[cfg(unix)]
 use nix::unistd::{Whence, lseek};
+use ctb_formats_checksum::Sha256Stream;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 #[cfg(unix)]
@@ -212,6 +213,19 @@ pub struct DiskPayloadSource {
 impl DiskPayloadSource {
     /// Opens an on-disk file and maps its sparse extents.
     pub fn open(path: &Path) -> Result<Self> {
+        #[cfg(target_os = "linux")]
+        let mut file = {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut opts = File::options();
+            opts.read(true);
+            opts.custom_flags(nix::libc::O_NOATIME);
+            match opts.open(path) {
+                Ok(f) => f,
+                Err(_) => File::open(path)
+                    .with_context(|| format!("Failed to open payload file: {}", path.display()))?,
+            }
+        };
+        #[cfg(not(target_os = "linux"))]
         let mut file = File::open(path)
             .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
         let meta = file.metadata()?;
@@ -334,4 +348,75 @@ impl PayloadSource for MemoryPayloadSource {
 }
 
 pub use crate::file::block_device_size::query_block_device_size;
+
+/// Computes the cryptographic SHA-256 digest of a payload source, taking
+/// sparse holes into account when `is_sparse` is true to avoid linear zero reads.
+pub fn hash_payload_stream<R: Read + Seek>(
+    reader: &mut R,
+    extents: &[Extent],
+    is_sparse: bool,
+    path_display: &Path,
+) -> Result<[u8; 32]> {
+    let mut hasher = Sha256Stream::new();
+    if is_sparse {
+        for extent in extents {
+            match extent {
+                Extent::Data { offset, length } => {
+                    reader.seek(SeekFrom::Start(*offset))?;
+                    let mut remaining = *length;
+                    let mut buf = vec![0_u8; 64 * 1024];
+                    while remaining > 0 {
+                        let to_read = usize::try_from(remaining.min(64 * 1024))
+                            .context("Failed to convert buffer slice length to usize")?;
+                        let buf_slice = buf
+                            .get_mut(..to_read)
+                            .context("Buffer slice index out of bounds for read")?;
+                        let n = reader.read(buf_slice)?;
+                        anyhow::ensure!(
+                            n != 0,
+                            "Unexpected EOF in sparse payload for {}",
+                            path_display.display()
+                        );
+                        let write_slice = buf
+                            .get(..n)
+                            .context("Buffer slice index out of bounds")?;
+                        hasher.update(write_slice);
+                        let n_u64 = u64::try_from(n)
+                            .context("Failed to convert read bytes count to u64")?;
+                        remaining = remaining.saturating_sub(n_u64);
+                    }
+                }
+                Extent::Hole { length, .. } => {
+                    let zero_buf = [0_u8; 8 * 1024];
+                    let mut remaining = *length;
+                    while remaining > 0 {
+                        let chunk = usize::try_from(remaining.min(8 * 1024))
+                            .context("Failed to convert hole chunk size to usize")?;
+                        let zero_slice = zero_buf
+                            .get(..chunk)
+                            .context("Zero buffer slice index out of bounds")?;
+                        hasher.update(zero_slice);
+                        let chunk_u64 = u64::try_from(chunk)
+                            .context("Failed to convert hole chunk size to u64")?;
+                        remaining = remaining.saturating_sub(chunk_u64);
+                    }
+                }
+            }
+        }
+    } else {
+        reader.seek(SeekFrom::Start(0))?;
+        let mut buf = vec![0_u8; 64 * 1024];
+        loop {
+            let n = reader.read(&mut buf)?;
+            if n == 0 {
+                break;
+            }
+            let slice = buf
+                .get(..n)
+                .context("Buffer slice index out of bounds")?;
+            hasher.update(slice);
+        }
+    }
+    Ok(hasher.finalize())
+}
 

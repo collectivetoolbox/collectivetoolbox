@@ -550,8 +550,13 @@ impl SandboxableDir {
         link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
+        let (target_fd, target_path) = if target_rel.is_absolute() {
+            (rustix::fs::CWD, target_rel)
+        } else {
+            (self.root_fd.as_fd(), target_rel)
+        };
         if let Ok(dest_stat) = statat(*parent_dir_fd, link_os, AtFlags::SYMLINK_NOFOLLOW) {
-            if let Ok(target_stat) = statat(&self.root_fd, target_rel, AtFlags::SYMLINK_NOFOLLOW) {
+            if let Ok(target_stat) = statat(target_fd, target_path, AtFlags::SYMLINK_NOFOLLOW) {
                 if dest_stat.st_dev == target_stat.st_dev && dest_stat.st_ino == target_stat.st_ino {
                     return Ok(());
                 }
@@ -559,13 +564,13 @@ impl SandboxableDir {
         }
         replace_node_atomically(*parent_dir_fd, link_os, |temporary| {
             linkat(
-            &self.root_fd,
-            target_rel,
-            parent_dir_fd,
-            temporary,
-            AtFlags::empty(),
-        )
-        .context("Failed to stage hardlink")
+                target_fd,
+                target_path,
+                parent_dir_fd,
+                temporary,
+                AtFlags::empty(),
+            )
+            .context("Failed to stage hardlink")
         }).with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",
@@ -585,7 +590,11 @@ impl SandboxableDir {
         link_name: impl AsRef<std::ffi::OsStr>,
     ) -> Result<()> {
         let link_path = parent_dir_fd.path.join(link_name.as_ref());
-        let target_path = self.root_path.join(target_rel);
+        let target_path = if target_rel.is_absolute() {
+            target_rel.to_path_buf()
+        } else {
+            self.root_path.join(target_rel)
+        };
         std::fs::hard_link(&target_path, &link_path).with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",

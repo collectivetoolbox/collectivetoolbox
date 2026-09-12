@@ -33,9 +33,10 @@ use crate::file::payload::{Extent, PayloadSource, get_file_extents};
 use crate::file::sandboxable_dir::SandboxableDir;
 use crate::file::streams::{AttachedStream, read_and_hash_streams};
 use crate::file::sys_flags::query_file_flags;
-use ctb_formats_checksum::Sha256Stream;
+use filetime::{FileTime, set_file_times};
+#[cfg(unix)]
+use filetime::set_symlink_file_times;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 #[cfg(unix)]
@@ -410,22 +411,9 @@ impl FileEntity {
                 .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
             let extents = get_file_extents(&file, size)?;
             let is_sparse = extents.iter().any(Extent::is_hole);
-            file.seek(SeekFrom::Start(0))?;
 
             let sha256 = if compute_hash {
-                let mut hasher = Sha256Stream::new();
-                let mut buf = vec![0_u8; 64 * 1024];
-                loop {
-                    let count = file.read(&mut buf)?;
-                    if count == 0 {
-                        break;
-                    }
-                    let slice = buf
-                        .get(..count)
-                        .context("Buffer slice index out of bounds")?;
-                    hasher.update(slice);
-                }
-                hasher.finalize()
+                crate::file::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
             } else {
                 [0_u8; 32]
             };
@@ -454,17 +442,26 @@ impl FileEntity {
         base_dir: Option<&Path>,
         compute_hash: bool,
     ) -> Result<Self> {
-        let mut sym_meta = std::fs::symlink_metadata(path)
+        let sym_meta = std::fs::symlink_metadata(path)
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
 
         let is_symlink = sym_meta.file_type().is_symlink();
         let symlink_target = if is_symlink {
             let target = std::fs::read_link(path)
                 .with_context(|| format!("Failed to read symlink target for {}", path.display()))?;
-            // Re-read symlink metadata after reading target so captured timestamps and native
-            // metadata accurately reflect any atime modification performed by readlink on Linux.
-            sym_meta = std::fs::symlink_metadata(path)
-                .with_context(|| format!("Failed to re-read metadata for {}", path.display()))?;
+            // Restore original symlink access and modification timestamps so inspecting the symlink
+            // does not mutate the source filesystem or trigger spurious diffs.
+            let orig_atime = FileTime::from_unix_time(
+                sym_meta.atime(),
+                u32::try_from(sym_meta.atime_nsec())
+                    .context("Failed to convert atime nanoseconds to u32")?,
+            );
+            let orig_mtime = FileTime::from_unix_time(
+                sym_meta.mtime(),
+                u32::try_from(sym_meta.mtime_nsec())
+                    .context("Failed to convert mtime nanoseconds to u32")?,
+            );
+            let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
             Some(target.as_os_str().as_encoded_bytes().to_vec())
         } else {
             None
@@ -623,29 +620,51 @@ impl FileEntity {
         } else {
             // Regular file: discover extents and compute SHA-256
             let size = sym_meta.len();
-            let mut file = File::open(path)
-                .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
+            #[cfg(target_os = "linux")]
+            let (mut file, opened_with_noatime) = {
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut opts = File::options();
+                opts.read(true);
+                opts.custom_flags(nix::libc::O_NOATIME);
+                match opts.open(path) {
+                    Ok(f) => (f, true),
+                    Err(_) => {
+                        let f = File::open(path).with_context(|| {
+                            format!("Failed to open file for hashing: {}", path.display())
+                        })?;
+                        (f, false)
+                    }
+                }
+            };
+            #[cfg(not(target_os = "linux"))]
+            let (mut file, opened_with_noatime) = {
+                let f = File::open(path).with_context(|| {
+                    format!("Failed to open file for hashing: {}", path.display())
+                })?;
+                (f, false)
+            };
+
             let extents = get_file_extents(&file, size)?;
             let is_sparse = extents.iter().any(Extent::is_hole);
-            file.seek(SeekFrom::Start(0))?;
 
             let sha256 = if compute_hash {
-                let mut hasher = Sha256Stream::new();
-                let mut buf = vec![0_u8; 64 * 1024];
-                loop {
-                    let count = file.read(&mut buf)?;
-                    if count == 0 {
-                        break;
-                    }
-                    let slice = buf
-                        .get(..count)
-                        .context("Buffer slice index out of bounds")?;
-                    hasher.update(slice);
-                }
-                hasher.finalize()
+                crate::file::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
             } else {
                 [0_u8; 32]
             };
+
+            #[cfg(unix)]
+            if !opened_with_noatime {
+                let orig_atime = FileTime::from_unix_time(
+                    timestamps.atime_sec,
+                    timestamps.atime_nsec,
+                );
+                let orig_mtime = FileTime::from_unix_time(
+                    timestamps.mtime_sec,
+                    timestamps.mtime_nsec,
+                );
+                let _ = set_file_times(path, orig_atime, orig_mtime);
+            }
 
             FileEntityKind::Regular {
                 size,

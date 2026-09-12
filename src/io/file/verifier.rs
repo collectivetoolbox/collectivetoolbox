@@ -30,7 +30,6 @@ use crate::file::entity::{FileEntity, FileEntityKind};
 use crate::file::payload::{Extent, get_file_extents};
 use crate::file::streams::read_and_hash_streams;
 use crate::file::sys_flags::query_file_flags;
-use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
@@ -39,7 +38,7 @@ use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 /// Nature of a stream or extended attribute discrepancy.
@@ -858,19 +857,17 @@ pub fn audit_entity_detailed(
             file.seek(SeekFrom::Start(0))?;
         }
 
-        let mut hasher = Sha256Stream::new();
-        let mut buf = vec![0_u8; 64 * 1024];
-        loop {
-            let n = file.read(&mut buf)?;
-            if n == 0 {
-                break;
-            }
-            let slice = buf
-                .get(..n)
-                .context("Verification read buffer slice out of bounds")?;
-            hasher.update(slice);
-        }
-        let actual_sha256 = hasher.finalize();
+        let actual_extents = if is_sparse {
+            get_file_extents(&file, actual_size)?
+        } else {
+            Vec::new()
+        };
+        let actual_sha256 = crate::file::payload::hash_payload_stream(
+            &mut file,
+            &actual_extents,
+            is_sparse,
+            path,
+        )?;
 
         if actual_sha256 != expected_sha256 {
             diffs.push(DiffKind::ContentHashMismatch {

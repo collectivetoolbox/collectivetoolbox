@@ -168,9 +168,12 @@ pub fn write_windows_streams(
                 }
             }
             StreamName::Bytes(bytes) => {
-                stream_path.push(":");
-                let s = String::from_utf8_lossy(bytes);
-                stream_path.push(s.as_ref());
+                let s = std::str::from_utf8(bytes)
+                    .context("Stream name bytes are not valid UTF-8 for Windows NTFS stream")?;
+                if !s.starts_with(':') {
+                    stream_path.push(":");
+                }
+                stream_path.push(s);
             }
         }
         std::fs::write(PathBuf::from(stream_path), data).with_context(|| {

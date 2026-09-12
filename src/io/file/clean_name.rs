@@ -85,6 +85,10 @@ fn is_windows_illegal_char(c: char) -> bool {
 }
 
 /// DOS has extra requirements on filenames too: 8+3; may not start with 0xE5
+#[expect(
+    dead_code,
+    reason = "DOS filename validation helper for future compatibility"
+)]
 fn is_dos_illegal_char(c: char) -> bool {
     is_windows_illegal_char(c) ||
     matches!(c, '+' | ',' | ';' | '=' |'[' | ']' | '!' | '@' )

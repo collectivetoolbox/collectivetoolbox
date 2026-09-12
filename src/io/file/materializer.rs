@@ -114,7 +114,6 @@ pub fn apply_entity_metadata(
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
-    crate::metadata::check_metadata_replication(dest, meta, strict_lossless, true)?;
     let mode = meta.mode;
     #[cfg(unix)]
     let uid = meta.uid;
@@ -391,6 +390,7 @@ pub fn materialize_entity(
                 target,
                 options.symlink_policy,
             )?;
+            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             apply_entity_metadata(
                 &dest_path,
                 None,
@@ -399,7 +399,6 @@ pub fn materialize_entity(
                 true,
                 options.strict_lossless,
             )?;
-            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -460,6 +459,7 @@ pub fn materialize_entity(
                 &entity.kind,
                 entity.metadata.mode,
             )?;
+            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             apply_entity_metadata(
                 &dest_path,
                 None,
@@ -468,7 +468,6 @@ pub fn materialize_entity(
                 true,
                 options.strict_lossless,
             )?;
-            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -632,6 +631,9 @@ pub fn materialize_entity(
             };
             let temp_path = parent_dir.join(&temp_name);
 
+            // Write attached streams (xattrs, resource forks)
+            write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             apply_entity_metadata(
                 &temp_path,
@@ -641,9 +643,6 @@ pub fn materialize_entity(
                 false,
                 options.strict_lossless,
             )?;
-
-            // Write attached streams (xattrs, resource forks)
-            write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
 
             if options.strict_lossless {
                 let mut expected = entity.clone();
@@ -916,11 +915,16 @@ fn try_update_existing_regular_entity(
     }
 
     // 8. File Flags: clear any conflicting flags (e.g. immutable) before updating metadata
+    // Reason for fallback: query_file_flags is best-effort when unsupported by the filesystem
     let (dest_flags, dest_raw) = query_file_flags(dest_path, false).unwrap_or_default();
     #[cfg(target_os = "linux")]
     if !dest_flags.is_empty() {
         use rustix::fs::{IFlags, ioctl_setflags};
-        if let Ok(f) = std::fs::OpenOptions::new().write(true).open(dest_path) {
+        let f_res = std::fs::OpenOptions::new()
+            .write(true)
+            .open(dest_path)
+            .or_else(|_| std::fs::OpenOptions::new().read(true).open(dest_path));
+        if let Ok(f) = f_res {
             if let Err(err) = ioctl_setflags(&f, IFlags::empty()) {
                 if options.strict_lossless {
                     log_fmt!(
