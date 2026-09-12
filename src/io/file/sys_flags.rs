@@ -104,6 +104,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+
+
+
+
+
+
+
 /* From DragonFly BSD sys/sys/stat.h:
 
 https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;hb=HEAD (b4510a66558751a074cf6a0f30977b8639ce856f)
@@ -139,6 +146,13 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 #define	SF_XLINK	0x01000000	/* cross-link (hardlink) boundary */
 
 */
+
+
+
+
+
+
+
 
 /* From FreeBSD stat.h:
 
@@ -187,6 +201,11 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 #define	SFBSD_NAMEDATTR	0x0001		/* file is named attribute or dir */
 */
 
+
+
+
+
+
 /* From OpenBSD stat.h:
 
 
@@ -209,6 +228,10 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 #define	SF_APPEND	0x00040000	/* writes to file may only append */
 
 */
+
+
+
+
 
 /* From Python - https://github.com/python/cpython/blob/f8f8c30ed4e20208e8badbc9e2fc3822e8db8e49/Modules/_stat.c -
 
