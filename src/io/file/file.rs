@@ -34,6 +34,7 @@ pub(crate) mod file {
 pub mod block_device_size;
 pub mod clean_name;
 pub mod entity;
+pub mod filesystem;
 pub mod identity;
 pub mod materializer;
 pub mod metadata;
@@ -51,6 +52,10 @@ pub use clean_name::{
     clean_file_name_windows,
 };
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
+pub use filesystem::{
+    FilesystemInfo, query_filesystem_info, query_filesystem_resolution,
+    query_filesystem_type,
+};
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
@@ -246,6 +251,7 @@ mod tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -379,7 +385,7 @@ mod tests {
                 ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
                 resolution_nsec: None,
             },
-            flags: Vec::new(), platform_raw_flags: None, read_time: None,
+            flags: Vec::new(), platform_raw_flags: None, read_time: None, filesystem_type: None,
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
@@ -705,6 +711,7 @@ mod tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -821,6 +828,7 @@ mod tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -908,6 +916,7 @@ mod tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -985,6 +994,7 @@ mod tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1125,6 +1135,7 @@ mod tests {
             flags: Vec::new(),
             platform_raw_flags: None,
             read_time: None,
+            filesystem_type: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
@@ -1246,6 +1257,7 @@ mod tests {
             flags: Vec::new(),
             platform_raw_flags: None,
             read_time: None,
+            filesystem_type: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
@@ -1307,6 +1319,72 @@ mod tests {
             );
             assert!(res_lax.is_ok());
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_filesystem_type_and_resolution_captured_in_file_entity() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test_file");
+        fs::write(&path, b"test content").unwrap();
+
+        let entity = FileEntity::from_filesystem(&path, None).unwrap();
+        assert!(entity.metadata.filesystem_type.is_some());
+        let fs_type = entity.metadata.filesystem_type.as_ref().unwrap();
+        assert!(!fs_type.is_empty());
+
+        assert!(entity.metadata.timestamps.resolution_nsec.is_some());
+        let res = entity.metadata.timestamps.resolution_nsec.unwrap();
+        assert!(res > 0);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_strict_verification_fails_on_sub100ns_timestamp_difference() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("sub100ns_test");
+        fs::write(&path, b"timestamp data").unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        // Shift mtime by 15 nanoseconds (sub-100ns difference)
+        entity.metadata.timestamps.mtime_nsec = entity
+            .metadata
+            .timestamps
+            .mtime_nsec
+            .saturating_add(15);
+
+        // Strict verification must fail on any unpreserved nanosecond difference
+        let strict_options = EntityAuditOptions {
+            best_effort: false,
+            ..Default::default()
+        };
+        let diffs = audit_entity(&path, &entity, &strict_options).unwrap();
+        assert!(
+            diffs
+                .iter()
+                .any(|d| matches!(d, DiffKind::MtimeMismatch { .. }))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_is_timestamp_acceptable_best_effort() {
+        // Tolerates up to 2 seconds drift by default in best effort mode
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_002, 0, 1_000
+        ));
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 100, 1_000, 150, 100
+        ));
+        assert!(!verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_003, 0, 1_000
+        ));
+
+        // Coarser resolution volumes (e.g. 3s) allow larger tolerance
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_003, 0, 3_000_000_000
+        ));
+        assert!(!verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_004, 0, 3_000_000_000
+        ));
     }
 }
 

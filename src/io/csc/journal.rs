@@ -776,6 +776,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -852,6 +853,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             flags,
             platform_raw_flags: None,
             read_time,
+            filesystem_type: None,
         },
         kind,
         streams,

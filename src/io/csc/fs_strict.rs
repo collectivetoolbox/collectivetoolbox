@@ -117,6 +117,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -174,6 +175,7 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
         flags: Vec::new(),
         platform_raw_flags: None,
         read_time: None,
+        filesystem_type: None,
     };
 
     apply_entity_metadata(dest, None, &meta, is_symlink, true, true)

@@ -551,22 +551,24 @@ pub fn audit_entity_detailed(
 
     #[cfg(unix)]
     {
+        let dest_res = crate::filesystem::query_filesystem_resolution(path, &dest_meta);
+        let tolerance_nsec = dest_res.max(expected.metadata.timestamps.resolution_nsec.unwrap_or(0));
+
         let mtime_mismatch = actual_mtime_sec != expected.metadata.timestamps.mtime_sec
             || actual_mtime_nsec != expected.metadata.timestamps.mtime_nsec;
         if mtime_mismatch {
             if options.ignore_mtime {
                 ignored.timestamps = ignored.timestamps.saturating_add(1);
-            } else if options.best_effort {
-                if (actual_mtime_sec.saturating_sub(expected.metadata.timestamps.mtime_sec)).abs() <= 2 {
-                    ignored.timestamps = ignored.timestamps.saturating_add(1);
-                } else {
-                    diffs.push(DiffKind::MtimeMismatch {
-                        expected_sec: expected.metadata.timestamps.mtime_sec,
-                        expected_nsec: expected.metadata.timestamps.mtime_nsec,
-                        actual_sec: actual_mtime_sec,
-                        actual_nsec: actual_mtime_nsec,
-                    });
-                }
+            } else if options.best_effort
+                && is_timestamp_acceptable_best_effort(
+                    actual_mtime_sec,
+                    actual_mtime_nsec,
+                    expected.metadata.timestamps.mtime_sec,
+                    expected.metadata.timestamps.mtime_nsec,
+                    tolerance_nsec,
+                )
+            {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
             } else {
                 diffs.push(DiffKind::MtimeMismatch {
                     expected_sec: expected.metadata.timestamps.mtime_sec,
@@ -577,9 +579,6 @@ pub fn audit_entity_detailed(
             }
         }
 
-        let actual_atime_sec = dest_meta.atime();
-        let actual_atime_nsec = u32::try_from(dest_meta.atime_nsec())
-            .context("Failed to convert atime nanoseconds to u32")?;
         let atime_mismatch = actual_atime_sec != expected.metadata.timestamps.atime_sec
             || actual_atime_nsec != expected.metadata.timestamps.atime_nsec;
         if atime_mismatch {
@@ -587,17 +586,16 @@ pub fn audit_entity_detailed(
                 if options.best_effort {
                     ignored.timestamps = ignored.timestamps.saturating_add(1);
                 }
-            } else if options.best_effort {
-                if (actual_atime_sec.saturating_sub(expected.metadata.timestamps.atime_sec)).abs() <= 2 {
-                    ignored.timestamps = ignored.timestamps.saturating_add(1);
-                } else {
-                    diffs.push(DiffKind::AtimeMismatch {
-                        expected_sec: expected.metadata.timestamps.atime_sec,
-                        expected_nsec: expected.metadata.timestamps.atime_nsec,
-                        actual_sec: actual_atime_sec,
-                        actual_nsec: actual_atime_nsec,
-                    });
-                }
+            } else if options.best_effort
+                && is_timestamp_acceptable_best_effort(
+                    actual_atime_sec,
+                    actual_atime_nsec,
+                    expected.metadata.timestamps.atime_sec,
+                    expected.metadata.timestamps.atime_nsec,
+                    tolerance_nsec,
+                )
+            {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
             } else {
                 diffs.push(DiffKind::AtimeMismatch {
                     expected_sec: expected.metadata.timestamps.atime_sec,
@@ -608,23 +606,19 @@ pub fn audit_entity_detailed(
             }
         }
 
-        let actual_ctime_sec = dest_meta.ctime();
-        let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
-            .context("Failed to convert ctime nanoseconds to u32")?;
         let ctime_mismatch = actual_ctime_sec != expected.metadata.timestamps.ctime_sec
             || actual_ctime_nsec != expected.metadata.timestamps.ctime_nsec;
         if ctime_mismatch && !options.ignore_ctime {
-            if options.best_effort {
-                if (actual_ctime_sec.saturating_sub(expected.metadata.timestamps.ctime_sec)).abs() <= 2 {
-                    ignored.timestamps = ignored.timestamps.saturating_add(1);
-                } else {
-                    diffs.push(DiffKind::CtimeMismatch {
-                        expected_sec: expected.metadata.timestamps.ctime_sec,
-                        expected_nsec: expected.metadata.timestamps.ctime_nsec,
-                        actual_sec: actual_ctime_sec,
-                        actual_nsec: actual_ctime_nsec,
-                    });
-                }
+            if options.best_effort
+                && is_timestamp_acceptable_best_effort(
+                    actual_ctime_sec,
+                    actual_ctime_nsec,
+                    expected.metadata.timestamps.ctime_sec,
+                    expected.metadata.timestamps.ctime_nsec,
+                    tolerance_nsec,
+                )
+            {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
             } else {
                 diffs.push(DiffKind::CtimeMismatch {
                     expected_sec: expected.metadata.timestamps.ctime_sec,
@@ -943,5 +937,25 @@ pub fn verify_materialized_entity_ext(
         }
     }
     Ok(())
+}
+
+/// Determines whether a destination timestamp difference is acceptable under
+/// best-effort mode, taking into account filesystem timestamp resolution.
+pub(crate) fn is_timestamp_acceptable_best_effort(
+    actual_sec: i64,
+    _actual_nsec: u32,
+    expected_sec: i64,
+    _expected_nsec: u32,
+    tolerance_nsec: u32,
+) -> bool {
+    let sec_diff = actual_sec.saturating_sub(expected_sec);
+    let sec_tol = i64::from(
+        tolerance_nsec
+            .saturating_add(999_999_999)
+            .checked_div(1_000_000_000)
+            .unwrap_or(2)
+            .max(2),
+    );
+    sec_diff.abs() <= sec_tol
 }
 

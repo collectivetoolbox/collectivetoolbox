@@ -1216,6 +1216,7 @@ mod csc_tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: Some(read_time_expected),
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1255,6 +1256,7 @@ mod csc_tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1391,6 +1393,7 @@ mod csc_tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: Some(pre_epoch_time),
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -2493,6 +2496,7 @@ mod csc_tests {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             };
 
             let err = ctb_io::file::apply_entity_metadata(

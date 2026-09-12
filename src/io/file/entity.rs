@@ -305,6 +305,8 @@ impl FileEntity {
         let (mtime_sec, mtime_nsec) = system_time_to_unix(sym_meta.modified());
         let (btime_sec, btime_nsec) = system_time_to_unix(sym_meta.created());
 
+        let fs_info = crate::file::filesystem::query_filesystem_info(path, &sym_meta);
+
         let timestamps = FileTimestamps {
             atime_sec,
             atime_nsec,
@@ -314,7 +316,7 @@ impl FileEntity {
             ctime_nsec: mtime_nsec,
             birthtime_sec: Some(btime_sec),
             birthtime_nsec: Some(btime_nsec),
-            resolution_nsec: Some(100),
+            resolution_nsec: Some(fs_info.resolution_nsec),
         };
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
@@ -380,6 +382,7 @@ impl FileEntity {
             flags,
             platform_raw_flags: platform_raw,
             read_time,
+            filesystem_type: Some(fs_info.fs_type),
         };
 
         let kind = if is_symlink {
@@ -457,6 +460,8 @@ impl FileEntity {
         let file_type = sym_meta.file_type();
         let is_symlink = file_type.is_symlink();
 
+        let fs_info = crate::file::filesystem::query_filesystem_info(path, &sym_meta);
+
         #[cfg(unix)]
         let (dev, ino, nlink, mode, uid, gid, mut timestamps) = {
             let dev = sym_meta.dev();
@@ -491,7 +496,7 @@ impl FileEntity {
                     ctime_nsec,
                     birthtime_sec: None,
                     birthtime_nsec: None,
-                    resolution_nsec: None,
+                    resolution_nsec: Some(fs_info.resolution_nsec),
                 },
             )
         };
@@ -556,6 +561,7 @@ impl FileEntity {
             flags,
             platform_raw_flags: platform_raw,
             read_time,
+            filesystem_type: Some(fs_info.fs_type),
         };
 
         #[cfg(unix)]

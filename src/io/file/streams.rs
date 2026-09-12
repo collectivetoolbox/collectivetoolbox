@@ -276,6 +276,7 @@ impl AttachedStream {
                 flags: Vec::new(),
                 platform_raw_flags: None,
                 read_time: None,
+                filesystem_type: None,
             },
             kind: FileEntityKind::Regular {
                 size,

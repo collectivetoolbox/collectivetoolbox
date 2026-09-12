@@ -1,0 +1,60 @@
+Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Chain (=), or Syntax (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
+(for trans_:
+  =run the tr.)","Export support
+(for trans_:
+  =reverse the
+    tr.)",Tests,"Variant Types
+(comma-
+  delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
+Import/export/tests support columns meaning:
+   -1=N/A
+   blank/0=none
+   1=WIP
+   2=mostly, or fully for at least one version of a format with options
+   3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
+   4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   5=4+optional strict validation.",References
+,,MinixFs,,,,,,,,,,,,,,
+,,Ext,,,,,,,,,,,,,,
+,,Ext2,,,Ext,,,,,,,,,,,
+,,Ext3,,,Ext2,,,,,,,,,,,
+,,Ext4,,,Ext3,,,,,,,,,,,
+,,Xiafs,,,,,,,,,,,,,,
+,,Xfs,,,,,,,,,,,,,,
+,,Btrfs,,,,,,,,,,,,,,
+,,F2fs,,,,,,,,,,,,,,
+,,Zfs,,,,,,,,,,,,,,
+,,Tmpfs,,,,,,,,,,,,,,
+,,Ramfs,,,,,,,,,,,,,,
+,,Overlayfs,,,,,,,,,,,,,,
+,,Fat8bit,FAT (File Allocation Table),,,,,,,,,,,,,
+,,Fat12,FAT12,,Fat8bit,,,,,,,,,,,
+,,Fat16,FAT16,,Fat8bit,,,,,,,,,,,
+,,Fat16b,FAT16B,,Fat16,,,,,,,,,,,
+,,Fat32,FAT32,,Fat32,,,,,,,,,,,
+,,Exfat,ExFAT,,Fat32,,,,,,,,,,,
+,,Fatx,FATX,,,,,,,,,,,,,
+,,Fatx16,FATX16,,Fat16 & Fatx,,,,,,,,,,,
+,,Fatx32,FATX32,,Fat32 & Fatx,,,,,,,,,,,
+,,FatPlus,FAT+,,,,,,,,,,,,,
+,,Fat16Pus,FAT16+,,Fat16 & FatPlus,,,,,,,,,,,
+,,Fat32Plus,FAT32+,,Fat32 & FatPlus,,,,,,,,,,,
+,,Umsdos,UMSDOS,,,,,,,,,,,,,
+,,Uvfat,UVFAT,,,,,,,,,,,,,
+,,Vfat,VFAT,,,,,,,,,,,,,
+,,Smb,SMB (Server Message Block),,,,,,,,,,,,,
+,,Cifs,CIFS (Common Internet File System),,Smb,,,,,,,,,,,
+,,Smb2,SMB2,,Smb,,,,,,,,,,,
+,,Nfs,NFS (Network File System),,,,,,,,,,,,,
+,,Iso9660,ISO 9660,,,,,,,,,,,,,
+,,Udf,UDF (Universal Disk Format),,,,,,,,,,,,,
+,,Joliet,Joliet,,Iso9660,,,,,,,,,,,
+,,Mfs,MFS (Macintosh File System),,,,,,,,,,,,,
+,,Hfs,HFS (Hierarchical File System),,,,,,,,,,,,,
+,,HfsPlus,HFS+,,Hfs,,,,,,,,,,,
+,,Apfs,APFS,,,,,,,,,,,,,
+,,Ntfs,NTFS,,,,,,,,,,,,,
+,,Refs,ReFS,,,,,,,,,,,,,
+,,ReiserFs,ReiserFS,,,,,,,,,,,,,
+,,Reiser4,Reiser4,,ReiserFs,,,,,,,,,,,
+,,Bcachefs,Bcachefs,,,,,,,,,,,,,

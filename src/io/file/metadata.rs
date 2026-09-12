@@ -369,6 +369,9 @@ pub struct FileMetadata {
     /// Timestamp when this file record was read/inspected from the filesystem,
     /// documenting when that file is current as of.
     pub read_time: Option<SystemTime>,
+    /// Originating filesystem type, if known (e.g. "ext4", "ntfs", "vfat", "apfs").
+    #[serde(default)]
+    pub filesystem_type: Option<String>,
 }
 
 impl FileMetadata {
