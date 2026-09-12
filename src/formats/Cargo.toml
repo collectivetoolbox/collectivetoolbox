@@ -29,6 +29,7 @@ ctb-formats-internetarchive = { path = "internetarchive" }
 ctb-formats-ipaddr = { path = "ipaddr" }
 ctb-formats-javascript = { path = "javascript" }
 ctb-formats-json = { path = "json" }
+ctb-formats-kaitai = { path = "kaitai" }
 ctb-formats-lnk = { path = "lnk" }
 ctb-formats-markdown = { path = "markdown" }
 ctb-formats-math = { path = "math" }

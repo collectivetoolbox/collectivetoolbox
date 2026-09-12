@@ -55,6 +55,7 @@ pub use ctb_formats_internetarchive as internetarchive;
 pub use ctb_formats_ipaddr as ipaddr;
 pub use ctb_formats_javascript as javascript;
 pub use ctb_formats_json as json;
+pub use ctb_formats_kaitai as kaitai;
 pub use ctb_formats_lnk as lnk;
 pub use ctb_formats_markdown as markdown;
 pub use ctb_formats_math as math;

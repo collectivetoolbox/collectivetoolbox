@@ -2652,6 +2652,7 @@ dependencies = [
  "ctb-formats-ipaddr",
  "ctb-formats-javascript",
  "ctb-formats-json",
+ "ctb-formats-kaitai",
  "ctb-formats-lnk",
  "ctb-formats-markdown",
  "ctb-formats-math",
@@ -2984,6 +2985,15 @@ name = "ctb-formats-json"
 version = "0.0.0"
 dependencies = [
  "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-kaitai"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
