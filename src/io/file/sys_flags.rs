@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND Apache-2.0 AND BSD-3-Clause AND PSF-2.0 AND 0BSD
 // SPDX-License-Identifier for parts derived from Swift System: Apache-2.0
-// SPDX-License-Identifier for parts derived from FreeBSD and OpenBSD: BSD-3-Clause
+// SPDX-License-Identifier for parts derived from DragonFly BSD, FreeBSD, and OpenBSD: BSD-3-Clause
 // SPDX-License-Identifier for parts derived from CPython: PSF-2.0 AND 0BSD
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
@@ -387,12 +387,27 @@ pub const FREEBSD_SETTABLE_MASK: u32 = 0xffff_ffff & !FREEBSD_SF_SNAPSHOT;
 pub const OPENBSD_UF_NODUMP: u32 = 0x0000_0001;
 pub const OPENBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
 pub const OPENBSD_UF_APPEND: u32 = 0x0000_0004;
+pub const OPENBSD_UF_OPAQUE: u32 = 0x0000_0008;
 pub const OPENBSD_SF_ARCHIVED: u32 = 0x0001_0000;
 pub const OPENBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
 pub const OPENBSD_SF_APPEND: u32 = 0x0004_0000;
 
 /// Mask of settable flags on OpenBSD.
 pub const OPENBSD_SETTABLE_MASK: u32 = 0xffff_ffff;
+
+// DragonFly BSD file flag constants from DragonFly BSD <sys/stat.h>
+pub const DRAGONFLY_UF_NODUMP: u32 = 0x0000_0001;
+pub const DRAGONFLY_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const DRAGONFLY_UF_APPEND: u32 = 0x0000_0004;
+pub const DRAGONFLY_UF_OPAQUE: u32 = 0x0000_0008;
+pub const DRAGONFLY_UF_NOUNLINK: u32 = 0x0000_0010;
+pub const DRAGONFLY_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const DRAGONFLY_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const DRAGONFLY_SF_APPEND: u32 = 0x0004_0000;
+pub const DRAGONFLY_SF_NOUNLINK: u32 = 0x0010_0000;
+
+/// Mask of settable flags on DragonFly BSD (`UF_SETTABLE | SF_SETTABLE`).
+pub const DRAGONFLY_SETTABLE_MASK: u32 = 0xffff_ffff;
 
 /// Parses a Darwin `st_flags` bitmask into semantic `FileFlag`s and indicates
 /// if any unparsed bits remain.
@@ -569,6 +584,7 @@ pub fn parse_openbsd_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
     map_flag!(OPENBSD_UF_NODUMP, FileFlag::NoDump);
     map_flag!(OPENBSD_UF_IMMUTABLE, FileFlag::UserImmutable);
     map_flag!(OPENBSD_UF_APPEND, FileFlag::UserAppend);
+    map_flag!(OPENBSD_UF_OPAQUE, FileFlag::Opaque);
     map_flag!(OPENBSD_SF_ARCHIVED, FileFlag::Archived);
     map_flag!(OPENBSD_SF_IMMUTABLE, FileFlag::SystemImmutable);
     map_flag!(OPENBSD_SF_APPEND, FileFlag::SystemAppend);
@@ -592,6 +608,7 @@ pub fn openbsd_flags_to_mask(
             FileFlag::NoDump => mask |= OPENBSD_UF_NODUMP,
             FileFlag::UserImmutable => mask |= OPENBSD_UF_IMMUTABLE,
             FileFlag::UserAppend => mask |= OPENBSD_UF_APPEND,
+            FileFlag::Opaque => mask |= OPENBSD_UF_OPAQUE,
             FileFlag::Archived => mask |= OPENBSD_SF_ARCHIVED,
             FileFlag::SystemImmutable => mask |= OPENBSD_SF_IMMUTABLE,
             FileFlag::SystemAppend => mask |= OPENBSD_SF_APPEND,
@@ -609,12 +626,77 @@ pub fn openbsd_flags_to_mask(
     Ok(mask)
 }
 
+/// Parses a DragonFly BSD `st_flags` bitmask into semantic `FileFlag`s and
+/// indicates if any unparsed bits remain.
+#[must_use]
+pub fn parse_dragonfly_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
+    let mut flags = Vec::new();
+    let mut mapped_mask: u32 = 0;
+
+    macro_rules! map_flag {
+        ($bit:expr, $variant:expr) => {
+            if (raw_val & $bit) != 0 {
+                flags.push($variant);
+                mapped_mask |= $bit;
+            }
+        };
+    }
+
+    map_flag!(DRAGONFLY_UF_NODUMP, FileFlag::NoDump);
+    map_flag!(DRAGONFLY_UF_IMMUTABLE, FileFlag::UserImmutable);
+    map_flag!(DRAGONFLY_UF_APPEND, FileFlag::UserAppend);
+    map_flag!(DRAGONFLY_UF_OPAQUE, FileFlag::Opaque);
+    map_flag!(DRAGONFLY_UF_NOUNLINK, FileFlag::UserNoUnlink);
+    map_flag!(DRAGONFLY_SF_ARCHIVED, FileFlag::Archived);
+    map_flag!(DRAGONFLY_SF_IMMUTABLE, FileFlag::SystemImmutable);
+    map_flag!(DRAGONFLY_SF_APPEND, FileFlag::SystemAppend);
+    map_flag!(DRAGONFLY_SF_NOUNLINK, FileFlag::SystemNoUnlink);
+
+    let has_unparsed = (raw_val & !mapped_mask) != 0;
+    (flags, has_unparsed)
+}
+
+/// Encodes a slice of `FileFlag`s into a DragonFly BSD `st_flags` bitmask.
+///
+/// If `strict_lossless` is true, returns an error if any flag is not supported
+/// on DragonFly BSD.
+pub fn dragonfly_flags_to_mask(
+    flags: &[FileFlag],
+    strict_lossless: bool,
+    path: &Path,
+) -> Result<u32> {
+    let mut mask: u32 = 0;
+    for flag in flags {
+        match flag {
+            FileFlag::NoDump => mask |= DRAGONFLY_UF_NODUMP,
+            FileFlag::UserImmutable => mask |= DRAGONFLY_UF_IMMUTABLE,
+            FileFlag::UserAppend => mask |= DRAGONFLY_UF_APPEND,
+            FileFlag::Opaque => mask |= DRAGONFLY_UF_OPAQUE,
+            FileFlag::UserNoUnlink => mask |= DRAGONFLY_UF_NOUNLINK,
+            FileFlag::Archived => mask |= DRAGONFLY_SF_ARCHIVED,
+            FileFlag::SystemImmutable => mask |= DRAGONFLY_SF_IMMUTABLE,
+            FileFlag::SystemAppend => mask |= DRAGONFLY_SF_APPEND,
+            FileFlag::SystemNoUnlink => mask |= DRAGONFLY_SF_NOUNLINK,
+            other => {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Cannot losslessly apply flag {:?} on dragonfly for {}",
+                        other,
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+    Ok(mask)
+}
+
 /// Reads OS-specific flags from `path`.
 #[cfg_attr(
-    target_os = "openbsd",
+    any(target_os = "openbsd", target_os = "dragonfly"),
     expect(
         unsafe_code,
-        reason = "OpenBSD st_flags inspection requires unsafe libc lstat FFI"
+        reason = "OpenBSD and DragonFly BSD st_flags inspection requires unsafe libc lstat FFI"
     )
 )]
 pub fn query_file_flags(
@@ -747,11 +829,40 @@ pub fn query_file_flags(
         Ok((flags, Some(platform_raw)))
     }
 
+    #[cfg(target_os = "dragonfly")]
+    {
+        use std::ffi::CString;
+        use std::mem::MaybeUninit;
+        use std::os::unix::ffi::OsStrExt;
+
+        let c_path = CString::new(path.as_os_str().as_bytes())?;
+        let mut stat_buf = MaybeUninit::<libc::stat>::uninit();
+        let res = unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
+        if res != 0 {
+            let err = std::io::Error::last_os_error();
+            anyhow::bail!("lstat failed for {}: {err}", path.display());
+        }
+        let stat_buf = unsafe { stat_buf.assume_init() };
+        let raw_val = stat_buf.st_flags;
+
+        let (flags, has_unparsed) = parse_dragonfly_flags(raw_val);
+        let raw_u64 = u64::from(raw_val);
+
+        let platform_raw = PlatformRawFlags {
+            source_os: OsFamily::DragonFly,
+            raw_value: raw_u64,
+            has_unparsed_flags: has_unparsed,
+        };
+
+        Ok((flags, Some(platform_raw)))
+    }
+
     #[cfg(not(any(
         target_os = "linux",
         target_vendor = "apple",
         target_os = "freebsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "dragonfly"
     )))]
     {
         let _ = path;
@@ -764,7 +875,12 @@ pub fn query_file_flags(
 /// If `strict_lossless` is true, fails with an error if flags cannot be
 /// losslessly transferred.
 #[cfg_attr(
-    any(target_vendor = "apple", target_os = "freebsd", target_os = "openbsd"),
+    any(
+        target_vendor = "apple",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ),
     expect(
         unsafe_code,
         reason = "Invoking BSD chflags system call requires unsafe C FFI"
@@ -792,7 +908,12 @@ pub fn apply_file_flags(
 }
 
 #[cfg_attr(
-    any(target_vendor = "apple", target_os = "freebsd", target_os = "openbsd"),
+    any(
+        target_vendor = "apple",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ),
     expect(unsafe_code, reason = "Invoking BSD chflags system calls requires unsafe C FFI")
 )]
 fn apply_file_flags_native(
@@ -900,7 +1021,12 @@ fn apply_file_flags_native(
         Ok(())
     }
 
-    #[cfg(any(target_vendor = "apple", target_os = "freebsd", target_os = "openbsd"))]
+    #[cfg(any(
+        target_vendor = "apple",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ))]
     {
         use std::ffi::CString;
         use std::os::unix::ffi::OsStrExt;
@@ -926,6 +1052,10 @@ fn apply_file_flags_native(
             {
                 target_mask = openbsd_flags_to_mask(flags, strict_lossless, path)?;
             }
+            #[cfg(target_os = "dragonfly")]
+            {
+                target_mask = dragonfly_flags_to_mask(flags, strict_lossless, path)?;
+            }
         }
 
         if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
@@ -940,6 +1070,8 @@ fn apply_file_flags_native(
             let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
             #[cfg(target_os = "openbsd")]
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
+            #[cfg(target_os = "dragonfly")]
+            let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
 
             if res != 0 {
                 // In best-effort mode, if setting all flags failed (e.g. due to
@@ -953,6 +1085,8 @@ fn apply_file_flags_native(
                     let settable_mask = target_mask & FREEBSD_SETTABLE_MASK;
                     #[cfg(target_os = "openbsd")]
                     let settable_mask = target_mask & OPENBSD_SETTABLE_MASK;
+                    #[cfg(target_os = "dragonfly")]
+                    let settable_mask = target_mask & DRAGONFLY_SETTABLE_MASK;
 
                     if settable_mask != target_mask && settable_mask != 0 {
                         #[cfg(target_vendor = "apple")]
@@ -965,6 +1099,10 @@ fn apply_file_flags_native(
                         #[cfg(target_os = "openbsd")]
                         let retry_res =
                             unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
+                        #[cfg(target_os = "dragonfly")]
+                        let retry_res = unsafe {
+                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
+                        };
 
                         if retry_res == 0 {
                             log_fmt!(
@@ -1002,7 +1140,8 @@ fn apply_file_flags_native(
         target_os = "linux",
         target_vendor = "apple",
         target_os = "freebsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "dragonfly"
     )))]
     {
         if (!flags.is_empty() || raw.is_some()) && strict_lossless {
@@ -1171,6 +1310,7 @@ mod tests {
             (FileFlag::NoDump, OPENBSD_UF_NODUMP),
             (FileFlag::UserImmutable, OPENBSD_UF_IMMUTABLE),
             (FileFlag::UserAppend, OPENBSD_UF_APPEND),
+            (FileFlag::Opaque, OPENBSD_UF_OPAQUE),
             (FileFlag::Archived, OPENBSD_SF_ARCHIVED),
             (FileFlag::SystemImmutable, OPENBSD_SF_IMMUTABLE),
             (FileFlag::SystemAppend, OPENBSD_SF_APPEND),
@@ -1191,19 +1331,18 @@ mod tests {
         }
 
         let (parsed_all, has_unparsed_all) = parse_openbsd_flags(combined_mask);
-        assert_eq!(parsed_all.len(), 6);
+        assert_eq!(parsed_all.len(), 7);
         assert!(!has_unparsed_all);
 
         let encoded_all = openbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
         assert_eq!(encoded_all, combined_mask);
 
-        // Unknown bit (such as 0x8 UF_OPAQUE which OpenBSD does not map) sets has_unparsed
-        let (_, unparsed) = parse_openbsd_flags(combined_mask | 0x0000_0008);
+        // Unknown bit (such as 0x10 UF_NOUNLINK which is not supported on OpenBSD) sets has_unparsed
+        let (_, unparsed) = parse_openbsd_flags(combined_mask | 0x0000_0010);
         assert!(unparsed);
 
-        // 16 flags documented as N/A for OpenBSD in the Swift System table
+        // 15 flags documented as unsupported for OpenBSD
         let openbsd_unsupported = [
-            FileFlag::Opaque,
             FileFlag::Hidden,
             FileFlag::SystemNoUnlink,
             FileFlag::Compressed,
@@ -1227,6 +1366,74 @@ mod tests {
             );
             assert_eq!(
                 openbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dragonfly_flags_table_mapping() {
+        let dragonfly_table = [
+            (FileFlag::NoDump, DRAGONFLY_UF_NODUMP),
+            (FileFlag::UserImmutable, DRAGONFLY_UF_IMMUTABLE),
+            (FileFlag::UserAppend, DRAGONFLY_UF_APPEND),
+            (FileFlag::Opaque, DRAGONFLY_UF_OPAQUE),
+            (FileFlag::UserNoUnlink, DRAGONFLY_UF_NOUNLINK),
+            (FileFlag::Archived, DRAGONFLY_SF_ARCHIVED),
+            (FileFlag::SystemImmutable, DRAGONFLY_SF_IMMUTABLE),
+            (FileFlag::SystemAppend, DRAGONFLY_SF_APPEND),
+            (FileFlag::SystemNoUnlink, DRAGONFLY_SF_NOUNLINK),
+        ];
+
+        let mut combined_mask = 0u32;
+        let mut all_flags = Vec::new();
+        for (flag, bit) in dragonfly_table {
+            let (parsed, has_unparsed) = parse_dragonfly_flags(bit);
+            assert_eq!(parsed, vec![flag]);
+            assert!(!has_unparsed);
+
+            let mask = dragonfly_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, bit);
+
+            combined_mask |= bit;
+            all_flags.push(flag);
+        }
+
+        let (parsed_all, has_unparsed_all) = parse_dragonfly_flags(combined_mask);
+        assert_eq!(parsed_all.len(), 9);
+        assert!(!has_unparsed_all);
+
+        let encoded_all =
+            dragonfly_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        assert_eq!(encoded_all, combined_mask);
+
+        // Unknown bit (such as 0x40 UF_NOHISTORY which is not mapped to FileFlag) sets has_unparsed
+        let (_, unparsed) = parse_dragonfly_flags(combined_mask | 0x0000_0040);
+        assert!(unparsed);
+
+        // 13 flags not supported on DragonFly BSD
+        let dragonfly_unsupported = [
+            FileFlag::Hidden,
+            FileFlag::Compressed,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+            FileFlag::System,
+            FileFlag::Sparse,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Snapshot,
+        ];
+        for unsupported in dragonfly_unsupported {
+            assert!(
+                dragonfly_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on DragonFly BSD in strict_lossless mode"
+            );
+            assert_eq!(
+                dragonfly_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
                 0
             );
         }

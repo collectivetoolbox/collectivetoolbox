@@ -40,6 +40,8 @@ pub enum OsFamily {
     OpenBSD,
     /// NetBSD.
     NetBSD,
+    /// DragonFly BSD.
+    DragonFly,
     /// Linux kernel.
     Linux,
     /// Microsoft Windows.
@@ -67,6 +69,10 @@ impl OsFamily {
         {
             Self::NetBSD
         }
+        #[cfg(target_os = "dragonfly")]
+        {
+            Self::DragonFly
+        }
         #[cfg(target_os = "linux")]
         {
             Self::Linux
@@ -80,6 +86,7 @@ impl OsFamily {
             target_os = "freebsd",
             target_os = "openbsd",
             target_os = "netbsd",
+            target_os = "dragonfly",
             target_os = "linux",
             target_os = "windows"
         )))]
@@ -96,6 +103,7 @@ impl OsFamily {
             Self::FreeBSD => "freebsd",
             Self::OpenBSD => "openbsd",
             Self::NetBSD => "netbsd",
+            Self::DragonFly => "dragonfly",
             Self::Linux => "linux",
             Self::Windows => "windows",
             Self::Other => "other",
@@ -123,7 +131,7 @@ pub enum FileFlag {
     UserImmutable,
     /// User append-only (`UF_APPEND` / `FS_APPEND_FL` / `uappnd`).
     UserAppend,
-    /// Directory opaque to union mounts (`UF_OPAQUE`). (not on OpenBSD)
+    /// Directory opaque to union mounts (`UF_OPAQUE`).
     Opaque,
     /// Hidden in GUI / Finder (`UF_HIDDEN`). (not on OpenBSD)
     Hidden,
