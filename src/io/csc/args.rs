@@ -69,7 +69,7 @@ pub struct CscArgs {
     #[arg(short = 'v', long)]
     pub verbose: bool,
 
-    /// Display real-time progress indicators (default: enabled).
+    /// Display real-time progress indicators when used interactively (default: enabled).
     #[arg(long, default_value_t = true, overrides_with = "no_progress")]
     pub progress: bool,
 
@@ -590,7 +590,7 @@ pub struct MvArgs {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Display real-time progress indicators (default: enabled).
+    /// Display real-time progress indicators when used interactively (default: enabled).
     #[arg(long, default_value_t = true, overrides_with = "no_progress")]
     pub progress: bool,
 
