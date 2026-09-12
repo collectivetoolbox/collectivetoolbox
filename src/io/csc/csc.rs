@@ -29,7 +29,6 @@ pub(crate) use ctb_utilities::*;
 pub mod args;
 pub mod cli;
 pub mod copy_engine;
-pub mod fs_strict;
 pub mod journal;
 pub mod path_resolution;
 pub mod verify_cache;

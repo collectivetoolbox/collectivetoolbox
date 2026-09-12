@@ -115,7 +115,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     verify_after: true,
                     no_verify_after: false,
                     always_overwrite: args.force,
-                    skip_existing_checksum: true,
                     on_source_change: SourceChangePolicy::Error,
                     copy_specials_as_specials: true,
                     copy_block_devices_as_regular_files: false,

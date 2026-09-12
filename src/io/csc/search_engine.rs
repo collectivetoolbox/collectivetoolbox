@@ -91,7 +91,10 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
         || args.name_glob.is_some()
         || explicit_keyword.is_some()
         || args.keyword_text.is_some()
-        || args.keyword_name.is_some();
+        || args.keyword_name.is_some()
+        || args.substring_path.is_some()
+        || args.substring_text.is_some()
+        || args.substring_name.is_some();
 
     if has_explicit && !args.query.is_empty() {
         anyhow::bail!(
@@ -127,7 +130,34 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
         }));
     }
 
-    // 2. Explicit glob options
+    // 2. Explicit substring options (equivalent to regex with escaped pattern)
+    if let Some(ref pat) = args.substring_path {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Path,
+            pattern: regex::escape(pat),
+        }));
+    }
+    if let Some(ref pat) = args.substring_text {
+        anyhow::ensure!(
+            has_full_text,
+            "Cannot perform substring full-text search: database was not indexed with --fulltext"
+        );
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Text,
+            pattern: regex::escape(pat),
+        }));
+    }
+    if let Some(ref pat) = args.substring_name {
+        return Ok(Some(ResolvedSearch {
+            kind: SearchKind::Regex,
+            target: SearchTarget::Name,
+            pattern: regex::escape(pat),
+        }));
+    }
+
+    // 3. Explicit glob options
     if let Some(pat) = args.glob_path.as_deref().or(args.path_glob.as_deref()) {
         return Ok(Some(ResolvedSearch {
             kind: SearchKind::Glob,
@@ -154,7 +184,7 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
         }));
     }
 
-    // 3. Explicit keyword options
+    // 4. Explicit keyword options
     if let Some(pat) = explicit_keyword {
         return Ok(Some(ResolvedSearch {
             kind: SearchKind::Keyword,
@@ -181,7 +211,7 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
         }));
     }
 
-    // 4. Positional query resolution
+    // 5. Positional query resolution
     if let [q] = args.query.as_slice() {
         if q.contains('*') {
             if q.contains('/') {
@@ -199,15 +229,15 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
             }
         } else if has_full_text {
             Ok(Some(ResolvedSearch {
-                kind: SearchKind::Keyword,
+                kind: SearchKind::Regex,
                 target: SearchTarget::Text,
-                pattern: q.clone(),
+                pattern: regex::escape(q),
             }))
         } else {
             Ok(Some(ResolvedSearch {
-                kind: SearchKind::Keyword,
+                kind: SearchKind::Regex,
                 target: SearchTarget::Path,
-                pattern: q.clone(),
+                pattern: regex::escape(q),
             }))
         }
     } else if args.query.len() > 1 {
@@ -345,16 +375,16 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
         match res.kind {
             SearchKind::Keyword => match res.target {
                 SearchTarget::Name => {
-                    sql.push_str(" AND e.filename MATCH ?");
+                    sql.push_str(" AND e.filename_keywords MATCH ?");
                     params.push(Value::Text(res.pattern.clone()));
                 }
                 SearchTarget::Path => {
-                    sql.push_str(" AND (e.filename, e.path) MATCH ?");
+                    sql.push_str(" AND (e.filename_keywords, e.path_keywords) MATCH ?");
                     params.push(Value::Text(res.pattern.clone()));
                 }
                 SearchTarget::Text => {
                     sql.push_str(
-                        " AND ((e.filename, e.path) MATCH ? OR (e.full_text IS NOT NULL AND e.full_text MATCH ?))",
+                        " AND ((e.filename_keywords, e.path_keywords) MATCH ? OR (e.full_text IS NOT NULL AND e.full_text MATCH ?))",
                     );
                     params.push(Value::Text(res.pattern.clone()));
                     params.push(Value::Text(res.pattern.clone()));

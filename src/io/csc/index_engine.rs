@@ -369,6 +369,98 @@ fn index_directory_to_journal(
     Ok(journal.journal_path().to_path_buf())
 }
 
+/// Splits a CamelCase string into its constituent subwords.
+#[must_use]
+pub fn split_camel_case(s: &str) -> Vec<String> {
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    if len == 0 {
+        return Vec::new();
+    }
+
+    let mut words = Vec::new();
+    let mut start = 0;
+    for i in 1..len {
+        let prev = chars.get(i.saturating_sub(1)).copied().unwrap_or('\0');
+        let curr = chars.get(i).copied().unwrap_or('\0');
+        let next = chars.get(i.saturating_add(1)).copied();
+
+        let is_lower_to_upper = prev.is_lowercase() && curr.is_uppercase();
+        let is_upper_to_upper_then_lower = prev.is_uppercase()
+            && curr.is_uppercase()
+            && next.is_some_and(|n| n.is_lowercase());
+        let is_letter_to_digit = prev.is_alphabetic() && curr.is_ascii_digit();
+        let is_digit_to_letter = prev.is_ascii_digit() && curr.is_alphabetic();
+
+        if is_lower_to_upper
+            || is_upper_to_upper_then_lower
+            || is_letter_to_digit
+            || is_digit_to_letter
+        {
+            if let Some(slice) = chars.get(start..i) {
+                let word: String = slice.iter().collect();
+                if !word.is_empty() {
+                    words.push(word);
+                }
+            }
+            start = i;
+        }
+    }
+    if let Some(slice) = chars.get(start..len) {
+        let last: String = slice.iter().collect();
+        if !last.is_empty() {
+            words.push(last);
+        }
+    }
+    words
+}
+
+/// Generates an expanded set of search keywords for a filename or path component,
+/// splitting on punctuation, whitespace, and CamelCase word boundaries, and emitting
+/// individual words, contiguous compound combinations, and the original text.
+#[must_use]
+pub fn expand_search_keywords(text: &str) -> String {
+    let mut tokens: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    let mut add_token = |t: &str| {
+        let lower = t.to_ascii_lowercase();
+        if !lower.is_empty() && seen.insert(lower.clone()) {
+            tokens.push(lower);
+        }
+    };
+
+    add_token(text);
+
+    let parts: Vec<&str> = text
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    for part in parts {
+        add_token(part);
+
+        let subwords = split_camel_case(part);
+        if subwords.len() > 1 {
+            for w in &subwords {
+                add_token(w);
+            }
+
+            for win_size in 2..=subwords.len() {
+                for win in subwords.windows(win_size) {
+                    let compound = win
+                        .iter()
+                        .map(|s| s.to_ascii_lowercase())
+                        .collect::<String>();
+                    add_token(&compound);
+                }
+            }
+        }
+    }
+
+    tokens.join(" ")
+}
+
 /// Initializes database tables, PRAGMAs, and B-tree indices.
 pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     let mut stmt = conn.prepare("PRAGMA journal_mode = WAL").await?;
@@ -411,7 +503,9 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
             mode INTEGER NOT NULL,
             nlink INTEGER NOT NULL,
             symlink_target TEXT,
-            sha256 TEXT
+            sha256 TEXT,
+            filename_keywords TEXT NOT NULL DEFAULT '',
+            path_keywords TEXT NOT NULL DEFAULT ''
         )",
         (),
     )
@@ -424,7 +518,8 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_mtime ON entries(mtime_sec)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_ctime ON entries(ctime_sec)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_size ON entries(size)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_fts ON entries USING fts (filename, path)", ()).await?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_name_fts ON entries USING fts (filename_keywords)", ()).await?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_fts ON entries USING fts (filename_keywords, path_keywords)", ()).await?;
 
     Ok(())
 }
@@ -511,28 +606,8 @@ async fn ingest_journal_snapshot(
     let sql_insert_without_ft = "INSERT INTO entries (
         source_id, path, filename, parent_dir, kind, size,
         mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
-        symlink_target, sha256
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(path) DO UPDATE SET
-        source_id = excluded.source_id,
-        filename = excluded.filename,
-        parent_dir = excluded.parent_dir,
-        kind = excluded.kind,
-        size = excluded.size,
-        mtime_sec = excluded.mtime_sec,
-        mtime_nsec = excluded.mtime_nsec,
-        ctime_sec = excluded.ctime_sec,
-        ctime_nsec = excluded.ctime_nsec,
-        mode = excluded.mode,
-        nlink = excluded.nlink,
-        symlink_target = excluded.symlink_target,
-        sha256 = excluded.sha256";
-
-    let sql_insert_with_ft = "INSERT INTO entries (
-        source_id, path, filename, parent_dir, kind, size,
-        mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
-        symlink_target, sha256, full_text
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        symlink_target, sha256, filename_keywords, path_keywords
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(path) DO UPDATE SET
         source_id = excluded.source_id,
         filename = excluded.filename,
@@ -547,6 +622,30 @@ async fn ingest_journal_snapshot(
         nlink = excluded.nlink,
         symlink_target = excluded.symlink_target,
         sha256 = excluded.sha256,
+        filename_keywords = excluded.filename_keywords,
+        path_keywords = excluded.path_keywords";
+
+    let sql_insert_with_ft = "INSERT INTO entries (
+        source_id, path, filename, parent_dir, kind, size,
+        mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink,
+        symlink_target, sha256, filename_keywords, path_keywords, full_text
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(path) DO UPDATE SET
+        source_id = excluded.source_id,
+        filename = excluded.filename,
+        parent_dir = excluded.parent_dir,
+        kind = excluded.kind,
+        size = excluded.size,
+        mtime_sec = excluded.mtime_sec,
+        mtime_nsec = excluded.mtime_nsec,
+        ctime_sec = excluded.ctime_sec,
+        ctime_nsec = excluded.ctime_nsec,
+        mode = excluded.mode,
+        nlink = excluded.nlink,
+        symlink_target = excluded.symlink_target,
+        sha256 = excluded.sha256,
+        filename_keywords = excluded.filename_keywords,
+        path_keywords = excluded.path_keywords,
         full_text = excluded.full_text";
 
     let sql_insert = if has_full_text {
@@ -606,10 +705,13 @@ async fn ingest_journal_snapshot(
             // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
             let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);
 
+            let filename_kw = expand_search_keywords(&filename);
+            let path_kw = expand_search_keywords(&path_str);
+
             let mut params = vec![
                 Value::Integer(source_id),
-                Value::Text(path_str),
-                Value::Text(filename),
+                Value::Text(path_str.clone()),
+                Value::Text(filename.clone()),
                 Value::Text(parent_dir),
                 Value::Text(kind_str.to_string()),
                 Value::Integer(size_val),
@@ -622,6 +724,8 @@ async fn ingest_journal_snapshot(
                 // Reason for fallback: entities without symlink target or SHA-256 hash record NULL in SQLite
                 symlink_target.map_or(Value::Null, Value::Text),
                 sha256_str.map_or(Value::Null, Value::Text),
+                Value::Text(filename_kw),
+                Value::Text(path_kw),
             ];
 
             if has_full_text {

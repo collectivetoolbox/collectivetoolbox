@@ -327,8 +327,6 @@ Options:
           Skip the post-flush verification pass
       --always-overwrite
           Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
-      --skip-existing-checksum
-          Alias for default checksum skipping behavior (retained for backward compatibility)
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
       --copy-specials-as-specials
@@ -386,8 +384,6 @@ Options:
           Skip the post-flush verification pass
       --always-overwrite
           Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
-      --skip-existing-checksum
-          Alias for default checksum skipping behavior (retained for backward compatibility)
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
       --copy-specials-as-specials
@@ -681,38 +677,73 @@ Usage: ctoolbox fsearch [OPTIONS] <DATABASE> [QUERY]...
 
 Arguments:
   <DATABASE>  Path to the *.cscindex.sqlite database file
-  [QUERY]...  Search pattern or terms (matched as glob if 1 argument with '*', or keyword search if multiple arguments or without '*')
+  [QUERY]...  Search pattern or terms (matched as glob if contains '*', substring if single term, or keyword search if multiple terms)
 
 Options:
-      --regex-path <REGEX_PATH>      Regular expression pattern to match against path and filename
-      --regex-text <REGEX_TEXT>      Regular expression pattern to match against path, filename, and full text content
-      --regex-name <REGEX_NAME>      Regular expression pattern to match against filename only
-      --glob-path <GLOB_PATH>        Glob pattern to match against relative path and filename
-      --glob-text <GLOB_TEXT>        Glob pattern to match against relative path, filename, and full text content
-      --glob-name <GLOB_NAME>        Glob pattern to match against filename only
-      --keyword-path <KEYWORD_PATH>  Keyword match across relative path and filename
-      --keyword-text <KEYWORD_TEXT>  Keyword match across relative path, filename, and full text content
-      --keyword-name <KEYWORD_NAME>  Keyword match on filename only
-  -C, --context <CONTEXT>            Print n lines around first match of full text
-  -n, --name <NAME_GLOB>             Glob pattern to match against filename (e.g. "*.rs", "*test*"). Legacy alias for --glob-name
-  -p, --path <PATH_GLOB>             Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Legacy alias for --glob-path
-  -k, --keyword <KEYWORD>...         One or more keyword terms to match in path or filename. Legacy alias for --keyword-path
-  -r, --regex <REGEX>                Regular expression pattern to match against path. Legacy alias for --regex-path
-  -s, --source <SOURCE>              Filter by source name tag
-      --mtime-after <MTIME_AFTER>    Filter entries modified on or after this Unix timestamp or relative duration (e.g. "1725600000", "7d", "24h")
-      --mtime-before <MTIME_BEFORE>  Filter entries modified on or before this Unix timestamp or relative duration
-      --ctime-after <CTIME_AFTER>    Filter entries changed on or after this Unix timestamp or relative duration
-      --ctime-before <CTIME_BEFORE>  Filter entries changed on or before this Unix timestamp or relative duration
-      --size-min <SIZE_MIN>          Minimum file size in bytes (or suffix like 10k, 5M, 1G)
-      --size-max <SIZE_MAX>          Maximum file size in bytes (or suffix like 10k, 5M, 1G)
-  -t, --type <ENTRY_TYPE>            Filter by entity type ('f' or 'file', 'd' or 'dir', 'l' or 'symlink')
-      --sort <SORT>                  Field to sort results by [default: path] [possible values: path, name, mtime, ctime, size]
-      --desc                         Sort in descending order
-  -l, --limit <LIMIT>                Maximum number of search results to return
-      --format <FORMAT>              Output formatting mode (`path`, `long`, or `json`) [default: path] [possible values: path, long, json]
-      --password-file <FILE>         Read password from the specified file when querying an encrypted index
-      --password-stdin               Read password from standard input when querying an encrypted index
-  -h, --help                         Print help (see more with '--help')
+      --regex-path <REGEX_PATH>
+          Regular expression pattern to match against path and filename (shorthand: -rp, --rp). Does not require delimiters [aliases: --rp]
+      --regex-text <REGEX_TEXT>
+          Regular expression pattern to match against path, filename, and full text content (shorthand: -rt, --rt). Does not require delimiters [aliases: --rt]
+      --regex-name <REGEX_NAME>
+          Regular expression pattern to match against filename only (shorthand: -rn, --rn). Does not require delimiters [aliases: --rn]
+      --glob-path <GLOB_PATH>
+          Glob pattern to match against relative path and filename (shorthand: -gp, --gp) [aliases: --gp]
+      --glob-text <GLOB_TEXT>
+          Glob pattern to match against relative path, filename, and full text content (shorthand: -gt, --gt) [aliases: --gt]
+      --glob-name <GLOB_NAME>
+          Glob pattern to match against filename only (shorthand: -gn, --gn) [aliases: --gn]
+      --keyword-path <KEYWORD_PATH>
+          Keyword match across relative path and filename (shorthand: -kp, --kp) [aliases: --kp]
+      --keyword-text <KEYWORD_TEXT>
+          Keyword match across relative path, filename, and full text content (shorthand: -kt, --kt) [aliases: --kt]
+      --keyword-name <KEYWORD_NAME>
+          Keyword match on filename only (shorthand: -kn, --kn) [aliases: --kn]
+      --substring-path <SUBSTRING_PATH>
+          Substring pattern to match against relative path and filename (shorthand: -sp, --sp) [aliases: --sp]
+      --substring-text <SUBSTRING_TEXT>
+          Substring pattern to match against relative path, filename, and full text content (shorthand: -st, --st) [aliases: --st]
+      --substring-name <SUBSTRING_NAME>
+          Substring pattern to match against filename only (shorthand: -sn, --sn) [aliases: --sn]
+  -C, --context <CONTEXT>
+          Print n lines around first match of full text
+  -n, --name <NAME_GLOB>
+          Glob pattern to match against filename (e.g. "*.rs", "*test*"). Legacy alias for --glob-name
+  -p, --path <PATH_GLOB>
+          Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Alias for --glob-path
+  -k, --keyword <KEYWORD>...
+          One or more keyword terms to match in path or filename. Alias for --keyword-path
+  -r, --regex <REGEX>
+          Regular expression pattern to match against path (alias for --regex-path). Does not require delimiters
+  -s, --source <SOURCE>
+          Filter by source name tag
+      --mtime-after <MTIME_AFTER>
+          Filter entries modified on or after this Unix timestamp or relative duration (e.g. "1725600000", "7d", "24h")
+      --mtime-before <MTIME_BEFORE>
+          Filter entries modified on or before this Unix timestamp or relative duration
+      --ctime-after <CTIME_AFTER>
+          Filter entries changed on or after this Unix timestamp or relative duration
+      --ctime-before <CTIME_BEFORE>
+          Filter entries changed on or before this Unix timestamp or relative duration
+      --size-min <SIZE_MIN>
+          Minimum file size in bytes (or suffix like 10k, 5M, 1G)
+      --size-max <SIZE_MAX>
+          Maximum file size in bytes (or suffix like 10k, 5M, 1G)
+  -t, --type <ENTRY_TYPE>
+          Filter by entity type ('f' or 'file', 'd' or 'dir', 'l' or 'symlink')
+      --sort <SORT>
+          Field to sort results by [default: path] [possible values: path, name, mtime, ctime, size]
+      --desc
+          Sort in descending order
+  -l, --limit <LIMIT>
+          Maximum number of search results to return
+      --format <FORMAT>
+          Output formatting mode (`path`, `long`, or `json`) [default: path] [possible values: path, long, json]
+      --password-file <FILE>
+          Read password from the specified file when querying an encrypted index
+      --password-stdin
+          Read password from standard input when querying an encrypted index
+  -h, --help
+          Print help (see more with '--help')
 ```
 
 ### `ctoolbox fsindex`

@@ -94,7 +94,6 @@ mod csc_tests {
             verify_after: true,
             no_verify_after: false,
             always_overwrite: false,
-            skip_existing_checksum: true,
             on_source_change: crate::args::SourceChangePolicy::Error,
             copy_specials_as_specials: false,
             copy_block_devices_as_regular_files: false,
@@ -255,14 +254,13 @@ mod csc_tests {
         fs::write(src.join("file.txt"), b"Same data").expect("write src");
         fs::write(dest.join("file.txt"), b"Same data").expect("write dest");
 
-        let mut args = default_test_args(
+        let args = default_test_args(
             vec![
                 PathBuf::from(format!("{}/", src.display())),
                 dest.clone(),
             ],
             state,
         );
-        args.skip_existing_checksum = true;
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -513,7 +511,7 @@ mod csc_tests {
         use std::io::Seek;
         use std::io::SeekFrom;
         use std::io::Write;
-        use crate::fs_strict::{get_file_extents, FileExtent};
+        use ctb_io::file::{get_file_extents, Extent as FileExtent};
 
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_sparse");
@@ -697,7 +695,7 @@ mod csc_tests {
 
     #[crate::ctb_test]
     fn test_strict_error_on_altered_filename() {
-        use crate::fs_strict::verify_filename_exact_bytes;
+        use ctb_io::file::verify_filename_exact_bytes;
 
         let temp = tempdir().expect("create tempdir");
         let test_file = temp.path().join("original_name.txt");
@@ -1446,6 +1444,9 @@ mod csc_tests {
             keyword_path: None,
             keyword_text: None,
             keyword_name: None,
+            substring_path: None,
+            substring_text: None,
+            substring_name: None,
             context: None,
             name_glob: None,
             path_glob: None,
@@ -2153,6 +2154,136 @@ mod csc_tests {
         search_conflict.query = vec!["unexpected_trailing_positional".to_string()];
         let err_conflict = run_fsearch(search_conflict).await.err().expect("must fail on mixed explicit option and query");
         assert!(err_conflict.to_string().contains("Cannot specify both explicit search filter flags and positional query terms"));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_camelcase_keyword_indexing_and_searching() {
+        use crate::index_engine::{expand_search_keywords, run_fsindex, split_camel_case};
+        use crate::search_engine::run_fsearch;
+
+        // Test unit tokenization
+        let sub = split_camel_case("FooBarRegular");
+        assert_eq!(sub, vec!["Foo", "Bar", "Regular"]);
+
+        let kw = expand_search_keywords("FooBarRegular.ttf");
+        assert!(kw.contains("foobar"));
+        assert!(kw.contains("foo"));
+        assert!(kw.contains("bar"));
+        assert!(kw.contains("regular"));
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("fonts_src");
+        fs::create_dir_all(&src).expect("create fonts_src");
+        fs::write(src.join("FooBarRegular.ttf"), b"dummy font data").expect("write font");
+
+        let db_path = temp.path().join("fonts.cscindex.sqlite");
+        let idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        run_fsindex(idx_args).await.expect("run fsindex");
+
+        // 1. Match on -kn foobar
+        let mut s_kn1 = default_fsearch_args(db_path.clone());
+        s_kn1.keyword_name = Some("foobar".to_string());
+        let res1 = run_fsearch(s_kn1).await.expect("search -kn foobar");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res1 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("FooBarRegular.ttf"), "Expected match on foobar: {out}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 2. Match on -kn "foo bar"
+        let mut s_kn2 = default_fsearch_args(db_path.clone());
+        s_kn2.keyword_name = Some("foo bar".to_string());
+        let res2 = run_fsearch(s_kn2).await.expect("search -kn foo bar");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res2 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("FooBarRegular.ttf"), "Expected match on foo bar: {out}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 3. Match on individual words
+        let mut s_kn3 = default_fsearch_args(db_path.clone());
+        s_kn3.keyword_name = Some("bar".to_string());
+        let res3 = run_fsearch(s_kn3).await.expect("search -kn bar");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res3 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("FooBarRegular.ttf"), "Expected match on bar: {out}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Match on -kp foobar
+        let mut s_kp = default_fsearch_args(db_path.clone());
+        s_kp.keyword_path = Some("foobar".to_string());
+        let res4 = run_fsearch(s_kp).await.expect("search -kp foobar");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res4 {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("FooBarRegular.ttf"), "Expected match on -kp foobar: {out}");
+        } else {
+            panic!("Expected immediate result");
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_substring_fsearch_options_and_default_behavior() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("sub_src");
+        fs::create_dir_all(&src).expect("create sub_src");
+        fs::write(src.join("foo.bar.baz.txt"), b"sample content").expect("write foo.bar");
+        fs::write(src.join("special[regex]+file.log"), b"log data with target.substring in it").expect("write special");
+
+        let db_path = temp.path().join("sub.cscindex.sqlite");
+        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        idx_args.fulltext = true;
+        run_fsindex(idx_args).await.expect("run fsindex");
+
+        // 1. Substring name matching with special characters (dot must not act as regex any-char)
+        let mut s_sn = default_fsearch_args(db_path.clone());
+        s_sn.substring_name = Some("bar.baz".to_string());
+        let res_sn = run_fsearch(s_sn).await.expect("search -sn");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_sn {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("foo.bar.baz.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 2. Substring path matching with regex metacharacters [ ] and +
+        let mut s_sp = default_fsearch_args(db_path.clone());
+        s_sp.substring_path = Some("[regex]+file".to_string());
+        let res_sp = run_fsearch(s_sp).await.expect("search -sp");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_sp {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("special[regex]+file.log"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 3. Substring text matching with escaped characters
+        let mut s_st = default_fsearch_args(db_path.clone());
+        s_st.substring_text = Some("target.substring".to_string());
+        let res_st = run_fsearch(s_st).await.expect("search -st");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_st {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("special[regex]+file.log"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Default search behavior: single positional argument does substring search
+        let mut s_single = default_fsearch_args(db_path.clone());
+        s_single.query = vec!["bar.baz".to_string()];
+        let res_single = run_fsearch(s_single).await.expect("search single positional argument");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_single {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("foo.bar.baz.txt"), "Single positional term must do substring search: {out}");
+        } else {
+            panic!("Expected immediate result");
+        }
     }
 
     #[crate::ctb_test("tokio")]

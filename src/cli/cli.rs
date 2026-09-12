@@ -138,6 +138,9 @@ fn normalize_fsearch_flags(args: Vec<String>) -> Vec<String> {
                 "-kp" => normalized.push("--keyword-path".to_string()),
                 "-kt" => normalized.push("--keyword-text".to_string()),
                 "-kn" => normalized.push("--keyword-name".to_string()),
+                "-sp" => normalized.push("--substring-path".to_string()),
+                "-st" => normalized.push("--substring-text".to_string()),
+                "-sn" => normalized.push("--substring-name".to_string()),
                 _ => normalized.push(arg),
             }
         } else {

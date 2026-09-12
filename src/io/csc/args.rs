@@ -92,10 +92,6 @@ pub struct CscArgs {
     #[arg(long, default_value_t = false)]
     pub always_overwrite: bool,
 
-    /// Alias for default checksum skipping behavior (retained for backward compatibility).
-    #[arg(long, default_value_t = true, overrides_with = "always_overwrite")]
-    pub skip_existing_checksum: bool,
-
     /// Behavior when a source file is modified during copy.
     #[arg(long, value_enum, default_value_t = SourceChangePolicy::Error)]
     pub on_source_change: SourceChangePolicy,
@@ -493,45 +489,57 @@ pub struct FsearchArgs {
     #[arg(value_name = "DATABASE")]
     pub database: PathBuf,
 
-    /// Search pattern or terms (matched as glob if 1 argument with '*', or keyword search if multiple arguments or without '*').
+    /// Search pattern or terms (matched as glob if contains '*', substring if single term, or keyword search if multiple terms).
     #[arg(value_name = "QUERY", num_args = 0..)]
     pub query: Vec<String>,
 
-    /// Regular expression pattern to match against path and filename.
-    #[arg(long = "regex-path", alias = "rp", conflicts_with = "query")]
+    /// Regular expression pattern to match against path and filename (shorthand: -rp, --rp). Does not require delimiters.
+    #[arg(long = "regex-path", visible_alias = "rp", alias = "rp", conflicts_with = "query")]
     pub regex_path: Option<String>,
 
-    /// Regular expression pattern to match against path, filename, and full text content.
-    #[arg(long = "regex-text", alias = "rt", conflicts_with = "query")]
+    /// Regular expression pattern to match against path, filename, and full text content (shorthand: -rt, --rt). Does not require delimiters.
+    #[arg(long = "regex-text", visible_alias = "rt", alias = "rt", conflicts_with = "query")]
     pub regex_text: Option<String>,
 
-    /// Regular expression pattern to match against filename only.
-    #[arg(long = "regex-name", alias = "rn", conflicts_with = "query")]
+    /// Regular expression pattern to match against filename only (shorthand: -rn, --rn). Does not require delimiters.
+    #[arg(long = "regex-name", visible_alias = "rn", alias = "rn", conflicts_with = "query")]
     pub regex_name: Option<String>,
 
-    /// Glob pattern to match against relative path and filename.
-    #[arg(long = "glob-path", alias = "gp", conflicts_with = "query")]
+    /// Glob pattern to match against relative path and filename (shorthand: -gp, --gp).
+    #[arg(long = "glob-path", visible_alias = "gp", alias = "gp", conflicts_with = "query")]
     pub glob_path: Option<String>,
 
-    /// Glob pattern to match against relative path, filename, and full text content.
-    #[arg(long = "glob-text", alias = "gt", conflicts_with = "query")]
+    /// Glob pattern to match against relative path, filename, and full text content (shorthand: -gt, --gt).
+    #[arg(long = "glob-text", visible_alias = "gt", alias = "gt", conflicts_with = "query")]
     pub glob_text: Option<String>,
 
-    /// Glob pattern to match against filename only.
-    #[arg(long = "glob-name", alias = "gn", conflicts_with = "query")]
+    /// Glob pattern to match against filename only (shorthand: -gn, --gn).
+    #[arg(long = "glob-name", visible_alias = "gn", alias = "gn", conflicts_with = "query")]
     pub glob_name: Option<String>,
 
-    /// Keyword match across relative path and filename.
-    #[arg(long = "keyword-path", alias = "kp", conflicts_with = "query")]
+    /// Keyword match across relative path and filename (shorthand: -kp, --kp).
+    #[arg(long = "keyword-path", visible_alias = "kp", alias = "kp", conflicts_with = "query")]
     pub keyword_path: Option<String>,
 
-    /// Keyword match across relative path, filename, and full text content.
-    #[arg(long = "keyword-text", alias = "kt", conflicts_with = "query")]
+    /// Keyword match across relative path, filename, and full text content (shorthand: -kt, --kt).
+    #[arg(long = "keyword-text", visible_alias = "kt", alias = "kt", conflicts_with = "query")]
     pub keyword_text: Option<String>,
 
-    /// Keyword match on filename only.
-    #[arg(long = "keyword-name", alias = "kn", conflicts_with = "query")]
+    /// Keyword match on filename only (shorthand: -kn, --kn).
+    #[arg(long = "keyword-name", visible_alias = "kn", alias = "kn", conflicts_with = "query")]
     pub keyword_name: Option<String>,
+
+    /// Substring pattern to match against relative path and filename (shorthand: -sp, --sp).
+    #[arg(long = "substring-path", visible_alias = "sp", alias = "sp", conflicts_with = "query")]
+    pub substring_path: Option<String>,
+
+    /// Substring pattern to match against relative path, filename, and full text content (shorthand: -st, --st).
+    #[arg(long = "substring-text", visible_alias = "st", alias = "st", conflicts_with = "query")]
+    pub substring_text: Option<String>,
+
+    /// Substring pattern to match against filename only (shorthand: -sn, --sn).
+    #[arg(long = "substring-name", visible_alias = "sn", alias = "sn", conflicts_with = "query")]
+    pub substring_name: Option<String>,
 
     /// Print n lines around first match of full text.
     #[arg(short = 'C', long = "context")]
@@ -541,11 +549,11 @@ pub struct FsearchArgs {
     #[arg(short = 'n', long = "name", conflicts_with = "query")]
     pub name_glob: Option<String>,
 
-    /// Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Legacy alias for --glob-path.
+    /// Glob pattern to match against relative path (e.g. "src/**/tests.rs"). Alias for --glob-path.
     #[arg(short = 'p', long = "path", conflicts_with = "query")]
     pub path_glob: Option<String>,
 
-    /// One or more keyword terms to match in path or filename. Legacy alias for --keyword-path.
+    /// One or more keyword terms to match in path or filename. Alias for --keyword-path.
     #[arg(
         short = 'k',
         long = "keyword",
@@ -554,7 +562,7 @@ pub struct FsearchArgs {
     )]
     pub keyword: Vec<String>,
 
-    /// Regular expression pattern to match against path. Legacy alias for --regex-path.
+    /// Regular expression pattern to match against path (alias for --regex-path). Does not require delimiters.
     #[arg(short = 'r', long = "regex", conflicts_with = "query")]
     pub regex: Option<String>,
 
