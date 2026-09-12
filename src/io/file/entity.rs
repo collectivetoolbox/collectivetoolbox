@@ -344,8 +344,7 @@ impl FileEntity {
         };
 
         let read_time = Some(SystemTime::now());
-        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical = canonicalize_entity_path(path, is_symlink);
         let mut raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
         for b in &mut raw_relative_path {
             if *b == b'\\' {
@@ -444,6 +443,8 @@ impl FileEntity {
     ) -> Result<Self> {
         let sym_meta = std::fs::symlink_metadata(path)
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+
+        let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
 
         let is_symlink = sym_meta.file_type().is_symlink();
         let symlink_target = if is_symlink {
@@ -555,8 +556,7 @@ impl FileEntity {
 
         let read_time = Some(SystemTime::now());
 
-        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical = canonicalize_entity_path(path, is_symlink);
 
         let raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
 
@@ -582,7 +582,7 @@ impl FileEntity {
         };
 
         let mut metadata = FileMetadata {
-            native: Some(crate::metadata::capture_native_metadata(path, &sym_meta)?),
+            native: Some(native_metadata),
             mode,
             uid,
             gid,
@@ -796,3 +796,32 @@ fn system_time_to_unix(time: std::io::Result<SystemTime>) -> (i64, u32) {
     }
 }
 
+fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
+    if is_symlink {
+        // Reason for fallback: For symlinks (including dangling symlinks),
+        // canonicalizing the symlink itself dereferences it (or fails if
+        // dangling) and mutates atime on Linux. Canonicalize the parent
+        // directory and append the symlink's file name to preserve the
+        // symlink itself without dereferencing.
+        match path.parent() {
+            Some(p) if !p.as_os_str().is_empty() => {
+                std::fs::canonicalize(p)
+                    .map(|can_p| {
+                        path.file_name()
+                            .map_or_else(|| can_p.clone(), |name| can_p.join(name))
+                    })
+                    .unwrap_or_else(|_| path.to_path_buf())
+            }
+            _ => std::fs::canonicalize(".")
+                .map(|can_p| {
+                    path.file_name()
+                        .map_or_else(|| can_p.clone(), |name| can_p.join(name))
+                })
+                .unwrap_or_else(|_| path.to_path_buf()),
+        }
+    } else {
+        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot
+        // be canonicalized by the OS; fall back to verbatim path.
+        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+    }
+}

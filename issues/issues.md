@@ -30,6 +30,15 @@
 
 ### csc
 
+ia should read in chunks / range requests:
+
+Error: Failed to read download body
+
+Caused by:
+    0: Failed to read HTTP response body                                                                                                                                                                                        
+    1: error decoding response body                                                                                                                                                                                             
+    2: operation timed out
+
 
 Add a Dc to represent long Dcs
 
