@@ -799,10 +799,12 @@ fn system_time_to_unix(time: std::io::Result<SystemTime>) -> (i64, u32) {
 fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
     if is_symlink {
         // Reason for fallback: For symlinks (including dangling symlinks),
-        // canonicalizing the symlink itself dereferences it (or fails if
-        // dangling) and mutates atime on Linux. Canonicalize the parent
-        // directory and append the symlink's file name to preserve the
-        // symlink itself without dereferencing.
+        // canonicalizing the symlink itself dereferences it (failing if
+        // dangling) and mutates atime on Linux. Canonicalizing the parent
+        // directory and appending the symlink's file name preserves the
+        // symlink node itself without dereferencing. If the parent cannot
+        // be canonicalized (e.g. permission limits on an ancestor), fall
+        // back to the verbatim path.
         match path.parent() {
             Some(p) if !p.as_os_str().is_empty() => {
                 std::fs::canonicalize(p)
@@ -820,8 +822,11 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
                 .unwrap_or_else(|_| path.to_path_buf()),
         }
     } else {
-        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot
-        // be canonicalized by the OS; fall back to verbatim path.
+        // Reason for fallback: Existence is already guaranteed by
+        // `symlink_metadata` at entry. If `canonicalize` fails (e.g. restricted
+        // ancestor traversal permissions, sandboxed environments, or virtual
+        // filesystems like `/proc`), retain the verbatim caller-supplied path
+        // rather than failing ingestion of a valid file.
         std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
     }
 }
