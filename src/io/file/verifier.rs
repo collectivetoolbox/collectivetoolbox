@@ -38,7 +38,6 @@ use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -142,12 +141,17 @@ pub enum DiffKind {
     /// File birth / creation time mismatch.
     BirthtimeMismatch {
         expected_sec: Option<i64>,
+        expected_nsec: Option<u32>,
         actual_sec: Option<i64>,
+        actual_nsec: Option<u32>,
     },
     /// Semantic or OS file flags mismatch.
     FlagsMismatch {
         expected: Vec<String>,
         actual: Vec<String>,
+    },
+    NativeMetadataMismatch {
+        details: String,
     },
     /// Alternate data stream or extended attribute mismatch.
     StreamMismatch {
@@ -243,16 +247,19 @@ impl std::fmt::Display for DiffKind {
             }
             Self::BirthtimeMismatch {
                 expected_sec,
+                expected_nsec,
                 actual_sec,
+                actual_nsec,
             } => {
                 write!(
                     f,
-                    "Birthtime mismatch: expected {expected_sec:?}, got {actual_sec:?}"
+                    "Birthtime mismatch: expected {expected_sec:?}/{expected_nsec:?}, got {actual_sec:?}/{actual_nsec:?}"
                 )
             }
             Self::FlagsMismatch { expected, actual } => {
                 write!(f, "Flags mismatch: expected {expected:?}, got {actual:?}")
             }
+            Self::NativeMetadataMismatch { details } => write!(f, "Native metadata mismatch: {details}"),
             Self::StreamMismatch {
                 stream_name,
                 details,
@@ -629,9 +636,50 @@ pub fn audit_entity_detailed(
         }
     }
 
+    if let Some(expected_sec) = expected.metadata.timestamps.birthtime_sec {
+        let actual = crate::metadata::capture_birthtime(&dest_meta)?;
+        let actual_sec = actual.map(|time| time.unix_seconds());
+        let actual_nsec = actual.map(|time| time.nanoseconds());
+        if actual_sec != Some(expected_sec) || actual_nsec != expected.metadata.timestamps.birthtime_nsec {
+            if options.best_effort {
+                ignored.timestamps = ignored.timestamps.saturating_add(1);
+                warn_fmt!("Birth time differs on {}; original retained in source metadata", path.display());
+            } else {
+                diffs.push(DiffKind::BirthtimeMismatch {
+                    expected_sec: Some(expected_sec),
+                    expected_nsec: expected.metadata.timestamps.birthtime_nsec,
+                    actual_sec, actual_nsec,
+                });
+            }
+        }
+    }
+
+    if expected.metadata.native.is_some() {
+        let differences = crate::metadata::native_metadata_differences(path, &expected.metadata, options.ignore_flags)?;
+        if !differences.is_empty() {
+            if options.best_effort {
+                warn_fmt!("Native metadata differs on {}: {differences:?}", path.display());
+                ignored.flags = ignored.flags.saturating_add(1);
+            } else {
+                diffs.push(DiffKind::NativeMetadataMismatch { details: differences.join("; ") });
+            }
+        }
+    }
+
     // 5. File Flags
     if !options.ignore_flags {
-        let (actual_flags, _) = query_file_flags(path, expected.is_symlink())?;
+        let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
+        if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
+            if actual_raw.as_ref() != Some(expected_raw) {
+                let details = format!("Raw flags expected {expected_raw:?}, got {actual_raw:?}");
+                if options.best_effort {
+                    warn_fmt!("{}: {details}", path.display());
+                    ignored.flags = ignored.flags.saturating_add(1);
+                } else {
+                    diffs.push(DiffKind::NativeMetadataMismatch { details });
+                }
+            }
+        }
         let mut exp_names: Vec<String> = expected
             .metadata
             .flags
@@ -659,22 +707,23 @@ pub fn audit_entity_detailed(
     // 6. Streams and Extended Attributes
     if !options.ignore_xattrs {
         let on_disk_streams = read_and_hash_streams(path)?;
-        let mut expected_map: HashMap<OsString, [u8; 32]> = HashMap::new();
+        let mut expected_map = HashMap::new();
         for s in &expected.streams {
             let hash = match &s.entity.kind {
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            expected_map.insert(s.name.as_os_str()?.to_os_string(), hash);
+            let native_name = crate::streams::StreamName::from_os_str(&s.name.to_os_string()?);
+            anyhow::ensure!(expected_map.insert(native_name, hash).is_none(), "Stream names collide on the destination platform");
         }
 
-        let mut disk_map: HashMap<OsString, [u8; 32]> = HashMap::new();
+        let mut disk_map = HashMap::new();
         for s in &on_disk_streams {
             let hash = match &s.entity.kind {
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            disk_map.insert(s.name.as_os_str()?.to_os_string(), hash);
+            disk_map.insert(s.name.clone(), hash);
         }
 
         for (exp_name, exp_hash) in &expected_map {

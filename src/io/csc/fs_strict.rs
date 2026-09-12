@@ -37,7 +37,6 @@ use ctb_io::file::identity::{FileIdentity, FileOrigin};
 use ctb_io::file::materializer::apply_entity_metadata;
 use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
-use std::ffi::OsString;
 use std::fs::Metadata;
 #[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -47,7 +46,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StreamInfo {
     /// The name of the stream or extended attribute (e.g. `user.DosStream.foo`).
-    pub name: OsString,
+    pub name: StreamName,
     /// Size of the stream payload in bytes.
     pub size: u64,
     /// Cryptographic SHA-256 digest of the stream payload.
@@ -65,11 +64,10 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
             FileEntityKind::Regular { size, sha256, .. } => (*size, *sha256),
             _ => (0, [0_u8; 32]),
         };
-        // Reason for fallback: AttachedStream in-memory data payload is optional; an absent buffer represents an empty byte payload.
-        let data = s.data.unwrap_or_default();
+        let data = s.data.context("Captured stream has no payload")?;
         streams.push((
             StreamInfo {
-                name: s.name.as_os_str()?.to_os_string(),
+                name: s.name,
                 size,
                 sha256,
             },
@@ -85,15 +83,15 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<(StreamInfo, Vec<u8>)>> 
 pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<()> {
     let mut attached = Vec::with_capacity(streams.len());
     for (info, val) in streams {
-        let name_bytes = info.name.as_encoded_bytes().to_vec();
-        let stream_name = StreamName(name_bytes.clone());
+        let name_bytes = info.name.as_bytes().into_owned();
+        let stream_name = info.name.clone();
         let kind = StreamKind::infer_from_name(&name_bytes);
         let size = u64::try_from(val.len())?;
 
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from(&info.name),
+                relative_path: PathBuf::new(),
                 enclosing_path: None,
                 raw_relative_path: name_bytes.clone(),
                 raw_filename: name_bytes,
@@ -101,6 +99,7 @@ pub fn write_streams(dest: &Path, streams: &[(StreamInfo, Vec<u8>)]) -> Result<(
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 0,
                 gid: 0,
@@ -156,6 +155,7 @@ pub fn apply_metadata(dest: &Path, source_meta: &Metadata, is_symlink: bool) -> 
         .context("Failed to convert ctime_nsec to u32")?;
 
     let meta = FileMetadata {
+        native: None,
         mode,
         uid,
         gid,

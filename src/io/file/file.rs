@@ -223,6 +223,7 @@ mod tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: nix::unistd::getuid().as_raw(),
                 gid: nix::unistd::getgid().as_raw(),
@@ -360,6 +361,142 @@ mod tests {
         assert!(verify_materialized_entity(&source, &entity, false).is_err());
     }
 
+    #[crate::ctb_test]
+    fn test_birthtime_replication_policy() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        let mut metadata = FileMetadata {
+            native: None, mode: 0o600, uid: 0, gid: 0,
+            timestamps: FileTimestamps {
+                atime_sec: 0, atime_nsec: 0, mtime_sec: 0, mtime_nsec: 0,
+                ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
+            },
+            flags: Vec::new(), platform_raw_flags: None, read_time: None,
+        };
+        assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
+        metadata.timestamps.birthtime_sec = None;
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_stream_names_retain_native_encoding() {
+        for name in [
+            StreamName::from_bytes(b"user.raw\xff\x80"),
+            StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061, 0xdc00]),
+            StreamName::from_windows_utf16(&[0x0061, 0]),
+        ] {
+            let encoded = serde_json::to_vec(&name).unwrap();
+            let restored: StreamName = serde_json::from_slice(&encoded).unwrap();
+            assert_eq!(restored, name);
+            #[cfg(windows)]
+            if matches!(name, StreamName::WindowsUtf16(_)) {
+                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+            }
+            #[cfg(unix)]
+            if matches!(name, StreamName::Bytes(_)) {
+                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_stream_capture_retains_unpaired_surrogate() {
+        use std::os::windows::ffi::OsStringExt;
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"main payload").unwrap();
+        let mut units = vec![0x003a, 0xd800];
+        units.extend(":$DATA".encode_utf16());
+        let mut stream_path = path.as_os_str().to_os_string();
+        stream_path.push(std::ffi::OsString::from_wide(&units));
+        fs::write(PathBuf::from(stream_path), b"stream payload").unwrap();
+        let streams = crate::streams::read_and_hash_streams(&path).unwrap();
+        assert_eq!(streams.len(), 1);
+        assert_eq!(streams[0].name, StreamName::from_windows_utf16(&units));
+        assert_eq!(streams[0].data.as_deref(), Some(b"stream payload".as_slice()));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_metadata_only_captures_birthtime_and_streams() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        xattr::set(&path, "user.metadata", b"opaque bytes\xff").unwrap();
+        let entity = FileEntity::from_filesystem_metadata_only(&path, None).unwrap();
+        assert!(entity.metadata.native.is_some());
+        let FileEntityKind::Regular { sha256, extents, .. } = &entity.kind else {
+            panic!("Expected a regular file");
+        };
+        assert_eq!(*sha256, [0; 32]);
+        assert!(!extents.is_empty());
+        assert_eq!(entity.streams[0].data.as_deref(), Some(b"opaque bytes\xff".as_slice()));
+        if let Ok(created) = fs::symlink_metadata(&path).unwrap().created() {
+            let time = filetime::FileTime::from_system_time(created);
+            assert_eq!(entity.metadata.timestamps.birthtime_sec, Some(time.unix_seconds()));
+            assert_eq!(entity.metadata.timestamps.birthtime_nsec, Some(time.nanoseconds()));
+        }
+        #[cfg(target_os = "linux")]
+        assert!(entity.metadata.native.unwrap().values.contains_key("statx.attributes_mask"));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_opaque_native_metadata_replication_policy() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.metadata.native.as_mut().unwrap().values.insert(
+            "future.attribute".to_owned(), metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
+        );
+        assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false).is_err());
+        assert!(metadata::check_metadata_replication(&path, &entity.metadata, false, false).is_ok());
+        assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false).is_err());
+        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
+        assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(|diff|
+            matches!(diff, DiffKind::NativeMetadataMismatch { .. })));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_portable_stream_name_recreation_and_collision() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        xattr::set(&path, "user.portable", b"metadata").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.streams[0].name = StreamName::from_windows_utf16(&"user.portable".encode_utf16().collect::<Vec<_>>());
+        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
+        let options = EntityAuditOptions { best_effort: true, ..Default::default() };
+        let diffs = audit_entity(&path, &entity, &options).unwrap();
+        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
+        let mut duplicate = entity.streams[0].clone();
+        duplicate.name = StreamName::from_str("user.portable");
+        entity.streams.push(duplicate);
+        assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+        assert!(audit_entity(&path, &entity, &options).is_err());
+        entity.streams[0].name = StreamName::from_windows_utf16(&[0xd800]);
+        assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn test_flag_application_clears_stale_flags_and_rejects_bad_width() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        crate::sys_flags::apply_file_flags(&path, &[FileFlag::NoDump], None, true).unwrap();
+        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.contains(&FileFlag::NoDump));
+        crate::sys_flags::apply_file_flags(&path, &[], None, true).unwrap();
+        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.is_empty());
+        let raw = PlatformRawFlags { source_os: OsFamily::Linux, raw_value: u64::MAX, has_unparsed_flags: true };
+        assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
+    }
+
     #[cfg(not(unix))]
     #[crate::ctb_test]
     fn test_unsupported_fidelity_fails_explicitly() {
@@ -368,7 +505,7 @@ mod tests {
         fs::write(&path, b"original").unwrap();
         assert!(FileEntity::from_filesystem(&path, None).is_err());
         assert!(read_and_hash_streams(&path).is_err());
-        assert!(StreamName::from_bytes(b"invalid\xff").as_os_str().is_err());
+        assert!(StreamName::from_bytes(b"invalid\xff").to_os_string().is_err());
         let root = SandboxableDir::open(temp.path()).unwrap();
         assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source").is_err());
         assert_eq!(fs::read(path).unwrap(), b"original");
@@ -543,6 +680,7 @@ mod tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: nix::unistd::getuid().as_raw(),
                 gid: nix::unistd::getgid().as_raw(),
@@ -657,6 +795,7 @@ mod tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o600,
                 uid: nix::unistd::getuid().as_raw(),
                 gid: nix::unistd::getgid().as_raw(),
@@ -742,6 +881,7 @@ mod tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: nix::unistd::getuid().as_raw(),
                 gid: nix::unistd::getgid().as_raw(),
@@ -817,6 +957,7 @@ mod tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: nix::unistd::getuid().as_raw(),
                 gid: nix::unistd::getgid().as_raw(),

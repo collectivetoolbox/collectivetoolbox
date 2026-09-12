@@ -27,8 +27,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ctoolbox-built
-          path: built/linux-x64
-          retention-days: 1
+          path: |
+            built/*/ctoolbox
+            built/*/ctoolbox.exe
+            built/*/ctoolbox.rsrc
+          retention-days: 7
 
   browser-tests:
     name: Playwright Browser Tests

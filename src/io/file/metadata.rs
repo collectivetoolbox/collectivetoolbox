@@ -26,10 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
 /// Operating system family where raw bits or file descriptors originated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OsFamily {
     /// Apple macOS / Darwin.
     Darwin,
@@ -103,7 +104,18 @@ impl OsFamily {
 }
 
 /// Semantic file flag / attribute independent of platform bit encoding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+)]
 pub enum FileFlag {
     /// Do not include file in backups (`UF_NODUMP` / `FS_NODUMP_FL`).
     NoDump,
@@ -252,7 +264,7 @@ impl FileFlag {
 }
 
 /// Raw platform bitmask with provenance tracking and completeness flag.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlatformRawFlags {
     /// Operating system where the raw bits were queried.
     pub source_os: OsFamily,
@@ -263,7 +275,7 @@ pub struct PlatformRawFlags {
 }
 
 /// Complete nanosecond timestamp records for a file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileTimestamps {
     /// Access time in seconds since Unix epoch.
     pub atime_sec: i64,
@@ -284,8 +296,11 @@ pub struct FileTimestamps {
 }
 
 /// Complete file metadata, combining POSIX attributes, timestamps, and flags.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileMetadata {
+    /// Native observations retained even when a target cannot reproduce them.
+    #[serde(default)]
+    pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
     pub mode: u32,
     /// Owner user ID.
@@ -310,4 +325,256 @@ impl FileMetadata {
     pub const fn current_as_of(&self) -> Option<SystemTime> {
         self.read_time
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeMetadata {
+    pub source_os: OsFamily,
+    pub values: std::collections::BTreeMap<String, NativeMetadataValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NativeMetadataValue {
+    Unsigned(u64),
+    Signed(i64),
+    Bytes(Vec<u8>),
+}
+
+pub fn capture_birthtime(
+    meta: &std::fs::Metadata,
+) -> Result<Option<filetime::FileTime>> {
+    match meta.created() {
+        Ok(time) => Ok(Some(filetime::FileTime::from_system_time(time))),
+        Err(error) if error.kind() == std::io::ErrorKind::Unsupported => {
+            Ok(None)
+        }
+        Err(error) => Err(error).context("Failed to query creation time"),
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod linux;
+
+pub fn capture_native_metadata(
+    path: &std::path::Path,
+    meta: &std::fs::Metadata,
+) -> Result<NativeMetadata> {
+    let mut values = std::collections::BTreeMap::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        for (name, value) in [
+            ("device", meta.dev()),
+            ("inode", meta.ino()),
+            ("link_count", meta.nlink()),
+            ("rdev", meta.rdev()),
+            ("size", meta.size()),
+            ("block_size", meta.blksize()),
+            ("allocated_blocks", meta.blocks()),
+        ] {
+            values
+                .insert(name.to_owned(), NativeMetadataValue::Unsigned(value));
+        }
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        for (name, value) in [
+            ("attributes", u64::from(meta.file_attributes())),
+            ("creation_time", meta.creation_time()),
+            ("last_access_time", meta.last_access_time()),
+            ("last_write_time", meta.last_write_time()),
+            ("file_size", meta.file_size()),
+        ] {
+            values
+                .insert(name.to_owned(), NativeMetadataValue::Unsigned(value));
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use rustix::fs::{AtFlags, CWD, StatxFlags, statx};
+        let stat = statx(
+            CWD,
+            path,
+            AtFlags::SYMLINK_NOFOLLOW,
+            StatxFlags::ALL | StatxFlags::MNT_ID | StatxFlags::DIOALIGN,
+        )
+        .with_context(|| {
+            format!(
+                "Failed to capture native statx metadata for {}",
+                path.display()
+            )
+        })?;
+        for (name, value) in [
+            ("mask", u64::from(stat.stx_mask)),
+            ("block_size", u64::from(stat.stx_blksize)),
+            ("attributes", stat.stx_attributes),
+            ("attributes_mask", stat.stx_attributes_mask),
+            ("link_count", u64::from(stat.stx_nlink)),
+            ("uid", u64::from(stat.stx_uid)),
+            ("gid", u64::from(stat.stx_gid)),
+            ("mode", u64::from(stat.stx_mode)),
+            ("inode", stat.stx_ino),
+            ("size", stat.stx_size),
+            ("blocks", stat.stx_blocks),
+            ("rdev_major", u64::from(stat.stx_rdev_major)),
+            ("rdev_minor", u64::from(stat.stx_rdev_minor)),
+            ("dev_major", u64::from(stat.stx_dev_major)),
+            ("dev_minor", u64::from(stat.stx_dev_minor)),
+            ("mount_id", stat.stx_mnt_id),
+            ("dio_mem_align", u64::from(stat.stx_dio_mem_align)),
+            ("dio_offset_align", u64::from(stat.stx_dio_offset_align)),
+        ] {
+            values.insert(
+                format!("statx.{name}"),
+                NativeMetadataValue::Unsigned(value),
+            );
+        }
+        for (name, time) in [
+            ("atime", stat.stx_atime),
+            ("btime", stat.stx_btime),
+            ("ctime", stat.stx_ctime),
+            ("mtime", stat.stx_mtime),
+        ] {
+            values.insert(
+                format!("statx.{name}.sec"),
+                NativeMetadataValue::Signed(time.tv_sec),
+            );
+            values.insert(
+                format!("statx.{name}.nsec"),
+                NativeMetadataValue::Unsigned(u64::from(time.tv_nsec)),
+            );
+        }
+        linux::capture_filesystem_attributes(path, meta, &mut values)?;
+    }
+    Ok(NativeMetadata {
+        source_os: OsFamily::CURRENT,
+        values,
+    })
+}
+
+pub fn check_metadata_replication(
+    destination: &std::path::Path,
+    metadata: &FileMetadata,
+    strict: bool,
+    ignore_flags: bool,
+) -> Result<()> {
+    if let Some(seconds) = metadata.timestamps.birthtime_sec {
+        let nanos = metadata
+            .timestamps
+            .birthtime_nsec
+            .context("Birth time has no nanoseconds")?;
+        anyhow::ensure!(
+            nanos < 1_000_000_000,
+            "Invalid birth time nanoseconds"
+        );
+        let actual =
+            capture_birthtime(&std::fs::symlink_metadata(destination)?)?;
+        let expected = filetime::FileTime::from_unix_time(seconds, nanos);
+        if actual != Some(expected) {
+            if strict {
+                anyhow::bail!(
+                    "Cannot reproduce birth time {seconds}.{nanos:09} on {}; original metadata must be retained in the journal",
+                    destination.display()
+                );
+            }
+            warn_fmt!(
+                "Birth time cannot be reproduced on {}; retain the source metadata journal",
+                destination.display()
+            );
+        }
+    } else {
+        anyhow::ensure!(
+            metadata.timestamps.birthtime_nsec.is_none(),
+            "Birth time has no seconds"
+        );
+    }
+    let differences =
+        native_metadata_differences(destination, metadata, ignore_flags)?;
+    if !differences.is_empty() {
+        if strict {
+            anyhow::bail!(
+                "Cannot reproduce native metadata on {}: {differences:?}",
+                destination.display()
+            );
+        }
+        warn_fmt!(
+            "Native metadata cannot be fully reproduced on {}: {differences:?}; retain the journal",
+            destination.display()
+        );
+    }
+    Ok(())
+}
+
+pub fn native_metadata_differences(
+    destination: &std::path::Path,
+    metadata: &FileMetadata,
+    ignore_flags: bool,
+) -> Result<Vec<String>> {
+    let mut differences = Vec::new();
+    if let Some(native) = &metadata.native {
+        let observational = [
+            "device",
+            "inode",
+            "link_count",
+            "rdev",
+            "size",
+            "block_size",
+            "allocated_blocks",
+            "inode_generation",
+            "fsxattr.extent_count",
+            "statx.mask",
+            "statx.block_size",
+            "statx.attributes_mask",
+            "statx.link_count",
+            "statx.uid",
+            "statx.gid",
+            "statx.mode",
+            "statx.inode",
+            "statx.size",
+            "statx.blocks",
+            "statx.rdev_major",
+            "statx.rdev_minor",
+            "statx.dev_major",
+            "statx.dev_minor",
+            "statx.mount_id",
+            "statx.dio_mem_align",
+            "statx.dio_offset_align",
+            "statx.atime.sec",
+            "statx.atime.nsec",
+            "statx.btime.sec",
+            "statx.btime.nsec",
+            "statx.ctime.sec",
+            "statx.ctime.nsec",
+            "statx.mtime.sec",
+            "statx.mtime.nsec",
+        ];
+        let actual = capture_native_metadata(
+            destination,
+            &std::fs::symlink_metadata(destination)?,
+        )?;
+        if native.source_os != OsFamily::CURRENT {
+            differences.push(format!(
+                "Source platform {:?}, destination {:?}",
+                native.source_os,
+                OsFamily::CURRENT
+            ));
+        }
+        for (name, value) in &native.values {
+            if ignore_flags
+                && matches!(name.as_str(), "statx.attributes" | "fsxattr.flags")
+            {
+                continue;
+            }
+            if !observational.contains(&name.as_str())
+                && actual.values.get(name) != Some(value)
+            {
+                differences.push(format!(
+                    "{name}: expected {value:?}, got {:?}",
+                    actual.values.get(name)
+                ));
+            }
+        }
+    }
+    Ok(differences)
 }

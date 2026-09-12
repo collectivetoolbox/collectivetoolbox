@@ -150,10 +150,16 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 let j_path = journal.journal_path().to_path_buf();
                 let d_path = journal.desc_path().to_path_buf();
                 drop(journal);
-                if j_path.exists() {
+                let retain_metadata = copy_stats.copied_entities.iter().any(|(_, _, entity)|
+                    entity.metadata.native.is_some() || entity.metadata.timestamps.birthtime_sec.is_some()
+                    || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
+                if retain_metadata {
+                    progress.message(&format!("Original metadata retained in {}", j_path.display()));
+                }
+                if !retain_metadata && j_path.exists() {
                     let _ = std::fs::remove_file(&j_path);
                 }
-                if d_path.exists() {
+                if !retain_metadata && d_path.exists() {
                     let _ = std::fs::remove_file(&d_path);
                 }
 

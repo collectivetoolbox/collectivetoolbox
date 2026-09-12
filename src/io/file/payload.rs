@@ -35,7 +35,7 @@ use std::os::fd::AsFd;
 use std::path::{Path, PathBuf};
 
 /// A contiguous extent within a file, either holding data or representing a hole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Extent {
     /// A region containing written data.
     Data {

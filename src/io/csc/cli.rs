@@ -143,7 +143,13 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     let desc_path = journal.desc_path().to_path_buf();
     drop(journal);
 
-    if args.delete_manifest_after {
+    let retain_metadata_journal = stats.copied_entities.iter().any(|(_, _, entity)|
+        entity.metadata.native.is_some() || entity.metadata.timestamps.birthtime_sec.is_some()
+        || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
+    if args.delete_manifest_after && retain_metadata_journal {
+        warn_fmt!("Retaining {}: it contains original metadata that is not guaranteed to be reproducible", journal_path.display());
+    }
+    if args.delete_manifest_after && !retain_metadata_journal {
         if journal_path.exists() {
             let _ = std::fs::remove_file(&journal_path);
         }
@@ -158,6 +164,9 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     let mut summary = String::new();
     use std::fmt::Write;
     writeln!(summary, "--- CSC Summary ---")?;
+    if retain_metadata_journal {
+        writeln!(summary, "Original metadata journal: {}", journal_path.display())?;
+    }
     writeln!(summary, "Files copied:             {}", stats.files_copied)?;
     if stats.files_skipped_identical > 0 {
         writeln!(

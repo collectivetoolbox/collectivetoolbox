@@ -114,6 +114,7 @@ pub fn apply_entity_metadata(
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
+    crate::metadata::check_metadata_replication(dest, meta, strict_lossless, true)?;
     let mode = meta.mode;
     let uid = meta.uid;
     let gid = meta.gid;
@@ -218,6 +219,10 @@ pub fn apply_entity_metadata(
         )?;
     }
 
+    if apply_flags {
+        crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?;
+    }
+
     Ok(())
 }
 
@@ -296,6 +301,9 @@ pub fn materialize_entity(
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
+            if options.strict_lossless && entity.metadata.timestamps.birthtime_sec.is_some() {
+                anyhow::bail!("Cannot reproduce symlink birth time on this platform");
+            }
             dest_dir.create_symlink(
                 &parent_dir_fd.as_fd(),
                 &file_name,
@@ -357,6 +365,9 @@ pub fn materialize_entity(
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
         | FileEntityKind::BlockDevice { .. } => {
+            if options.strict_lossless && entity.metadata.timestamps.birthtime_sec.is_some() {
+                anyhow::bail!("Cannot reproduce special-node birth time on this platform");
+            }
             anyhow::ensure!(
                 options.copy_specials,
                 "Special node creation rejected: {}. Enable copy_specials to permit.",
@@ -595,6 +606,9 @@ pub fn materialize_entity(
                     options.strict_lossless,
                 )?;
             }
+            crate::metadata::check_metadata_replication(
+                &dest_path, &entity.metadata, options.strict_lossless, false,
+            )?;
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -783,7 +797,7 @@ fn try_update_existing_regular_entity(
             .iter()
             .any(|s| s.name == disk_stream.name);
         if !exists_in_source {
-            let res = remove_stream(dest_path, disk_stream.name.as_os_str()?);
+            let res = remove_stream(dest_path, &disk_stream.name.to_os_string()?);
             if let Err(e) = res {
                 if options.strict_lossless {
                     log_fmt!(

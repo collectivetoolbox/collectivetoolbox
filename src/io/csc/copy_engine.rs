@@ -150,6 +150,9 @@ pub fn execute_copy_pipeline(
                 journal_dir.identity.relative_path = rel.clone();
                 journal_dir.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
                 journal.record_entity(&journal_dir);
+                if !args.dry_run {
+                    journal.commit_batch()?;
+                }
 
                 let read_dir = std::fs::read_dir(&curr_src).with_context(|| {
                     format!("Failed to read source directory: {}", curr_src.display())
@@ -286,6 +289,10 @@ pub fn execute_copy_pipeline(
     for symlink_item in deferred_symlinks {
         let dest_path = &symlink_item.dest_path;
         let entity = symlink_item.entity;
+        if !args.dry_run {
+            record_journal_entry(journal, dest_path, &entity)?;
+            journal.commit_batch()?;
+        }
 
         let dest_dir = if args.dry_run {
             SandboxableDir::open(".").context("Failed to open current directory in dry run")?
@@ -412,6 +419,10 @@ fn copy_single_item(
     entity.identity.raw_relative_path = dest_rel_path.as_os_str().as_encoded_bytes().to_vec();
     if let Some(fname) = dest_rel_path.file_name() {
         entity.identity.raw_filename = fname.as_encoded_bytes().to_vec();
+    }
+    if !args.dry_run {
+        record_journal_entry(journal, dest_path, &entity)?;
+        journal.commit_batch()?;
     }
 
     // 3. Hardlink detection (nlink > 1)

@@ -426,9 +426,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                         let path_key = entity.identity.path_bytes().to_vec();
                         pending_entities.insert(path_key, entity);
                     }
-                    Err(_) => {
-                        break;
-                    }
+                    Err(error) => return Err(error).context("Checksummed journal entity cannot be decoded without losing metadata"),
                 }
             }
             TAG_BATCH_COMMIT => {
@@ -470,6 +468,22 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         last_batch_id,
         valid_length,
     })
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PreservationRecord {
+    metadata: FileMetadata,
+    extents: Vec<ctb_io::file::Extent>,
+    streams: Vec<PreservedStream>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PreservedStream {
+    #[serde(default)]
+    name: Option<StreamName>,
+    kind: StreamKind,
+    descriptor: Vec<u8>,
+    data: Option<Vec<u8>>,
 }
 
 // Low-level entity serialization
@@ -582,7 +596,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;
     for s in &entity.streams {
-        write_bytes(w, &s.name.0)?;
+        write_bytes(w, &s.name.as_bytes())?;
         let hash = match &s.entity.kind {
             FileEntityKind::Regular { sha256, .. } => *sha256,
             _ => [0_u8; 32],
@@ -598,6 +612,27 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         }
         _ => w.write_all(&[0])?,
     }
+    let mut streams = Vec::with_capacity(entity.streams.len());
+    for stream in &entity.streams {
+        let mut descriptor = Vec::new();
+        write_entity_payload(&mut descriptor, &stream.entity)?;
+        streams.push(PreservedStream {
+            name: Some(stream.name.clone()),
+            kind: stream.kind,
+            descriptor,
+            data: stream.data.clone(),
+        });
+    }
+    let record = PreservationRecord {
+        metadata: entity.metadata.clone(),
+        extents: match &entity.kind {
+            FileEntityKind::Regular { extents, .. } => extents.clone(),
+            _ => Vec::new(),
+        },
+        streams,
+    };
+    w.write_all(b"CTBMETA1")?;
+    write_bytes(w, &serde_json::to_vec(&record)?)?;
     Ok(())
 }
 
@@ -710,7 +745,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         let mut shash = [0_u8; 32];
         r.read_exact(&mut shash)?;
 
-        let stream_name = StreamName(sname_bytes.clone());
+        let stream_name = StreamName::from_bytes(&sname_bytes);
         let skind = StreamKind::infer_from_name(&sname_bytes);
         let s_entity = FileEntity {
             identity: FileIdentity {
@@ -723,6 +758,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 0,
                 gid: 0,
@@ -786,7 +822,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         }
     }
 
-    Ok(FileEntity {
+    let mut entity = FileEntity {
         identity: FileIdentity {
             origin,
             relative_path,
@@ -797,6 +833,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             hardlink_group,
         },
         metadata: FileMetadata {
+            native: None,
             mode,
             uid,
             gid,
@@ -816,7 +853,28 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         },
         kind,
         streams,
-    })
+    };
+    if !r.is_empty() {
+        let mut magic = [0_u8; 8];
+        r.read_exact(&mut magic)?;
+        anyhow::ensure!(&magic == b"CTBMETA1", "Unknown preservation record version");
+        let record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut r)?)?;
+        anyhow::ensure!(record.streams.len() == entity.streams.len(), "Stream descriptor count mismatch");
+        entity.metadata = record.metadata;
+        if let FileEntityKind::Regular { extents, .. } = &mut entity.kind {
+            *extents = record.extents;
+        }
+        for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
+            if let Some(name) = preserved.name {
+                stream.name = name;
+            }
+            stream.kind = preserved.kind;
+            stream.entity = Box::new(read_entity_payload(&preserved.descriptor, origin_platform)?);
+            stream.data = preserved.data;
+        }
+        anyhow::ensure!(r.is_empty(), "Unexpected preservation record data");
+    }
+    Ok(entity)
 }
 
 // Low-level serialization helpers

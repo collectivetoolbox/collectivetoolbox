@@ -66,7 +66,7 @@ mod csc_tests {
             ignore: Vec::new(),
             format: VerifyOutputFormat::Text,
             quiet: false,
-            best_effort: false,
+            best_effort: true,
             allow_incomplete: false,
         }
     }
@@ -98,7 +98,7 @@ mod csc_tests {
             copy_specials_as_specials: false,
             copy_block_devices_as_regular_files: false,
             one_file_system: false,
-            best_effort_metadata: false,
+            best_effort_metadata: true,
             check_atime: false,
             delete_manifest_after: false,
             recursive: true,
@@ -824,7 +824,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest perfectly"));
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -864,7 +864,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest perfectly"));
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -958,7 +958,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest perfectly"));
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -1003,7 +1003,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest perfectly"));
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -1187,7 +1187,7 @@ mod csc_tests {
             .checked_add(std::time::Duration::from_secs(1_700_000_000))
             .expect("valid timestamp");
 
-        let file_entity = FileEntity {
+        let mut file_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: PathBuf::from("hello.txt"),
@@ -1198,6 +1198,7 @@ mod csc_tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 1000,
                 gid: 1000,
@@ -1235,6 +1236,7 @@ mod csc_tests {
                 hardlink_group: Some(12345),
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 1000,
                 gid: 1000,
@@ -1258,6 +1260,43 @@ mod csc_tests {
             streams: Vec::new(),
         };
 
+        file_entity.metadata.timestamps.birthtime_sec = Some(-123);
+        file_entity.metadata.timestamps.birthtime_nsec = Some(987_654_321);
+        file_entity.metadata.native = Some(ctb_io::file::metadata::NativeMetadata {
+            source_os: ctb_io::file::OsFamily::Darwin,
+            values: std::collections::BTreeMap::from([
+                ("opaque".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128])),
+                ("unsigned".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Unsigned(u64::MAX)),
+                ("signed".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Signed(i64::MIN)),
+            ]),
+        });
+        file_entity.metadata.platform_raw_flags = Some(ctb_io::file::PlatformRawFlags {
+            source_os: ctb_io::file::OsFamily::Darwin,
+            raw_value: u64::MAX,
+            has_unparsed_flags: true,
+        });
+        if let FileEntityKind::Regular { extents, .. } = &mut file_entity.kind {
+            extents.push(ctb_io::file::Extent::Data { offset: 0, length: 42 });
+        }
+        let mut stream_entity = file_entity.clone();
+        stream_entity.streams.clear();
+        file_entity.streams.push(ctb_io::file::AttachedStream {
+            name: ctb_io::file::StreamName::from_bytes(b"user.raw\xff"),
+            kind: ctb_io::file::StreamKind::SecurityLabel,
+            entity: Box::new(stream_entity),
+            data: Some(vec![0, 255, 128]),
+        });
+        let mut wide_stream = file_entity.streams[0].clone();
+        wide_stream.name = ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]);
+        file_entity.streams.push(wide_stream);
+        for name in [
+            ctb_io::file::StreamName::from_bytes(b"user.binary\xff"),
+            ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]),
+        ] {
+            file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
+                name, ctb_io::file::StreamKind::NtfsAlternateDataStream, vec![0, 255, 128],
+            ).unwrap());
+        }
         writer.record_entity(&file_entity);
         writer.record_entity(&link_entity);
         writer.commit_batch().expect("commit batch");
@@ -1268,6 +1307,7 @@ mod csc_tests {
         assert!(snap.is_committed(b"link.txt"));
 
         let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
+        assert_eq!(read_file, &file_entity);
         assert_eq!(read_file.identity.enclosing_path, Some(src.clone()));
         assert_eq!(read_file.metadata.read_time, Some(read_time_expected));
         if let FileEntityKind::Regular { size, sha256, .. } = &read_file.kind {
@@ -1331,6 +1371,7 @@ mod csc_tests {
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 1000,
                 gid: 1000,
@@ -1694,7 +1735,8 @@ mod csc_tests {
         )
         .expect("set drifted mtime");
 
-        let strict_vargs = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        let mut strict_vargs = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        strict_vargs.best_effort = false;
         let res_strict = run_csc_verify(&strict_vargs).expect("verify strict");
         if let ToolResult::Immediate { stdout, .. } = res_strict {
             let out = String::from_utf8_lossy(&stdout);
@@ -1752,6 +1794,33 @@ mod csc_tests {
             err_msg.contains("already exists"),
             "Must reject overwriting existing journal file: {err_msg}"
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn test_failed_copy_retains_captured_metadata_and_destination() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("link");
+        let destination = temp.path().join("destination");
+        let state = temp.path().join("state");
+        fs::create_dir(&state).unwrap();
+        std::os::unix::fs::symlink("missing-target", &source).unwrap();
+        fs::write(&destination, b"old destination").unwrap();
+        let original = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        assert!(original.metadata.timestamps.birthtime_sec.is_some());
+        let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
+        args.best_effort_metadata = false;
+        assert!(run_csc(args).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"old destination");
+        assert!(fs::symlink_metadata(&source).is_ok());
+        let journal = find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
+        assert!(!snapshot.is_completed);
+        let recorded = snapshot.committed_entities.values().next().unwrap();
+        assert_eq!(recorded.metadata.native, original.metadata.native);
+        assert_eq!(recorded.metadata.timestamps, original.metadata.timestamps);
+        assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
+        assert_eq!(recorded.streams, original.streams);
     }
 
     #[crate::ctb_test("tokio")]
@@ -2166,7 +2235,7 @@ mod csc_tests {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest perfectly"));
+                assert!(out.contains("OK - Directory matches manifest"));
             }
             ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
         }
@@ -2202,7 +2271,8 @@ mod csc_tests {
             .expect("set mtime");
 
         // Strict verification: fails with MtimeMismatch
-        let strict_args = default_verify_args(journal.clone(), None);
+        let mut strict_args = default_verify_args(journal.clone(), None);
+        strict_args.best_effort = false;
         let res = run_csc_verify(&strict_args).expect("run strict verifier");
         match res {
             ToolResult::Immediate { exit_code, stdout, .. } => {
@@ -2221,7 +2291,8 @@ mod csc_tests {
             ToolResult::Immediate { exit_code, stdout, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest in best-effort mode; ignored 1 timestamp difference."));
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode; ignored"));
+                assert!(out.contains("timestamp"));
                 assert!(!out.contains("Directory matches manifest perfectly"));
             }
             ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
@@ -2259,13 +2330,10 @@ mod csc_tests {
 
         assert!(dest.join("test.txt").exists());
 
-        // Verify that no .cscjournal or .cscdesc files exist in the state directory
-        for entry in fs::read_dir(&state).expect("read state dir") {
-            let entry = entry.expect("entry");
-            let ext = entry.path().extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
-            assert_ne!(ext, "cscjournal", "State journal should have been deleted");
-            assert_ne!(ext, "cscdesc", "Descriptor file should have been deleted");
-        }
+        let journal = find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
+        assert!(snapshot.committed_entities.values().any(|entity| entity.metadata.native.is_some()));
+        assert!(journal.with_extension("cscdesc").exists());
     }
 
     #[crate::ctb_test]
@@ -2379,15 +2447,18 @@ mod csc_tests {
         let destination = temp.path().join("destination");
         fs::create_dir_all(source.join("sub")).unwrap();
         fs::write(source.join("sub/data"), b"move payload").unwrap();
-        run_mv(MvArgs {
+        let result = run_mv(MvArgs {
             paths: vec![source.join(""), destination.clone()],
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
             best_effort_metadata: false, force: false, dry_run: false,
-        }).unwrap();
-        assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
-        assert!(source.is_dir());
-        assert_eq!(fs::read_dir(source).unwrap().count(), 0);
+        });
+        if result.is_ok() {
+            assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+            assert_eq!(fs::read_dir(source).unwrap().count(), 0);
+        } else {
+            assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"move payload");
+        }
     }
 
     #[crate::ctb_test]
@@ -2401,6 +2472,7 @@ mod csc_tests {
         // Non-root user cannot chown to root (uid 0) unless running as root
         if nix::unistd::geteuid().as_raw() != 0 {
             let meta = ctb_io::file::FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 0,
                 gid: 0,

@@ -243,7 +243,8 @@ impl FileEntity {
     }
 
     /// Inspects an existing filesystem entry at `path` and builds a `FileEntity`
-    /// without reading file payload bytes or computing cryptographic hashes.
+    /// without reading or hashing the main file payload. Attached metadata and
+    /// streams are still read and hashed in full.
     pub fn from_filesystem_metadata_only(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
         Self::from_filesystem_internal(path, base_dir, false)
     }
@@ -270,7 +271,7 @@ impl FileEntity {
         let is_symlink = file_type.is_symlink();
 
         #[cfg(unix)]
-        let (dev, ino, nlink, mode, uid, gid, timestamps) = {
+        let (dev, ino, nlink, mode, uid, gid, mut timestamps) = {
             let dev = sym_meta.dev();
             let ino = sym_meta.ino();
             let nlink = sym_meta.nlink();
@@ -306,6 +307,11 @@ impl FileEntity {
                 },
             )
         };
+
+        if let Some(birthtime) = crate::metadata::capture_birthtime(&sym_meta)? {
+            timestamps.birthtime_sec = Some(birthtime.unix_seconds());
+            timestamps.birthtime_nsec = Some(birthtime.nanoseconds());
+        }
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 
@@ -354,6 +360,7 @@ impl FileEntity {
         };
 
         let metadata = FileMetadata {
+            native: Some(crate::metadata::capture_native_metadata(path, &sym_meta)?),
             mode,
             uid,
             gid,
@@ -412,13 +419,6 @@ impl FileEntity {
         } else if (mode & 0xF000) == 0xD000 {
             // S_IFDOOR
             FileEntityKind::Door
-        } else if !compute_hash {
-            FileEntityKind::Regular {
-                size: sym_meta.len(),
-                sha256: [0_u8; 32],
-                is_sparse: false,
-                extents: Vec::new(),
-            }
         } else {
             // Regular file: discover extents and compute SHA-256
             let size = sym_meta.len();
@@ -428,19 +428,23 @@ impl FileEntity {
             let is_sparse = extents.iter().any(Extent::is_hole);
             file.seek(SeekFrom::Start(0))?;
 
-            let mut hasher = Sha256Stream::new();
-            let mut buf = vec![0_u8; 64 * 1024];
-            loop {
-                let n = file.read(&mut buf)?;
-                if n == 0 {
-                    break;
+            let sha256 = if compute_hash {
+                let mut hasher = Sha256Stream::new();
+                let mut buf = vec![0_u8; 64 * 1024];
+                loop {
+                    let count = file.read(&mut buf)?;
+                    if count == 0 {
+                        break;
+                    }
+                    let slice = buf
+                        .get(..count)
+                        .context("Buffer slice index out of bounds")?;
+                    hasher.update(slice);
                 }
-                let slice = buf
-                    .get(..n)
-                    .context("Buffer slice index out of bounds")?;
-                hasher.update(slice);
-            }
-            let sha256 = hasher.finalize();
+                hasher.finalize()
+            } else {
+                [0_u8; 32]
+            };
 
             FileEntityKind::Regular {
                 size,
@@ -450,11 +454,7 @@ impl FileEntity {
             }
         };
 
-        let streams = if !compute_hash {
-            Vec::new()
-        } else {
-            read_and_hash_streams(path)?
-        };
+        let streams = read_and_hash_streams(path)?;
 
         Ok(Self {
             identity,

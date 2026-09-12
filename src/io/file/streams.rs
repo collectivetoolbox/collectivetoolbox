@@ -31,55 +31,115 @@ use crate::file::identity::{FileIdentity, FileOrigin};
 use crate::file::metadata::{FileMetadata, FileTimestamps};
 use crate::file::payload::Extent;
 use ctb_formats_checksum::Sha256Stream;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-/// Arbitrary byte stream or extended attribute name.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StreamName(pub Vec<u8>);
+/// Native stream name, independent of the journal reader's operating system.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub enum StreamName {
+    Bytes(Vec<u8>),
+    WindowsUtf16(Vec<u16>),
+}
 
 impl StreamName {
     /// Creates a stream name from raw bytes.
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
+        Self::Bytes(bytes.to_vec())
     }
 
     /// Creates a stream name from a UTF-8 string slice.
     #[must_use]
     pub fn from_str(s: &str) -> Self {
-        Self(s.as_bytes().to_vec())
+        Self::Bytes(s.as_bytes().to_vec())
     }
 
-    /// Accesses the underlying byte slice.
+    /// Returns canonical raw bytes, using little-endian units for UTF-16.
     #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
+    pub fn as_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
+        match self {
+            Self::Bytes(bytes) => std::borrow::Cow::Borrowed(bytes),
+            Self::WindowsUtf16(units) => std::borrow::Cow::Owned(
+                units.iter().flat_map(|unit| unit.to_le_bytes()).collect(),
+            ),
+        }
+    }
+
+    #[must_use]
+    pub fn from_windows_utf16(units: &[u16]) -> Self {
+        Self::WindowsUtf16(units.to_vec())
+    }
+
+    #[must_use]
+    pub fn from_os_str(name: &OsStr) -> Self {
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            Self::WindowsUtf16(name.encode_wide().collect())
+        }
+        #[cfg(not(windows))]
+        Self::Bytes(name.as_encoded_bytes().to_vec())
     }
 
     /// Lossy UTF-8 representation for diagnostics and logging.
     #[must_use]
     pub fn to_string_lossy(&self) -> std::borrow::Cow<'_, str> {
-        String::from_utf8_lossy(&self.0)
+        match self {
+            Self::Bytes(bytes) => String::from_utf8_lossy(bytes),
+            Self::WindowsUtf16(units) => {
+                std::borrow::Cow::Owned(String::from_utf16_lossy(units))
+            }
+        }
     }
 
-    /// Converts to an `OsStr` reference.
-    pub fn as_os_str(&self) -> Result<&OsStr> {
-        #[cfg(unix)]
-        {
-            Ok(OsStr::from_bytes(&self.0))
-        }
-        #[cfg(not(unix))]
-        {
-            Ok(OsStr::new(std::str::from_utf8(&self.0).context("Stream name cannot be represented losslessly on this platform")?))
+    /// Converts only at the filesystem boundary, rejecting lossy transcoding.
+    pub fn to_os_string(&self) -> Result<OsString> {
+        match self {
+            Self::Bytes(bytes) => {
+                #[cfg(unix)]
+                {
+                    Ok(OsStr::from_bytes(bytes).to_os_string())
+                }
+                #[cfg(not(unix))]
+                {
+                    Ok(OsString::from(std::str::from_utf8(bytes).context(
+                        "Target cannot represent this byte stream name",
+                    )?))
+                }
+            }
+            Self::WindowsUtf16(units) => {
+                #[cfg(windows)]
+                {
+                    use std::os::windows::ffi::OsStringExt;
+                    Ok(OsString::from_wide(units))
+                }
+                #[cfg(not(windows))]
+                {
+                    Ok(OsString::from(String::from_utf16(units).context(
+                        "Target cannot represent this UTF-16 stream name",
+                    )?))
+                }
+            }
         }
     }
 }
 
 /// The classification of an attached stream or fork.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum StreamKind {
     /// Standard extended attribute (`user.*`).
     ExtendedAttribute,
@@ -116,7 +176,7 @@ impl StreamKind {
 /// An alternate stream, resource fork, or extended attribute attached to a file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachedStream {
-    /// Raw byte name of the stream.
+    /// Original name and encoding, including ill-formed Unicode.
     pub name: StreamName,
     /// Classification of the stream.
     pub kind: StreamKind,
@@ -149,7 +209,11 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
         let name_bytes = name_os.as_bytes().to_vec();
         let val = match xattr::get(path, &name_os) {
             Ok(Some(v)) => v,
-            Ok(None) => anyhow::bail!("Stream {:?} disappeared while reading {}", name_os, path.display()),
+            Ok(None) => anyhow::bail!(
+                "Stream {:?} disappeared while reading {}",
+                name_os,
+                path.display()
+            ),
             Err(e) => {
                 return Err(e).with_context(|| {
                     format!(
@@ -161,25 +225,40 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             }
         };
 
-        let mut hasher = Sha256Stream::new();
-        hasher.update(&val);
-        let sha256 = hasher.finalize();
-        let size = u64::try_from(val.len())?;
-
-        let stream_name = StreamName(name_bytes.clone());
+        let stream_name = StreamName::from_bytes(&name_bytes);
         let kind = StreamKind::infer_from_name(&name_bytes);
+        streams.push(AttachedStream::from_data(stream_name, kind, val)?);
+    }
+
+    // Sort deterministically by byte name
+    streams.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(streams)
+}
+
+impl AttachedStream {
+    pub fn from_data(
+        name: StreamName,
+        kind: StreamKind,
+        data: Vec<u8>,
+    ) -> Result<Self> {
+        let mut hasher = Sha256Stream::new();
+        hasher.update(&data);
+        let sha256 = hasher.finalize();
+        let size = u64::try_from(data.len())?;
+        let name_bytes = name.as_bytes().into_owned();
 
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                relative_path: PathBuf::new(),
                 enclosing_path: None,
-                raw_relative_path: name_bytes.clone(),
+                raw_relative_path: Vec::new(),
                 raw_filename: name_bytes,
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
+                native: None,
                 mode: 0o644,
                 uid: 0,
                 gid: 0,
@@ -202,7 +281,10 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
                 sha256,
                 is_sparse: false,
                 extents: if size > 0 {
-                    vec![Extent::Data { offset: 0, length: size }]
+                    vec![Extent::Data {
+                        offset: 0,
+                        length: size,
+                    }]
                 } else {
                     Vec::new()
                 },
@@ -210,23 +292,27 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             streams: Vec::new(),
         };
 
-        streams.push(AttachedStream {
-            name: stream_name,
+        Ok(Self {
+            name,
             kind,
             entity: Box::new(entity),
-            data: Some(val),
-        });
+            data: Some(data),
+        })
     }
-
-    // Sort deterministically by byte name
-    streams.sort_by(|a, b| a.name.0.cmp(&b.name.0));
-    Ok(streams)
 }
 
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::read_and_hash_streams;
+
 /// Reads all extended attributes, resource forks, and security labels from `path`.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
-    anyhow::bail!("Lossless stream enumeration is not implemented on this platform: {}", path.display())
+    anyhow::bail!(
+        "Lossless stream enumeration is not implemented on this platform: {}",
+        path.display()
+    )
 }
 
 /// Writes all attached streams (xattrs, resource forks) to `dest`.
@@ -241,8 +327,14 @@ pub fn write_streams(
 ) -> Result<()> {
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
+    let mut names = std::collections::HashSet::new();
+    let mut validated = Vec::new();
     for stream in streams {
-        let name_os = stream.name.as_os_str()?;
+        let name_os = stream.name.to_os_string()?;
+        anyhow::ensure!(
+            names.insert(name_os.clone()),
+            "Stream names collide on the destination platform"
+        );
         let Some(data) = &stream.data else {
             anyhow::bail!(
                 "Stream {:?} on {} has no in-memory payload to write",
@@ -251,21 +343,27 @@ pub fn write_streams(
             );
         };
 
-        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind
+        else {
             anyhow::bail!("Attached stream is not a regular payload");
         };
         let mut hasher = Sha256Stream::new();
         hasher.update(data);
-        anyhow::ensure!(u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
-            "Attached stream payload does not match its descriptor: {:?}", stream.name.to_string_lossy());
-
-        if let Err(e) = xattr::set(dest, name_os, data) {
-                anyhow::bail!(
-                    "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
-                    stream.name.to_string_lossy(),
-                    display_target.display(),
-                    e
-                );
+        anyhow::ensure!(
+            u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
+            "Attached stream payload does not match its descriptor: {:?}",
+            stream.name.to_string_lossy()
+        );
+        validated.push((stream, name_os, data));
+    }
+    for (stream, name_os, data) in validated {
+        if let Err(e) = xattr::set(dest, &name_os, data) {
+            anyhow::bail!(
+                "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
+                stream.name.to_string_lossy(),
+                display_target.display(),
+                e
+            );
         }
     }
     Ok(())
@@ -293,7 +391,10 @@ pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     }
     #[cfg(not(unix))]
     {
-        anyhow::bail!("Removing stream {name:?} is unsupported on this platform: {}", path.display());
+        anyhow::bail!(
+            "Removing stream {name:?} is unsupported on this platform: {}",
+            path.display()
+        );
     }
     Ok(())
 }

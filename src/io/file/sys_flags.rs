@@ -24,6 +24,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See full license details at end of this file
 
+// License information for parts derived from DragonFly BSD:
+
+/*-
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+// See full license details at end of this file
+
 // License information for parts derived from FreeBSD:
 
 /*
@@ -88,6 +101,42 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // | system           | N/A           | UF_SYSTEM     | N/A           |
 // | snapshot         | N/A           | SF_SNAPSHOT   | N/A           |
 // |------------------|---------------|---------------|---------------|
+
+*/
+
+/* From DragonFly BSD sys/sys/stat.h:
+
+https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;hb=HEAD (b4510a66558751a074cf6a0f30977b8639ce856f)
+
+
+/*
+ * Definitions of flags stored in file flags word.
+ *
+ * Super-user and owner changeable flags.
+ */
+#define	UF_SETTABLE	0x0000ffff	/* mask of owner changeable flags */
+#define	UF_NODUMP	0x00000001	/* do not dump file */
+#define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
+#define	UF_APPEND	0x00000004	/* writes to file may only append */
+#define	UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+#define	UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+#define	UF_UNUSED5	0x00000020	/* (unused) */
+#define	UF_NOHISTORY	0x00000040	/* do not retain history/snapshots */
+#define	UF_CACHE	0x00000080	/* enable data swapcache */
+#define	UF_XLINK	0x00000100	/* cross-link (hardlink) boundary */
+
+/*
+ * Super-user changeable flags.
+ */
+#define	SF_SETTABLE	0xffff0000	/* mask of superuser changeable flags */
+#define	SF_ARCHIVED	0x00010000	/* file is archived */
+#define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
+#define	SF_APPEND	0x00040000	/* writes to file may only append */
+#define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
+#define	SF_UNUSED17	0x00200000	/* (used by FreeBSD for snapshots) */
+#define	SF_NOHISTORY	0x00400000	/* do not retain history/snapshots */
+#define	SF_NOCACHE	0x00800000	/* disable data swapcache */
+#define	SF_XLINK	0x01000000	/* cross-link (hardlink) boundary */
 
 */
 
@@ -279,6 +328,7 @@ SF_SYNTHETIC: mask of read-only synthetic flags\n\
 #endif
 
 */
+
 
 #[allow(
     unused_imports,
@@ -571,8 +621,8 @@ pub fn query_file_flags(
     path: &Path,
     is_symlink: bool,
 ) -> Result<(Vec<FileFlag>, Option<PlatformRawFlags>)> {
-    if is_symlink {
-        // Symlinks do not have file flags on most platforms
+    if is_symlink && cfg!(target_os = "linux") {
+        // Linux symlinks do not support FS_IOC_GETFLAGS.
         return Ok((Vec::new(), None));
     }
 
@@ -581,26 +631,24 @@ pub fn query_file_flags(
         use rustix::fs::{IFlags, ioctl_getflags};
         use std::os::unix::fs::OpenOptionsExt;
 
-        let Ok(sym_meta) = std::fs::symlink_metadata(path) else {
-            return Ok((Vec::new(), None));
-        };
+        let sym_meta = std::fs::symlink_metadata(path)?;
         if !sym_meta.is_file() && !sym_meta.is_dir() {
             return Ok((Vec::new(), None));
         }
 
         // ioctl FS_IOC_GETFLAGS only works on regular files/directories.
         // Open with O_NONBLOCK to prevent blocking on special files or FIFOs.
-        let Ok(f) = std::fs::OpenOptions::new()
+        let f = std::fs::OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NONBLOCK)
-            .open(path)
-        else {
-            return Ok((Vec::new(), None));
-        };
+            .open(path).with_context(|| format!("Failed to open {} for file flag capture", path.display()))?;
 
-        let Ok(iflags) = ioctl_getflags(&f) else {
-            // Filesystem does not support FS_IOC_GETFLAGS (e.g. tmpfs or vfat)
-            return Ok((Vec::new(), None));
+        let iflags = match ioctl_getflags(&f) {
+            Ok(flags) => flags,
+            Err(error) if error == rustix::io::Errno::NOTTY || error == rustix::io::Errno::OPNOTSUPP => {
+                return Ok((Vec::new(), None));
+            }
+            Err(error) => return Err(error).context("Failed to read file flags"),
         };
 
         let mut flags = Vec::new();
@@ -728,6 +776,31 @@ pub fn apply_file_flags(
     raw: Option<&PlatformRawFlags>,
     strict_lossless: bool,
 ) -> Result<()> {
+    apply_file_flags_native(path, flags, raw, strict_lossless)?;
+    let is_symlink = std::fs::symlink_metadata(path)?.file_type().is_symlink();
+    let (actual, actual_raw) = query_file_flags(path, is_symlink)?;
+    let semantic_match = flags.iter().all(|flag| actual.contains(flag))
+        && actual.iter().all(|flag| flags.contains(flag));
+    let raw_match = raw.is_none_or(|expected| actual_raw.as_ref() == Some(expected));
+    if !semantic_match || !raw_match {
+        if strict_lossless {
+            anyhow::bail!("File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}", path.display());
+        }
+        warn_fmt!("File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}; retain the journal", path.display());
+    }
+    Ok(())
+}
+
+#[cfg_attr(
+    any(target_vendor = "apple", target_os = "freebsd", target_os = "openbsd"),
+    expect(unsafe_code, reason = "Invoking BSD chflags system calls requires unsafe C FFI")
+)]
+fn apply_file_flags_native(
+    path: &Path,
+    flags: &[FileFlag],
+    raw: Option<&PlatformRawFlags>,
+    strict_lossless: bool,
+) -> Result<()> {
     if let Some(raw_info) = raw {
         if raw_info.has_unparsed_flags && raw_info.source_os != OsFamily::CURRENT && strict_lossless
         {
@@ -742,18 +815,11 @@ pub fn apply_file_flags(
 
     #[cfg(target_os = "linux")]
     {
-        use rustix::fs::{IFlags, ioctl_setflags};
+        use rustix::fs::{IFlags, ioctl_getflags, ioctl_setflags};
         use std::fs::OpenOptions;
         use std::os::unix::fs::OpenOptionsExt;
 
-        // Reason for fallback: An absent raw platform flags record represents no raw flags to apply.
-        if flags.is_empty() && raw.is_none_or(|r| r.raw_value == 0) {
-            return Ok(());
-        }
-
-        let Ok(sym_meta) = std::fs::symlink_metadata(path) else {
-            return Ok(());
-        };
+        let sym_meta = std::fs::symlink_metadata(path)?;
         if !sym_meta.is_file() && !sym_meta.is_dir() {
             return Ok(());
         }
@@ -761,32 +827,27 @@ pub fn apply_file_flags(
         // Open with write permissions or fallback to read-only for ioctl
         let f = match OpenOptions::new()
             .write(true)
-            .custom_flags(libc::O_NONBLOCK)
+            .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
             .open(path)
         {
             Ok(file) => file,
             Err(_) => {
                 OpenOptions::new()
                     .read(true)
-                    .custom_flags(libc::O_NONBLOCK)
+                    .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
                     .open(path)?
             }
         };
 
         let mut target_iflags = IFlags::empty();
+        let user_modifiable = (IFlags::NODUMP
+            | IFlags::IMMUTABLE | IFlags::APPEND | IFlags::COMPRESSED
+            | IFlags::SYNC | IFlags::DIRSYNC | IFlags::NOATIME).bits();
 
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::Linux {
-                if let Ok(bits) = u32::try_from(raw_info.raw_value) {
-                    let user_modifiable = IFlags::NODUMP
-                        | IFlags::IMMUTABLE
-                        | IFlags::APPEND
-                        | IFlags::COMPRESSED
-                        | IFlags::SYNC
-                        | IFlags::DIRSYNC
-                        | IFlags::NOATIME;
-                    target_iflags = IFlags::from_bits_retain(bits) & user_modifiable;
-                }
+                let bits = u32::try_from(raw_info.raw_value).context("Invalid Linux file flag width")?;
+                target_iflags = IFlags::from_bits_retain(bits & user_modifiable);
             }
         }
 
@@ -814,7 +875,13 @@ pub fn apply_file_flags(
             }
         }
 
-        if !target_iflags.is_empty() {
+        let current = match ioctl_getflags(&f) {
+            Ok(current) => current.bits(),
+            Err(error) if error == rustix::io::Errno::NOTTY || error == rustix::io::Errno::OPNOTSUPP => return Ok(()),
+            Err(error) => return Err(error).context("Failed to read destination flags"),
+        };
+        target_iflags |= IFlags::from_bits_retain(current & !user_modifiable);
+        if current != target_iflags.bits() {
             if let Err(e) = ioctl_setflags(&f, target_iflags) {
                 if strict_lossless {
                     anyhow::bail!(
@@ -842,10 +909,7 @@ pub fn apply_file_flags(
 
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::CURRENT {
-                target_mask = match u32::try_from(raw_info.raw_value) {
-                    Ok(v) => v,
-                    Err(_) => 0,
-                };
+                target_mask = u32::try_from(raw_info.raw_value).context("Invalid BSD file flag width")?;
             }
         }
 
@@ -864,7 +928,11 @@ pub fn apply_file_flags(
             }
         }
 
-        if target_mask != 0 {
+        if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
+            return Ok(());
+        }
+        let (_, current) = query_file_flags(path, false)?;
+        if current.is_none_or(|record| record.raw_value != u64::from(target_mask)) {
             let c_path = CString::new(path.as_os_str().as_bytes())?;
             #[cfg(target_vendor = "apple")]
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
@@ -1382,6 +1450,46 @@ License for parts derived from Swift:
     you may redistribute such product without providing attribution as would
     otherwise be required by Sections 4(a), 4(b) and 4(d) of the License.
 
+*/
+
+
+/* License for parts derived from DragonFly BSD:
+/*-
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)stat.h	8.12 (Berkeley) 6/16/95
+ * $FreeBSD: src/sys/sys/stat.h,v 1.20 1999/12/29 04:24:47 peter Exp $
+ */
 */
 
 /* License for parts derived from FreeBSD:
