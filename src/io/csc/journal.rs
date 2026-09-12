@@ -74,6 +74,7 @@ pub struct JournalSnapshot {
     pub is_completed: bool,
     pub last_batch_id: u64,
     pub valid_length: u64,
+    pub noatime_used: bool,
 }
 
 impl JournalSnapshot {
@@ -95,6 +96,7 @@ pub struct JournalWriter {
     uncommitted_entities: Vec<FileEntity>,
     total_committed_files: u64,
     total_committed_bytes: u64,
+    noatime_used: bool,
     snapshot: Option<JournalSnapshot>,
 }
 
@@ -133,6 +135,7 @@ impl JournalWriter {
             uncommitted_entities: Vec::new(),
             total_committed_files: 0,
             total_committed_bytes: 0,
+            noatime_used: false,
             snapshot: None,
         };
 
@@ -197,8 +200,22 @@ impl JournalWriter {
             uncommitted_entities: Vec::new(),
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
+            noatime_used: snapshot.noatime_used,
             snapshot: Some(snapshot.clone()),
         })
+    }
+
+    /// Records whether `O_NOATIME` was successfully used for payload operations.
+    pub fn record_noatime_used(&mut self, used: bool) {
+        if used {
+            self.noatime_used = true;
+        }
+    }
+
+    /// Whether `O_NOATIME` was used during this journal session.
+    #[must_use]
+    pub const fn noatime_used(&self) -> bool {
+        self.noatime_used
     }
 
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
@@ -283,6 +300,7 @@ impl JournalWriter {
             writeln!(desc_text, "  - {}", s.display())?;
         }
         writeln!(desc_text, "Destination: {}", self.destination.display())?;
+        writeln!(desc_text, "NoatimeUsed: {}", self.noatime_used)?;
 
         let temp_desc = format!("{}.tmp", self.desc_path.display());
         std::fs::write(&temp_desc, desc_text.as_bytes())?;
@@ -467,6 +485,17 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     }
 
     anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
+    let desc_path = path.with_extension("cscdesc");
+    let noatime_used = if desc_path.exists() {
+        if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
+            desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     Ok(JournalSnapshot {
         sources,
         destination,
@@ -475,6 +504,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         is_completed,
         last_batch_id,
         valid_length,
+        noatime_used,
     })
 }
 

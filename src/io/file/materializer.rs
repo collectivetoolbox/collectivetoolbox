@@ -512,6 +512,7 @@ pub fn materialize_entity(
                     dest_path.display()
                 );
             };
+            let payload_noatime = source.opened_with_noatime();
 
             let pid = std::process::id();
             let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
@@ -685,6 +686,7 @@ pub fn materialize_entity(
                 }
                 let audit_options = EntityAuditOptions {
                     ignore_flags: true,
+                    ignore_atime: !payload_noatime,
                     ..EntityAuditOptions::default()
                 };
                 let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;

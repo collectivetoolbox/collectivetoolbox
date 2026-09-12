@@ -1472,6 +1472,50 @@ mod tests {
             assert_eq!(entity.metadata.timestamps.mtime_sec, 1_700_000_100);
         }
     }
+
+    #[crate::ctb_test]
+    fn test_noatime_tracked_and_verified() {
+        let temp = tempfile::tempdir().unwrap();
+        let src_path = temp.path().join("noatime_src.txt");
+        let dest_path = temp.path().join("noatime_dest.txt");
+        std::fs::write(&src_path, b"test noatime data").unwrap();
+
+        #[cfg(target_os = "linux")]
+        {
+            use filetime::{FileTime, set_file_times};
+            let atime = FileTime::from_unix_time(1_650_000_000, 0);
+            let mtime = FileTime::from_unix_time(1_650_000_100, 0);
+            set_file_times(&src_path, atime, mtime).unwrap();
+
+            let payload = DiskPayloadSource::open(&src_path).unwrap();
+            assert!(payload.opened_with_noatime());
+
+            let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
+            assert!(entity.used_noatime());
+            entity.identity.relative_path = std::path::PathBuf::from("noatime_dest.txt");
+
+            let mut payload = DiskPayloadSource::open(&src_path).unwrap();
+            let dest_dir = sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
+            let options = MaterializeOptions {
+                dry_run: false,
+                strict_lossless: true,
+                symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
+                path_policy: PathTraversalPolicy::StrictSandboxed,
+                copy_specials: false,
+                force_overwrite: true,
+            };
+
+            materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+
+            // Destination atime must match and pass verification when checked
+            verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).unwrap();
+
+            // When destination atime is modified, verification with check_atime must fail
+            let bad_atime = FileTime::from_unix_time(1_700_000_000, 0);
+            set_file_times(&dest_path, bad_atime, mtime).unwrap();
+            assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).is_err());
+        }
+    }
 }
 
 

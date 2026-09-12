@@ -421,18 +421,20 @@ pub fn execute_copy_pipeline(
         let verify_task = progress.start_task("Verifying", Some(total_to_verify));
 
         for (src_path, dest_path, entity) in &files_to_verify {
+            let check_atime = args.should_check_atime()
+                || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
             verify_materialized_entity_ext(
                 src_path,
                 entity,
                 !args.best_effort_metadata,
-                args.should_check_atime(),
+                check_atime,
                 args.should_check_ctime(),
             )?;
             verify_materialized_entity_ext(
                 dest_path,
                 entity,
                 strict_lossless,
-                args.should_check_atime(),
+                check_atime,
                 args.should_check_ctime(),
             )?;
             if entity.is_regular() {
@@ -568,21 +570,31 @@ fn copy_single_item(
     };
 
     // Materialize payload
-    let receipt = if args.dry_run {
-        materialize_entity(&entity, None, dest_dir, options)
+    let mut entity = entity;
+    let (receipt, file_used_noatime) = if args.dry_run {
+        (materialize_entity(&entity, None, dest_dir, options), false)
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
         let mut payload = DiskPayloadSource::open(src_path)?;
-        materialize_entity(&entity, Some(&mut payload), dest_dir, options)
+        let noatime = payload.opened_with_noatime();
+        (
+            materialize_entity(&entity, Some(&mut payload), dest_dir, options),
+            noatime,
+        )
     } else {
-        materialize_entity(&entity, None, dest_dir, options)
-    }
-    .with_context(|| {
+        (materialize_entity(&entity, None, dest_dir, options), false)
+    };
+    let receipt = receipt.with_context(|| {
         format!(
             "copying '{}' -> '{}'",
             src_path.display(),
             dest_path.display()
         )
     })?;
+
+    if file_used_noatime {
+        entity.metadata.set_used_noatime(true);
+        journal.record_noatime_used(true);
+    }
 
     // Verify source wasn't modified concurrently during copy
     let after_meta = std::fs::symlink_metadata(src_path)?;

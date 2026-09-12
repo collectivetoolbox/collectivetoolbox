@@ -234,6 +234,12 @@ pub trait PayloadSource: Read + Seek + Send {
     fn is_sparse(&self) -> bool {
         self.extents().iter().any(Extent::is_hole)
     }
+
+    /// Whether this payload source was opened without modifying access time
+    /// (e.g. via O_NOATIME on Linux or in-memory cursor).
+    fn opened_with_noatime(&self) -> bool {
+        false
+    }
 }
 
 /// A payload source reading from an on-disk file.
@@ -244,6 +250,7 @@ pub struct DiskPayloadSource {
     extents: Vec<Extent>,
     #[cfg(unix)]
     orig_times: Option<(FileTime, FileTime)>,
+    opened_with_noatime: bool,
 }
 
 #[cfg(unix)]
@@ -337,6 +344,9 @@ impl DiskPayloadSource {
             Some((atime, mtime))
         };
 
+        #[cfg(not(target_os = "linux"))]
+        let opened_with_noatime = false;
+
         Ok(Self {
             path: path.to_path_buf(),
             file,
@@ -344,6 +354,7 @@ impl DiskPayloadSource {
             extents,
             #[cfg(unix)]
             orig_times,
+            opened_with_noatime,
         })
     }
 
@@ -351,6 +362,13 @@ impl DiskPayloadSource {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Whether this file payload was opened with `O_NOATIME`, preserving access
+    /// time.
+    #[must_use]
+    pub const fn opened_with_noatime(&self) -> bool {
+        self.opened_with_noatime
     }
 }
 
@@ -373,6 +391,10 @@ impl PayloadSource for DiskPayloadSource {
 
     fn extents(&self) -> &[Extent] {
         &self.extents
+    }
+
+    fn opened_with_noatime(&self) -> bool {
+        self.opened_with_noatime
     }
 }
 
@@ -425,6 +447,10 @@ impl PayloadSource for MemoryPayloadSource {
 
     fn extents(&self) -> &[Extent] {
         &self.extents
+    }
+
+    fn opened_with_noatime(&self) -> bool {
+        true
     }
 }
 

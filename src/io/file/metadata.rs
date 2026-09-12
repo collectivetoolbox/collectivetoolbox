@@ -381,6 +381,39 @@ impl FileMetadata {
     pub const fn current_as_of(&self) -> Option<SystemTime> {
         self.read_time
     }
+
+    /// Returns true if this file entity was captured or copied using `O_NOATIME`.
+    #[must_use]
+    pub fn used_noatime(&self) -> bool {
+        if let Some(ref native) = self.native {
+            matches!(
+                native.values.get("io.noatime"),
+                Some(NativeMetadataValue::Unsigned(1))
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Records whether `O_NOATIME` was used for reading or copying this file.
+    pub fn set_used_noatime(&mut self, used: bool) {
+        if self.native.is_none() {
+            self.native = Some(NativeMetadata {
+                source_os: OsFamily::CURRENT,
+                values: std::collections::BTreeMap::new(),
+            });
+        }
+        if let Some(ref mut native) = self.native {
+            if used {
+                native.values.insert(
+                    "io.noatime".to_string(),
+                    NativeMetadataValue::Unsigned(1),
+                );
+            } else {
+                native.values.remove("io.noatime");
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -605,6 +638,7 @@ pub fn native_metadata_differences(
             "last_access_time",
             "last_write_time",
             "file_size",
+            "io.noatime",
         ];
         let actual = capture_native_metadata(
             destination,

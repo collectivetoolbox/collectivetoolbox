@@ -560,7 +560,7 @@ impl FileEntity {
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
         };
 
-        let metadata = FileMetadata {
+        let mut metadata = FileMetadata {
             native: Some(crate::metadata::capture_native_metadata(path, &sym_meta)?),
             mode,
             uid,
@@ -653,6 +653,8 @@ impl FileEntity {
                 [0_u8; 32]
             };
 
+            metadata.set_used_noatime(opened_with_noatime);
+
             #[cfg(unix)]
             if !opened_with_noatime {
                 let orig_atime = FileTime::from_unix_time(
@@ -716,6 +718,12 @@ impl FileEntity {
     #[must_use]
     pub const fn is_symlink(&self) -> bool {
         matches!(self.kind, FileEntityKind::Symlink { .. })
+    }
+
+    /// Returns true if this file entity was captured or copied using `O_NOATIME`.
+    #[must_use]
+    pub fn used_noatime(&self) -> bool {
+        self.metadata.used_noatime()
     }
 
     /// Returns the original enclosing directory if available.

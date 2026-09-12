@@ -3386,5 +3386,38 @@ mod csc_tests {
 
         clear_filesystem_cache();
     }
+
+    #[crate::ctb_test]
+    fn test_csc_noatime_recorded_and_verified() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
+
+        let f = src.join("test_file.txt");
+        fs::write(&f, b"hello noatime test").expect("write file");
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        args.verify_after = true;
+        run_csc(args).expect("run csc");
+
+        let journal_path = find_cscjournal(&state);
+        let desc_path = journal_path.with_extension("cscdesc");
+        assert!(desc_path.exists(), ".cscdesc must exist");
+        let desc_content = fs::read_to_string(&desc_path).expect("read desc");
+        assert!(
+            desc_content.contains("NoatimeUsed: true"),
+            "Descriptor should record NoatimeUsed: true when file owner copies file"
+        );
+    }
 }
 
