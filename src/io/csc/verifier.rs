@@ -63,6 +63,8 @@ pub struct VerificationReport {
     pub untracked_entries: Vec<PathBuf>,
     pub ignored_differences: IgnoredDifferences,
     pub best_effort: bool,
+    #[serde(default)]
+    pub caveats: Vec<String>,
 }
 
 impl VerificationReport {
@@ -85,7 +87,12 @@ impl VerificationReport {
         let _ = writeln!(out, "Target Directory: {}", self.target_directory.display());
 
         if self.is_clean() {
-            if self.best_effort && !self.ignored_differences.is_empty() {
+            if self.caveats.is_empty() {
+                let _ = writeln!(
+                    out,
+                    "Status:           OK - Directory matches manifest perfectly."
+                );
+            } else if self.best_effort && !self.ignored_differences.is_empty() {
                 let mut parts = Vec::new();
                 if self.ignored_differences.ownership > 0 {
                     parts.push(format!(
@@ -123,7 +130,7 @@ impl VerificationReport {
             } else {
                 let _ = writeln!(
                     out,
-                    "Status:           OK - Directory matches manifest perfectly."
+                    "Status:           OK - Directory matches manifest."
                 );
             }
             let _ = writeln!(
@@ -131,6 +138,15 @@ impl VerificationReport {
                 "Verified Entries: {} (0 discrepancies)",
                 self.matched_entries
             );
+
+            if !self.caveats.is_empty() {
+                let _ = writeln!(out);
+                let _ = writeln!(out, "Caveats:");
+                for c in &self.caveats {
+                    let _ = writeln!(out, "  - {c}");
+                }
+            }
+
             return out;
         }
 
@@ -176,6 +192,14 @@ impl VerificationReport {
             "  Untracked entries: {}",
             self.untracked_entries.len()
         );
+
+        if !self.caveats.is_empty() {
+            let _ = writeln!(out);
+            let _ = writeln!(out, "Caveats:");
+            for c in &self.caveats {
+                let _ = writeln!(out, "  - {c}");
+            }
+        }
 
         out
     }
@@ -391,6 +415,76 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     missing_entries.sort();
     untracked_entries.sort();
 
+    let is_best_effort = args.best_effort && !args.strict;
+    let mut caveats = Vec::new();
+
+    if audit_options.ignore_atime {
+        caveats.push("Access times (atime) not verified (use --check-atime or --strict to check)".to_string());
+    }
+    if audit_options.ignore_ctime {
+        caveats.push("Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string());
+    }
+    if audit_options.ignore_mtime {
+        caveats.push("Modification times (mtime) not verified (--ignore-mtime)".to_string());
+    }
+    if audit_options.ignore_owner {
+        caveats.push("File ownership (UID/GID) not verified (--ignore-owner)".to_string());
+    }
+    if audit_options.ignore_perms {
+        caveats.push("File permissions not verified (--ignore-perms)".to_string());
+    }
+    if audit_options.ignore_flags {
+        caveats.push("File flags not verified (--ignore-flags)".to_string());
+    }
+    if audit_options.ignore_xattrs {
+        caveats.push("Extended attributes and alternate data streams not verified (--ignore-xattrs)".to_string());
+    }
+    if args.should_ignore_untracked() {
+        caveats.push("Untracked disk files not scanned (--ignore-untracked)".to_string());
+    }
+    if !args.should_drop_caches() {
+        caveats.push("OS cache eviction skipped (--no-drop-caches)".to_string());
+    }
+    if is_best_effort {
+        if total_ignored.is_empty() {
+            caveats.push("Best-effort mode enabled (tolerated up to 2s timestamp drift, unprivileged ownership ignored)".to_string());
+        } else {
+            let mut parts = Vec::new();
+            if total_ignored.ownership > 0 {
+                parts.push(format!(
+                    "{} ownership difference{}",
+                    total_ignored.ownership,
+                    if total_ignored.ownership == 1 { "" } else { "s" }
+                ));
+            }
+            if total_ignored.timestamps > 0 {
+                parts.push(format!(
+                    "{} timestamp difference{}",
+                    total_ignored.timestamps,
+                    if total_ignored.timestamps == 1 { "" } else { "s" }
+                ));
+            }
+            if total_ignored.permissions > 0 {
+                parts.push(format!(
+                    "{} permission difference{}",
+                    total_ignored.permissions,
+                    if total_ignored.permissions == 1 { "" } else { "s" }
+                ));
+            }
+            if total_ignored.flags > 0 {
+                parts.push(format!(
+                    "{} flag difference{}",
+                    total_ignored.flags,
+                    if total_ignored.flags == 1 { "" } else { "s" }
+                ));
+            }
+            caveats.push(format!("Best-effort mode: ignored {}", parts.join(" and ")));
+        }
+    }
+    if args.allow_incomplete && !snapshot.is_completed {
+        caveats.push("Manifest is incomplete or was not marked finished (--allow-incomplete)".to_string());
+    }
+
     Ok(VerificationReport {
         target_directory: target_dir,
         manifest_path: journal_path,
@@ -401,7 +495,8 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         missing_entries,
         untracked_entries,
         ignored_differences: total_ignored,
-        best_effort: args.best_effort,
+        best_effort: is_best_effort,
+        caveats,
     })
 }
 

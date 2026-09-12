@@ -331,7 +331,13 @@ pub fn execute_copy_pipeline(
                     true,
                     !args.best_effort_metadata,
                 )?;
-                verify_materialized_entity_ext(&fixup.dest_path, &fixup.dir_entity, !args.best_effort_metadata, args.check_atime)?;
+                verify_materialized_entity_ext(
+                    &fixup.dest_path,
+                    &fixup.dir_entity,
+                    !args.best_effort_metadata,
+                    args.should_check_atime(),
+                    args.should_check_ctime(),
+                )?;
                 files_to_verify.push((fixup.src_path, fixup.dest_path, fixup.dir_entity));
             } else {
                 anyhow::bail!("Destination directory disappeared: {}", fixup.dest_path.display());
@@ -360,13 +366,15 @@ pub fn execute_copy_pipeline(
                 src_path,
                 entity,
                 !args.best_effort_metadata,
-                args.check_atime,
+                args.should_check_atime(),
+                args.should_check_ctime(),
             )?;
             verify_materialized_entity_ext(
                 dest_path,
                 entity,
                 !args.best_effort_metadata,
-                args.check_atime,
+                args.should_check_atime(),
+                args.should_check_ctime(),
             )?;
             if entity.is_regular() {
                 stats.files_verified = stats.files_verified.saturating_add(1);

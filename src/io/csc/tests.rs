@@ -67,6 +67,7 @@ mod csc_tests {
             format: VerifyOutputFormat::Text,
             quiet: false,
             best_effort: true,
+            strict: false,
             allow_incomplete: false,
         }
     }
@@ -100,6 +101,8 @@ mod csc_tests {
             one_file_system: false,
             best_effort_metadata: true,
             check_atime: false,
+            check_ctime: false,
+            strict: false,
             delete_manifest_after: false,
             recursive: true,
             archive: true,
@@ -2924,6 +2927,169 @@ mod csc_tests {
 
         let mv_args = MvArgs::try_parse_from(["mv", "--no-progress", "src", "dest"]).unwrap();
         assert!(!mv_args.should_show_progress());
+    }
+
+    #[crate::ctb_test]
+    fn test_strict_flags_parsing() {
+        use clap::Parser;
+
+        let verify_args = CscVerifyArgs::try_parse_from(["csc-verify", "--strict", "manifest.cscjournal"]).unwrap();
+        assert!(verify_args.strict);
+        assert!(!verify_args.should_ignore_atime());
+        assert!(!verify_args.should_ignore_ctime());
+        assert!(verify_args.is_strict());
+
+        let csc_args = CscArgs::try_parse_from(["csc", "--strict", "src", "dest"]).unwrap();
+        assert!(csc_args.strict);
+        assert!(csc_args.should_check_atime());
+        assert!(csc_args.should_check_ctime());
+
+        let csc_args_ctime = CscArgs::try_parse_from(["csc", "--check-ctime", "src", "dest"]).unwrap();
+        assert!(csc_args_ctime.check_ctime);
+        assert!(csc_args_ctime.should_check_ctime());
+        assert!(!csc_args_ctime.should_check_atime());
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_verify_caveats_without_strict() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_caveats");
+        let dest = temp.path().join("dest_caveats");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("sample.txt"), b"Caveat verification test").expect("write sample");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+
+        // Standard verification without strict settings
+        let mut verify_args = default_verify_args(journal.clone(), None);
+        verify_args.best_effort = true;
+        verify_args.strict = false;
+        verify_args.ignore_atime = true;
+        verify_args.ignore_ctime = true;
+
+        let res = run_csc_verify(&verify_args).expect("run verifier without strict");
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest"));
+                assert!(!out.contains("Directory matches manifest perfectly"));
+                assert!(out.contains("Caveats:"));
+                assert!(out.contains("Access times (atime) not verified"));
+                assert!(out.contains("Change times (ctime) not verified"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Alter atime on destination
+        let dest_file = dest.join("sample.txt");
+        let orig_meta = fs::metadata(&dest_file).expect("metadata");
+        let orig_atime = filetime::FileTime::from_unix_time(orig_meta.atime().saturating_add(100), 0);
+        let orig_mtime = filetime::FileTime::from_unix_time(orig_meta.mtime(), 0);
+        filetime::set_file_times(&dest_file, orig_atime, orig_mtime).expect("alter atime");
+
+        // Strict verification must catch differences and fail
+        let mut strict_args = default_verify_args(journal, None);
+        strict_args.strict = true;
+
+        let res_strict = run_csc_verify(&strict_args).expect("run strict verifier");
+        match res_strict {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("mismatch") || out.contains("Discrepancies detected"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verification_report_formatting_modes() {
+        use crate::verifier::VerificationReport;
+        use ctb_io::file::verifier::IgnoredDifferences;
+
+        // 1. Clean report with no caveats (strictest settings)
+        let strict_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: Vec::new(),
+        };
+        let out = strict_clean.format_human_report();
+        assert!(out.contains("Status:           OK - Directory matches manifest perfectly."));
+        assert!(!out.contains("Caveats:"));
+
+        // 2. Clean report with caveats (non-strict settings)
+        let non_strict_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: vec![
+                "Access times (atime) not verified (use --check-atime or --strict to check)".to_string(),
+                "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
+            ],
+        };
+        let out2 = non_strict_clean.format_human_report();
+        assert!(out2.contains("Status:           OK - Directory matches manifest."));
+        assert!(!out2.contains("Directory matches manifest perfectly"));
+        assert!(out2.contains("Caveats:"));
+        assert!(out2.contains("Access times (atime) not verified"));
+        assert!(out2.contains("Change times (ctime) not verified"));
+
+        // 3. Clean report in best-effort mode with ignored differences
+        let be_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences {
+                ownership: 0,
+                timestamps: 2,
+                permissions: 0,
+                flags: 0,
+            },
+            best_effort: true,
+            caveats: vec![
+                "Access times (atime) not verified (use --check-atime or --strict to check)".to_string(),
+                "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
+                "Best-effort mode: ignored 2 timestamp differences".to_string(),
+            ],
+        };
+        let out3 = be_clean.format_human_report();
+        assert!(out3.contains("Status:           OK - Directory matches manifest in best-effort mode; ignored 2 timestamp differences."));
+        assert!(!out3.contains("Directory matches manifest perfectly"));
+        assert!(out3.contains("Caveats:"));
+        assert!(out3.contains("ignored 2 timestamp differences"));
     }
 }
 

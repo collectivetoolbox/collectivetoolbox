@@ -122,6 +122,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     one_file_system: false,
                     best_effort_metadata: false,
                     check_atime: false,
+                    check_ctime: false,
+                    strict: false,
                     delete_manifest_after: true,
                     recursive: true,
                     archive: true,

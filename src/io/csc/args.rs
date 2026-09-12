@@ -123,6 +123,14 @@ pub struct CscArgs {
     #[arg(long)]
     pub check_atime: bool,
 
+    /// Explicitly check status/metadata change time (ctime) differences in post-copy verification.
+    #[arg(long)]
+    pub check_ctime: bool,
+
+    /// Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification.
+    #[arg(long)]
+    pub strict: bool,
+
     /// Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion.
     #[arg(long)]
     pub delete_manifest_after: bool,
@@ -159,6 +167,18 @@ impl CscArgs {
         } else {
             self.verify_after
         }
+    }
+
+    /// Resolves whether access time checking is active in post-copy verification.
+    #[must_use]
+    pub fn should_check_atime(&self) -> bool {
+        self.strict || self.check_atime
+    }
+
+    /// Resolves whether metadata change time checking is active in post-copy verification.
+    #[must_use]
+    pub fn should_check_ctime(&self) -> bool {
+        self.strict || self.check_ctime
     }
 }
 
@@ -250,6 +270,10 @@ pub struct CscVerifyArgs {
     #[arg(long)]
     pub best_effort: bool,
 
+    /// Enforce strictest verification settings, enabling --check-atime and --check-ctime.
+    #[arg(long)]
+    pub strict: bool,
+
     /// Allow verifying against a manifest that failed, was aborted, or has not completed verification.
     #[arg(
         long = "allow-incomplete",
@@ -263,7 +287,7 @@ pub struct CscVerifyArgs {
 impl CscVerifyArgs {
     #[must_use]
     pub fn should_ignore_atime(&self) -> bool {
-        if self.check_atime {
+        if self.strict || self.check_atime {
             return false;
         }
         self.ignore_atime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("atime"))
@@ -276,7 +300,7 @@ impl CscVerifyArgs {
 
     #[must_use]
     pub fn should_ignore_ctime(&self) -> bool {
-        if self.check_ctime {
+        if self.strict || self.check_ctime {
             return false;
         }
         self.ignore_ctime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("ctime"))
@@ -325,6 +349,22 @@ impl CscVerifyArgs {
         !self.no_drop_caches
     }
 
+    /// Returns true if verification is running in its strictest possible settings with no skipped or relaxed checks.
+    #[must_use]
+    pub fn is_strict(&self) -> bool {
+        !self.should_ignore_atime()
+            && !self.should_ignore_ctime()
+            && !self.should_ignore_mtime()
+            && !self.should_ignore_owner()
+            && !self.should_ignore_perms()
+            && !self.should_ignore_flags()
+            && !self.should_ignore_xattrs()
+            && !self.should_ignore_untracked()
+            && !self.best_effort
+            && !self.allow_incomplete
+            && self.should_drop_caches()
+    }
+
     /// Converts this set of CLI verification flags into `EntityAuditOptions`.
     #[must_use]
     pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
@@ -338,7 +378,7 @@ impl CscVerifyArgs {
             ignore_xattrs: self.should_ignore_xattrs(),
             check_sparse: true,
             drop_caches: self.should_drop_caches(),
-            best_effort: self.best_effort,
+            best_effort: if self.strict { false } else { self.best_effort },
         }
     }
 }

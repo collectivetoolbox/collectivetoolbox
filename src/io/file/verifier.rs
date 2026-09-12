@@ -889,20 +889,21 @@ pub fn verify_materialized_entity(
     entity: &FileEntity,
     strict_lossless: bool,
 ) -> Result<()> {
-    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false)
+    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false, false)
 }
 
-/// Verifies a materialized entity with opt-in control over access time (atime) checking.
+/// Verifies a materialized entity with opt-in control over access time (atime) and change time (ctime) checking.
 pub fn verify_materialized_entity_ext(
     dest_path: &Path,
     entity: &FileEntity,
     strict_lossless: bool,
     check_atime: bool,
+    check_ctime: bool,
 ) -> Result<()> {
     let mut options = EntityAuditOptions::default();
     options.drop_caches = true;
     options.check_sparse = true;
-    options.ignore_ctime = true;
+    options.ignore_ctime = !check_ctime;
     options.ignore_atime = !check_atime;
     options.best_effort = !strict_lossless;
 
