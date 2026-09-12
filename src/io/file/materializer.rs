@@ -229,6 +229,13 @@ pub fn apply_entity_metadata(
         apply_windows_birthtime(dest, meta)?;
     }
 
+    crate::metadata::acl::apply_bsd_acl_metadata(
+        dest,
+        meta.native.as_ref(),
+        is_symlink,
+        strict_lossless,
+    )?;
+
     // 4. File flags
     if apply_flags && (!meta.flags.is_empty() || meta.platform_raw_flags.is_some()) {
         apply_file_flags(

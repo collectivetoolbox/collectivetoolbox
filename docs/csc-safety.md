@@ -96,12 +96,14 @@ requiring those guarantees return errors rather than fabricated metadata. This
 prevents lossless Windows filesystem copies and cross-device moves; same-device
 OS rename remains available. Cross-compilation is not a Windows runtime test.
 
-Universal native metadata capture is not yet complete. In particular, BSD/macOS
-ACLs outside xattrs and filesystem-specific metadata outside the Linux APIs listed
-above need additional capture backends. The extensible journal can retain their
-values once captured, but that does not imply those backends already exist.
-Do not treat current coverage as proof that every metadata class on every source
-filesystem has been enumerated.
+Universal native metadata capture supports BSD/macOS ACLs outside xattrs:
+Darwin extended ACLs (macOS) and FreeBSD NFSv4/POSIX.1e ACLs are captured with
+dual binary (acl_copy_ext) and canonical text representations, preserving
+granular permissions, inheritance flags, and trivial ACL distinctions using
+symlink-safe link APIs. The extensible journal retains their values, and
+restoration applies them with strict validation. Do not treat current coverage
+as proof that every metadata class on every source filesystem has been
+enumerated.
 
 ## Remaining Limits
 

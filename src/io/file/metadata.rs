@@ -410,6 +410,7 @@ mod linux;
 pub mod reparse;
 #[cfg(windows)]
 pub mod windows;
+pub mod acl;
 
 pub fn capture_native_metadata(
     path: &std::path::Path,
@@ -493,6 +494,7 @@ pub fn capture_native_metadata(
         }
         linux::capture_filesystem_attributes(path, meta, &mut values)?;
     }
+    acl::capture_bsd_acl_metadata(path, meta, &mut values)?;
     Ok(NativeMetadata {
         source_os: OsFamily::CURRENT,
         values,

@@ -1128,6 +1128,181 @@ mod tests {
             Some(&metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()))
         );
     }
+
+    #[crate::ctb_test]
+    fn test_darwin_acl_text_parsing_and_roundtrip() {
+        use crate::metadata::acl::DarwinAcl;
+
+        let original_text = "!#acl 1\nuser:FFFFEEEE-DDDD-CCCC-BBBB-AAAA00000000:john:allow:read,write\ngroup:ABCDEF00-1111-2222-3333-444444444444:staff:deny:delete:inherited,file_inherit\n";
+        let parsed = DarwinAcl::parse_text(original_text).unwrap();
+        assert_eq!(parsed.entries.len(), 2);
+
+        let entry0 = &parsed.entries[0];
+        assert!(entry0.is_allow);
+        assert_eq!(entry0.tag, "user");
+        assert_eq!(entry0.qualifier, "FFFFEEEE-DDDD-CCCC-BBBB-AAAA00000000:john");
+        assert!(entry0.permissions.read_data);
+        assert!(entry0.permissions.write_data);
+        assert!(!entry0.permissions.delete);
+
+        let entry1 = &parsed.entries[1];
+        assert!(!entry1.is_allow);
+        assert_eq!(entry1.tag, "group");
+        assert_eq!(entry1.qualifier, "ABCDEF00-1111-2222-3333-444444444444:staff");
+        assert!(entry1.permissions.delete);
+        assert!(entry1.flags.inherited);
+        assert!(entry1.flags.file_inherit);
+        assert!(!entry1.flags.directory_inherit);
+
+        let roundtrip_text = parsed.to_text();
+        let reparsed = DarwinAcl::parse_text(&roundtrip_text).unwrap();
+        assert_eq!(parsed, reparsed);
+    }
+
+    #[crate::ctb_test]
+    fn test_posix1e_acl_text_parsing_and_trivial_check() {
+        use crate::metadata::acl::{Posix1eAcl, Posix1eTag};
+
+        let trivial_text = "user::rwx\ngroup::r-x\nother::r--\n";
+        let trivial_acl = Posix1eAcl::parse_text(trivial_text).unwrap();
+        assert_eq!(trivial_acl.entries.len(), 3);
+        assert!(trivial_acl.is_trivial());
+
+        let extended_text = "user::rwx\nuser:1001:r--\ngroup::r-x\nmask::r-x\nother::r--\n";
+        let extended_acl = Posix1eAcl::parse_text(extended_text).unwrap();
+        assert_eq!(extended_acl.entries.len(), 5);
+        assert!(!extended_acl.is_trivial());
+        assert_eq!(extended_acl.entries[1].tag, Posix1eTag::User(1001));
+        assert_eq!(extended_acl.entries[1].perms, 4);
+
+        let formatted = extended_acl.to_text();
+        let reparsed = Posix1eAcl::parse_text(&formatted).unwrap();
+        assert_eq!(extended_acl, reparsed);
+    }
+
+    #[crate::ctb_test]
+    fn test_freebsd_nfs4_acl_text_parsing_and_trivial() {
+        use crate::metadata::acl::Nfs4Acl;
+
+        let trivial_text = "owner@:rwxp--aARWcCos:------:allow\ngroup@:r-x---a-R-c--s:------:allow\neveryone@:r-x---a-R-c--s:------:allow\n";
+        let trivial_acl = Nfs4Acl::parse_text(trivial_text).unwrap();
+        assert_eq!(trivial_acl.entries.len(), 3);
+        assert!(trivial_acl.is_trivial());
+
+        let extended_text = "owner@:rwxp--aARWcCos:------:allow\nuser:42:rwxp--aARWcCos:------:allow\ngroup@:r-x---a-R-c--s:------:allow\neveryone@:r-x---a-R-c--s:------:allow\n";
+        let extended_acl = Nfs4Acl::parse_text(extended_text).unwrap();
+        assert_eq!(extended_acl.entries.len(), 4);
+        assert!(!extended_acl.is_trivial());
+
+        let formatted = extended_acl.to_text();
+        let reparsed = Nfs4Acl::parse_text(&formatted).unwrap();
+        assert_eq!(extended_acl, reparsed);
+    }
+
+    #[crate::ctb_test]
+    fn test_darwin_and_bsd_acl_native_metadata_tracking() {
+        let mut values = std::collections::BTreeMap::new();
+        values.insert(
+            "acl.darwin.raw".to_owned(),
+            metadata::NativeMetadataValue::Bytes(vec![1, 2, 3, 4, 5]),
+        );
+        values.insert(
+            "acl.darwin.text".to_owned(),
+            metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read,write\n".to_vec()),
+        );
+        values.insert(
+            "acl.darwin.entry_count".to_owned(),
+            metadata::NativeMetadataValue::Unsigned(1),
+        );
+        values.insert(
+            "acl.model".to_owned(),
+            metadata::NativeMetadataValue::Bytes(b"darwin".to_vec()),
+        );
+        let native = metadata::NativeMetadata {
+            source_os: OsFamily::Darwin,
+            values,
+        };
+        let meta = FileMetadata {
+            native: Some(native),
+            mode: 0o644,
+            uid: 501,
+            gid: 20,
+            timestamps: FileTimestamps {
+                atime_sec: 0,
+                atime_nsec: 0,
+                mtime_sec: 0,
+                mtime_nsec: 0,
+                ctime_sec: 0,
+                ctime_nsec: 0,
+                birthtime_sec: None,
+                birthtime_nsec: None,
+                resolution_nsec: None,
+            },
+            flags: Vec::new(),
+            platform_raw_flags: None,
+            read_time: None,
+        };
+        let serialized = serde_json::to_string(&meta).unwrap();
+        let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
+        let native_vals = &deserialized.native.as_ref().unwrap().values;
+        assert_eq!(
+            native_vals.get("acl.darwin.raw"),
+            Some(&metadata::NativeMetadataValue::Bytes(vec![1, 2, 3, 4, 5]))
+        );
+        assert_eq!(
+            native_vals.get("acl.darwin.text"),
+            Some(&metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read,write\n".to_vec()))
+        );
+        assert_eq!(
+            native_vals.get("acl.darwin.entry_count"),
+            Some(&metadata::NativeMetadataValue::Unsigned(1))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_bsd_acl_strict_lossless_enforcement() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest = temp.path().join("test_file.txt");
+        std::fs::write(&dest, b"hello").unwrap();
+
+        let mut values = std::collections::BTreeMap::new();
+        values.insert(
+            "acl.darwin.text".to_owned(),
+            metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read\n".to_vec()),
+        );
+        let native = metadata::NativeMetadata {
+            source_os: OsFamily::Darwin,
+            values,
+        };
+
+        #[cfg(not(any(
+            target_vendor = "apple",
+            target_os = "freebsd",
+            target_os = "dragonfly",
+            target_os = "netbsd",
+        )))]
+        {
+            // On Linux (our test host), strict_lossless must fail because Darwin ACL cannot be reproduced
+            let res = metadata::acl::apply_bsd_acl_metadata(
+                &dest,
+                Some(&native),
+                false,
+                true,
+            );
+            assert!(res.is_err());
+            let err_msg = res.unwrap_err().to_string();
+            assert!(err_msg.contains("Cannot reproduce BSD/macOS ACL metadata"));
+
+            // Best-effort mode (strict_lossless = false) succeeds with journal retention warning
+            let res_lax = metadata::acl::apply_bsd_acl_metadata(
+                &dest,
+                Some(&native),
+                false,
+                false,
+            );
+            assert!(res_lax.is_ok());
+        }
+    }
 }
 
 
