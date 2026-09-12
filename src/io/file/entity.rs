@@ -513,6 +513,21 @@ impl FileEntity {
             timestamps.birthtime_sec = Some(birthtime.unix_seconds());
             timestamps.birthtime_nsec = Some(birthtime.nanoseconds());
         }
+        #[cfg(target_os = "linux")]
+        if is_symlink && timestamps.birthtime_sec.is_none() {
+            use rustix::fs::{AtFlags, CWD, StatxFlags, statx};
+            if let Ok(stat) = statx(
+                CWD,
+                path,
+                AtFlags::SYMLINK_NOFOLLOW,
+                StatxFlags::BTIME,
+            ) {
+                if (stat.stx_mask & StatxFlags::BTIME.bits()) != 0 {
+                    timestamps.birthtime_sec = Some(stat.stx_btime.tv_sec);
+                    timestamps.birthtime_nsec = Some(stat.stx_btime.tv_nsec);
+                }
+            }
+        }
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 

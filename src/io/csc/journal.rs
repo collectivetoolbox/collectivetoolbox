@@ -634,6 +634,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;
     for s in &entity.streams {
+        // Reason for fallback: Nameless streams have no stream name, so serialized stream name bytes default to empty.
         let name_bytes = s
             .name
             .as_ref()
@@ -793,10 +794,12 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         } else {
             Some(StreamName::from_bytes(&sname_bytes))
         };
+        // Reason for fallback: Nameless streams represent macOS resource forks whose kind cannot be inferred from a filename.
         let skind = stream_name
             .as_ref()
             .map(|n| StreamKind::infer_from_name(&n.as_bytes()))
             .unwrap_or(StreamKind::MacOsResourceFork);
+        // Reason for fallback: Nameless streams lack a filename, so synthetic relative path defaults to empty.
         let relative_path = stream_name
             .as_ref()
             .map(|n| PathBuf::from(n.to_string_lossy().as_ref()))

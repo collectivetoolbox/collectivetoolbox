@@ -276,6 +276,7 @@ impl AttachedStream {
         hasher.update(&data);
         let sha256 = hasher.finalize();
         let size = u64::try_from(data.len())?;
+        // Reason for fallback: Nameless streams (e.g. macOS resource fork) have no stream name, so raw filename defaults to empty bytes.
         let name_bytes = name
             .as_ref()
             .map(|n| n.as_bytes().into_owned())

@@ -600,7 +600,7 @@ fn extract_data_from_sections(
         let deobfuscated_storage;
         let payload_ref = if is_obfuscated_data_payload(&section.payload) {
             deobfuscated_storage =
-                deobfuscate_pan_data_payload(&section.payload);
+                deobfuscate_pan_data_payload(&section.payload)?;
             &deobfuscated_storage
         } else {
             &section.payload
@@ -650,18 +650,45 @@ fn extract_data_from_sections(
     }))
 }
 
-/// Detect parameters `(key_start, step)` for position-dependent XOR obfuscated
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PanDataObfuscation {
+    Add { key_start: u8, step: u8 },
+    Sub { key_start: u8, step: u8 },
+}
+
+/// Detect parameters `PanDataObfuscation` for position-dependent XOR obfuscated
 /// DATA payload.
 ///
-/// Panorama obfuscates DATA payloads using `key = key_start - step * i`.
-/// The first 6 bytes of a DATA payload represent a record prefix whose 0th, 4th,
-/// and 5th bytes decode to 0x00, allowing key derivation directly from the
-/// payload without hardcoding specific database signatures.
-fn detect_data_obfuscation_params(payload: &[u8]) -> Option<(u8, u8)> {
+/// Panorama obfuscates DATA payloads using a linear key sequence.
+/// In databases with standard headers, the first 6 bytes of the DATA payload
+/// represent an empty prefix that decodes to `00 00 00 00 00 00` via
+/// `key_start + step * i`.
+/// In databases with large records , bytes 0, 4, and 5 decode to `0x00` via
+/// `key_start - step * i`.
+fn detect_data_obfuscation_params(payload: &[u8]) -> Option<PanDataObfuscation> {
     if payload.len() < 10 {
         return None;
     }
     let &b0 = payload.first()?;
+    let &b1 = payload.get(1)?;
+
+    // 1. Consecutive additive header check: bytes 0..6 all have constant delta
+    let step_add = b1.wrapping_sub(b0);
+    if step_add != 0 {
+        let is_consecutive = (0..6u8).all(|i| {
+            let offset = i.wrapping_mul(step_add);
+            let expected = b0.wrapping_add(offset);
+            payload.get(usize::from(i)).copied() == Some(expected)
+        });
+        if is_consecutive {
+            return Some(PanDataObfuscation::Add {
+                key_start: b0,
+                step: step_add,
+            });
+        }
+    }
+
+    // 2. Large-record subtractive header check
     if b0 == 0 {
         return None;
     }
@@ -684,7 +711,7 @@ fn detect_data_obfuscation_params(payload: &[u8]) -> Option<(u8, u8)> {
     let key6 = key_start.wrapping_sub(step.wrapping_mul(6));
     let dec6 = b6 ^ key6;
     if dec6 == 0xff || dec6 < 0x80 {
-        Some((key_start, step))
+        Some(PanDataObfuscation::Sub { key_start, step })
     } else {
         None
     }
@@ -697,22 +724,27 @@ fn is_obfuscated_data_payload(payload: &[u8]) -> bool {
 }
 
 /// Deobfuscate DATA payload bytes using the Panorama position-dependent XOR key.
-fn deobfuscate_pan_data_payload(payload: &[u8]) -> Vec<u8> {
-    let (key_start, step) =
-        // Reason for fallback: default to known parameters (0x50, 0x0e) if detection fails
-        detect_data_obfuscation_params(payload).unwrap_or((0x50, 0x0e));
-    payload
+fn deobfuscate_pan_data_payload(payload: &[u8]) -> Result<Vec<u8>> {
+    let mode = detect_data_obfuscation_params(payload)
+        .context("Missing expected DATA obfuscation parameters")?;
+
+    Ok(payload
         .iter()
         .enumerate()
         .map(|(idx, &b)| {
             // Reason for fallback: idx & 0xff is strictly <= 255 and fits in u8
-            let step_offset = u8::try_from(idx & 0xff)
-                .unwrap_or(0)
-                .wrapping_mul(step);
-            let key = key_start.wrapping_sub(step_offset);
+            let idx_u8 = u8::try_from(idx & 0xff).unwrap_or(0);
+            let key = match mode {
+                PanDataObfuscation::Add { key_start, step } => {
+                    key_start.wrapping_add(idx_u8.wrapping_mul(step))
+                }
+                PanDataObfuscation::Sub { key_start, step } => {
+                    key_start.wrapping_sub(idx_u8.wrapping_mul(step))
+                }
+            };
             b ^ key
         })
-        .collect()
+        .collect())
 }
 
 fn select_schema_for_data_section(
@@ -3469,8 +3501,12 @@ fn deobfuscate_macro_payload(macro_bytes: &[u8], name_len: usize) -> Vec<u8> {
 
     let expected_0 = if is_be { 0xff } else { 0xec };
     let expected_1 = if is_be { 0xec } else { 0xff };
-    let b0 = ciphertext.first().copied().unwrap_or(0);
-    let b1 = ciphertext.get(1).copied().unwrap_or(0);
+    let Some(&b0) = ciphertext.first() else {
+        return macro_bytes.to_vec();
+    };
+    let Some(&b1) = ciphertext.get(1) else {
+        return macro_bytes.to_vec();
+    };
     let k0 = b0 ^ expected_0;
     let k1 = b1 ^ expected_1;
     let step = k1.wrapping_sub(k0);
@@ -5217,13 +5253,59 @@ mod tests {
         let plain_payload = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06];
         ensure!(detect_data_obfuscation_params(&plain_payload).is_none());
 
-        // Power Team 4 Updater prefix
-        let obfuscated_payload = vec![
-            0x50, 0x46, 0xa0, 0x2b, 0x18, 0x0a, 0x03, 0xef, 0x66, 0x7d,
-        ];
+        // Step 0x0e, subtractive
         ensure!(
-            detect_data_obfuscation_params(&obfuscated_payload)
-                == Some((0x50, 0x0e))
+            detect_data_obfuscation_params(&vec![
+            0x50, 0x46, 0xa0, 0x2b, 0x18, 0x0a, 0x03, 0xef, 0x66, 0x7d,
+        ])
+                == Some(PanDataObfuscation::Sub {
+                    key_start: 0x50,
+                    step: 0x0e,
+                })
+        );
+
+        // Step 0x64, additive
+        ensure!(
+            detect_data_obfuscation_params(&vec![
+            0x42, 0xa6, 0x0a, 0x6e, 0xd2, 0x36, 0x8e, 0xfe, 0x62, 0xc7,
+        ])
+                == Some(PanDataObfuscation::Add {
+                    key_start: 0x42,
+                    step: 0x64,
+                })
+        );
+
+        // Step 0x26, additive
+        ensure!(
+            detect_data_obfuscation_params(&vec![
+            0x52, 0x78, 0x9e, 0xc4, 0xea, 0x10, 0x29, 0x5c, 0x82, 0xa8,
+        ])
+                == Some(PanDataObfuscation::Add {
+                    key_start: 0x52,
+                    step: 0x26,
+                })
+        );
+
+        // Step 0x12, additive
+        ensure!(
+            detect_data_obfuscation_params(&vec![
+            0x5e, 0x70, 0x82, 0x94, 0xa6, 0xb8, 0xc0, 0xdc, 0xee, 0x00,
+        ])
+                == Some(PanDataObfuscation::Add {
+                    key_start: 0x5e,
+                    step: 0x12,
+                })
+        );
+
+        // Step 0x0e, additive
+        ensure!(
+            detect_data_obfuscation_params(&vec![
+            0x40, 0x4e, 0x5c, 0x6a, 0x78, 0x86, 0x92, 0xa2, 0xb0, 0xbe,
+        ])
+                == Some(PanDataObfuscation::Add {
+                    key_start: 0x40,
+                    step: 0x0e,
+                })
         );
 
         Ok(())
@@ -5239,7 +5321,7 @@ mod tests {
         macro_bytes.extend_from_slice(name);
         // Prefix before bytecode
         macro_bytes.extend_from_slice(&[0x07, 0x63]);
-        // Encrypted magic [0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15]
+        // Obfuscated header [0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15]
         macro_bytes.extend_from_slice(&[0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15]);
 
         let deobfuscated = deobfuscate_macro_payload(&macro_bytes, name.len());

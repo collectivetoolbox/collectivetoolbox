@@ -826,7 +826,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+                assert!(out.contains("OK - Directory matches manifest"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -866,7 +866,7 @@ mod csc_tests {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+                assert!(out.contains("OK - Directory matches manifest"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }

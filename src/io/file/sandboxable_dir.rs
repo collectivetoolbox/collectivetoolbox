@@ -418,7 +418,7 @@ impl SandboxableDir {
                                 "Caveat: Target file {:?} is marked immutable; clearing immutable flag to overwrite",
                                 final_os
                             );
-                            let cleared = iflags - IFlags::IMMUTABLE;
+                            let cleared = iflags.difference(IFlags::IMMUTABLE);
                             if ioctl_setflags(&dest_fd, cleared).is_ok() {
                                 drop(dest_fd);
                                 return renameat(parent_dir_fd, temp_os, parent_dir_fd, final_os).with_context(|| {

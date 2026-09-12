@@ -465,7 +465,10 @@ pub fn hash_payload_stream<R: Read + Seek>(
     path_display: &Path,
 ) -> Result<[u8; 32]> {
     let mut hasher = Sha256Stream::new();
-    if false && is_sparse { // disable for now, as it makes me a bit nervous, but keep around in case wanted in future
+    let _ = (extents, is_sparse, path_display);
+    // disable for now, as it makes me a bit nervous, but keep around in case wanted in future:
+    /*
+    if is_sparse {
         for extent in extents {
             match extent {
                 Extent::Data { offset, length } => {
@@ -510,20 +513,19 @@ pub fn hash_payload_stream<R: Read + Seek>(
                 }
             }
         }
-    } else {
-        reader.seek(SeekFrom::Start(0))?;
-        let mut buf = vec![0_u8; 64 * 1024];
-        loop {
-            let n = reader.read(&mut buf)?;
-            if n == 0 {
-                break;
-            }
-            let slice = buf
-                .get(..n)
-                .context("Buffer slice index out of bounds")?;
-            hasher.update(slice);
+    }
+    */
+    reader.seek(SeekFrom::Start(0))?;
+    let mut buf = vec![0_u8; 64 * 1024];
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
         }
+        let slice = buf
+            .get(..n)
+            .context("Buffer slice index out of bounds")?;
+        hasher.update(slice);
     }
     Ok(hasher.finalize())
 }
-

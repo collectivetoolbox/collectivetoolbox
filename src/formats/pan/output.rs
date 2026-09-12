@@ -1285,23 +1285,23 @@ mod tests {
         let code_len = u16::try_from(code_bytes.len())?;
 
         // Plain body: [prefix 2 bytes] [bytecode 6 bytes] [code_len 2 bytes] [code]
-        let mut unencrypted_stream = Vec::new();
-        unencrypted_stream
+        let mut unobfuscated_stream = Vec::new();
+        unobfuscated_stream
             .extend_from_slice(&[0xff, 0xec, 0x00, 0x00, 0x00, 0x00]);
-        unencrypted_stream.extend_from_slice(&code_len.to_be_bytes());
-        unencrypted_stream.extend_from_slice(code_bytes);
+        unobfuscated_stream.extend_from_slice(&code_len.to_be_bytes());
+        unobfuscated_stream.extend_from_slice(code_bytes);
 
-        // Encrypt the stream with key = ((i + 2) * 3) & 0xFF
-        let mut encrypted_stream = Vec::new();
-        for (idx, &b) in unencrypted_stream.iter().enumerate() {
+        // Obfuscate the stream with key = ((i + 2) * 3) & 0xFF
+        let mut obfuscated_stream = Vec::new();
+        for (idx, &b) in unobfuscated_stream.iter().enumerate() {
             let idx_u8 = u8::try_from(idx & 0xff).unwrap_or(0);
             let key = idx_u8.wrapping_add(2).wrapping_mul(3);
-            encrypted_stream.push(b ^ key);
+            obfuscated_stream.push(b ^ key);
         }
 
         let mut macro_body = Vec::new();
         macro_body.extend_from_slice(&[0x07, 0x63]); // prefix
-        macro_body.extend_from_slice(&encrypted_stream);
+        macro_body.extend_from_slice(&obfuscated_stream);
 
         let macro_rec_size = 6usize
             .saturating_add(name.len())
