@@ -154,24 +154,18 @@ pub fn execute_copy_pipeline(
                     journal.commit_batch()?;
                 }
 
-                let read_dir = std::fs::read_dir(&curr_src).with_context(|| {
-                    format!("Failed to read source directory: {}", curr_src.display())
-                })?;
+                let traversal_opts = ctb_io::file::TraversalOptions::new()
+                    .one_file_system(args.one_file_system)
+                    .error_policy(ctb_io::file::OnTraversalError::Bail);
+
+                let dir_entries = ctb_io::file::read_dir_safe(&curr_src, &traversal_opts)?;
 
                 let mut expected_filenames: Vec<Vec<u8>> = Vec::new();
 
-                for entry in read_dir {
-                    let entry = entry?;
-                    let entry_src = entry.path();
-                    let entry_name = entry.file_name();
+                for item in dir_entries {
+                    let entry_src = item.path;
+                    let entry_name = item.file_name;
                     let entry_tgt = curr_tgt.join(&entry_name);
-
-                    let entry_sym_meta = std::fs::symlink_metadata(&entry_src)?;
-
-                    #[cfg(unix)]
-                    if args.one_file_system && entry_sym_meta.dev() != src_meta.dev() {
-                        continue;
-                    }
 
                     let entry_rel = if dir_entity.identity.relative_path.as_os_str().is_empty() {
                         PathBuf::from(&entry_name)
@@ -179,10 +173,10 @@ pub fn execute_copy_pipeline(
                         dir_entity.identity.relative_path.join(&entry_name)
                     };
 
-                    if entry_sym_meta.is_dir() {
+                    if item.is_dir {
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         dir_queue.push((entry_src, entry_tgt));
-                    } else if entry_sym_meta.is_symlink() {
+                    } else if item.is_symlink {
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         let mut sym_entity =
                             FileEntity::from_filesystem(&entry_src, Some(src_root))?;

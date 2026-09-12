@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Universal file representation, streams, metadata, and materialization engine.
+//! Universal file representation, streams, metadata, and materialization engine. Attempts to be as lossless as possible in both reading and writing.
 
 #[expect(
     unused_imports,
@@ -42,6 +42,7 @@ pub mod payload;
 pub mod sandboxable_dir;
 pub mod streams;
 pub mod sys_flags;
+pub mod traversal;
 pub mod verifier;
 
 pub use block_device_size::query_block_device_size;
@@ -66,6 +67,10 @@ pub use payload::{
 pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};
 pub use sys_flags::{apply_file_flags, query_file_flags};
+pub use traversal::{
+    DirEntryItem, DirTraverser, OnTraversalError, TraversalOptions, TraversalOrder,
+    read_dir_safe, traverse_dir,
+};
 pub use verifier::{
     DiffKind, EntityAuditOptions, IgnoredDifferences, StreamDiffKind, audit_entity,
     audit_entity_detailed, evict_fd_cache, hex_encode, try_drop_system_caches,

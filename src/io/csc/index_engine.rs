@@ -31,10 +31,7 @@ use crate::journal::{
     JournalSnapshot, JournalWriter, read_journal_snapshot, resolve_journal_path,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use std::collections::VecDeque;
 use std::fmt::Write as _;
-#[cfg(unix)]
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use turso::{Connection, Value};
@@ -326,100 +323,43 @@ fn index_directory_to_journal(
         (jw, None)
     };
 
-    #[cfg(unix)]
-    let root_meta = std::fs::symlink_metadata(&target_dir)
-        .with_context(|| format!("Failed to read metadata for target: {}", target_dir.display()))?;
-    #[cfg(unix)]
-    let root_dev = root_meta.dev();
+    let traversal_opts = ctb_io::file::TraversalOptions::new()
+        .order(ctb_io::file::TraversalOrder::BreadthFirst)
+        .one_file_system(args.one_file_system)
+        .yield_root(true)
+        .error_policy(ctb_io::file::OnTraversalError::Skip);
 
-    let mut dir_queue: VecDeque<PathBuf> = VecDeque::new();
-    dir_queue.push_back(target_dir.clone());
+    let traverser = ctb_io::file::traverse_dir(&target_dir, traversal_opts)?;
 
     let mut uncommitted_count: usize = 0;
     let mut total_scanned: u64 = 0;
 
-    while let Some(curr_dir) = dir_queue.pop_front() {
-        let dir_entity = if args.checksum {
-            FileEntity::from_filesystem(&curr_dir, Some(&target_dir))?
-        } else {
-            FileEntity::from_filesystem_metadata_only(&curr_dir, Some(&target_dir))?
+    for item_res in traverser {
+        let item = match item_res {
+            Ok(it) => it,
+            Err(e) => {
+                log_fmt!("Error traversing filesystem: {e}");
+                continue;
+            }
         };
 
-        let mut record_dir = true;
+        let entity = item.to_file_entity(Some(&target_dir), args.checksum)?;
+
+        let mut should_record = true;
         if let Some(ref snap) = snapshot {
-            if snap.is_committed(&dir_entity.identity.raw_relative_path) {
-                record_dir = false;
+            if snap.is_committed(&entity.identity.raw_relative_path) {
+                should_record = false;
             }
         }
 
-        if record_dir {
-            journal.record_entity(&dir_entity);
+        if should_record {
+            journal.record_entity(&entity);
             uncommitted_count = uncommitted_count.saturating_add(1);
             total_scanned = total_scanned.saturating_add(1);
 
             if uncommitted_count >= args.batch_size {
                 journal.commit_batch()?;
                 uncommitted_count = 0;
-            }
-        }
-
-        let read_dir = match std::fs::read_dir(&curr_dir) {
-            Ok(rd) => rd,
-            Err(e) => {
-                log_fmt!("Failed to read directory {}: {e}", curr_dir.display());
-                continue;
-            }
-        };
-
-        for entry in read_dir {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    log_fmt!("Failed reading directory entry in {}: {e}", curr_dir.display());
-                    continue;
-                }
-            };
-
-            let entry_path = entry.path();
-            let entry_sym_meta = match std::fs::symlink_metadata(&entry_path) {
-                Ok(m) => m,
-                Err(e) => {
-                    log_fmt!("Failed reading metadata for {}: {e}", entry_path.display());
-                    continue;
-                }
-            };
-
-            #[cfg(unix)]
-            if args.one_file_system && entry_sym_meta.dev() != root_dev {
-                continue;
-            }
-
-            if entry_sym_meta.is_dir() {
-                dir_queue.push_back(entry_path);
-            } else {
-                let entity = if args.checksum {
-                    FileEntity::from_filesystem(&entry_path, Some(&target_dir))?
-                } else {
-                    FileEntity::from_filesystem_metadata_only(&entry_path, Some(&target_dir))?
-                };
-
-                let mut should_record = true;
-                if let Some(ref snap) = snapshot {
-                    if snap.is_committed(&entity.identity.raw_relative_path) {
-                        should_record = false;
-                    }
-                }
-
-                if should_record {
-                    journal.record_entity(&entity);
-                    uncommitted_count = uncommitted_count.saturating_add(1);
-                    total_scanned = total_scanned.saturating_add(1);
-
-                    if uncommitted_count >= args.batch_size {
-                        journal.commit_batch()?;
-                        uncommitted_count = 0;
-                    }
-                }
             }
         }
     }

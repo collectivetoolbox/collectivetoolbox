@@ -415,7 +415,6 @@ fn scan_disk_entries(
     top_level_roots: Option<&HashSet<PathBuf>>,
 ) -> Result<HashSet<PathBuf>> {
     let mut result = HashSet::new();
-    let mut dir_queue = Vec::new();
 
     match top_level_roots {
         Some(roots) => {
@@ -424,37 +423,26 @@ fn scan_disk_entries(
                 if let Ok(sym_meta) = std::fs::symlink_metadata(&full) {
                     result.insert(r.clone());
                     if sym_meta.is_dir() {
-                        dir_queue.push(full);
+                        let opts = ctb_io::file::TraversalOptions::new()
+                            .yield_root(false)
+                            .error_policy(ctb_io::file::OnTraversalError::Skip);
+                        if let Ok(traverser) = ctb_io::file::traverse_dir(&full, opts) {
+                            for item in traverser.flatten() {
+                                let rel = r.join(item.relative_path());
+                                result.insert(rel);
+                            }
+                        }
                     }
                 }
             }
         }
         None => {
-            dir_queue.push(root.to_path_buf());
-        }
-    }
-
-    while let Some(current_dir) = dir_queue.pop() {
-        let entries = match std::fs::read_dir(&current_dir) {
-            Ok(e) => e,
-            Err(err) => {
-                log_fmt!("Failed to read directory {}: {err}", current_dir.display());
-                continue;
-            }
-        };
-
-        for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
-            if let Ok(rel) = path.strip_prefix(root) {
-                if !rel.as_os_str().is_empty() {
-                    result.insert(rel.to_path_buf());
-                }
-            }
-
-            if let Ok(sym_meta) = std::fs::symlink_metadata(&path) {
-                if sym_meta.is_dir() {
-                    dir_queue.push(path);
+            let opts = ctb_io::file::TraversalOptions::new()
+                .yield_root(false)
+                .error_policy(ctb_io::file::OnTraversalError::Skip);
+            if let Ok(traverser) = ctb_io::file::traverse_dir(root, opts) {
+                for item in traverser.flatten() {
+                    result.insert(item.relative_path().to_path_buf());
                 }
             }
         }
