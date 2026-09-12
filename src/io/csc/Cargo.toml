@@ -9,7 +9,6 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-io = { path = ".." }
-ctb-io-file = { path = "../file" }
 ctb-formats-checksum = { path = "../../formats/checksum" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }

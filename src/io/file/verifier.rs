@@ -410,6 +410,23 @@ pub fn try_drop_system_caches() {
     }
 }
 
+/// Returns true if global kernel cache dropping (`/proc/sys/vm/drop_caches`) is available.
+#[must_use]
+pub fn has_cache_flush_privileges() -> bool {
+    #[cfg(unix)]
+    {
+        nix::unistd::geteuid().is_root()
+            || std::fs::OpenOptions::new()
+                .write(true)
+                .open("/proc/sys/vm/drop_caches")
+                .is_ok()
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
+}
+
 /// Audits an on-disk filesystem entry at `path` against an `expected` entity.
 ///
 /// Returns a list of detected discrepancies (`Vec<DiffKind>`). An empty return

@@ -53,18 +53,20 @@ pub use clean_name::{
 };
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use filesystem::{
-    FilesystemInfo, query_filesystem_info, query_filesystem_resolution,
-    query_filesystem_type,
+    FilesystemInfo, is_cross_device_error, query_filesystem_info,
+    query_filesystem_resolution, query_filesystem_type,
 };
 pub use identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
-    materialize_entity_at_path, verify_filename_exact_bytes,
+    materialize_entity_at_path, verify_directory_filenames_exact,
+    verify_filename_exact_bytes,
 };
 pub use metadata::{FileFlag, FileMetadata, FileTimestamps, OsFamily, PlatformRawFlags};
 pub use path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all, normalize_path,
-    resolve_and_validate_path, validate_symlink_target,
+    path_has_trailing_slash, resolve_and_validate_path, resolve_existing_ancestors,
+    validate_symlink_target,
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource, get_file_extents,
@@ -78,8 +80,8 @@ pub use traversal::{
 };
 pub use verifier::{
     DiffKind, EntityAuditOptions, IgnoredDifferences, StreamDiffKind, audit_entity,
-    audit_entity_detailed, evict_fd_cache, hex_encode, try_drop_system_caches,
-    verify_materialized_entity, verify_materialized_entity_ext,
+    audit_entity_detailed, evict_fd_cache, has_cache_flush_privileges, hex_encode,
+    try_drop_system_caches, verify_materialized_entity, verify_materialized_entity_ext,
 };
 
 #[cfg(test)]

@@ -310,3 +310,33 @@ pub fn validate_symlink_target(
         }
     }
 }
+
+/// Checks if a path string ends with a directory terminator (`/`, `\`, `/.`, or `\.`).
+#[must_use]
+pub fn path_has_trailing_slash(path: &Path) -> bool {
+    let bytes = path.as_os_str().as_encoded_bytes();
+    if bytes.ends_with(b"/") || (cfg!(windows) && bytes.ends_with(b"\\")) {
+        return true;
+    }
+    if bytes.ends_with(b"/.") || (cfg!(windows) && bytes.ends_with(b"\\.")) {
+        return true;
+    }
+    false
+}
+
+/// Canonicalizes the closest existing ancestor of `path` and rejoins uncreated child components.
+pub fn resolve_existing_ancestors(path: &Path) -> Result<PathBuf> {
+    match std::fs::canonicalize(path) {
+        Ok(resolved) => Ok(resolved),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let parent = path.parent().context("Path has no existing ancestor")?;
+            let parent = if parent.as_os_str().is_empty() {
+                Path::new(".")
+            } else {
+                parent
+            };
+            Ok(resolve_existing_ancestors(parent)?.join(path.file_name().context("Path has no filename")?))
+        }
+        Err(error) => Err(error).with_context(|| format!("Failed to resolve {}", path.display())),
+    }
+}

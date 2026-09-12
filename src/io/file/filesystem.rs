@@ -478,6 +478,23 @@ fn detect_filesystem(_path: &Path) -> FilesystemInfo {
     }
 }
 
+/// Returns true if an IO error represents a cross-device link error (`EXDEV`).
+#[must_use]
+pub fn is_cross_device_error(err: &std::io::Error) -> bool {
+    if err.kind() == std::io::ErrorKind::CrossesDevices {
+        return true;
+    }
+    #[cfg(unix)]
+    if err.raw_os_error() == Some(18) {
+        return true;
+    }
+    #[cfg(windows)]
+    if err.raw_os_error() == Some(17) {
+        return true;
+    }
+    false
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -540,5 +557,14 @@ mod tests {
         // Subsequent query should return from cache with identical values
         let info2 = query_filesystem_info(temp.path(), &meta);
         assert_eq!(info, info2);
+    }
+
+    #[crate::ctb_test]
+    fn test_is_cross_device_error() {
+        let cross = std::io::Error::from(std::io::ErrorKind::CrossesDevices);
+        assert!(is_cross_device_error(&cross));
+
+        let not_found = std::io::Error::from(std::io::ErrorKind::NotFound);
+        assert!(!is_cross_device_error(&not_found));
     }
 }

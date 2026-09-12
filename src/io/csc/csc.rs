@@ -31,7 +31,6 @@ pub mod cli;
 pub mod copy_engine;
 pub mod journal;
 pub mod path_resolution;
-pub mod verify_cache;
 pub mod verifier;
 pub mod index_engine;
 pub mod search_engine;

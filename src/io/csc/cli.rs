@@ -30,7 +30,7 @@ use crate::args::CscArgs;
 use crate::copy_engine::execute_copy_pipeline;
 use crate::journal::{JournalWriter, read_journal_snapshot};
 use crate::path_resolution::resolve_tasks;
-use crate::verify_cache::check_cache_flush_privileges;
+use crate::verifier::check_cache_flush_privileges;
 use ctb_utilities::cli::ToolResult;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -53,7 +53,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let progress = Progress::new(args.should_show_progress());
 
-    let (tasks, mut journal, snapshot) = if let Some(ref resume_path) = args.resume {
+    let (tasks, mut journal) = if let Some(ref resume_path) = args.resume {
         // Resume mode: recover state from journal
         let journal_path = if resume_path.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
             resume_path.with_extension("cscjournal")
@@ -97,7 +97,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         crate::path_resolution::validate_task_overlap(&resolved)?;
 
         let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
-        (resolved, jw, Some(snap))
+        (resolved, jw)
     } else {
         // New run: resolve tasks from command-line arguments
         anyhow::ensure!(
@@ -127,7 +127,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
             JournalWriter::create_new(&home_dir, &sources, &dest_path)?
         };
         progress.message(&format!("State journal: {}", jw.journal_path().display()));
-        (resolved, jw, None)
+        (resolved, jw)
     };
 
     // 2. Execute pipeline
@@ -135,7 +135,6 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         &tasks,
         &args,
         &mut journal,
-        snapshot.as_ref(),
         &progress,
     )?;
 

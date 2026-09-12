@@ -27,17 +27,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
-use crate::journal::{JournalSnapshot, JournalWriter};
+use crate::journal::JournalWriter;
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::FileOrigin;
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
-    verify_directory_filenames_exact,
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
 use ctb_io::file::payload::DiskPayloadSource;
-use ctb_io::file::query_block_device_size;
+use ctb_io::file::{query_block_device_size, verify_directory_filenames_exact};
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
@@ -82,7 +81,6 @@ pub fn execute_copy_pipeline(
     tasks: &[ResolvedCopyTask],
     args: &CscArgs,
     journal: &mut JournalWriter,
-    snapshot: Option<&JournalSnapshot>,
     progress: &Progress,
 ) -> Result<CopyStats> {
     crate::path_resolution::validate_task_overlap(tasks)?;
@@ -199,7 +197,6 @@ pub fn execute_copy_pipeline(
                             &options,
                             args,
                             journal,
-                            snapshot,
                             &mut hardlink_map,
                             &mut stats,
                             &mut files_to_verify,
@@ -268,7 +265,6 @@ pub fn execute_copy_pipeline(
                     &options,
                     args,
                     journal,
-                    snapshot,
                     &mut hardlink_map,
                     &mut stats,
                     &mut files_to_verify,
@@ -410,7 +406,6 @@ fn copy_single_item(
     options: &MaterializeOptions,
     args: &CscArgs,
     journal: &mut JournalWriter,
-    _snapshot: Option<&JournalSnapshot>,
     hardlink_map: &mut HashMap<(u64, u64), PathBuf>,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,

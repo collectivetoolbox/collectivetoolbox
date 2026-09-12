@@ -31,7 +31,7 @@ use crate::args::{CscArgs, MvArgs, SourceChangePolicy};
 use crate::copy_engine::execute_copy_pipeline;
 use crate::journal::JournalWriter;
 use crate::path_resolution::resolve_tasks;
-use ctb_io::file::{FileEntity, FileOrigin, verify_materialized_entity};
+use ctb_io::file::{FileEntity, FileOrigin, is_cross_device_error, verify_materialized_entity};
 use ctb_utilities::cli::ToolResult;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -139,7 +139,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     std::slice::from_ref(task),
                     &csc_args,
                     &mut journal,
-                    None,
                     &progress,
                 )?;
 
@@ -191,21 +190,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     writeln!(summary, "Status:                          Move completed successfully.")?;
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
-}
-
-fn is_cross_device_error(err: &std::io::Error) -> bool {
-    if err.kind() == std::io::ErrorKind::CrossesDevices {
-        return true;
-    }
-    #[cfg(unix)]
-    if err.raw_os_error() == Some(18) {
-        return true;
-    }
-    #[cfg(windows)]
-    if err.raw_os_error() == Some(17) {
-        return true;
-    }
-    false
 }
 
 pub(crate) fn remove_copied_sources(

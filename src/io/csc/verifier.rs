@@ -30,18 +30,28 @@ use crate::utilities::*;
 
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
 use crate::journal::{read_journal_snapshot, resolve_journal_path};
-use crate::verify_cache::check_cache_flush_privileges;
-pub use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, StreamDiffKind};
+use crate::journal::PLATFORM_WINDOWS;
 use ctb_io::file::entity::FileEntityKind;
 use ctb_io::file::identity::resolve_relative_path_for_os;
-use ctb_io::file::verifier::{audit_entity_detailed, try_drop_system_caches};
-use crate::journal::PLATFORM_WINDOWS;
+use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, audit_entity_detailed, try_drop_system_caches};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+
+/// Checks if global kernel cache dropping is available.
+/// If not, prints an immediate warning.
+pub fn check_cache_flush_privileges() {
+    if !ctb_io::file::has_cache_flush_privileges() {
+        eprintln!(
+            "WARNING: Running without root / CAP_SYS_ADMIN privileges.\n         \
+             Global kernel drop_caches (/proc/sys/vm/drop_caches) is unavailable.\n         \
+             csc will use per-file POSIX_FADV_DONTNEED for cache eviction."
+        );
+    }
+}
 
 /// Collection of discrepancies detected for a specific relative file path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
