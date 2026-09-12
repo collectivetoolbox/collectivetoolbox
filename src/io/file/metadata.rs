@@ -159,6 +159,24 @@ pub enum FileFlag {
     Reparse,
     /// Snapshot file attribute (`SF_SNAPSHOT`).
     Snapshot,
+    /// User archived flag (`UF_ARCHIVE` / `uarch`).
+    UserArchive,
+    /// User do not cache file data (`UF_NOCACHE` / `unocache`).
+    UserNoCache,
+
+    // DragonFly specific
+    /// User do not retain history or snapshots (`UF_NOHISTORY` / `unohistory`).
+    UserNoHistory,
+    /// User enable data swapcache (`UF_CACHE` / `ucache`).
+    UserCache,
+    /// User cross-link hardlink boundary (`UF_XLINK` / `uxlink`).
+    UserXlink,
+    /// Superuser do not retain history or snapshots (`SF_NOHISTORY` / `snohistory`).
+    SystemNoHistory,
+    /// Superuser disable data swapcache (`SF_NOCACHE` / `snocache`).
+    SystemNoCache,
+    /// Superuser cross-link hardlink boundary (`SF_XLINK` / `sxlink`).
+    SystemXlink,
 
     // Darwin specific
     /// HFS+/APFS compressed file (`UF_COMPRESSED`).
@@ -196,6 +214,14 @@ impl FileFlag {
             Self::ReadOnly => "readonly",
             Self::Reparse => "reparse",
             Self::Snapshot => "snapshot",
+            Self::UserArchive => "uarch",
+            Self::UserNoCache => "unocache",
+            Self::UserNoHistory => "unohistory",
+            Self::UserCache => "ucache",
+            Self::UserXlink => "uxlink",
+            Self::SystemNoHistory => "snohistory",
+            Self::SystemNoCache => "snocache",
+            Self::SystemXlink => "sxlink",
             Self::Compressed => "compressed",
             Self::Tracked => "tracked",
             Self::DataVault => "datavault",
@@ -220,6 +246,11 @@ impl FileFlag {
             | Self::Offline
             | Self::ReadOnly
             | Self::Reparse
+            | Self::UserArchive
+            | Self::UserNoCache
+            | Self::UserNoHistory
+            | Self::UserCache
+            | Self::UserXlink
             | Self::Compressed
             | Self::Tracked
             | Self::DataVault => true,
@@ -228,6 +259,9 @@ impl FileFlag {
             | Self::SystemAppend
             | Self::SystemNoUnlink
             | Self::Snapshot
+            | Self::SystemNoHistory
+            | Self::SystemNoCache
+            | Self::SystemXlink
             | Self::Restricted
             | Self::Firmlink
             | Self::Dataless => false,
@@ -260,6 +294,14 @@ impl FileFlag {
             "readonly" | "rdonly" => Some(Self::ReadOnly),
             "reparse" => Some(Self::Reparse),
             "snapshot" => Some(Self::Snapshot),
+            "uarch" | "uarchive" => Some(Self::UserArchive),
+            "unocache" => Some(Self::UserNoCache),
+            "unohistory" | "nohistory" => Some(Self::UserNoHistory),
+            "ucache" | "cache" => Some(Self::UserCache),
+            "uxlink" | "xlink" => Some(Self::UserXlink),
+            "snohistory" => Some(Self::SystemNoHistory),
+            "snocache" => Some(Self::SystemNoCache),
+            "sxlink" => Some(Self::SystemXlink),
             "compressed" => Some(Self::Compressed),
             "tracked" => Some(Self::Tracked),
             "datavault" => Some(Self::DataVault),
