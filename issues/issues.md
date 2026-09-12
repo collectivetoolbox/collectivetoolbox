@@ -30,13 +30,22 @@
 
 ### csc
 
-ia should read in chunks / range requests:
+- Windows runner in GitHub actions to run test suite?
+
+- AppleDouble/AppleSingle support for file materialization
+
+- Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
+
+- Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation?
+- Kaitai Struct make sure all fixtures are tested
+
+- [x] ia should read in chunks / range requests:
 
 Error: Failed to read download body
 
 Caused by:
-    0: Failed to read HTTP response body                                                                                                                                                                                        
-    1: error decoding response body                                                                                                                                                                                             
+    0: Failed to read HTTP response body
+    1: error decoding response body
     2: operation timed out
 
 

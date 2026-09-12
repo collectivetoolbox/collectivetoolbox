@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use xml::reader::{EventReader, XmlEvent};
 
@@ -141,6 +141,29 @@ trait ArchiveClient {
         identifier: &str,
         file_name: &str,
     ) -> Result<Vec<u8>>;
+    fn download_file(
+        &self,
+        identifier: &str,
+        file_name: &str,
+        destination: &Path,
+        _progress: Option<&Progress>,
+    ) -> Result<u64> {
+        let bytes = self.fetch_download_bytes(identifier, file_name)?;
+        // Reason for fallback: If destination has no parent path (bare filename), stage temp file in current directory.
+        let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+        let temp_path = create_temp_path(parent, file_name);
+        let mut cleanup_guard = TempFileCleanupGuard {
+            temp_path: temp_path.clone(),
+            active: true,
+        };
+        fs::write(&temp_path, &bytes).with_context(|| {
+            format!("Failed to write temporary file {}", temp_path.display())
+        })?;
+        commit_atomic_file(&temp_path, destination)?;
+        cleanup_guard.active = false;
+        u64::try_from(bytes.len())
+            .map_err(|e| anyhow!("Failed to convert byte length to u64: {e}"))
+    }
 }
 
 struct LiveArchiveClient;
@@ -164,6 +187,21 @@ impl ArchiveClient for LiveArchiveClient {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         fetch_download_bytes(identifier, file_name)
+    }
+
+    fn download_file(
+        &self,
+        identifier: &str,
+        file_name: &str,
+        destination: &Path,
+        progress: Option<&Progress>,
+    ) -> Result<u64> {
+        download_live_file_chunked_range(
+            identifier,
+            file_name,
+            destination,
+            progress,
+        )
     }
 }
 
@@ -408,15 +446,13 @@ fn download_with_client(
             total_files,
             &format!("Downloading {file_name}"),
         );
-        let bytes = client
-            .fetch_download_bytes(&archive_target.identifier, file_name)?;
-        fs::write(&destination, &bytes).with_context(|| {
-            format!("Failed to write downloaded file {}", destination.display())
-        })?;
-        let size_str = format_bytes_decimal(
-            // Reason for fallback: usize to u64 conversion is infallible on 32-bit and 64-bit platforms; zero fallback safely avoids panic during progress display.
-            u64::try_from(bytes.len()).unwrap_or(0),
-        );
+        let bytes_written = client.download_file(
+            &archive_target.identifier,
+            file_name,
+            &destination,
+            Some(&progress),
+        )?;
+        let size_str = format_bytes_decimal(bytes_written);
         progress.finish_step(Some(&size_str));
         downloaded_files.push(file_name.clone());
     }
@@ -545,15 +581,13 @@ fn download_here_with_client(
         })?;
     let output_path = base_output_dir.join(leaf_name);
     progress.start_step(0, 0, &format!("Downloading {file_name}"));
-    let bytes =
-        client.fetch_download_bytes(&archive_target.identifier, &file_name)?;
-    fs::write(&output_path, &bytes).with_context(|| {
-        format!("Failed to write {}", output_path.display())
-    })?;
-    let size_str = format_bytes_decimal(
-        // Reason for fallback: usize to u64 conversion is infallible on 32-bit and 64-bit platforms; zero fallback safely avoids panic during progress display.
-        u64::try_from(bytes.len()).unwrap_or(0),
-    );
+    let bytes_written = client.download_file(
+        &archive_target.identifier,
+        &file_name,
+        &output_path,
+        Some(&progress),
+    )?;
+    let size_str = format_bytes_decimal(bytes_written);
     progress.finish_step(Some(&size_str));
     let result = DownloadHereResult {
         identifier: archive_target.identifier,
@@ -940,10 +974,318 @@ fn fetch_live_metadata(identifier: &str) -> Result<MetadataResponse> {
         .context("Failed to parse Internet Archive metadata JSON")
 }
 
+const DOWNLOAD_CHUNK_SIZE: u64 = 8_388_608; // 8 MiB
+
+fn parse_content_range(val: &str) -> Option<(u64, u64, Option<u64>)> {
+    let s = val.trim();
+    let s = s.strip_prefix("bytes ")?;
+    let (range_part, total_part) = s.split_once('/')?;
+    let (start_str, end_str) = range_part.split_once('-')?;
+    let start: u64 = start_str.trim().parse().ok()?;
+    let end: u64 = end_str.trim().parse().ok()?;
+    let total = if total_part.trim() == "*" {
+        None
+    } else {
+        total_part.trim().parse().ok()
+    };
+    Some((start, end, total))
+}
+
+fn create_temp_path(parent_dir: &Path, file_name: &str) -> PathBuf {
+    static ATOMIC_SEQ: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
+    let pid = std::process::id();
+    let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(dur) => dur.subsec_nanos(),
+        Err(_) => 0,
+    };
+    let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    // Reason for fallback: If file_name has no valid leaf or non-utf8 path, use generic prefix for temporary file.
+    let leaf_name = Path::new(file_name)
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("file");
+    let temp_name = format!(".{leaf_name}.ia-tmp.{pid}.{nanos}.{seq}");
+    parent_dir.join(temp_name)
+}
+
+struct TempFileCleanupGuard {
+    temp_path: PathBuf,
+    active: bool,
+}
+
+impl Drop for TempFileCleanupGuard {
+    fn drop(&mut self) {
+        if self.active {
+            drop(fs::remove_file(&self.temp_path));
+        }
+    }
+}
+
+fn commit_atomic_file(temp_path: &Path, destination: &Path) -> Result<()> {
+    #[cfg(windows)]
+    if destination.exists() {
+        drop(fs::remove_file(destination));
+    }
+    fs::rename(temp_path, destination).with_context(|| {
+        format!(
+            "Failed to atomically rename {} to {}",
+            temp_path.display(),
+            destination.display()
+        )
+    })
+}
+
 fn fetch_download_bytes(identifier: &str, file_name: &str) -> Result<Vec<u8>> {
     let url = download_url(identifier, file_name)?;
-    let response = perform_get(url.as_str())?;
-    response.bytes().context("Failed to read download body")
+    let mut buffer = Vec::new();
+    download_to_writer_chunked_range(url.as_str(), &mut buffer, None)?;
+    Ok(buffer)
+}
+
+fn download_live_file_chunked_range(
+    identifier: &str,
+    file_name: &str,
+    destination: &Path,
+    progress: Option<&Progress>,
+) -> Result<u64> {
+    let url = download_url(identifier, file_name)?;
+    // Reason for fallback: If destination is a relative file path without an explicit parent directory, use current directory.
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).with_context(|| {
+        format!("Failed to create parent directory {}", parent.display())
+    })?;
+    let temp_path = create_temp_path(parent, file_name);
+    let mut cleanup_guard = TempFileCleanupGuard {
+        temp_path: temp_path.clone(),
+        active: true,
+    };
+    let mut temp_file = fs::File::create(&temp_path).with_context(|| {
+        format!("Failed to create temporary file {}", temp_path.display())
+    })?;
+    let bytes_written = download_to_writer_chunked_range(
+        url.as_str(),
+        &mut temp_file,
+        progress,
+    )?;
+    temp_file.sync_all().with_context(|| {
+        format!("Failed to sync temporary file {}", temp_path.display())
+    })?;
+    drop(temp_file);
+    commit_atomic_file(&temp_path, destination)?;
+    cleanup_guard.active = false;
+    Ok(bytes_written)
+}
+
+fn download_to_writer_chunked_range(
+    url: &str,
+    writer: &mut dyn Write,
+    progress: Option<&Progress>,
+) -> Result<u64> {
+    let first_end = DOWNLOAD_CHUNK_SIZE.saturating_sub(1);
+    let mut headers = reqwest::header::HeaderMap::new();
+    let range_str = format!("bytes=0-{first_end}");
+    headers.insert(
+        reqwest::header::RANGE,
+        reqwest::header::HeaderValue::from_str(&range_str)
+            .context("Failed to format initial Range header")?,
+    );
+
+    let mut response = https::blocking_get_response_with_headers(url, Some(headers))
+        .with_context(|| format!("Failed to connect to {url}"))?;
+
+    let status = response.status();
+    if status == reqwest::StatusCode::OK {
+        let mut total_copied = 0_u64;
+        let mut buf = [0_u8; 8 * 1024];
+        loop {
+            let n = response
+                .read(&mut buf)
+                .context("Failed to read HTTP response body")?;
+            if n == 0 {
+                break;
+            }
+            let n_u64 = u64::try_from(n)
+                .map_err(|e| anyhow!("Failed to convert read buffer length: {e}"))?;
+            let slice = buf
+                .get(..n)
+                .context("Buffer slice index out of bounds")?;
+            writer
+                .write_all(slice)
+                .context("Failed to write downloaded bytes to stream")?;
+            total_copied = total_copied.saturating_add(n_u64);
+        }
+        return Ok(total_copied);
+    }
+
+    if status != reqwest::StatusCode::PARTIAL_CONTENT {
+        bail!("Unexpected HTTP response status {status} for {url}");
+    }
+
+    let content_range_str = response
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)
+        .and_then(|v| v.to_str().ok());
+    let mut total_size = content_range_str
+        .and_then(parse_content_range)
+        .and_then(|(_, _, total)| total);
+
+    if total_size.is_none() {
+        if let Some(content_len) = response.content_length() {
+            if content_len < DOWNLOAD_CHUNK_SIZE {
+                total_size = Some(content_len);
+            }
+        }
+    }
+
+    let mut chunk_buf = Vec::new();
+    response
+        .read_to_end(&mut chunk_buf)
+        .context("Failed to read first chunk body")?;
+    let first_chunk_len = u64::try_from(chunk_buf.len())
+        .map_err(|e| anyhow!("Failed to convert chunk size to u64: {e}"))?;
+    writer
+        .write_all(&chunk_buf)
+        .context("Failed to write first chunk to destination")?;
+
+    let mut current_offset = first_chunk_len;
+
+    if let Some(total) = total_size {
+        if current_offset >= total {
+            return Ok(current_offset);
+        }
+    } else if first_chunk_len < DOWNLOAD_CHUNK_SIZE {
+        return Ok(current_offset);
+    }
+
+    let retry_limit =
+        invocation_settings::get_settings().retry_on_host_error.max(3);
+
+    loop {
+        if let Some(total) = total_size {
+            if current_offset >= total {
+                break;
+            }
+        }
+
+        let next_end = if let Some(total) = total_size {
+            std::cmp::min(
+                current_offset.saturating_add(DOWNLOAD_CHUNK_SIZE).saturating_sub(1),
+                total.saturating_sub(1),
+            )
+        } else {
+            current_offset.saturating_add(DOWNLOAD_CHUNK_SIZE).saturating_sub(1)
+        };
+
+        if next_end < current_offset {
+            break;
+        }
+
+        let chunk_bytes_opt = fetch_chunk_with_retry(
+            url,
+            current_offset,
+            next_end,
+            retry_limit,
+        )?;
+
+        let Some(chunk_bytes) = chunk_bytes_opt else {
+            break;
+        };
+
+        if chunk_bytes.is_empty() {
+            break;
+        }
+
+        let chunk_len = u64::try_from(chunk_bytes.len())
+            .map_err(|e| anyhow!("Failed to convert chunk bytes length to u64: {e}"))?;
+
+        writer
+            .write_all(&chunk_bytes)
+            .context("Failed to write chunk bytes to destination")?;
+
+        current_offset = current_offset.saturating_add(chunk_len);
+
+        if let Some(prog) = progress {
+            if let Some(total) = total_size {
+                let current_str = format_bytes_decimal(current_offset);
+                let total_str = format_bytes_decimal(total);
+                prog.message(&format!("{current_str} / {total_str}"));
+            }
+        }
+
+        if chunk_len < DOWNLOAD_CHUNK_SIZE && total_size.is_none() {
+            break;
+        }
+    }
+
+    Ok(current_offset)
+}
+
+fn fetch_chunk_with_retry(
+    url: &str,
+    start: u64,
+    end: u64,
+    retry_limit: usize,
+) -> Result<Option<Vec<u8>>> {
+    let mut attempt = 0;
+    loop {
+        let mut chunk_headers = reqwest::header::HeaderMap::new();
+        let range_val = format!("bytes={start}-{end}");
+        chunk_headers.insert(
+            reqwest::header::RANGE,
+            reqwest::header::HeaderValue::from_str(&range_val)
+                .context("Invalid Range header value")?,
+        );
+
+        let req_res = https::blocking_get_response_with_headers(
+            url,
+            Some(chunk_headers),
+        );
+
+        let chunk_read_res = match req_res {
+            Ok(mut chunk_resp) => {
+                if chunk_resp.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                    Ok(None)
+                } else if chunk_resp.status() != reqwest::StatusCode::PARTIAL_CONTENT
+                    && chunk_resp.status() != reqwest::StatusCode::OK
+                {
+                    Err(anyhow!(
+                        "Unexpected HTTP status {} for chunk {start}-{end}",
+                        chunk_resp.status()
+                    ))
+                } else {
+                    let mut buf = Vec::new();
+                    chunk_resp
+                        .read_to_end(&mut buf)
+                        .context("Failed to read chunk response body")?;
+                    Ok(Some(buf))
+                }
+            }
+            Err(err) => Err(err),
+        };
+
+        match chunk_read_res {
+            Ok(data) => return Ok(data),
+            Err(err) => {
+                if attempt < retry_limit {
+                    attempt = attempt.saturating_add(1);
+                    warn_fmt!(
+                        "Retrying chunk {start}-{end} for {url} (attempt {attempt}/{retry_limit}): {err}"
+                    );
+                    // Reason for fallback: If attempt count cannot convert to u32, cap exponent to bound exponential backoff.
+                    let exponent = u32::try_from(attempt).unwrap_or(4).min(4);
+                    // Reason for fallback: power computation overflow safely caps multiplier
+                    let multiplier = 2u64.checked_pow(exponent).unwrap_or(16);
+                    let delay_ms = 500u64.saturating_mul(multiplier);
+                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                    continue;
+                }
+                return Err(err.context(format!(
+                    "Failed to download chunk {start}-{end} from {url}"
+                )));
+            }
+        }
+    }
 }
 
 fn perform_get(url: &str) -> Result<https::BlockingResponse> {
@@ -1861,5 +2203,63 @@ mod tests {
         parse_archive_target("").unwrap_err();
         parse_archive_target("https://archive.org/details/").unwrap_err();
         parse_archive_target("https://archive.org/").unwrap_err();
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_content_range() {
+        assert_eq!(
+            parse_content_range("bytes 0-8388607/52428800"),
+            Some((0, 8388607, Some(52428800)))
+        );
+        assert_eq!(
+            parse_content_range("bytes 100-200/*"),
+            Some((100, 200, None))
+        );
+        assert_eq!(
+            parse_content_range("bytes 0-0/1"),
+            Some((0, 0, Some(1)))
+        );
+        assert_eq!(parse_content_range("invalid"), None);
+        assert_eq!(parse_content_range("items 0-10/20"), None);
+    }
+
+    #[crate::ctb_test]
+    fn test_create_temp_path_and_atomic_commit() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest = temp_dir.path().join("final_file.bin");
+        let temp_path = create_temp_path(temp_dir.path(), "final_file.bin");
+        assert!(temp_path.starts_with(temp_dir.path()));
+        assert_ne!(temp_path, dest);
+
+        let mut guard = TempFileCleanupGuard {
+            temp_path: temp_path.clone(),
+            active: true,
+        };
+        fs::write(&temp_path, b"atomic test payload").unwrap();
+        assert!(temp_path.exists());
+
+        commit_atomic_file(&temp_path, &dest).unwrap();
+        guard.active = false;
+
+        assert!(!temp_path.exists());
+        assert!(dest.exists());
+        assert_eq!(fs::read(&dest).unwrap(), b"atomic test payload");
+    }
+
+    #[crate::ctb_test]
+    fn test_temp_file_cleanup_guard_removes_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().join(".test_cleanup_temp");
+        fs::write(&temp_path, b"uncommitted partial data").unwrap();
+        assert!(temp_path.exists());
+
+        {
+            let _guard = TempFileCleanupGuard {
+                temp_path: temp_path.clone(),
+                active: true,
+            };
+        }
+
+        assert!(!temp_path.exists());
     }
 }

@@ -274,10 +274,43 @@ if [[ -n "$advisory_dir" ]]; then
     cp -r "$advisory_dir" "${cargo_home}/advisory-dbs/advisory-db-3157b0e258782691"
 fi
 
+echo "Backing up generated files for offline regeneration and drift check..."
+gen_backup_dir="$(mktemp -d)"
+while IFS= read -r f; do
+    mkdir -p "$gen_backup_dir/$(dirname "$f")"
+    cp "$f" "$gen_backup_dir/$f"
+done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' \) \
+    ! -path '*/packaging/guix/generated/*' \ # FIXME
+    ! -path '*/vendor/*')
+
+echo "Cleaning generated files to verify offline regeneration..."
+./scripts/clean-generated
+
 echo "Running offline build..."
 # Cargo deny produces an enormous amount of output when running in Docker, due
 # to being unable to check for yanked crates for some reason. It does finish
 # eventually though.
 ./build --release --offline --clean-targets all
+
+echo "Verifying that all cleaned generated files were regenerated without drift..."
+drift_count=0
+while IFS= read -r backup_file; do
+    rel_path="${backup_file#$gen_backup_dir/}"
+    if [[ ! -f "$rel_path" ]]; then
+        echo "ERROR: Generated file $rel_path was not regenerated during build!" >&2
+        drift_count=$((drift_count + 1))
+    elif ! diff -u "$backup_file" "$rel_path"; then
+        echo "ERROR: Generated file $rel_path drifted from expected version!" >&2
+        drift_count=$((drift_count + 1))
+    fi
+done < <(find "$gen_backup_dir" -type f)
+
+if [[ $drift_count -gt 0 ]]; then
+    echo "ERROR: $drift_count generated file(s) failed regeneration or drifted." >&2
+    rm -rf "$gen_backup_dir"
+    exit 1
+fi
+rm -rf "$gen_backup_dir"
+echo "All generated files successfully regenerated offline with zero drift!"
 
 echo "CI Build Inner completed successfully!"

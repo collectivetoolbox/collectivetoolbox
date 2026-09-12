@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Collective Toolbox Developers
+
+set -euo pipefail
+
+# Change directory to the repository root
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+echo "Cleaning generated files..."
+find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' \) \
+    ! -path '*/packaging/guix/generated/*' \ # FIXME
+    ! -path '*/vendor/*' \
+    -print \
+    -delete

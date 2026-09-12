@@ -189,6 +189,13 @@ pub fn blocking_get_response(url: &str) -> Result<BlockingResponse> {
     blocking_client(ClientOptions::default())?.get(url)
 }
 
+pub fn blocking_get_response_with_headers(
+    url: &str,
+    headers: Option<reqwest::header::HeaderMap>,
+) -> Result<BlockingResponse> {
+    blocking_client(ClientOptions::default())?.get_with_headers(url, headers)
+}
+
 impl AsyncClient {
     async fn ensure_crlite_ready(&self, url: &str) -> Result<()> {
         if self.skip_crlite_ready_check {
@@ -509,6 +516,96 @@ impl BlockingClient {
             }
         }
     }
+
+    pub fn get_with_headers(
+        &self,
+        url: &str,
+        headers: Option<reqwest::header::HeaderMap>,
+    ) -> Result<BlockingResponse> {
+        self.ensure_crlite_ready(url)?;
+        let retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let start = std::time::Instant::now();
+        let mut attempt = 0;
+        loop {
+            let mut req = self.inner.get(url);
+            if let Some(ref h) = headers {
+                req = req.headers(h.clone());
+            }
+            let res = req.send();
+            match res {
+                Ok(resp) => return Ok(BlockingResponse { inner: resp }),
+                Err(err) => {
+                    if is_transient_error(&err) && attempt < retry_limit {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::Error::from(err)
+                        .context(format!("Failed to GET {url}")));
+                }
+            }
+        }
+    }
+
+    pub fn get_with_headers_and_backoff(
+        &self,
+        url: &str,
+        headers: Option<reqwest::header::HeaderMap>,
+        retry_count: usize,
+    ) -> Result<BlockingResponse> {
+        self.ensure_crlite_ready(url)?;
+        let host_retry_limit =
+            invocation_settings::get_settings().retry_on_host_error;
+        let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
+        let start = std::time::Instant::now();
+        let mut attempt = 0;
+        loop {
+            let mut req = self.inner.get(url);
+            if let Some(ref h) = headers {
+                req = req.headers(h.clone());
+            }
+            let res = req.send();
+            match res {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_server_error() && attempt < retry_count {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
+                    }
+                    return Ok(BlockingResponse { inner: resp });
+                }
+                Err(err) => {
+                    if is_transient_error(&err) && attempt < max_host_retries {
+                        attempt = attempt.saturating_add(1);
+                        if let Some(delay) = sleep_delay_bounded(
+                            attempt,
+                            start,
+                            self.timeout,
+                        ) {
+                            std::thread::sleep(delay);
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::Error::from(err)
+                        .context(format!("Failed to GET {url}")));
+                }
+            }
+        }
+    }
 }
 
 impl BlockingResponse {
@@ -516,8 +613,20 @@ impl BlockingResponse {
         self.inner.status().as_u16()
     }
 
+    pub fn status(&self) -> reqwest::StatusCode {
+        self.inner.status()
+    }
+
     pub fn is_success(&self) -> bool {
         self.inner.status().is_success()
+    }
+
+    pub fn headers(&self) -> &reqwest::header::HeaderMap {
+        self.inner.headers()
+    }
+
+    pub fn content_length(&self) -> Option<u64> {
+        self.inner.content_length()
     }
 
     pub fn bytes(self) -> Result<Vec<u8>> {
@@ -540,6 +649,12 @@ impl BlockingResponse {
         self.inner
             .copy_to(writer)
             .context("Failed to stream HTTP response body")
+    }
+}
+
+impl std::io::Read for BlockingResponse {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.inner.read(buf)
     }
 }
 

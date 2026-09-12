@@ -69,9 +69,13 @@ lints="true"
 branding="false"
 offline=""
 clean_targets=""
+clean_generated="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --clean-generated)
+            clean_generated="true"
+            ;;
         --clean-targets)
             clean_targets="true"
             ;;
@@ -198,6 +202,10 @@ if [[ -z "$clean_targets" ]]; then
     else
         clean_targets="false"
     fi
+fi
+
+if [[ "$clean_generated" == "true" ]]; then
+    ./scripts/clean-generated
 fi
 
 cp .cargo/config.default.toml .cargo/config.toml
