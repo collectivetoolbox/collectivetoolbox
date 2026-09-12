@@ -104,12 +104,56 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
 
+use crate::file::metadata::{FileFlag, OsFamily, PlatformRawFlags};
+use std::path::Path;
 
+/// Mapping between a semantic [`FileFlag`] and a platform-specific bitmask.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FlagMapping {
+    pub flag: FileFlag,
+    pub mask: u32,
+}
 
+fn parse_flags_from_map(raw_val: u32, map: &[FlagMapping]) -> (Vec<FileFlag>, bool) {
+    let mut flags = Vec::new();
+    let mut mapped_mask: u32 = 0;
+    for entry in map {
+        if (raw_val & entry.mask) != 0 {
+            flags.push(entry.flag);
+            mapped_mask |= entry.mask;
+        }
+    }
+    let has_unparsed = (raw_val & !mapped_mask) != 0;
+    (flags, has_unparsed)
+}
 
-
-
+fn flags_to_mask_from_map(
+    flags: &[FileFlag],
+    strict_lossless: bool,
+    path: &Path,
+    map: &[FlagMapping],
+    os_name: &str,
+) -> Result<u32> {
+    let mut mask: u32 = 0;
+    for &flag in flags {
+        if let Some(entry) = map.iter().find(|e| e.flag == flag) {
+            mask |= entry.mask;
+        } else if strict_lossless {
+            anyhow::bail!(
+                "Cannot losslessly apply flag {flag:?} on {os_name} for {}",
+                path.display()
+            );
+        }
+    }
+    Ok(mask)
+}
 
 /* From DragonFly BSD sys/sys/stat.h:
 
@@ -147,12 +191,48 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 
 */
 
+// DragonFly BSD file flag constants from DragonFly BSD <sys/stat.h>
+pub const DRAGONFLY_UF_SETTABLE: u32 = 0x0000_ffff;
+pub const DRAGONFLY_UF_NODUMP: u32 = 0x0000_0001;
+pub const DRAGONFLY_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const DRAGONFLY_UF_APPEND: u32 = 0x0000_0004;
+pub const DRAGONFLY_UF_OPAQUE: u32 = 0x0000_0008;
+pub const DRAGONFLY_UF_NOUNLINK: u32 = 0x0000_0010;
+pub const DRAGONFLY_UF_UNUSED5: u32 = 0x0000_0020;
+pub const DRAGONFLY_UF_NOHISTORY: u32 = 0x0000_0040;
+pub const DRAGONFLY_UF_CACHE: u32 = 0x0000_0080;
+pub const DRAGONFLY_UF_XLINK: u32 = 0x0000_0100;
+pub const DRAGONFLY_SF_SETTABLE: u32 = 0xffff_0000;
+pub const DRAGONFLY_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const DRAGONFLY_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const DRAGONFLY_SF_APPEND: u32 = 0x0004_0000;
+pub const DRAGONFLY_SF_NOUNLINK: u32 = 0x0010_0000;
+pub const DRAGONFLY_SF_UNUSED17: u32 = 0x0020_0000;
+pub const DRAGONFLY_SF_NOHISTORY: u32 = 0x0040_0000;
+pub const DRAGONFLY_SF_NOCACHE: u32 = 0x0080_0000;
+pub const DRAGONFLY_SF_XLINK: u32 = 0x0100_0000;
 
+/// Mask of settable flags on DragonFly BSD (`UF_SETTABLE | SF_SETTABLE`).
+pub const DRAGONFLY_SETTABLE_MASK: u32 = DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
 
-
-
-
-
+/// DragonFly BSD file flag mappings.
+pub const DRAGONFLY_FLAG_MAP: &[FlagMapping] = &[
+    FlagMapping { flag: FileFlag::NoDump, mask: DRAGONFLY_UF_NODUMP },
+    FlagMapping { flag: FileFlag::UserImmutable, mask: DRAGONFLY_UF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::UserAppend, mask: DRAGONFLY_UF_APPEND },
+    FlagMapping { flag: FileFlag::Opaque, mask: DRAGONFLY_UF_OPAQUE },
+    FlagMapping { flag: FileFlag::UserNoUnlink, mask: DRAGONFLY_UF_NOUNLINK },
+    FlagMapping { flag: FileFlag::UserNoHistory, mask: DRAGONFLY_UF_NOHISTORY },
+    FlagMapping { flag: FileFlag::UserCache, mask: DRAGONFLY_UF_CACHE },
+    FlagMapping { flag: FileFlag::UserXlink, mask: DRAGONFLY_UF_XLINK },
+    FlagMapping { flag: FileFlag::Archived, mask: DRAGONFLY_SF_ARCHIVED },
+    FlagMapping { flag: FileFlag::SystemImmutable, mask: DRAGONFLY_SF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::SystemAppend, mask: DRAGONFLY_SF_APPEND },
+    FlagMapping { flag: FileFlag::SystemNoUnlink, mask: DRAGONFLY_SF_NOUNLINK },
+    FlagMapping { flag: FileFlag::SystemNoHistory, mask: DRAGONFLY_SF_NOHISTORY },
+    FlagMapping { flag: FileFlag::SystemNoCache, mask: DRAGONFLY_SF_NOCACHE },
+    FlagMapping { flag: FileFlag::SystemXlink, mask: DRAGONFLY_SF_XLINK },
+];
 
 /* From FreeBSD stat.h:
 
@@ -201,10 +281,59 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 #define	SFBSD_NAMEDATTR	0x0001		/* file is named attribute or dir */
 */
 
+// FreeBSD file flag constants from FreeBSD <sys/stat.h>
+pub const FREEBSD_UF_SETTABLE: u32 = 0x0000_ffff;
+pub const FREEBSD_UF_NODUMP: u32 = 0x0000_0001;
+pub const FREEBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const FREEBSD_UF_APPEND: u32 = 0x0000_0004;
+pub const FREEBSD_UF_OPAQUE: u32 = 0x0000_0008;
+pub const FREEBSD_UF_NOUNLINK: u32 = 0x0000_0010;
+pub const FREEBSD_UF_COMPRESSED: u32 = 0x0000_0020;
+pub const FREEBSD_UF_TRACKED: u32 = 0x0000_0040;
+pub const FREEBSD_UF_SYSTEM: u32 = 0x0000_0080;
+pub const FREEBSD_UF_SPARSE: u32 = 0x0000_0100;
+pub const FREEBSD_UF_OFFLINE: u32 = 0x0000_0200;
+pub const FREEBSD_UF_REPARSE: u32 = 0x0000_0400;
+pub const FREEBSD_UF_ARCHIVE: u32 = 0x0000_0800;
+pub const FREEBSD_UF_READONLY: u32 = 0x0000_1000;
+pub const FREEBSD_UF_NOCACHE: u32 = 0x0000_2000;
+pub const FREEBSD_UF_HIDDEN: u32 = 0x0000_8000;
+pub const FREEBSD_SF_SETTABLE: u32 = 0xffff_0000;
+pub const FREEBSD_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const FREEBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const FREEBSD_SF_APPEND: u32 = 0x0004_0000;
+pub const FREEBSD_SF_NOUNLINK: u32 = 0x0010_0000;
+pub const FREEBSD_SF_SNAPSHOT: u32 = 0x0020_0000;
 
+/// st_bsdflags named attribute flag on FreeBSD.
+pub const FREEBSD_SFBSD_NAMEDATTR: u32 = 0x0001;
 
+/// Mask of settable flags on FreeBSD (excludes `SF_SNAPSHOT` which is
+/// system-maintained).
+pub const FREEBSD_SETTABLE_MASK: u32 =
+    (FREEBSD_UF_SETTABLE | FREEBSD_SF_SETTABLE) & !FREEBSD_SF_SNAPSHOT;
 
-
+/// FreeBSD file flag mappings.
+pub const FREEBSD_FLAG_MAP: &[FlagMapping] = &[
+    FlagMapping { flag: FileFlag::NoDump, mask: FREEBSD_UF_NODUMP },
+    FlagMapping { flag: FileFlag::UserImmutable, mask: FREEBSD_UF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::UserAppend, mask: FREEBSD_UF_APPEND },
+    FlagMapping { flag: FileFlag::Opaque, mask: FREEBSD_UF_OPAQUE },
+    FlagMapping { flag: FileFlag::UserNoUnlink, mask: FREEBSD_UF_NOUNLINK },
+    FlagMapping { flag: FileFlag::System, mask: FREEBSD_UF_SYSTEM },
+    FlagMapping { flag: FileFlag::Sparse, mask: FREEBSD_UF_SPARSE },
+    FlagMapping { flag: FileFlag::Offline, mask: FREEBSD_UF_OFFLINE },
+    FlagMapping { flag: FileFlag::Reparse, mask: FREEBSD_UF_REPARSE },
+    FlagMapping { flag: FileFlag::UserArchive, mask: FREEBSD_UF_ARCHIVE },
+    FlagMapping { flag: FileFlag::ReadOnly, mask: FREEBSD_UF_READONLY },
+    FlagMapping { flag: FileFlag::UserNoCache, mask: FREEBSD_UF_NOCACHE },
+    FlagMapping { flag: FileFlag::Hidden, mask: FREEBSD_UF_HIDDEN },
+    FlagMapping { flag: FileFlag::Archived, mask: FREEBSD_SF_ARCHIVED },
+    FlagMapping { flag: FileFlag::SystemImmutable, mask: FREEBSD_SF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::SystemAppend, mask: FREEBSD_SF_APPEND },
+    FlagMapping { flag: FileFlag::SystemNoUnlink, mask: FREEBSD_SF_NOUNLINK },
+    FlagMapping { flag: FileFlag::Snapshot, mask: FREEBSD_SF_SNAPSHOT },
+];
 
 /* From OpenBSD stat.h:
 
@@ -229,9 +358,30 @@ https://gitweb.dragonflybsd.org/?p=dragonfly.git;a=blob_plain;f=sys/sys/stat.h;h
 
 */
 
+// OpenBSD file flag constants from OpenBSD <sys/stat.h>
+pub const OPENBSD_UF_SETTABLE: u32 = 0x0000_ffff;
+pub const OPENBSD_UF_NODUMP: u32 = 0x0000_0001;
+pub const OPENBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
+pub const OPENBSD_UF_APPEND: u32 = 0x0000_0004;
+pub const OPENBSD_UF_OPAQUE: u32 = 0x0000_0008;
+pub const OPENBSD_SF_SETTABLE: u32 = 0xffff_0000;
+pub const OPENBSD_SF_ARCHIVED: u32 = 0x0001_0000;
+pub const OPENBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
+pub const OPENBSD_SF_APPEND: u32 = 0x0004_0000;
 
+/// Mask of settable flags on OpenBSD (`UF_SETTABLE | SF_SETTABLE`).
+pub const OPENBSD_SETTABLE_MASK: u32 = OPENBSD_UF_SETTABLE | OPENBSD_SF_SETTABLE;
 
-
+/// OpenBSD file flag mappings.
+pub const OPENBSD_FLAG_MAP: &[FlagMapping] = &[
+    FlagMapping { flag: FileFlag::NoDump, mask: OPENBSD_UF_NODUMP },
+    FlagMapping { flag: FileFlag::UserImmutable, mask: OPENBSD_UF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::UserAppend, mask: OPENBSD_UF_APPEND },
+    FlagMapping { flag: FileFlag::Opaque, mask: OPENBSD_UF_OPAQUE },
+    FlagMapping { flag: FileFlag::Archived, mask: OPENBSD_SF_ARCHIVED },
+    FlagMapping { flag: FileFlag::SystemImmutable, mask: OPENBSD_SF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::SystemAppend, mask: OPENBSD_SF_APPEND },
+];
 
 /* From Python - https://github.com/python/cpython/blob/f8f8c30ed4e20208e8badbc9e2fc3822e8db8e49/Modules/_stat.c -
 
@@ -353,16 +503,6 @@ SF_SYNTHETIC: mask of read-only synthetic flags\n\
 */
 
 
-#[allow(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
-
-use crate::file::metadata::{FileFlag, OsFamily, PlatformRawFlags};
-use std::path::Path;
-
 // Darwin file flag constants from Darwin <sys/stat.h>
 pub const DARWIN_UF_SETTABLE: u32 = 0x0000_ffff;
 pub const DARWIN_UF_NODUMP: u32 = 0x0000_0001;
@@ -388,110 +528,30 @@ pub const DARWIN_SF_SYNTHETIC: u32 = 0xc000_0000;
 /// (`UF_SETTABLE | SF_SETTABLE`).
 pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
 
-// FreeBSD file flag constants from FreeBSD <sys/stat.h>
-pub const FREEBSD_UF_SETTABLE: u32 = 0x0000_ffff;
-pub const FREEBSD_UF_NODUMP: u32 = 0x0000_0001;
-pub const FREEBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
-pub const FREEBSD_UF_APPEND: u32 = 0x0000_0004;
-pub const FREEBSD_UF_OPAQUE: u32 = 0x0000_0008;
-pub const FREEBSD_UF_NOUNLINK: u32 = 0x0000_0010;
-pub const FREEBSD_UF_COMPRESSED: u32 = 0x0000_0020;
-pub const FREEBSD_UF_TRACKED: u32 = 0x0000_0040;
-pub const FREEBSD_UF_SYSTEM: u32 = 0x0000_0080;
-pub const FREEBSD_UF_SPARSE: u32 = 0x0000_0100;
-pub const FREEBSD_UF_OFFLINE: u32 = 0x0000_0200;
-pub const FREEBSD_UF_REPARSE: u32 = 0x0000_0400;
-pub const FREEBSD_UF_ARCHIVE: u32 = 0x0000_0800;
-pub const FREEBSD_UF_READONLY: u32 = 0x0000_1000;
-pub const FREEBSD_UF_NOCACHE: u32 = 0x0000_2000;
-pub const FREEBSD_UF_HIDDEN: u32 = 0x0000_8000;
-pub const FREEBSD_SF_SETTABLE: u32 = 0xffff_0000;
-pub const FREEBSD_SF_ARCHIVED: u32 = 0x0001_0000;
-pub const FREEBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
-pub const FREEBSD_SF_APPEND: u32 = 0x0004_0000;
-pub const FREEBSD_SF_NOUNLINK: u32 = 0x0010_0000;
-pub const FREEBSD_SF_SNAPSHOT: u32 = 0x0020_0000;
-
-/// st_bsdflags named attribute flag on FreeBSD.
-pub const FREEBSD_SFBSD_NAMEDATTR: u32 = 0x0001;
-
-/// Mask of settable flags on FreeBSD (excludes `SF_SNAPSHOT` which is
-/// system-maintained).
-pub const FREEBSD_SETTABLE_MASK: u32 =
-    (FREEBSD_UF_SETTABLE | FREEBSD_SF_SETTABLE) & !FREEBSD_SF_SNAPSHOT;
-
-// OpenBSD file flag constants from OpenBSD <sys/stat.h>
-pub const OPENBSD_UF_SETTABLE: u32 = 0x0000_ffff;
-pub const OPENBSD_UF_NODUMP: u32 = 0x0000_0001;
-pub const OPENBSD_UF_IMMUTABLE: u32 = 0x0000_0002;
-pub const OPENBSD_UF_APPEND: u32 = 0x0000_0004;
-pub const OPENBSD_UF_OPAQUE: u32 = 0x0000_0008;
-pub const OPENBSD_SF_SETTABLE: u32 = 0xffff_0000;
-pub const OPENBSD_SF_ARCHIVED: u32 = 0x0001_0000;
-pub const OPENBSD_SF_IMMUTABLE: u32 = 0x0002_0000;
-pub const OPENBSD_SF_APPEND: u32 = 0x0004_0000;
-
-/// Mask of settable flags on OpenBSD (`UF_SETTABLE | SF_SETTABLE`).
-pub const OPENBSD_SETTABLE_MASK: u32 = OPENBSD_UF_SETTABLE | OPENBSD_SF_SETTABLE;
-
-// DragonFly BSD file flag constants from DragonFly BSD <sys/stat.h>
-pub const DRAGONFLY_UF_SETTABLE: u32 = 0x0000_ffff;
-pub const DRAGONFLY_UF_NODUMP: u32 = 0x0000_0001;
-pub const DRAGONFLY_UF_IMMUTABLE: u32 = 0x0000_0002;
-pub const DRAGONFLY_UF_APPEND: u32 = 0x0000_0004;
-pub const DRAGONFLY_UF_OPAQUE: u32 = 0x0000_0008;
-pub const DRAGONFLY_UF_NOUNLINK: u32 = 0x0000_0010;
-pub const DRAGONFLY_UF_UNUSED5: u32 = 0x0000_0020;
-pub const DRAGONFLY_UF_NOHISTORY: u32 = 0x0000_0040;
-pub const DRAGONFLY_UF_CACHE: u32 = 0x0000_0080;
-pub const DRAGONFLY_UF_XLINK: u32 = 0x0000_0100;
-pub const DRAGONFLY_SF_SETTABLE: u32 = 0xffff_0000;
-pub const DRAGONFLY_SF_ARCHIVED: u32 = 0x0001_0000;
-pub const DRAGONFLY_SF_IMMUTABLE: u32 = 0x0002_0000;
-pub const DRAGONFLY_SF_APPEND: u32 = 0x0004_0000;
-pub const DRAGONFLY_SF_NOUNLINK: u32 = 0x0010_0000;
-pub const DRAGONFLY_SF_UNUSED17: u32 = 0x0020_0000;
-pub const DRAGONFLY_SF_NOHISTORY: u32 = 0x0040_0000;
-pub const DRAGONFLY_SF_NOCACHE: u32 = 0x0080_0000;
-pub const DRAGONFLY_SF_XLINK: u32 = 0x0100_0000;
-
-/// Mask of settable flags on DragonFly BSD (`UF_SETTABLE | SF_SETTABLE`).
-pub const DRAGONFLY_SETTABLE_MASK: u32 = DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
+/// Darwin file flag mappings.
+pub const DARWIN_FLAG_MAP: &[FlagMapping] = &[
+    FlagMapping { flag: FileFlag::NoDump, mask: DARWIN_UF_NODUMP },
+    FlagMapping { flag: FileFlag::UserImmutable, mask: DARWIN_UF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::UserAppend, mask: DARWIN_UF_APPEND },
+    FlagMapping { flag: FileFlag::Opaque, mask: DARWIN_UF_OPAQUE },
+    FlagMapping { flag: FileFlag::Compressed, mask: DARWIN_UF_COMPRESSED },
+    FlagMapping { flag: FileFlag::Tracked, mask: DARWIN_UF_TRACKED },
+    FlagMapping { flag: FileFlag::DataVault, mask: DARWIN_UF_DATAVAULT },
+    FlagMapping { flag: FileFlag::Hidden, mask: DARWIN_UF_HIDDEN },
+    FlagMapping { flag: FileFlag::Archived, mask: DARWIN_SF_ARCHIVED },
+    FlagMapping { flag: FileFlag::SystemImmutable, mask: DARWIN_SF_IMMUTABLE },
+    FlagMapping { flag: FileFlag::SystemAppend, mask: DARWIN_SF_APPEND },
+    FlagMapping { flag: FileFlag::Restricted, mask: DARWIN_SF_RESTRICTED },
+    FlagMapping { flag: FileFlag::SystemNoUnlink, mask: DARWIN_SF_NOUNLINK },
+    FlagMapping { flag: FileFlag::Firmlink, mask: DARWIN_SF_FIRMLINK },
+    FlagMapping { flag: FileFlag::Dataless, mask: DARWIN_SF_DATALESS },
+];
 
 /// Parses a Darwin `st_flags` bitmask into semantic `FileFlag`s and indicates
 /// if any unparsed bits remain.
 #[must_use]
 pub fn parse_darwin_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
-    let mut flags = Vec::new();
-    let mut mapped_mask: u32 = 0;
-
-    macro_rules! map_flag {
-        ($bit:expr, $variant:expr) => {
-            if (raw_val & $bit) != 0 {
-                flags.push($variant);
-                mapped_mask |= $bit;
-            }
-        };
-    }
-
-    map_flag!(DARWIN_UF_NODUMP, FileFlag::NoDump);
-    map_flag!(DARWIN_UF_IMMUTABLE, FileFlag::UserImmutable);
-    map_flag!(DARWIN_UF_APPEND, FileFlag::UserAppend);
-    map_flag!(DARWIN_UF_OPAQUE, FileFlag::Opaque);
-    map_flag!(DARWIN_UF_COMPRESSED, FileFlag::Compressed);
-    map_flag!(DARWIN_UF_TRACKED, FileFlag::Tracked);
-    map_flag!(DARWIN_UF_DATAVAULT, FileFlag::DataVault);
-    map_flag!(DARWIN_UF_HIDDEN, FileFlag::Hidden);
-    map_flag!(DARWIN_SF_ARCHIVED, FileFlag::Archived);
-    map_flag!(DARWIN_SF_IMMUTABLE, FileFlag::SystemImmutable);
-    map_flag!(DARWIN_SF_APPEND, FileFlag::SystemAppend);
-    map_flag!(DARWIN_SF_RESTRICTED, FileFlag::Restricted);
-    map_flag!(DARWIN_SF_NOUNLINK, FileFlag::SystemNoUnlink);
-    map_flag!(DARWIN_SF_FIRMLINK, FileFlag::Firmlink);
-    map_flag!(DARWIN_SF_DATALESS, FileFlag::Dataless);
-
-    let has_unparsed = (raw_val & !mapped_mask) != 0;
-    (flags, has_unparsed)
+    parse_flags_from_map(raw_val, DARWIN_FLAG_MAP)
 }
 
 /// Encodes a slice of `FileFlag`s into a Darwin `st_flags` bitmask.
@@ -503,75 +563,14 @@ pub fn darwin_flags_to_mask(
     strict_lossless: bool,
     path: &Path,
 ) -> Result<u32> {
-    let mut mask: u32 = 0;
-    for flag in flags {
-        match flag {
-            FileFlag::NoDump => mask |= DARWIN_UF_NODUMP,
-            FileFlag::UserImmutable => mask |= DARWIN_UF_IMMUTABLE,
-            FileFlag::UserAppend => mask |= DARWIN_UF_APPEND,
-            FileFlag::Opaque => mask |= DARWIN_UF_OPAQUE,
-            FileFlag::Compressed => mask |= DARWIN_UF_COMPRESSED,
-            FileFlag::Tracked => mask |= DARWIN_UF_TRACKED,
-            FileFlag::DataVault => mask |= DARWIN_UF_DATAVAULT,
-            FileFlag::Hidden => mask |= DARWIN_UF_HIDDEN,
-            FileFlag::Archived => mask |= DARWIN_SF_ARCHIVED,
-            FileFlag::SystemImmutable => mask |= DARWIN_SF_IMMUTABLE,
-            FileFlag::SystemAppend => mask |= DARWIN_SF_APPEND,
-            FileFlag::Restricted => mask |= DARWIN_SF_RESTRICTED,
-            FileFlag::SystemNoUnlink => mask |= DARWIN_SF_NOUNLINK,
-            FileFlag::Firmlink => mask |= DARWIN_SF_FIRMLINK,
-            FileFlag::Dataless => mask |= DARWIN_SF_DATALESS,
-            other => {
-                if strict_lossless {
-                    anyhow::bail!(
-                        "Cannot losslessly apply flag {:?} on darwin for {}",
-                        other,
-                        path.display()
-                    );
-                }
-            }
-        }
-    }
-    Ok(mask)
+    flags_to_mask_from_map(flags, strict_lossless, path, DARWIN_FLAG_MAP, "darwin")
 }
 
 /// Parses a FreeBSD `st_flags` bitmask into semantic `FileFlag`s and indicates
 /// if any unparsed bits remain.
 #[must_use]
 pub fn parse_freebsd_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
-    let mut flags = Vec::new();
-    let mut mapped_mask: u32 = 0;
-
-    macro_rules! map_flag {
-        ($bit:expr, $variant:expr) => {
-            if (raw_val & $bit) != 0 {
-                flags.push($variant);
-                mapped_mask |= $bit;
-            }
-        };
-    }
-
-    map_flag!(FREEBSD_UF_NODUMP, FileFlag::NoDump);
-    map_flag!(FREEBSD_UF_IMMUTABLE, FileFlag::UserImmutable);
-    map_flag!(FREEBSD_UF_APPEND, FileFlag::UserAppend);
-    map_flag!(FREEBSD_UF_OPAQUE, FileFlag::Opaque);
-    map_flag!(FREEBSD_UF_NOUNLINK, FileFlag::UserNoUnlink);
-    map_flag!(FREEBSD_UF_SYSTEM, FileFlag::System);
-    map_flag!(FREEBSD_UF_SPARSE, FileFlag::Sparse);
-    map_flag!(FREEBSD_UF_OFFLINE, FileFlag::Offline);
-    map_flag!(FREEBSD_UF_REPARSE, FileFlag::Reparse);
-    map_flag!(FREEBSD_UF_ARCHIVE, FileFlag::UserArchive);
-    map_flag!(FREEBSD_UF_READONLY, FileFlag::ReadOnly);
-    map_flag!(FREEBSD_UF_NOCACHE, FileFlag::UserNoCache);
-    map_flag!(FREEBSD_UF_HIDDEN, FileFlag::Hidden);
-    map_flag!(FREEBSD_SF_ARCHIVED, FileFlag::Archived);
-    map_flag!(FREEBSD_SF_IMMUTABLE, FileFlag::SystemImmutable);
-    map_flag!(FREEBSD_SF_APPEND, FileFlag::SystemAppend);
-    map_flag!(FREEBSD_SF_NOUNLINK, FileFlag::SystemNoUnlink);
-    map_flag!(FREEBSD_SF_SNAPSHOT, FileFlag::Snapshot);
-
-    let has_unparsed = (raw_val & !mapped_mask) != 0;
-    (flags, has_unparsed)
+    parse_flags_from_map(raw_val, FREEBSD_FLAG_MAP)
 }
 
 /// Encodes a slice of `FileFlag`s into a FreeBSD `st_flags` bitmask.
@@ -583,67 +582,14 @@ pub fn freebsd_flags_to_mask(
     strict_lossless: bool,
     path: &Path,
 ) -> Result<u32> {
-    let mut mask: u32 = 0;
-    for flag in flags {
-        match flag {
-            FileFlag::NoDump => mask |= FREEBSD_UF_NODUMP,
-            FileFlag::UserImmutable => mask |= FREEBSD_UF_IMMUTABLE,
-            FileFlag::UserAppend => mask |= FREEBSD_UF_APPEND,
-            FileFlag::Opaque => mask |= FREEBSD_UF_OPAQUE,
-            FileFlag::UserNoUnlink => mask |= FREEBSD_UF_NOUNLINK,
-            FileFlag::System => mask |= FREEBSD_UF_SYSTEM,
-            FileFlag::Sparse => mask |= FREEBSD_UF_SPARSE,
-            FileFlag::Offline => mask |= FREEBSD_UF_OFFLINE,
-            FileFlag::Reparse => mask |= FREEBSD_UF_REPARSE,
-            FileFlag::UserArchive => mask |= FREEBSD_UF_ARCHIVE,
-            FileFlag::ReadOnly => mask |= FREEBSD_UF_READONLY,
-            FileFlag::UserNoCache => mask |= FREEBSD_UF_NOCACHE,
-            FileFlag::Hidden => mask |= FREEBSD_UF_HIDDEN,
-            FileFlag::Archived => mask |= FREEBSD_SF_ARCHIVED,
-            FileFlag::SystemImmutable => mask |= FREEBSD_SF_IMMUTABLE,
-            FileFlag::SystemAppend => mask |= FREEBSD_SF_APPEND,
-            FileFlag::SystemNoUnlink => mask |= FREEBSD_SF_NOUNLINK,
-            FileFlag::Snapshot => mask |= FREEBSD_SF_SNAPSHOT,
-            other => {
-                if strict_lossless {
-                    anyhow::bail!(
-                        "Cannot losslessly apply flag {:?} on freebsd for {}",
-                        other,
-                        path.display()
-                    );
-                }
-            }
-        }
-    }
-    Ok(mask)
+    flags_to_mask_from_map(flags, strict_lossless, path, FREEBSD_FLAG_MAP, "freebsd")
 }
 
 /// Parses an OpenBSD `st_flags` bitmask into semantic `FileFlag`s and indicates
 /// if any unparsed bits remain.
 #[must_use]
 pub fn parse_openbsd_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
-    let mut flags = Vec::new();
-    let mut mapped_mask: u32 = 0;
-
-    macro_rules! map_flag {
-        ($bit:expr, $variant:expr) => {
-            if (raw_val & $bit) != 0 {
-                flags.push($variant);
-                mapped_mask |= $bit;
-            }
-        };
-    }
-
-    map_flag!(OPENBSD_UF_NODUMP, FileFlag::NoDump);
-    map_flag!(OPENBSD_UF_IMMUTABLE, FileFlag::UserImmutable);
-    map_flag!(OPENBSD_UF_APPEND, FileFlag::UserAppend);
-    map_flag!(OPENBSD_UF_OPAQUE, FileFlag::Opaque);
-    map_flag!(OPENBSD_SF_ARCHIVED, FileFlag::Archived);
-    map_flag!(OPENBSD_SF_IMMUTABLE, FileFlag::SystemImmutable);
-    map_flag!(OPENBSD_SF_APPEND, FileFlag::SystemAppend);
-
-    let has_unparsed = (raw_val & !mapped_mask) != 0;
-    (flags, has_unparsed)
+    parse_flags_from_map(raw_val, OPENBSD_FLAG_MAP)
 }
 
 /// Encodes a slice of `FileFlag`s into an OpenBSD `st_flags` bitmask.
@@ -655,64 +601,14 @@ pub fn openbsd_flags_to_mask(
     strict_lossless: bool,
     path: &Path,
 ) -> Result<u32> {
-    let mut mask: u32 = 0;
-    for flag in flags {
-        match flag {
-            FileFlag::NoDump => mask |= OPENBSD_UF_NODUMP,
-            FileFlag::UserImmutable => mask |= OPENBSD_UF_IMMUTABLE,
-            FileFlag::UserAppend => mask |= OPENBSD_UF_APPEND,
-            FileFlag::Opaque => mask |= OPENBSD_UF_OPAQUE,
-            FileFlag::Archived => mask |= OPENBSD_SF_ARCHIVED,
-            FileFlag::SystemImmutable => mask |= OPENBSD_SF_IMMUTABLE,
-            FileFlag::SystemAppend => mask |= OPENBSD_SF_APPEND,
-            other => {
-                if strict_lossless {
-                    anyhow::bail!(
-                        "Cannot losslessly apply flag {:?} on openbsd for {}",
-                        other,
-                        path.display()
-                    );
-                }
-            }
-        }
-    }
-    Ok(mask)
+    flags_to_mask_from_map(flags, strict_lossless, path, OPENBSD_FLAG_MAP, "openbsd")
 }
 
 /// Parses a DragonFly BSD `st_flags` bitmask into semantic `FileFlag`s and
 /// indicates if any unparsed bits remain.
 #[must_use]
 pub fn parse_dragonfly_flags(raw_val: u32) -> (Vec<FileFlag>, bool) {
-    let mut flags = Vec::new();
-    let mut mapped_mask: u32 = 0;
-
-    macro_rules! map_flag {
-        ($bit:expr, $variant:expr) => {
-            if (raw_val & $bit) != 0 {
-                flags.push($variant);
-                mapped_mask |= $bit;
-            }
-        };
-    }
-
-    map_flag!(DRAGONFLY_UF_NODUMP, FileFlag::NoDump);
-    map_flag!(DRAGONFLY_UF_IMMUTABLE, FileFlag::UserImmutable);
-    map_flag!(DRAGONFLY_UF_APPEND, FileFlag::UserAppend);
-    map_flag!(DRAGONFLY_UF_OPAQUE, FileFlag::Opaque);
-    map_flag!(DRAGONFLY_UF_NOUNLINK, FileFlag::UserNoUnlink);
-    map_flag!(DRAGONFLY_UF_NOHISTORY, FileFlag::UserNoHistory);
-    map_flag!(DRAGONFLY_UF_CACHE, FileFlag::UserCache);
-    map_flag!(DRAGONFLY_UF_XLINK, FileFlag::UserXlink);
-    map_flag!(DRAGONFLY_SF_ARCHIVED, FileFlag::Archived);
-    map_flag!(DRAGONFLY_SF_IMMUTABLE, FileFlag::SystemImmutable);
-    map_flag!(DRAGONFLY_SF_APPEND, FileFlag::SystemAppend);
-    map_flag!(DRAGONFLY_SF_NOUNLINK, FileFlag::SystemNoUnlink);
-    map_flag!(DRAGONFLY_SF_NOHISTORY, FileFlag::SystemNoHistory);
-    map_flag!(DRAGONFLY_SF_NOCACHE, FileFlag::SystemNoCache);
-    map_flag!(DRAGONFLY_SF_XLINK, FileFlag::SystemXlink);
-
-    let has_unparsed = (raw_val & !mapped_mask) != 0;
-    (flags, has_unparsed)
+    parse_flags_from_map(raw_val, DRAGONFLY_FLAG_MAP)
 }
 
 /// Encodes a slice of `FileFlag`s into a DragonFly BSD `st_flags` bitmask.
@@ -724,36 +620,7 @@ pub fn dragonfly_flags_to_mask(
     strict_lossless: bool,
     path: &Path,
 ) -> Result<u32> {
-    let mut mask: u32 = 0;
-    for flag in flags {
-        match flag {
-            FileFlag::NoDump => mask |= DRAGONFLY_UF_NODUMP,
-            FileFlag::UserImmutable => mask |= DRAGONFLY_UF_IMMUTABLE,
-            FileFlag::UserAppend => mask |= DRAGONFLY_UF_APPEND,
-            FileFlag::Opaque => mask |= DRAGONFLY_UF_OPAQUE,
-            FileFlag::UserNoUnlink => mask |= DRAGONFLY_UF_NOUNLINK,
-            FileFlag::UserNoHistory => mask |= DRAGONFLY_UF_NOHISTORY,
-            FileFlag::UserCache => mask |= DRAGONFLY_UF_CACHE,
-            FileFlag::UserXlink => mask |= DRAGONFLY_UF_XLINK,
-            FileFlag::Archived => mask |= DRAGONFLY_SF_ARCHIVED,
-            FileFlag::SystemImmutable => mask |= DRAGONFLY_SF_IMMUTABLE,
-            FileFlag::SystemAppend => mask |= DRAGONFLY_SF_APPEND,
-            FileFlag::SystemNoUnlink => mask |= DRAGONFLY_SF_NOUNLINK,
-            FileFlag::SystemNoHistory => mask |= DRAGONFLY_SF_NOHISTORY,
-            FileFlag::SystemNoCache => mask |= DRAGONFLY_SF_NOCACHE,
-            FileFlag::SystemXlink => mask |= DRAGONFLY_SF_XLINK,
-            other => {
-                if strict_lossless {
-                    anyhow::bail!(
-                        "Cannot losslessly apply flag {:?} on dragonfly for {}",
-                        other,
-                        path.display()
-                    );
-                }
-            }
-        }
-    }
-    Ok(mask)
+    flags_to_mask_from_map(flags, strict_lossless, path, DRAGONFLY_FLAG_MAP, "dragonfly")
 }
 
 /// Reads OS-specific flags from `path`.
@@ -1237,40 +1104,22 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_darwin_flags_table_mapping() {
-        let darwin_table = [
-            (FileFlag::NoDump, DARWIN_UF_NODUMP),
-            (FileFlag::UserImmutable, DARWIN_UF_IMMUTABLE),
-            (FileFlag::UserAppend, DARWIN_UF_APPEND),
-            (FileFlag::Opaque, DARWIN_UF_OPAQUE),
-            (FileFlag::Compressed, DARWIN_UF_COMPRESSED),
-            (FileFlag::Tracked, DARWIN_UF_TRACKED),
-            (FileFlag::DataVault, DARWIN_UF_DATAVAULT),
-            (FileFlag::Hidden, DARWIN_UF_HIDDEN),
-            (FileFlag::Archived, DARWIN_SF_ARCHIVED),
-            (FileFlag::SystemImmutable, DARWIN_SF_IMMUTABLE),
-            (FileFlag::SystemAppend, DARWIN_SF_APPEND),
-            (FileFlag::Restricted, DARWIN_SF_RESTRICTED),
-            (FileFlag::SystemNoUnlink, DARWIN_SF_NOUNLINK),
-            (FileFlag::Firmlink, DARWIN_SF_FIRMLINK),
-            (FileFlag::Dataless, DARWIN_SF_DATALESS),
-        ];
-
         let mut combined_mask = 0u32;
         let mut all_flags = Vec::new();
-        for (flag, bit) in darwin_table {
-            let (parsed, has_unparsed) = parse_darwin_flags(bit);
-            assert_eq!(parsed, vec![flag]);
+        for entry in DARWIN_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_darwin_flags(entry.mask);
+            assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = darwin_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
-            assert_eq!(mask, bit);
+            let mask = darwin_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
 
-            combined_mask |= bit;
-            all_flags.push(flag);
+            combined_mask |= entry.mask;
+            all_flags.push(entry.flag);
         }
 
         let (parsed_all, has_unparsed_all) = parse_darwin_flags(combined_mask);
-        assert_eq!(parsed_all.len(), 15);
+        assert_eq!(parsed_all.len(), DARWIN_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
         let encoded_all = darwin_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
@@ -1312,43 +1161,22 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_freebsd_flags_table_mapping() {
-        let freebsd_table = [
-            (FileFlag::NoDump, FREEBSD_UF_NODUMP),
-            (FileFlag::UserImmutable, FREEBSD_UF_IMMUTABLE),
-            (FileFlag::UserAppend, FREEBSD_UF_APPEND),
-            (FileFlag::Opaque, FREEBSD_UF_OPAQUE),
-            (FileFlag::UserNoUnlink, FREEBSD_UF_NOUNLINK),
-            (FileFlag::System, FREEBSD_UF_SYSTEM),
-            (FileFlag::Sparse, FREEBSD_UF_SPARSE),
-            (FileFlag::Offline, FREEBSD_UF_OFFLINE),
-            (FileFlag::Reparse, FREEBSD_UF_REPARSE),
-            (FileFlag::UserArchive, FREEBSD_UF_ARCHIVE),
-            (FileFlag::ReadOnly, FREEBSD_UF_READONLY),
-            (FileFlag::UserNoCache, FREEBSD_UF_NOCACHE),
-            (FileFlag::Hidden, FREEBSD_UF_HIDDEN),
-            (FileFlag::Archived, FREEBSD_SF_ARCHIVED),
-            (FileFlag::SystemImmutable, FREEBSD_SF_IMMUTABLE),
-            (FileFlag::SystemAppend, FREEBSD_SF_APPEND),
-            (FileFlag::SystemNoUnlink, FREEBSD_SF_NOUNLINK),
-            (FileFlag::Snapshot, FREEBSD_SF_SNAPSHOT),
-        ];
-
         let mut combined_mask = 0u32;
         let mut all_flags = Vec::new();
-        for (flag, bit) in freebsd_table {
-            let (parsed, has_unparsed) = parse_freebsd_flags(bit);
-            assert_eq!(parsed, vec![flag]);
+        for entry in FREEBSD_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_freebsd_flags(entry.mask);
+            assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = freebsd_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
-            assert_eq!(mask, bit);
+            let mask = freebsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
 
-            combined_mask |= bit;
-            all_flags.push(flag);
+            combined_mask |= entry.mask;
+            all_flags.push(entry.flag);
         }
 
         let (parsed_all, has_unparsed_all) = parse_freebsd_flags(combined_mask);
-        assert_eq!(parsed_all.len(), 18);
+        assert_eq!(parsed_all.len(), FREEBSD_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
         let encoded_all = freebsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
@@ -1387,32 +1215,22 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_openbsd_flags_table_mapping() {
-        let openbsd_table = [
-            (FileFlag::NoDump, OPENBSD_UF_NODUMP),
-            (FileFlag::UserImmutable, OPENBSD_UF_IMMUTABLE),
-            (FileFlag::UserAppend, OPENBSD_UF_APPEND),
-            (FileFlag::Opaque, OPENBSD_UF_OPAQUE),
-            (FileFlag::Archived, OPENBSD_SF_ARCHIVED),
-            (FileFlag::SystemImmutable, OPENBSD_SF_IMMUTABLE),
-            (FileFlag::SystemAppend, OPENBSD_SF_APPEND),
-        ];
-
         let mut combined_mask = 0u32;
         let mut all_flags = Vec::new();
-        for (flag, bit) in openbsd_table {
-            let (parsed, has_unparsed) = parse_openbsd_flags(bit);
-            assert_eq!(parsed, vec![flag]);
+        for entry in OPENBSD_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_openbsd_flags(entry.mask);
+            assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = openbsd_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
-            assert_eq!(mask, bit);
+            let mask = openbsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
 
-            combined_mask |= bit;
-            all_flags.push(flag);
+            combined_mask |= entry.mask;
+            all_flags.push(entry.flag);
         }
 
         let (parsed_all, has_unparsed_all) = parse_openbsd_flags(combined_mask);
-        assert_eq!(parsed_all.len(), 7);
+        assert_eq!(parsed_all.len(), OPENBSD_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
         let encoded_all = openbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
@@ -1462,40 +1280,22 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dragonfly_flags_table_mapping() {
-        let dragonfly_table = [
-            (FileFlag::NoDump, DRAGONFLY_UF_NODUMP),
-            (FileFlag::UserImmutable, DRAGONFLY_UF_IMMUTABLE),
-            (FileFlag::UserAppend, DRAGONFLY_UF_APPEND),
-            (FileFlag::Opaque, DRAGONFLY_UF_OPAQUE),
-            (FileFlag::UserNoUnlink, DRAGONFLY_UF_NOUNLINK),
-            (FileFlag::UserNoHistory, DRAGONFLY_UF_NOHISTORY),
-            (FileFlag::UserCache, DRAGONFLY_UF_CACHE),
-            (FileFlag::UserXlink, DRAGONFLY_UF_XLINK),
-            (FileFlag::Archived, DRAGONFLY_SF_ARCHIVED),
-            (FileFlag::SystemImmutable, DRAGONFLY_SF_IMMUTABLE),
-            (FileFlag::SystemAppend, DRAGONFLY_SF_APPEND),
-            (FileFlag::SystemNoUnlink, DRAGONFLY_SF_NOUNLINK),
-            (FileFlag::SystemNoHistory, DRAGONFLY_SF_NOHISTORY),
-            (FileFlag::SystemNoCache, DRAGONFLY_SF_NOCACHE),
-            (FileFlag::SystemXlink, DRAGONFLY_SF_XLINK),
-        ];
-
         let mut combined_mask = 0u32;
         let mut all_flags = Vec::new();
-        for (flag, bit) in dragonfly_table {
-            let (parsed, has_unparsed) = parse_dragonfly_flags(bit);
-            assert_eq!(parsed, vec![flag]);
+        for entry in DRAGONFLY_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_dragonfly_flags(entry.mask);
+            assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = dragonfly_flags_to_mask(&[flag], true, Path::new("test")).unwrap();
-            assert_eq!(mask, bit);
+            let mask = dragonfly_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
 
-            combined_mask |= bit;
-            all_flags.push(flag);
+            combined_mask |= entry.mask;
+            all_flags.push(entry.flag);
         }
 
         let (parsed_all, has_unparsed_all) = parse_dragonfly_flags(combined_mask);
-        assert_eq!(parsed_all.len(), 15);
+        assert_eq!(parsed_all.len(), DRAGONFLY_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
         let encoded_all =
