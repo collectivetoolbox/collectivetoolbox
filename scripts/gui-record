@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# gui-record: Record video of the virtual X display using ffmpeg.
+# Usage:
+#   gui-record start [output.mp4] [fps]
+#   gui-record stop
+#
+
+set -euo pipefail
+
+DISPLAY_NUM="${GUI_DISPLAY:-${DISPLAY:-:99}}"
+DISPLAY_ID="${DISPLAY_NUM#:}"
+PID_FILE="/tmp/.gui-record_${DISPLAY_ID}.pid"
+
+case "${1:-}" in
+    start)
+        OUTPUT="${2:-/tmp/recording_$(date +%Y%m%d_%H%M%S).mp4}"
+        FPS="${3:-30}"
+
+        if [ -f "$PID_FILE" ]; then
+            OLD_PID="$(cat "$PID_FILE" 2>/dev/null || echo "")"
+            if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+                echo "Recording is already in progress (PID: $OLD_PID)"
+                exit 0
+            fi
+        fi
+
+        DIRNAME="$(dirname "$OUTPUT")"
+        if [ ! -d "$DIRNAME" ]; then
+            mkdir -p "$DIRNAME"
+        fi
+
+        RES="$(DISPLAY="${DISPLAY_NUM}" xdpyinfo 2>/dev/null | grep "dimensions:" | awk '{print $2}' || echo "1280x800")"
+        echo "Starting recording of ${DISPLAY_NUM} (${RES}) at ${FPS} fps to ${OUTPUT}..."
+
+        ffmpeg -y -f x11grab -draw_mouse 1 -video_size "${RES}" -framerate "${FPS}" -i "${DISPLAY_NUM}.0" \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p "${OUTPUT}" > /tmp/gui-record.log 2>&1 &
+        REC_PID=$!
+        echo "$REC_PID" > "$PID_FILE"
+        echo "Recording started (PID: ${REC_PID}, File: ${OUTPUT})"
+        ;;
+    stop)
+        if [ -f "$PID_FILE" ]; then
+            REC_PID="$(cat "$PID_FILE" 2>/dev/null || echo "")"
+            if [ -n "$REC_PID" ] && kill -0 "$REC_PID" 2>/dev/null; then
+                echo "Stopping recording (PID: ${REC_PID})..."
+                kill -INT "$REC_PID" 2>/dev/null || true
+                sleep 1
+            fi
+            if [ -f "$PID_FILE" ]; then
+                rm "$PID_FILE"
+            fi
+            echo "Recording stopped."
+        else
+            echo "No active recording found."
+        fi
+        ;;
+    *)
+        echo "Usage: gui-record start [output.mp4] [fps] | gui-record stop" >&2
+        exit 1
+        ;;
+esac

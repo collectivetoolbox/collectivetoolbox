@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# gui-screenshot: Capture a screenshot of the virtual display or a specific window.
+# Usage:
+#   gui-screenshot [output_path.png] [window_id_or_title]
+#
+
+set -euo pipefail
+
+DISPLAY_NUM="${GUI_DISPLAY:-${DISPLAY:-:99}}"
+export DISPLAY="${DISPLAY_NUM}"
+
+OUTPUT="${1:-}"
+TARGET="${2:-}"
+
+if [ -z "$OUTPUT" ]; then
+    TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+    OUTPUT="/tmp/screenshot_${TIMESTAMP}.png"
+fi
+
+DIRNAME="$(dirname "$OUTPUT")"
+if [ ! -d "$DIRNAME" ]; then
+    mkdir -p "$DIRNAME"
+fi
+
+WIN_ID=""
+if [ -n "$TARGET" ]; then
+    if [[ "$TARGET" =~ ^0x[0-9a-fA-F]+$ ]] || [[ "$TARGET" =~ ^[0-9]+$ ]]; then
+        WIN_ID="$TARGET"
+    else
+        WIN_ID="$(xdotool search --name "$TARGET" 2>/dev/null | head -n 1 || true)"
+        if [ -z "$WIN_ID" ]; then
+            WIN_ID="$(xdotool search --class "$TARGET" 2>/dev/null | head -n 1 || true)"
+        fi
+    fi
+fi
+
+if [ -n "$WIN_ID" ]; then
+    echo "Capturing window ${WIN_ID} to ${OUTPUT}..."
+    if command -v maim >/dev/null 2>&1; then
+        maim -i "$WIN_ID" "$OUTPUT"
+    elif command -v import >/dev/null 2>&1; then
+        import -window "$WIN_ID" "$OUTPUT"
+    elif command -v scrot >/dev/null 2>&1; then
+        xdotool windowactivate --sync "$WIN_ID" 2>/dev/null || true
+        scrot -u "$OUTPUT"
+    else
+        echo "Error: No screenshot tool available (maim, import, scrot)" >&2
+        exit 1
+    fi
+else
+    echo "Capturing full screen (${DISPLAY_NUM}) to ${OUTPUT}..."
+    if command -v maim >/dev/null 2>&1; then
+        maim "$OUTPUT"
+    elif command -v scrot >/dev/null 2>&1; then
+        scrot "$OUTPUT"
+    elif command -v import >/dev/null 2>&1; then
+        import -window root "$OUTPUT"
+    else
+        echo "Error: No screenshot tool available (maim, scrot, import)" >&2
+        exit 1
+    fi
+fi
+
+if [ -f "$OUTPUT" ]; then
+    FILE_SIZE="$(stat -c%s "$OUTPUT" 2>/dev/null || stat -f%z "$OUTPUT" 2>/dev/null || echo "unknown")"
+    echo "Screenshot saved: ${OUTPUT} (${FILE_SIZE} bytes)"
+    if command -v identify >/dev/null 2>&1; then
+        identify "$OUTPUT"
+    fi
+else
+    echo "Error: Failed to create ${OUTPUT}" >&2
+    exit 1
+fi

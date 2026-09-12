@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# gui-run: Execute a program inside the virtual X display, auto-starting the GUI server if needed.
+# Usage:
+#   gui-run <command> [args...]
+#
+
+set -euo pipefail
+
+DISPLAY_NUM="${GUI_DISPLAY:-${DISPLAY:-:99}}"
+
+if ! DISPLAY="${DISPLAY_NUM}" xdpyinfo >/dev/null 2>&1; then
+    gui_server_cmd="gui-server"
+    if ! command -v "$gui_server_cmd" >/dev/null 2>&1; then
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -x "${script_dir}/gui-server" ]; then
+            gui_server_cmd="${script_dir}/gui-server"
+        fi
+    fi
+    "$gui_server_cmd" start
+fi
+
+export DISPLAY="${DISPLAY_NUM}"
+exec "$@"

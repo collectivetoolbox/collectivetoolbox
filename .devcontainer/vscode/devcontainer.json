@@ -2,6 +2,7 @@
   "name": "VSCode Sandbox",
   "build": {
     "dockerfile": "../Dockerfile",
+    "context": "../..",
     "options": [
       "--network=host"
     ]
@@ -16,9 +17,10 @@
   "containerEnv": {
     "PLAYWRIGHT_CHROMIUM_ARGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
     "CHROMIUM_FLAGS": "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu",
-    "BASH_ENV": "/etc/profile.d/umask.sh"
+    "BASH_ENV": "/etc/profile.d/umask.sh",
+    "DISPLAY": ":99"
   },
-  "postStartCommand": "setfacl -R -d -m u::rwx,g::rwx,o::rwx /workspaces/ctoolbox 2>/dev/null || true; nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 &",
+  "postStartCommand": "setfacl -R -d -m u::rwx,g::rwx,o::rwx /workspaces/ctoolbox 2>/dev/null || true; nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 & nohup /usr/local/bin/gui-server start > /tmp/gui-server.log 2>&1 &",
 
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},

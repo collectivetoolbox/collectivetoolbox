@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+#
+# gui-server: Manage virtual X framebuffer (Xvfb) and window manager (Openbox/Fluxbox)
+# Usage:
+#   gui-server {start|stop|restart|status}
+#
+
+set -euo pipefail
+
+DISPLAY_NUM="${GUI_DISPLAY:-${DISPLAY:-:99}}"
+RESOLUTION="${GUI_RESOLUTION:-1280x800x24}"
+DISPLAY_ID="${DISPLAY_NUM#:}"
+PID_FILE_XVFB="/tmp/.xvfb_${DISPLAY_ID}.pid"
+PID_FILE_WM="/tmp/.wm_${DISPLAY_ID}.pid"
+LOG_XVFB="/tmp/xvfb_${DISPLAY_ID}.log"
+LOG_WM="/tmp/wm_${DISPLAY_ID}.log"
+
+is_process_running() {
+    local pid_file="$1"
+    local process_pattern="${2:-}"
+    if [ -f "$pid_file" ]; then
+        local pid
+        pid="$(cat "$pid_file" 2>/dev/null || echo "")"
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    if [ -n "$process_pattern" ]; then
+        if pgrep -f "$process_pattern" >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+start_server() {
+    if is_process_running "$PID_FILE_XVFB" "Xvfb ${DISPLAY_NUM}"; then
+        echo "Xvfb is already running on ${DISPLAY_NUM}"
+    else
+        echo "Starting Xvfb on ${DISPLAY_NUM} (${RESOLUTION})..."
+        local socket_file="/tmp/.X11-unix/X${DISPLAY_ID}"
+        if [ -e "$socket_file" ] && ! is_process_running "$PID_FILE_XVFB" "Xvfb ${DISPLAY_NUM}"; then
+            if [ -S "$socket_file" ] || [ -f "$socket_file" ]; then
+                rm "$socket_file"
+            fi
+        fi
+        local lock_file="/tmp/.X${DISPLAY_ID}-lock"
+        if [ -e "$lock_file" ] && ! is_process_running "$PID_FILE_XVFB" "Xvfb ${DISPLAY_NUM}"; then
+            if [ -f "$lock_file" ]; then
+                rm "$lock_file"
+            fi
+        fi
+
+        mkdir -p /tmp/.X11-unix
+        chmod 1777 /tmp/.X11-unix
+
+        setsid -w Xvfb "${DISPLAY_NUM}" -screen 0 "${RESOLUTION}" -ac +extension GLX +render -noreset > "${LOG_XVFB}" 2>&1 < /dev/null &
+        local launcher_pid=$!
+        sleep 0.2
+        local xvfb_pid
+        xvfb_pid="$(pgrep -n -f "Xvfb ${DISPLAY_NUM}" 2>/dev/null || echo "$launcher_pid")"
+        echo "$xvfb_pid" > "$PID_FILE_XVFB"
+
+        # Wait for X server to become ready
+        local attempts=0
+        local max_attempts=40
+        local ready=0
+        while [ "$attempts" -lt "$max_attempts" ]; do
+            if DISPLAY="${DISPLAY_NUM}" xdpyinfo >/dev/null 2>&1; then
+                ready=1
+                break
+            fi
+            sleep 0.1
+            attempts=$((attempts + 1))
+        done
+
+        if [ "$ready" -ne 1 ]; then
+            echo "Error: Failed to start Xvfb on ${DISPLAY_NUM}. Log contents (${LOG_XVFB}):" >&2
+            if [ -f "${LOG_XVFB}" ]; then
+                cat "${LOG_XVFB}" >&2
+            fi
+            exit 1
+        fi
+        echo "Xvfb started successfully on ${DISPLAY_NUM} (PID: ${xvfb_pid})"
+    fi
+
+    # Start Window Manager
+    if is_process_running "$PID_FILE_WM" "(openbox|fluxbox)"; then
+        echo "Window manager is already running on ${DISPLAY_NUM}"
+    else
+        local wm_bin=""
+        if command -v openbox >/dev/null 2>&1; then
+            wm_bin="openbox"
+        elif command -v fluxbox >/dev/null 2>&1; then
+            wm_bin="fluxbox"
+        fi
+
+        if [ -n "$wm_bin" ]; then
+            echo "Starting window manager (${wm_bin}) on ${DISPLAY_NUM}..."
+            DISPLAY="${DISPLAY_NUM}" setsid -w "$wm_bin" > "${LOG_WM}" 2>&1 < /dev/null &
+            local wm_launcher_pid=$!
+            sleep 0.2
+            local wm_pid
+            wm_pid="$(pgrep -n -f "^${wm_bin}" 2>/dev/null || echo "$wm_launcher_pid")"
+            echo "$wm_pid" > "$PID_FILE_WM"
+            echo "Window manager (${wm_bin}) started (PID: ${wm_pid})"
+        else
+            echo "Notice: Neither openbox nor fluxbox found; running without window manager." >&2
+        fi
+    fi
+}
+
+stop_server() {
+    echo "Stopping GUI environment on ${DISPLAY_NUM}..."
+    if [ -f "$PID_FILE_WM" ]; then
+        local wm_pid
+        wm_pid="$(cat "$PID_FILE_WM" 2>/dev/null || echo "")"
+        if [ -n "$wm_pid" ]; then
+            kill "$wm_pid" 2>/dev/null || true
+        fi
+        rm "$PID_FILE_WM"
+    fi
+    pkill -f "^(openbox|fluxbox)" 2>/dev/null || true
+    echo "Window manager stopped."
+
+    if [ -f "$PID_FILE_XVFB" ]; then
+        local xvfb_pid
+        xvfb_pid="$(cat "$PID_FILE_XVFB" 2>/dev/null || echo "")"
+        if [ -n "$xvfb_pid" ]; then
+            kill "$xvfb_pid" 2>/dev/null || true
+        fi
+        rm "$PID_FILE_XVFB"
+    fi
+    pkill -f "Xvfb ${DISPLAY_NUM}" 2>/dev/null || true
+    echo "Xvfb stopped."
+
+    local lock_file="/tmp/.X${DISPLAY_ID}-lock"
+    if [ -f "$lock_file" ]; then
+        rm "$lock_file"
+    fi
+    local socket_file="/tmp/.X11-unix/X${DISPLAY_ID}"
+    if [ -e "$socket_file" ]; then
+        if [ -S "$socket_file" ] || [ -f "$socket_file" ]; then
+            rm "$socket_file"
+        fi
+    fi
+}
+
+status_server() {
+    local running=1
+    if is_process_running "$PID_FILE_XVFB" "Xvfb ${DISPLAY_NUM}"; then
+        local xvfb_pid
+        xvfb_pid="$(pgrep -n -f "Xvfb ${DISPLAY_NUM}" 2>/dev/null || (cat "$PID_FILE_XVFB" 2>/dev/null || echo "unknown"))"
+        echo "Xvfb: RUNNING on ${DISPLAY_NUM} (PID: ${xvfb_pid})"
+        if DISPLAY="${DISPLAY_NUM}" xdpyinfo >/dev/null 2>&1; then
+            DISPLAY="${DISPLAY_NUM}" xdpyinfo | grep "dimensions:" | sed 's/^[ \t]*/  /'
+        fi
+    else
+        echo "Xvfb: NOT RUNNING on ${DISPLAY_NUM}"
+        running=0
+    fi
+
+    if is_process_running "$PID_FILE_WM" "(openbox|fluxbox)"; then
+        local wm_pid
+        wm_pid="$(pgrep -n -f "^(openbox|fluxbox)" 2>/dev/null || (cat "$PID_FILE_WM" 2>/dev/null || echo "unknown"))"
+        echo "Window Manager: RUNNING (PID: ${wm_pid})"
+    else
+        echo "Window Manager: NOT RUNNING"
+    fi
+
+    if [ "$running" -eq 1 ]; then
+        echo "Active clients:"
+        DISPLAY="${DISPLAY_NUM}" xlsclients -l 2>/dev/null || true
+        return 0
+    else
+        return 1
+    fi
+}
+
+case "${1:-status}" in
+    start)
+        start_server
+        ;;
+    stop)
+        stop_server
+        ;;
+    restart)
+        stop_server
+        sleep 1
+        start_server
+        ;;
+    status)
+        status_server
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}" >&2
+        exit 1
+        ;;
+esac

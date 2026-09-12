@@ -214,6 +214,17 @@ RUN set -eux; \
         musl-dev:i386; \
     apt-get clean
 
+# Install virtual framebuffer, X server, window manager, and GUI capture/interaction tools
+COPY scripts/docker/install-gui-tools.sh /tmp/install-gui-tools.sh
+RUN set -eux; \
+    chmod +x /tmp/install-gui-tools.sh; \
+    /tmp/install-gui-tools.sh; \
+    if [ -f /tmp/install-gui-tools.sh ]; then \
+        rm /tmp/install-gui-tools.sh; \
+    fi
+
+ENV DISPLAY=:99
+
 WORKDIR /workspaces/ctoolbox
 
 LABEL org.opencontainers.image.source="https://github.com/collectivetoolbox/collectivetoolbox"

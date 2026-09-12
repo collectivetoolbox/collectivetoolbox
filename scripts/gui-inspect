@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# gui-inspect: Inspect current virtual X display, open windows, focus, and pointer position.
+# Usage:
+#   gui-inspect
+#
+
+set -euo pipefail
+
+DISPLAY_NUM="${GUI_DISPLAY:-${DISPLAY:-:99}}"
+export DISPLAY="${DISPLAY_NUM}"
+
+echo "=== GUI Display Inspection (${DISPLAY_NUM}) ==="
+if ! xdpyinfo >/dev/null 2>&1; then
+    echo "Error: Display ${DISPLAY_NUM} is not available." >&2
+    exit 1
+fi
+
+echo "--- Screen Dimensions & Depth ---"
+xdpyinfo | grep -E "(dimensions:|depth of root window:)" | sed 's/^[ \t]*/  /'
+
+echo "--- Mouse Pointer Location ---"
+xdotool getmouselocation --shell 2>/dev/null || true
+
+echo "--- Active Window ---"
+ACTIVE_WIN="$(xdotool getactivewindow 2>/dev/null || echo "")"
+if [ -n "$ACTIVE_WIN" ]; then
+    echo "  Window ID: ${ACTIVE_WIN}"
+    WIN_NAME="$(xdotool getwindowname "$ACTIVE_WIN" 2>/dev/null || echo "<unnamed>")"
+    echo "  Window Name: ${WIN_NAME}"
+    xdotool getwindowgeometry "$ACTIVE_WIN" 2>/dev/null | sed 's/^[ \t]*/  /' || true
+else
+    echo "  No active window."
+fi
+
+echo "--- All Windows ---"
+xdotool search --onlyvisible --name ".*" 2>/dev/null | while read -r win; do
+    name="$(xdotool getwindowname "$win" 2>/dev/null || echo "<unnamed>")"
+    geom="$(xdotool getwindowgeometry "$win" 2>/dev/null | grep "Geometry:" | awk '{print $2}' || echo "?")"
+    pos="$(xdotool getwindowgeometry "$win" 2>/dev/null | grep "Position:" | awk '{print $2}' || echo "?")"
+    echo "  ID: ${win} | Title: \"${name}\" | Pos: ${pos} | Size: ${geom}"
+done
