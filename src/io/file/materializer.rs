@@ -928,12 +928,25 @@ fn try_update_existing_regular_entity(
             .iter()
             .any(|s| s.name == disk_stream.name);
         if !exists_in_source {
-            let res = remove_stream(dest_path, &disk_stream.name.to_os_string()?);
+            let res = match &disk_stream.name {
+                Some(name) => remove_stream(dest_path, &name.to_os_string()?),
+                None => match disk_stream.kind {
+                    crate::streams::StreamKind::MacOsResourceFork => {
+                        remove_stream(
+                            dest_path,
+                            std::ffi::OsStr::new(
+                                crate::streams::RESOURCE_FORK_XATTR_NAME,
+                            ),
+                        )
+                    }
+                    _ => Ok(()),
+                },
+            };
             if let Err(e) = res {
                 if options.strict_lossless {
                     log_fmt!(
                         "Could not remove extra stream {:?} in-place from {}: {e}; falling through to atomic replacement",
-                        disk_stream.name.to_string_lossy(),
+                        disk_stream.to_string_lossy(),
                         dest_path.display()
                     );
                     return Ok(None);

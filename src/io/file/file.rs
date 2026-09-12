@@ -432,7 +432,7 @@ mod tests {
         fs::write(PathBuf::from(stream_path), b"stream payload").unwrap();
         let streams = crate::streams::read_and_hash_streams(&path).unwrap();
         assert_eq!(streams.len(), 1);
-        assert_eq!(streams[0].name, StreamName::from_windows_utf16(&units));
+        assert_eq!(streams[0].name, Some(StreamName::from_windows_utf16(&units)));
         assert_eq!(streams[0].data.as_deref(), Some(b"stream payload".as_slice()));
     }
 
@@ -486,18 +486,42 @@ mod tests {
         fs::write(&path, b"payload").unwrap();
         xattr::set(&path, "user.portable", b"metadata").unwrap();
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
-        entity.streams[0].name = StreamName::from_windows_utf16(&"user.portable".encode_utf16().collect::<Vec<_>>());
+        entity.streams[0].name = Some(StreamName::from_windows_utf16(&"user.portable".encode_utf16().collect::<Vec<_>>()));
         crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
         let options = EntityAuditOptions { best_effort: true, ..Default::default() };
         let diffs = audit_entity(&path, &entity, &options).unwrap();
         assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
         let mut duplicate = entity.streams[0].clone();
-        duplicate.name = StreamName::from_str("user.portable");
+        duplicate.name = Some(StreamName::from_str("user.portable"));
         entity.streams.push(duplicate);
         assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
         assert!(audit_entity(&path, &entity, &options).is_err());
-        entity.streams[0].name = StreamName::from_windows_utf16(&[0xd800]);
+        entity.streams[0].name = Some(StreamName::from_windows_utf16(&[0xd800]));
         assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_nameless_stream_and_resource_fork() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        let rsrc_stream = crate::streams::AttachedStream::from_data(
+            None,
+            crate::streams::StreamKind::MacOsResourceFork,
+            b"resource fork contents".to_vec(),
+        ).unwrap();
+        assert_eq!(rsrc_stream.name, None);
+        assert_eq!(rsrc_stream.kind, crate::streams::StreamKind::MacOsResourceFork);
+        assert_eq!(rsrc_stream.to_string_lossy(), "(resource fork)");
+
+        entity.streams.push(rsrc_stream);
+        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
+
+        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
+        let diffs = audit_entity(&path, &entity, &options).unwrap();
+        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
     }
 
     #[cfg(target_os = "linux")]

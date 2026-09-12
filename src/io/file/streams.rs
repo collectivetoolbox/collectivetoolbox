@@ -138,7 +138,15 @@ impl StreamName {
 
 /// The classification of an attached stream or fork.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub enum StreamKind {
     /// Standard extended attribute (`user.*`).
@@ -155,11 +163,26 @@ pub enum StreamKind {
     SecurityLabel,
 }
 
+/// The platform-canonical extended attribute name used to store/represent
+/// a macOS resource fork.
+///
+/// On Darwin/macOS, writing to `com.apple.ResourceFork` writes directly to the
+/// intrinsic resource fork. On other Unix platforms (e.g. Linux), standard
+/// user xattrs require the `user.` namespace prefix, so
+/// `user.com.apple.ResourceFork` is used.
+pub const RESOURCE_FORK_XATTR_NAME: &str = if cfg!(target_os = "macos") {
+    "com.apple.ResourceFork"
+} else {
+    "user.com.apple.ResourceFork"
+};
+
 impl StreamKind {
     /// Infers the stream kind from its byte name.
     #[must_use]
     pub fn infer_from_name(name: &[u8]) -> Self {
-        if name == b"com.apple.ResourceFork" {
+        if name == b"com.apple.ResourceFork"
+            || name == b"user.com.apple.ResourceFork"
+        {
             Self::MacOsResourceFork
         } else if name.starts_with(b"system.posix_acl_access") {
             Self::PosixAclAccess
@@ -177,7 +200,11 @@ impl StreamKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
-    pub name: StreamName,
+    ///
+    /// A `None` value represents a nameless stream, such as a Classic Mac OS
+    /// resource fork (which in HFS/MFS was an intrinsic nameless fork rather
+    /// than a named stream) or a default unnamed stream.
+    pub name: Option<StreamName>,
     /// Classification of the stream.
     pub kind: StreamKind,
     /// The stream represented as a full `FileEntity`.
@@ -227,17 +254,21 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
 
         let stream_name = StreamName::from_bytes(&name_bytes);
         let kind = StreamKind::infer_from_name(&name_bytes);
-        streams.push(AttachedStream::from_data(stream_name, kind, val)?);
+        streams.push(AttachedStream::from_data(Some(stream_name), kind, val)?);
     }
 
-    // Sort deterministically by byte name
-    streams.sort_by(|a, b| a.name.cmp(&b.name));
+    // Sort deterministically by stream name and kind
+    streams.sort_by(|a, b| match a.name.cmp(&b.name) {
+        std::cmp::Ordering::Equal => a.kind.cmp(&b.kind),
+        ord => ord,
+    });
     Ok(streams)
 }
 
 impl AttachedStream {
+    /// Creates an attached stream from raw data and optional name.
     pub fn from_data(
-        name: StreamName,
+        name: Option<StreamName>,
         kind: StreamKind,
         data: Vec<u8>,
     ) -> Result<Self> {
@@ -245,7 +276,10 @@ impl AttachedStream {
         hasher.update(&data);
         let sha256 = hasher.finalize();
         let size = u64::try_from(data.len())?;
-        let name_bytes = name.as_bytes().into_owned();
+        let name_bytes = name
+            .as_ref()
+            .map(|n| n.as_bytes().into_owned())
+            .unwrap_or_default();
 
         let entity = FileEntity {
             identity: FileIdentity {
@@ -301,6 +335,20 @@ impl AttachedStream {
             data: Some(data),
         })
     }
+
+    /// Lossy string name for logging and diagnostics.
+    #[must_use]
+    pub fn to_string_lossy(&self) -> std::borrow::Cow<'_, str> {
+        match &self.name {
+            Some(name) => name.to_string_lossy(),
+            None => match self.kind {
+                StreamKind::MacOsResourceFork => {
+                    std::borrow::Cow::Borrowed("(resource fork)")
+                }
+                _ => std::borrow::Cow::Borrowed("(unnamed stream)"),
+            },
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -334,7 +382,29 @@ pub fn write_streams(
     let mut names = std::collections::HashSet::new();
     let mut validated = Vec::new();
     for stream in streams {
-        let name_os = stream.name.to_os_string()?;
+        let name_os = match &stream.name {
+            Some(name) => name.to_os_string()?,
+            None => match stream.kind {
+                // On macOS, com.apple.ResourceFork writes to the resource fork directly.
+                // On other Unix platforms, com.apple.ResourceFork stores the resource fork in xattr.
+                StreamKind::MacOsResourceFork => {
+                    OsString::from(RESOURCE_FORK_XATTR_NAME)
+                }
+                _ => {
+                    if strict_lossless {
+                        anyhow::bail!(
+                            "Cannot write unnamed non-resource-fork stream to xattr on {}",
+                            display_target.display()
+                        );
+                    }
+                    warn_fmt!(
+                        "Caveat: Skipping unnamed stream on {} (proceeding best-effort)",
+                        display_target.display()
+                    );
+                    continue;
+                }
+            },
+        };
         anyhow::ensure!(
             names.insert(name_os.clone()),
             "Stream names collide on the destination platform"
@@ -342,7 +412,7 @@ pub fn write_streams(
         let Some(data) = &stream.data else {
             anyhow::bail!(
                 "Stream {:?} on {} has no in-memory payload to write",
-                stream.name.to_string_lossy(),
+                stream.to_string_lossy(),
                 display_target.display()
             );
         };
@@ -356,7 +426,7 @@ pub fn write_streams(
         anyhow::ensure!(
             u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
             "Attached stream payload does not match its descriptor: {:?}",
-            stream.name.to_string_lossy()
+            stream.to_string_lossy()
         );
         validated.push((stream, name_os, data));
     }
@@ -365,14 +435,14 @@ pub fn write_streams(
             if strict_lossless {
                 anyhow::bail!(
                     "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
-                    stream.name.to_string_lossy(),
+                    stream.to_string_lossy(),
                     display_target.display(),
                     e
                 );
             }
             warn_fmt!(
                 "Caveat: Target filesystem cannot store extended attribute {:?} on {}: {} (proceeding best-effort)",
-                stream.name.to_string_lossy(),
+                stream.to_string_lossy(),
                 display_target.display(),
                 e
             );

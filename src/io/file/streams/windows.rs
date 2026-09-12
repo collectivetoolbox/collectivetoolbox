@@ -126,7 +126,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
                 "Windows stream changed size during capture"
             );
             streams.push(AttachedStream::from_data(
-                name,
+                Some(name),
                 StreamKind::NtfsAlternateDataStream,
                 data,
             )?);
@@ -141,7 +141,10 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             break;
         }
     }
-    streams.sort_by(|first, second| first.name.cmp(&second.name));
+    streams.sort_by(|first, second| match first.name.cmp(&second.name) {
+        std::cmp::Ordering::Equal => first.kind.cmp(&second.kind),
+        ord => ord,
+    });
     Ok(streams)
 }
 
@@ -154,12 +157,12 @@ pub fn write_windows_streams(
         let Some(ref data) = stream.data else {
             anyhow::bail!(
                 "Stream {:?} has no payload data to write",
-                stream.name.to_string_lossy()
+                stream.to_string_lossy()
             );
         };
         let mut stream_path = dest.as_os_str().to_os_string();
         match &stream.name {
-            StreamName::WindowsUtf16(units) => {
+            Some(StreamName::WindowsUtf16(units)) => {
                 if units.starts_with(&[u16::from(b':')]) {
                     stream_path.push(OsString::from_wide(units));
                 } else {
@@ -167,7 +170,7 @@ pub fn write_windows_streams(
                     stream_path.push(OsString::from_wide(units));
                 }
             }
-            StreamName::Bytes(bytes) => {
+            Some(StreamName::Bytes(bytes)) => {
                 let s = std::str::from_utf8(bytes)
                     .context("Stream name bytes are not valid UTF-8 for Windows NTFS stream")?;
                 if !s.starts_with(':') {
@@ -175,11 +178,22 @@ pub fn write_windows_streams(
                 }
                 stream_path.push(s);
             }
+            None => match stream.kind {
+                StreamKind::MacOsResourceFork => {
+                    stream_path.push(":com.apple.ResourceFork");
+                }
+                _ => {
+                    anyhow::bail!(
+                        "Cannot write unnamed stream to Windows alternate data stream on {}",
+                        dest.display()
+                    );
+                }
+            },
         }
         std::fs::write(PathBuf::from(stream_path), data).with_context(|| {
             format!(
                 "Failed to write Windows alternate data stream {:?} to {}",
-                stream.name.to_string_lossy(),
+                stream.to_string_lossy(),
                 dest.display()
             )
         })?;

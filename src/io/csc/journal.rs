@@ -634,7 +634,12 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;
     for s in &entity.streams {
-        write_bytes(w, &s.name.as_bytes())?;
+        let name_bytes = s
+            .name
+            .as_ref()
+            .map(|n| n.as_bytes().into_owned())
+            .unwrap_or_default();
+        write_bytes(w, &name_bytes)?;
         let hash = match &s.entity.kind {
             FileEntityKind::Regular { sha256, .. } => *sha256,
             _ => [0_u8; 32],
@@ -655,7 +660,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         let mut descriptor = Vec::new();
         write_entity_payload(&mut descriptor, &stream.entity)?;
         streams.push(PreservedStream {
-            name: Some(stream.name.clone()),
+            name: stream.name.clone(),
             kind: stream.kind,
             descriptor,
             data: stream.data.clone(),
@@ -783,12 +788,23 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         let mut shash = [0_u8; 32];
         r.read_exact(&mut shash)?;
 
-        let stream_name = StreamName::from_bytes(&sname_bytes);
-        let skind = StreamKind::infer_from_name(&sname_bytes);
+        let stream_name = if sname_bytes.is_empty() {
+            None
+        } else {
+            Some(StreamName::from_bytes(&sname_bytes))
+        };
+        let skind = stream_name
+            .as_ref()
+            .map(|n| StreamKind::infer_from_name(&n.as_bytes()))
+            .unwrap_or(StreamKind::MacOsResourceFork);
+        let relative_path = stream_name
+            .as_ref()
+            .map(|n| PathBuf::from(n.to_string_lossy().as_ref()))
+            .unwrap_or_default();
         let s_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from(stream_name.to_string_lossy().as_ref()),
+                relative_path,
                 enclosing_path: None,
                 raw_relative_path: sname_bytes.clone(),
                 raw_filename: sname_bytes,
@@ -907,9 +923,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             *extents = record.extents;
         }
         for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
-            if let Some(name) = preserved.name {
-                stream.name = name;
-            }
+            stream.name = preserved.name;
             stream.kind = preserved.kind;
             stream.entity = Box::new(read_entity_payload(&preserved.descriptor, origin_platform)?);
             stream.data = preserved.data;

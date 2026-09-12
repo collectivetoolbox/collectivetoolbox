@@ -730,8 +730,23 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            let native_name = crate::streams::StreamName::from_os_str(&s.name.to_os_string()?);
-            anyhow::ensure!(expected_map.insert(native_name, hash).is_none(), "Stream names collide on the destination platform");
+            let native_name = match &s.name {
+                Some(name) => {
+                    crate::streams::StreamName::from_os_str(&name.to_os_string()?)
+                }
+                None => match s.kind {
+                    crate::streams::StreamKind::MacOsResourceFork => {
+                        crate::streams::StreamName::from_str(
+                            crate::streams::RESOURCE_FORK_XATTR_NAME,
+                        )
+                    }
+                    _ => continue,
+                },
+            };
+            anyhow::ensure!(
+                expected_map.insert(native_name, hash).is_none(),
+                "Stream names collide on the destination platform"
+            );
         }
 
         let mut disk_map = HashMap::new();
@@ -740,7 +755,18 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            disk_map.insert(s.name.clone(), hash);
+            let native_name = match &s.name {
+                Some(name) => name.clone(),
+                None => match s.kind {
+                    crate::streams::StreamKind::MacOsResourceFork => {
+                        crate::streams::StreamName::from_str(
+                            crate::streams::RESOURCE_FORK_XATTR_NAME,
+                        )
+                    }
+                    _ => continue,
+                },
+            };
+            disk_map.insert(native_name, hash);
         }
 
         for (exp_name, exp_hash) in &expected_map {

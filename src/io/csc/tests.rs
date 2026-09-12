@@ -1287,22 +1287,25 @@ mod csc_tests {
         let mut stream_entity = file_entity.clone();
         stream_entity.streams.clear();
         file_entity.streams.push(ctb_io::file::AttachedStream {
-            name: ctb_io::file::StreamName::from_bytes(b"user.raw\xff"),
+            name: Some(ctb_io::file::StreamName::from_bytes(b"user.raw\xff")),
             kind: ctb_io::file::StreamKind::SecurityLabel,
             entity: Box::new(stream_entity),
             data: Some(vec![0, 255, 128]),
         });
         let mut wide_stream = file_entity.streams[0].clone();
-        wide_stream.name = ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]);
+        wide_stream.name = Some(ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]));
         file_entity.streams.push(wide_stream);
         for name in [
             ctb_io::file::StreamName::from_bytes(b"user.binary\xff"),
             ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]),
         ] {
             file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
-                name, ctb_io::file::StreamKind::NtfsAlternateDataStream, vec![0, 255, 128],
+                Some(name), ctb_io::file::StreamKind::NtfsAlternateDataStream, vec![0, 255, 128],
             ).unwrap());
         }
+        file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
+            None, ctb_io::file::StreamKind::MacOsResourceFork, vec![1, 2, 3, 4],
+        ).unwrap());
         writer.record_entity(&file_entity);
         writer.record_entity(&link_entity);
         writer.commit_batch().expect("commit batch");
