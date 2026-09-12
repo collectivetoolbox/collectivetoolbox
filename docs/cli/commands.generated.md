@@ -341,6 +341,10 @@ Options:
           Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
       --check-atime
           Explicitly check access time (atime) differences in post-copy verification
+      --check-ctime
+          Explicitly check status/metadata change time (ctime) differences in post-copy verification
+      --strict
+          Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification
       --delete-manifest-after
           Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion
   -r, --recursive
@@ -396,6 +400,10 @@ Options:
           Relax strict metadata requirements when writing to target filesystem. Permits unprivileged copies (skips root-only chown/flags failures) and tolerates up to 2 seconds of timestamp precision loss (e.g. FAT/SMB)
       --check-atime
           Explicitly check access time (atime) differences in post-copy verification
+      --check-ctime
+          Explicitly check status/metadata change time (ctime) differences in post-copy verification
+      --strict
+          Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification
       --delete-manifest-after
           Delete state journal (.cscjournal) and descriptor (.cscdesc) upon successful completion
   -r, --recursive
@@ -435,6 +443,7 @@ Options:
       --format <FORMAT>   Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
   -q, --quiet             Only report discrepancies or errors, suppressing informational progress
       --best-effort       Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
+      --strict            Enforce strictest verification settings, enabling --check-atime and --check-ctime
       --allow-incomplete  Allow verifying against a manifest that failed, was aborted, or has not completed verification
   -h, --help              Print help (see more with '--help')
 ```
