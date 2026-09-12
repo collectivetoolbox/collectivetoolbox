@@ -236,6 +236,7 @@ mod tests {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -371,6 +372,7 @@ mod tests {
             timestamps: FileTimestamps {
                 atime_sec: 0, atime_nsec: 0, mtime_sec: 0, mtime_nsec: 0,
                 ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
+                resolution_nsec: None,
             },
             flags: Vec::new(), platform_raw_flags: None, read_time: None,
         };
@@ -693,6 +695,7 @@ mod tests {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -808,6 +811,7 @@ mod tests {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -894,6 +898,7 @@ mod tests {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -970,6 +975,7 @@ mod tests {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -993,6 +999,134 @@ mod tests {
         assert_eq!(receipt.bytes_written, size);
         assert!(!receipt.skipped_identical);
         assert_eq!(fs::read(&dest_file).unwrap(), new_bytes);
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_reparse_buffer_symlink_roundtrip() {
+        use crate::metadata::reparse::{
+            IO_REPARSE_TAG_SYMLINK, SYMLINK_FLAG_RELATIVE,
+            build_symlink_reparse_buffer, parse_reparse_buffer,
+        };
+        use std::collections::BTreeMap;
+
+        let sub_name = "target\\subfolder\\file.txt";
+        let print_name = "target\\subfolder\\file.txt";
+        let buf = build_symlink_reparse_buffer(sub_name, print_name, true).unwrap();
+
+        let mut values = BTreeMap::new();
+        let tag = parse_reparse_buffer(&buf, &mut values).unwrap();
+        assert_eq!(tag, Some(IO_REPARSE_TAG_SYMLINK));
+        assert_eq!(
+            values.get("reparse.tag"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_SYMLINK)))
+        );
+        assert_eq!(
+            values.get("reparse.symlink.flags"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(SYMLINK_FLAG_RELATIVE)))
+        );
+        assert_eq!(
+            values.get("reparse.substitute_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+        );
+        assert_eq!(
+            values.get("reparse.print_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_reparse_buffer_mount_point_roundtrip() {
+        use crate::metadata::reparse::{
+            IO_REPARSE_TAG_MOUNT_POINT, build_mount_point_reparse_buffer,
+            parse_reparse_buffer,
+        };
+        use std::collections::BTreeMap;
+
+        let sub_name = "\\??\\C:\\Volume{1234}\\junction";
+        let print_name = "C:\\junction";
+        let buf = build_mount_point_reparse_buffer(sub_name, print_name).unwrap();
+
+        let mut values = BTreeMap::new();
+        let tag = parse_reparse_buffer(&buf, &mut values).unwrap();
+        assert_eq!(tag, Some(IO_REPARSE_TAG_MOUNT_POINT));
+        assert_eq!(
+            values.get("reparse.tag"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_MOUNT_POINT)))
+        );
+        assert_eq!(
+            values.get("reparse.substitute_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+        );
+        assert_eq!(
+            values.get("reparse.print_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_file_timestamps_resolution_nanos() {
+        let ts = FileTimestamps {
+            atime_sec: 1_700_000_000,
+            atime_nsec: 500,
+            mtime_sec: 1_700_000_001,
+            mtime_nsec: 600,
+            ctime_sec: 1_700_000_002,
+            ctime_nsec: 700,
+            birthtime_sec: Some(1_700_000_000),
+            birthtime_nsec: Some(100),
+            resolution_nsec: Some(100), // Windows FILETIME resolution
+        };
+        let encoded = serde_json::to_string(&ts).unwrap();
+        let decoded: FileTimestamps = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.resolution_nsec, Some(100));
+        assert_eq!(decoded, ts);
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_security_descriptor_metadata_tracking() {
+        let mut values = std::collections::BTreeMap::new();
+        values.insert(
+            "security.descriptor".to_owned(),
+            metadata::NativeMetadataValue::Bytes(vec![1, 0, 4, 128, 20, 0, 0, 0]),
+        );
+        values.insert(
+            "security.sddl".to_owned(),
+            metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()),
+        );
+        values.insert(
+            "security.info_flags".to_owned(),
+            metadata::NativeMetadataValue::Unsigned(7),
+        );
+        let native = metadata::NativeMetadata {
+            source_os: OsFamily::Windows,
+            values,
+        };
+        let meta = FileMetadata {
+            native: Some(native),
+            mode: 0o644,
+            uid: 0,
+            gid: 0,
+            timestamps: FileTimestamps {
+                atime_sec: 0,
+                atime_nsec: 0,
+                mtime_sec: 0,
+                mtime_nsec: 0,
+                ctime_sec: 0,
+                ctime_nsec: 0,
+                birthtime_sec: None,
+                birthtime_nsec: None,
+                resolution_nsec: Some(100),
+            },
+            flags: Vec::new(),
+            platform_raw_flags: None,
+            read_time: None,
+        };
+        let serialized = serde_json::to_string(&meta).unwrap();
+        let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(
+            deserialized.native.as_ref().unwrap().values.get("security.sddl"),
+            Some(&metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()))
+        );
     }
 }
 

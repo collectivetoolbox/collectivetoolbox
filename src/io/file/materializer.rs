@@ -110,13 +110,15 @@ pub fn apply_entity_metadata(
     apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<()> {
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
     crate::metadata::check_metadata_replication(dest, meta, strict_lossless, true)?;
     let mode = meta.mode;
+    #[cfg(unix)]
     let uid = meta.uid;
+    #[cfg(unix)]
     let gid = meta.gid;
     let atime = FileTime::from_unix_time(
         meta.timestamps.atime_sec,
@@ -186,6 +188,13 @@ pub fn apply_entity_metadata(
             );
         }
     }
+    #[cfg(windows)]
+    if !is_symlink && (mode & 0o222) == 0 {
+        if let Ok(mut perms) = std::fs::metadata(dest).map(|m| m.permissions()) {
+            perms.set_readonly(true);
+            let _ = std::fs::set_permissions(dest, perms);
+        }
+    }
 
     // 3. Timestamps
     // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
@@ -209,6 +218,17 @@ pub fn apply_entity_metadata(
         );
     }
 
+    #[cfg(windows)]
+    {
+        if let Some(ref native) = meta.native {
+            crate::metadata::windows::apply_windows_security_metadata(dest, native, strict_lossless)?;
+            if is_symlink {
+                crate::metadata::windows::apply_windows_reparse_metadata(dest, native, strict_lossless)?;
+            }
+        }
+        apply_windows_birthtime(dest, meta)?;
+    }
+
     // 4. File flags
     if apply_flags && (!meta.flags.is_empty() || meta.platform_raw_flags.is_some()) {
         apply_file_flags(
@@ -223,6 +243,59 @@ pub fn apply_entity_metadata(
         crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?;
     }
 
+    Ok(())
+}
+
+#[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "Win32 CreateFileW and SetFileTime require FFI to set file creation timestamp"
+)]
+fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
+    if let Some(sec) = meta.timestamps.birthtime_sec {
+        // Reason for fallback: Sub-second nanoseconds default to 0 when unrecorded in timestamp metadata.
+        let nsec = meta.timestamps.birthtime_nsec.unwrap_or(0);
+        let total_secs = u64::try_from(sec.saturating_add(11_644_473_600))
+            .context("Invalid epoch conversion")?;
+        let intervals = total_secs
+            .checked_mul(10_000_000)
+            .context("Overflow in birth time calculation")?
+            .checked_add(u64::from(nsec).checked_div(100).context("Division error")?)
+            .context("Overflow adding nanoseconds")?;
+        let low = u32::try_from(intervals & 0xFFFF_FFFF)?;
+        let high = u32::try_from(intervals >> 32)?;
+        let ft = windows_sys::Win32::Foundation::FILETIME {
+            dwLowDateTime: low,
+            dwHighDateTime: high,
+        };
+        let wide = crate::metadata::windows::path_to_wide(dest)?;
+        // SAFETY: wide is a null-terminated path and handle is properly closed if valid.
+        let handle = unsafe {
+            windows_sys::Win32::Storage::FileSystem::CreateFileW(
+                wide.as_ptr(),
+                windows_sys::Win32::Storage::FileSystem::FILE_WRITE_ATTRIBUTES,
+                windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+                core::ptr::null(),
+                windows_sys::Win32::Storage::FileSystem::OPEN_EXISTING,
+                windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS
+                    | windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
+                core::ptr::null_mut(),
+            )
+        };
+        if handle != windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+            unsafe {
+                windows_sys::Win32::Storage::FileSystem::SetFileTime(
+                    handle,
+                    &raw const ft,
+                    core::ptr::null(),
+                    core::ptr::null(),
+                );
+                windows_sys::Win32::Foundation::CloseHandle(handle);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -272,7 +345,7 @@ pub fn materialize_entity(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
     let dest_path = resolve_and_validate_path(
         dest_dir.root_path(),

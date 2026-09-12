@@ -271,6 +271,7 @@ impl AttachedStream {
                     ctime_nsec: 0,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
                 flags: Vec::new(),
                 platform_raw_flags: None,
@@ -304,7 +305,9 @@ impl AttachedStream {
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
-pub use windows::read_and_hash_streams;
+pub use windows::{
+    read_and_hash_streams, remove_windows_stream, write_windows_streams,
+};
 
 /// Reads all extended attributes, resource forks, and security labels from `path`.
 #[cfg(not(any(unix, windows)))]
@@ -369,8 +372,19 @@ pub fn write_streams(
     Ok(())
 }
 
+/// Writes all attached streams (NTFS alternate data streams) to `dest`.
+#[cfg(windows)]
+pub fn write_streams(
+    dest: &Path,
+    _target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    _strict_lossless: bool,
+) -> Result<()> {
+    windows::write_windows_streams(dest, streams)
+}
+
 /// Writes all attached streams (xattrs, resource forks) to `dest`.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub fn write_streams(
     _dest: &Path,
     _target_display_path: Option<&Path>,
@@ -388,13 +402,17 @@ pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     #[cfg(unix)]
     {
         xattr::remove(path, name)?;
+        Ok(())
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        windows::remove_windows_stream(path, name)
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         anyhow::bail!(
             "Removing stream {name:?} is unsupported on this platform: {}",
             path.display()
-        );
+        )
     }
-    Ok(())
 }

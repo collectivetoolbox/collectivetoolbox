@@ -249,13 +249,200 @@ impl FileEntity {
         Self::from_filesystem_internal(path, base_dir, false)
     }
 
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     fn from_filesystem_internal(
         path: &Path,
         _base_dir: Option<&Path>,
         _compute_hash: bool,
     ) -> Result<Self> {
         anyhow::bail!("Lossless filesystem capture (native identity, security metadata, and streams) is not implemented on this platform: {}", path.display())
+    }
+
+    #[cfg(windows)]
+    fn from_filesystem_internal(
+        path: &Path,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+    ) -> Result<Self> {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+
+        let sym_meta = std::fs::symlink_metadata(path)
+            .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+
+        let file_type = sym_meta.file_type();
+        let file_attrs = sym_meta.file_attributes();
+        let is_reparse = (file_attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+        let is_symlink = file_type.is_symlink() || is_reparse;
+
+        let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
+
+        let dev = if let Some(crate::metadata::NativeMetadataValue::Unsigned(serial)) =
+            native_metadata.values.get("volume_serial_number")
+        {
+            *serial
+        } else {
+            0
+        };
+
+        let ino = if let Some(crate::metadata::NativeMetadataValue::Unsigned(index)) =
+            native_metadata.values.get("file_index")
+        {
+            *index
+        } else {
+            0
+        };
+
+        let nlink = if let Some(crate::metadata::NativeMetadataValue::Unsigned(links)) =
+            native_metadata.values.get("link_count")
+        {
+            *links
+        } else {
+            1
+        };
+
+        let (atime_sec, atime_nsec) = system_time_to_unix(sym_meta.accessed());
+        let (mtime_sec, mtime_nsec) = system_time_to_unix(sym_meta.modified());
+        let (btime_sec, btime_nsec) = system_time_to_unix(sym_meta.created());
+
+        let timestamps = FileTimestamps {
+            atime_sec,
+            atime_nsec,
+            mtime_sec,
+            mtime_nsec,
+            ctime_sec: mtime_sec,
+            ctime_nsec: mtime_nsec,
+            birthtime_sec: Some(btime_sec),
+            birthtime_nsec: Some(btime_nsec),
+            resolution_nsec: Some(100),
+        };
+
+        let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
+
+        let mode = if (file_attrs & 1) != 0 { 0o444 } else { 0o666 }
+            | if sym_meta.is_dir() { 0o111 } else { 0 };
+
+        // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
+        let filename_bytes = path
+            .file_name()
+            .map_or_else(Vec::new, |f| f.as_encoded_bytes().to_vec());
+
+        // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
+        let relative_path = if let Some(base) = base_dir {
+            match path.strip_prefix(base) {
+                Ok(rel) if !rel.as_os_str().is_empty() => rel.to_path_buf(),
+                Ok(_) if sym_meta.is_dir() => PathBuf::new(),
+                // Reason for fallback: File name or empty PathBuf when strip prefix fails.
+                _ => path.file_name().map_or_else(PathBuf::new, PathBuf::from),
+            }
+        } else {
+            // Reason for fallback: When no base_dir is specified, fall back to file name or empty PathBuf.
+            path.file_name().map_or_else(PathBuf::new, PathBuf::from)
+        };
+
+        let read_time = Some(SystemTime::now());
+        // Reason for fallback: Dangling symlinks or special pseudo-paths cannot be canonicalized by the OS; fall back to verbatim path.
+        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let mut raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
+        for b in &mut raw_relative_path {
+            if *b == b'\\' {
+                *b = b'/';
+            }
+        }
+
+        let enclosing_path = match base_dir {
+            Some(base) => Some(base.to_path_buf()),
+            None => path.parent().map(Path::to_path_buf),
+        };
+
+        let identity = FileIdentity {
+            origin: FileOrigin::Filesystem {
+                key: InodeKey {
+                    device_id: dev,
+                    inode: ino,
+                },
+                canonical_path: canonical,
+            },
+            relative_path,
+            enclosing_path,
+            raw_relative_path,
+            raw_filename: filename_bytes,
+            nlink,
+            hardlink_group: if nlink > 1 { Some(ino) } else { None },
+        };
+
+        let metadata = FileMetadata {
+            native: Some(native_metadata),
+            mode,
+            uid: 0,
+            gid: 0,
+            timestamps,
+            flags,
+            platform_raw_flags: platform_raw,
+            read_time,
+        };
+
+        let kind = if is_symlink {
+            let target_bytes = if let Ok(target) = std::fs::read_link(path) {
+                target.as_os_str().as_encoded_bytes().to_vec()
+            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(print_name)) =
+                metadata.native.as_ref().and_then(|n| n.values.get("reparse.print_name"))
+            {
+                print_name.clone()
+            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(sub_name)) =
+                metadata.native.as_ref().and_then(|n| n.values.get("reparse.substitute_name"))
+            {
+                sub_name.clone()
+            } else {
+                Vec::new()
+            };
+            FileEntityKind::Symlink {
+                target: target_bytes,
+            }
+        } else if file_type.is_dir() {
+            FileEntityKind::Directory
+        } else {
+            let size = sym_meta.len();
+            let mut file = File::open(path)
+                .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
+            let extents = get_file_extents(&file, size)?;
+            let is_sparse = extents.iter().any(Extent::is_hole);
+            file.seek(SeekFrom::Start(0))?;
+
+            let sha256 = if compute_hash {
+                let mut hasher = Sha256Stream::new();
+                let mut buf = vec![0_u8; 64 * 1024];
+                loop {
+                    let count = file.read(&mut buf)?;
+                    if count == 0 {
+                        break;
+                    }
+                    let slice = buf
+                        .get(..count)
+                        .context("Buffer slice index out of bounds")?;
+                    hasher.update(slice);
+                }
+                hasher.finalize()
+            } else {
+                [0_u8; 32]
+            };
+
+            FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse,
+                extents,
+            }
+        };
+
+        let streams = read_and_hash_streams(path)?;
+
+        Ok(Self {
+            identity,
+            metadata,
+            kind,
+            streams,
+        })
     }
 
     #[cfg(unix)]
@@ -304,6 +491,7 @@ impl FileEntity {
                     ctime_nsec,
                     birthtime_sec: None,
                     birthtime_nsec: None,
+                    resolution_nsec: None,
                 },
             )
         };
@@ -505,3 +693,26 @@ impl FileEntity {
         self.metadata.read_time
     }
 }
+
+#[cfg(windows)]
+fn system_time_to_unix(time: std::io::Result<SystemTime>) -> (i64, u32) {
+    if let Ok(st) = time {
+        if let Ok(duration) = st.duration_since(std::time::UNIX_EPOCH) {
+            // Reason for fallback: SystemTime durations exceeding i64::MAX seconds clamp to i64::MAX to prevent overflow.
+            let secs = i64::try_from(duration.as_secs()).unwrap_or(i64::MAX);
+            let nsec = duration.subsec_nanos();
+            (secs, nsec)
+        } else if let Ok(duration) = std::time::UNIX_EPOCH.duration_since(st) {
+            // Reason for fallback: Pre-epoch SystemTime durations exceeding i64::MAX seconds clamp to i64::MIN to prevent overflow.
+            let secs = i64::try_from(duration.as_secs())
+                .map_or(i64::MIN, |s| s.saturating_neg());
+            let nsec = duration.subsec_nanos();
+            (secs, nsec)
+        } else {
+            (0, 0)
+        }
+    } else {
+        (0, 0)
+    }
+}
+

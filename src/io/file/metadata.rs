@@ -343,6 +343,9 @@ pub struct FileTimestamps {
     pub birthtime_sec: Option<i64>,
     /// Creation/birth time nanosecond component, if available.
     pub birthtime_nsec: Option<u32>,
+    /// Timestamp resolution in nanoseconds, if known (e.g. 100 for Windows FILETIME).
+    #[serde(default)]
+    pub resolution_nsec: Option<u32>,
 }
 
 /// Complete file metadata, combining POSIX attributes, timestamps, and flags.
@@ -404,6 +407,9 @@ pub fn capture_birthtime(
 
 #[cfg(target_os = "linux")]
 mod linux;
+pub mod reparse;
+#[cfg(windows)]
+pub mod windows;
 
 pub fn capture_native_metadata(
     path: &std::path::Path,
@@ -428,17 +434,7 @@ pub fn capture_native_metadata(
     }
     #[cfg(windows)]
     {
-        use std::os::windows::fs::MetadataExt;
-        for (name, value) in [
-            ("attributes", u64::from(meta.file_attributes())),
-            ("creation_time", meta.creation_time()),
-            ("last_access_time", meta.last_access_time()),
-            ("last_write_time", meta.last_write_time()),
-            ("file_size", meta.file_size()),
-        ] {
-            values
-                .insert(name.to_owned(), NativeMetadataValue::Unsigned(value));
-        }
+        windows::capture_windows_metadata(path, meta, &mut values)?;
     }
     #[cfg(target_os = "linux")]
     {
@@ -598,6 +594,12 @@ pub fn native_metadata_differences(
             "statx.ctime.nsec",
             "statx.mtime.sec",
             "statx.mtime.nsec",
+            "volume_serial_number",
+            "file_index",
+            "creation_time",
+            "last_access_time",
+            "last_write_time",
+            "file_size",
         ];
         let actual = capture_native_metadata(
             destination,
@@ -612,7 +614,10 @@ pub fn native_metadata_differences(
         }
         for (name, value) in &native.values {
             if ignore_flags
-                && matches!(name.as_str(), "statx.attributes" | "fsxattr.flags")
+                && matches!(
+                    name.as_str(),
+                    "statx.attributes" | "fsxattr.flags" | "attributes"
+                )
             {
                 continue;
             }

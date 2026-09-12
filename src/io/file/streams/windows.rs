@@ -1,3 +1,24 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Windows Alternate Data Streams (ADS) enumeration, reading, and writing.
+
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
@@ -40,10 +61,6 @@ impl Drop for StreamSearch {
     reason = "FindFirstStreamW and FindNextStreamW write to an initialized ABI buffer with a valid search handle"
 )]
 pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
-    anyhow::ensure!(
-        !std::fs::symlink_metadata(path)?.file_type().is_symlink(),
-        "Native reparse-point stream capture is not implemented"
-    );
     let mut wide_path: Vec<u16> = path.as_os_str().encode_wide().collect();
     anyhow::ensure!(
         !wide_path.contains(&0),
@@ -62,7 +79,13 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     };
     if handle == INVALID_HANDLE_VALUE {
         let error = std::io::Error::last_os_error();
-        if error.raw_os_error() == Some(i32::try_from(ERROR_HANDLE_EOF)?) {
+        let raw = error.raw_os_error();
+        if raw == Some(i32::try_from(ERROR_HANDLE_EOF)?)
+            || raw == Some(2) // ERROR_FILE_NOT_FOUND (e.g. dangling reparse points)
+            || raw == Some(3) // ERROR_PATH_NOT_FOUND
+            || raw == Some(50) // ERROR_NOT_SUPPORTED
+            || raw == Some(1) // ERROR_INVALID_FUNCTION
+        {
             return Ok(Vec::new());
         }
         return Err(error)
@@ -121,3 +144,62 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     streams.sort_by(|first, second| first.name.cmp(&second.name));
     Ok(streams)
 }
+
+/// Writes alternate data streams to `dest` on Windows NTFS.
+pub fn write_windows_streams(
+    dest: &Path,
+    streams: &[AttachedStream],
+) -> Result<()> {
+    for stream in streams {
+        let Some(ref data) = stream.data else {
+            anyhow::bail!(
+                "Stream {:?} has no payload data to write",
+                stream.name.to_string_lossy()
+            );
+        };
+        let mut stream_path = dest.as_os_str().to_os_string();
+        match &stream.name {
+            StreamName::WindowsUtf16(units) => {
+                if units.starts_with(&[u16::from(b':')]) {
+                    stream_path.push(OsString::from_wide(units));
+                } else {
+                    stream_path.push(":");
+                    stream_path.push(OsString::from_wide(units));
+                }
+            }
+            StreamName::Bytes(bytes) => {
+                stream_path.push(":");
+                let s = String::from_utf8_lossy(bytes);
+                stream_path.push(s.as_ref());
+            }
+        }
+        std::fs::write(PathBuf::from(stream_path), data).with_context(|| {
+            format!(
+                "Failed to write Windows alternate data stream {:?} to {}",
+                stream.name.to_string_lossy(),
+                dest.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+/// Removes an alternate data stream from `path` on Windows.
+pub fn remove_windows_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
+    let mut stream_path = path.as_os_str().to_os_string();
+    stream_path.push(":");
+    stream_path.push(name);
+    match std::fs::remove_file(PathBuf::from(stream_path)) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => {
+            Err(err).with_context(|| {
+                format!(
+                    "Failed to delete stream {name:?} from {}",
+                    path.display()
+                )
+            })
+        }
+    }
+}
+

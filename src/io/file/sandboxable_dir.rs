@@ -456,7 +456,41 @@ impl SandboxableDir {
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`.
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    pub fn create_symlink(
+        &self,
+        _parent_dir_fd: &DirHandleRef<'_>,
+        link_name: impl AsRef<std::ffi::OsStr>,
+        target_bytes: &[u8],
+        policy: SymlinkValidationPolicy,
+    ) -> Result<()> {
+        use std::os::windows::fs::symlink_file;
+        let link_os = link_name.as_ref();
+        let symlink_path = self.root_path.join(link_os);
+        validate_symlink_target(&self.root_path, &symlink_path, target_bytes, policy)?;
+
+        let target_str = std::str::from_utf8(target_bytes)
+            .context("Target bytes are not valid UTF-8 on Windows")?;
+        let target_path = PathBuf::from(target_str.replace('/', "\\"));
+
+        if symlink_path.exists() || symlink_path.is_symlink() {
+            let _ = std::fs::remove_file(&symlink_path);
+            let _ = std::fs::remove_dir(&symlink_path);
+        }
+
+        let is_dir = target_path.is_dir();
+        if is_dir {
+            std::os::windows::fs::symlink_dir(&target_path, &symlink_path)
+                .context("Failed to create directory symlink")?;
+        } else {
+            symlink_file(&target_path, &symlink_path)
+                .context("Failed to create file symlink")?;
+        }
+        Ok(())
+    }
+
+    /// Creates a symbolic link directly inside `parent_dir_fd`.
+    #[cfg(not(any(unix, windows)))]
     pub fn create_symlink(
         &self,
         _parent_dir_fd: &DirHandleRef<'_>,
