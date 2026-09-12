@@ -1244,6 +1244,13 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
+            let is_data_dir = path.file_name() == Some(OsStr::new("data"));
+            let has_cargo_toml = path.join("Cargo.toml").is_file();
+
+            if is_data_dir && !has_cargo_toml {
+                continue;
+            }
+
             collect_rs_files(&path, out)?;
             continue;
         }

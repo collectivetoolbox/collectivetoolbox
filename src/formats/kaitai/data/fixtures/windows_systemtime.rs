@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
+// license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 #![allow(unused_imports)]

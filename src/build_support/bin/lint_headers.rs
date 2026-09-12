@@ -20,6 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Lint tool to check license headers, module docblocks, and module file naming
 //! in Rust and Scheme source files.
 
+use std::collections::BTreeSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -135,7 +136,7 @@ struct Violation {
 }
 
 /// Recursively find all `.rs` and `.scm` files excluding target, vendor, old,
-/// built, generated, .git, and fixtures.
+/// built, generated, .git, and data directories without a Cargo.toml.
 fn find_files(
     dir: &Path,
     rs_files: &mut Vec<PathBuf>,
@@ -145,24 +146,24 @@ fn find_files(
         let entry = entry?;
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str());
-        let lossy = path.to_string_lossy();
         if path.is_dir() {
+            let is_data_dir = name == Some("data");
+            let has_cargo_toml = path.join("Cargo.toml").is_file();
+            if is_data_dir && !has_cargo_toml {
+                continue;
+            }
+
             if name == Some("target")
                 || name == Some("vendor")
                 || name == Some(".git")
                 || name == Some("old")
                 || name == Some("built")
                 || name == Some("generated")
-                || lossy.ends_with("src/build_support/data/fixtures")
-                || lossy.contains("src/build_support/data/fixtures/")
             {
                 continue;
             }
             find_files(&path, rs_files, scm_files)?;
         } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            if lossy.contains("src/build_support/data/fixtures") {
-                continue;
-            }
             if ext == "rs" {
                 rs_files.push(path);
             } else if ext == "scm" {
@@ -317,6 +318,7 @@ enum HeaderKind {
     DefaultAgpl,
     PanMit,
     DerivedThirdParty,
+    AllowNonAgpl,
 }
 
 struct ParsedHeader {
@@ -327,6 +329,119 @@ struct ParsedHeader {
 /// Normalize line endings to LF.
 fn normalize_newlines(s: &str) -> String {
     s.replace("\r\n", "\n")
+}
+
+/// Try parsing a header that permits non-AGPL licensing via directive.
+fn parse_allow_non_agpl_header(lines: &[&str]) -> Option<ParsedHeader> {
+    let first_line = lines.first()?;
+    let is_spdx_line = first_line.starts_with("// SPDX-License-Identifier:")
+        || (first_line.starts_with("/* SPDX-License-Identifier:")
+            && first_line.contains("*/"));
+
+    if !is_spdx_line {
+        return None;
+    }
+
+    let mut idx = 1;
+    while let Some(line) = lines.get(idx) {
+        let trimmed = line.trim();
+        if trimmed.starts_with("// SPDX-License-Identifier") {
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    let mut check_idx = idx;
+    while let Some(line) = lines.get(check_idx) {
+        if line.trim().is_empty() {
+            check_idx = check_idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    if let Some(line) = lines.get(check_idx) {
+        if line.trim() == "// license-linter:allow-non-AGPL" {
+            return Some(ParsedHeader {
+                kind: HeaderKind::AllowNonAgpl,
+                header_end_line: check_idx.saturating_add(1),
+            });
+        }
+    }
+
+    None
+}
+
+/// Try parsing a derived third-party AGPL license header.
+fn parse_derived_third_party_header(
+    lines: &[&str],
+    file_path: &Path,
+) -> Result<Option<ParsedHeader>, String> {
+    let Some(first_line) = lines.first() else {
+        return Ok(None);
+    };
+
+    let is_agpl_or_later = first_line
+        .starts_with("// SPDX-License-Identifier: AGPL-3.0-or-later AND ");
+    let is_agpl_only = first_line
+        .starts_with("// SPDX-License-Identifier: AGPL-3.0-only AND ");
+
+    if !is_agpl_or_later && !is_agpl_only {
+        return Ok(None);
+    }
+
+    if is_agpl_only && !is_allowed_agpl_only_file(file_path) {
+        return Err(
+            "AGPL-3.0-only is not allowed in this file; use AGPL-3.0-or-later"
+                .to_string(),
+        );
+    }
+
+    let mut idx = 1;
+    let mut found_derived_clause = false;
+
+    // Lines 2+ should have one or more lines starting with `// SPDX-License-Identifier for parts derived from `
+    while let Some(line) = lines.get(idx) {
+        if line.starts_with("// SPDX-License-Identifier for parts derived from ") {
+            found_derived_clause = true;
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    if !found_derived_clause {
+        return Err("Derived header missing `// SPDX-License-Identifier for parts derived from ...` line(s)".to_string());
+    }
+
+    // Must be followed by the Collective Toolbox Developers AGPL copyright block
+    let remaining_from_block =
+        lines.get(idx..).map(|s| s.join("\n")).unwrap_or_default();
+    let (matched_block_lines, block_ok) = if is_agpl_only {
+        if remaining_from_block.starts_with(AGPL_3_0_ONLY_COPYRIGHT_BLOCK) {
+            (AGPL_3_0_ONLY_COPYRIGHT_BLOCK.lines().count(), true)
+        } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
+            (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
+        } else {
+            (0, false)
+        }
+    } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
+        (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
+    } else {
+        (0, false)
+    };
+
+    if !block_ok {
+        return Err("Derived header missing standard Collective Toolbox AGPL copyright block after derived clauses".to_string());
+    }
+
+    idx = idx.saturating_add(matched_block_lines);
+
+    Ok(Some(ParsedHeader {
+        kind: HeaderKind::DerivedThirdParty,
+        header_end_line: idx,
+    }))
 }
 
 /// Try parsing a valid header at the top of the file.
@@ -363,72 +478,16 @@ fn parse_license_header(
         });
     }
 
-    // Case 3: Derived Third-Party Header
-    // First line must start with `// SPDX-License-Identifier: AGPL-3.0-or-later AND ` or `// SPDX-License-Identifier: AGPL-3.0-only AND `
     let lines: Vec<&str> = normalized.lines().collect();
-    let Some(first_line) = lines.first() else {
-        return Err("File is empty".to_string());
-    };
 
-    let is_agpl_or_later = first_line
-        .starts_with("// SPDX-License-Identifier: AGPL-3.0-or-later AND ");
-    let is_agpl_only = first_line
-        .starts_with("// SPDX-License-Identifier: AGPL-3.0-only AND ");
-
-    if is_agpl_only && !is_allowed_agpl_only_file(file_path) {
-        return Err(
-            "AGPL-3.0-only is not allowed in this file; use AGPL-3.0-or-later"
-                .to_string(),
-        );
+    // Case 3: Allow non-AGPL directive following SPDX lines
+    if let Some(header) = parse_allow_non_agpl_header(&lines) {
+        return Ok(header);
     }
 
-    if is_agpl_or_later || is_agpl_only {
-        let mut idx = 1;
-        let mut found_derived_clause = false;
-
-        // Lines 2+ should have one or more lines starting with `// SPDX-License-Identifier for parts derived from `
-        while let Some(line) = lines.get(idx) {
-            if line.starts_with(
-                "// SPDX-License-Identifier for parts derived from ",
-            ) {
-                found_derived_clause = true;
-                idx = idx.saturating_add(1);
-            } else {
-                break;
-            }
-        }
-
-        if !found_derived_clause {
-            return Err("Derived header missing `// SPDX-License-Identifier for parts derived from ...` line(s)".to_string());
-        }
-
-        // Must be followed by the Collective Toolbox Developers AGPL copyright block
-        let remaining_from_block =
-            lines.get(idx..).map(|s| s.join("\n")).unwrap_or_default();
-        let (matched_block_lines, block_ok) = if is_agpl_only {
-            if remaining_from_block.starts_with(AGPL_3_0_ONLY_COPYRIGHT_BLOCK) {
-                (AGPL_3_0_ONLY_COPYRIGHT_BLOCK.lines().count(), true)
-            } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
-                (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
-            } else {
-                (0, false)
-            }
-        } else if remaining_from_block.starts_with(AGPL_COPYRIGHT_BLOCK) {
-            (AGPL_COPYRIGHT_BLOCK.lines().count(), true)
-        } else {
-            (0, false)
-        };
-
-        if !block_ok {
-            return Err("Derived header missing standard Collective Toolbox AGPL copyright block after derived clauses".to_string());
-        }
-
-        idx = idx.saturating_add(matched_block_lines);
-
-        return Ok(ParsedHeader {
-            kind: HeaderKind::DerivedThirdParty,
-            header_end_line: idx,
-        });
+    // Case 4: Derived Third-Party Header
+    if let Some(header) = parse_derived_third_party_header(&lines, file_path)? {
+        return Ok(header);
     }
 
     Err("Missing or invalid license header at top of file".to_string())
@@ -439,6 +498,10 @@ fn check_module_docblock(
     content: &str,
     header_info: &ParsedHeader,
 ) -> Result<(), (usize, String)> {
+    if matches!(header_info.kind, HeaderKind::AllowNonAgpl) {
+        return Ok(());
+    }
+
     let normalized = normalize_newlines(content);
     let lines: Vec<&str> = normalized.lines().collect();
 
@@ -524,8 +587,91 @@ fn check_module_docblock(
     Ok(())
 }
 
+/// Parse all license identifiers from an SPDX expression string.
+fn parse_spdx_licenses(expression: &str) -> BTreeSet<String> {
+    let mut licenses = BTreeSet::new();
+    for token in expression.split(|c: char| {
+        !c.is_ascii_alphanumeric()
+            && c != '-'
+            && c != '.'
+            && c != '+'
+            && c != '_'
+    }) {
+        let trimmed = token.trim();
+        if trimmed.is_empty()
+            || trimmed.eq_ignore_ascii_case("and")
+            || trimmed.eq_ignore_ascii_case("or")
+            || trimmed.eq_ignore_ascii_case("with")
+        {
+            continue;
+        }
+        licenses.insert(trimmed.to_string());
+    }
+    licenses
+}
+
+/// Load the allowed license identifiers from the workspace `Cargo.toml`.
+fn load_allowed_licenses(workspace_root: &Path) -> Result<BTreeSet<String>> {
+    let cargo_toml_path = workspace_root.join("Cargo.toml");
+    let content = fs::read_to_string(&cargo_toml_path)
+        .with_context(|| format!("failed to read {}", cargo_toml_path.display()))?;
+    let manifest: toml::Table = toml::from_str(&content)
+        .with_context(|| format!("failed to parse {}", cargo_toml_path.display()))?;
+    let license_str = manifest
+        .get("package")
+        .and_then(|p| p.get("license"))
+        .and_then(|l| l.as_str())
+        .with_context(|| {
+            format!(
+                "missing [package].license string in {}",
+                cargo_toml_path.display()
+            )
+        })?;
+
+    Ok(parse_spdx_licenses(license_str))
+}
+
+/// Check that all license identifiers in the header are in the allowed licenses
+/// set.
+fn check_header_licenses(
+    file_path: &Path,
+    content: &str,
+    header_info: &ParsedHeader,
+    allowed_licenses: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) {
+    let normalized = normalize_newlines(content);
+    for (idx, line) in normalized
+        .lines()
+        .enumerate()
+        .take(header_info.header_end_line)
+    {
+        let line_num = idx.saturating_add(1);
+        let trimmed = line.trim();
+        if trimmed.contains("SPDX-License-Identifier") {
+            if let Some((_, expr)) = trimmed.split_once(':') {
+                for license in parse_spdx_licenses(expr) {
+                    if !allowed_licenses.contains(&license) {
+                        violations.push(Violation {
+                            file: file_path.to_path_buf(),
+                            line: line_num,
+                            message: format!(
+                                "License `{license}` is not listed in Cargo.toml `license` field"
+                            ),
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Lint a single file and record violations.
-fn lint_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
+fn lint_file(
+    file_path: &Path,
+    allowed_licenses: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) -> Result<()> {
     if file_path.file_name().and_then(|n| n.to_str()) == Some("mod.rs") {
         violations.push(Violation {
             file: file_path.to_path_buf(),
@@ -551,6 +697,14 @@ fn lint_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
         }
     };
 
+    check_header_licenses(
+        file_path,
+        &content,
+        &parsed_header,
+        allowed_licenses,
+        violations,
+    );
+
     if let Err((line, msg)) = check_module_docblock(&content, &parsed_header) {
         violations.push(Violation {
             file: file_path.to_path_buf(),
@@ -565,6 +719,7 @@ fn lint_file(file_path: &Path, violations: &mut Vec<Violation>) -> Result<()> {
 /// Lint a single Scheme file and record violations.
 fn lint_scm_file(
     file_path: &Path,
+    allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) -> Result<()> {
     let content = fs::read_to_string(file_path)
@@ -590,6 +745,16 @@ fn lint_scm_file(
                     .to_string(),
         });
         return Ok(());
+    }
+
+    if !allowed_licenses.contains("GPL-3.0-or-later") {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message:
+                "License `GPL-3.0-or-later` is not listed in Cargo.toml `license` field"
+                    .to_string(),
+        });
     }
 
     let header_lines = SCHEME_GPL_HEADER.lines().count();
@@ -749,6 +914,7 @@ fn main() -> Result<()> {
     }
 
     let workspace_root = workspace_root.unwrap_or_else(|| PathBuf::from("."));
+    let allowed_licenses = load_allowed_licenses(&workspace_root)?;
 
     let mut rs_files = Vec::new();
     let mut scm_files = Vec::new();
@@ -766,10 +932,10 @@ fn main() -> Result<()> {
 
     let mut violations = Vec::new();
     for file_path in &rs_files {
-        lint_file(file_path, &mut violations)?;
+        lint_file(file_path, &allowed_licenses, &mut violations)?;
     }
     for file_path in &scm_files {
-        lint_scm_file(file_path, &mut violations)?;
+        lint_scm_file(file_path, &allowed_licenses, &mut violations)?;
     }
 
     let total_files = rs_files.len().saturating_add(scm_files.len());

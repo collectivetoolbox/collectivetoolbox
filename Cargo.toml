@@ -2,7 +2,7 @@
 name = "ctoolbox"
 version = "0.1.49"
 edition = "2024"
-license = "AGPL-3.0-or-later AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND GPL-3.0-only AND LGPL-3.0-only AND Unicode-3.0 AND PSF-2.0 AND 0BSD"
+license = "AGPL-3.0-or-later AND AGPL-3.0-only AND GPL-3.0-only AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND LGPL-3.0-only AND Unicode-3.0 AND PSF-2.0 AND 0BSD AND WTFPL AND X11 AND MPL-2.0"
 
 [workspace]
 exclude = ["assets/web/vendor/v86", "vendor/v86", "built/v86_build_tmp/v86", "built/v86_build_tmp/v86/src/rust"]
@@ -83,6 +83,7 @@ ctb-cli = { path = "src/cli" }
 ctb-formats = { path = "src/formats" }
 ctb-formats-alias = { path = "src/formats/alias" }
 ctb-formats-applescript = { path = "src/formats/applescript" }
+ctb-formats-archive = { path = "src/formats/archive" }
 ctb-formats-base16b = { path = "src/formats/base16b" }
 ctb-formats-base64 = { path = "src/formats/base64" }
 ctb-formats-checksum = { path = "src/formats/checksum" }

@@ -28,10 +28,10 @@ pub(crate) use ctb_utilities::*;
 
 pub mod instruction_sets;
 
-static PAN_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+static ARCHIVE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
-pub(crate) fn get_pan_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&PAN_DATA_DIR, key)
+pub(crate) fn get_archive_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&ARCHIVE_DATA_DIR, key)
 }
 
 #[cfg(test)]

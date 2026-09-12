@@ -6,10 +6,20 @@ edition = "2024"
 path="kaitai.rs"
 crate-type = ["lib"]
 
+[[bin]]
+name = "import-kaitai-formats"
+path = "bin/import_formats.rs"
+
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 include_dir = { version = "0.7.4", features = ["glob"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml = "0.9.34"
+indexmap = { version = "2.14.0", features = ["serde"] }
+clap = { version = "4.5.60", features = ["derive"] }
+walkdir = "2.5.0"
 
 [lints]
 workspace = true
+

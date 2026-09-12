@@ -1,9 +1,9 @@
 [package]
-name = "ctb-formats-x86"
+name = "ctb-formats-archive"
 edition = "2024"
 
 [lib]
-path="x86.rs"
+path="archive.rs"
 crate-type = ["lib"]
 
 [dependencies]

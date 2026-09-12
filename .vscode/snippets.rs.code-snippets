@@ -42,6 +42,15 @@
         ],
         "description": "Import crate utilities"
     },
+    "BinaryUtils": {
+        "scope": "rust",
+        "prefix": "binaryutils",
+        "body": [
+            "#[allow(unused_imports, clippy::wildcard_imports, reason = \"Standard workspace binary prelude\")]",
+            "pub(crate) use ctb_utilities::*;"
+        ],
+        "description": "Import utilities"
+    },
     "ModUtils": {
         "scope": "rust",
         "prefix": "modutils",

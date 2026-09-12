@@ -1,0 +1,1 @@
+See licenses in the licenses/ folder. They have file names matching the values of the `license` field in the .ksy files.

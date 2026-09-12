@@ -2633,6 +2633,7 @@ version = "0.0.0"
 dependencies = [
  "ctb-formats-alias",
  "ctb-formats-applescript",
+ "ctb-formats-archive",
  "ctb-formats-base16b",
  "ctb-formats-base64",
  "ctb-formats-checksum",
@@ -2697,6 +2698,15 @@ dependencies = [
  "ctb-utilities",
  "fancy-regex",
  "once_cell",
+]
+
+[[package]]
+name = "ctb-formats-archive"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
@@ -2991,9 +3001,14 @@ dependencies = [
 name = "ctb-formats-kaitai"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "ctb-formats-utilities",
  "ctb-utilities",
  "include_dir",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_yaml",
+ "walkdir",
 ]
 
 [[package]]
@@ -3748,6 +3763,7 @@ dependencies = [
  "ctb-formats",
  "ctb-formats-alias",
  "ctb-formats-applescript",
+ "ctb-formats-archive",
  "ctb-formats-base16b",
  "ctb-formats-base64",
  "ctb-formats-checksum",
@@ -3769,6 +3785,7 @@ dependencies = [
  "ctb-formats-javascript-boa-host",
  "ctb-formats-javascript-bootstrap-ts",
  "ctb-formats-json",
+ "ctb-formats-kaitai",
  "ctb-formats-lnk",
  "ctb-formats-markdown",
  "ctb-formats-math",
