@@ -252,6 +252,7 @@ enum PanDataRecordFormat {
     Le16WithStatus,
     Be16WithStatusNoMarker,
     Le16WithStatusNoMarker,
+    Be24LargeRecord,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -401,7 +402,7 @@ pub fn parse_pan(pan_file: &[u8]) -> anyhow::Result<PanDocument> {
     let record_count = sections
         .iter()
         .find(|s| s.name == "RC")
-        .and_then(|s| parse_rc_payload(&s.payload))
+        .and_then(|s| parse_rc_payload(&s.payload, is_be))
         .or_else(|| data.as_ref().map(|d| d.records.len()));
     let macros = sections
         .iter()
@@ -596,8 +597,16 @@ fn extract_data_from_sections(
             continue;
         }
 
-        let parsed =
-            parse_data_payload(&section.payload, section.offset, schema);
+        let deobfuscated_storage;
+        let payload_ref = if is_obfuscated_data_payload(&section.payload) {
+            deobfuscated_storage =
+                deobfuscate_pan_data_payload(&section.payload);
+            &deobfuscated_storage
+        } else {
+            &section.payload
+        };
+
+        let parsed = parse_data_payload(payload_ref, section.offset, schema);
         let Ok((records, header_bytes, trailing_bytes)) = parsed else {
             let error =
                 parsed.err().context("Missing DATA section parse error")?;
@@ -639,6 +648,71 @@ fn extract_data_from_sections(
         records: all_records,
         parse_warnings,
     }))
+}
+
+/// Detect parameters `(key_start, step)` for position-dependent XOR obfuscated
+/// DATA payload.
+///
+/// Panorama obfuscates DATA payloads using `key = key_start - step * i`.
+/// The first 6 bytes of a DATA payload represent a record prefix whose 0th, 4th,
+/// and 5th bytes decode to 0x00, allowing key derivation directly from the
+/// payload without hardcoding specific database signatures.
+fn detect_data_obfuscation_params(payload: &[u8]) -> Option<(u8, u8)> {
+    if payload.len() < 10 {
+        return None;
+    }
+    let &b0 = payload.first()?;
+    if b0 == 0 {
+        return None;
+    }
+    let &b4 = payload.get(4)?;
+    let &b5 = payload.get(5)?;
+    let &b6 = payload.get(6)?;
+
+    let key_start = b0;
+    let diff = key_start.wrapping_sub(b4);
+    let step = diff.checked_div(4)?;
+    if diff.checked_rem(4) != Some(0) || step == 0 {
+        return None;
+    }
+
+    let key5 = key_start.wrapping_sub(step.wrapping_mul(5));
+    if (b5 ^ key5) != 0x00 {
+        return None;
+    }
+
+    let key6 = key_start.wrapping_sub(step.wrapping_mul(6));
+    let dec6 = b6 ^ key6;
+    if dec6 == 0xff || dec6 < 0x80 {
+        Some((key_start, step))
+    } else {
+        None
+    }
+}
+
+/// Check whether a DATA section payload uses position-dependent XOR
+/// obfuscation.
+fn is_obfuscated_data_payload(payload: &[u8]) -> bool {
+    detect_data_obfuscation_params(payload).is_some()
+}
+
+/// Deobfuscate DATA payload bytes using the Panorama position-dependent XOR key.
+fn deobfuscate_pan_data_payload(payload: &[u8]) -> Vec<u8> {
+    let (key_start, step) =
+        // Reason for fallback: default to known parameters (0x50, 0x0e) if detection fails
+        detect_data_obfuscation_params(payload).unwrap_or((0x50, 0x0e));
+    payload
+        .iter()
+        .enumerate()
+        .map(|(idx, &b)| {
+            // Reason for fallback: idx & 0xff is strictly <= 255 and fits in u8
+            let step_offset = u8::try_from(idx & 0xff)
+                .unwrap_or(0)
+                .wrapping_mul(step);
+            let key = key_start.wrapping_sub(step_offset);
+            b ^ key
+        })
+        .collect()
 }
 
 fn select_schema_for_data_section(
@@ -991,6 +1065,36 @@ fn parse_data_record_headers(
         )?;
     }
 
+    if b0 == 0xff {
+        let b1 = usize::from(
+            *payload
+                .get(cursor.saturating_add(1))
+                .context("Could not read BE24 len 1")?,
+        );
+        let b2 = usize::from(
+            *payload
+                .get(cursor.saturating_add(2))
+                .context("Could not read BE24 len 2")?,
+        );
+        let b3 = usize::from(
+            *payload
+                .get(cursor.saturating_add(3))
+                .context("Could not read BE24 len 3")?,
+        );
+        let be24_record_size = (b1 << 16) | (b2 << 8) | b3;
+        if be24_record_size >= 15 {
+            add_data_record_header_candidate(
+                &mut candidates,
+                &mut dedupe,
+                payload.len(),
+                cursor,
+                be24_record_size,
+                7,
+                PanDataRecordFormat::Be24LargeRecord,
+            )?;
+        }
+    }
+
     if (2..0xfe).contains(&b0) {
         let b0_usize = usize::from(b0);
         if payload.get(cursor.saturating_add(b0_usize).saturating_sub(1))
@@ -1008,7 +1112,7 @@ fn parse_data_record_headers(
         }
     }
 
-    if b0 != 0xfe {
+    if b0 != 0xfe && b0 != 0xff {
         let declared_size_le = read_u32_le(payload, cursor)?;
         let declared_size_le = usize::try_from(declared_size_le)
             .context("DATA record size does not fit in usize")?;
@@ -1290,6 +1394,38 @@ fn parse_data_record_header_for_format(
             }
             Ok((declared_size, 4))
         }
+        PanDataRecordFormat::Be24LargeRecord => {
+            let prefix = payload
+                .get(cursor)
+                .copied()
+                .context("DATA BE24 prefix byte is missing")?;
+            if prefix != 0xff {
+                bail!("DATA BE24 prefix byte is not 0xff");
+            }
+            let b1 = usize::from(
+                payload
+                    .get(cursor.saturating_add(1))
+                    .copied()
+                    .context("DATA BE24 len 1 missing")?,
+            );
+            let b2 = usize::from(
+                payload
+                    .get(cursor.saturating_add(2))
+                    .copied()
+                    .context("DATA BE24 len 2 missing")?,
+            );
+            let b3 = usize::from(
+                payload
+                    .get(cursor.saturating_add(3))
+                    .copied()
+                    .context("DATA BE24 len 3 missing")?,
+            );
+            let declared_size = (b1 << 16) | (b2 << 8) | b3;
+            if declared_size < 15 {
+                bail!("DATA record BE24 size is too small");
+            }
+            Ok((declared_size, 7))
+        }
     }
 }
 
@@ -1320,11 +1456,35 @@ fn parse_data_record_at_cursor(
         );
     }
 
-    let trailer_len = usize::from(
-        format == PanDataRecordFormat::Byte8WithStatus
+    let (trailer_len, expected_trailer) =
+        if format == PanDataRecordFormat::Be24LargeRecord {
+            let b1 = *payload
+                .get(cursor.saturating_add(1))
+                .context("DATA BE24 len 1 missing")?;
+            let b2 = *payload
+                .get(cursor.saturating_add(2))
+                .context("DATA BE24 len 2 missing")?;
+            let b3 = *payload
+                .get(cursor.saturating_add(3))
+                .context("DATA BE24 len 3 missing")?;
+            (4usize, Some([b3, b2, b1, 0xff]))
+        } else if format == PanDataRecordFormat::Byte8WithStatus
             && record_header_size == 3
-            && payload.get(record_end.saturating_sub(1)) == payload.get(cursor),
-    );
+            && payload.get(record_end.saturating_sub(1)) == payload.get(cursor)
+        {
+            (1usize, None)
+        } else {
+            (0usize, None)
+        };
+
+    if let Some(trailer) = expected_trailer {
+        let trailer_start = record_end.saturating_sub(4);
+        if trailer_start < cursor.saturating_add(record_header_size)
+            || payload.get(trailer_start..record_end) != Some(&trailer[..])
+        {
+            bail!("DATA record BE24 reversed trailer mismatch");
+        }
+    }
 
     let row_payload = payload
         .get(
@@ -1360,6 +1520,7 @@ fn record_format_label(format: PanDataRecordFormat) -> &'static str {
         PanDataRecordFormat::Le16WithStatus => "status+le16",
         PanDataRecordFormat::Be16WithStatusNoMarker => "status+be16(no-marker)",
         PanDataRecordFormat::Le16WithStatusNoMarker => "status+le16(no-marker)",
+        PanDataRecordFormat::Be24LargeRecord => "status+be24(marker-ff)",
     }
 }
 
@@ -3120,7 +3281,7 @@ fn parse_launch_payload(payload: &[u8]) -> Option<String> {
     None
 }
 
-fn parse_rc_payload(payload: &[u8]) -> Option<usize> {
+fn parse_rc_payload(payload: &[u8], is_be: bool) -> Option<usize> {
     if payload.len() < 4 {
         return None;
     }
@@ -3128,8 +3289,13 @@ fn parse_rc_payload(payload: &[u8]) -> Option<usize> {
     let b1 = *payload.get(1)?;
     let b2 = *payload.get(2)?;
     let b3 = *payload.get(3)?;
-    let val_le = usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).ok()?;
-    if val_le > 0 { Some(val_le) } else { None }
+    let raw_u32 = if is_be {
+        u32::from_be_bytes([b0, b1, b2, b3])
+    } else {
+        u32::from_le_bytes([b0, b1, b2, b3])
+    };
+    let val = usize::try_from(raw_u32).ok()?;
+    if val > 0 { Some(val) } else { None }
 }
 
 fn decode_macro_procedure_bytes(chunk: &[u8]) -> Option<String> {
@@ -3257,6 +3423,73 @@ fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
     decode_macro_procedure_bytes(chunk)
 }
 
+/// Deobfuscate a locked/scrambled Panorama macro payload if it uses the
+/// position-dependent XOR stream cipher.
+///
+/// In locked/password-protected Panorama databases, the macro body (from the
+/// compiled bytecode header through the trailing source code) is scrambled
+/// with a linear XOR stream cipher. In big-endian files, the bytecode header
+/// `[0xFF, 0xEC, 0x00, 0x00, 0x00, 0x00]` appears as
+/// `[0xF9, 0xE5, 0x0C, 0x0F, 0x12, 0x15]`, and in little-endian files
+/// `[0xEC, 0xFF, 0x00, 0x00, 0x00, 0x00]` appears as
+/// `[0xEA, 0xF6, 0x0C, 0x0F, 0x12, 0x15]`.
+/// The stream cipher parameters are derived directly from the header differences:
+/// `k0 = w[0] ^ expected_0`, `k1 = w[1] ^ expected_1`, `step = k1 - k0`, and
+/// `start = k0 / step`, giving key `((k + start) * step) & 0xFF`.
+fn deobfuscate_macro_payload(macro_bytes: &[u8], name_len: usize) -> Vec<u8> {
+    let header_len = 6usize.saturating_add(name_len);
+    let Some(body) = macro_bytes.get(header_len..) else {
+        return macro_bytes.to_vec();
+    };
+
+    const BE_LOCKED_MAGIC: [u8; 6] = [0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15];
+    const LE_LOCKED_MAGIC: [u8; 6] = [0xea, 0xf6, 0x0c, 0x0f, 0x12, 0x15];
+
+    let magic_info = body.windows(6).enumerate().find_map(|(pos, w)| {
+        if w == BE_LOCKED_MAGIC {
+            Some((pos, true))
+        } else if w == LE_LOCKED_MAGIC {
+            Some((pos, false))
+        } else {
+            None
+        }
+    });
+
+    let Some((pos, is_be)) = magic_info else {
+        return macro_bytes.to_vec();
+    };
+
+    let body_split = header_len.saturating_add(pos);
+    let Some(prefix) = macro_bytes.get(..body_split) else {
+        return macro_bytes.to_vec();
+    };
+    let Some(ciphertext) = macro_bytes.get(body_split..) else {
+        return macro_bytes.to_vec();
+    };
+
+    let expected_0 = if is_be { 0xff } else { 0xec };
+    let expected_1 = if is_be { 0xec } else { 0xff };
+    let b0 = ciphertext.first().copied().unwrap_or(0);
+    let b1 = ciphertext.get(1).copied().unwrap_or(0);
+    let k0 = b0 ^ expected_0;
+    let k1 = b1 ^ expected_1;
+    let step = k1.wrapping_sub(k0);
+    // Reason for fallback: default starting key offset is 2 for standard macro magic
+    let start = k0.checked_div(step).unwrap_or(2);
+
+    let mut result = Vec::with_capacity(macro_bytes.len());
+    result.extend_from_slice(prefix);
+
+    for (idx, &b) in ciphertext.iter().enumerate() {
+        // Reason for fallback: idx & 0xff is strictly <= 255 and fits in u8
+        let idx_u8 = u8::try_from(idx & 0xff).unwrap_or(0);
+        let key = idx_u8.wrapping_add(start).wrapping_mul(step);
+        result.push(b ^ key);
+    }
+
+    result
+}
+
 impl PanMacroInfo {
     /// Returns the raw byte slice of the procedure source code from the macro payload.
     pub fn raw_code_bytes(&self) -> Option<&[u8]> {
@@ -3338,7 +3571,9 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                         Some(slice) => slice,
                         None => &[],
                     };
-                    let code = extract_macro_code(raw_macro, nlen);
+                    let deobfuscated_macro =
+                        deobfuscate_macro_payload(raw_macro, nlen);
+                    let code = extract_macro_code(&deobfuscated_macro, nlen);
                     let ast = code.as_deref().and_then(|c| {
                         crate::procedure_parser::parse_procedure(c).ok()
                     });
@@ -3350,7 +3585,7 @@ fn parse_macros_payload(payload: &[u8]) -> Vec<PanMacroInfo> {
                         is_procedure,
                         code,
                         ast,
-                        payload: raw_macro.to_vec(),
+                        payload: deobfuscated_macro,
                     });
                     cursor = cursor.saturating_add(chosen_size);
                     continue;
@@ -4973,6 +5208,46 @@ mod tests {
 
         let deserialized: PanSection = serde_json::from_str(&json)?;
         ensure!(deserialized.payload == original_bytes);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_data_obfuscation_params() -> anyhow::Result<()> {
+        let plain_payload = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06];
+        ensure!(detect_data_obfuscation_params(&plain_payload).is_none());
+
+        // Power Team 4 Updater prefix
+        let obfuscated_payload = vec![
+            0x50, 0x46, 0xa0, 0x2b, 0x18, 0x0a, 0x03, 0xef, 0x66, 0x7d,
+        ];
+        ensure!(
+            detect_data_obfuscation_params(&obfuscated_payload)
+                == Some((0x50, 0x0e))
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_deobfuscate_macro_payload() -> anyhow::Result<()> {
+        let name = b".Test";
+        let mut macro_bytes = Vec::new();
+        macro_bytes.extend_from_slice(&24u32.to_be_bytes());
+        macro_bytes.push(0x84);
+        macro_bytes.push(u8::try_from(name.len())?);
+        macro_bytes.extend_from_slice(name);
+        // Prefix before bytecode
+        macro_bytes.extend_from_slice(&[0x07, 0x63]);
+        // Encrypted magic [0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15]
+        macro_bytes.extend_from_slice(&[0xf9, 0xe5, 0x0c, 0x0f, 0x12, 0x15]);
+
+        let deobfuscated = deobfuscate_macro_payload(&macro_bytes, name.len());
+        let header_len = 6usize.saturating_add(name.len()).saturating_add(2);
+        ensure!(
+            &deobfuscated[header_len..header_len.saturating_add(6)]
+                == &[0xff, 0xec, 0x00, 0x00, 0x00, 0x00]
+        );
 
         Ok(())
     }

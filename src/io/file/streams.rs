@@ -327,7 +327,7 @@ pub fn write_streams(
     dest: &Path,
     target_display_path: Option<&Path>,
     streams: &[AttachedStream],
-    _strict_lossless: bool,
+    strict_lossless: bool,
 ) -> Result<()> {
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
@@ -362,8 +362,16 @@ pub fn write_streams(
     }
     for (stream, name_os, data) in validated {
         if let Err(e) = xattr::set(dest, &name_os, data) {
-            anyhow::bail!(
-                "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
+            if strict_lossless {
+                anyhow::bail!(
+                    "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
+                    stream.name.to_string_lossy(),
+                    display_target.display(),
+                    e
+                );
+            }
+            warn_fmt!(
+                "Caveat: Target filesystem cannot store extended attribute {:?} on {}: {} (proceeding best-effort)",
                 stream.name.to_string_lossy(),
                 display_target.display(),
                 e
@@ -390,10 +398,13 @@ pub fn write_streams(
     _dest: &Path,
     _target_display_path: Option<&Path>,
     streams: &[AttachedStream],
-    _strict_lossless: bool,
+    strict_lossless: bool,
 ) -> Result<()> {
     if !streams.is_empty() {
-        anyhow::bail!("Target platform does not support xattrs/streams");
+        if strict_lossless {
+            anyhow::bail!("Target platform does not support xattrs/streams");
+        }
+        warn_fmt!("Caveat: Target platform does not support xattrs/streams (proceeding best-effort)");
     }
     Ok(())
 }

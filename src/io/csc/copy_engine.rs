@@ -345,6 +345,18 @@ pub fn execute_copy_pipeline(
 
         if !args.dry_run {
             let dest_target = std::fs::read_link(dest_path)?;
+            #[cfg(unix)]
+            {
+                let atime = filetime::FileTime::from_unix_time(
+                    entity.metadata.timestamps.atime_sec,
+                    entity.metadata.timestamps.atime_nsec,
+                );
+                let mtime = filetime::FileTime::from_unix_time(
+                    entity.metadata.timestamps.mtime_sec,
+                    entity.metadata.timestamps.mtime_nsec,
+                );
+                let _ = filetime::set_symlink_file_times(dest_path, atime, mtime);
+            }
             if let FileEntityKind::Symlink { target } = &entity.kind {
                 anyhow::ensure!(
                     dest_target.as_os_str().as_encoded_bytes() == target.as_slice(),

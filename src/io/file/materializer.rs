@@ -537,7 +537,8 @@ pub fn materialize_entity(
             let mut hasher = Sha256Stream::new();
             let initial_size = *size;
 
-            if *is_sparse {
+            let mut can_use_sparse = *is_sparse;
+            if can_use_sparse {
                 let mut extent_end = 0_u64;
                 for extent in extents {
                     let (offset, length) = match extent {
@@ -545,11 +546,41 @@ pub fn materialize_entity(
                             (*offset, *length)
                         }
                     };
-                    anyhow::ensure!(offset == extent_end && length > 0, "Invalid sparse extent layout");
-                    extent_end = offset.checked_add(length).context("Sparse extent overflow")?;
-                    anyhow::ensure!(extent_end <= initial_size, "Sparse extent exceeds payload size");
+                    if offset != extent_end || length == 0 {
+                        can_use_sparse = false;
+                        break;
+                    }
+                    if let Some(next_end) = offset.checked_add(length) {
+                        extent_end = next_end;
+                        if extent_end > initial_size {
+                            can_use_sparse = false;
+                            break;
+                        }
+                    } else {
+                        can_use_sparse = false;
+                        break;
+                    }
                 }
-                anyhow::ensure!(extent_end == initial_size, "Sparse extents do not cover payload");
+                if extent_end != initial_size {
+                    can_use_sparse = false;
+                }
+                if !can_use_sparse {
+                    if options.strict_lossless {
+                        anyhow::bail!(
+                            "Invalid sparse extents layout for {}: extents do not strictly cover initial size {} (extent end: {})",
+                            dest_path.display(),
+                            initial_size,
+                            extent_end
+                        );
+                    }
+                    warn_fmt!(
+                        "Caveat: Sparse extents layout does not strictly cover payload for {}; falling back to lossless linear stream copying",
+                        dest_path.display()
+                    );
+                }
+            }
+
+            if can_use_sparse {
                 for extent in extents {
                     match extent {
                         Extent::Data { offset, length } => {
@@ -646,8 +677,11 @@ pub fn materialize_entity(
 
             if options.strict_lossless {
                 let mut expected = entity.clone();
-                if let FileEntityKind::Regular { sha256, .. } = &mut expected.kind {
+                if let FileEntityKind::Regular { sha256, is_sparse, .. } = &mut expected.kind {
                     *sha256 = computed_sha256;
+                    if !can_use_sparse {
+                        *is_sparse = false;
+                    }
                 }
                 let audit_options = EntityAuditOptions {
                     ignore_flags: true,
@@ -662,18 +696,14 @@ pub fn materialize_entity(
             drop(temp_file);
 
             #[cfg(unix)]
-            rustix::fs::fsync(&parent_dir_fd).with_context(|| {
-                format!("Failed to sync parent directory: {}", parent_dir.display())
-            })?;
+            sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Atomic rename inside parent directory
             dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
             cleanup_guard.active = false;
 
             #[cfg(unix)]
-            rustix::fs::fsync(&parent_dir_fd).with_context(|| {
-                format!("Failed to sync parent directory: {}", parent_dir.display())
-            })?;
+            sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Deferred immutability: apply flags as the very last step!
             if !entity.metadata.flags.is_empty()
@@ -696,6 +726,25 @@ pub fn materialize_entity(
                 sha256: Some(computed_sha256),
                 skipped_identical: false,
             })
+        }
+    }
+}
+
+#[cfg(unix)]
+fn sync_parent_dir_best_effort(parent_fd: &impl rustix::fd::AsFd, parent_path: &Path) {
+    if let Err(err) = rustix::fs::fsync(parent_fd) {
+        let raw = err.raw_os_error();
+        if raw == nix::libc::EINVAL
+            || raw == nix::libc::ENOTSUP
+            || raw == nix::libc::EOPNOTSUPP
+            || raw == nix::libc::EBADF
+        {
+            warn_fmt!(
+                "Caveat: Destination filesystem does not support directory fsync on {} ({err}); proceeding without barrier",
+                parent_path.display()
+            );
+        } else {
+            log_fmt!("Directory fsync note on {}: {err}", parent_path.display());
         }
     }
 }

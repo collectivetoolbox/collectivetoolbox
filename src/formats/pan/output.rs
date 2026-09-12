@@ -108,7 +108,10 @@ pub fn pan_to_csv_with_options(
     let pan = if options.run_startup_procedure {
         let mut runtime =
             crate::runtime::PanRuntimeState::from_pan_bytes(pan_file)?;
-        let _ = runtime.run_startup_procedure();
+        let report = runtime.run_startup_procedure()?;
+        for op in &report.pending_operations {
+            warn_fmt!("PAN startup pending operation: {op}");
+        }
         runtime.document
     } else {
         parser::parse_pan(pan_file)?
@@ -553,8 +556,14 @@ fn csv_field_bytes(
                     }
                 } else if is_tabs_no_quotes {
                     for b in &mut mapped {
-                        if *b == b'\r' || *b == b'\n' {
+                        if *b == b'\r' {
                             *b = 0x0b;
+                        }
+                    }
+                } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                    for b in &mut mapped {
+                        if *b == 0x0b {
+                            *b = b'\r';
                         }
                     }
                 }
@@ -573,8 +582,14 @@ fn csv_field_bytes(
                     }
                 } else if is_tabs_no_quotes {
                     for b in &mut mapped {
-                        if *b == b'\r' || *b == b'\n' {
+                        if *b == b'\r' {
                             *b = 0x0b;
+                        }
+                    }
+                } else if options.delimiter == PanExportDelimiter::WordPerfect {
+                    for b in &mut mapped {
+                        if *b == 0x0b {
+                            *b = b'\r';
                         }
                     }
                 }
@@ -598,10 +613,10 @@ fn csv_field_bytes(
                 Ok(first_line.as_bytes().to_vec())
             } else if is_tabs_no_quotes {
                 let replaced =
-                    text.replace("\r\n", "\x0b").replace(['\r', '\n'], "\x0b");
+                    text.replace("\r\n", "\x0b\n").replace('\r', "\x0b");
                 Ok(replaced.into_bytes())
             } else if options.delimiter == PanExportDelimiter::WordPerfect {
-                let norm = text.replace("\r\n", "\n").replace('\r', "\n");
+                let norm = text.replace('\x0b', "\r");
                 Ok(norm.into_bytes())
             } else {
                 Ok(text.as_bytes().to_vec())
@@ -1250,6 +1265,68 @@ mod tests {
 
         let code = pan_to_macro(&pan_bytes, "TestM")?;
         ensure!(code == "message \"Hi\"\n");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pan_to_macro_extracts_locked_macro_code() -> anyhow::Result<()> {
+        let mut pan_bytes = Vec::new();
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+        // Prelude entry
+        pan_bytes.push(0x00);
+        pan_bytes.push(4);
+        pan_bytes.extend_from_slice(b"TEST");
+        pan_bytes.push(0);
+        pan_bytes.extend_from_slice(&0u32.to_le_bytes());
+
+        // Build locked macro record
+        let name = b".LockedProc";
+        let code_bytes = b"message \"Hello Locked\"";
+        let code_len = u16::try_from(code_bytes.len())?;
+
+        // Plain body: [prefix 2 bytes] [bytecode 6 bytes] [code_len 2 bytes] [code]
+        let mut unencrypted_stream = Vec::new();
+        unencrypted_stream
+            .extend_from_slice(&[0xff, 0xec, 0x00, 0x00, 0x00, 0x00]);
+        unencrypted_stream.extend_from_slice(&code_len.to_be_bytes());
+        unencrypted_stream.extend_from_slice(code_bytes);
+
+        // Encrypt the stream with key = ((i + 2) * 3) & 0xFF
+        let mut encrypted_stream = Vec::new();
+        for (idx, &b) in unencrypted_stream.iter().enumerate() {
+            let idx_u8 = u8::try_from(idx & 0xff).unwrap_or(0);
+            let key = idx_u8.wrapping_add(2).wrapping_mul(3);
+            encrypted_stream.push(b ^ key);
+        }
+
+        let mut macro_body = Vec::new();
+        macro_body.extend_from_slice(&[0x07, 0x63]); // prefix
+        macro_body.extend_from_slice(&encrypted_stream);
+
+        let macro_rec_size = 6usize
+            .saturating_add(name.len())
+            .saturating_add(macro_body.len());
+        let rec_size_u32 = u32::try_from(macro_rec_size)?;
+
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&rec_size_u32.to_le_bytes());
+        payload.push(0x84);
+        payload.push(u8::try_from(name.len())?);
+        payload.extend_from_slice(name);
+        payload.extend_from_slice(&macro_body);
+
+        let section_size = payload.len().saturating_add(12);
+        let sec_size_u32 = u32::try_from(section_size)?;
+
+        pan_bytes.extend_from_slice(&sec_size_u32.to_le_bytes());
+        pan_bytes.push(0x83);
+        pan_bytes.push(6);
+        pan_bytes.extend_from_slice(b"MACROS");
+        pan_bytes.extend_from_slice(&payload);
+
+        let code = pan_to_macro(&pan_bytes, ".LockedProc")?;
+        ensure!(code == "message \"Hello Locked\"\n");
+
         Ok(())
     }
 

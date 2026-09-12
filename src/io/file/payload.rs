@@ -78,6 +78,11 @@ impl Extent {
     }
 }
 
+#[cfg(unix)]
+use filetime::FileTime;
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
+
 /// Discovers the extent map (data and holes) of a file using `SEEK_DATA` / `SEEK_HOLE`.
 #[cfg(unix)]
 pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>> {
@@ -116,6 +121,9 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
                         || e == nix::errno::Errno::ENOSYS) =>
             {
                 // Filesystem does not support SEEK_DATA/SEEK_HOLE, treat whole file as data
+                warn_fmt!(
+                    "Caveat: Filesystem does not support SEEK_DATA/SEEK_HOLE ({e}); treating whole file as non-sparse data"
+                );
                 let u_size = u64::try_from(size_i64)?;
                 return Ok(vec![Extent::Data {
                     offset: 0,
@@ -123,7 +131,19 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
                 }]);
             }
             Err(e) => {
-                return Err(e).context("Failed querying file data extents via SEEK_DATA");
+                warn_fmt!(
+                    "Caveat: SEEK_DATA failed at offset {current_offset} ({e}); falling back to non-sparse data for remainder"
+                );
+                let remaining = size_i64.saturating_sub(current_offset);
+                let u_rem = u64::try_from(remaining)?;
+                let u_curr = u64::try_from(current_offset)?;
+                if u_rem > 0 {
+                    extents.push(Extent::Data {
+                        offset: u_curr,
+                        length: u_rem,
+                    });
+                }
+                break;
             }
         };
 
@@ -148,7 +168,10 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
             Ok(off) => off,
             Err(nix::errno::Errno::ENXIO) => size_i64,
             Err(e) => {
-                return Err(e).context("Failed querying file hole extents via SEEK_HOLE");
+                warn_fmt!(
+                    "Caveat: SEEK_HOLE failed at offset {next_data} ({e}); falling back to non-sparse data for remainder"
+                );
+                size_i64
             }
         };
         let end_of_data = if next_hole > size_i64 {
@@ -157,10 +180,21 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
             next_hole
         };
 
-        anyhow::ensure!(
-            end_of_data > current_offset,
-            "SEEK_DATA/SEEK_HOLE failed to make forward progress from offset {current_offset}"
-        );
+        if end_of_data <= current_offset {
+            warn_fmt!(
+                "Caveat: SEEK_DATA/SEEK_HOLE failed to make forward progress from offset {current_offset}; falling back to non-sparse data for remainder"
+            );
+            let remaining = size_i64.saturating_sub(current_offset);
+            let u_rem = u64::try_from(remaining)?;
+            let u_curr = u64::try_from(current_offset)?;
+            if u_rem > 0 {
+                extents.push(Extent::Data {
+                    offset: u_curr,
+                    length: u_rem,
+                });
+            }
+            break;
+        }
 
         let data_len = end_of_data.saturating_sub(next_data);
         let u_data_len = u64::try_from(data_len)?;
@@ -208,21 +242,35 @@ pub struct DiskPayloadSource {
     file: File,
     size: u64,
     extents: Vec<Extent>,
+    #[cfg(unix)]
+    orig_times: Option<(FileTime, FileTime)>,
+}
+
+#[cfg(unix)]
+impl Drop for DiskPayloadSource {
+    fn drop(&mut self) {
+        if let Some((atime, mtime)) = self.orig_times {
+            let _ = filetime::set_file_times(&self.path, atime, mtime);
+        }
+    }
 }
 
 impl DiskPayloadSource {
     /// Opens an on-disk file and maps its sparse extents.
     pub fn open(path: &Path) -> Result<Self> {
         #[cfg(target_os = "linux")]
-        let mut file = {
+        let (mut file, opened_with_noatime) = {
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = File::options();
             opts.read(true);
             opts.custom_flags(nix::libc::O_NOATIME);
             match opts.open(path) {
-                Ok(f) => f,
-                Err(_) => File::open(path)
-                    .with_context(|| format!("Failed to open payload file: {}", path.display()))?,
+                Ok(f) => (f, true),
+                Err(_) => {
+                    let f = File::open(path)
+                        .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
+                    (f, false)
+                }
             }
         };
         #[cfg(not(target_os = "linux"))]
@@ -258,11 +306,44 @@ impl DiskPayloadSource {
 
         file.seek(SeekFrom::Start(0))?;
 
+        #[cfg(target_os = "linux")]
+        let orig_times = if !opened_with_noatime {
+            let atime = FileTime::from_unix_time(
+                meta.atime(),
+                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
+                u32::try_from(meta.atime_nsec()).unwrap_or(0),
+            );
+            let mtime = FileTime::from_unix_time(
+                meta.mtime(),
+                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
+                u32::try_from(meta.mtime_nsec()).unwrap_or(0),
+            );
+            Some((atime, mtime))
+        } else {
+            None
+        };
+        #[cfg(all(unix, not(target_os = "linux")))]
+        let orig_times = {
+            let atime = FileTime::from_unix_time(
+                meta.atime(),
+                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
+                u32::try_from(meta.atime_nsec()).unwrap_or(0),
+            );
+            let mtime = FileTime::from_unix_time(
+                meta.mtime(),
+                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
+                u32::try_from(meta.mtime_nsec()).unwrap_or(0),
+            );
+            Some((atime, mtime))
+        };
+
         Ok(Self {
             path: path.to_path_buf(),
             file,
             size,
             extents,
+            #[cfg(unix)]
+            orig_times,
         })
     }
 
@@ -358,7 +439,7 @@ pub fn hash_payload_stream<R: Read + Seek>(
     path_display: &Path,
 ) -> Result<[u8; 32]> {
     let mut hasher = Sha256Stream::new();
-    if is_sparse {
+    if false && is_sparse { // disable for now, as it makes me a bit nervous, but keep around in case wanted in future
         for extent in extents {
             match extent {
                 Extent::Data { offset, length } => {

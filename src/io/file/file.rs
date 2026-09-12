@@ -1390,6 +1390,88 @@ mod tests {
             1_000, 0, 1_004, 0, 3_000_000_000
         ));
     }
+
+    #[crate::ctb_test]
+    fn test_materialize_entity_sparse_extent_fallback() {
+        let temp = tempfile::tempdir().unwrap();
+        let src_path = temp.path().join("sparse_src.bin");
+        let dest_path = temp.path().join("sparse_dest.bin");
+
+        // Create a 100-byte test file
+        let mut data = vec![0_u8; 100];
+        for (i, byte) in data.iter_mut().enumerate() {
+            // Safe truncated u8 value for test pattern
+            *byte = u8::try_from(i % 251).unwrap_or(0);
+        }
+        std::fs::write(&src_path, &data).unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
+        // Artificially corrupt extent map so it fails validation (claims file is sparse, but extents total only 50 bytes)
+        if let FileEntityKind::Regular {
+            ref mut is_sparse,
+            ref mut extents,
+            ..
+        } = entity.kind
+        {
+            *is_sparse = true;
+            *extents = vec![
+                Extent::Data {
+                    offset: 0,
+                    length: 30,
+                },
+                Extent::Hole {
+                    offset: 30,
+                    length: 20,
+                },
+            ];
+        }
+        entity.identity.relative_path = PathBuf::from("sparse_dest.bin");
+
+        let mut payload = DiskPayloadSource::open(&src_path).unwrap();
+        let options = MaterializeOptions {
+            dry_run: false,
+            strict_lossless: false,
+            symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
+            path_policy: PathTraversalPolicy::StrictSandboxed,
+            copy_specials: false,
+            force_overwrite: true,
+        };
+
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        // Materialization should fall back to linear copy and succeed completely without failing
+        materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+
+        let read_back = std::fs::read(&dest_path).unwrap();
+        assert_eq!(read_back, data);
+    }
+
+    #[crate::ctb_test]
+    fn test_symlink_timestamp_retention_on_read() {
+        let temp = tempfile::tempdir().unwrap();
+        let target = temp.path().join("target.txt");
+        let link = temp.path().join("symlink.lnk");
+
+        std::fs::write(&target, b"test payload").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        #[cfg(unix)]
+        {
+            use filetime::{FileTime, set_symlink_file_times};
+            let set_atime = FileTime::from_unix_time(1_700_000_000, 0);
+            let set_mtime = FileTime::from_unix_time(1_700_000_100, 0);
+            set_symlink_file_times(&link, set_atime, set_mtime).unwrap();
+
+            // Read entity from filesystem; it inspects the link target
+            let entity = FileEntity::from_filesystem(&link, None).unwrap();
+
+            // Verify that timestamps on disk were restored
+            let post_meta = std::fs::symlink_metadata(&link).unwrap();
+            let post_atime = FileTime::from_last_access_time(&post_meta);
+            assert_eq!(post_atime.unix_seconds(), 1_700_000_000);
+            assert_eq!(entity.metadata.timestamps.mtime_sec, 1_700_000_100);
+        }
+    }
 }
 
 

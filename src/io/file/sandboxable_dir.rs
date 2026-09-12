@@ -400,13 +400,47 @@ impl SandboxableDir {
     ) -> Result<()> {
         let temp_os = temp_name.as_ref();
         let final_os = final_name.as_ref();
-        renameat(parent_dir_fd, temp_os, parent_dir_fd, final_os).with_context(|| {
-            format!(
-                "Failed to atomically rename {} to {} in sandboxed parent",
-                temp_os.to_string_lossy(),
-                final_os.to_string_lossy()
-            )
-        })?;
+        let res = renameat(parent_dir_fd, temp_os, parent_dir_fd, final_os);
+        if let Err(e) = res {
+            #[cfg(target_os = "linux")]
+            if e.raw_os_error() == nix::libc::EPERM {
+                // If destination file has an immutable flag, attempt to clear it and retry rename
+                if let Ok(dest_fd) = openat(
+                    parent_dir_fd,
+                    final_os,
+                    OFlags::RDONLY | OFlags::CLOEXEC,
+                    Mode::empty(),
+                ) {
+                    use rustix::fs::{IFlags, ioctl_getflags, ioctl_setflags};
+                    if let Ok(iflags) = ioctl_getflags(&dest_fd) {
+                        if iflags.contains(IFlags::IMMUTABLE) {
+                            warn_fmt!(
+                                "Caveat: Target file {:?} is marked immutable; clearing immutable flag to overwrite",
+                                final_os
+                            );
+                            let cleared = iflags - IFlags::IMMUTABLE;
+                            if ioctl_setflags(&dest_fd, cleared).is_ok() {
+                                drop(dest_fd);
+                                return renameat(parent_dir_fd, temp_os, parent_dir_fd, final_os).with_context(|| {
+                                    format!(
+                                        "Failed to atomically rename {} to {} in sandboxed parent after clearing immutable flag",
+                                        temp_os.to_string_lossy(),
+                                        final_os.to_string_lossy()
+                                    )
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            return Err(e).with_context(|| {
+                format!(
+                    "Failed to atomically rename {} to {} in sandboxed parent",
+                    temp_os.to_string_lossy(),
+                    final_os.to_string_lossy()
+                )
+            });
+        }
         Ok(())
     }
 
@@ -595,6 +629,9 @@ impl SandboxableDir {
         } else {
             self.root_path.join(target_rel)
         };
+        if link_path.exists() {
+            let _ = std::fs::remove_file(&link_path);
+        }
         std::fs::hard_link(&target_path, &link_path).with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",
@@ -701,6 +738,20 @@ fn replace_node_atomically(
         return Err(error).context("Failed to commit staged node");
     }
     let _ = unlinkat(parent, &temporary, AtFlags::empty());
-    rustix::fs::fsync(parent).context("Failed to sync node parent directory")?;
+    if let Err(error) = rustix::fs::fsync(parent) {
+        let raw = error.raw_os_error();
+        if raw == nix::libc::EINVAL
+            || raw == nix::libc::ENOTSUP
+            || raw == nix::libc::EOPNOTSUPP
+            || raw == nix::libc::EBADF
+        {
+            warn_fmt!(
+                "Caveat: Parent directory fsync unsupported for node {:?} ({error}); proceeding without barrier",
+                name
+            );
+        } else {
+            return Err(error).context("Failed to sync node parent directory");
+        }
+    }
     Ok(())
 }

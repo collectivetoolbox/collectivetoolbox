@@ -676,6 +676,19 @@ impl FileEntity {
 
         let streams = read_and_hash_streams(path)?;
 
+        #[cfg(unix)]
+        if is_symlink {
+            let orig_atime = FileTime::from_unix_time(
+                metadata.timestamps.atime_sec,
+                metadata.timestamps.atime_nsec,
+            );
+            let orig_mtime = FileTime::from_unix_time(
+                metadata.timestamps.mtime_sec,
+                metadata.timestamps.mtime_nsec,
+            );
+            let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+        }
+
         Ok(Self {
             identity,
             metadata,

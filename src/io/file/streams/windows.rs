@@ -190,7 +190,10 @@ pub fn write_windows_streams(
 /// Removes an alternate data stream from `path` on Windows.
 pub fn remove_windows_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     let mut stream_path = path.as_os_str().to_os_string();
-    stream_path.push(":");
+    let wide: Vec<u16> = name.encode_wide().collect();
+    if !wide.starts_with(&[u16::from(b':')]) {
+        stream_path.push(":");
+    }
     stream_path.push(name);
     match std::fs::remove_file(PathBuf::from(stream_path)) {
         Ok(()) => Ok(()),

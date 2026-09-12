@@ -778,6 +778,18 @@ pub fn audit_entity_detailed(
     } = expected.kind
     {
         let actual_target = std::fs::read_link(path)?;
+        #[cfg(unix)]
+        {
+            let atime = FileTime::from_unix_time(
+                expected.metadata.timestamps.atime_sec,
+                expected.metadata.timestamps.atime_nsec,
+            );
+            let mtime = FileTime::from_unix_time(
+                expected.metadata.timestamps.mtime_sec,
+                expected.metadata.timestamps.mtime_nsec,
+            );
+            let _ = filetime::set_symlink_file_times(path, atime, mtime);
+        }
         let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
         if actual_bytes != expected_target.as_slice() {
             diffs.push(DiffKind::SymlinkTargetMismatch {

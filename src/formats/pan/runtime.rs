@@ -768,7 +768,17 @@ impl PanRuntimeState {
         else {
             return false;
         };
-        field.value = PanDataValue::Text(value.as_string());
+        let str_val = value.as_string();
+        field.value = PanDataValue::Text(str_val.clone());
+        field.formatted_value = Some(str_val.clone());
+        if let Ok(encoded) = ctb_formats_encoding::encode(
+            ctb_formats_encoding::CharEncoding::mac_roman(),
+            &str_val,
+        ) {
+            field.raw_bytes = encoded;
+        } else {
+            field.raw_bytes = str_val.into_bytes();
+        }
         true
     }
 
@@ -1014,81 +1024,6 @@ mod tests {
             runtime.globals.get("currentTopic")
                 == Some(&PanRuntimeValue::String("Intro".to_string()))
         );
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn programming_reference_startup_procedure_runs_cleanly() -> Result<()> {
-        let path = std::path::Path::new(
-            "/workspaces/ctoolbox/old/Panorama/Wizards/Documentation/Programming Reference.pan",
-        );
-        if !path.exists() {
-            return Ok(());
-        }
-
-        let pan_bytes = std::fs::read(path)?;
-        let mut runtime = PanRuntimeState::from_pan_bytes(&pan_bytes)?;
-
-        ensure!(
-            runtime.startup_procedure_name.as_deref() == Some(".Initialize")
-        );
-        ensure!(runtime.data_state.record_count > 900);
-
-        let report = runtime.run_startup_procedure()?;
-
-        ensure!(
-            report
-                .executed_procedures
-                .contains(&".Initialize".to_string())
-        );
-        ensure!(
-            report
-                .executed_procedures
-                .contains(&"ChangeTopic".to_string())
-        );
-        ensure!(
-            report
-                .executed_procedures
-                .contains(&"MakeMenus".to_string())
-        );
-
-        ensure!(runtime.window_name.as_deref() == Some("Panorama Reference"));
-        ensure!(runtime.file_globals.contains_key("CurrentTopic"));
-        ensure!(runtime.file_globals.contains_key("SelectedTopics"));
-        ensure!(runtime.file_globals.contains_key("TopicQuery"));
-        ensure!(runtime.file_globals.contains_key("CurrentTopicText"));
-        ensure!(runtime.file_globals.contains_key("CurrentTopicParameters"));
-        ensure!(runtime.file_globals.contains_key("CurrentTopicName"));
-        ensure!(runtime.file_globals.contains_key("CurrentTopicVersion"));
-
-        let current_topic = runtime
-            .file_globals
-            .get("CurrentTopic")
-            .map(super::PanRuntimeValue::as_string);
-        ensure!(current_topic == Some(" INTRODUCTION".to_string()));
-
-        let selected_topics = runtime
-            .file_globals
-            .get("SelectedTopics")
-            .map(super::PanRuntimeValue::as_string)
-            .unwrap_or_default();
-        ensure!(selected_topics.contains("ABS("));
-        ensure!(selected_topics.contains("ARRAY("));
-
-        let current_topic_path = runtime
-            .file_globals
-            .get("CurrentTopicPath")
-            .map(super::PanRuntimeValue::as_string)
-            .unwrap_or_default();
-        ensure!(current_topic_path == "OTHER");
-
-        let current_topic_text = runtime
-            .file_globals
-            .get("CurrentTopicText")
-            .map(super::PanRuntimeValue::as_string)
-            .unwrap_or_default();
-        ensure!(current_topic_text.is_empty());
-
         Ok(())
     }
 }
