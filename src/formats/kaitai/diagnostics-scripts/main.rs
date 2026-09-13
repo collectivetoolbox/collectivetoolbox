@@ -37,7 +37,7 @@ fn write_module_tree(src_dir: &Path, active_files: &[(String, String)]) -> std::
     // 2. Each cat.rs
     for (cat, mut stems) in by_cat {
         stems.sort();
-        let mut cat_rs = String::from("// @generated\n#![allow(unused_imports, clippy::wildcard_imports)]\n\npub use super::*;\n\n");
+        let mut cat_rs = String::from("// @generated\n#![allow(unused_imports, clippy::wildcard_imports, overflowing_literals)]\n\npub use super::*;\n\n");
         for stem in stems {
             cat_rs.push_str(&format!("#[path = \"{cat}/{stem}.rs\"]\npub mod {stem};\n"));
         }
@@ -47,7 +47,7 @@ fn write_module_tree(src_dir: &Path, active_files: &[(String, String)]) -> std::
     // 3. lib.rs
     fs::write(
         src_dir.join("lib.rs"),
-        "// @generated\n#![allow(unused_imports, clippy::wildcard_imports)]\npub mod generated;\npub use generated::*;\n",
+        "// @generated\n#![allow(unused_imports, clippy::wildcard_imports, overflowing_literals)]\npub mod generated;\npub use generated::*;\n",
     )?;
 
     Ok(())
@@ -91,12 +91,14 @@ fn main() -> anyhow::Result<()> {
     let cargo_target_dir = PathBuf::from("/workspaces/ctoolbox/target/kaitai_diagnostic/cargo_target");
     let wrappers_dir = PathBuf::from("/workspaces/ctoolbox/target/kaitai_diagnostic/wrappers");
     let out_dir = PathBuf::from("/workspaces/ctoolbox/target/kaitai_diagnostic/out");
+    let errors_dir = PathBuf::from("/workspaces/ctoolbox/target/kaitai_diagnostic/errors");
     let src_dir = test_crate_dir.join("src");
     let gen_dir = src_dir.join("generated");
     fs::create_dir_all(&gen_dir)?;
     fs::create_dir_all(&cargo_target_dir)?;
     fs::create_dir_all(&wrappers_dir)?;
     fs::create_dir_all(&out_dir)?;
+    fs::create_dir_all(&errors_dir)?;
 
     // Create Cargo.toml for test crate
     let cargo_toml = r#"[package]
@@ -264,6 +266,7 @@ encoding_rs = "0.8.35"
                 let enc_rs_rmeta = &enc_rs_rmeta;
                 let wrappers_dir = &wrappers_dir;
                 let out_dir = &out_dir;
+                let errors_dir = &errors_dir;
 
                 s.spawn(move || {
                     loop {
@@ -283,7 +286,7 @@ encoding_rs = "0.8.35"
 
                         // Generate wrapper
                         let mut wrap_code = String::new();
-                        wrap_code.push_str("#![allow(unused_imports, non_snake_case, non_camel_case_types, irrefutable_let_patterns, unused_comparisons, dead_code)]\n");
+                        wrap_code.push_str("#![allow(unused_imports, non_snake_case, non_camel_case_types, irrefutable_let_patterns, unused_comparisons, dead_code, overflowing_literals)]\n");
                         wrap_code.push_str("extern crate kaitai;\nuse kaitai::*;\n\n");
                         wrap_code.push_str("pub mod super_scope {\n    use kaitai::*;\n");
                         for dep_stem in &dep_set {
@@ -317,10 +320,12 @@ encoding_rs = "0.8.35"
 
                         match rustc_res {
                             Ok(output) if output.status.success() => {
+                                let _ = fs::remove_file(errors_dir.join(format!("{stem}.log")));
                                 let _ = tx.send((stem, true, String::new()));
                             }
                             Ok(output) => {
                                 let stderr = String::from_utf8_lossy(&output.stderr);
+                                let _ = fs::write(errors_dir.join(format!("{stem}.log")), &*stderr);
                                 let first_err = stderr
                                     .lines()
                                     .find(|l| l.starts_with("error[E") || l.starts_with("error:"))

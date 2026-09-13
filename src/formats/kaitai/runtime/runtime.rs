@@ -371,6 +371,12 @@ pub trait KStream {
     fn read_u1(&self) -> KResult<u8> {
         Ok(self.read_bytes(1)?[0])
     }
+    fn read_u2(&self) -> KResult<u16> {
+        self.read_u2be()
+    }
+    fn read_u4(&self) -> KResult<u32> {
+        self.read_u4be()
+    }
     fn read_u2be(&self) -> KResult<u16> {
         Ok(u16::from_be_bytes(self.read_bytes(2)?.try_into().unwrap()))
     }

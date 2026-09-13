@@ -274,16 +274,31 @@ fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a Class
     Some(cur)
 }
 
+fn resolve_switch_type(dt: &DataType) -> DataType {
+    if let DataType::SwitchType { cases, .. } = dt {
+        let mut combined: Option<DataType> = None;
+        for c in cases.values() {
+            combined = match combined {
+                None => Some(c.clone()),
+                Some(prev) => Some(combine_types(&prev, c)),
+            };
+        }
+        combined.unwrap_or_else(|| dt.clone())
+    } else {
+        dt.clone()
+    }
+}
+
 fn infer_attr_type_in_class(root: &ClassSpec, class_name: &[String], attr_name: &str) -> Option<DataType> {
     let class = find_class_spec(root, class_name)?;
     if let Some(seq_attr) = class.seq.iter().find(|a| a.id == attr_name) {
-        return Some(seq_attr.data_type.clone());
+        return Some(resolve_switch_type(&seq_attr.data_type));
     }
     if let Some(inst) = class.instances.get(attr_name) {
-        return Some(inst.data_type.clone());
+        return Some(resolve_switch_type(&inst.data_type));
     }
     if let Some(p) = class.params.iter().find(|p| p.id == attr_name) {
-        return Some(p.data_type.clone());
+        return Some(resolve_switch_type(&p.data_type));
     }
     None
 }
@@ -294,8 +309,35 @@ fn infer_expr_type_with_root(
     root: &ClassSpec,
 ) -> Option<DataType> {
     match expr {
+        Expr::EnumByLabel { enum_name, .. } => {
+            let mut curr_opt = Some(curr_class_name);
+            while let Some(cls_name) = curr_opt {
+                if let Some(cls) = find_class_spec(root, cls_name) {
+                    if cls.enums.contains_key(enum_name) {
+                        return Some(DataType::EnumType {
+                            owner: cls_name.to_vec(),
+                            name: enum_name.clone(),
+                            underlying: None,
+                        });
+                    }
+                }
+                curr_opt = if cls_name.len() > 1 {
+                    Some(&cls_name[..cls_name.len().saturating_sub(1)])
+                } else {
+                    None
+                };
+            }
+            if root.enums.contains_key(enum_name) {
+                return Some(DataType::EnumType {
+                    owner: root.name.clone(),
+                    name: enum_name.clone(),
+                    underlying: None,
+                });
+            }
+            None
+        }
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" || attr == "length" || attr == "size" {
+            if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
@@ -315,10 +357,29 @@ fn infer_expr_type_with_root(
                     None
                 };
                 if let Some(target_class) = target_class_name {
+                    if attr == "_parent" {
+                        let parent_cls = find_class_spec(root, &target_class)?;
+                        return parent_cls.parent_name.as_ref().map(|pn| DataType::UserType {
+                            names: pn.clone(),
+                            is_external: false,
+                            args: Vec::new(),
+                        });
+                    }
                     return infer_attr_type_in_class(root, &target_class, attr);
                 }
             }
             if let Some(DataType::UserType { names, .. }) = infer_expr_type_with_root(value, curr_class_name, root) {
+                if attr == "_parent" {
+                    if let Some(cls) = find_class_spec(root, &names) {
+                        if let Some(pname) = &cls.parent_name {
+                            return Some(DataType::UserType {
+                                names: pname.clone(),
+                                is_external: false,
+                                args: Vec::new(),
+                            });
+                        }
+                    }
+                }
                 return infer_attr_type_in_class(root, &names, attr);
             }
             None
@@ -343,11 +404,43 @@ fn infer_expr_type_with_root(
                 Some(DataType::CalcBytesType)
             } else if s == "str" {
                 Some(DataType::CalcStrType)
-            } else if s.starts_with('u') || s.starts_with('s') {
+            } else if matches!(s.as_str(), "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
                 Some(DataType::CalcIntType)
-            } else if s.starts_with('f') {
+            } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
+                let mut curr_opt = Some(curr_class_name);
+                while let Some(cls_name) = curr_opt {
+                    let mut full = cls_name.to_vec();
+                    full.push(s.clone());
+                    if find_class_spec(root, &full).is_some() {
+                        return Some(DataType::UserType {
+                            names: full,
+                            is_external: false,
+                            args: Vec::new(),
+                        });
+                    }
+                    curr_opt = if cls_name.len() > 1 {
+                        Some(&cls_name[..cls_name.len().saturating_sub(1)])
+                    } else {
+                        None
+                    };
+                }
+                let root_full = vec![root.name[0].clone(), s.clone()];
+                if find_class_spec(root, &root_full).is_some() {
+                    return Some(DataType::UserType {
+                        names: root_full,
+                        is_external: false,
+                        args: Vec::new(),
+                    });
+                }
+                if find_class_spec(root, std::slice::from_ref(&s)).is_some() {
+                    return Some(DataType::UserType {
+                        names: vec![s],
+                        is_external: false,
+                        args: Vec::new(),
+                    });
+                }
                 None
             }
         }
@@ -373,6 +466,36 @@ fn infer_expr_type_with_root(
                 Some(DataType::CalcIntType)
             }
         }
+        Expr::Name(name) => {
+            if name == "_root" {
+                let curr = find_class_spec(root, curr_class_name)?;
+                Some(DataType::UserType {
+                    names: curr.root_name.clone(),
+                    is_external: false,
+                    args: Vec::new(),
+                })
+            } else if name == "_parent" {
+                let curr = find_class_spec(root, curr_class_name)?;
+                curr.parent_name.as_ref().map(|pn| DataType::UserType {
+                    names: pn.clone(),
+                    is_external: false,
+                    args: Vec::new(),
+                })
+            } else {
+                infer_attr_type_in_class(root, curr_class_name, name)
+            }
+        }
+        Expr::Subscript { value, .. } => {
+            if let Some(target_dt) = infer_expr_type_with_root(value, curr_class_name, root) {
+                if let DataType::ArrayType { element, .. } = target_dt {
+                    Some(*element)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
@@ -388,24 +511,32 @@ fn update_instance_types(root: &mut ClassSpec) {
     let mut all_names = Vec::new();
     collect_all_class_names(root, &mut all_names);
 
-    let mut updates = Vec::new();
-    for class_name in &all_names {
-        let Some(curr) = find_class_spec(root, class_name) else { continue };
-        for (inst_id, inst) in &curr.instances {
-            if matches!(inst.data_type, DataType::CalcIntType) {
-                if let Some(val_ex) = &inst.value_expr {
-                    if let Some(inferred) = infer_expr_type_with_root(val_ex, class_name, root) {
-                        updates.push((class_name.clone(), inst_id.clone(), inferred));
+    for _ in 0..5 {
+        let mut updates = Vec::new();
+        for class_name in &all_names {
+            let Some(curr) = find_class_spec(root, class_name) else { continue };
+            for (inst_id, inst) in &curr.instances {
+                if matches!(inst.data_type, DataType::CalcIntType) {
+                    if let Some(val_ex) = &inst.value_expr {
+                        if let Some(inferred) = infer_expr_type_with_root(val_ex, class_name, root) {
+                            if !matches!(inferred, DataType::SwitchType { .. }) {
+                                updates.push((class_name.clone(), inst_id.clone(), inferred));
+                            }
+                        }
                     }
                 }
             }
         }
-    }
 
-    for (class_name, inst_id, new_dt) in updates {
-        if let Some(curr_mut) = find_class_spec_mut(root, &class_name) {
-            if let Some(inst_mut) = curr_mut.instances.get_mut(&inst_id) {
-                inst_mut.data_type = new_dt;
+        if updates.is_empty() {
+            break;
+        }
+
+        for (class_name, inst_id, new_dt) in updates {
+            if let Some(curr_mut) = find_class_spec_mut(root, &class_name) {
+                if let Some(inst_mut) = curr_mut.instances.get_mut(&inst_id) {
+                    inst_mut.data_type = new_dt;
+                }
             }
         }
     }
@@ -1542,6 +1673,18 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         }
         (DataType::CalcFloatType, DataType::Float { .. })
         | (DataType::Float { .. }, DataType::CalcFloatType) => DataType::CalcFloatType,
+        (DataType::Bytes { .. } | DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) => {
+            DataType::CalcBytesType
+        }
+        (DataType::Str { .. } | DataType::CalcStrType, DataType::Str { .. } | DataType::CalcStrType) => {
+            DataType::CalcStrType
+        }
+        (DataType::CalcBoolType | DataType::Bits1 { .. }, DataType::CalcBoolType | DataType::Bits1 { .. }) => {
+            DataType::CalcBoolType
+        }
+        (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
+            t1.clone()
+        }
         _ => t1.clone(),
     }
 }
@@ -1568,6 +1711,13 @@ fn infer_expr_type(
             }
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
+        Expr::List(elements) => {
+            let elem_type = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)).unwrap_or(DataType::CalcIntType);
+            Some(DataType::ArrayType {
+                element: Box::new(elem_type),
+                repeat: RepeatMode::Expr(Expr::IntNum(i128::try_from(elements.len()).unwrap_or(0))),
+            })
+        }
         Expr::Str(_) => Some(DataType::CalcStrType),
         Expr::IfExp { if_true, if_false, .. } => {
             let t1 = infer_expr_type(if_true, scopes, registry);
@@ -1590,6 +1740,18 @@ fn infer_expr_type(
                 Some(DataType::CalcIntType)
             }
         }
+        Expr::EnumByLabel { enum_name, .. } => {
+            for (scope_name, scope_ksy) in scopes.iter().rev() {
+                if scope_ksy.enums.contains_key(enum_name) {
+                    return Some(DataType::EnumType {
+                        owner: scope_name.to_vec(),
+                        name: enum_name.clone(),
+                        underlying: None,
+                    });
+                }
+            }
+            None
+        }
         Expr::BinOp { .. } => Some(DataType::CalcIntType),
         Expr::Name(name) => {
             for (scope_name, scope_ksy) in scopes.iter().rev() {
@@ -1611,6 +1773,29 @@ fn infer_expr_type(
                     if let Some(TypeSpec::Simple(s)) = &attr.type_spec {
                         if let Ok((dt, _)) = resolve_simple_type(s, None, None, scopes, registry) {
                             return Some(dt);
+                        }
+                    } else if let Some(TypeSpec::Switch(sw)) = &attr.type_spec {
+                        let mut combined: Option<DataType> = None;
+                        for val in sw.cases.values() {
+                            let case_type_str = match val {
+                                serde_yaml::Value::String(s) => s.clone(),
+                                other => format!("{other:?}"),
+                            };
+                            if let Ok((dt, _)) = resolve_simple_type(
+                                &case_type_str,
+                                None,
+                                None,
+                                scopes,
+                                registry,
+                            ) {
+                                combined = match combined {
+                                    None => Some(dt),
+                                    Some(prev) => Some(combine_types(&prev, &dt)),
+                                };
+                            }
+                        }
+                        if let Some(c) = combined {
+                            return Some(c);
                         }
                     }
                 }
@@ -1641,7 +1826,7 @@ fn infer_expr_type(
             }
         }
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" || attr == "length" || attr == "size" {
+            if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
@@ -1759,9 +1944,9 @@ fn infer_expr_type(
                 Some(DataType::CalcBytesType)
             } else if s == "str" {
                 Some(DataType::CalcStrType)
-            } else if s.starts_with('u') || s.starts_with('s') {
+            } else if matches!(s.as_str(), "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
                 Some(DataType::CalcIntType)
-            } else if s.starts_with('f') {
+            } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
                 None

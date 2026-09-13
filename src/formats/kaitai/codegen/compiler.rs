@@ -637,18 +637,7 @@ fn emit_read_array_element(
                 ));
             }
         } else {
-            let trans_args = args
-                .iter()
-                .map(|a| {
-                    let s = translate_expr(a, ctx);
-                    match a {
-                        Expr::Name(n) if n == "_index" => "(_i) as _".to_string(),
-                        Expr::IntNum(_) => format!("({s}) as _"),
-                        _ => s,
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
+            let trans_args = translate_args(args, ctx, true);
             w.puts(&format!(
                 "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
             ));
@@ -658,15 +647,25 @@ fn emit_read_array_element(
         }
         w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
     } else if let DataType::SwitchType { cases, switch_on } = element {
+        let sw_type = super::translator::detect_type_approx(switch_on, ctx);
+        let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
         let switch_on_expr = translate_expr(switch_on, ctx);
-        w.puts(&format!("match {switch_on_expr} {{"));
+        let match_target = if is_str_switch {
+            let stripped = super::translator::remove_deref(&switch_on_expr);
+            format!("{stripped}.as_str()")
+        } else {
+            switch_on_expr
+        };
+        w.puts(&format!("match {match_target} {{"));
         w.inc();
         for (case_key, case_type) in cases {
             let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
                 || (case_key.starts_with('"') && case_key.ends_with('"'))
             {
                 let inner = &case_key[1..case_key.len().saturating_sub(1)];
-                if inner.len() > 1 {
+                if is_str_switch {
+                    format!("\"{inner}\"")
+                } else if inner.len() > 1 {
                     format!("b\"{inner}\"")
                 } else {
                     case_key.clone()
@@ -688,27 +687,16 @@ fn emit_read_array_element(
             w.inc();
 
             if let DataType::UserType { names, is_external, args } = case_type {
-                w.puts(&format!("let _t_{id}_raw = _io.read_bytes_full()?.into();"));
+                w.puts(&format!("let _t_{id}_raw = _io.read_bytes_full()?;"));
                 w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw);"));
                 let type_name = types_to_class_name(names);
-                let target_args = if *is_external {
-                    "None, None".to_string()
-                } else {
-                    format!("Some({self_name}._root.clone()), Some({self_name}._self.clone())")
-                };
+                let target_args = get_target_args(names, *is_external, self_name, ctx, None);
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = args.iter().map(|a| {
-                        let s = translate_expr(a, ctx);
-                        match a {
-                            Expr::Name(n) if n == "_index" => "(_i) as _".to_string(),
-                            Expr::IntNum(_) => format!("({s}) as _"),
-                            _ => s,
-                        }
-                    }).collect::<Vec<_>>().join(", ");
+                    let trans_args = translate_args(args, ctx, true);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -716,10 +704,11 @@ fn emit_read_array_element(
                         "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
                     ));
                 }
-                w.puts(&format!("{self_name}.{id}.borrow_mut().push(t.into());"));
+                w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
             } else {
                 let val = read_expr_for_type(case_type, current, ctx, "_io");
-                w.puts(&format!("{self_name}.{id}.borrow_mut().push({val}.into());"));
+                let push_val = if val.ends_with(".into()") { val } else { format!("{val}.into()") };
+                w.puts(&format!("{self_name}.{id}.borrow_mut().push({push_val});"));
             }
 
             w.dec();
@@ -790,7 +779,8 @@ fn emit_attr_read(
                 w.puts(&format!("let _t_{id} = {self_name}.{id}.borrow();"));
                 w.puts(&format!("let _tmpa = {deref}_t_{id}.last().unwrap();"));
                 w.puts("_i += 1;");
-                let until_str = translate_expr(until_expr, ctx);
+                let until_ctx = ctx.with_element_type(Some(element));
+                let until_str = translate_expr(until_expr, &until_ctx);
                 w.puts(&format!("let x = !({until_str});"));
                 w.puts("x");
                 w.dec();
@@ -874,8 +864,10 @@ fn emit_attr_validation(
             w.puts("}");
         }
         ValidationRule::Expr(expr) => {
-            w.puts(&format!("let _tmpa = *{self_name}.{id}();"));
-            let cond_str = super::translator::translate_validation_custom_expr(expr, &attr.data_type, current, ctx);
+            let deref = if super::translator::needs_deref(&attr.data_type) { "*" } else { "&*" };
+            w.puts(&format!("let _tmpa = {deref}{self_name}.{id}();"));
+            let val_ctx = ctx.with_element_type(Some(&attr.data_type));
+            let cond_str = super::translator::translate_validation_custom_expr(expr, &attr.data_type, current, &val_ctx);
             w.puts(&format!("if !({cond_str}) {{"));
             w.inc();
             w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -936,7 +928,11 @@ fn translate_args(args: &[Expr], ctx: &TranslationContext<'_>, into: bool) -> St
                 return format!("&{translated}");
             }
         }
-        translated
+        if translated.ends_with(']') {
+            format!("{translated}.clone()")
+        } else {
+            translated
+        }
     }).collect::<Vec<_>>().join(", ")
 }
 
@@ -997,10 +993,18 @@ fn emit_switch_read(
     self_name: &str,
     cases: &indexmap::IndexMap<String, DataType>,
 ) {
-    let switch_on = if let DataType::SwitchType { switch_on, .. } = &attr.data_type {
-        translate_expr(switch_on, ctx)
+    let (switch_on, is_str_switch) = if let DataType::SwitchType { switch_on, .. } = &attr.data_type {
+        let sw_type = super::translator::detect_type_approx(switch_on, ctx);
+        let is_str = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
+        let sw_expr = translate_expr(switch_on, ctx);
+        if is_str {
+            let stripped = super::translator::remove_deref(&sw_expr);
+            (format!("{stripped}.as_str()"), true)
+        } else {
+            (sw_expr, false)
+        }
     } else {
-        "*self_rc.switch_on()?".to_string()
+        ("*self_rc.switch_on()?".to_string(), false)
     };
 
     w.puts(&format!("match {switch_on} {{"));
@@ -1014,7 +1018,9 @@ fn emit_switch_read(
             || (case_key.starts_with('"') && case_key.ends_with('"'))
         {
             let inner = &case_key[1..case_key.len().saturating_sub(1)];
-            if inner.len() > 1 {
+            if is_str_switch {
+                format!("\"{inner}\"")
+            } else if inner.len() > 1 {
                 format!("b\"{inner}\"")
             } else {
                 case_key.clone()
@@ -1041,24 +1047,13 @@ fn emit_switch_read(
             w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
 
             let type_name = types_to_class_name(names);
-            let target_args = if *is_external {
-                "None, None".to_string()
-            } else {
-                format!("Some({self_name}._root.clone()), Some({self_name}._self.clone())")
-            };
+            let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
             if args.is_empty() {
                 w.puts(&format!(
                     "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
                 ));
             } else {
-                let trans_args = args.iter().map(|a| {
-                    let s = translate_expr(a, ctx);
-                    match a {
-                        Expr::Name(n) if n == "_index" => "(_i) as _".to_string(),
-                        Expr::IntNum(_) => format!("({s}) as _"),
-                        _ => s,
-                    }
-                }).collect::<Vec<_>>().join(", ");
+                let trans_args = translate_args(args, ctx, true);
                 w.puts(&format!(
                     "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                 ));
@@ -1068,7 +1063,10 @@ fn emit_switch_read(
             }
             w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
         } else {
-            let val = read_expr_for_type(case_type, current, ctx, "_io");
+            let mut val = read_expr_for_type(case_type, current, ctx, "_io");
+            if matches!(case_type, DataType::Bits { .. } | DataType::Bits1 { .. } | DataType::Str { .. }) {
+                val = format!("{val}.into()");
+            }
             w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some({val});"));
         }
 
@@ -1250,14 +1248,7 @@ fn read_expr_for_type(
             if args.is_empty() {
                 format!("Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()")
             } else {
-                let trans_args = args.iter().map(|a| {
-                    let s = translate_expr(a, ctx);
-                    match a {
-                        Expr::Name(n) if n == "_index" => "(_i) as _".to_string(),
-                        Expr::IntNum(_) => format!("({s}) as _"),
-                        _ => s,
-                    }
-                }).collect::<Vec<_>>().join(", ");
+                let trans_args = translate_args(args, ctx, true);
                 format!("{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into() }}")
             }
         }
@@ -1343,7 +1334,11 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. } => {
                         let no_deref = super::translator::remove_deref(&expr_str);
                         let no_vec = no_deref.strip_prefix('&').unwrap_or(no_deref);
-                        format!("{no_vec}.to_vec()")
+                        if no_vec.starts_with("vec![") {
+                            no_vec.to_string()
+                        } else {
+                            format!("{no_vec}.to_vec()")
+                        }
                     }
                     DataType::EnumType { .. } => {
                         if inst.enum_name.is_some() {
@@ -1406,16 +1401,35 @@ fn emit_parse_instance_body(
 
     match &inst.data_type {
         DataType::SwitchType { switch_on, cases } => {
-            let switch_on_str = translate_expr(switch_on, ctx);
+            let sw_type = super::translator::detect_type_approx(switch_on, ctx);
+            let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
+            let switch_on_expr = translate_expr(switch_on, ctx);
+            let match_target = if is_str_switch {
+                let stripped = super::translator::remove_deref(&switch_on_expr);
+                format!("{stripped}.as_str()")
+            } else {
+                switch_on_expr
+            };
 
-            w.puts(&format!("match {switch_on_str} {{"));
+            w.puts(&format!("match {match_target} {{"));
             w.inc();
 
             for (case_key, case_type) in cases {
                 if case_key == "_" {
                     continue;
                 }
-                let pattern = if case_key.contains("::") {
+                let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
+                    || (case_key.starts_with('"') && case_key.ends_with('"'))
+                {
+                    let inner = &case_key[1..case_key.len().saturating_sub(1)];
+                    if is_str_switch {
+                        format!("\"{inner}\"")
+                    } else if inner.len() > 1 {
+                        format!("b\"{inner}\"")
+                    } else {
+                        case_key.clone()
+                    }
+                } else if case_key.contains("::") {
                     let parts: Vec<&str> = case_key.split("::").collect();
                     if parts.len() == 2 {
                         let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
@@ -1424,6 +1438,8 @@ fn emit_parse_instance_body(
                     } else {
                         case_key.clone()
                     }
+                } else if is_str_switch && !case_key.starts_with('"') {
+                    format!("\"{case_key}\"")
                 } else {
                     case_key.clone()
                 };
@@ -1513,11 +1529,7 @@ fn emit_parse_instance_body(
                         w.puts(&format!("let io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().unwrap().clone());"));
                         if let DataType::UserType { names, is_external, args: _ } = element.as_ref() {
                             let type_name = types_to_class_name(names);
-                            let target_args = if *is_external {
-                                "None, None".to_string()
-                            } else {
-                                "Some(self._root.clone()), Some(self._self.clone())".to_string()
-                            };
+                            let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
                             if current.has_dynamic_endian() {
                                 w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_endian(*self._is_le.borrow()));"));
                                 w.puts(&format!("let t = Self::read_into_with_init::<BytesReader, {type_name}>(&io_{inst_id}_raw, {target_args}, &f)?.into();"));
@@ -1565,7 +1577,8 @@ fn emit_parse_instance_body(
                     w.puts(&format!("let _t_{inst_id} = self.{escaped_inst_id}.borrow();"));
                     w.puts(&format!("let _tmpa = {deref}_t_{inst_id}.last().unwrap();"));
                     w.puts("_i += 1;");
-                    let until_str = translate_expr(until_expr, ctx);
+                    let until_ctx = ctx.with_element_type(Some(element));
+                    let until_str = translate_expr(until_expr, &until_ctx);
                     w.puts(&format!("let x = !({until_str});"));
                     w.puts("x");
                     w.dec();
