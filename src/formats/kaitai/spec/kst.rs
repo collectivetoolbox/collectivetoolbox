@@ -32,7 +32,7 @@ use crate::utilities::*;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// A parsed Kaitai Struct Test (`.kst`) specification file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -116,6 +116,7 @@ pub fn parse_kst_file(path: &Path) -> Result<KstSpec> {
 )]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[crate::ctb_test]
     fn test_parse_sample_kst() -> Result<()> {

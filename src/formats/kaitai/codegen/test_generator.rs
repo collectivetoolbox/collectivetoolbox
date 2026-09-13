@@ -91,6 +91,10 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
+use crate::precompile::hierarchy::to_upper_camel_case;
+use crate::spec::kst::{parse_kst_file, KstException, KstSpec};
+use crate::spec::KsyFile;
+
 /// Statistics reporting the results of test generation.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct GenerationStats {
@@ -239,6 +243,357 @@ pub fn transform_test_content(src_name: &str, content: &str) -> Result<String> {
     Ok(out)
 }
 
+/// Formats a `.kst` expected value into a Rust expression string.
+#[must_use]
+pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) -> String {
+    match expected {
+        serde_yaml::Value::Bool(b) => b.to_string(),
+        serde_yaml::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                format!("{i}")
+            } else if let Some(u) = n.as_u64() {
+                format!("{u}")
+            } else if let Some(f) = n.as_f64() {
+                format!("{f}")
+            } else {
+                format!("{n}")
+            }
+        }
+        serde_yaml::Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                let inner = &trimmed[1..trimmed.len().saturating_sub(1)];
+                let items: Vec<String> = inner
+                    .split(',')
+                    .map(|item| {
+                        let item = item.trim();
+                        if item.starts_with("0x") || item.starts_with("0X") {
+                            format!("{item}u8")
+                        } else if let Ok(num) = item.parse::<u8>() {
+                            format!("{num}u8")
+                        } else {
+                            item.to_string()
+                        }
+                    })
+                    .collect();
+                format!("vec![{}]", items.join(", "))
+            } else if s.contains("::") {
+                let parts: Vec<&str> = s.split("::").collect();
+                if parts.len() == 3 {
+                    let fmt = to_upper_camel_case(parts[0]);
+                    let enum_name = to_upper_camel_case(parts[1]);
+                    let variant = to_upper_camel_case(parts[2]);
+                    format!("{fmt}_{enum_name}::{variant}")
+                } else if parts.len() == 2 {
+                    let fmt = to_upper_camel_case(current_format);
+                    let enum_name = to_upper_camel_case(parts[0]);
+                    let variant = to_upper_camel_case(parts[1]);
+                    format!("{fmt}_{enum_name}::{variant}")
+                } else {
+                    s.clone()
+                }
+            } else {
+                format!("{s:?}")
+            }
+        }
+        serde_yaml::Value::Sequence(seq) => {
+            let items: Vec<String> = seq
+                .iter()
+                .map(|v| format_expected_expr(v, current_format))
+                .collect();
+            format!("vec![{}]", items.join(", "))
+        }
+        _ => format!("{expected:?}"),
+    }
+}
+
+/// Formats a `.kst` actual path expression into a Rust method chain on root `r`.
+#[must_use]
+pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
+    let parts: Vec<&str> = actual.split('.').collect();
+    if parts.is_empty() {
+        return "r".to_string();
+    }
+
+    let is_len = parts.last().is_some_and(|p| *p == "size" || *p == "length");
+    let mut call_chain = String::new();
+    let mut current_ksy = ksy;
+
+    for part in &parts {
+        if *part == "size" || *part == "length" {
+            call_chain.push_str(".len()");
+            continue;
+        }
+
+        if let Some(bracket_pos) = part.find('[') {
+            if let Some(end_bracket) = part.find(']') {
+                let field_name = &part[..bracket_pos];
+                let index_str = &part[bracket_pos.saturating_add(1)..end_bracket];
+
+                let is_inst = current_ksy
+                    .map(|k| k.instances.contains_key(field_name))
+                    .unwrap_or(false);
+
+                if is_inst {
+                    call_chain.push_str(&format!(".{field_name}()?[{index_str}]"));
+                } else {
+                    call_chain.push_str(&format!(".{field_name}()[{index_str}]"));
+                }
+
+                if let Some(k) = current_ksy {
+                    if let Some(child_file) = k.types.get(field_name) {
+                        current_ksy = Some(child_file);
+                    }
+                }
+                continue;
+            }
+        }
+
+        if part.starts_with("as<") && part.ends_with('>') {
+            call_chain.push_str(".as_ref().context(\"Missing optional field\")?");
+            continue;
+        }
+
+        let is_inst = current_ksy
+            .map(|k| k.instances.contains_key(*part))
+            .unwrap_or(false);
+
+        if is_inst {
+            call_chain.push_str(&format!(".{part}()?"));
+        } else {
+            call_chain.push_str(&format!(".{part}()"));
+        }
+
+        if let Some(k) = current_ksy {
+            if let Some(child_file) = k.types.get(*part) {
+                current_ksy = Some(child_file);
+            }
+        }
+    }
+
+    if is_len {
+        format!("r{call_chain}")
+    } else {
+        format!("*r{call_chain}")
+    }
+}
+
+/// Synthesizes a Rust unit test source string directly from a `.kst` specification.
+///
+/// # Errors
+/// Returns an error if the `.kst` file cannot be read or parsed.
+pub fn synthesize_test_from_kst(
+    kst_path: &Path,
+    formats_dir: Option<&Path>,
+) -> Result<String> {
+    let kst = parse_kst_file(kst_path)?;
+    let kst_name = kst_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("test.kst");
+
+    let root_type = to_upper_camel_case(&kst.id);
+    let mod_name = &kst.id;
+
+    let mut out = String::with_capacity(2048);
+    out.push_str(LICENSE_HEADER);
+    out.push_str("\n\n// @generated by ctb-formats-kaitai::codegen::test_generator from KST specification\n");
+    out.push_str(&format!("// Source: {kst_name}\n\n"));
+
+    out.push_str("#![allow(\n");
+    out.push_str("    unused_imports,\n");
+    out.push_str("    unused_variables,\n");
+    out.push_str("    non_snake_case,\n");
+    out.push_str("    clippy::panic,\n");
+    out.push_str("    clippy::expect_used,\n");
+    out.push_str("    clippy::unwrap_used,\n");
+    out.push_str("    clippy::indexing_slicing,\n");
+    out.push_str("    clippy::arithmetic_side_effects,\n");
+    out.push_str("    clippy::redundant_clone,\n");
+    out.push_str("    reason = \"Standard repository test boilerplate\"\n");
+    out.push_str(")]\n\n");
+
+    out.push_str("use std::path::PathBuf;\n");
+    out.push_str("use anyhow::Context;\n");
+    out.push_str("use std::fs;\n");
+    out.push_str("use kaitai::*;\n");
+    out.push_str(&format!("use rust::formats::{mod_name}::*;\n\n"));
+
+    out.push_str("#[crate::ctb_test]\n");
+    out.push_str(&format!("fn test_{mod_name}() -> KResult<()> {{\n"));
+
+    if let Some(data_file) = &kst.data {
+        out.push_str("    let manifest_dir = std::path::PathBuf::from(env!(\"CARGO_MANIFEST_DIR\"));\n");
+        out.push_str(&format!(
+            "    let bytes = std::fs::read(manifest_dir.join(\"kaitai_struct_tests/src/{data_file}\"))?;\n"
+        ));
+        out.push_str("    let _io = BytesReader::from(bytes);\n");
+    }
+
+    if let Some(exc) = &kst.exception {
+        out.push_str(&format!(
+            "    let res: KResult<OptRc<{root_type}>> = {root_type}::read_into(&_io, None, None);\n"
+        ));
+        out.push_str("    let err = res.expect_err(\"expected Err, but got Ok\");\n");
+        let exc_name = match exc {
+            KstException::Simple(s) => s.as_str(),
+            KstException::Detailed { r#type, .. } => r#type.as_str(),
+        };
+        if exc_name.starts_with("Validation") {
+            out.push_str("    assert!(matches!(err, KError::ValidationFailed(..)), \"expected validation error, got: {:?}\", err);\n");
+        } else if exc_name.contains("EndOfStream") || exc_name.contains("Eof") || exc_name.contains("Eos") {
+            out.push_str("    assert!(matches!(err, KError::Io(..) | KError::ValidationFailed(..)), \"expected EOF/Io error, got: {:?}\", err);\n");
+        } else if exc_name.contains("UndecidedEndianness") {
+            out.push_str("    assert!(matches!(err, KError::UndecidedEndianness { .. }), \"expected UndecidedEndianness error, got: {:?}\", err);\n");
+        } else {
+            out.push_str("    let _ = err;\n");
+        }
+    } else {
+        out.push_str(&format!(
+            "    let r: OptRc<{root_type}> = {root_type}::read_into(&_io, None, None)?;\n\n"
+        ));
+
+        let ksy = if let Some(dir) = formats_dir {
+            let ksy_path = dir.join(format!("{mod_name}.ksy"));
+            if ksy_path.exists() {
+                if let Ok(content) = fs::read_to_string(&ksy_path) {
+                    crate::parser::parse_ksy_str(&content).ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        for assert in &kst.asserts {
+            let actual_str = match &assert.actual {
+                serde_yaml::Value::String(s) => s.clone(),
+                v => format!("{v:?}"),
+            };
+
+            if let Some(exc) = &assert.exception {
+                out.push_str(&format!("    // Exception expected on {actual_str}: {exc}\n"));
+                continue;
+            }
+
+            if let Some(expected_val) = &assert.expected {
+                let actual_expr = format_actual_expr(&actual_str, ksy.as_ref());
+                let expected_expr = format_expected_expr(expected_val, mod_name);
+                out.push_str(&format!("    assert_eq!({actual_expr}, {expected_expr});\n"));
+            }
+        }
+    }
+
+    out.push_str("    Ok(())\n");
+    out.push_str("}\n");
+
+    Ok(out)
+}
+
+/// Regenerates all Kaitai Struct tests from `.kst` specifications in `kst_dir`,
+/// writing `.generated.rs` test files into `out_dir` with caching via `cache_file`.
+///
+/// # Errors
+/// Returns an error if directory traversal or code generation fails.
+pub fn regenerate_tests_from_kst(
+    kst_dir: &Path,
+    out_dir: &Path,
+    formats_dir: Option<&Path>,
+    cache_file: &Path,
+    force: bool,
+) -> Result<GenerationStats> {
+    let mut stats = GenerationStats::default();
+
+    if !kst_dir.exists() {
+        return Ok(stats);
+    }
+
+    fs::create_dir_all(out_dir)?;
+
+    let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
+    if !force && cache_file.exists() {
+        if let Ok(cache_str) = fs::read_to_string(cache_file) {
+            for line in cache_str.lines() {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() == 3 {
+                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                        cache.insert(parts[0].to_string(), (mtime, size));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut updated_cache = cache.clone();
+
+    for entry in WalkDir::new(kst_dir) {
+        let entry = entry?;
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        let file_name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+
+        if !file_name.ends_with(".kst") {
+            continue;
+        }
+
+        stats.total_discovered = stats.total_discovered.saturating_add(1);
+
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+
+        let target_name = format!("test_{stem}.generated.rs");
+        let target_path = out_dir.join(&target_name);
+
+        let metadata = fs::metadata(path)?;
+        let mtime = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let size = metadata.len();
+
+        let rel_key = path
+            .strip_prefix(kst_dir)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .to_string();
+
+        if !force && target_path.exists() {
+            if let Some((cached_mtime, cached_size)) = cache.get(&rel_key) {
+                if *cached_mtime == mtime && *cached_size == size {
+                    stats.cache_hits = stats.cache_hits.saturating_add(1);
+                    continue;
+                }
+            }
+        }
+
+        let generated_code = synthesize_test_from_kst(path, formats_dir)?;
+        write_if_changed(&target_path, &generated_code)?;
+        updated_cache.insert(rel_key, (mtime, size));
+        stats.generated_count = stats.generated_count.saturating_add(1);
+    }
+
+    let mut cache_str = String::new();
+    for (k, (mtime, size)) in &updated_cache {
+        cache_str.push_str(&format!("{k}\t{mtime}\t{size}\n"));
+    }
+    write_if_changed(cache_file, &cache_str)?;
+
+    Ok(stats)
+}
+
 /// Regenerates all Kaitai Struct tests in `src_dir`, writing `.generated.rs` files
 /// into `out_dir` with caching via `cache_file`.
 pub fn regenerate_tests(
@@ -247,6 +602,18 @@ pub fn regenerate_tests(
     cache_file: &Path,
     force: bool,
 ) -> Result<GenerationStats> {
+    let has_kst = WalkDir::new(src_dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .any(|e| e.path().extension().is_some_and(|ext| ext == "kst"));
+
+    if has_kst {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let formats_dir = manifest_dir.join("kaitai_struct_tests/formats");
+        return regenerate_tests_from_kst(src_dir, out_dir, Some(&formats_dir), cache_file, force);
+    }
+
     let mut stats = GenerationStats::default();
 
     if !src_dir.exists() {
