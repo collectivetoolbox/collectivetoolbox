@@ -77,17 +77,8 @@ fn emit_file_header(w: &mut CodeWriter, spec: &ClassSpec) {
     w.puts("// license-linter:allow-non-AGPL");
     w.puts("// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild");
     w.newline();
-    w.puts("#![allow(unused_imports)]");
-    w.puts("#![allow(non_snake_case)]");
-    w.puts("#![allow(non_camel_case_types)]");
-    w.puts("#![allow(irrefutable_let_patterns)]");
-    w.puts("#![allow(unused_comparisons)]");
-    w.newline();
-    w.puts("extern crate kaitai;");
-    w.puts("use kaitai::*;");
-    w.puts("use std::convert::{TryFrom, TryInto};");
-    w.puts("use std::cell::{Ref, Cell, RefCell};");
-    w.puts("use std::rc::{Rc, Weak};");
+    w.puts("use kaitai::{BytesReader, KResult, KStream, KStruct, OptRc, SharedType};");
+    w.puts("use std::cell::{Ref, RefCell};");
 }
 
 fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
@@ -119,9 +110,9 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
     w.puts(&format!("pub struct {class_name} {{"));
     w.inc();
 
-    w.puts(&format!("pub _root: SharedType<{root_class_name}>,"));
-    w.puts(&format!("pub _parent: SharedType<{parent_class_name}>,"));
-    w.puts("pub _self: SharedType<Self>,");
+    w.puts(&format!("pub(crate) root: SharedType<{root_class_name}>,"));
+    w.puts(&format!("pub(crate) parent: SharedType<{parent_class_name}>,"));
+    w.puts("pub(crate) self_shared: SharedType<Self>,");
 
     for p in &current.params {
         let field_type = rust_field_type(&p.data_type, current, &p.id);
@@ -135,7 +126,7 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
         w.puts(&format!("{escaped_id}: RefCell<{field_type}>,"));
     }
 
-    w.puts("_io: RefCell<BytesReader>,");
+    w.puts("io: RefCell<BytesReader>,");
 
     // Extra attrs for substreams (e.g. `body_raw: RefCell<Vec<u8>>,`)
     for attr in &current.seq {
@@ -462,7 +453,8 @@ fn emit_switch_enum(
         w.puts("match e {");
         w.inc();
         for (v_name, _) in &variants {
-            w.puts(&format!("{enum_name}::{v_name}(v) => *v as usize,"));
+            // Reason for fallback: invalid enum conversion to usize defaults to 0
+            w.puts(&format!("{enum_name}::{v_name}(v) => usize::try_from(*v).unwrap_or(0),"));
         }
         w.dec();
         w.puts("}");
@@ -523,20 +515,17 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.puts("fn read<S: KStream>(");
     w.inc();
     w.puts("self_rc: &OptRc<Self>,");
-    w.puts("_io: &S,");
-    w.puts("_root: SharedType<Self::Root>,");
-    w.puts("_parent: SharedType<Self::Parent>,");
+    w.puts("io: &S,");
+    w.puts("root: SharedType<Self::Root>,");
+    w.puts("parent: SharedType<Self::Parent>,");
     w.dec();
     w.puts(") -> KResult<()> {");
     w.inc();
 
-    w.puts("*self_rc._io.borrow_mut() = _io.clone();");
-    w.puts("self_rc._root.set(_root.get());");
-    w.puts("self_rc._parent.set(_parent.get());");
-    w.puts("self_rc._self.set(Ok(self_rc.clone()));");
-    w.puts("let _rrc = self_rc._root.get_value().borrow().upgrade();");
-    w.puts("let _prc = self_rc._parent.get_value().borrow().upgrade();");
-    w.puts("let _r = _rrc.as_ref().unwrap();");
+    w.puts("*self_rc.io.borrow_mut() = io.clone();");
+    w.puts("self_rc.root.set(root.get());");
+    w.puts("self_rc.parent.set(parent.get());");
+    w.puts("self_rc.self_shared.set(Ok(self_rc.clone()));");
 
     let ctx = TranslationContext::new(current, root, true);
 
@@ -545,22 +534,17 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
         w.puts(&format!("match {switch_on} {{"));
         w.inc();
         for (case_key, case_endian) in &sw.cases {
-            let pattern = if case_key.contains("::") {
-                let parts: Vec<&str> = case_key.split("::").collect();
-                if parts.len() == 2 {
-                    let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(root));
-                    let variant = to_upper_camel_case(parts[1]);
-                    format!("{enum_scoped}::{variant}")
-                } else {
-                    case_key.clone()
-                }
+            let pattern = if let Some((p0, p1)) = case_key.split_once("::") {
+                let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(root));
+                let variant = to_upper_camel_case(p1);
+                format!("{enum_scoped}::{variant}")
             } else {
                 case_key.clone()
             };
             let code = match case_endian {
-                Endianness::Little => "(1) as i32",
-                Endianness::Big => "(2) as i32",
-                _ => "(0) as i32",
+                Endianness::Little => "1_i32",
+                Endianness::Big => "2_i32",
+                _ => "0_i32",
             };
             w.puts(&format!("{pattern} => {{"));
             w.inc();
@@ -574,7 +558,8 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
         w.puts("if *self_rc._is_le.borrow() == 0 {");
         w.inc();
         let src_path = if current.name.len() > 1 {
-            format!("/types/{}", current.name[1..].join("/types/"))
+            let types = current.name.iter().skip(1).cloned().collect::<Vec<_>>().join("/types/");
+            format!("/types/{types}")
         } else {
             String::new()
         };
@@ -587,7 +572,7 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     for attr in &current.seq {
         let cur_is_bits = is_bit_type(&attr.data_type);
         if prev_was_bits && !cur_is_bits {
-            w.puts("_io.align_to_byte()?;");
+            w.puts("io.align_to_byte()?;");
         }
         emit_attr_read(w, current, attr, &ctx);
         prev_was_bits = cur_is_bits;
@@ -673,15 +658,10 @@ fn emit_read_array_element(
                 } else {
                     case_key.clone()
                 }
-            } else if case_key.contains("::") {
-                let parts: Vec<&str> = case_key.split("::").collect();
-                if parts.len() == 2 {
-                    let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
-                    let variant = to_upper_camel_case(parts[1]);
-                    format!("{enum_scoped}::{variant}")
-                } else {
-                    case_key.clone()
-                }
+            } else if let Some((p0, p1)) = case_key.split_once("::") {
+                let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+                let variant = to_upper_camel_case(p1);
+                format!("{enum_scoped}::{variant}")
             } else {
                 case_key.clone()
             };
@@ -855,7 +835,8 @@ fn emit_attr_validation(
                 } else {
                     let ty_cast = validation_primitive_type(elem_dt);
                     let expected_str = translate_expr(expected_expr, ctx);
-                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| (*_x as {ty_cast}) == ({expected_str} as {ty_cast})) {{"));
+                    w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
+                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x == expected) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -879,7 +860,8 @@ fn emit_attr_validation(
             } else {
                 let ty_cast = validation_primitive_type(&attr.data_type);
                 let expected_str = translate_expr(expected_expr, ctx);
-                w.puts(&format!("if !(((*{self_name}.{id}() as {ty_cast}) == ({expected_str} as {ty_cast}))) {{"));
+                w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
+                w.puts(&format!("if !(*{self_name}.{id}() == expected) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
@@ -901,13 +883,15 @@ fn emit_attr_validation(
                 translate_expr(min_expr, ctx)
             };
             if is_repeated {
-                w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| (*_x as {ty_cast}) >= ({min_str} as {ty_cast})) {{"));
+                w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x >= min_val) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
                 w.puts("}");
             } else {
-                w.puts(&format!("if !(((*{self_name}.{id}() as {ty_cast}) >= ({min_str} as {ty_cast}))) {{"));
+                w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                w.puts(&format!("if !(*{self_name}.{id}() >= min_val) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
@@ -959,22 +943,21 @@ fn get_target_args(
     let parent = match parent_expr {
         Some(crate::spec::ValueOrExpr::Bool(false)) => "None".to_string(),
         Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => {
-            "Some(SharedType::new(_prc.as_ref().unwrap().clone()))".to_string()
+            format!("Some(SharedType::new({self_name}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone()))")
         }
         _ => {
             if let Some(tc) = target_class {
-                // Reason for fallback: types without parent_name do not match KStructUnit parent
-                if tc.parent_name.as_ref().map(|p| p.len() == 1 && p[0] == "KStructUnit").unwrap_or(false) {
+                if tc.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"]) {
                     "None".to_string()
                 } else {
-                    format!("Some({self_name}._self.clone())")
+                    format!("Some({self_name}.self_shared.clone())")
                 }
             } else {
-                format!("Some({self_name}._self.clone())")
+                format!("Some({self_name}.self_shared.clone())")
             }
         }
     };
-    format!("Some({self_name}._root.clone()), {parent}")
+    format!("Some({self_name}.root.clone()), {parent}")
 }
 
 fn translate_args(args: &[Expr], ctx: &TranslationContext<'_>, into: bool) -> String {
@@ -985,7 +968,7 @@ fn translate_args(args: &[Expr], ctx: &TranslationContext<'_>, into: bool) -> St
             translated = "OptRc::new(&_rrc)".to_string();
         }
         if matches!(a, Expr::Name(n) if n == "_index") {
-            return "(_i) as _".to_string();
+            return "(_i).try_into().map_err(|_| KError::CastError)?".to_string();
         }
         if let Some(t) = &typ {
             if super::translator::is_numeric_type(t) {
@@ -1094,15 +1077,10 @@ fn emit_switch_read(
             } else {
                 case_key.clone()
             }
-        } else if case_key.contains("::") {
-            let parts: Vec<&str> = case_key.split("::").collect();
-            if parts.len() == 2 {
-                let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
-                let variant = to_upper_camel_case(parts[1]);
-                format!("{enum_scoped}::{variant}")
-            } else {
-                case_key.clone()
-            }
+        } else if let Some((p0, p1)) = case_key.split_once("::") {
+            let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+            let variant = to_upper_camel_case(p1);
+            format!("{enum_scoped}::{variant}")
         } else {
             case_key.clone()
         };
@@ -1170,33 +1148,33 @@ fn read_expr_for_type(
     match dt {
         DataType::Int1 { signed } => {
             let prefix = if *signed { 's' } else { 'u' };
-            format!("{io}.read_{prefix}1()?.into()")
+            format!("{io}.read_{prefix}1()?")
         }
         DataType::IntMulti { signed, width, endian } => {
             let prefix = if *signed { 's' } else { 'u' };
             if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
                 let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
-                format!("if {self_field} == 1 {{ {io}.read_{prefix}{width}le()?.into() }} else {{ {io}.read_{prefix}{width}be()?.into() }}")
+                format!("if {self_field} == 1 {{ {io}.read_{prefix}{width}le()? }} else {{ {io}.read_{prefix}{width}be()? }}")
             } else {
                 // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
                     Endianness::Big | Endianness::Inherited => "be",
                     Endianness::Little => "le",
                 };
-                format!("{io}.read_{prefix}{width}{endian_str}()?.into()")
+                format!("{io}.read_{prefix}{width}{endian_str}()?")
             }
         }
         DataType::Float { width, endian } => {
             if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
                 let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
-                format!("if {self_field} == 1 {{ {io}.read_f{width}le()?.into() }} else {{ {io}.read_f{width}be()?.into() }}")
+                format!("if {self_field} == 1 {{ {io}.read_f{width}le()? }} else {{ {io}.read_f{width}be()? }}")
             } else {
                 // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
                     Endianness::Big | Endianness::Inherited => "be",
                     Endianness::Little => "le",
                 };
-                format!("{io}.read_f{width}{endian_str}()?.into()")
+                format!("{io}.read_f{width}{endian_str}()?")
             }
         }
         DataType::Bits1 { bit_endian } => {
@@ -1215,21 +1193,21 @@ fn read_expr_for_type(
         }
         DataType::Bytes { size, size_eos, terminator, include, consume, pad_right, .. } => {
             let mut raw_bytes = if *size_eos {
-                format!("{io}.read_bytes_full()?.into()")
+                format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
                 let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes(({s}) as usize)?.into()")
+                format!("{io}.read_bytes(usize::try_from({s})?)?")
             } else if let Some(term) = terminator {
-                format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?.into()")
+                format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?")
             } else {
-                format!("{io}.read_bytes_full()?.into()")
+                format!("{io}.read_bytes_full()?")
             };
             if size.is_some() || *size_eos {
                 if let Some(pad) = pad_right {
-                    raw_bytes = format!("bytes_strip_right(&{raw_bytes}, {pad}).into()");
+                    raw_bytes = format!("bytes_strip_right(&{raw_bytes}, {pad})");
                 }
                 if let Some(term) = terminator {
-                    raw_bytes = format!("bytes_terminate(&{raw_bytes}, {term}, {include}).into()");
+                    raw_bytes = format!("bytes_terminate(&{raw_bytes}, {term}, {include})");
                 }
             }
             raw_bytes
@@ -1248,7 +1226,7 @@ fn read_expr_for_type(
                 format!("{io}.read_bytes_full()?.into()")
             } else if let Some(size_expr) = size {
                 let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes(({s}) as usize)?.into()")
+                format!("{io}.read_bytes(usize::try_from({s})?)?.into()")
             } else if let Some(term) = terminator {
                 format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?.into()")
             } else {
@@ -1314,7 +1292,7 @@ fn read_expr_for_type(
             let target_args = if *is_external {
                 "None, None".to_string()
             } else {
-                format!("Some({}._root.clone()), Some({}._self.clone())", ctx.self_name(), ctx.self_name())
+                format!("Some({}.root.clone()), Some({}.self_shared.clone())", ctx.self_name(), ctx.self_name())
             };
             let io_ref = if io == "_io" { "&*_io".to_string() } else { format!("&{io}") };
             if args.is_empty() {
@@ -1373,10 +1351,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
             w.puts(&format!(") -> KResult<Ref<'_, {ret_type}>> {{"));
             w.inc();
 
-            w.puts("let _io = self._io.borrow();");
-            w.puts("let _rrc = self._root.get_value().borrow().upgrade();");
-            w.puts("let _prc = self._parent.get_value().borrow().upgrade();");
-            w.puts("let _r = _rrc.as_ref().unwrap();");
+            w.puts("let _io = self.io.borrow();");
 
             w.puts(&format!("if self.f_{inst_id}.get() {{"));
             w.inc();
@@ -1532,15 +1507,10 @@ fn emit_parse_instance_body(
                     } else {
                         case_key.clone()
                     }
-                } else if case_key.contains("::") {
-                    let parts: Vec<&str> = case_key.split("::").collect();
-                    if parts.len() == 2 {
-                        let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
-                        let variant = to_upper_camel_case(parts[1]);
-                        format!("{enum_scoped}::{variant}")
-                    } else {
-                        case_key.clone()
-                    }
+                } else if let Some((p0, p1)) = case_key.split_once("::") {
+                    let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+                    let variant = to_upper_camel_case(p1);
+                    format!("{enum_scoped}::{variant}")
                 } else if is_str_switch && !case_key.starts_with('"') {
                     format!("\"{case_key}\"")
                 } else {
@@ -1794,7 +1764,7 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
     w.inc();
     w.puts("pub fn _io(&self) -> Ref<'_, BytesReader> {");
     w.inc();
-    w.puts("self._io.borrow()");
+    w.puts("self.io.borrow()");
     w.dec();
     w.puts("}");
     w.dec();

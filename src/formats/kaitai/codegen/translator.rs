@@ -363,8 +363,20 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
 
 fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
     match name {
-        "_root" => "_r".to_string(),
-        "_parent" => "_prc.as_ref().unwrap()".to_string(),
+        "_root" => {
+            if ctx.in_reader {
+                "self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?".to_string()
+            } else {
+                "self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?".to_string()
+            }
+        }
+        "_parent" => {
+            if ctx.in_reader {
+                "self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?".to_string()
+            } else {
+                "self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?".to_string()
+            }
+        }
         "_io" => "_io".to_string(),
         "_index" => "_i".to_string(),
         "_" => "_tmpa".to_string(),
@@ -513,10 +525,10 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         return format!("{t}.{attr}()");
     }
     if attr == "_parent" {
-        return format!("{t}._parent.get_value().borrow().upgrade().as_ref().unwrap()");
+        return format!("{t}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?");
     }
     if attr == "_root" {
-        return format!("{t}._root.get_value().borrow().upgrade().as_ref().unwrap()");
+        return format!("{t}._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?");
     }
     if attr == "_io" {
         return format!("{t}._io()");
@@ -850,9 +862,9 @@ fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> S
             }
             "substring" => {
                 let stripped = remove_deref(&t);
-                if args.len() >= 2 {
-                    let from = translate_expr(&args[0], ctx);
-                    let to = translate_expr(&args[1], ctx);
+                if let (Some(arg0), Some(arg1)) = (args.first(), args.get(1)) {
+                    let from = translate_expr(arg0, ctx);
+                    let to = translate_expr(arg1, ctx);
                     format!("&{stripped}[{from}..{to}]")
                 } else {
                     format!("{stripped}.to_string()")
@@ -925,8 +937,8 @@ pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Optio
     if path.is_empty() {
         return None;
     }
-    let parts = if path[0] == root.name[0] {
-        &path[1..]
+    let parts = if path.first() == root.name.first() {
+        path.get(1..).unwrap_or(&[])
     } else {
         path
     };
@@ -1066,7 +1078,7 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     }
                 }
                 curr_opt = if cls_name.len() > 1 {
-                    Some(&cls_name[..cls_name.len() - 1])
+                    cls_name.get(..cls_name.len().saturating_sub(1))
                 } else {
                     None
                 };
@@ -1249,7 +1261,7 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     }
                 }
                 curr_opt = if cls_name.len() > 1 {
-                    Some(&cls_name[..cls_name.len() - 1])
+                    cls_name.get(..cls_name.len().saturating_sub(1))
                 } else {
                     None
                 };

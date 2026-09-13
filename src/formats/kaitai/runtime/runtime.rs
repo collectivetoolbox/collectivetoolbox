@@ -334,6 +334,18 @@ impl From<std::io::Error> for KError {
     }
 }
 
+impl From<std::num::TryFromIntError> for KError {
+    fn from(_: std::num::TryFromIntError) -> Self {
+        Self::CastError
+    }
+}
+
+impl From<std::convert::Infallible> for KError {
+    fn from(_: std::convert::Infallible) -> Self {
+        Self::CastError
+    }
+}
+
 fn to_fixed_array<const N: usize>(vec: Vec<u8>) -> KResult<[u8; N]> {
     vec.try_into().map_err(|v: Vec<u8>| KError::Eof {
         requested: N,

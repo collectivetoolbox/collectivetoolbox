@@ -2,38 +2,29 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-#![allow(unused_imports, reason = "Generated parser module")]
-#![allow(non_snake_case, reason = "Generated parser module")]
-#![allow(non_camel_case_types, reason = "Generated parser module")]
-#![allow(irrefutable_let_patterns, reason = "Generated parser module")]
-#![allow(unused_comparisons, reason = "Generated parser module")]
-
-extern crate kaitai;
-use kaitai::*;
-use std::convert::{TryFrom, TryInto};
-use std::cell::{Ref, Cell, RefCell};
-use std::rc::{Rc, Weak};
+use kaitai::{BytesReader, KResult, KStream, KStruct, OptRc, SharedType};
+use std::cell::{Ref, RefCell};
 
 /**
  * Microsoft Windows SYSTEMTIME structure, stores individual components
  * of date and time as individual fields, up to millisecond precision.
- * \sa https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-systemtime Source
+ * \sa <https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-systemtime> Source
  */
 
 #[derive(Default, Debug, Clone)]
 pub struct WindowsSystemtime {
-    pub _root: SharedType<WindowsSystemtime>,
-    pub _parent: SharedType<WindowsSystemtime>,
-    pub _self: SharedType<Self>,
-    year: RefCell<u16>,
-    month: RefCell<u16>,
-    dow: RefCell<u16>,
-    day: RefCell<u16>,
-    hour: RefCell<u16>,
-    min: RefCell<u16>,
-    sec: RefCell<u16>,
-    msec: RefCell<u16>,
-    _io: RefCell<BytesReader>,
+    pub(crate) root: SharedType<WindowsSystemtime>,
+    pub(crate) parent: SharedType<WindowsSystemtime>,
+    pub(crate) self_shared: SharedType<Self>,
+    pub year: RefCell<u16>,
+    pub month: RefCell<u16>,
+    pub dow: RefCell<u16>,
+    pub day: RefCell<u16>,
+    pub hour: RefCell<u16>,
+    pub min: RefCell<u16>,
+    pub sec: RefCell<u16>,
+    pub msec: RefCell<u16>,
+    io: RefCell<BytesReader>,
 }
 impl KStruct for WindowsSystemtime {
     type Root = WindowsSystemtime;
@@ -41,25 +32,22 @@ impl KStruct for WindowsSystemtime {
 
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
-        _io: &S,
-        _root: SharedType<Self::Root>,
-        _parent: SharedType<Self::Parent>,
+        io: &S,
+        root: SharedType<Self::Root>,
+        parent: SharedType<Self::Parent>,
     ) -> KResult<()> {
-        *self_rc._io.borrow_mut() = _io.clone();
-        self_rc._root.set(_root.get());
-        self_rc._parent.set(_parent.get());
-        self_rc._self.set(Ok(self_rc.clone()));
-        let _rrc = self_rc._root.get_value().borrow().upgrade();
-        let _prc = self_rc._parent.get_value().borrow().upgrade();
-        let _r = _rrc.as_ref().ok_or(KError::MissingRoot)?;
-        *self_rc.year.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.month.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.dow.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.day.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.hour.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.min.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.sec.borrow_mut() = _io.read_u2le()?.into();
-        *self_rc.msec.borrow_mut() = _io.read_u2le()?.into();
+        *self_rc.io.borrow_mut() = io.clone();
+        self_rc.root.set(root.get());
+        self_rc.parent.set(parent.get());
+        self_rc.self_shared.set(Ok(self_rc.clone()));
+        *self_rc.year.borrow_mut() = io.read_u2le()?;
+        *self_rc.month.borrow_mut() = io.read_u2le()?;
+        *self_rc.dow.borrow_mut() = io.read_u2le()?;
+        *self_rc.day.borrow_mut() = io.read_u2le()?;
+        *self_rc.hour.borrow_mut() = io.read_u2le()?;
+        *self_rc.min.borrow_mut() = io.read_u2le()?;
+        *self_rc.sec.borrow_mut() = io.read_u2le()?;
+        *self_rc.msec.borrow_mut() = io.read_u2le()?;
         Ok(())
     }
 }
@@ -76,7 +64,7 @@ impl WindowsSystemtime {
 }
 
 /**
- * Month (January = 1)
+ * Month (1 = January, 2 = February, etc.)
  */
 impl WindowsSystemtime {
     pub fn month(&self) -> Ref<'_, u16> {
@@ -85,7 +73,7 @@ impl WindowsSystemtime {
 }
 
 /**
- * Day of week (Sun = 0)
+ * Day of week (0 = Sunday, 1 = Monday, etc.)
  */
 impl WindowsSystemtime {
     pub fn dow(&self) -> Ref<'_, u16> {
@@ -139,6 +127,6 @@ impl WindowsSystemtime {
 }
 impl WindowsSystemtime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
-        self._io.borrow()
+        self.io.borrow()
     }
 }

@@ -219,19 +219,19 @@ impl ClassSpec {
         self.meta_endian == Some(Endianness::Inherited)
     }
 
-    /// Formats the class type name in UpperCamelCase (e.g. `EthernetFrame_TagControlInfo`).
+    /// Formats the class type name in `UpperCamelCase` (e.g. `EthernetFrame_TagControlInfo`).
     #[must_use]
     pub fn class_type_name(&self) -> String {
         types_to_class_name(&self.name)
     }
 
-    /// Formats the root class type name in UpperCamelCase.
+    /// Formats the root class type name in `UpperCamelCase`.
     #[must_use]
     pub fn root_class_type_name(&self) -> String {
         types_to_class_name(&self.root_name)
     }
 
-    /// Formats the parent class type name in UpperCamelCase.
+    /// Formats the parent class type name in `UpperCamelCase`.
     #[must_use]
     pub fn parent_class_type_name(&self) -> String {
         // Reason for fallback: types without an explicit parent belong directly to the root class

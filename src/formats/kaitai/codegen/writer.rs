@@ -105,7 +105,7 @@ impl CodeWriter {
                 if sanitized_r.contains(' ') {
                     self.puts(&format!(" * \\sa {sanitized_r}"));
                 } else {
-                    self.puts(&format!(" * \\sa {sanitized_r} Source"));
+                    self.puts(&format!(" * \\sa <{sanitized_r}> Source"));
                 }
             } else {
                 self.puts(&format!(" * \\sa {sanitized_r}"));

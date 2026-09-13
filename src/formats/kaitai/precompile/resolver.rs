@@ -247,8 +247,8 @@ fn find_class_spec_mut<'a>(root: &'a mut ClassSpec, path: &[String]) -> Option<&
     if path.is_empty() {
         return None;
     }
-    let parts = if path[0] == root.name[0] {
-        &path[1..]
+    let parts = if path.first() == root.name.first() {
+        path.get(1..).unwrap_or(&[])
     } else {
         path
     };
@@ -263,8 +263,8 @@ fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a Class
     if path.is_empty() {
         return None;
     }
-    let parts = if path[0] == root.name[0] {
-        &path[1..]
+    let parts = if path.first() == root.name.first() {
+        path.get(1..).unwrap_or(&[])
     } else {
         path
     };
@@ -324,7 +324,7 @@ fn infer_expr_type_with_root(
                     }
                 }
                 curr_opt = if cls_name.len() > 1 {
-                    Some(&cls_name[..cls_name.len().saturating_sub(1)])
+                    cls_name.get(..cls_name.len().saturating_sub(1))
                 } else {
                     None
                 };
@@ -423,18 +423,20 @@ fn infer_expr_type_with_root(
                         });
                     }
                     curr_opt = if cls_name.len() > 1 {
-                        Some(&cls_name[..cls_name.len().saturating_sub(1)])
+                        cls_name.get(..cls_name.len().saturating_sub(1))
                     } else {
                         None
                     };
                 }
-                let root_full = vec![root.name[0].clone(), s.clone()];
-                if find_class_spec(root, &root_full).is_some() {
-                    return Some(DataType::UserType {
-                        names: root_full,
-                        is_external: false,
-                        args: Vec::new(),
-                    });
+                if let Some(first) = root.name.first() {
+                    let root_full = vec![first.clone(), s.clone()];
+                    if find_class_spec(root, &root_full).is_some() {
+                        return Some(DataType::UserType {
+                            names: root_full,
+                            is_external: false,
+                            args: Vec::new(),
+                        });
+                    }
                 }
                 if find_class_spec(root, std::slice::from_ref(&s)).is_some() {
                     return Some(DataType::UserType {
@@ -691,7 +693,7 @@ fn resolve_class_spec(
     let meta_license = ksy
         .meta
         .as_ref()
-        .and_then(|m| m.license.as_ref().map(|l| l.to_string()));
+        .and_then(|m| m.license.as_ref().map(std::string::ToString::to_string));
     // Reason for fallback: absent meta.imports defaults to empty list
     let meta_imports = ksy
         .meta
@@ -791,8 +793,9 @@ fn resolve_class_spec(
         let src_path = if name.len() <= 1 {
             format!("/seq/{seq_idx}")
         } else {
-            let types_prefix = name[1..]
+            let types_prefix = name
                 .iter()
+                .skip(1)
                 .map(|sub| format!("/types/{sub}"))
                 .collect::<Vec<_>>()
                 .join("");
@@ -911,7 +914,7 @@ fn resolve_class_spec(
 
     Ok(ClassSpec {
         name: name.to_vec(),
-        parent_name: parent_name.map(|p| p.to_vec()),
+        parent_name: parent_name.map(<[String]>::to_vec),
         root_name: root_name.to_vec(),
         doc,
         doc_refs,
@@ -1170,7 +1173,7 @@ fn resolve_enum_info(
         let mut full_path = owner.clone();
         full_path.push(name.clone());
         // Reason for fallback: if no scope is active, assume external enum reference
-        let is_external = scopes.first().map_or(true, |root| root.0 != &owner[..]);
+        let is_external = scopes.first().is_none_or(|root| root.0 != &owner[..]);
         let ext = if is_external { Some(full_path) } else { None };
         (owner, name, ext)
     } else {
@@ -1425,7 +1428,7 @@ fn resolve_simple_type(
     // 6. External user type from imports or registry
     let ext_name = parts.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     if let Some(reg) = registry {
-        if reg.specs.contains_key(parts[0]) {
+        if parts.first().is_some_and(|first| reg.specs.contains_key(*first)) {
             return Ok((
                 DataType::UserType {
                     names: ext_name.clone(),
@@ -2024,7 +2027,7 @@ fn find_ksy_file_by_path<'a>(root_ksy: &'a KsyFile, path: &[String]) -> Option<&
         return None;
     }
     let mut cur = root_ksy;
-    for part in &path[1..] {
+    for part in path.iter().skip(1) {
         cur = cur.types.get(part)?;
     }
     Some(cur)

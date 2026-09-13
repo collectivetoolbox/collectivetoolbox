@@ -66,6 +66,7 @@ pub use ctb_formats_multipart as multipart;
 pub use ctb_formats_pan as pan;
 pub use ctb_formats_pdf as pdf;
 pub use ctb_formats_pem as pem;
+pub use ctb_formats_rust as rust;
 pub use ctb_formats_perl as perl;
 pub use ctb_formats_stagel as stagel;
 pub use ctb_formats_string as string;

@@ -39,6 +39,7 @@ ctb-formats-pan = { path = "pan" }
 ctb-formats-perl = { path = "perl" }
 ctb-formats-pdf = { path = "pdf" }
 ctb-formats-pem = { path = "pem" }
+ctb-formats-rust = { path = "rust" }
 ctb-formats-stagel = { path = "stagel" }
 ctb-formats-string = { path = "string" }
 ctb-formats-syndication = { path = "syndication" }

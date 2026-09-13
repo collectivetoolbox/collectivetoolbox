@@ -2662,6 +2662,7 @@ dependencies = [
  "ctb-formats-pdf",
  "ctb-formats-pem",
  "ctb-formats-perl",
+ "ctb-formats-rust",
  "ctb-formats-stagel",
  "ctb-formats-string",
  "ctb-formats-syndication",
@@ -3103,6 +3104,15 @@ dependencies = [
  "base64 0.22.1",
  "ctb-formats-utilities",
  "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-rust"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]
@@ -3800,6 +3810,7 @@ dependencies = [
  "ctb-formats-pdf",
  "ctb-formats-pem",
  "ctb-formats-perl",
+ "ctb-formats-rust",
  "ctb-formats-stagel",
  "ctb-formats-string",
  "ctb-formats-syndication",

@@ -155,7 +155,8 @@ fn run() -> Result<()> {
 
         let base_name = source_path
             .file_stem()
-            .and_then(|s| s.to_str())?;
+            .and_then(|s| s.to_str())
+            .context("Missing file stem")?;
 
         if SKIPPED_FORMATS.contains(&base_name) {
             unmatched.push(UnmatchedFile {

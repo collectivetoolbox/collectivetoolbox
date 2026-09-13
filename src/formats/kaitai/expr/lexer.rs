@@ -150,7 +150,9 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
     let mut idx = 0;
 
     while idx < len {
-        let b = bytes[idx];
+        let Some(&b) = bytes.get(idx) else {
+            break;
+        };
 
         // Whitespace
         if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
@@ -159,8 +161,7 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
         }
 
         // Two-character punctuation
-        if idx.saturating_add(1) < len {
-            let next = bytes[idx.saturating_add(1)];
+        if let Some(&next) = bytes.get(idx.saturating_add(1)) {
             match (b, next) {
                 (b':', b':') => {
                     tokens.push(Token {
@@ -298,18 +299,18 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             }
             b'.' => {
                 // Check if this is a leading dot float, e.g. .5, but not .attr
-                if idx.saturating_add(1) < len && bytes[idx.saturating_add(1)].is_ascii_digit() {
+                if bytes.get(idx.saturating_add(1)).is_some_and(u8::is_ascii_digit) {
                     let start = idx;
                     idx = idx.saturating_add(1);
-                    while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+                    while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
                         idx = idx.saturating_add(1);
                     }
-                    if idx < len && (bytes[idx] == b'e' || bytes[idx] == b'E') {
+                    if bytes.get(idx).is_some_and(|&c| c == b'e' || c == b'E') {
                         idx = idx.saturating_add(1);
-                        if idx < len && (bytes[idx] == b'+' || bytes[idx] == b'-') {
+                        if bytes.get(idx).is_some_and(|&c| c == b'+' || c == b'-') {
                             idx = idx.saturating_add(1);
                         }
-                        while idx < len && bytes[idx].is_ascii_digit() {
+                        while bytes.get(idx).is_some_and(u8::is_ascii_digit) {
                             idx = idx.saturating_add(1);
                         }
                     }
@@ -425,11 +426,12 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             let start = idx;
             idx = idx.saturating_add(1);
             let mut val = String::new();
-            while idx < len && bytes[idx] != quote {
-                if bytes[idx] == b'\\' {
+            while idx < len && bytes.get(idx).copied() != Some(quote) {
+                if bytes.get(idx).copied() == Some(b'\\') {
                     idx = idx.saturating_add(1);
                     ensure!(idx < len, "Unterminated escape sequence in string literal");
-                    match bytes[idx] {
+                    let esc = *bytes.get(idx).context("Byte offset out of bounds")?;
+                    match esc {
                         b'n' => val.push('\n'),
                         b'r' => val.push('\r'),
                         b't' => val.push('\t'),
@@ -480,79 +482,81 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
         if b.is_ascii_digit() {
             let start = idx;
             // Check for prefixes (0x, 0o, 0b)
-            if b == b'0' && idx.saturating_add(1) < len {
-                let p = bytes[idx.saturating_add(1)];
-                if p == b'x' || p == b'X' {
-                    idx = idx.saturating_add(2);
-                    let num_start = idx;
-                    while idx < len && (bytes[idx].is_ascii_hexdigit() || bytes[idx] == b'_') {
-                        idx = idx.saturating_add(1);
+            if b == b'0' {
+                if let Some(&p) = bytes.get(idx.saturating_add(1)) {
+                    if p == b'x' || p == b'X' {
+                        idx = idx.saturating_add(2);
+                        let num_start = idx;
+                        while bytes.get(idx).is_some_and(|&c| c.is_ascii_hexdigit() || c == b'_') {
+                            idx = idx.saturating_add(1);
+                        }
+                        ensure!(idx > num_start, "Empty hex literal");
+                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                        let num = i128::from_str_radix(&clean, 16).context("Invalid hex integer literal")?;
+                        tokens.push(Token {
+                            kind: TokenKind::Int(num),
+                            pos: start,
+                        });
+                        continue;
+                    } else if p == b'o' || p == b'O' {
+                        idx = idx.saturating_add(2);
+                        let num_start = idx;
+                        while bytes.get(idx).is_some_and(|&c| (c >= b'0' && c <= b'7') || c == b'_') {
+                            idx = idx.saturating_add(1);
+                        }
+                        ensure!(idx > num_start, "Empty octal literal");
+                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                        let num = i128::from_str_radix(&clean, 8).context("Invalid octal integer literal")?;
+                        tokens.push(Token {
+                            kind: TokenKind::Int(num),
+                            pos: start,
+                        });
+                        continue;
+                    } else if p == b'b' || p == b'B' {
+                        idx = idx.saturating_add(2);
+                        let num_start = idx;
+                        while bytes.get(idx).is_some_and(|&c| c == b'0' || c == b'1' || c == b'_') {
+                            idx = idx.saturating_add(1);
+                        }
+                        ensure!(idx > num_start, "Empty binary literal");
+                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                        let num = i128::from_str_radix(&clean, 2).context("Invalid binary integer literal")?;
+                        tokens.push(Token {
+                            kind: TokenKind::Int(num),
+                            pos: start,
+                        });
+                        continue;
                     }
-                    ensure!(idx > num_start, "Empty hex literal");
-                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                    let num = i128::from_str_radix(&clean, 16).context("Invalid hex integer literal")?;
-                    tokens.push(Token {
-                        kind: TokenKind::Int(num),
-                        pos: start,
-                    });
-                    continue;
-                } else if p == b'o' || p == b'O' {
-                    idx = idx.saturating_add(2);
-                    let num_start = idx;
-                    while idx < len && ((bytes[idx] >= b'0' && bytes[idx] <= b'7') || bytes[idx] == b'_') {
-                        idx = idx.saturating_add(1);
-                    }
-                    ensure!(idx > num_start, "Empty octal literal");
-                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                    let num = i128::from_str_radix(&clean, 8).context("Invalid octal integer literal")?;
-                    tokens.push(Token {
-                        kind: TokenKind::Int(num),
-                        pos: start,
-                    });
-                    continue;
-                } else if p == b'b' || p == b'B' {
-                    idx = idx.saturating_add(2);
-                    let num_start = idx;
-                    while idx < len && (bytes[idx] == b'0' || bytes[idx] == b'1' || bytes[idx] == b'_') {
-                        idx = idx.saturating_add(1);
-                    }
-                    ensure!(idx > num_start, "Empty binary literal");
-                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                    let num = i128::from_str_radix(&clean, 2).context("Invalid binary integer literal")?;
-                    tokens.push(Token {
-                        kind: TokenKind::Int(num),
-                        pos: start,
-                    });
-                    continue;
                 }
             }
 
             // Decimal integer or float
             let mut is_float = false;
-            while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+            while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
                 idx = idx.saturating_add(1);
             }
 
             // Check for fractional part
-            if idx < len && bytes[idx] == b'.' {
+            if bytes.get(idx) == Some(&b'.') {
                 let next_idx = idx.saturating_add(1);
-                if next_idx >= len || (!bytes[next_idx].is_ascii_alphabetic() && bytes[next_idx] != b'_') {
+                let is_ident_start = bytes.get(next_idx).is_some_and(|&c| c.is_ascii_alphabetic() || c == b'_');
+                if !is_ident_start {
                     is_float = true;
                     idx = next_idx;
-                    while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+                    while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
                         idx = idx.saturating_add(1);
                     }
                 }
             }
 
             // Check for exponent part
-            if idx < len && (bytes[idx] == b'e' || bytes[idx] == b'E') {
+            if bytes.get(idx).is_some_and(|&c| c == b'e' || c == b'E') {
                 is_float = true;
                 idx = idx.saturating_add(1);
-                if idx < len && (bytes[idx] == b'+' || bytes[idx] == b'-') {
+                if bytes.get(idx).is_some_and(|&c| c == b'+' || c == b'-') {
                     idx = idx.saturating_add(1);
                 }
-                while idx < len && bytes[idx].is_ascii_digit() {
+                while bytes.get(idx).is_some_and(u8::is_ascii_digit) {
                     idx = idx.saturating_add(1);
                 }
             }
@@ -580,7 +584,7 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
         // Identifiers and keywords
         if b.is_ascii_alphabetic() || b == b'_' {
             let start = idx;
-            while idx < len && (bytes[idx].is_ascii_alphanumeric() || bytes[idx] == b'_') {
+            while bytes.get(idx).is_some_and(|&c| c.is_ascii_alphanumeric() || c == b'_') {
                 idx = idx.saturating_add(1);
             }
             let text = src.get(start..idx).context("Invalid slice")?;
