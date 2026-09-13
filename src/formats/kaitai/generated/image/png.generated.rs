@@ -99,7 +99,7 @@ impl KStruct for Png {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x89u8, 0x50u8, 0x4eu8, 0x47u8, 0xdu8, 0xau8, 0x1au8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -108,7 +108,7 @@ impl KStruct for Png {
         if !(*self_rc.ihdr_len() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
-        *self_rc.ihdr_type.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.ihdr_type.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.ihdr_type() == vec![0x49u8, 0x48u8, 0x44u8, 0x52u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -117,13 +117,13 @@ impl KStruct for Png {
         *self_rc.ihdr_crc.borrow_mut() = _io.read_u4be()?;
         *self_rc.chunks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, Png_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.chunks.borrow_mut().push(t);
                 let _t_chunks = self_rc.chunks.borrow();
                 let Some(_tmpa) = _t_chunks.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if  ((*_tmpa.r#type()? == "IEND") || (_io.is_eof()))  { break; }
             }
         }
@@ -574,10 +574,10 @@ impl KStruct for Png_AtchChunk {
         let _io = io;
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         let _tmpa = &*self_rc.file_name();
-        if !( ((_tmpa.len() != 0) && (&_tmpa[0..1] != ".")) ) {
+        if !( ((_tmpa.len() != 0) && (substring(&_tmpa, 0, 1) != ".")) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/atch_chunk/seq/0".to_string() }));
         }
-        *self_rc.compression.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.compression.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if *self_rc.compression() == Png_AtchChunk_CompressionAttachMethods::None {
             *self_rc.data_plain.borrow_mut() = _io.read_bytes_full()?;
         }
@@ -698,6 +698,7 @@ pub enum Png_BkgdChunk_Bkgd {
     Png_BkgdTruecolor(OptRc<Png_BkgdTruecolor>),
 }
 impl From<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdGreyscale> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_BkgdChunk_Bkgd) -> Self {
         if let Png_BkgdChunk_Bkgd::Png_BkgdGreyscale(x) = v {
             return x.clone();
@@ -711,6 +712,7 @@ impl From<OptRc<Png_BkgdGreyscale>> for Png_BkgdChunk_Bkgd {
     }
 }
 impl From<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdIndexed> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_BkgdChunk_Bkgd) -> Self {
         if let Png_BkgdChunk_Bkgd::Png_BkgdIndexed(x) = v {
             return x.clone();
@@ -724,6 +726,7 @@ impl From<OptRc<Png_BkgdIndexed>> for Png_BkgdChunk_Bkgd {
     }
 }
 impl From<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdTruecolor> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_BkgdChunk_Bkgd) -> Self {
         if let Png_BkgdChunk_Bkgd::Png_BkgdTruecolor(x) = v {
             return x.clone();
@@ -998,7 +1001,7 @@ impl Png_ChrmChromaticity {
             return Ok(self.x.borrow());
         }
         self.f_x.set(true);
-        *self.x.borrow_mut() = ((((*self.x_int()) as f64) / ((100000.0) as f64))).try_into()?;
+        *self.x.borrow_mut() = (((to_f64(*self.x_int())) / (100000.0))).try_into()?;
         Ok(self.x.borrow())
     }
     pub fn y(
@@ -1009,7 +1012,7 @@ impl Png_ChrmChromaticity {
             return Ok(self.y.borrow());
         }
         self.f_y.set(true);
-        *self.y.borrow_mut() = ((((*self.y_int()) as f64) / ((100000.0) as f64))).try_into()?;
+        *self.y.borrow_mut() = (((to_f64(*self.y_int())) / (100000.0))).try_into()?;
         Ok(self.y.borrow())
     }
 }
@@ -1151,6 +1154,7 @@ pub enum Png_Chunk_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_PlteChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_PlteChunk(x) = v {
             return x.clone();
@@ -1164,6 +1168,7 @@ impl From<OptRc<Png_PlteChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_AnimationControlChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_AnimationControlChunk(x) = v {
             return x.clone();
@@ -1177,6 +1182,7 @@ impl From<OptRc<Png_AnimationControlChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_AtchChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_AtchChunk(x) = v {
             return x.clone();
@@ -1190,6 +1196,7 @@ impl From<OptRc<Png_AtchChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_BkgdChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_BkgdChunk(x) = v {
             return x.clone();
@@ -1203,6 +1210,7 @@ impl From<OptRc<Png_BkgdChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_ChrmChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_ChrmChunk(x) = v {
             return x.clone();
@@ -1216,6 +1224,7 @@ impl From<OptRc<Png_ChrmChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_CicpChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_CicpChunk(x) = v {
             return x.clone();
@@ -1229,6 +1238,7 @@ impl From<OptRc<Png_CicpChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_ClliChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_ClliChunk(x) = v {
             return x.clone();
@@ -1242,6 +1252,7 @@ impl From<OptRc<Png_ClliChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_ExifChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_ExifChunk(x) = v {
             return x.clone();
@@ -1255,6 +1266,7 @@ impl From<OptRc<Png_ExifChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_FrameControlChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_FrameControlChunk(x) = v {
             return x.clone();
@@ -1268,6 +1280,7 @@ impl From<OptRc<Png_FrameControlChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_FrameDataChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_FrameDataChunk(x) = v {
             return x.clone();
@@ -1281,6 +1294,7 @@ impl From<OptRc<Png_FrameDataChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_GamaChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_GamaChunk(x) = v {
             return x.clone();
@@ -1294,6 +1308,7 @@ impl From<OptRc<Png_GamaChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_HistChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_HistChunk(x) = v {
             return x.clone();
@@ -1307,6 +1322,7 @@ impl From<OptRc<Png_HistChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_IccpChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_IccpChunk(x) = v {
             return x.clone();
@@ -1320,6 +1336,7 @@ impl From<OptRc<Png_IccpChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_InternationalTextChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_InternationalTextChunk(x) = v {
             return x.clone();
@@ -1333,6 +1350,7 @@ impl From<OptRc<Png_InternationalTextChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_MdcvChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_MdcvChunk(x) = v {
             return x.clone();
@@ -1346,6 +1364,7 @@ impl From<OptRc<Png_MdcvChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_AdobeFireworksChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_AdobeFireworksChunk(x) = v {
             return x.clone();
@@ -1359,6 +1378,7 @@ impl From<OptRc<Png_AdobeFireworksChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_PhysChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_PhysChunk(x) = v {
             return x.clone();
@@ -1372,6 +1392,7 @@ impl From<OptRc<Png_PhysChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_SbitChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_SbitChunk(x) = v {
             return x.clone();
@@ -1385,6 +1406,7 @@ impl From<OptRc<Png_SbitChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_SpltChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_SpltChunk(x) = v {
             return x.clone();
@@ -1398,6 +1420,7 @@ impl From<OptRc<Png_SpltChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_SrgbChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_SrgbChunk(x) = v {
             return x.clone();
@@ -1411,6 +1434,7 @@ impl From<OptRc<Png_SrgbChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_EvernoteSkmfChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_EvernoteSkmfChunk(x) = v {
             return x.clone();
@@ -1424,6 +1448,7 @@ impl From<OptRc<Png_EvernoteSkmfChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_EvernoteSkrfChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_EvernoteSkrfChunk(x) = v {
             return x.clone();
@@ -1437,6 +1462,7 @@ impl From<OptRc<Png_EvernoteSkrfChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_TextChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_TextChunk(x) = v {
             return x.clone();
@@ -1450,6 +1476,7 @@ impl From<OptRc<Png_TextChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_TimeChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_TimeChunk(x) = v {
             return x.clone();
@@ -1463,6 +1490,7 @@ impl From<OptRc<Png_TimeChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_TrnsChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_TrnsChunk(x) = v {
             return x.clone();
@@ -1476,6 +1504,7 @@ impl From<OptRc<Png_TrnsChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for OptRc<Png_CompressedTextChunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Png_CompressedTextChunk(x) = v {
             return x.clone();
@@ -1489,6 +1518,7 @@ impl From<OptRc<Png_CompressedTextChunk>> for Png_Chunk_Body {
     }
 }
 impl From<&Png_Chunk_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_Chunk_Body) -> Self {
         if let Png_Chunk_Body::Bytes(x) = v {
             return x.clone();
@@ -1517,9 +1547,9 @@ impl KStruct for Png_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
-        *self_rc.type_raw.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.type_raw.borrow_mut() = _io.read_bytes(4_usize)?;
         let _tmpa = &*self_rc.type_raw();
-        if !( ( ( ((_tmpa[0 as usize] >= 65) && (_tmpa[0 as usize] <= 90))  ||  ((_tmpa[0 as usize] >= 97) && (_tmpa[0 as usize] <= 122)) )  &&  ( ((_tmpa[1 as usize] >= 65) && (_tmpa[1 as usize] <= 90))  ||  ((_tmpa[1 as usize] >= 97) && (_tmpa[1 as usize] <= 122)) )  &&  ( ((_tmpa[2 as usize] >= 65) && (_tmpa[2 as usize] <= 90))  ||  ((_tmpa[2 as usize] >= 97) && (_tmpa[2 as usize] <= 122)) )  &&  ( ((_tmpa[3 as usize] >= 65) && (_tmpa[3 as usize] <= 90))  ||  ((_tmpa[3 as usize] >= 97) && (_tmpa[3 as usize] <= 122)) ) ) ) {
+        if !( ( ( ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 122)) ) ) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/chunk/seq/1".to_string() }));
         }
         match self_rc.r#type()?.as_str() {
@@ -1740,7 +1770,7 @@ impl Png_Chunk {
             return Ok(self.is_ancillary.borrow());
         }
         self.f_is_ancillary.set(true);
-        *self.is_ancillary.borrow_mut() = ((((self.type_raw()[0 as usize]) as u64) & ((32) as u64)) != 0).try_into()?;
+        *self.is_ancillary.borrow_mut() = (((i32::from(*(self.type_raw().get(0_usize).ok_or(KError::CastError)?))) & (32_i32)) != 0).try_into()?;
         Ok(self.is_ancillary.borrow())
     }
 
@@ -1756,7 +1786,7 @@ impl Png_Chunk {
             return Ok(self.is_private.borrow());
         }
         self.f_is_private.set(true);
-        *self.is_private.borrow_mut() = ((((self.type_raw()[1 as usize]) as u64) & ((32) as u64)) != 0).try_into()?;
+        *self.is_private.borrow_mut() = (((i32::from(*(self.type_raw().get(1_usize).ok_or(KError::CastError)?))) & (32_i32)) != 0).try_into()?;
         Ok(self.is_private.borrow())
     }
 
@@ -1775,7 +1805,7 @@ impl Png_Chunk {
             return Ok(self.is_safe_to_copy.borrow());
         }
         self.f_is_safe_to_copy.set(true);
-        *self.is_safe_to_copy.borrow_mut() = ((((self.type_raw()[3 as usize]) as u64) & ((32) as u64)) != 0).try_into()?;
+        *self.is_safe_to_copy.borrow_mut() = (((i32::from(*(self.type_raw().get(3_usize).ok_or(KError::CastError)?))) & (32_i32)) != 0).try_into()?;
         Ok(self.is_safe_to_copy.borrow())
     }
 
@@ -1792,7 +1822,7 @@ impl Png_Chunk {
             return Ok(self.reserved_bit.borrow());
         }
         self.f_reserved_bit.set(true);
-        *self.reserved_bit.borrow_mut() = ((((self.type_raw()[2 as usize]) as u64) & ((32) as u64)) != 0).try_into()?;
+        *self.reserved_bit.borrow_mut() = (((i32::from(*(self.type_raw().get(2_usize).ok_or(KError::CastError)?))) & (32_i32)) != 0).try_into()?;
         Ok(self.reserved_bit.borrow())
     }
     pub fn r#type(
@@ -1998,7 +2028,7 @@ impl Png_ClliChunk {
             return Ok(self.max_content_light_level.borrow());
         }
         self.f_max_content_light_level.set(true);
-        *self.max_content_light_level.borrow_mut() = ((((*self.max_content_light_level_int()) as f64) * ((0.0001) as f64))).try_into()?;
+        *self.max_content_light_level.borrow_mut() = (((to_f64(*self.max_content_light_level_int())) * (0.0001))).try_into()?;
         Ok(self.max_content_light_level.borrow())
     }
 
@@ -2013,7 +2043,7 @@ impl Png_ClliChunk {
             return Ok(self.max_frame_average_light_level.borrow());
         }
         self.f_max_frame_average_light_level.set(true);
-        *self.max_frame_average_light_level.borrow_mut() = ((((*self.max_frame_average_light_level_int()) as f64) * ((0.0001) as f64))).try_into()?;
+        *self.max_frame_average_light_level.borrow_mut() = (((to_f64(*self.max_frame_average_light_level_int())) * (0.0001))).try_into()?;
         Ok(self.max_frame_average_light_level.borrow())
     }
 }
@@ -2119,7 +2149,7 @@ impl KStruct for Png_CompressedTextChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.compression_method() == Png_CompressionMethods::Zlib) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/compressed_text_chunk/seq/1".to_string() }));
         }
@@ -2246,7 +2276,7 @@ impl KStruct for Png_EvernoteSkrfChunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.uuid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.uuid.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.orig_img.borrow_mut() = _io.read_bytes_full()?;
         Ok(())
     }
@@ -2376,8 +2406,8 @@ impl KStruct for Png_FrameControlChunk {
         *self_rc.y_offset.borrow_mut() = _io.read_u4be()?;
         *self_rc.delay_num.borrow_mut() = _io.read_u2be()?;
         *self_rc.delay_den.borrow_mut() = _io.read_u2be()?;
-        *self_rc.dispose_op.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.blend_op.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.dispose_op.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.blend_op.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -2394,7 +2424,7 @@ impl Png_FrameControlChunk {
             return Ok(self.delay.borrow());
         }
         self.f_delay.set(true);
-        *self.delay.borrow_mut() = ((((*self.delay_num()) as f64) / ((if (((*self.delay_den()) as i32) == ((0) as i32)) { (100.0) as f64 } else { (*self.delay_den()) as f64 }) as f64))).try_into()?;
+        *self.delay.borrow_mut() = (((to_f64(*self.delay_num())) / (if *self.delay_den() == 0 { 100.0 } else { to_f64(*self.delay_den()) }))).try_into()?;
         Ok(self.delay.borrow())
     }
 }
@@ -2624,7 +2654,7 @@ impl Png_GamaChunk {
             return Ok(self.gamma.borrow());
         }
         self.f_gamma.set(true);
-        *self.gamma.borrow_mut() = ((((*self.gamma_int()) as f64) / ((100000.0) as f64))).try_into()?;
+        *self.gamma.borrow_mut() = (((to_f64(*self.gamma_int())) / (100000.0))).try_into()?;
         Ok(self.gamma.borrow())
     }
 
@@ -2640,7 +2670,7 @@ impl Png_GamaChunk {
             return Ok(self.inv_gamma.borrow());
         }
         self.f_inv_gamma.set(true);
-        *self.inv_gamma.borrow_mut() = ((((100000.0) as f64) / ((*self.gamma_int()) as f64))).try_into()?;
+        *self.inv_gamma.borrow_mut() = (((100000.0) / (to_f64(*self.gamma_int())))).try_into()?;
         Ok(self.inv_gamma.borrow())
     }
 }
@@ -2692,10 +2722,10 @@ impl KStruct for Png_HistChunk {
         let _io = io;
         *self_rc.usage_freqs.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 self_rc.usage_freqs.borrow_mut().push(_io.read_u2be()?);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -2771,7 +2801,7 @@ impl KStruct for Png_IccpChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.profile_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.compression_method() == Png_CompressionMethods::Zlib) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/iccp_chunk/seq/1".to_string() }));
         }
@@ -2878,10 +2908,10 @@ impl KStruct for Png_IhdrChunk {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/ihdr_chunk/seq/1".to_string() }));
         }
         *self_rc.bit_depth.borrow_mut() = _io.read_u1()?;
-        *self_rc.color_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.filter_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.interlace_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.color_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.filter_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.interlace_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -3024,17 +3054,17 @@ impl KStruct for Png_InternationalTextChunk {
         let _io = io;
         *self_rc.keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
         *self_rc.compression_flag.borrow_mut() = _io.read_u1()?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        if !(*self_rc.compression_method() == if (((*self_rc.compression_flag()) as i32) == ((1) as i32)) { Png_CompressionMethods::Zlib.clone() } else { self_rc.compression_method().clone() }) {
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        if !(*self_rc.compression_method() == if *self_rc.compression_flag() == 1 { Png_CompressionMethods::Zlib.clone() } else { self_rc.compression_method().clone() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/international_text_chunk/seq/2".to_string() }));
         }
         *self_rc.language_tag.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.translated_keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
-        if (((*self_rc.compression_flag()) as i32) == ((0) as i32)) {
+        if *self_rc.compression_flag() == 0 {
             let t = Self::read_into::<_, Png_InternationalText>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.text_plain.borrow_mut() = t;
         }
-        if (((*self_rc.compression_flag()) as i32) == ((1) as i32)) {
+        if *self_rc.compression_flag() == 1 {
             let t = Self::read_into::<_, Png_InternationalText>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.text_zlib.borrow_mut() = t;
         }
@@ -3062,7 +3092,7 @@ impl Png_InternationalTextChunk {
             return Ok(self.text.borrow());
         }
         self.f_text.set(true);
-        *self.text.borrow_mut() = if (((*self.compression_flag()) as i32) == ((0) as i32)) { self.text_plain().clone() } else { self.text_zlib().clone() }.value().to_string();
+        *self.text.borrow_mut() = if *self.compression_flag() == 0 { self.text_plain().clone() } else { self.text_zlib().clone() }.value().to_string();
         Ok(self.text.borrow())
     }
 }
@@ -3191,7 +3221,7 @@ impl Png_MdcvChromaticity {
             return Ok(self.x.borrow());
         }
         self.f_x.set(true);
-        *self.x.borrow_mut() = ((((*self.x_int()) as f64) * ((0.00002) as f64))).try_into()?;
+        *self.x.borrow_mut() = (((to_f64(*self.x_int())) * (0.00002))).try_into()?;
         Ok(self.x.borrow())
     }
     pub fn y(
@@ -3202,7 +3232,7 @@ impl Png_MdcvChromaticity {
             return Ok(self.y.borrow());
         }
         self.f_y.set(true);
-        *self.y.borrow_mut() = ((((*self.y_int()) as f64) * ((0.00002) as f64))).try_into()?;
+        *self.y.borrow_mut() = (((to_f64(*self.y_int())) * (0.00002))).try_into()?;
         Ok(self.y.borrow())
     }
 }
@@ -3285,7 +3315,7 @@ impl Png_MdcvChunk {
             return Ok(self.max_luminance.borrow());
         }
         self.f_max_luminance.set(true);
-        *self.max_luminance.borrow_mut() = ((((*self.max_luminance_int()) as f64) * ((0.0001) as f64))).try_into()?;
+        *self.max_luminance.borrow_mut() = (((to_f64(*self.max_luminance_int())) * (0.0001))).try_into()?;
         Ok(self.max_luminance.borrow())
     }
 
@@ -3300,7 +3330,7 @@ impl Png_MdcvChunk {
             return Ok(self.min_luminance.borrow());
         }
         self.f_min_luminance.set(true);
-        *self.min_luminance.borrow_mut() = ((((*self.min_luminance_int()) as f64) * ((0.0001) as f64))).try_into()?;
+        *self.min_luminance.borrow_mut() = (((to_f64(*self.min_luminance_int())) * (0.0001))).try_into()?;
         Ok(self.min_luminance.borrow())
     }
 }
@@ -3378,7 +3408,7 @@ impl KStruct for Png_PhysChunk {
         let _io = io;
         *self_rc.pixels_per_unit_x.borrow_mut() = _io.read_u4be()?;
         *self_rc.pixels_per_unit_y.borrow_mut() = _io.read_u4be()?;
-        *self_rc.unit.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.unit.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -3396,7 +3426,7 @@ impl Png_PhysChunk {
         }
         self.f_dots_per_inch_x.set(true);
         if *self.unit() == Png_PhysUnit::Meter {
-            *self.dots_per_inch_x.borrow_mut() = ((((*self.pixels_per_unit_x()) as f64) * ((0.0254) as f64))).try_into()?;
+            *self.dots_per_inch_x.borrow_mut() = (((to_f64(*self.pixels_per_unit_x())) * (0.0254))).try_into()?;
         }
         Ok(self.dots_per_inch_x.borrow())
     }
@@ -3413,7 +3443,7 @@ impl Png_PhysChunk {
         }
         self.f_dots_per_inch_y.set(true);
         if *self.unit() == Png_PhysUnit::Meter {
-            *self.dots_per_inch_y.borrow_mut() = ((((*self.pixels_per_unit_y()) as f64) * ((0.0254) as f64))).try_into()?;
+            *self.dots_per_inch_y.borrow_mut() = (((to_f64(*self.pixels_per_unit_y())) * (0.0254))).try_into()?;
         }
         Ok(self.dots_per_inch_y.borrow())
     }
@@ -3478,11 +3508,11 @@ impl KStruct for Png_PlteChunk {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Png_Rgb>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -3580,6 +3610,7 @@ pub enum Png_SbitChunk_SignificantBits {
     Png_SbitTruecolor(OptRc<Png_SbitTruecolor>),
 }
 impl From<&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitGreyscale> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_SbitChunk_SignificantBits) -> Self {
         if let Png_SbitChunk_SignificantBits::Png_SbitGreyscale(x) = v {
             return x.clone();
@@ -3593,6 +3624,7 @@ impl From<OptRc<Png_SbitGreyscale>> for Png_SbitChunk_SignificantBits {
     }
 }
 impl From<&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitTruecolor> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_SbitChunk_SignificantBits) -> Self {
         if let Png_SbitChunk_SignificantBits::Png_SbitTruecolor(x) = v {
             return x.clone();
@@ -3675,7 +3707,7 @@ impl Png_SbitChunk {
             return Ok(self.sample_depth.borrow());
         }
         self.f_sample_depth.set(true);
-        *self.sample_depth.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().color_type() == Png_ColorType::Indexed { (8) as i32 } else { (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().bit_depth()) as i32 }).try_into()?;
+        *self.sample_depth.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().color_type() == Png_ColorType::Indexed { 8_i32 } else { i32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().bit_depth()) }).try_into()?;
         Ok(self.sample_depth.borrow())
     }
 }
@@ -3867,11 +3899,11 @@ impl KStruct for Png_SpltChunk {
         *self_rc.sample_depth.borrow_mut() = _io.read_u1()?;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Png_SpltEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -3953,9 +3985,10 @@ impl From<u8> for Png_SpltEntry_Red {
     }
 }
 impl From<&Png_SpltEntry_Red> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Red) -> Self {
         if let Png_SpltEntry_Red::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Red::U1 to u8, enum value {:?}", e)
     }
@@ -3966,9 +3999,10 @@ impl From<u16> for Png_SpltEntry_Red {
     }
 }
 impl From<&Png_SpltEntry_Red> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Red) -> Self {
         if let Png_SpltEntry_Red::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Red::U2 to u16, enum value {:?}", e)
     }
@@ -3995,9 +4029,10 @@ impl From<u8> for Png_SpltEntry_Green {
     }
 }
 impl From<&Png_SpltEntry_Green> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Green) -> Self {
         if let Png_SpltEntry_Green::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Green::U1 to u8, enum value {:?}", e)
     }
@@ -4008,9 +4043,10 @@ impl From<u16> for Png_SpltEntry_Green {
     }
 }
 impl From<&Png_SpltEntry_Green> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Green) -> Self {
         if let Png_SpltEntry_Green::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Green::U2 to u16, enum value {:?}", e)
     }
@@ -4037,9 +4073,10 @@ impl From<u8> for Png_SpltEntry_Blue {
     }
 }
 impl From<&Png_SpltEntry_Blue> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Blue) -> Self {
         if let Png_SpltEntry_Blue::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Blue::U1 to u8, enum value {:?}", e)
     }
@@ -4050,9 +4087,10 @@ impl From<u16> for Png_SpltEntry_Blue {
     }
 }
 impl From<&Png_SpltEntry_Blue> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Blue) -> Self {
         if let Png_SpltEntry_Blue::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Blue::U2 to u16, enum value {:?}", e)
     }
@@ -4079,9 +4117,10 @@ impl From<u8> for Png_SpltEntry_Alpha {
     }
 }
 impl From<&Png_SpltEntry_Alpha> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Alpha) -> Self {
         if let Png_SpltEntry_Alpha::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Alpha::U1 to u8, enum value {:?}", e)
     }
@@ -4092,9 +4131,10 @@ impl From<u16> for Png_SpltEntry_Alpha {
     }
 }
 impl From<&Png_SpltEntry_Alpha> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Png_SpltEntry_Alpha) -> Self {
         if let Png_SpltEntry_Alpha::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Png_SpltEntry_Alpha::U2 to u16, enum value {:?}", e)
     }
@@ -4259,7 +4299,7 @@ impl KStruct for Png_SrgbChunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.render_intent.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.render_intent.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -4503,6 +4543,7 @@ pub enum Png_TrnsChunk_TransparentColor {
     Png_TrnsTruecolorColor(OptRc<Png_TrnsTruecolorColor>),
 }
 impl From<&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsGreyscaleColor> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_TrnsChunk_TransparentColor) -> Self {
         if let Png_TrnsChunk_TransparentColor::Png_TrnsGreyscaleColor(x) = v {
             return x.clone();
@@ -4516,6 +4557,7 @@ impl From<OptRc<Png_TrnsGreyscaleColor>> for Png_TrnsChunk_TransparentColor {
     }
 }
 impl From<&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsTruecolorColor> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Png_TrnsChunk_TransparentColor) -> Self {
         if let Png_TrnsChunk_TransparentColor::Png_TrnsTruecolorColor(x) = v {
             return x.clone();
@@ -4546,10 +4588,10 @@ impl KStruct for Png_TrnsChunk {
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().color_type() == Png_ColorType::Indexed {
             *self_rc.palette_alphas.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 while !_io.is_eof() {
                     self_rc.palette_alphas.borrow_mut().push(_io.read_u1()?);
-                    _i += 1;
+                    _i = _i.saturating_add(1);
                 }
             }
         }
@@ -4582,7 +4624,7 @@ impl Png_TrnsChunk {
             return Ok(self.sample_mask.borrow());
         }
         self.f_sample_mask.set(true);
-        *self.sample_mask.borrow_mut() = (((((((1) as i32) << ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().bit_depth()) as i32))) as i32) - ((1) as i32))).try_into()?;
+        *self.sample_mask.borrow_mut() = (((1_i32).wrapping_shl(to_shift_amt(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().bit_depth()))).saturating_sub(1_i32)).try_into()?;
         Ok(self.sample_mask.borrow())
     }
 }
@@ -4673,7 +4715,7 @@ impl Png_TrnsGreyscaleColor {
             return Ok(self.grey.borrow());
         }
         self.f_grey.set(true);
-        *self.grey.borrow_mut() = ((((*self.grey_raw()) as u64) & ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?) as u64))).try_into()?;
+        *self.grey.borrow_mut() = (((i32::from(*self.grey_raw())) & (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?))).try_into()?;
         Ok(self.grey.borrow())
     }
 }
@@ -4734,7 +4776,7 @@ impl Png_TrnsTruecolorColor {
             return Ok(self.blue.borrow());
         }
         self.f_blue.set(true);
-        *self.blue.borrow_mut() = ((((*self.blue_raw()) as u64) & ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?) as u64))).try_into()?;
+        *self.blue.borrow_mut() = (((i32::from(*self.blue_raw())) & (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?))).try_into()?;
         Ok(self.blue.borrow())
     }
     pub fn green(
@@ -4745,7 +4787,7 @@ impl Png_TrnsTruecolorColor {
             return Ok(self.green.borrow());
         }
         self.f_green.set(true);
-        *self.green.borrow_mut() = ((((*self.green_raw()) as u64) & ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?) as u64))).try_into()?;
+        *self.green.borrow_mut() = (((i32::from(*self.green_raw())) & (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?))).try_into()?;
         Ok(self.green.borrow())
     }
     pub fn red(
@@ -4756,7 +4798,7 @@ impl Png_TrnsTruecolorColor {
             return Ok(self.red.borrow());
         }
         self.f_red.set(true);
-        *self.red.borrow_mut() = ((((*self.red_raw()) as u64) & ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?) as u64))).try_into()?;
+        *self.red.borrow_mut() = (((i32::from(*self.red_raw())) & (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_mask()?))).try_into()?;
         Ok(self.red.borrow())
     }
 }

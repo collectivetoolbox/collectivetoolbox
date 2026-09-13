@@ -33,11 +33,11 @@ impl KStruct for ShapefileMain {
         *self_rc.header.borrow_mut() = t;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, ShapefileMain_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -370,36 +370,36 @@ impl KStruct for ShapefileMain_FileHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.file_code.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.file_code.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.file_code() == vec![0x0u8, 0x0u8, 0x27u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
-        *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_1() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
-        *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/2".to_string() }));
         }
-        *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/3".to_string() }));
         }
-        *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_4() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/4".to_string() }));
         }
-        *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_5() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/5".to_string() }));
         }
         *self_rc.file_length.borrow_mut() = _io.read_s4be()?;
-        *self_rc.version.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.version.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.version() == vec![0xe8u8, 0x3u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/7".to_string() }));
         }
-        *self_rc.shape_type.borrow_mut() = i64::try_from(_io.read_s4le()?)?.try_into()?;
+        *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
         Ok(())
@@ -515,7 +515,7 @@ impl KStruct for ShapefileMain_MultiPatch {
         *self_rc.part_types.borrow_mut() = Vec::new();
         let l_part_types = *self_rc.number_of_parts();
         for _i in 0..l_part_types {
-            self_rc.part_types.borrow_mut().push(i64::try_from(_io.read_s4le()?)?.try_into()?);
+            self_rc.part_types.borrow_mut().push(i64::from(_io.read_s4le()?).try_into()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = *self_rc.number_of_points();
@@ -1659,6 +1659,7 @@ pub enum ShapefileMain_RecordContents_ShapeParameters {
     ShapefileMain_PolygonZ(OptRc<ShapefileMain_PolygonZ>),
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPatch> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPatch(x) = v {
             return x.clone();
@@ -1672,6 +1673,7 @@ impl From<OptRc<ShapefileMain_MultiPatch>> for ShapefileMain_RecordContents_Shap
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPoint> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPoint(x) = v {
             return x.clone();
@@ -1685,6 +1687,7 @@ impl From<OptRc<ShapefileMain_MultiPoint>> for ShapefileMain_RecordContents_Shap
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointM> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointM(x) = v {
             return x.clone();
@@ -1698,6 +1701,7 @@ impl From<OptRc<ShapefileMain_MultiPointM>> for ShapefileMain_RecordContents_Sha
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointZ> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointZ(x) = v {
             return x.clone();
@@ -1711,6 +1715,7 @@ impl From<OptRc<ShapefileMain_MultiPointZ>> for ShapefileMain_RecordContents_Sha
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Point> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Point(x) = v {
             return x.clone();
@@ -1724,6 +1729,7 @@ impl From<OptRc<ShapefileMain_Point>> for ShapefileMain_RecordContents_ShapePara
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointM> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointM(x) = v {
             return x.clone();
@@ -1737,6 +1743,7 @@ impl From<OptRc<ShapefileMain_PointM>> for ShapefileMain_RecordContents_ShapePar
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointZ> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointZ(x) = v {
             return x.clone();
@@ -1750,6 +1757,7 @@ impl From<OptRc<ShapefileMain_PointZ>> for ShapefileMain_RecordContents_ShapePar
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLine> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLine(x) = v {
             return x.clone();
@@ -1763,6 +1771,7 @@ impl From<OptRc<ShapefileMain_PolyLine>> for ShapefileMain_RecordContents_ShapeP
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineM> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineM(x) = v {
             return x.clone();
@@ -1776,6 +1785,7 @@ impl From<OptRc<ShapefileMain_PolyLineM>> for ShapefileMain_RecordContents_Shape
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineZ> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineZ(x) = v {
             return x.clone();
@@ -1789,6 +1799,7 @@ impl From<OptRc<ShapefileMain_PolyLineZ>> for ShapefileMain_RecordContents_Shape
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Polygon> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Polygon(x) = v {
             return x.clone();
@@ -1802,6 +1813,7 @@ impl From<OptRc<ShapefileMain_Polygon>> for ShapefileMain_RecordContents_ShapePa
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonM> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonM(x) = v {
             return x.clone();
@@ -1815,6 +1827,7 @@ impl From<OptRc<ShapefileMain_PolygonM>> for ShapefileMain_RecordContents_ShapeP
     }
 }
 impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonZ> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonZ(x) = v {
             return x.clone();
@@ -1842,7 +1855,7 @@ impl KStruct for ShapefileMain_RecordContents {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.shape_type.borrow_mut() = i64::try_from(_io.read_s4le()?)?.try_into()?;
+        *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         if *self_rc.shape_type() != ShapefileMain_ShapeType::NullShape {
             match *self_rc.shape_type() {
                 ShapefileMain_ShapeType::MultiPatch => {

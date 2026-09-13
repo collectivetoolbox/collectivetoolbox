@@ -138,6 +138,7 @@ pub enum AndroidSparse_Chunk_Body {
     Bytes(Vec<u8>),
 }
 impl From<&AndroidSparse_Chunk_Body> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSparse_Chunk_Body) -> Self {
         if let AndroidSparse_Chunk_Body::U4(x) = v {
             return x.clone();
@@ -151,6 +152,7 @@ impl From<u32> for AndroidSparse_Chunk_Body {
     }
 }
 impl From<&AndroidSparse_Chunk_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSparse_Chunk_Body) -> Self {
         if let AndroidSparse_Chunk_Body::Bytes(x) = v {
             return x.clone();
@@ -244,11 +246,11 @@ impl KStruct for AndroidSparse_Chunk_ChunkHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.chunk_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.chunk_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_body_blocks.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_chunk.borrow_mut() = _io.read_u4le()?;
-        let expected: u32 = (if *self_rc.len_body_expected()? != -(1) { ((((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header()) as i32) + ((*self_rc.len_body_expected()?) as i32))) as u32 } else { (*self_rc.len_chunk()) as u32 }).try_into()?;
+        let expected: u32 = (if *self_rc.len_body_expected()? != -(1) { u32::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header())).saturating_add(*self_rc.len_body_expected()?))? } else { *self_rc.len_chunk() }).try_into()?;
         if !(*self_rc.len_chunk() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/types/chunk_header/seq/3".to_string() }));
         }
@@ -264,7 +266,7 @@ impl AndroidSparse_Chunk_ChunkHeader {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = ((((*self.len_chunk()) as u32) - ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header()) as u32))).try_into()?;
+        *self.len_body.borrow_mut() = ((*self.len_chunk()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header()))).try_into()?;
         Ok(self.len_body.borrow())
     }
 
@@ -282,7 +284,7 @@ impl AndroidSparse_Chunk_ChunkHeader {
             return Ok(self.len_body_expected.borrow());
         }
         self.f_len_body_expected.set(true);
-        *self.len_body_expected.borrow_mut() = (if *self.chunk_type() == AndroidSparse_ChunkTypes::Raw { ((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().block_size()) as u32) * ((*self.num_body_blocks()) as u32))) as u32 } else { (if *self.chunk_type() == AndroidSparse_ChunkTypes::Fill { (4) as i32 } else { (if *self.chunk_type() == AndroidSparse_ChunkTypes::DontCare { (0) as i32 } else { (if *self.chunk_type() == AndroidSparse_ChunkTypes::Crc32 { (4) as i32 } else { (-(1)) as i32 }) as i32 }) as i32 }) as u32 }).try_into()?;
+        *self.len_body_expected.borrow_mut() = (if *self.chunk_type() == AndroidSparse_ChunkTypes::Raw { (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().block_size()).saturating_mul(*self.num_body_blocks()) } else { u32::try_from(if *self.chunk_type() == AndroidSparse_ChunkTypes::Fill { 4_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::DontCare { 0_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::Crc32 { 4_i32 } else { -(1) } } })? }).try_into()?;
         Ok(self.len_body_expected.borrow())
     }
 }
@@ -354,7 +356,7 @@ impl KStruct for AndroidSparse_FileHeader {
         *self_rc.len_chunk_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.block_size();
-        if !((((((_tmpa) as u32) % ((4) as u32)) as u32) == (0 as u32))) {
+        if !((((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? as u32) == (0 as u32))) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/file_header/seq/1".to_string() }));
         }
         *self_rc.num_blocks.borrow_mut() = _io.read_u4le()?;
@@ -467,7 +469,7 @@ impl KStruct for AndroidSparse_FileHeaderPrefix {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x3au8, 0xffu8, 0x26u8, 0xedu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header_prefix/seq/0".to_string() }));
         }

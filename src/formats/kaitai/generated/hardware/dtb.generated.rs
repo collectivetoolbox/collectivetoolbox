@@ -72,7 +72,7 @@ impl KStruct for Dtb {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xd0u8, 0xdu8, 0xfeu8, 0xedu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -98,7 +98,7 @@ impl Dtb {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_memory_reservation_block())?)?;
-        *self.memory_reservation_block_raw.borrow_mut() = _io.read_bytes(usize::try_from((((*self.ofs_structure_block()) as u32) - ((*self.ofs_memory_reservation_block()) as u32)))?)?.into();
+        *self.memory_reservation_block_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self.ofs_structure_block()).saturating_sub(*self.ofs_memory_reservation_block()))?)?.into();
         let memory_reservation_block_raw = self.memory_reservation_block_raw.borrow();
         let _t_memory_reservation_block_raw_io = BytesReader::from(memory_reservation_block_raw.clone());
         let t = Self::read_into::<BytesReader, Dtb_MemoryBlock>(&_t_memory_reservation_block_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -278,7 +278,7 @@ impl KStruct for Dtb_FdtBeginNode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(_io.pos() as i64) as i64, 4 as i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -325,13 +325,13 @@ impl KStruct for Dtb_FdtBlock {
         let _io = io;
         *self_rc.nodes.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, Dtb_FdtNode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.nodes.borrow_mut().push(t);
                 let _t_nodes = self_rc.nodes.borrow();
                 let Some(_tmpa) = _t_nodes.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.r#type() == Dtb_Fdt::End { break; }
             }
         }
@@ -367,6 +367,7 @@ pub enum Dtb_FdtNode_Body {
     Dtb_FdtProp(OptRc<Dtb_FdtProp>),
 }
 impl From<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtBeginNode> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Dtb_FdtNode_Body) -> Self {
         if let Dtb_FdtNode_Body::Dtb_FdtBeginNode(x) = v {
             return x.clone();
@@ -380,6 +381,7 @@ impl From<OptRc<Dtb_FdtBeginNode>> for Dtb_FdtNode_Body {
     }
 }
 impl From<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtProp> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Dtb_FdtNode_Body) -> Self {
         if let Dtb_FdtNode_Body::Dtb_FdtProp(x) = v {
             return x.clone();
@@ -407,7 +409,7 @@ impl KStruct for Dtb_FdtNode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.r#type() {
             Dtb_Fdt::BeginNode => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -482,7 +484,7 @@ impl KStruct for Dtb_FdtProp {
         *self_rc.len_property.borrow_mut() = _io.read_u4be()?;
         *self_rc.ofs_name.borrow_mut() = _io.read_u4be()?;
         *self_rc.property.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_property())?)?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(_io.pos() as i64) as i64, 4 as i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -554,11 +556,11 @@ impl KStruct for Dtb_MemoryBlock {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Dtb_MemoryBlockEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -657,10 +659,10 @@ impl KStruct for Dtb_Strings {
         let _io = io;
         *self_rc.strings.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 self_rc.strings.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

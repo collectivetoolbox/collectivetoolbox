@@ -46,11 +46,11 @@ impl KStruct for Zip {
         let _io = io;
         *self_rc.sections.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Zip_PkSection>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 self_rc.sections.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -311,7 +311,7 @@ impl KStruct for Zip_CentralDirEntry {
         *self_rc.version_made_by.borrow_mut() = _io.read_u2le()?;
         *self_rc.version_needed_to_extract.borrow_mut() = _io.read_u2le()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, DosDatetime>(&*_io, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
@@ -324,10 +324,10 @@ impl KStruct for Zip_CentralDirEntry {
         *self_rc.int_file_attr.borrow_mut() = _io.read_u2le()?;
         *self_rc.ext_file_attr.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_local_header.borrow_mut() = _io.read_s4le()?;
-        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_file_name())?)?, "UTF-8")?;
+        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
         let t = Self::read_into::<_, Zip_Extras>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
-        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_comment())?)?, "UTF-8")?;
+        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
         Ok(())
     }
 }
@@ -534,7 +534,7 @@ impl KStruct for Zip_EndOfCentralDir {
         *self_rc.len_central_dir.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_central_dir.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_comment.borrow_mut() = _io.read_u2le()?;
-        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_comment())?)?, "UTF-8")?;
+        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
         Ok(())
     }
 }
@@ -605,6 +605,7 @@ pub enum Zip_ExtraField_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Body) -> Self {
         if let Zip_ExtraField_Body::Zip_ExtraField_ExtendedTimestamp(x) = v {
             return x.clone();
@@ -618,6 +619,7 @@ impl From<OptRc<Zip_ExtraField_ExtendedTimestamp>> for Zip_ExtraField_Body {
     }
 }
 impl From<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Body) -> Self {
         if let Zip_ExtraField_Body::Zip_ExtraField_InfozipUnixVarSize(x) = v {
             return x.clone();
@@ -631,6 +633,7 @@ impl From<OptRc<Zip_ExtraField_InfozipUnixVarSize>> for Zip_ExtraField_Body {
     }
 }
 impl From<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_Ntfs> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Body) -> Self {
         if let Zip_ExtraField_Body::Zip_ExtraField_Ntfs(x) = v {
             return x.clone();
@@ -644,6 +647,7 @@ impl From<OptRc<Zip_ExtraField_Ntfs>> for Zip_ExtraField_Body {
     }
 }
 impl From<&Zip_ExtraField_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Body) -> Self {
         if let Zip_ExtraField_Body::Bytes(x) = v {
             return x.clone();
@@ -671,7 +675,7 @@ impl KStruct for Zip_ExtraField {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.len_body.borrow_mut() = _io.read_u2le()?;
         match *self_rc.code() {
             Zip_ExtraCodes::ExtendedTimestamp => {
@@ -908,9 +912,9 @@ impl KStruct for Zip_ExtraField_InfozipUnixVarSize {
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
         *self_rc.len_uid.borrow_mut() = _io.read_u1()?;
-        *self_rc.uid.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_uid())?)?;
+        *self_rc.uid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_uid()))?;
         *self_rc.len_gid.borrow_mut() = _io.read_u1()?;
-        *self_rc.gid.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_gid())?)?;
+        *self_rc.gid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_gid()))?;
         Ok(())
     }
 }
@@ -998,11 +1002,11 @@ impl KStruct for Zip_ExtraField_Ntfs {
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
         *self_rc.attributes.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Zip_ExtraField_Ntfs_Attribute>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.attributes.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1043,6 +1047,7 @@ pub enum Zip_ExtraField_Ntfs_Attribute_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Zip_ExtraField_Ntfs_Attribute_Body> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Ntfs_Attribute_Body) -> Self {
         if let Zip_ExtraField_Ntfs_Attribute_Body::Zip_ExtraField_Ntfs_Attribute1(x) = v {
             return x.clone();
@@ -1056,6 +1061,7 @@ impl From<OptRc<Zip_ExtraField_Ntfs_Attribute1>> for Zip_ExtraField_Ntfs_Attribu
     }
 }
 impl From<&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_ExtraField_Ntfs_Attribute_Body) -> Self {
         if let Zip_ExtraField_Ntfs_Attribute_Body::Bytes(x) = v {
             return x.clone();
@@ -1207,11 +1213,11 @@ impl KStruct for Zip_Extras {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Zip_ExtraField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1314,7 +1320,7 @@ impl KStruct for Zip_LocalFileHeader {
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
         let t = Self::read_into::<_, Zip_LocalFileHeader_GpFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, DosDatetime>(&*_io, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
@@ -1322,7 +1328,7 @@ impl KStruct for Zip_LocalFileHeader {
         *self_rc.len_body_uncompressed.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_file_name.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_extra.borrow_mut() = _io.read_u2le()?;
-        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_file_name())?)?, "UTF-8")?;
+        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
         let t = Self::read_into::<_, Zip_Extras>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
         Ok(())
@@ -1478,7 +1484,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_imploded_dict_byte_size.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
-            *self.imploded_dict_byte_size.borrow_mut() = ((((if ((((((*self.comp_options_raw()) as u64) & ((1) as u64))) as u64) != ((0) as u64)) { (8) as i32 } else { (4) as i32 }) as i32) * ((1024) as i32))).try_into()?;
+            *self.imploded_dict_byte_size.borrow_mut() = ((if ((*self.comp_options_raw()) & (1_u64)) != 0 { 8_i32 } else { 4_i32 }).saturating_mul(1024_i32)).try_into()?;
         }
         Ok(self.imploded_dict_byte_size.borrow())
     }
@@ -1491,7 +1497,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_imploded_num_sf_trees.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
-            *self.imploded_num_sf_trees.borrow_mut() = (if ((((((*self.comp_options_raw()) as u64) & ((2) as u64))) as u64) != ((0) as u64)) { (3) as i32 } else { (2) as i32 }).try_into()?;
+            *self.imploded_num_sf_trees.borrow_mut() = (if ((*self.comp_options_raw()) & (2_u64)) != 0 { 3_i32 } else { 2_i32 }).try_into()?;
         }
         Ok(self.imploded_num_sf_trees.borrow())
     }
@@ -1504,7 +1510,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_lzma_has_eos_marker.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Lzma {
-            *self.lzma_has_eos_marker.borrow_mut() = (((((((*self.comp_options_raw()) as u64) & ((1) as u64))) as u64) != ((0) as u64))).try_into()?;
+            *self.lzma_has_eos_marker.borrow_mut() = (((*self.comp_options_raw()) & (1_u64)) != 0).try_into()?;
         }
         Ok(self.lzma_has_eos_marker.borrow())
     }
@@ -1631,6 +1637,7 @@ pub enum Zip_PkSection_Body {
     Zip_CentralDirEntry(OptRc<Zip_CentralDirEntry>),
 }
 impl From<&Zip_PkSection_Body> for OptRc<Zip_LocalFile> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_PkSection_Body) -> Self {
         if let Zip_PkSection_Body::Zip_LocalFile(x) = v {
             return x.clone();
@@ -1644,6 +1651,7 @@ impl From<OptRc<Zip_LocalFile>> for Zip_PkSection_Body {
     }
 }
 impl From<&Zip_PkSection_Body> for OptRc<Zip_EndOfCentralDir> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_PkSection_Body) -> Self {
         if let Zip_PkSection_Body::Zip_EndOfCentralDir(x) = v {
             return x.clone();
@@ -1657,6 +1665,7 @@ impl From<OptRc<Zip_EndOfCentralDir>> for Zip_PkSection_Body {
     }
 }
 impl From<&Zip_PkSection_Body> for OptRc<Zip_DataDescriptor> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_PkSection_Body) -> Self {
         if let Zip_PkSection_Body::Zip_DataDescriptor(x) = v {
             return x.clone();
@@ -1670,6 +1679,7 @@ impl From<OptRc<Zip_DataDescriptor>> for Zip_PkSection_Body {
     }
 }
 impl From<&Zip_PkSection_Body> for OptRc<Zip_CentralDirEntry> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Zip_PkSection_Body) -> Self {
         if let Zip_PkSection_Body::Zip_CentralDirEntry(x) = v {
             return x.clone();
@@ -1697,7 +1707,7 @@ impl KStruct for Zip_PkSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x4bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/pk_section/seq/0".to_string() }));
         }

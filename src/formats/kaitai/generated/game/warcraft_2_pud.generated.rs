@@ -45,11 +45,11 @@ impl KStruct for Warcraft2Pud {
         let _io = io;
         *self_rc.sections.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Warcraft2Pud_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.sections.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -502,6 +502,7 @@ pub enum Warcraft2Pud_Section_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionDim> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionDim(x) = v {
             return x.clone();
@@ -515,6 +516,7 @@ impl From<OptRc<Warcraft2Pud_SectionDim>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionEra> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionEra(x) = v {
             return x.clone();
@@ -528,6 +530,7 @@ impl From<OptRc<Warcraft2Pud_SectionEra>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionOwnr> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionOwnr(x) = v {
             return x.clone();
@@ -541,6 +544,7 @@ impl From<OptRc<Warcraft2Pud_SectionOwnr>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionStartingResource(x) = v {
             return x.clone();
@@ -554,6 +558,7 @@ impl From<OptRc<Warcraft2Pud_SectionStartingResource>> for Warcraft2Pud_Section_
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionType> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionType(x) = v {
             return x.clone();
@@ -567,6 +572,7 @@ impl From<OptRc<Warcraft2Pud_SectionType>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionUnit> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionUnit(x) = v {
             return x.clone();
@@ -580,6 +586,7 @@ impl From<OptRc<Warcraft2Pud_SectionUnit>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionVer> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionVer(x) = v {
             return x.clone();
@@ -593,6 +600,7 @@ impl From<OptRc<Warcraft2Pud_SectionVer>> for Warcraft2Pud_Section_Body {
     }
 }
 impl From<&Warcraft2Pud_Section_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Warcraft2Pud_Section_Body) -> Self {
         if let Warcraft2Pud_Section_Body::Bytes(x) = v {
             return x.clone();
@@ -620,7 +628,7 @@ impl KStruct for Warcraft2Pud_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         match self_rc.name().as_str() {
             "DIM " => {
@@ -802,7 +810,7 @@ impl KStruct for Warcraft2Pud_SectionEra {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.terrain.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.terrain.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         Ok(())
     }
 }
@@ -848,10 +856,10 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
         let _io = io;
         *self_rc.controller_by_player.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.controller_by_player.borrow_mut().push(i64::try_from(_io.read_u1()?)?.try_into()?);
-                _i += 1;
+                self_rc.controller_by_player.borrow_mut().push(i64::from(_io.read_u1()?).try_into()?);
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -895,10 +903,10 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
         let _io = io;
         *self_rc.resources_by_player.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 self_rc.resources_by_player.borrow_mut().push(_io.read_u2le()?);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -949,11 +957,11 @@ impl KStruct for Warcraft2Pud_SectionType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(10)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(10_usize)?;
         if !(*self_rc.magic() == vec![0x57u8, 0x41u8, 0x52u8, 0x32u8, 0x20u8, 0x4du8, 0x41u8, 0x50u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/section_type/seq/0".to_string() }));
         }
-        *self_rc.unused.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.unused.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.id_tag.borrow_mut() = _io.read_u4le()?;
         Ok(())
     }
@@ -1014,11 +1022,11 @@ impl KStruct for Warcraft2Pud_SectionUnit {
         let _io = io;
         *self_rc.units.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Warcraft2Pud_Unit>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.units.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1112,7 +1120,7 @@ impl KStruct for Warcraft2Pud_Unit {
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_u2le()?;
         *self_rc.y.borrow_mut() = _io.read_u2le()?;
-        *self_rc.u_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.u_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.owner.borrow_mut() = _io.read_u1()?;
         *self_rc.options.borrow_mut() = _io.read_u2le()?;
         Ok(())
@@ -1128,7 +1136,7 @@ impl Warcraft2Pud_Unit {
         }
         self.f_resource.set(true);
         if  ((*self.u_type() == Warcraft2Pud_UnitType::GoldMine) || (*self.u_type() == Warcraft2Pud_UnitType::HumanOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OrcOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OilPatch))  {
-            *self.resource.borrow_mut() = ((((*self.options()) as i32) * ((2500) as i32))).try_into()?;
+            *self.resource.borrow_mut() = ((i32::from(*self.options())).saturating_mul(2500_i32)).try_into()?;
         }
         Ok(self.resource.borrow())
     }

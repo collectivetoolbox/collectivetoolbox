@@ -53,7 +53,7 @@ impl KStruct for AndroidBootldrHuawei {
         let _io = io;
         let t = Self::read_into::<_, AndroidBootldrHuawei_MetaHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.meta_header.borrow_mut() = t;
-        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.meta_header().len_meta_header() - 0)?)?;
+        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.meta_header().len_meta_header()).saturating_sub(0))?)?;
         let t = Self::read_into::<_, AndroidBootldrHuawei_ImageHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
         Ok(())
@@ -107,11 +107,11 @@ impl KStruct for AndroidBootldrHuawei_ImageHdr {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, AndroidBootldrHuawei_ImageHdrEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -172,7 +172,7 @@ impl KStruct for AndroidBootldrHuawei_ImageHdrEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(72)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(72_usize)?, 0, false), "UTF-8")?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -208,7 +208,7 @@ impl AndroidBootldrHuawei_ImageHdrEntry {
             return Ok(self.is_used.borrow());
         }
         self.f_is_used.set(true);
-        *self.is_used.borrow_mut() = ( (((((*self.ofs_body()) as u32) != ((0) as u32))) && ((((*self.len_body()) as u32) != ((0) as u32)))) ).try_into()?;
+        *self.is_used.borrow_mut() = ( ((*self.ofs_body() != 0) && (*self.len_body() != 0)) ).try_into()?;
         Ok(self.is_used.borrow())
     }
 }
@@ -264,13 +264,13 @@ impl KStruct for AndroidBootldrHuawei_MetaHdr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x3cu8, 0xd6u8, 0x1au8, 0xceu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/meta_hdr/seq/0".to_string() }));
         }
         let t = Self::read_into::<_, AndroidBootldrHuawei_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
-        *self_rc.image_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(64)?)?, 0, false), "UTF-8")?;
+        *self_rc.image_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
         *self_rc.len_meta_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_image_header.borrow_mut() = _io.read_u2le()?;
         Ok(())

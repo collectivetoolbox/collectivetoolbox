@@ -65,9 +65,10 @@ impl From<u64> for Bcd_Digits {
     }
 }
 impl From<&Bcd_Digits> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bcd_Digits) -> Self {
         if let Bcd_Digits::Variant(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bcd_Digits::Variant to u64, enum value {:?}", e)
     }
@@ -78,9 +79,10 @@ impl From<u8> for Bcd_Digits {
     }
 }
 impl From<&Bcd_Digits> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bcd_Digits) -> Self {
         if let Bcd_Digits::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bcd_Digits::U1 to u8, enum value {:?}", e)
     }
@@ -162,7 +164,7 @@ impl Bcd {
             return Ok(self.as_int.borrow());
         }
         self.f_as_int.set(true);
-        *self.as_int.borrow_mut() = (if *self.is_le() { (*self.as_int_le()?) as i32 } else { (*self.as_int_be()?) as i32 }).try_into()?;
+        *self.as_int.borrow_mut() = (if *self.is_le() { *self.as_int_le()? } else { *self.as_int_be()? }).try_into()?;
         Ok(self.as_int.borrow())
     }
 
@@ -177,7 +179,7 @@ impl Bcd {
             return Ok(self.as_int_be.borrow());
         }
         self.f_as_int_be.set(true);
-        *self.as_int_be.borrow_mut() = ((((usize::from(&self.digits()[*self.last_idx()? as usize])) as u64) + ((if (((*self.num_digits()) as i32) < ((2) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((1) as i32))) as usize])) as u64) * ((10) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((3) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((2) as i32))) as usize])) as u64) * ((100) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((4) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((3) as i32))) as usize])) as u64) * ((1000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((5) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((4) as i32))) as usize])) as u64) * ((10000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((6) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((5) as i32))) as usize])) as u64) * ((100000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((7) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((6) as i32))) as usize])) as u64) * ((1000000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((8) as i32)) { (0) as u64 } else { ((((usize::from(&self.digits()[((((*self.last_idx()?) as i32) - ((7) as i32))) as usize])) as u64) * ((10000000) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))).try_into()?;
+        *self.as_int_be.borrow_mut() = ((u64::try_from(usize::from(self.digits().get(usize::try_from(*self.last_idx()?)?).ok_or(KError::CastError)?))?).saturating_add(if *self.num_digits() < 2 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(1_i32))?).ok_or(KError::CastError)?))?).saturating_mul(10_u64)).saturating_add(if *self.num_digits() < 3 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(2_i32))?).ok_or(KError::CastError)?))?).saturating_mul(100_u64)).saturating_add(if *self.num_digits() < 4 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(3_i32))?).ok_or(KError::CastError)?))?).saturating_mul(1000_u64)).saturating_add(if *self.num_digits() < 5 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(4_i32))?).ok_or(KError::CastError)?))?).saturating_mul(10000_u64)).saturating_add(if *self.num_digits() < 6 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(5_i32))?).ok_or(KError::CastError)?))?).saturating_mul(100000_u64)).saturating_add(if *self.num_digits() < 7 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(6_i32))?).ok_or(KError::CastError)?))?).saturating_mul(1000000_u64)).saturating_add(if *self.num_digits() < 8 { 0_u64 } else { (u64::try_from(usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(7_i32))?).ok_or(KError::CastError)?))?).saturating_mul(10000000_u64) }) }) }) }) }) }) })).try_into()?;
         Ok(self.as_int_be.borrow())
     }
 
@@ -192,7 +194,7 @@ impl Bcd {
             return Ok(self.as_int_le.borrow());
         }
         self.f_as_int_le.set(true);
-        *self.as_int_le.borrow_mut() = ((((usize::from(&self.digits()[0 as usize])) as u64) + ((if (((*self.num_digits()) as i32) < ((2) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[1 as usize])) as u64) * ((10) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((3) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[2 as usize])) as u64) * ((100) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((4) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[3 as usize])) as u64) * ((1000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((5) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[4 as usize])) as u64) * ((10000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((6) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[5 as usize])) as u64) * ((100000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((7) as i32)) { (0) as u64 } else { (((((((usize::from(&self.digits()[6 as usize])) as u64) * ((1000000) as u64))) as u64) + ((if (((*self.num_digits()) as i32) < ((8) as i32)) { (0) as u64 } else { ((((usize::from(&self.digits()[7 as usize])) as u64) * ((10000000) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))) as u64 }) as u64))).try_into()?;
+        *self.as_int_le.borrow_mut() = ((u64::try_from(usize::from(self.digits().get(0_usize).ok_or(KError::CastError)?))?).saturating_add(if *self.num_digits() < 2 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(1_usize).ok_or(KError::CastError)?))?).saturating_mul(10_u64)).saturating_add(if *self.num_digits() < 3 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(2_usize).ok_or(KError::CastError)?))?).saturating_mul(100_u64)).saturating_add(if *self.num_digits() < 4 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(3_usize).ok_or(KError::CastError)?))?).saturating_mul(1000_u64)).saturating_add(if *self.num_digits() < 5 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(4_usize).ok_or(KError::CastError)?))?).saturating_mul(10000_u64)).saturating_add(if *self.num_digits() < 6 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(5_usize).ok_or(KError::CastError)?))?).saturating_mul(100000_u64)).saturating_add(if *self.num_digits() < 7 { 0_u64 } else { ((u64::try_from(usize::from(self.digits().get(6_usize).ok_or(KError::CastError)?))?).saturating_mul(1000000_u64)).saturating_add(if *self.num_digits() < 8 { 0_u64 } else { (u64::try_from(usize::from(self.digits().get(7_usize).ok_or(KError::CastError)?))?).saturating_mul(10000000_u64) }) }) }) }) }) }) })).try_into()?;
         Ok(self.as_int_le.borrow())
     }
 
@@ -207,7 +209,7 @@ impl Bcd {
             return Ok(self.last_idx.borrow());
         }
         self.f_last_idx.set(true);
-        *self.last_idx.borrow_mut() = ((((*self.num_digits()) as i32) - ((1) as i32))).try_into()?;
+        *self.last_idx.borrow_mut() = ((i32::from(*self.num_digits())).saturating_sub(1_i32)).try_into()?;
         Ok(self.last_idx.borrow())
     }
 }

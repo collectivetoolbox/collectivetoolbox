@@ -39,6 +39,16 @@
 - [x] Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation
 - [x] Kaitai Struct make sure all fixtures are tested
 
+- /// Converts a floating-point number to an integer for Kaitai expressions.
+pub fn float_to_int<F: Into<f64>>(f: F) -> i64 {
+    #[allow(clippy::as_conversions, clippy::cast_possible_truncation, reason = "Kaitai float to integer conversion")]
+    let res = f.into() as i64;
+    res
+}
+use one of the float conversion helpers from utilities?
+
+- Kaitai should use Result (bail on violated invariants) and remove all panicking code
+
 - Regenerate Guix packaging in CI
 
 - [x] ia should read in chunks / range requests:

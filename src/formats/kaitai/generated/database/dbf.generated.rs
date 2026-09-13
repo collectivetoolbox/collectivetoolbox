@@ -44,7 +44,7 @@ impl KStruct for Dbf {
         *self_rc.header1.borrow_mut() = t;
         let t = Self::read_into::<_, Dbf_Header2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header2.borrow_mut() = t;
-        *self_rc.header_terminator.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.header_terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.header_terminator() == vec![0xdu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -149,16 +149,16 @@ impl KStruct for Dbf_Field {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(11)?)?, 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(11_usize)?, 0, false), "ASCII")?;
         *self_rc.datatype.borrow_mut() = _io.read_u1()?;
         *self_rc.data_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
         *self_rc.decimal_count.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.work_area_id.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.set_fields_flag.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved3.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.reserved3.borrow_mut() = _io.read_bytes(8_usize)?;
         Ok(())
     }
 }
@@ -274,7 +274,7 @@ impl Dbf_Header1 {
             return Ok(self.dbase_level.borrow());
         }
         self.f_dbase_level.set(true);
-        *self.dbase_level.borrow_mut() = ((((*self.version()) as u64) & ((7) as u64))).try_into()?;
+        *self.dbase_level.borrow_mut() = (((i32::from(*self.version())) & (7_i32))).try_into()?;
         Ok(self.dbase_level.borrow())
     }
 }
@@ -354,11 +354,11 @@ impl KStruct for Dbf_Header2 {
         }
         *self_rc.fields.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Dbf_Field>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.fields.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -412,9 +412,9 @@ impl KStruct for Dbf_HeaderDbase3 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(13)?)?;
-        *self_rc.reserved3.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(13_usize)?;
+        *self_rc.reserved3.borrow_mut() = _io.read_bytes(4_usize)?;
         Ok(())
     }
 }
@@ -472,21 +472,21 @@ impl KStruct for Dbf_HeaderDbase7 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_dbase_7/seq/0".to_string() }));
         }
         *self_rc.has_incomplete_transaction.borrow_mut() = _io.read_u1()?;
         *self_rc.dbase_iv_encryption.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(12_usize)?;
         *self_rc.production_mdx.borrow_mut() = _io.read_u1()?;
         *self_rc.language_driver_id.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved3.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved3.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved3() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_dbase_7/seq/6".to_string() }));
         }
-        *self_rc.language_driver_name.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
-        *self_rc.reserved4.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.language_driver_name.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc.reserved4.borrow_mut() = _io.read_bytes(4_usize)?;
         Ok(())
     }
 }
@@ -567,11 +567,11 @@ impl KStruct for Dbf_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.deleted.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.deleted.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.record_fields.borrow_mut() = Vec::new();
         let l_record_fields = self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().len();
         for _i in 0..l_record_fields {
-            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields()[_i as usize].length())?)?);
+            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(usize::try_from(_i)?).ok_or(KError::CastError)?.length()))?);
         }
         Ok(())
     }

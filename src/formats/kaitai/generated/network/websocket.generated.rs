@@ -40,13 +40,13 @@ impl KStruct for Websocket {
         if *self_rc.initial_frame().header().finished() != true {
             *self_rc.trailing_frames.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 loop {
                     let t = Self::read_into::<_, Websocket_Dataframe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.trailing_frames.borrow_mut().push(t);
                     let _t_trailing_frames = self_rc.trailing_frames.borrow();
                     let Some(_tmpa) = _t_trailing_frames.last() else { break; };
-                    _i += 1;
+                    _i = _i.saturating_add(1);
                     if *_tmpa.header().finished() { break; }
                 }
             }
@@ -243,10 +243,10 @@ impl KStruct for Websocket_FrameHeader {
         *self_rc.is_masked.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.len_payload_primary.borrow_mut() = _io.read_bits_int_be(7)?;
         io.align_to_byte()?;
-        if (((*self_rc.len_payload_primary()) as u64) == ((126) as u64)) {
+        if *self_rc.len_payload_primary() == 126 {
             *self_rc.len_payload_extended_1.borrow_mut() = _io.read_u2be()?;
         }
-        if (((*self_rc.len_payload_primary()) as u64) == ((127) as u64)) {
+        if *self_rc.len_payload_primary() == 127 {
             *self_rc.len_payload_extended_2.borrow_mut() = _io.read_u4be()?;
         }
         if *self_rc.is_masked() {
@@ -264,7 +264,7 @@ impl Websocket_FrameHeader {
             return Ok(self.len_payload.borrow());
         }
         self.f_len_payload.set(true);
-        *self.len_payload.borrow_mut() = (if (((*self.len_payload_primary()) as u64) <= ((125) as u64)) { (*self.len_payload_primary()) as u64 } else { (if (((*self.len_payload_primary()) as u64) == ((126) as u64)) { (*self.len_payload_extended_1()) as u32 } else { (*self.len_payload_extended_2()) as u32 }) as u64 }).try_into()?;
+        *self.len_payload.borrow_mut() = (if *self.len_payload_primary() <= 125 { *self.len_payload_primary() } else { u64::from(if *self.len_payload_primary() == 126 { u32::from(*self.len_payload_extended_1()) } else { *self.len_payload_extended_2() }) }).try_into()?;
         Ok(self.len_payload.borrow())
     }
 }

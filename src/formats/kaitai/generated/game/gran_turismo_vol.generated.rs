@@ -36,13 +36,13 @@ impl KStruct for GranTurismoVol {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x54u8, 0x46u8, 0x53u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.num_files.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_entries.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
@@ -64,7 +64,7 @@ impl GranTurismoVol {
         }
         self.f_files.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ofs_dir()?) as u32) & ((4294965248) as u32)))?)?;
+        _io.seek(usize::try_from(((*self.ofs_dir()?) & (4294965248_u32)))?)?;
         *self.files.borrow_mut() = Vec::new();
         let l_files = *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries();
         for _i in 0..l_files {
@@ -82,7 +82,7 @@ impl GranTurismoVol {
             return Ok(self.ofs_dir.borrow());
         }
         self.f_ofs_dir.set(true);
-        *self.ofs_dir.borrow_mut() = (self.offsets()[1 as usize]).try_into()?;
+        *self.ofs_dir.borrow_mut() = (*(self.offsets().get(1_usize).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.ofs_dir.borrow())
     }
 }
@@ -154,7 +154,7 @@ impl KStruct for GranTurismoVol_FileInfo {
         *self_rc.timestamp.borrow_mut() = _io.read_u4le()?;
         *self_rc.offset_idx.borrow_mut() = _io.read_u2le()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(usize::try_from(25)?)?, 0), 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(25_usize)?, 0), 0, false), "ASCII")?;
         Ok(())
     }
 }
@@ -169,7 +169,7 @@ impl GranTurismoVol_FileInfo {
         self.f_body.set(true);
         if !(*self.is_dir()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets()[*self.offset_idx() as usize]) as u32) & ((4294965248) as u32)))?)?;
+            _io.seek(usize::try_from(((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from(*self.offset_idx())?).ok_or(KError::CastError)?)) & (4294965248_u32)))?)?;
             *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size()?)?)?;
             _io.seek(_pos)?;
         }
@@ -183,7 +183,7 @@ impl GranTurismoVol_FileInfo {
             return Ok(self.is_dir.borrow());
         }
         self.f_is_dir.set(true);
-        *self.is_dir.borrow_mut() = ((((*self.flags()) as u64) & ((1) as u64)) != 0).try_into()?;
+        *self.is_dir.borrow_mut() = (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
     pub fn is_last_entry(
@@ -194,7 +194,7 @@ impl GranTurismoVol_FileInfo {
             return Ok(self.is_last_entry.borrow());
         }
         self.f_is_last_entry.set(true);
-        *self.is_last_entry.borrow_mut() = ((((*self.flags()) as u64) & ((128) as u64)) != 0).try_into()?;
+        *self.is_last_entry.borrow_mut() = (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
         Ok(self.is_last_entry.borrow())
     }
     pub fn size(
@@ -205,7 +205,7 @@ impl GranTurismoVol_FileInfo {
             return Ok(self.size.borrow());
         }
         self.f_size.set(true);
-        *self.size.borrow_mut() = (((((((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets()[((((*self.offset_idx()) as i32) + ((1) as i32))) as usize]) as u32) & ((4294965248) as u32))) as u32) - ((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets()[*self.offset_idx() as usize]) as u32))).try_into()?;
+        *self.size.borrow_mut() = ((((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from((i32::from(*self.offset_idx())).saturating_add(1_i32))?).ok_or(KError::CastError)?)) & (4294965248_u32))).saturating_sub(*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from(*self.offset_idx())?).ok_or(KError::CastError)?))).try_into()?;
         Ok(self.size.borrow())
     }
 }

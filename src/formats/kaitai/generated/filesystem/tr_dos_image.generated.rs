@@ -53,13 +53,13 @@ impl KStruct for TrDosImage {
         let _io = io;
         *self_rc.files.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, TrDosImage_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.files.borrow_mut().push(t);
                 let _t_files = self_rc.files.borrow();
                 let Some(_tmpa) = _t_files.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.is_terminator()? { break; }
             }
         }
@@ -75,7 +75,7 @@ impl TrDosImage {
             return Ok(self.volume_info.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(2048)?)?;
+        _io.seek(2048_usize)?;
         let t = Self::read_into::<_, TrDosImage_VolumeInfo>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.volume_info.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -159,6 +159,7 @@ pub enum TrDosImage_File_PositionAndLength {
     TrDosImage_PositionAndLengthGeneric(OptRc<TrDosImage_PositionAndLengthGeneric>),
 }
 impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthPrint(x) = v {
             return x.clone();
@@ -172,6 +173,7 @@ impl From<OptRc<TrDosImage_PositionAndLengthPrint>> for TrDosImage_File_Position
     }
 }
 impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthBasic(x) = v {
             return x.clone();
@@ -185,6 +187,7 @@ impl From<OptRc<TrDosImage_PositionAndLengthBasic>> for TrDosImage_File_Position
     }
 }
 impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthCode(x) = v {
             return x.clone();
@@ -198,6 +201,7 @@ impl From<OptRc<TrDosImage_PositionAndLengthCode>> for TrDosImage_File_PositionA
     }
 }
 impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthGeneric(x) = v {
             return x.clone();
@@ -274,8 +278,8 @@ impl TrDosImage_File {
         }
         self.f_contents.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((((((((*self.starting_track()) as i32) * ((256) as i32))) as i32) * ((16) as i32))) as i32) + (((((*self.starting_sector()) as i32) * ((256) as i32))) as i32)))?)?;
-        *self.contents.borrow_mut() = _io.read_bytes(usize::try_from((((*self.length_sectors()) as i32) * ((256) as i32)))?)?;
+        _io.seek(usize::try_from((((i32::from(*self.starting_track())).saturating_mul(256_i32)).saturating_mul(16_i32)).saturating_add((i32::from(*self.starting_sector())).saturating_mul(256_i32)))?)?;
+        *self.contents.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self.length_sectors())).saturating_mul(256_i32))?)?;
         _io.seek(_pos)?;
         Ok(self.contents.borrow())
     }
@@ -287,7 +291,7 @@ impl TrDosImage_File {
             return Ok(self.is_deleted.borrow());
         }
         self.f_is_deleted.set(true);
-        *self.is_deleted.borrow_mut() = ((((*self.name().first_byte()?) as i32) == ((1) as i32))).try_into()?;
+        *self.is_deleted.borrow_mut() = (*self.name().first_byte()? == 1).try_into()?;
         Ok(self.is_deleted.borrow())
     }
     pub fn is_terminator(
@@ -298,7 +302,7 @@ impl TrDosImage_File {
             return Ok(self.is_terminator.borrow());
         }
         self.f_is_terminator.set(true);
-        *self.is_terminator.borrow_mut() = ((((*self.name().first_byte()?) as i32) == ((0) as i32))).try_into()?;
+        *self.is_terminator.borrow_mut() = (*self.name().first_byte()? == 0).try_into()?;
         Ok(self.is_terminator.borrow())
     }
 }
@@ -368,7 +372,7 @@ impl KStruct for TrDosImage_Filename {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.name.borrow_mut() = _io.read_bytes(8_usize)?;
         Ok(())
     }
 }
@@ -382,7 +386,7 @@ impl TrDosImage_Filename {
         }
         self.f_first_byte.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         *self.first_byte.borrow_mut() = _io.read_u1()?;
         _io.seek(_pos)?;
         Ok(self.first_byte.borrow())
@@ -638,26 +642,26 @@ impl KStruct for TrDosImage_VolumeInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.catalog_end.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.catalog_end.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.catalog_end() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/0".to_string() }));
         }
-        *self_rc.unused.borrow_mut() = _io.read_bytes(usize::try_from(224)?)?;
+        *self_rc.unused.borrow_mut() = _io.read_bytes(224_usize)?;
         *self_rc.first_free_sector_sector.borrow_mut() = _io.read_u1()?;
         *self_rc.first_free_sector_track.borrow_mut() = _io.read_u1()?;
-        *self_rc.disk_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.disk_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.num_files.borrow_mut() = _io.read_u1()?;
         *self_rc.num_free_sectors.borrow_mut() = _io.read_u2le()?;
-        *self_rc.tr_dos_id.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.tr_dos_id.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.tr_dos_id() == vec![0x10u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/7".to_string() }));
         }
-        *self_rc.unused_2.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
-        *self_rc.password.borrow_mut() = _io.read_bytes(usize::try_from(9)?)?;
-        *self_rc.unused_3.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.unused_2.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc.password.borrow_mut() = _io.read_bytes(9_usize)?;
+        *self_rc.unused_3.borrow_mut() = _io.read_bytes(1_usize)?;
         *self_rc.num_deleted_files.borrow_mut() = _io.read_u1()?;
-        *self_rc.label.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
-        *self_rc.unused_4.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.label.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc.unused_4.borrow_mut() = _io.read_bytes(3_usize)?;
         Ok(())
     }
 }
@@ -670,7 +674,7 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_sides.borrow());
         }
         self.f_num_sides.set(true);
-        *self.num_sides.borrow_mut() = (if (((i64::from(&*self.disk_type())) as u64) & ((8) as u64)) != 0 { (1) as i32 } else { (2) as i32 }).try_into()?;
+        *self.num_sides.borrow_mut() = (if ((i64::from(&*self.disk_type())) & (8_i32)) != 0 { 1_i32 } else { 2_i32 }).try_into()?;
         Ok(self.num_sides.borrow())
     }
     pub fn num_tracks(
@@ -681,7 +685,7 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_tracks.borrow());
         }
         self.f_num_tracks.set(true);
-        *self.num_tracks.borrow_mut() = (if (((i64::from(&*self.disk_type())) as u64) & ((1) as u64)) != 0 { (40) as i32 } else { (80) as i32 }).try_into()?;
+        *self.num_tracks.borrow_mut() = (if ((i64::from(&*self.disk_type())) & (1_i32)) != 0 { 40_i32 } else { 80_i32 }).try_into()?;
         Ok(self.num_tracks.borrow())
     }
 }

@@ -46,16 +46,16 @@ impl KStruct for ChromePak {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
-        if (((*self_rc.version()) as u32) == ((4) as u32)) {
+        if *self_rc.version() == 4 {
             *self_rc.num_resources_v4.borrow_mut() = _io.read_u4le()?;
         }
-        *self_rc.encoding.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        if (((*self_rc.version()) as u32) == ((5) as u32)) {
+        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        if *self_rc.version() == 5 {
             let t = Self::read_into::<_, ChromePak_HeaderV5Part>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.v5_part.borrow_mut() = t;
         }
         *self_rc.resources.borrow_mut() = Vec::new();
-        let l_resources = (((*self_rc.num_resources()?) as u32) + ((1) as u32));
+        let l_resources = (*self_rc.num_resources()?).saturating_add(1_u32);
         for _i in 0..l_resources {
             let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, _i < *self_rc.num_resources()?));
             let t = Self::read_into_with_init::<_, ChromePak_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
@@ -79,7 +79,7 @@ impl ChromePak {
             return Ok(self.num_aliases.borrow());
         }
         self.f_num_aliases.set(true);
-        *self.num_aliases.borrow_mut() = (if (((*self.version()) as u32) == ((5) as u32)) { (*self.v5_part().num_aliases()) as i32 } else { (0) as i32 }).try_into()?;
+        *self.num_aliases.borrow_mut() = (if *self.version() == 5 { i32::from(*self.v5_part().num_aliases()) } else { 0_i32 }).try_into()?;
         Ok(self.num_aliases.borrow())
     }
     pub fn num_resources(
@@ -90,7 +90,7 @@ impl ChromePak {
             return Ok(self.num_resources.borrow());
         }
         self.f_num_resources.set(true);
-        *self.num_resources.borrow_mut() = (if (((*self.version()) as u32) == ((5) as u32)) { (*self.v5_part().num_resources()) as u32 } else { (*self.num_resources_v4()) as u32 }).try_into()?;
+        *self.num_resources.borrow_mut() = (if *self.version() == 5 { u32::from(*self.v5_part().num_resources()) } else { *self.num_resources_v4() }).try_into()?;
         Ok(self.num_resources.borrow())
     }
 }
@@ -238,7 +238,7 @@ impl ChromePak_Alias {
         if self.f_resource.get() {
             return Ok(self.resource.borrow());
         }
-        *self.resource.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources()[*self.resource_idx() as usize].clone();
+        *self.resource.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::try_from(*self.resource_idx())?).ok_or(KError::CastError)?.clone();
         Ok(self.resource.borrow())
     }
 }
@@ -283,7 +283,7 @@ impl KStruct for ChromePak_HeaderV5Part {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.encoding_padding.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.encoding_padding.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.num_resources.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_aliases.borrow_mut() = _io.read_u2le()?;
         Ok(())
@@ -397,7 +397,7 @@ impl ChromePak_Resource {
         }
         self.f_len_body.set(true);
         if *self.has_body() {
-            *self.len_body.borrow_mut() = ((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources()[((((*self.idx()) as i32) + ((1) as i32))) as usize].ofs_body()) as u32) - ((*self.ofs_body()) as u32))).try_into()?;
+            *self.len_body.borrow_mut() = ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::try_from((*self.idx()).saturating_add(1_i32))?).ok_or(KError::CastError)?.ofs_body()).saturating_sub(*self.ofs_body())).try_into()?;
         }
         Ok(self.len_body.borrow())
     }

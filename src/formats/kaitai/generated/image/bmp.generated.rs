@@ -560,9 +560,10 @@ impl From<u32> for Bmp_BitmapHeader_ImageWidth {
     }
 }
 impl From<&Bmp_BitmapHeader_ImageWidth> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bmp_BitmapHeader_ImageWidth) -> Self {
         if let Bmp_BitmapHeader_ImageWidth::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bmp_BitmapHeader_ImageWidth::U4 to u32, enum value {:?}", e)
     }
@@ -573,9 +574,10 @@ impl From<u16> for Bmp_BitmapHeader_ImageWidth {
     }
 }
 impl From<&Bmp_BitmapHeader_ImageWidth> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bmp_BitmapHeader_ImageWidth) -> Self {
         if let Bmp_BitmapHeader_ImageWidth::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bmp_BitmapHeader_ImageWidth::U2 to u16, enum value {:?}", e)
     }
@@ -602,9 +604,10 @@ impl From<i32> for Bmp_BitmapHeader_ImageHeightRaw {
     }
 }
 impl From<&Bmp_BitmapHeader_ImageHeightRaw> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Self {
         if let Bmp_BitmapHeader_ImageHeightRaw::S4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bmp_BitmapHeader_ImageHeightRaw::S4 to i32, enum value {:?}", e)
     }
@@ -615,9 +618,10 @@ impl From<i16> for Bmp_BitmapHeader_ImageHeightRaw {
     }
 }
 impl From<&Bmp_BitmapHeader_ImageHeightRaw> for i16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Self {
         if let Bmp_BitmapHeader_ImageHeightRaw::S2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Bmp_BitmapHeader_ImageHeightRaw::S2 to i16, enum value {:?}", e)
     }
@@ -655,7 +659,6 @@ impl KStruct for Bmp_BitmapHeader {
             true => {
                 *self_rc.image_width.borrow_mut() = Some(_io.read_u2le()?.into());
             }
-            _ => {}
         }
         match *self_rc.is_core_header()? {
             false => {
@@ -664,7 +667,6 @@ impl KStruct for Bmp_BitmapHeader {
             true => {
                 *self_rc.image_height_raw.borrow_mut() = Some(_io.read_s2le()?.into());
             }
-            _ => {}
         }
         *self_rc.num_planes.borrow_mut() = _io.read_u2le()?;
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_u2le()?;
@@ -673,7 +675,7 @@ impl KStruct for Bmp_BitmapHeader {
             *self_rc.bitmap_info_ext.borrow_mut() = t;
         }
         if *self_rc.is_color_mask_here()? {
-            let f = |t : &mut Bmp_ColorMask| Ok(t.set_params((((*self_rc.len_header()) as u32) != ((i64::from(&Bmp_HeaderType::BitmapV2InfoHeader)) as u32))));
+            let f = |t : &mut Bmp_ColorMask| Ok(t.set_params(((to_i128(*self_rc.len_header())) != (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader))))));
             let t = Self::read_into_with_init::<_, Bmp_ColorMask>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
             *self_rc.color_mask.borrow_mut() = t;
         }
@@ -711,7 +713,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.bottom_up.borrow());
         }
         self.f_bottom_up.set(true);
-        *self.bottom_up.borrow_mut() = ((((self.image_height_raw()) as i32) > ((0) as i32))).try_into()?;
+        *self.bottom_up.borrow_mut() = (*self.image_height_raw() > 0).try_into()?;
         Ok(self.bottom_up.borrow())
     }
     pub fn extends_bitmap_info(
@@ -722,7 +724,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.extends_bitmap_info.borrow());
         }
         self.f_extends_bitmap_info.set(true);
-        *self.extends_bitmap_info.borrow_mut() = ((((*self.len_header()) as u32) >= ((i64::from(&Bmp_HeaderType::BitmapInfoHeader)) as u32))).try_into()?;
+        *self.extends_bitmap_info.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapInfoHeader))))).try_into()?;
         Ok(self.extends_bitmap_info.borrow())
     }
     pub fn extends_bitmap_v4(
@@ -733,7 +735,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.extends_bitmap_v4.borrow());
         }
         self.f_extends_bitmap_v4.set(true);
-        *self.extends_bitmap_v4.borrow_mut() = ((((*self.len_header()) as u32) >= ((i64::from(&Bmp_HeaderType::BitmapV4Header)) as u32))).try_into()?;
+        *self.extends_bitmap_v4.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapV4Header))))).try_into()?;
         Ok(self.extends_bitmap_v4.borrow())
     }
     pub fn extends_bitmap_v5(
@@ -744,7 +746,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.extends_bitmap_v5.borrow());
         }
         self.f_extends_bitmap_v5.set(true);
-        *self.extends_bitmap_v5.borrow_mut() = ((((*self.len_header()) as u32) >= ((i64::from(&Bmp_HeaderType::BitmapV5Header)) as u32))).try_into()?;
+        *self.extends_bitmap_v5.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapV5Header))))).try_into()?;
         Ok(self.extends_bitmap_v5.borrow())
     }
     pub fn extends_os2_2x_bitmap(
@@ -755,7 +757,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.extends_os2_2x_bitmap.borrow());
         }
         self.f_extends_os2_2x_bitmap.set(true);
-        *self.extends_os2_2x_bitmap.borrow_mut() = ((((*self.len_header()) as u32) == ((i64::from(&Bmp_HeaderType::Os22xBitmapHeader)) as u32))).try_into()?;
+        *self.extends_os2_2x_bitmap.borrow_mut() = (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::Os22xBitmapHeader))))).try_into()?;
         Ok(self.extends_os2_2x_bitmap.borrow())
     }
     pub fn image_height(
@@ -766,7 +768,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = (if (((self.image_height_raw()) as i32) < ((0) as i32)) { (-(self.image_height_raw() as i64)) as i32 } else { (self.image_height_raw()) as i32 }).try_into()?;
+        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { -(to_i64(self.image_height_raw())) } else { i32::try_from(self.image_height_raw())? }).try_into()?;
         Ok(self.image_height.borrow())
     }
     pub fn is_color_mask_here(
@@ -777,7 +779,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.is_color_mask_here.borrow());
         }
         self.f_is_color_mask_here.set(true);
-        *self.is_color_mask_here.borrow_mut() = ( (((((*self.len_header()) as u32) == ((i64::from(&Bmp_HeaderType::BitmapV2InfoHeader)) as u32))) || ((((*self.len_header()) as u32) == ((i64::from(&Bmp_HeaderType::BitmapV3InfoHeader)) as u32))) || (*self.extends_bitmap_v4()?)) ).try_into()?;
+        *self.is_color_mask_here.borrow_mut() = ( ((((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader))))) || (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapV3InfoHeader))))) || (*self.extends_bitmap_v4()?)) ).try_into()?;
         Ok(self.is_color_mask_here.borrow())
     }
     pub fn is_core_header(
@@ -788,7 +790,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.is_core_header.borrow());
         }
         self.f_is_core_header.set(true);
-        *self.is_core_header.borrow_mut() = ((((*self.len_header()) as u32) == ((i64::from(&Bmp_HeaderType::BitmapCoreHeader)) as u32))).try_into()?;
+        *self.is_core_header.borrow_mut() = (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapCoreHeader))))).try_into()?;
         Ok(self.is_core_header.borrow())
     }
     pub fn uses_fixed_palette(
@@ -799,7 +801,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.uses_fixed_palette.borrow());
         }
         self.f_uses_fixed_palette.set(true);
-        *self.uses_fixed_palette.borrow_mut() = ( ((!( (((((*self.bits_per_pixel()) as i32) == ((16) as i32))) || ((((*self.bits_per_pixel()) as i32) == ((24) as i32))) || ((((*self.bits_per_pixel()) as i32) == ((32) as i32)))) )) && (!( ((*self.extends_bitmap_info()?) && (!(*self.extends_os2_2x_bitmap()?)) && ( ((*self.bitmap_info_ext().compression() == Bmp_Compressions::Jpeg) || (*self.bitmap_info_ext().compression() == Bmp_Compressions::Png)) )) ))) ).try_into()?;
+        *self.uses_fixed_palette.borrow_mut() = ( ((!( ((*self.bits_per_pixel() == 16) || (*self.bits_per_pixel() == 24) || (*self.bits_per_pixel() == 32)) )) && (!( ((*self.extends_bitmap_info()?) && (!(*self.extends_os2_2x_bitmap()?)) && ( ((*self.bitmap_info_ext().compression() == Bmp_Compressions::Jpeg) || (*self.bitmap_info_ext().compression() == Bmp_Compressions::Png)) )) ))) ).try_into()?;
         Ok(self.uses_fixed_palette.borrow())
     }
 }
@@ -932,7 +934,7 @@ impl KStruct for Bmp_BitmapInfo {
             *self_rc.color_mask.borrow_mut() = t;
         }
         if !(_io.is_eof()) {
-            let f = |t : &mut Bmp_ColorTable| Ok(t.set_params(!(*self_rc.header().is_core_header()?), (if *self_rc.header().extends_bitmap_info()? { (*self_rc.header().bitmap_info_ext().num_colors_used()) as u32 } else { (0) as u32 }).try_into().map_err(|_| KError::CastError)?));
+            let f = |t : &mut Bmp_ColorTable| Ok(t.set_params(!(*self_rc.header().is_core_header()?), (if *self_rc.header().extends_bitmap_info()? { *self_rc.header().bitmap_info_ext().num_colors_used() } else { 0_u32 }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Bmp_ColorTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             *self_rc.color_table.borrow_mut() = t;
         }
@@ -948,7 +950,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_alpha.borrow());
         }
         self.f_color_mask_alpha.set(true);
-        *self.color_mask_alpha.borrow_mut() = (if  ((*self.is_color_mask_given()?) && (*self.color_mask_given()?.has_alpha_mask()))  { (*self.color_mask_given()?.alpha_mask()) as u32 } else { (0) as u32 }).try_into()?;
+        *self.color_mask_alpha.borrow_mut() = (if  ((*self.is_color_mask_given()?) && (*self.color_mask_given()?.has_alpha_mask()))  { *self.color_mask_given()?.alpha_mask() } else { 0_u32 }).try_into()?;
         Ok(self.color_mask_alpha.borrow())
     }
     pub fn color_mask_blue(
@@ -959,7 +961,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_blue.borrow());
         }
         self.f_color_mask_blue.set(true);
-        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { (*self.color_mask_given()?.blue_mask()) as u32 } else { (if (((*self.header().bits_per_pixel()) as i32) == ((16) as i32)) { (31) as i32 } else { (if  (((((*self.header().bits_per_pixel()) as i32) == ((24) as i32))) || ((((*self.header().bits_per_pixel()) as i32) == ((32) as i32))))  { (255) as i32 } else { (0) as i32 }) as i32 }) as u32 }).try_into()?;
+        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.blue_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 31_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 255_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_blue.borrow())
     }
     pub fn color_mask_given(
@@ -982,7 +984,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_green.borrow());
         }
         self.f_color_mask_green.set(true);
-        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { (*self.color_mask_given()?.green_mask()) as u32 } else { (if (((*self.header().bits_per_pixel()) as i32) == ((16) as i32)) { (992) as i32 } else { (if  (((((*self.header().bits_per_pixel()) as i32) == ((24) as i32))) || ((((*self.header().bits_per_pixel()) as i32) == ((32) as i32))))  { (65280) as i32 } else { (0) as i32 }) as i32 }) as u32 }).try_into()?;
+        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.green_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 992_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 65280_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_green.borrow())
     }
     pub fn color_mask_red(
@@ -993,7 +995,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_red.borrow());
         }
         self.f_color_mask_red.set(true);
-        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { (*self.color_mask_given()?.red_mask()) as u32 } else { (if (((*self.header().bits_per_pixel()) as i32) == ((16) as i32)) { (31744) as i32 } else { (if  (((((*self.header().bits_per_pixel()) as i32) == ((24) as i32))) || ((((*self.header().bits_per_pixel()) as i32) == ((32) as i32))))  { (16711680) as i32 } else { (0) as i32 }) as i32 }) as u32 }).try_into()?;
+        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.red_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 31744_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 16711680_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_red.borrow())
     }
     pub fn is_color_mask_given(
@@ -1015,7 +1017,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.is_color_mask_here.borrow());
         }
         self.f_is_color_mask_here.set(true);
-        *self.is_color_mask_here.borrow_mut() = ( ((!(_io.is_eof())) && ((((*self.header().len_header()) as u32) == ((i64::from(&Bmp_HeaderType::BitmapInfoHeader)) as u32))) && ( ((*self.header().bitmap_info_ext().compression() == Bmp_Compressions::Bitfields) || (*self.header().bitmap_info_ext().compression() == Bmp_Compressions::AlphaBitfields)) )) ).try_into()?;
+        *self.is_color_mask_here.borrow_mut() = ( ((!(_io.is_eof())) && (((to_i128(*self.header().len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapInfoHeader))))) && ( ((*self.header().bitmap_info_ext().compression() == Bmp_Compressions::Bitfields) || (*self.header().bitmap_info_ext().compression() == Bmp_Compressions::AlphaBitfields)) )) ).try_into()?;
         Ok(self.is_color_mask_here.borrow())
     }
 }
@@ -1083,10 +1085,10 @@ impl KStruct for Bmp_BitmapInfoExtension {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if !(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.extends_os2_2x_bitmap()?) {
-            *self_rc.compression.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+            *self_rc.compression.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         }
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.extends_os2_2x_bitmap()? {
-            *self_rc.os2_compression.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+            *self_rc.os2_compression.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         }
         *self_rc.len_image.borrow_mut() = _io.read_u4le()?;
         *self_rc.x_resolution.borrow_mut() = _io.read_u4le()?;
@@ -1177,7 +1179,7 @@ impl KStruct for Bmp_BitmapV4Extension {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.color_space_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.color_space_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         let t = Self::read_into::<_, Bmp_CieXyz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.endpoint_red.borrow_mut() = t;
         let t = Self::read_into::<_, Bmp_CieXyz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -1262,6 +1264,7 @@ pub enum Bmp_BitmapV5Extension_ProfileData {
     Bytes(Vec<u8>),
 }
 impl From<&Bmp_BitmapV5Extension_ProfileData> for String {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bmp_BitmapV5Extension_ProfileData) -> Self {
         if let Bmp_BitmapV5Extension_ProfileData::String(x) = v {
             return x.clone();
@@ -1275,6 +1278,7 @@ impl From<String> for Bmp_BitmapV5Extension_ProfileData {
     }
 }
 impl From<&Bmp_BitmapV5Extension_ProfileData> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bmp_BitmapV5Extension_ProfileData) -> Self {
         if let Bmp_BitmapV5Extension_ProfileData::Bytes(x) = v {
             return x.clone();
@@ -1302,7 +1306,7 @@ impl KStruct for Bmp_BitmapV5Extension {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.intent.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.intent.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.ofs_profile.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_profile.borrow_mut() = _io.read_u4le()?;
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
@@ -1336,7 +1340,7 @@ impl Bmp_BitmapV5Extension {
         if *self.has_profile()? {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(0 + *self.ofs_profile())?)?;
+            io.seek(usize::try_from((0).saturating_add(*self.ofs_profile()))?)?;
             match *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.bitmap_v4_ext().color_space_type() == Bmp_ColorSpace::ProfileLinked {
                 true => {
                     *self.profile_data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_profile())?)?.into();
@@ -1550,7 +1554,7 @@ impl KStruct for Bmp_ColorTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = if  (((((*self_rc.num_colors()) as u32) > ((0) as u32))) && ((((*self_rc.num_colors()) as u32) < ((*self_rc.num_colors_present()?) as u32))))  { (*self_rc.num_colors()) as u32 } else { (*self_rc.num_colors_present()?) as u32 };
+        let l_colors = if  ((*self_rc.num_colors() > 0) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? };
         for _i in 0..l_colors {
             let f = |t : &mut Bmp_RgbRecord| Ok(t.set_params(*self_rc.has_reserved_field()));
             let t = Self::read_into_with_init::<_, Bmp_RgbRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
@@ -1584,7 +1588,7 @@ impl Bmp_ColorTable {
             return Ok(self.num_colors_present.borrow());
         }
         self.f_num_colors_present.set(true);
-        *self.num_colors_present.borrow_mut() = ((((_io.size()) as i32) / ((if *self.has_reserved_field() { (4) as i32 } else { (3) as i32 }) as i32))).try_into()?;
+        *self.num_colors_present.borrow_mut() = ((i32::try_from(_io.size())?).checked_div(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }).ok_or(KError::CastError)?).try_into()?;
         Ok(self.num_colors_present.borrow())
     }
 }
@@ -1630,7 +1634,7 @@ impl KStruct for Bmp_FileHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.file_type.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.file_type.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.file_type() == vec![0x42u8, 0x4du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
@@ -1720,7 +1724,7 @@ impl Bmp_FixedPoint16Dot16 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.raw()) as f64) + ((0.0) as f64))) as f64) / (((((1) as i32) << ((16) as i32))) as f64))).try_into()?;
+        *self.value.borrow_mut() = (((((to_f64(*self.raw())) + (0.0))) / (to_f64((1_i32).wrapping_shl(16_u32))))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -1773,7 +1777,7 @@ impl Bmp_FixedPoint2Dot30 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.raw()) as f64) + ((0.0) as f64))) as f64) / (((((1) as i32) << ((30) as i32))) as f64))).try_into()?;
+        *self.value.borrow_mut() = (((((to_f64(*self.raw())) + (0.0))) / (to_f64((1_i32).wrapping_shl(30_u32))))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -1825,7 +1829,7 @@ impl KStruct for Bmp_Os22xBitmapExtension {
         *self_rc.units.borrow_mut() = _io.read_u2le()?;
         *self_rc.reserved.borrow_mut() = _io.read_u2le()?;
         *self_rc.recording.borrow_mut() = _io.read_u2le()?;
-        *self_rc.rendering.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.rendering.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.size1.borrow_mut() = _io.read_u4le()?;
         *self_rc.size2.borrow_mut() = _io.read_u4le()?;
         *self_rc.color_encoding.borrow_mut() = _io.read_u4le()?;

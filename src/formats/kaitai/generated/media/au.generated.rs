@@ -49,7 +49,7 @@ impl KStruct for Au {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x2eu8, 0x73u8, 0x6eu8, 0x64u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -68,7 +68,7 @@ impl Au {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = (if (((*self.header().data_size()) as u32) == ((4294967295) as u32)) { ((((_io.size()) as u32) - ((*self.ofs_data()) as u32))) as u32 } else { (*self.header().data_size()) as u32 }).try_into()?;
+        *self.len_data.borrow_mut() = (if *self.header().data_size() == 4294967295 { (u32::try_from(_io.size())?).saturating_sub(*self.ofs_data()) } else { *self.header().data_size() }).try_into()?;
         Ok(self.len_data.borrow())
     }
 }
@@ -319,7 +319,7 @@ impl KStruct for Au_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data_size.borrow_mut() = _io.read_u4be()?;
-        *self_rc.encoding.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.sample_rate.borrow_mut() = _io.read_u4be()?;
         *self_rc.num_channels.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;

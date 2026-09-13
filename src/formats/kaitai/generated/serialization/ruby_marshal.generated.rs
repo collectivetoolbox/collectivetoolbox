@@ -53,7 +53,7 @@ impl KStruct for RubyMarshal {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.version.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.version.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.version() == vec![0x4u8, 0x8u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -177,7 +177,7 @@ impl KStruct for RubyMarshal_Bignum {
         *self_rc.sign.borrow_mut() = _io.read_u1()?;
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_div_2.borrow_mut() = t;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.len_div_2().value()?) as i32) * ((2) as i32)))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_div_2().value()?).saturating_mul(2_i32))?)?;
         Ok(())
     }
 }
@@ -336,9 +336,10 @@ impl From<u8> for RubyMarshal_PackedInt_Encoded {
     }
 }
 impl From<&RubyMarshal_PackedInt_Encoded> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &RubyMarshal_PackedInt_Encoded) -> Self {
         if let RubyMarshal_PackedInt_Encoded::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum RubyMarshal_PackedInt_Encoded::U1 to u8, enum value {:?}", e)
     }
@@ -349,9 +350,10 @@ impl From<u16> for RubyMarshal_PackedInt_Encoded {
     }
 }
 impl From<&RubyMarshal_PackedInt_Encoded> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &RubyMarshal_PackedInt_Encoded) -> Self {
         if let RubyMarshal_PackedInt_Encoded::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum RubyMarshal_PackedInt_Encoded::U2 to u16, enum value {:?}", e)
     }
@@ -362,9 +364,10 @@ impl From<u32> for RubyMarshal_PackedInt_Encoded {
     }
 }
 impl From<&RubyMarshal_PackedInt_Encoded> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &RubyMarshal_PackedInt_Encoded) -> Self {
         if let RubyMarshal_PackedInt_Encoded::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum RubyMarshal_PackedInt_Encoded::U4 to u32, enum value {:?}", e)
     }
@@ -393,10 +396,8 @@ impl From<u8> for RubyMarshal_PackedInt_Encoded2 {
 }
 impl From<&RubyMarshal_PackedInt_Encoded2> for u8 {
     fn from(e: &RubyMarshal_PackedInt_Encoded2) -> Self {
-        if let RubyMarshal_PackedInt_Encoded2::U1(v) = e {
-            return *v
-        }
-        panic!("trying to convert from enum RubyMarshal_PackedInt_Encoded2::U1 to u8, enum value {:?}", e)
+        let RubyMarshal_PackedInt_Encoded2::U1(v) = e;
+        *v
     }
 }
 impl From<&RubyMarshal_PackedInt_Encoded2> for usize {
@@ -472,7 +473,7 @@ impl RubyMarshal_PackedInt {
             return Ok(self.is_immediate.borrow());
         }
         self.f_is_immediate.set(true);
-        *self.is_immediate.borrow_mut() = ( (((((*self.code()) as i32) > ((4) as i32))) && ((((*self.code()) as i32) < ((252) as i32)))) ).try_into()?;
+        *self.is_immediate.borrow_mut() = ( ((*self.code() > 4) && (*self.code() < 252)) ).try_into()?;
         Ok(self.is_immediate.borrow())
     }
     pub fn value(
@@ -483,7 +484,7 @@ impl RubyMarshal_PackedInt {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (if *self.is_immediate()? { (if (((*self.code()) as i32) < ((128) as i32)) { ((((*self.code()) as i32) - ((5) as i32))) as i32 } else { ((((4) as i32) - (((((!(*self.code())) as u64) & ((127) as u64))) as i32))) as i32 }) as u32 } else { (if (((*self.code()) as i32) == ((0) as i32)) { (0) as u32 } else { (if (((*self.code()) as i32) == ((255) as i32)) { ((((self.encoded()) as u32) - ((256) as u32))) as u32 } else { (if (((*self.code()) as i32) == ((254) as i32)) { ((((self.encoded()) as u32) - ((65536) as u32))) as u32 } else { (if (((*self.code()) as i32) == ((253) as i32)) { ((((((((((self.encoded2()) as i32) << ((16) as i32))) as u32) | ((self.encoded()) as u32))) as u32) - ((16777216) as u32))) as u32 } else { (if (((*self.code()) as i32) == ((3) as i32)) { (((((((self.encoded2()) as i32) << ((16) as i32))) as u32) | ((self.encoded()) as u32))) as u32 } else { (self.encoded()) as u32 }) as u32 }) as u32 }) as u32 }) as u32 }) as u32 }).try_into()?;
+        *self.value.borrow_mut() = (if *self.is_immediate()? { u32::try_from(if *self.code() < 128 { (i32::from(*self.code())).saturating_sub(5_i32) } else { (4_i32).saturating_sub(((i32::from(!(*self.code()))) & (127_i32))) })? } else { if *self.code() == 0 { 0_u32 } else { if *self.code() == 255 { (u32::try_from(self.encoded())?).saturating_sub(256_u32) } else { if *self.code() == 254 { (u32::try_from(self.encoded())?).saturating_sub(65536_u32) } else { if *self.code() == 253 { (((u32::try_from((self.encoded2()).wrapping_shl(16_u32))?) | (u32::try_from(self.encoded())?))).saturating_sub(16777216_u32) } else { if *self.code() == 3 { ((u32::try_from((self.encoded2()).wrapping_shl(16_u32))?) | (u32::try_from(self.encoded())?)) } else { u32::try_from(self.encoded())? } } } } } }).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -598,6 +599,7 @@ pub enum RubyMarshal_Record_Body {
     RubyMarshal_RubySymbol(OptRc<RubyMarshal_RubySymbol>),
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_Bignum> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_Bignum(x) = v {
             return x.clone();
@@ -611,6 +613,7 @@ impl From<OptRc<RubyMarshal_Bignum>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_InstanceVar> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_InstanceVar(x) = v {
             return x.clone();
@@ -624,6 +627,7 @@ impl From<OptRc<RubyMarshal_InstanceVar>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_PackedInt> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_PackedInt(x) = v {
             return x.clone();
@@ -637,6 +641,7 @@ impl From<OptRc<RubyMarshal_PackedInt>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_RubyArray(x) = v {
             return x.clone();
@@ -650,6 +655,7 @@ impl From<OptRc<RubyMarshal_RubyArray>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyHash> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_RubyHash(x) = v {
             return x.clone();
@@ -663,6 +669,7 @@ impl From<OptRc<RubyMarshal_RubyHash>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_RubyString(x) = v {
             return x.clone();
@@ -676,6 +683,7 @@ impl From<OptRc<RubyMarshal_RubyString>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyStruct> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_RubyStruct(x) = v {
             return x.clone();
@@ -689,6 +697,7 @@ impl From<OptRc<RubyMarshal_RubyStruct>> for RubyMarshal_Record_Body {
     }
 }
 impl From<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubySymbol> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RubyMarshal_Record_Body) -> Self {
         if let RubyMarshal_Record_Body::RubyMarshal_RubySymbol(x) = v {
             return x.clone();
@@ -716,7 +725,7 @@ impl KStruct for RubyMarshal_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.code() {
             RubyMarshal_Codes::Bignum => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();

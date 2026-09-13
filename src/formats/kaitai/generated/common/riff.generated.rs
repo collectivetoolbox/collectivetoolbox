@@ -84,7 +84,7 @@ impl Riff {
         if *self.is_riff_chunk()? {
             let io = KStream::clone(&*self.chunk().data_slot()._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(0)?)?;
+            io.seek(0_usize)?;
             let t = Self::read_into::<_, Riff_ParentChunkData>(&io, Some(self._root.clone()), None)?.into();
             *self.parent_chunk_data.borrow_mut() = t;
             io.seek(_pos)?;
@@ -102,14 +102,14 @@ impl Riff {
         if *self.is_riff_chunk()? {
             let io = KStream::clone(&*self.parent_chunk_data()?.subchunks_slot()._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(0)?)?;
+            io.seek(0_usize)?;
             *self.subchunks.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 while !_io.is_eof() {
                     let t = Self::read_into::<_, Riff_ChunkType>(&*_io, Some(self._root.clone()), None)?.into();
                     self.subchunks.borrow_mut().push(t);
-                    _i += 1;
+                    _i = _i.saturating_add(1);
                 }
             }
             io.seek(_pos)?;
@@ -193,7 +193,7 @@ impl KStruct for Riff_Chunk {
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, Riff_Chunk_Slot>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_slot.borrow_mut() = t;
-        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.len()) as u32) % ((2) as u32)))?)?;
+        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((u32::try_from(*self_rc.len())?).checked_rem(2_u32).ok_or(KError::CastError)?)?)?;
         Ok(())
     }
 }
@@ -281,10 +281,8 @@ pub enum Riff_ChunkType_ChunkData {
 }
 impl From<&Riff_ChunkType_ChunkData> for OptRc<Riff_ListChunkData> {
     fn from(v: &Riff_ChunkType_ChunkData) -> Self {
-        if let Riff_ChunkType_ChunkData::Riff_ListChunkData(x) = v {
-            return x.clone();
-        }
-        panic!("expected Riff_ChunkType_ChunkData::Riff_ListChunkData, got {:?}", v)
+        let Riff_ChunkType_ChunkData::Riff_ListChunkData(x) = v;
+        x.clone()
     }
 }
 impl From<OptRc<Riff_ListChunkData>> for Riff_ChunkType_ChunkData {
@@ -308,7 +306,7 @@ impl KStruct for Riff_ChunkType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.chunk_ofs()? < 0 {
-            *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
@@ -326,7 +324,7 @@ impl Riff_ChunkType {
         self.f_chunk_data.set(true);
         let io = KStream::clone(&*self.chunk().data_slot()._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(0)?)?;
+        io.seek(0_usize)?;
         match *self.chunk_id()? {
             Riff_Fourcc::List => {
                 let t = Self::read_into::<_, Riff_ListChunkData>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -358,7 +356,7 @@ impl Riff_ChunkType {
         self.f_chunk_id_readable.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.chunk_ofs()?)?)?;
-        *self.chunk_id_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
+        *self.chunk_id_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         _io.seek(_pos)?;
         Ok(self.chunk_id_readable.borrow())
     }
@@ -425,10 +423,8 @@ pub enum Riff_InfoSubchunk_ChunkData {
 }
 impl From<&Riff_InfoSubchunk_ChunkData> for String {
     fn from(v: &Riff_InfoSubchunk_ChunkData) -> Self {
-        if let Riff_InfoSubchunk_ChunkData::String(x) = v {
-            return x.clone();
-        }
-        panic!("expected Riff_InfoSubchunk_ChunkData::String, got {:?}", v)
+        let Riff_InfoSubchunk_ChunkData::String(x) = v;
+        x.clone()
     }
 }
 impl From<String> for Riff_InfoSubchunk_ChunkData {
@@ -452,7 +448,7 @@ impl KStruct for Riff_InfoSubchunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.chunk_ofs()? < 0 {
-            *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
@@ -470,7 +466,7 @@ impl Riff_InfoSubchunk {
         self.f_chunk_data.set(true);
         let io = KStream::clone(&*self.chunk().data_slot()._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(0)?)?;
+        io.seek(0_usize)?;
         match *self.is_unregistered_tag()? {
             false => {
             }
@@ -511,7 +507,7 @@ impl Riff_InfoSubchunk {
         self.f_id_chars.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.chunk_ofs()?)?)?;
-        *self.id_chars.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self.id_chars.borrow_mut() = _io.read_bytes(4_usize)?;
         _io.seek(_pos)?;
         Ok(self.id_chars.borrow())
     }
@@ -527,7 +523,7 @@ impl Riff_InfoSubchunk {
             return Ok(self.is_unregistered_tag.borrow());
         }
         self.f_is_unregistered_tag.set(true);
-        *self.is_unregistered_tag.borrow_mut() = ( (( (((((self.id_chars()?[0 as usize]) as i32) >= ((97) as i32))) && ((((self.id_chars()?[0 as usize]) as i32) <= ((122) as i32)))) ) || ( (((((self.id_chars()?[1 as usize]) as i32) >= ((97) as i32))) && ((((self.id_chars()?[1 as usize]) as i32) <= ((122) as i32)))) ) || ( (((((self.id_chars()?[2 as usize]) as i32) >= ((97) as i32))) && ((((self.id_chars()?[2 as usize]) as i32) <= ((122) as i32)))) ) || ( (((((self.id_chars()?[3 as usize]) as i32) >= ((97) as i32))) && ((((self.id_chars()?[3 as usize]) as i32) <= ((122) as i32)))) )) ).try_into()?;
+        *self.is_unregistered_tag.borrow_mut() = ( (( ((*(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?) >= 97) && (*(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?) <= 122)) ) || ( ((*(self.id_chars()?.get(1_usize).ok_or(KError::CastError)?) >= 97) && (*(self.id_chars()?.get(1_usize).ok_or(KError::CastError)?) <= 122)) ) || ( ((*(self.id_chars()?.get(2_usize).ok_or(KError::CastError)?) >= 97) && (*(self.id_chars()?.get(2_usize).ok_or(KError::CastError)?) <= 122)) ) || ( ((*(self.id_chars()?.get(3_usize).ok_or(KError::CastError)?) >= 97) && (*(self.id_chars()?.get(3_usize).ok_or(KError::CastError)?) <= 122)) )) ).try_into()?;
         Ok(self.is_unregistered_tag.borrow())
     }
 }
@@ -570,6 +566,7 @@ pub enum Riff_ListChunkData_Subchunks {
     Riff_ChunkType(OptRc<Riff_ChunkType>),
 }
 impl From<&Riff_ListChunkData_Subchunks> for OptRc<Riff_InfoSubchunk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Riff_ListChunkData_Subchunks) -> Self {
         if let Riff_ListChunkData_Subchunks::Riff_InfoSubchunk(x) = v {
             return x.clone();
@@ -583,6 +580,7 @@ impl From<OptRc<Riff_InfoSubchunk>> for Riff_ListChunkData_Subchunks {
     }
 }
 impl From<&Riff_ListChunkData_Subchunks> for OptRc<Riff_ChunkType> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Riff_ListChunkData_Subchunks) -> Self {
         if let Riff_ListChunkData_Subchunks::Riff_ChunkType(x) = v {
             return x.clone();
@@ -611,7 +609,7 @@ impl KStruct for Riff_ListChunkData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.parent_chunk_data_ofs()? < 0 {
-            *self_rc.save_parent_chunk_data_ofs.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.save_parent_chunk_data_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         let t = Self::read_into::<_, Riff_ParentChunkData>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.parent_chunk_data.borrow_mut() = t;
@@ -640,7 +638,7 @@ impl Riff_ListChunkData {
         self.f_form_type_readable.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.parent_chunk_data_ofs()?)?)?;
-        *self.form_type_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
+        *self.form_type_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         _io.seek(_pos)?;
         Ok(self.form_type_readable.borrow())
     }
@@ -665,10 +663,10 @@ impl Riff_ListChunkData {
         self.f_subchunks.set(true);
         let io = KStream::clone(&*self.parent_chunk_data().subchunks_slot()._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(0)?)?;
+        io.seek(0_usize)?;
         *self.subchunks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 match *self.form_type()? {
                     Riff_Fourcc::Info => {
@@ -685,7 +683,7 @@ impl Riff_ListChunkData {
                     }
                     _ => {}
                 }
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         io.seek(_pos)?;

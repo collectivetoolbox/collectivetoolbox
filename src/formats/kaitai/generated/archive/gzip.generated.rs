@@ -44,10 +44,8 @@ pub enum Gzip_ExtraFlags {
 }
 impl From<&Gzip_ExtraFlags> for OptRc<Gzip_ExtraFlagsDeflate> {
     fn from(v: &Gzip_ExtraFlags) -> Self {
-        if let Gzip_ExtraFlags::Gzip_ExtraFlagsDeflate(x) = v {
-            return x.clone();
-        }
-        panic!("expected Gzip_ExtraFlags::Gzip_ExtraFlagsDeflate, got {:?}", v)
+        let Gzip_ExtraFlags::Gzip_ExtraFlagsDeflate(x) = v;
+        x.clone()
     }
 }
 impl From<OptRc<Gzip_ExtraFlagsDeflate>> for Gzip_ExtraFlags {
@@ -70,11 +68,11 @@ impl KStruct for Gzip {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x1fu8, 0x8bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         let t = Self::read_into::<_, Gzip_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.mod_time.borrow_mut() = _io.read_u4le()?;
@@ -88,7 +86,7 @@ impl KStruct for Gzip {
             }
             _ => {}
         }
-        *self_rc.os.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.os.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if *self_rc.flags().has_extra() {
             let t = Self::read_into::<_, Gzip_Extras>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extras.borrow_mut() = t;
@@ -102,7 +100,7 @@ impl KStruct for Gzip {
         if *self_rc.flags().has_header_crc() {
             *self_rc.header_crc16.borrow_mut() = _io.read_u2le()?;
         }
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((((((_io.size()) as i32) - ((_io.pos()) as i32))) as i32) - ((8) as i32)))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((i32::try_from(_io.size())?).saturating_sub(i32::try_from(_io.pos())?)).saturating_sub(8_i32))?)?;
         *self_rc.body_crc32.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_uncompressed.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -396,7 +394,7 @@ impl KStruct for Gzip_ExtraFlagsDeflate {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.compression_strength.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.compression_strength.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -619,7 +617,7 @@ impl KStruct for Gzip_Subfield {
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_data()))?;
         Ok(())
     }
 }
@@ -679,11 +677,11 @@ impl KStruct for Gzip_Subfields {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Gzip_Subfield>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

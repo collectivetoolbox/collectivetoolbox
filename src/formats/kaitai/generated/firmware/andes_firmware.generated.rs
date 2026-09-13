@@ -97,7 +97,7 @@ impl KStruct for AndesFirmware_ImageHeader {
         *self_rc.fw_ver.borrow_mut() = _io.read_u2le()?;
         *self_rc.build_ver.borrow_mut() = _io.read_u2le()?;
         *self_rc.extra.borrow_mut() = _io.read_u4le()?;
-        *self_rc.build_time.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(16)?)?, "UTF-8")?;
+        *self_rc.build_time.borrow_mut() = bytes_to_str(&_io.read_bytes(16_usize)?, "UTF-8")?;
         Ok(())
     }
 }

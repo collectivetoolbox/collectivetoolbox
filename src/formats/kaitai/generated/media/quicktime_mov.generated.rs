@@ -980,6 +980,7 @@ pub enum QuicktimeMov_Atom_Body {
     Bytes(Vec<u8>),
 }
 impl From<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_AtomList> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &QuicktimeMov_Atom_Body) -> Self {
         if let QuicktimeMov_Atom_Body::QuicktimeMov_AtomList(x) = v {
             return x.clone();
@@ -993,6 +994,7 @@ impl From<OptRc<QuicktimeMov_AtomList>> for QuicktimeMov_Atom_Body {
     }
 }
 impl From<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_FtypBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &QuicktimeMov_Atom_Body) -> Self {
         if let QuicktimeMov_Atom_Body::QuicktimeMov_FtypBody(x) = v {
             return x.clone();
@@ -1006,6 +1008,7 @@ impl From<OptRc<QuicktimeMov_FtypBody>> for QuicktimeMov_Atom_Body {
     }
 }
 impl From<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_MvhdBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &QuicktimeMov_Atom_Body) -> Self {
         if let QuicktimeMov_Atom_Body::QuicktimeMov_MvhdBody(x) = v {
             return x.clone();
@@ -1019,6 +1022,7 @@ impl From<OptRc<QuicktimeMov_MvhdBody>> for QuicktimeMov_Atom_Body {
     }
 }
 impl From<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_TkhdBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &QuicktimeMov_Atom_Body) -> Self {
         if let QuicktimeMov_Atom_Body::QuicktimeMov_TkhdBody(x) = v {
             return x.clone();
@@ -1032,6 +1036,7 @@ impl From<OptRc<QuicktimeMov_TkhdBody>> for QuicktimeMov_Atom_Body {
     }
 }
 impl From<&QuicktimeMov_Atom_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &QuicktimeMov_Atom_Body) -> Self {
         if let QuicktimeMov_Atom_Body::Bytes(x) = v {
             return x.clone();
@@ -1060,8 +1065,8 @@ impl KStruct for QuicktimeMov_Atom {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len32.borrow_mut() = _io.read_u4be()?;
-        *self_rc.atom_type.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
-        if (((*self_rc.len32()) as u32) == ((1) as u32)) {
+        *self_rc.atom_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        if *self_rc.len32() == 1 {
             *self_rc.len64.borrow_mut() = _io.read_u8be()?;
         }
         match *self_rc.atom_type() {
@@ -1158,7 +1163,7 @@ impl QuicktimeMov_Atom {
             return Ok(self.len.borrow());
         }
         self.f_len.set(true);
-        *self.len.borrow_mut() = (if (((*self.len32()) as u32) == ((0) as u32)) { ((((_io.size()) as i32) - ((8) as i32))) as u64 } else { (if (((*self.len32()) as u32) == ((1) as u32)) { ((((*self.len64()) as u64) - ((16) as u64))) as u64 } else { ((((*self.len32()) as u32) - ((8) as u32))) as u64 }) as u64 }).try_into()?;
+        *self.len.borrow_mut() = (if *self.len32() == 0 { u64::try_from((i32::try_from(_io.size())?).saturating_sub(8_i32))? } else { if *self.len32() == 1 { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
         Ok(self.len.borrow())
     }
 }
@@ -1218,11 +1223,11 @@ impl KStruct for QuicktimeMov_AtomList {
         let _io = io;
         *self_rc.items.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, QuicktimeMov_Atom>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1372,14 +1377,14 @@ impl KStruct for QuicktimeMov_FtypBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.major_brand.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
-        *self_rc.minor_version.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.major_brand.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.minor_version.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.compatible_brands.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.compatible_brands.borrow_mut().push(i64::try_from(_io.read_u4be()?)?.try_into()?);
-                _i += 1;
+                self_rc.compatible_brands.borrow_mut().push(i64::from(_io.read_u4be()?).try_into()?);
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1452,7 +1457,7 @@ impl KStruct for QuicktimeMov_MvhdBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
-        *self_rc.flags.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.flags.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.creation_time.borrow_mut() = _io.read_u4be()?;
         *self_rc.modification_time.borrow_mut() = _io.read_u4be()?;
         *self_rc.time_scale.borrow_mut() = _io.read_u4be()?;
@@ -1461,8 +1466,8 @@ impl KStruct for QuicktimeMov_MvhdBody {
         *self_rc.preferred_rate.borrow_mut() = t;
         let t = Self::read_into::<_, QuicktimeMov_Fixed16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.preferred_volume.borrow_mut() = t;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(10)?)?;
-        *self_rc.matrix.borrow_mut() = _io.read_bytes(usize::try_from(36)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(10_usize)?;
+        *self_rc.matrix.borrow_mut() = _io.read_bytes(36_usize)?;
         *self_rc.preview_time.borrow_mut() = _io.read_u4be()?;
         *self_rc.preview_duration.borrow_mut() = _io.read_u4be()?;
         *self_rc.poster_time.borrow_mut() = _io.read_u4be()?;
@@ -1669,18 +1674,18 @@ impl KStruct for QuicktimeMov_TkhdBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
-        *self_rc.flags.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.flags.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.creation_time.borrow_mut() = _io.read_u4be()?;
         *self_rc.modification_time.borrow_mut() = _io.read_u4be()?;
         *self_rc.track_id.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.duration.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.layer.borrow_mut() = _io.read_u2be()?;
         *self_rc.alternative_group.borrow_mut() = _io.read_u2be()?;
         *self_rc.volume.borrow_mut() = _io.read_u2be()?;
         *self_rc.reserved3.borrow_mut() = _io.read_u2be()?;
-        *self_rc.matrix.borrow_mut() = _io.read_bytes(usize::try_from(36)?)?;
+        *self_rc.matrix.borrow_mut() = _io.read_bytes(36_usize)?;
         let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.width.borrow_mut() = t;
         let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();

@@ -33,11 +33,11 @@ impl KStruct for ShapefileIndex {
         *self_rc.header.borrow_mut() = t;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, ShapefileIndex_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -277,36 +277,36 @@ impl KStruct for ShapefileIndex_FileHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.file_code.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.file_code.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.file_code() == vec![0x0u8, 0x0u8, 0x27u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
-        *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_1() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
-        *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/2".to_string() }));
         }
-        *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/3".to_string() }));
         }
-        *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_4() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/4".to_string() }));
         }
-        *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_5() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/5".to_string() }));
         }
         *self_rc.file_length.borrow_mut() = _io.read_s4be()?;
-        *self_rc.version.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.version.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.version() == vec![0xe8u8, 0x3u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/7".to_string() }));
         }
-        *self_rc.shape_type.borrow_mut() = i64::try_from(_io.read_s4le()?)?.try_into()?;
+        *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         let t = Self::read_into::<_, ShapefileIndex_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
         Ok(())

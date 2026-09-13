@@ -36,11 +36,11 @@ impl KStruct for SudoersTs {
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, SudoersTs_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -115,6 +115,7 @@ pub enum SudoersTs_Record_Payload {
     Bytes(Vec<u8>),
 }
 impl From<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SudoersTs_Record_Payload) -> Self {
         if let SudoersTs_Record_Payload::SudoersTs_RecordV1(x) = v {
             return x.clone();
@@ -128,6 +129,7 @@ impl From<OptRc<SudoersTs_RecordV1>> for SudoersTs_Record_Payload {
     }
 }
 impl From<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV2> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SudoersTs_Record_Payload) -> Self {
         if let SudoersTs_Record_Payload::SudoersTs_RecordV2(x) = v {
             return x.clone();
@@ -141,6 +143,7 @@ impl From<OptRc<SudoersTs_RecordV2>> for SudoersTs_Record_Payload {
     }
 }
 impl From<&SudoersTs_Record_Payload> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SudoersTs_Record_Payload) -> Self {
         if let SudoersTs_Record_Payload::Bytes(x) = v {
             return x.clone();
@@ -257,7 +260,7 @@ impl KStruct for SudoersTs_RecordV1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, SudoersTs_TsFlag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.auth_uid.borrow_mut() = _io.read_u4le()?;
@@ -374,7 +377,7 @@ impl KStruct for SudoersTs_RecordV2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, SudoersTs_TsFlag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.auth_uid.borrow_mut() = _io.read_u4le()?;

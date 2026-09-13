@@ -38,11 +38,11 @@ impl KStruct for Hccap {
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Hccap_HccapRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -127,16 +127,16 @@ impl KStruct for Hccap_HccapRecord {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.essid.borrow_mut() = _io.read_bytes(usize::try_from(36)?)?;
-        *self_rc.mac_ap.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
-        *self_rc.mac_station.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
-        *self_rc.nonce_station.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
-        *self_rc.nonce_ap.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.essid.borrow_mut() = _io.read_bytes(36_usize)?;
+        *self_rc.mac_ap.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc.mac_station.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc.nonce_station.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc.nonce_ap.borrow_mut() = _io.read_bytes(32_usize)?;
         let t = Self::read_into::<_, Hccap_EapolDummy>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.eapol_buffer.borrow_mut() = t;
         *self_rc.len_eapol.borrow_mut() = _io.read_u4le()?;
         *self_rc.keyver.borrow_mut() = _io.read_u4le()?;
-        *self_rc.keymic.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.keymic.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -151,7 +151,7 @@ impl Hccap_HccapRecord {
         self.f_eapol.set(true);
         let io = KStream::clone(&*self.eapol_buffer()._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(0)?)?;
+        io.seek(0_usize)?;
         *self.eapol.borrow_mut() = io.read_bytes(usize::try_from(*self.len_eapol())?)?;
         io.seek(_pos)?;
         Ok(self.eapol.borrow())

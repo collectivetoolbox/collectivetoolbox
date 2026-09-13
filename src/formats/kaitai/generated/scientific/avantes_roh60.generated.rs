@@ -89,7 +89,7 @@ impl KStruct for AvantesRoh60 {
             self_rc.unknown3.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.spectrum.borrow_mut() = Vec::new();
-        let l_spectrum = (((((((*self_rc.ipixlast() as i64)) as i32) - (((*self_rc.ipixfirst() as i64)) as i32))) as i32) - ((1) as i32));
+        let l_spectrum = ((float_to_int(*self_rc.ipixlast())).saturating_sub(float_to_int(*self_rc.ipixfirst()))).saturating_sub(1_i32);
         for _i in 0..l_spectrum {
             self_rc.spectrum.borrow_mut().push(_io.read_f4le()?);
         }

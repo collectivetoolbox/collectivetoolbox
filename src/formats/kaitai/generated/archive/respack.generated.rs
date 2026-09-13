@@ -84,13 +84,13 @@ impl KStruct for Respack_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x52u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
-        *self_rc.unknown.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.unknown.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.len_json.borrow_mut() = _io.read_u4le()?;
-        *self_rc.md5.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
+        *self_rc.md5.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         Ok(())
     }
 }

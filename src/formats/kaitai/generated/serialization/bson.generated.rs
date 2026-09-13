@@ -40,7 +40,7 @@ impl KStruct for Bson {
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
         let t = Self::read_into::<_, Bson_ElementsList>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.fields.borrow_mut() = t;
-        *self_rc.terminator.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -95,6 +95,7 @@ pub enum Bson_BinData_Content {
     Bytes(Vec<u8>),
 }
 impl From<&Bson_BinData_Content> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_BinData_Content) -> Self {
         if let Bson_BinData_Content::Bson_BinData_ByteArrayDeprecated(x) = v {
             return x.clone();
@@ -108,6 +109,7 @@ impl From<OptRc<Bson_BinData_ByteArrayDeprecated>> for Bson_BinData_Content {
     }
 }
 impl From<&Bson_BinData_Content> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_BinData_Content) -> Self {
         if let Bson_BinData_Content::Bytes(x) = v {
             return x.clone();
@@ -136,7 +138,7 @@ impl KStruct for Bson_BinData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
-        *self_rc.subtype.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.subtype.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.subtype() {
             Bson_BinData_Subtype::ByteArrayDeprecated => {
                 *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -459,6 +461,7 @@ pub enum Bson_Element_Content {
     Bson_Timestamp(OptRc<Bson_Timestamp>),
 }
 impl From<&Bson_Element_Content> for OptRc<Bson> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson(x) = v {
             return x.clone();
@@ -472,6 +475,7 @@ impl From<OptRc<Bson>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_BinData> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_BinData(x) = v {
             return x.clone();
@@ -485,6 +489,7 @@ impl From<OptRc<Bson_BinData>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::U1(x) = v {
             return x.clone();
@@ -498,6 +503,7 @@ impl From<u8> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_CodeWithScope> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_CodeWithScope(x) = v {
             return x.clone();
@@ -511,6 +517,7 @@ impl From<OptRc<Bson_CodeWithScope>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_DbPointer> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_DbPointer(x) = v {
             return x.clone();
@@ -524,6 +531,7 @@ impl From<OptRc<Bson_DbPointer>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_String> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_String(x) = v {
             return x.clone();
@@ -537,6 +545,7 @@ impl From<OptRc<Bson_String>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_F16> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_F16(x) = v {
             return x.clone();
@@ -550,6 +559,7 @@ impl From<OptRc<Bson_F16>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for f64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::F8(x) = v {
             return x.clone();
@@ -563,6 +573,7 @@ impl From<f64> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::S4(x) = v {
             return x.clone();
@@ -576,6 +587,7 @@ impl From<i32> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for i64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::S8(x) = v {
             return x.clone();
@@ -589,6 +601,7 @@ impl From<i64> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_ObjectId> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_ObjectId(x) = v {
             return x.clone();
@@ -602,6 +615,7 @@ impl From<OptRc<Bson_ObjectId>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_RegEx> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_RegEx(x) = v {
             return x.clone();
@@ -615,6 +629,7 @@ impl From<OptRc<Bson_RegEx>> for Bson_Element_Content {
     }
 }
 impl From<&Bson_Element_Content> for OptRc<Bson_Timestamp> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Bson_Element_Content) -> Self {
         if let Bson_Element_Content::Bson_Timestamp(x) = v {
             return x.clone();
@@ -642,7 +657,7 @@ impl KStruct for Bson_Element {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.type_byte.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.type_byte.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
         match *self_rc.type_byte() {
@@ -895,11 +910,11 @@ impl KStruct for Bson_ElementsList {
         let _io = io;
         *self_rc.elements.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Bson_Element>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.elements.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1134,8 +1149,8 @@ impl KStruct for Bson_String {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((((*self_rc.len()) as i32) - ((1) as i32)))?)?, "UTF-8")?;
-        *self_rc.terminator.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((i32::try_from(*self_rc.len())?).saturating_sub(1_i32))?)?, "UTF-8")?;
+        *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/string/seq/2".to_string() }));
         }
@@ -1262,7 +1277,7 @@ impl Bson_U3 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.b1()) as u64) | (((((*self.b2()) as i32) << ((8) as i32))) as u64))) as u64) | (((((*self.b3()) as i32) << ((16) as i32))) as u64))).try_into()?;
+        *self.value.borrow_mut() = (((((i32::from(*self.b1())) | ((*self.b2()).wrapping_shl(8_u32)))) | ((*self.b3()).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

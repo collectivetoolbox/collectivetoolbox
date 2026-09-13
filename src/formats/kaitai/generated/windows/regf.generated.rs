@@ -52,11 +52,11 @@ impl KStruct for Regf {
         *self_rc.header.borrow_mut() = t;
         *self_rc.hive_bins.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Regf_HiveBin>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.hive_bins.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -119,7 +119,7 @@ impl KStruct for Regf_FileHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x72u8, 0x65u8, 0x67u8, 0x66u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
@@ -129,15 +129,15 @@ impl KStruct for Regf_FileHeader {
         *self_rc.last_modification_date_and_time.borrow_mut() = t;
         *self_rc.major_version.borrow_mut() = _io.read_u4le()?;
         *self_rc.minor_version.borrow_mut() = _io.read_u4le()?;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
-        *self_rc.format.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.format.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.root_key_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.hive_bins_data_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.clustering_factor.borrow_mut() = _io.read_u4le()?;
-        *self_rc.unknown1.borrow_mut() = _io.read_bytes(usize::try_from(64)?)?;
-        *self_rc.unknown2.borrow_mut() = _io.read_bytes(usize::try_from(396)?)?;
+        *self_rc.unknown1.borrow_mut() = _io.read_bytes(64_usize)?;
+        *self_rc.unknown2.borrow_mut() = _io.read_bytes(396_usize)?;
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(3576)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(3576_usize)?;
         *self_rc.boot_type.borrow_mut() = _io.read_u4le()?;
         *self_rc.boot_recover.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -365,11 +365,11 @@ impl KStruct for Regf_HiveBin {
         *self_rc.header.borrow_mut() = t;
         *self_rc.cells.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Regf_HiveBinCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.cells.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -419,6 +419,7 @@ pub enum Regf_HiveBinCell_Data {
     Bytes(Vec<u8>),
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLhLf(x) = v {
             return x.clone();
@@ -432,6 +433,7 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListLhLf>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLi(x) = v {
             return x.clone();
@@ -445,6 +447,7 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListLi>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_NamedKey(x) = v {
             return x.clone();
@@ -458,6 +461,7 @@ impl From<OptRc<Regf_HiveBinCell_NamedKey>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListRi(x) = v {
             return x.clone();
@@ -471,6 +475,7 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListRi>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListSk(x) = v {
             return x.clone();
@@ -484,6 +489,7 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListSk>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListVk(x) = v {
             return x.clone();
@@ -497,6 +503,7 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListVk>> for Regf_HiveBinCell_Data {
     }
 }
 impl From<&Regf_HiveBinCell_Data> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Regf_HiveBinCell_Data) -> Self {
         if let Regf_HiveBinCell_Data::Bytes(x) = v {
             return x.clone();
@@ -525,7 +532,7 @@ impl KStruct for Regf_HiveBinCell {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.cell_size_raw.borrow_mut() = _io.read_s4le()?;
-        *self_rc.identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(2)?)?, "ascii")?;
+        *self_rc.identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?;
         match self_rc.identifier().as_str() {
             "lf" => {
                 *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -592,7 +599,7 @@ impl Regf_HiveBinCell {
             return Ok(self.cell_size.borrow());
         }
         self.f_cell_size.set(true);
-        *self.cell_size.borrow_mut() = ((((if (((*self.cell_size_raw()) as i32) < ((0) as i32)) { (-(1)) as i32 } else { (1) as i32 }) as i32) * ((*self.cell_size_raw()) as i32))).try_into()?;
+        *self.cell_size.borrow_mut() = ((if *self.cell_size_raw() < 0 { -(1) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
         Ok(self.cell_size.borrow())
     }
     pub fn is_allocated(
@@ -603,7 +610,7 @@ impl Regf_HiveBinCell {
             return Ok(self.is_allocated.borrow());
         }
         self.f_is_allocated.set(true);
-        *self.is_allocated.borrow_mut() = ((((*self.cell_size_raw()) as i32) < ((0) as i32))).try_into()?;
+        *self.is_allocated.borrow_mut() = (*self.cell_size_raw() < 0).try_into()?;
         Ok(self.is_allocated.borrow())
     }
 }
@@ -675,7 +682,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.flags.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.last_key_written_date_and_time.borrow_mut() = t;
         *self_rc.unknown1.borrow_mut() = _io.read_u4le()?;
@@ -1245,11 +1252,11 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
         *self_rc.value_name_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.data_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.data_offset.borrow_mut() = _io.read_u4le()?;
-        *self_rc.data_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
-        *self_rc.flags.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.data_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.padding.borrow_mut() = _io.read_u2le()?;
         if *self_rc.flags() == Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName {
-            *self_rc.value_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.value_name_size())?)?, "ascii")?;
+            *self_rc.value_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.value_name_size()))?, "ascii")?;
         }
         Ok(())
     }
@@ -1417,7 +1424,7 @@ impl KStruct for Regf_HiveBinHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x68u8, 0x62u8, 0x69u8, 0x6eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/hive_bin_header/seq/0".to_string() }));
         }

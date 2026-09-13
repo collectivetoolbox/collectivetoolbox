@@ -49,11 +49,11 @@ impl KStruct for WindowsMinidump {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x4du8, 0x44u8, 0x4du8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
-        *self_rc.magic2.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic2.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic2() == vec![0x93u8, 0xa7u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
@@ -334,6 +334,7 @@ pub enum WindowsMinidump_Dir_Data {
     Bytes(Vec<u8>),
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ExceptionStream> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_ExceptionStream(x) = v {
             return x.clone();
@@ -347,6 +348,7 @@ impl From<OptRc<WindowsMinidump_ExceptionStream>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_Memory64List(x) = v {
             return x.clone();
@@ -360,6 +362,7 @@ impl From<OptRc<WindowsMinidump_Memory64List>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MemoryList> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_MemoryList(x) = v {
             return x.clone();
@@ -373,6 +376,7 @@ impl From<OptRc<WindowsMinidump_MemoryList>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MiscInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_MiscInfo(x) = v {
             return x.clone();
@@ -386,6 +390,7 @@ impl From<OptRc<WindowsMinidump_MiscInfo>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_SystemInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_SystemInfo(x) = v {
             return x.clone();
@@ -399,6 +404,7 @@ impl From<OptRc<WindowsMinidump_SystemInfo>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ThreadList> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_ThreadList(x) = v {
             return x.clone();
@@ -412,6 +418,7 @@ impl From<OptRc<WindowsMinidump_ThreadList>> for WindowsMinidump_Dir_Data {
     }
 }
 impl From<&WindowsMinidump_Dir_Data> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsMinidump_Dir_Data) -> Self {
         if let WindowsMinidump_Dir_Data::Bytes(x) = v {
             return x.clone();
@@ -439,7 +446,7 @@ impl KStruct for WindowsMinidump_Dir {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.stream_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.stream_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_data.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -1206,7 +1213,7 @@ impl KStruct for WindowsMinidump_SystemInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.cpu_arch.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.cpu_arch.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.cpu_level.borrow_mut() = _io.read_u2le()?;
         *self_rc.cpu_revision.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_cpus.borrow_mut() = _io.read_u1()?;
@@ -1229,7 +1236,7 @@ impl WindowsMinidump_SystemInfo {
         if self.f_service_pack.get() {
             return Ok(self.service_pack.borrow());
         }
-        if (((*self.ofs_service_pack()) as u32) > ((0) as u32)) {
+        if *self.ofs_service_pack() > 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_service_pack())?)?;

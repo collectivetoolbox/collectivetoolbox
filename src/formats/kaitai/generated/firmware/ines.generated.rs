@@ -40,10 +40,10 @@ impl KStruct for Ines {
         let t = Self::read_into::<_, Ines_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         if *self_rc.header().f6().trainer() {
-            *self_rc.trainer.borrow_mut() = _io.read_bytes(usize::try_from(512)?)?;
+            *self_rc.trainer.borrow_mut() = _io.read_bytes(512_usize)?;
         }
-        *self_rc.prg_rom.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.header().len_prg_rom()) as i32) * ((16384) as i32)))?)?;
-        *self_rc.chr_rom.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.header().len_chr_rom()) as i32) * ((8192) as i32)))?)?;
+        *self_rc.prg_rom.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_prg_rom())).saturating_mul(16384_i32))?)?;
+        *self_rc.chr_rom.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_chr_rom())).saturating_mul(8192_i32))?)?;
         if *self_rc.header().f7().playchoice10() {
             let t = Self::read_into::<_, Ines_Playchoice10>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.playchoice10.borrow_mut() = t;
@@ -125,7 +125,7 @@ impl KStruct for Ines_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4eu8, 0x45u8, 0x53u8, 0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
@@ -140,7 +140,7 @@ impl KStruct for Ines_Header {
         *self_rc.f9.borrow_mut() = t;
         let t = Self::read_into::<_, Ines_Header_F10>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.f10.borrow_mut() = t;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(5)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(5_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/8".to_string() }));
         }
@@ -160,7 +160,7 @@ impl Ines_Header {
             return Ok(self.mapper.borrow());
         }
         self.f_mapper.set(true);
-        *self.mapper.borrow_mut() = ((((*self.f6().lower_mapper()) as u64) | (((((*self.f7().upper_mapper()) as u64) << ((4) as u64))) as u64))).try_into()?;
+        *self.mapper.borrow_mut() = (((*self.f6().lower_mapper()) | ((*self.f7().upper_mapper()).wrapping_shl(4_u32)))).try_into()?;
         Ok(self.mapper.borrow())
     }
 }
@@ -673,7 +673,7 @@ impl KStruct for Ines_Playchoice10 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.inst_rom.borrow_mut() = _io.read_bytes(usize::try_from(8192)?)?;
+        *self_rc.inst_rom.borrow_mut() = _io.read_bytes(8192_usize)?;
         let t = Self::read_into::<_, Ines_Playchoice10_Prom>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.prom.borrow_mut() = t;
         Ok(())
@@ -721,8 +721,8 @@ impl KStruct for Ines_Playchoice10_Prom {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.counter_out.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.counter_out.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }

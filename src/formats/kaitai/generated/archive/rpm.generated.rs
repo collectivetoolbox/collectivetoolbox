@@ -65,20 +65,20 @@ impl KStruct for Rpm {
         let f = |t : &mut Rpm_Header| Ok(t.set_params(true));
         let t = Self::read_into_with_init::<_, Rpm_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.signature.borrow_mut() = t;
-        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(_io.pos() as i64) as i64, 8 as i64))?)?;
+        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 8_i64))?)?;
         if *self_rc.ofs_header()? < 0 {
-            *self_rc.unnamed3.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed3.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         let f = |t : &mut Rpm_Header| Ok(t.set_params(false));
         let t = Self::read_into_with_init::<_, Rpm_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.header.borrow_mut() = t;
         if *self_rc.ofs_payload()? < 0 {
-            *self_rc.unnamed5.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed5.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.signature_tags_steps.borrow_mut() = Vec::new();
         let l_signature_tags_steps = *self_rc.signature().header_record().num_index_records();
         for _i in 0..l_signature_tags_steps {
-            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { (-(1)) as i32 } else { (*self_rc.signature_tags_steps()[(_i - 1) as usize].size_tag_idx()?) as i32 }).try_into().map_err(|_| KError::CastError)?));
+            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { -(1) } else { *self_rc.signature_tags_steps().get(usize::try_from((_i).saturating_sub(1_i32))?).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Rpm_SignatureTagsStep>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.signature_tags_steps.borrow_mut().push(t);
         }
@@ -105,7 +105,7 @@ impl Rpm {
             return Ok(self.len_header.borrow());
         }
         self.f_len_header.set(true);
-        *self.len_header.borrow_mut() = ((((*self.ofs_payload()?) as i32) - ((*self.ofs_header()?) as i32))).try_into()?;
+        *self.len_header.borrow_mut() = ((*self.ofs_payload()?).saturating_sub(*self.ofs_header()?)).try_into()?;
         Ok(self.len_header.borrow())
     }
     pub fn len_payload(
@@ -117,7 +117,7 @@ impl Rpm {
         }
         self.f_len_payload.set(true);
         if *self.has_signature_size_tag()? {
-            *self.len_payload.borrow_mut() = ((((Into::<OptRc<Rpm_RecordTypeUint32>>::into(&*self.signature_size_tag()?.body()?.as_ref().unwrap()).values()[0 as usize]) as u32) - ((*self.len_header()?) as u32))).try_into()?;
+            *self.len_payload.borrow_mut() = ((*(Into::<OptRc<Rpm_RecordTypeUint32>>::into(&*self.signature_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?).values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u32::try_from(*self.len_header()?)?)).try_into()?;
         }
         Ok(self.len_payload.borrow())
     }
@@ -167,7 +167,7 @@ impl Rpm {
             return Ok(self.signature_size_tag.borrow());
         }
         if *self.has_signature_size_tag()? {
-            *self.signature_size_tag.borrow_mut() = self.signature().index_records()[*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()? as usize].clone();
+            *self.signature_size_tag.borrow_mut() = self.signature().index_records().get(usize::try_from(*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()?)?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.signature_size_tag.borrow())
     }
@@ -1940,6 +1940,7 @@ pub enum Rpm_HeaderIndexRecord_Body {
     Rpm_RecordTypeUint64(OptRc<Rpm_RecordTypeUint64>),
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeBin> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeBin(x) = v {
             return x.clone();
@@ -1953,6 +1954,7 @@ impl From<OptRc<Rpm_RecordTypeBin>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint8(x) = v {
             return x.clone();
@@ -1966,6 +1968,7 @@ impl From<OptRc<Rpm_RecordTypeUint8>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeStringArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeStringArray(x) = v {
             return x.clone();
@@ -1979,6 +1982,7 @@ impl From<OptRc<Rpm_RecordTypeStringArray>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeString(x) = v {
             return x.clone();
@@ -1992,6 +1996,7 @@ impl From<OptRc<Rpm_RecordTypeString>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint16> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint16(x) = v {
             return x.clone();
@@ -2005,6 +2010,7 @@ impl From<OptRc<Rpm_RecordTypeUint16>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint32> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint32(x) = v {
             return x.clone();
@@ -2018,6 +2024,7 @@ impl From<OptRc<Rpm_RecordTypeUint32>> for Rpm_HeaderIndexRecord_Body {
     }
 }
 impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint64> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint64(x) = v {
             return x.clone();
@@ -2046,7 +2053,7 @@ impl KStruct for Rpm_HeaderIndexRecord {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_raw.borrow_mut() = _io.read_u4be()?;
-        *self_rc.record_type.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.record_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?;
         *self_rc.count.borrow_mut() = _io.read_u4be()?;
         Ok(())
@@ -2227,11 +2234,11 @@ impl KStruct for Rpm_HeaderRecord {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x8eu8, 0xadu8, 0xe8u8, 0x1u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_record/seq/0".to_string() }));
         }
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_record/seq/1".to_string() }));
         }
@@ -2323,22 +2330,22 @@ impl KStruct for Rpm_Lead {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xedu8, 0xabu8, 0xeeu8, 0xdbu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/lead/seq/0".to_string() }));
         }
         let t = Self::read_into::<_, Rpm_RpmVersion>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
-        *self_rc.architecture.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
-        *self_rc.package_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(66)?)?, 0, false), "UTF-8")?;
-        *self_rc.os.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.architecture.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.package_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(66_usize)?, 0, false), "UTF-8")?;
+        *self_rc.os.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.signature_type.borrow_mut() = _io.read_u2be()?;
         let expected: u16 = (5).try_into()?;
         if !(*self_rc.signature_type() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/lead/seq/6".to_string() }));
         }
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -2869,7 +2876,7 @@ impl Rpm_SignatureTagsStep {
             return Ok(self.size_tag_idx.borrow());
         }
         self.f_size_tag_idx.set(true);
-        *self.size_tag_idx.borrow_mut() = (if (((*self.prev_size_tag_idx()) as i32) != ((-(1)) as i32)) { (*self.prev_size_tag_idx()) as i32 } else { (if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records()[*self.idx() as usize].signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records()[*self.idx() as usize].record_type() == Rpm_RecordTypes::Uint32) && ((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records()[*self.idx() as usize].num_values()?) as u32) >= ((1) as u32))))  { (*self.idx()) as i32 } else { (-(1)) as i32 }) as i32 }).try_into()?;
+        *self.size_tag_idx.borrow_mut() = (if ((to_i128(*self.prev_size_tag_idx())) != (to_i128(-(1)))) { *self.prev_size_tag_idx() } else { if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.record_type() == Rpm_RecordTypes::Uint32) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.num_values()? >= 1))  { *self.idx() } else { -(1) } }).try_into()?;
         Ok(self.size_tag_idx.borrow())
     }
 }

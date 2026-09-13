@@ -52,6 +52,7 @@ pub enum Asn1Der_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Asn1Der_Body> for OptRc<Asn1Der_BodyObjectId> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Asn1Der_Body) -> Self {
         if let Asn1Der_Body::Asn1Der_BodyObjectId(x) = v {
             return x.clone();
@@ -65,6 +66,7 @@ impl From<OptRc<Asn1Der_BodyObjectId>> for Asn1Der_Body {
     }
 }
 impl From<&Asn1Der_Body> for OptRc<Asn1Der_BodyPrintableString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Asn1Der_Body) -> Self {
         if let Asn1Der_Body::Asn1Der_BodyPrintableString(x) = v {
             return x.clone();
@@ -78,6 +80,7 @@ impl From<OptRc<Asn1Der_BodyPrintableString>> for Asn1Der_Body {
     }
 }
 impl From<&Asn1Der_Body> for OptRc<Asn1Der_BodySequence> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Asn1Der_Body) -> Self {
         if let Asn1Der_Body::Asn1Der_BodySequence(x) = v {
             return x.clone();
@@ -91,6 +94,7 @@ impl From<OptRc<Asn1Der_BodySequence>> for Asn1Der_Body {
     }
 }
 impl From<&Asn1Der_Body> for OptRc<Asn1Der_BodyUtf8string> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Asn1Der_Body) -> Self {
         if let Asn1Der_Body::Asn1Der_BodyUtf8string(x) = v {
             return x.clone();
@@ -104,6 +108,7 @@ impl From<OptRc<Asn1Der_BodyUtf8string>> for Asn1Der_Body {
     }
 }
 impl From<&Asn1Der_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Asn1Der_Body) -> Self {
         if let Asn1Der_Body::Bytes(x) = v {
             return x.clone();
@@ -131,7 +136,7 @@ impl KStruct for Asn1Der {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.type_tag.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.type_tag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         let t = Self::read_into::<_, Asn1Der_LenEncoded>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.len.borrow_mut() = t;
         match *self_rc.type_tag() {
@@ -341,7 +346,7 @@ impl Asn1Der_BodyObjectId {
             return Ok(self.first.borrow());
         }
         self.f_first.set(true);
-        *self.first.borrow_mut() = ((((*self.first_and_second()) as i32) / ((40) as i32))).try_into()?;
+        *self.first.borrow_mut() = ((i32::from(*self.first_and_second())).checked_div(40_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.first.borrow())
     }
     pub fn second(
@@ -352,7 +357,7 @@ impl Asn1Der_BodyObjectId {
             return Ok(self.second.borrow());
         }
         self.f_second.set(true);
-        *self.second.borrow_mut() = ((((*self.first_and_second()) as i32) % ((40) as i32))).try_into()?;
+        *self.second.borrow_mut() = ((i32::from(*self.first_and_second())).checked_rem(40_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.second.borrow())
     }
 }
@@ -437,11 +442,11 @@ impl KStruct for Asn1Der_BodySequence {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Asn1Der>(&*_io, None, None)?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -528,10 +533,10 @@ impl KStruct for Asn1Der_LenEncoded {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
-        if (((*self_rc.b1()) as i32) == ((130) as i32)) {
+        if *self_rc.b1() == 130 {
             *self_rc.int2.borrow_mut() = _io.read_u2be()?;
         }
-        if (((*self_rc.b1()) as i32) == ((129) as i32)) {
+        if *self_rc.b1() == 129 {
             *self_rc.int1.borrow_mut() = _io.read_u1()?;
         }
         Ok(())
@@ -546,7 +551,7 @@ impl Asn1Der_LenEncoded {
             return Ok(self.result.borrow());
         }
         self.f_result.set(true);
-        *self.result.borrow_mut() = (if (((*self.b1()) as i32) == ((129) as i32)) { (*self.int1()) as u16 } else { (if (((*self.b1()) as i32) == ((130) as i32)) { (*self.int2()) as u16 } else { (*self.b1()) as u16 }) as u16 }).try_into()?;
+        *self.result.borrow_mut() = (if *self.b1() == 129 { u16::from(*self.int1()) } else { if *self.b1() == 130 { *self.int2() } else { u16::from(*self.b1()) } }).try_into()?;
         Ok(self.result.borrow())
     }
 }

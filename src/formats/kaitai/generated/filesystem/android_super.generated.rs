@@ -51,7 +51,7 @@ impl AndroidSuper {
             return Ok(self.root.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(4096)?)?;
+        _io.seek(4096_usize)?;
         let t = Self::read_into::<_, AndroidSuper_Root>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.root.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -92,12 +92,12 @@ impl KStruct for AndroidSuper_Geometry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x67u8, 0x44u8, 0x6cu8, 0x61u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/geometry/seq/0".to_string() }));
         }
         *self_rc.struct_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.checksum.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.checksum.borrow_mut() = _io.read_bytes(32_usize)?;
         *self_rc.metadata_max_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.metadata_slot_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.logical_block_size.borrow_mut() = _io.read_u4le()?;
@@ -180,16 +180,16 @@ impl KStruct for AndroidSuper_Metadata {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x30u8, 0x50u8, 0x4cu8, 0x41u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/metadata/seq/0".to_string() }));
         }
         *self_rc.major_version.borrow_mut() = _io.read_u2le()?;
         *self_rc.minor_version.borrow_mut() = _io.read_u2le()?;
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.header_checksum.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.header_checksum.borrow_mut() = _io.read_bytes(32_usize)?;
         *self_rc.tables_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.tables_checksum.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.tables_checksum.borrow_mut() = _io.read_bytes(32_usize)?;
         let f = |t : &mut AndroidSuper_Metadata_TableDescriptor| Ok(t.set_params(AndroidSuper_Metadata_TableKind::Partitions));
         let t = Self::read_into_with_init::<_, AndroidSuper_Metadata_TableDescriptor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.partitions.borrow_mut() = t;
@@ -348,7 +348,7 @@ impl KStruct for AndroidSuper_Metadata_BlockDevice {
         *self_rc.alignment.borrow_mut() = _io.read_u4le()?;
         *self_rc.alignment_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
-        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(36)?)?, 0, false), "UTF-8")?;
+        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
         *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_be(31)?;
         Ok(())
@@ -424,7 +424,7 @@ impl KStruct for AndroidSuper_Metadata_Extent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_sectors.borrow_mut() = _io.read_u8le()?;
-        *self_rc.target_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.target_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.target_data.borrow_mut() = _io.read_u8le()?;
         *self_rc.target_source.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -516,7 +516,7 @@ impl KStruct for AndroidSuper_Metadata_Group {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(36)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
         *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_be(31)?;
         io.align_to_byte()?;
@@ -583,7 +583,7 @@ impl KStruct for AndroidSuper_Metadata_Partition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(36)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
         *self_rc.attr_readonly.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.attr_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.attr_updated.borrow_mut() = _io.read_bits_int_be(1)? != 0;
@@ -672,6 +672,7 @@ pub enum AndroidSuper_Metadata_TableDescriptor_Table {
     Bytes(Vec<u8>),
 }
 impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_BlockDevice(x) = v {
             return x.clone();
@@ -685,6 +686,7 @@ impl From<OptRc<AndroidSuper_Metadata_BlockDevice>> for AndroidSuper_Metadata_Ta
     }
 }
 impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Extent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Extent(x) = v {
             return x.clone();
@@ -698,6 +700,7 @@ impl From<OptRc<AndroidSuper_Metadata_Extent>> for AndroidSuper_Metadata_TableDe
     }
 }
 impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Group> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Group(x) = v {
             return x.clone();
@@ -711,6 +714,7 @@ impl From<OptRc<AndroidSuper_Metadata_Group>> for AndroidSuper_Metadata_TableDes
     }
 }
 impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Partition> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Partition(x) = v {
             return x.clone();
@@ -724,6 +728,7 @@ impl From<OptRc<AndroidSuper_Metadata_Partition>> for AndroidSuper_Metadata_Tabl
     }
 }
 impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
         if let AndroidSuper_Metadata_TableDescriptor_Table::Bytes(x) = v {
             return x.clone();
@@ -777,14 +782,14 @@ impl AndroidSuper_Metadata_TableDescriptor {
         }
         self.f_table.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header_size()) as u32) + ((*self.offset()) as u32)))?)?;
+        _io.seek(usize::try_from((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header_size()).saturating_add(*self.offset()))?)?;
         *self.table_raw.borrow_mut() = Vec::new();
         *self.table.borrow_mut() = Vec::new();
         let l_table = *self.num_entries();
         for _i in 0..l_table {
             self.table_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let table_raw = self.table_raw.borrow();
-            let io_table_raw = BytesReader::from(table_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let _io_table_raw = BytesReader::from(table_raw.last().ok_or(KError::EmptyIterator)?.clone());
         }
         _io.seek(_pos)?;
         Ok(self.table.borrow())

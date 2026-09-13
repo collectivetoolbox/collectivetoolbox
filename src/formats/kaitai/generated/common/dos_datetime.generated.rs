@@ -141,7 +141,7 @@ impl DosDatetime_Date {
             return Ok(self.padded_day.borrow());
         }
         self.f_padded_day.set(true);
-        *self.padded_day.borrow_mut() = format!("{}{}", if (((*self.day()) as u64) <= ((9) as u64)) { "0".to_string() } else { "".to_string() }, self.day().to_string()).to_string();
+        *self.padded_day.borrow_mut() = format!("{}{}", if *self.day() <= 9 { "0".to_string() } else { "".to_string() }, self.day().to_string()).to_string();
         Ok(self.padded_day.borrow())
     }
     pub fn padded_month(
@@ -152,7 +152,7 @@ impl DosDatetime_Date {
             return Ok(self.padded_month.borrow());
         }
         self.f_padded_month.set(true);
-        *self.padded_month.borrow_mut() = format!("{}{}", if (((*self.month()) as u64) <= ((9) as u64)) { "0".to_string() } else { "".to_string() }, self.month().to_string()).to_string();
+        *self.padded_month.borrow_mut() = format!("{}{}", if *self.month() <= 9 { "0".to_string() } else { "".to_string() }, self.month().to_string()).to_string();
         Ok(self.padded_month.borrow())
     }
     pub fn padded_year(
@@ -178,7 +178,7 @@ impl DosDatetime_Date {
             return Ok(self.year.borrow());
         }
         self.f_year.set(true);
-        *self.year.borrow_mut() = ((((1980) as u64) + ((*self.year_minus_1980()) as u64))).try_into()?;
+        *self.year.borrow_mut() = ((1980_u64).saturating_add(*self.year_minus_1980())).try_into()?;
         Ok(self.year.borrow())
     }
 }
@@ -251,7 +251,7 @@ impl DosDatetime_Time {
             return Ok(self.padded_hour.borrow());
         }
         self.f_padded_hour.set(true);
-        *self.padded_hour.borrow_mut() = format!("{}{}", if (((*self.hour()) as u64) <= ((9) as u64)) { "0".to_string() } else { "".to_string() }, self.hour().to_string()).to_string();
+        *self.padded_hour.borrow_mut() = format!("{}{}", if *self.hour() <= 9 { "0".to_string() } else { "".to_string() }, self.hour().to_string()).to_string();
         Ok(self.padded_hour.borrow())
     }
     pub fn padded_minute(
@@ -262,7 +262,7 @@ impl DosDatetime_Time {
             return Ok(self.padded_minute.borrow());
         }
         self.f_padded_minute.set(true);
-        *self.padded_minute.borrow_mut() = format!("{}{}", if (((*self.minute()) as u64) <= ((9) as u64)) { "0".to_string() } else { "".to_string() }, self.minute().to_string()).to_string();
+        *self.padded_minute.borrow_mut() = format!("{}{}", if *self.minute() <= 9 { "0".to_string() } else { "".to_string() }, self.minute().to_string()).to_string();
         Ok(self.padded_minute.borrow())
     }
     pub fn padded_second(
@@ -284,7 +284,7 @@ impl DosDatetime_Time {
             return Ok(self.second.borrow());
         }
         self.f_second.set(true);
-        *self.second.borrow_mut() = ((((2) as u64) * ((*self.second_div_2()) as u64))).try_into()?;
+        *self.second.borrow_mut() = ((2_u64).saturating_mul(*self.second_div_2())).try_into()?;
         Ok(self.second.borrow())
     }
 }

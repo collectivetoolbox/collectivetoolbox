@@ -49,7 +49,7 @@ impl KStruct for Stl {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.header.borrow_mut() = _io.read_bytes(usize::try_from(80)?)?;
+        *self_rc.header.borrow_mut() = _io.read_bytes(80_usize)?;
         *self_rc.num_triangles.borrow_mut() = _io.read_u4le()?;
         *self_rc.triangles.borrow_mut() = Vec::new();
         let l_triangles = *self_rc.num_triangles();

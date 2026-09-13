@@ -60,8 +60,8 @@ impl ApmPartitionTable {
         for _i in 0..l_partition_entries {
             self.partition_entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into());
             let partition_entries_raw = self.partition_entries_raw.borrow();
-            let io_partition_entries_raw = BytesReader::from(partition_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&io_partition_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_partition_entries_raw = BytesReader::from(partition_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&_io_partition_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.partition_entries.borrow_mut().push(t);
         }
         io.seek(_pos)?;
@@ -170,27 +170,27 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x4du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_entry/seq/0".to_string() }));
         }
-        *self_rc.reserved_1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved_1.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.number_of_partitions.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_start.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_size.borrow_mut() = _io.read_u4be()?;
-        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(32)?)?, 0, false), "UTF-8")?;
-        *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(32)?)?, 0, false), "UTF-8")?;
+        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
+        *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
         *self_rc.data_start.borrow_mut() = _io.read_u4be()?;
         *self_rc.data_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_status.borrow_mut() = _io.read_u4be()?;
         *self_rc.boot_code_start.borrow_mut() = _io.read_u4be()?;
         *self_rc.boot_code_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.boot_loader_address.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved_2.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved_2.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.boot_code_entry.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved_3.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved_3.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.boot_code_cksum.borrow_mut() = _io.read_u4be()?;
-        *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(16)?)?, 0, false), "UTF-8")?;
+        *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "UTF-8")?;
         Ok(())
     }
 }
@@ -205,7 +205,7 @@ impl ApmPartitionTable_PartitionEntry {
         self.f_boot_code.set(true);
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((((*self.boot_code_start()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u32)))?)?;
+        io.seek(usize::try_from((*self.boot_code_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         *self.boot_code.borrow_mut() = io.read_bytes(usize::try_from(*self.boot_code_size())?)?;
         io.seek(_pos)?;
         Ok(self.boot_code.borrow())
@@ -220,8 +220,8 @@ impl ApmPartitionTable_PartitionEntry {
         self.f_data.set(true);
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((((*self.data_start()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u32)))?)?;
-        *self.data.borrow_mut() = io.read_bytes(usize::try_from((((*self.data_size()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u32)))?)?;
+        io.seek(usize::try_from((*self.data_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+        *self.data.borrow_mut() = io.read_bytes(usize::try_from((*self.data_size()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
@@ -233,11 +233,11 @@ impl ApmPartitionTable_PartitionEntry {
             return Ok(self.partition.borrow());
         }
         self.f_partition.set(true);
-        if ((((((*self.partition_status()) as u32) & ((1) as u32))) as u32) != ((0) as u32)) {
+        if ((*self.partition_status()) & (1_u32)) != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((((*self.partition_start()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u32)))?)?;
-            *self.partition.borrow_mut() = io.read_bytes(usize::try_from((((*self.partition_size()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u32)))?)?;
+            io.seek(usize::try_from((*self.partition_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+            *self.partition.borrow_mut() = io.read_bytes(usize::try_from((*self.partition_size()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
             io.seek(_pos)?;
         }
         Ok(self.partition.borrow())

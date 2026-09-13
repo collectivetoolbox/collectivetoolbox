@@ -54,8 +54,8 @@ impl KStruct for Ipv4Packet {
         *self_rc.ttl.borrow_mut() = _io.read_u1()?;
         *self_rc.protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.header_checksum.borrow_mut() = _io.read_u2be()?;
-        *self_rc.src_ip_addr.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
-        *self_rc.dst_ip_addr.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.src_ip_addr.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc.dst_ip_addr.borrow_mut() = _io.read_bytes(4_usize)?;
         let t = Self::read_into::<_, Ipv4Packet_Ipv4Options>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options.borrow_mut() = t;
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.protocol()).try_into().map_err(|_| KError::CastError)?));
@@ -73,7 +73,7 @@ impl Ipv4Packet {
             return Ok(self.ihl.borrow());
         }
         self.f_ihl.set(true);
-        *self.ihl.borrow_mut() = ((((*self.b1()) as u64) & ((15) as u64))).try_into()?;
+        *self.ihl.borrow_mut() = (((i32::from(*self.b1())) & (15_i32))).try_into()?;
         Ok(self.ihl.borrow())
     }
     pub fn ihl_bytes(
@@ -84,7 +84,7 @@ impl Ipv4Packet {
             return Ok(self.ihl_bytes.borrow());
         }
         self.f_ihl_bytes.set(true);
-        *self.ihl_bytes.borrow_mut() = ((((*self.ihl()?) as i32) * ((4) as i32))).try_into()?;
+        *self.ihl_bytes.borrow_mut() = ((*self.ihl()?).saturating_mul(4_i32)).try_into()?;
         Ok(self.ihl_bytes.borrow())
     }
     pub fn version(
@@ -95,7 +95,7 @@ impl Ipv4Packet {
             return Ok(self.version.borrow());
         }
         self.f_version.set(true);
-        *self.version.borrow_mut() = (((((((*self.b1()) as u64) & ((240) as u64)) as u64) >> 4) as i32)).try_into()?;
+        *self.version.borrow_mut() = ((((i32::from(*self.b1())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.version.borrow())
     }
 }
@@ -198,7 +198,7 @@ impl KStruct for Ipv4Packet_Ipv4Option {
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if (((*self_rc.len()) as i32) > ((2) as i32)) { ((((*self_rc.len()) as i32) - ((2) as i32))) as i32 } else { (0) as i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.len() > 2 { (i32::try_from(*self_rc.len())?).saturating_sub(2_i32) } else { 0_i32 })?)?;
         Ok(())
     }
 }
@@ -211,7 +211,7 @@ impl Ipv4Packet_Ipv4Option {
             return Ok(self.copy.borrow());
         }
         self.f_copy.set(true);
-        *self.copy.borrow_mut() = (((((((*self.b1()) as u64) & ((128) as u64)) as u64) >> 7) as i32)).try_into()?;
+        *self.copy.borrow_mut() = ((((i32::from(*self.b1())) & (128_i32))).wrapping_shr(7_u32)).try_into()?;
         Ok(self.copy.borrow())
     }
     pub fn number(
@@ -222,7 +222,7 @@ impl Ipv4Packet_Ipv4Option {
             return Ok(self.number.borrow());
         }
         self.f_number.set(true);
-        *self.number.borrow_mut() = ((((*self.b1()) as u64) & ((31) as u64))).try_into()?;
+        *self.number.borrow_mut() = (((i32::from(*self.b1())) & (31_i32))).try_into()?;
         Ok(self.number.borrow())
     }
     pub fn opt_class(
@@ -233,7 +233,7 @@ impl Ipv4Packet_Ipv4Option {
             return Ok(self.opt_class.borrow());
         }
         self.f_opt_class.set(true);
-        *self.opt_class.borrow_mut() = (((((((*self.b1()) as u64) & ((96) as u64)) as u64) >> 5) as i32)).try_into()?;
+        *self.opt_class.borrow_mut() = ((((i32::from(*self.b1())) & (96_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.opt_class.borrow())
     }
 }
@@ -283,11 +283,11 @@ impl KStruct for Ipv4Packet_Ipv4Options {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Ipv4Packet_Ipv4Option>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

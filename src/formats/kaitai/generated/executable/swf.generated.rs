@@ -49,8 +49,8 @@ impl KStruct for Swf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.compression.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.compression.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.signature() == vec![0x57u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
@@ -499,7 +499,7 @@ impl Swf_RecordHeader {
             return Ok(self.len.borrow());
         }
         self.f_len.set(true);
-        *self.len.borrow_mut() = (if *self.small_len()? == 63 { (*self.big_len()) as i32 } else { (*self.small_len()?) as i32 }).try_into()?;
+        *self.len.borrow_mut() = (if *self.small_len()? == 63 { *self.big_len() } else { *self.small_len()? }).try_into()?;
         Ok(self.len.borrow())
     }
     pub fn small_len(
@@ -510,7 +510,7 @@ impl Swf_RecordHeader {
             return Ok(self.small_len.borrow());
         }
         self.f_small_len.set(true);
-        *self.small_len.borrow_mut() = ((((*self.tag_code_and_length()) as u64) & ((63) as u64))).try_into()?;
+        *self.small_len.borrow_mut() = (((i32::from(*self.tag_code_and_length())) & (63_i32))).try_into()?;
         Ok(self.small_len.borrow())
     }
     pub fn tag_type(
@@ -521,7 +521,7 @@ impl Swf_RecordHeader {
             return Ok(self.tag_type.borrow());
         }
         self.f_tag_type.set(true);
-        *self.tag_type.borrow_mut() = i64::try_from((((*self.tag_code_and_length()) as i32) >> ((6) as i32)))?.try_into()?;
+        *self.tag_type.borrow_mut() = i64::try_from((*self.tag_code_and_length()).wrapping_shr(6_u32))?.try_into()?;
         Ok(self.tag_type.borrow())
     }
 }
@@ -583,7 +583,7 @@ impl Swf_Rect {
             return Ok(self.num_bits.borrow());
         }
         self.f_num_bits.set(true);
-        *self.num_bits.borrow_mut() = ((((*self.b1()) as i32) >> ((3) as i32))).try_into()?;
+        *self.num_bits.borrow_mut() = ((*self.b1()).wrapping_shr(3_u32)).try_into()?;
         Ok(self.num_bits.borrow())
     }
     pub fn num_bytes(
@@ -594,7 +594,7 @@ impl Swf_Rect {
             return Ok(self.num_bytes.borrow());
         }
         self.f_num_bytes.set(true);
-        *self.num_bytes.borrow_mut() = (((((((((((((*self.num_bits()?) as i32) * ((4) as i32))) as i32) - ((3) as i32))) as i32) + ((7) as i32))) as i32) / ((8) as i32))).try_into()?;
+        *self.num_bytes.borrow_mut() = (((((*self.num_bits()?).saturating_mul(4_i32)).saturating_sub(3_i32)).saturating_add(7_i32)).checked_div(8_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.num_bytes.borrow())
     }
 }
@@ -746,17 +746,17 @@ impl KStruct for Swf_SwfBody {
         *self_rc.rect.borrow_mut() = t;
         *self_rc.frame_rate.borrow_mut() = _io.read_u2le()?;
         *self_rc.frame_count.borrow_mut() = _io.read_u2le()?;
-        if (((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version()) as i32) >= ((8) as i32)) {
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version() >= 8 {
             let t = Self::read_into::<_, Swf_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_attributes_tag.borrow_mut() = t;
         }
         *self_rc.tags.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Swf_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.tags.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -914,6 +914,7 @@ pub enum Swf_Tag_TagBody {
     Bytes(Vec<u8>),
 }
 impl From<&Swf_Tag_TagBody> for OptRc<Swf_DefineSoundBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Swf_DefineSoundBody(x) = v {
             return x.clone();
@@ -927,6 +928,7 @@ impl From<OptRc<Swf_DefineSoundBody>> for Swf_Tag_TagBody {
     }
 }
 impl From<&Swf_Tag_TagBody> for OptRc<Swf_DoAbcBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Swf_DoAbcBody(x) = v {
             return x.clone();
@@ -940,6 +942,7 @@ impl From<OptRc<Swf_DoAbcBody>> for Swf_Tag_TagBody {
     }
 }
 impl From<&Swf_Tag_TagBody> for OptRc<Swf_SymbolClassBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Swf_SymbolClassBody(x) = v {
             return x.clone();
@@ -953,6 +956,7 @@ impl From<OptRc<Swf_SymbolClassBody>> for Swf_Tag_TagBody {
     }
 }
 impl From<&Swf_Tag_TagBody> for OptRc<Swf_ScriptLimitsBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Swf_ScriptLimitsBody(x) = v {
             return x.clone();
@@ -966,6 +970,7 @@ impl From<OptRc<Swf_ScriptLimitsBody>> for Swf_Tag_TagBody {
     }
 }
 impl From<&Swf_Tag_TagBody> for OptRc<Swf_Rgb> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Swf_Rgb(x) = v {
             return x.clone();
@@ -979,6 +984,7 @@ impl From<OptRc<Swf_Rgb>> for Swf_Tag_TagBody {
     }
 }
 impl From<&Swf_Tag_TagBody> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Swf_Tag_TagBody) -> Self {
         if let Swf_Tag_TagBody::Bytes(x) = v {
             return x.clone();

@@ -89,7 +89,7 @@ impl KStruct for Uf2 {
         let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first_block.borrow_mut() = t;
         *self_rc.blocks.borrow_mut() = Vec::new();
-        let l_blocks = (((*self_rc.first_block().num_blocks()?) as i32) - ((1) as i32));
+        let l_blocks = (*self_rc.first_block().num_blocks()?).saturating_sub(1_i32);
         for _i in 0..l_blocks {
             let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
@@ -807,11 +807,11 @@ impl KStruct for Uf2_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x55u8, 0x46u8, 0x32u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/0".to_string() }));
         }
-        *self_rc.second_magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.second_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.second_magic() == vec![0x57u8, 0x51u8, 0x5du8, 0x9eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/1".to_string() }));
         }
@@ -819,17 +819,17 @@ impl KStruct for Uf2_Block {
         *self_rc.flags.borrow_mut() = t;
         *self_rc.target_address.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.target_address();
-        if !((((((_tmpa) as u32) % ((4) as u32)) as u32) == (0 as u32))) {
+        if !((((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? as u32) == (0 as u32))) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/3".to_string() }));
         }
         *self_rc.len_payload.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.len_payload();
-        if !((((((_tmpa) as u32) % ((4) as u32)) as u32) == (0 as u32))) {
+        if !((((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? as u32) == (0 as u32))) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/4".to_string() }));
         }
         *self_rc.block_number.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_blocks_raw.borrow_mut() = _io.read_u4le()?;
-        let min_val: u32 = ((((*self_rc.block_number()) as u32) + ((1) as u32))).try_into()?;
+        let min_val: u32 = ((*self_rc.block_number()).saturating_add(1_u32)).try_into()?;
         if !(*self_rc.num_blocks_raw() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/block/seq/6".to_string() }));
         }
@@ -837,11 +837,11 @@ impl KStruct for Uf2_Block {
             *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
         }
         if *self_rc.flags().has_family_id()? {
-            *self_rc.family_id.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+            *self_rc.family_id.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         }
         let t = Self::read_into::<_, Uf2_BlockData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data.borrow_mut() = t;
-        *self_rc.final_magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.final_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.final_magic() == vec![0x30u8, 0x6fu8, 0xb1u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/10".to_string() }));
         }
@@ -901,7 +901,7 @@ impl Uf2_Block {
             return Ok(self.is_rp2350_e10_block.borrow());
         }
         self.f_is_rp2350_e10_block.set(true);
-        *self.is_rp2350_e10_block.borrow_mut() = ( (( (((((*self.flags().value()) as u32) == ((8192) as u32))) || ((((*self.flags().value()) as u32) == ((40960) as u32)))) ) && (*self.family_id() == Uf2_FamilyId::Rp2xxxAbsolute) && ((((*self.num_blocks_raw()) as u32) == ((2) as u32))) && ((((*self.block_number()) as u32) == ((0) as u32))) && ((((*self.len_payload()) as u32) == ((256) as u32))) && (*self.data().payload().first().ok_or(KError::EmptyIterator)? == 239) && (*self.data().payload().last().ok_or(KError::EmptyIterator)? == 239) && ( ((!(*self.flags().has_extension_tags()?)) || ((((*self.data().extension_tags()[0 as usize].len_tag()) as i32) == ((0) as i32))) || ( (((((*self.data().extension_tags()[0 as usize].len_tag()) as i32) == ((4) as i32))) && (*self.data().extension_tags()[0 as usize].tag_type() == Uf2_ExtensionTagType::Rp2IgnoreBlock)) )) )) ).try_into()?;
+        *self.is_rp2350_e10_block.borrow_mut() = ( (( ((*self.flags().value() == 8192) || (*self.flags().value() == 40960)) ) && (*self.family_id() == Uf2_FamilyId::Rp2xxxAbsolute) && (*self.num_blocks_raw() == 2) && (*self.block_number() == 0) && (*self.len_payload() == 256) && (*self.data().payload().first().ok_or(KError::EmptyIterator)? == 239) && (*self.data().payload().last().ok_or(KError::EmptyIterator)? == 239) && ( ((!(*self.flags().has_extension_tags()?)) || (*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag() == 0) || ( ((*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag() == 4) && (*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.tag_type() == Uf2_ExtensionTagType::Rp2IgnoreBlock)) )) )) ).try_into()?;
         Ok(self.is_rp2350_e10_block.borrow())
     }
     pub fn num_blocks(
@@ -912,7 +912,7 @@ impl Uf2_Block {
             return Ok(self.num_blocks.borrow());
         }
         self.f_num_blocks.set(true);
-        *self.num_blocks.borrow_mut() = (if *self.is_rp2350_e10_block()? { (1) as u32 } else { (*self.num_blocks_raw()) as u32 }).try_into()?;
+        *self.num_blocks.borrow_mut() = (if *self.is_rp2350_e10_block()? { 1_u32 } else { *self.num_blocks_raw() }).try_into()?;
         Ok(self.num_blocks.borrow())
     }
 }
@@ -1047,14 +1047,14 @@ impl KStruct for Uf2_BlockData {
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_extension_tags()? {
             *self_rc.extension_tags.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 loop {
                     let t = Self::read_into::<_, Uf2_ExtensionTag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.extension_tags.borrow_mut().push(t);
                     let _t_extension_tags = self_rc.extension_tags.borrow();
                     let Some(_tmpa) = _t_extension_tags.last() else { break; };
-                    _i += 1;
-                    if (((*_tmpa.len_tag()) as i32) == ((0) as i32)) { break; }
+                    _i = _i.saturating_add(1);
+                    if *_tmpa.len_tag() == 0 { break; }
                 }
             }
         }
@@ -1086,7 +1086,7 @@ impl Uf2_BlockData {
         }
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_md5_checksum()? {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((_io.size()) as i32) - ((24) as i32)))?)?;
+            _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(24_i32))?)?;
             let t = Self::read_into::<_, Uf2_Md5Checksum>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.md5_checksum.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -1162,10 +1162,10 @@ impl KStruct for Uf2_ExtensionTag {
         }
         *self_rc.tag_type.borrow_mut() = i64::try_from(_io.read_bits_int_le(24)?)?.try_into()?;
         io.align_to_byte()?;
-        if (((*self_rc.len_tag()) as i32) != ((0) as i32)) {
+        if *self_rc.len_tag() != 0 {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
         }
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(*self_rc.len_tag() as i64) as i64, 4 as i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_tag()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -1178,7 +1178,7 @@ impl Uf2_ExtensionTag {
             return Ok(self.len_value.borrow());
         }
         self.f_len_value.set(true);
-        *self.len_value.borrow_mut() = (if (((*self.len_tag()) as i32) >= ((*self.min_len_tag()?) as i32)) { ((((*self.len_tag()) as i32) - ((*self.min_len_tag()?) as i32))) as i32 } else { (0) as i32 }).try_into()?;
+        *self.len_value.borrow_mut() = (if ((to_i128(*self.len_tag())) >= (to_i128(*self.min_len_tag()?))) { (i32::from(*self.len_tag())).saturating_sub(*self.min_len_tag()?) } else { 0_i32 }).try_into()?;
         Ok(self.len_value.borrow())
     }
     pub fn min_len_tag(
@@ -1189,7 +1189,7 @@ impl Uf2_ExtensionTag {
             return Ok(self.min_len_tag.borrow());
         }
         self.f_min_len_tag.set(true);
-        *self.min_len_tag.borrow_mut() = (1 + 0).try_into()?;
+        *self.min_len_tag.borrow_mut() = ((1).saturating_add(0)).try_into()?;
         Ok(self.min_len_tag.borrow())
     }
 }
@@ -1289,7 +1289,7 @@ impl Uf2_Flags {
             return Ok(self.has_extension_tags.borrow());
         }
         self.f_has_extension_tags.set(true);
-        *self.has_extension_tags.borrow_mut() = (((((((*self.value()) as u32) & ((32768) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.has_extension_tags.borrow_mut() = (((*self.value()) & (32768_u32)) != 0).try_into()?;
         Ok(self.has_extension_tags.borrow())
     }
 
@@ -1305,7 +1305,7 @@ impl Uf2_Flags {
             return Ok(self.has_family_id.borrow());
         }
         self.f_has_family_id.set(true);
-        *self.has_family_id.borrow_mut() = (((((((*self.value()) as u32) & ((8192) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.has_family_id.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
         Ok(self.has_family_id.borrow())
     }
 
@@ -1320,7 +1320,7 @@ impl Uf2_Flags {
             return Ok(self.has_md5_checksum.borrow());
         }
         self.f_has_md5_checksum.set(true);
-        *self.has_md5_checksum.borrow_mut() = (((((((*self.value()) as u32) & ((16384) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.has_md5_checksum.borrow_mut() = (((*self.value()) & (16384_u32)) != 0).try_into()?;
         Ok(self.has_md5_checksum.borrow())
     }
 
@@ -1340,7 +1340,7 @@ impl Uf2_Flags {
             return Ok(self.is_file_container.borrow());
         }
         self.f_is_file_container.set(true);
-        *self.is_file_container.borrow_mut() = (((((((*self.value()) as u32) & ((4096) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.is_file_container.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
         Ok(self.is_file_container.borrow())
     }
 
@@ -1357,7 +1357,7 @@ impl Uf2_Flags {
             return Ok(self.not_main_flash.borrow());
         }
         self.f_not_main_flash.set(true);
-        *self.not_main_flash.borrow_mut() = (((((((*self.value()) as u32) & ((1) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.not_main_flash.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
         Ok(self.not_main_flash.borrow())
     }
 }
@@ -1418,7 +1418,7 @@ impl KStruct for Uf2_Md5Checksum {
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_region.borrow_mut() = _io.read_u4le()?;
-        *self_rc.md5.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.md5.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }

@@ -245,11 +245,11 @@ impl KStruct for WindowsLnkFile_FileHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.len_header.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.len_header.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.len_header() == vec![0x4cu8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
-        *self_rc.link_clsid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.link_clsid.borrow_mut() = _io.read_bytes(16_usize)?;
         if !(*self_rc.link_clsid() == vec![0x1u8, 0x14u8, 0x2u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0xc0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
@@ -261,9 +261,9 @@ impl KStruct for WindowsLnkFile_FileHeader {
         *self_rc.time_write.borrow_mut() = _io.read_u8le()?;
         *self_rc.target_file_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.icon_index.borrow_mut() = _io.read_s4le()?;
-        *self_rc.show_command.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.show_command.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.hotkey.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(10)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(10_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/11".to_string() }));
         }
@@ -582,7 +582,7 @@ impl WindowsLnkFile_LinkInfo_All {
         self.f_local_base_path.set(true);
         if *self.header().flags().has_volume_id_and_local_base_path() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.header().ofs_local_base_path()) as u32) - ((4) as u32)))?)?;
+            _io.seek(usize::try_from((*self.header().ofs_local_base_path()).saturating_sub(4_u32))?)?;
             *self.local_base_path.borrow_mut() = 0;
             _io.seek(_pos)?;
         }
@@ -597,7 +597,7 @@ impl WindowsLnkFile_LinkInfo_All {
         }
         if *self.header().flags().has_volume_id_and_local_base_path() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.header().ofs_volume_id()) as u32) - ((4) as u32)))?)?;
+            _io.seek(usize::try_from((*self.header().ofs_volume_id()).saturating_sub(4_u32))?)?;
             let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_VolumeIdSpec>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.volume_id.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -811,7 +811,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.drive_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.drive_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.drive_serial_number.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_volume_label.borrow_mut() = _io.read_u4le()?;
         if *self_rc.is_unicode()? {
@@ -829,7 +829,7 @@ impl WindowsLnkFile_LinkInfo_VolumeIdBody {
             return Ok(self.is_unicode.borrow());
         }
         self.f_is_unicode.set(true);
-        *self.is_unicode.borrow_mut() = ((((*self.ofs_volume_label()) as u32) == ((20) as u32))).try_into()?;
+        *self.is_unicode.borrow_mut() = (*self.ofs_volume_label() == 20).try_into()?;
         Ok(self.is_unicode.borrow())
     }
     pub fn volume_label_ansi(
@@ -842,7 +842,7 @@ impl WindowsLnkFile_LinkInfo_VolumeIdBody {
         self.f_volume_label_ansi.set(true);
         if !(*self.is_unicode()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.ofs_volume_label()) as u32) - ((4) as u32)))?)?;
+            _io.seek(usize::try_from((*self.ofs_volume_label()).saturating_sub(4_u32))?)?;
             *self.volume_label_ansi.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
             _io.seek(_pos)?;
         }
@@ -1004,7 +1004,7 @@ impl KStruct for WindowsLnkFile_StringData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars_str.borrow_mut() = _io.read_u2le()?;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((((*self_rc.chars_str()) as i32) * ((2) as i32)))?)?, "UTF-16LE")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((i32::from(*self_rc.chars_str())).saturating_mul(2_i32))?)?, "UTF-16LE")?;
         Ok(())
     }
 }

@@ -429,18 +429,28 @@ fn emit_switch_enum(
             if seen_from_from.insert(inner_type.clone()) {
                 w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
                 w.inc();
-                w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
-                w.inc();
-                w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
-                w.inc();
-                w.puts("return *v");
-                w.dec();
-                w.puts("}");
-                w.puts(&format!(
-                    "panic!(\"trying to convert from enum {enum_name}::{v_name} to {inner_type}, enum value {{:?}}\", e)"
-                ));
-                w.dec();
-                w.puts("}");
+                if variants.len() == 1 {
+                    w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+                    w.inc();
+                    w.puts(&format!("let {enum_name}::{v_name}(v) = e;"));
+                    w.puts("*v");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts("#[allow(clippy::panic, reason = \"Fallible Kaitai switch-type variant conversion\")]");
+                    w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+                    w.inc();
+                    w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
+                    w.inc();
+                    w.puts("return *v;");
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!(
+                        "panic!(\"trying to convert from enum {enum_name}::{v_name} to {inner_type}, enum value {{:?}}\", e)"
+                    ));
+                    w.dec();
+                    w.puts("}");
+                }
                 w.dec();
                 w.puts("}");
             }
@@ -470,18 +480,28 @@ fn emit_switch_enum(
             if seen_from_from.insert(inner_type.clone()) {
                 w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
                 w.inc();
-                w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
-                w.inc();
-                w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
-                w.inc();
-                w.puts("return x.clone();");
-                w.dec();
-                w.puts("}");
-                w.puts(&format!(
-                    "panic!(\"expected {enum_name}::{v_name}, got {{:?}}\", v)"
-                ));
-                w.dec();
-                w.puts("}");
+                if variants.len() == 1 {
+                    w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
+                    w.inc();
+                    w.puts(&format!("let {enum_name}::{v_name}(x) = v;"));
+                    w.puts("x.clone()");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts("#[allow(clippy::panic, reason = \"Fallible Kaitai switch-type variant conversion\")]");
+                    w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
+                    w.inc();
+                    w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
+                    w.inc();
+                    w.puts("return x.clone();");
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!(
+                        "panic!(\"expected {enum_name}::{v_name}, got {{:?}}\", v)"
+                    ));
+                    w.dec();
+                    w.puts("}");
+                }
                 w.dec();
                 w.puts("}");
             }
@@ -707,6 +727,24 @@ fn emit_read_array_element(
     }
 }
 
+pub(crate) fn expr_to_usize(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
+    if let Expr::IntNum(n) = expr {
+        if *n >= 0 {
+            return format!("{n}_usize");
+        }
+    }
+    let s = translate_expr(expr, ctx);
+    match super::translator::detect_type_approx(expr, ctx) {
+        Some(DataType::Int1 { signed: false })
+        | Some(DataType::IntMulti {
+            signed: false,
+            width: 1 | 2,
+            ..
+        }) => format!("usize::from({s})"),
+        _ => format!("usize::try_from({s})?"),
+    }
+}
+
 fn emit_attr_read(
     w: &mut CodeWriter,
     current: &ClassSpec,
@@ -741,11 +779,11 @@ fn emit_attr_read(
                 w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
                 w.puts("{");
                 w.inc();
-                w.puts("let mut _i = 0;");
+                w.puts("let mut _i = 0_usize;");
                 w.puts("while !_io.is_eof() {");
                 w.inc();
                 emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
-                w.puts("_i += 1;");
+                w.puts("_i = _i.saturating_add(1);");
                 w.dec();
                 w.puts("}");
                 w.dec();
@@ -755,7 +793,7 @@ fn emit_attr_read(
                 w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
                 w.puts("{");
                 w.inc();
-                w.puts("let mut _i = 0;");
+                w.puts("let mut _i = 0_usize;");
                 w.puts("loop {");
                 w.inc();
                 emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
@@ -764,7 +802,7 @@ fn emit_attr_read(
                 if super::translator::needs_deref(element) {
                     w.puts("let _tmpa = *_tmpa;");
                 }
-                w.puts("_i += 1;");
+                w.puts("_i = _i.saturating_add(1);");
                 let until_ctx = ctx.with_element_type(Some(element));
                 let until_str = translate_expr(until_expr, &until_ctx);
                 w.puts(&format!("if {until_str} {{ break; }}"));
@@ -1130,7 +1168,8 @@ fn emit_switch_read(
     }
 
     // Default case
-    if !cases.contains_key("_") {
+    let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
+    if !cases.contains_key("_") && !is_exhaustive_bool {
         let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
         if has_bytes_case {
             w.puts("_ => {");
@@ -1203,8 +1242,8 @@ fn read_expr_for_type(
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
-                let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes(usize::try_from({s})?)?")
+                let s = expr_to_usize(size_expr, ctx);
+                format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
                 format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?")
             } else {
@@ -1233,8 +1272,8 @@ fn read_expr_for_type(
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
-                let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes(usize::try_from({s})?)?")
+                let s = expr_to_usize(size_expr, ctx);
+                format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
                 format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?")
             } else {
@@ -1293,7 +1332,23 @@ fn read_expr_for_type(
             } else {
                 format!("{io}.read_u4()?")
             };
-            format!("i64::try_from({read_call})?.try_into()?")
+            let is_u64 = if let Some(under) = underlying {
+                matches!(under.as_ref(), DataType::IntMulti { signed: false, width: 8, .. } | DataType::Bits { .. } | DataType::Bits1 { .. })
+            } else {
+                false
+            };
+            let is_s64 = if let Some(under) = underlying {
+                matches!(under.as_ref(), DataType::IntMulti { signed: true, width: 8, .. })
+            } else {
+                false
+            };
+            if is_u64 {
+                format!("i64::try_from({read_call})?.try_into()?")
+            } else if is_s64 {
+                format!("{read_call}.try_into()?")
+            } else {
+                format!("i64::from({read_call}).try_into()?")
+            }
         }
         DataType::UserType { names, is_external, args } => {
             let type_name = types_to_class_name(names);
@@ -1471,8 +1526,8 @@ fn emit_parse_instance_body(
 
     if let Some(pos) = &inst.pos_expr {
         w.puts(&format!("let _pos = {io_var}.pos();"));
-        let pos_str = translate_expr(pos, ctx);
-        w.puts(&format!("{io_var}.seek(usize::try_from({pos_str})?)?;"));
+        let pos_str = expr_to_usize(pos, ctx);
+        w.puts(&format!("{io_var}.seek({pos_str})?;"));
     }
 
     match &inst.data_type {
@@ -1528,8 +1583,8 @@ fn emit_parse_instance_body(
                 w.inc();
 
                 let (io_ref, stream_type) = if let Some(size) = &inst.size_expr {
-                    let size_str = translate_expr(size, ctx);
-                    w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes(usize::try_from({size_str})?)?.into();"));
+                    let size_str = expr_to_usize(size, ctx);
+                    w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes({size_str})?.into();"));
                     w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                     w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                     (format!("&_t_{inst_id}_raw_io"), "BytesReader")
@@ -1570,10 +1625,11 @@ fn emit_parse_instance_body(
                 w.puts("}");
             }
 
+            let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
             if cases.contains_key("_") {
                 let fallback = if let Some(size) = &inst.size_expr {
-                    let size_str = translate_expr(size, ctx);
-                    format!("{io_var}.read_bytes(usize::try_from({size_str})?)?.into()")
+                    let size_str = expr_to_usize(size, ctx);
+                    format!("{io_var}.read_bytes({size_str})?.into()")
                 } else {
                     format!("{io_var}.read_bytes_full()?.into()")
                 };
@@ -1582,8 +1638,23 @@ fn emit_parse_instance_body(
                 w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"));
                 w.dec();
                 w.puts("}");
-            } else {
-                w.puts("_ => {}");
+            } else if !is_exhaustive_bool {
+                let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
+                if has_bytes_case {
+                    let fallback = if let Some(size) = &inst.size_expr {
+                        let size_str = expr_to_usize(size, ctx);
+                        format!("{io_var}.read_bytes({size_str})?.into()")
+                    } else {
+                        format!("{io_var}.read_bytes_full()?.into()")
+                    };
+                    w.puts("_ => {");
+                    w.inc();
+                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"));
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts("_ => {}");
+                }
             }
 
             w.dec();
@@ -1603,18 +1674,18 @@ fn emit_parse_instance_body(
                         w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0..l_{inst_id} {{"));
                         w.inc();
-                        let size_str = translate_expr(size, ctx);
-                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes(usize::try_from({size_str})?)?.into());"));
+                        let size_str = expr_to_usize(size, ctx);
+                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes({size_str})?.into());"));
                         w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
-                        w.puts(&format!("let io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
+                        w.puts(&format!("let _io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
                         if let DataType::UserType { names, is_external, args: _ } = element.as_ref() {
                             let type_name = types_to_class_name(names);
                             let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
                             if current.has_dynamic_endian() {
                                 w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_endian(*self._is_le.borrow()));"));
-                                w.puts(&format!("let t = Self::read_into_with_init::<BytesReader, {type_name}>(&io_{inst_id}_raw, {target_args}, &f)?.into();"));
+                                w.puts(&format!("let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_io_{inst_id}_raw, {target_args}, &f)?.into();"));
                             } else {
-                                w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&io_{inst_id}_raw, {target_args})?.into();"));
+                                w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&_io_{inst_id}_raw, {target_args})?.into();"));
                             }
                             w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push(t);"));
                         }
@@ -1635,11 +1706,11 @@ fn emit_parse_instance_body(
                     w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                     w.puts("{");
                     w.inc();
-                    w.puts("let mut _i = 0;");
+                    w.puts("let mut _i = 0_usize;");
                     w.puts("while !_io.is_eof() {");
                     w.inc();
                     emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
-                    w.puts("_i += 1;");
+                    w.puts("_i = _i.saturating_add(1);");
                     w.dec();
                     w.puts("}");
                     w.dec();
@@ -1649,7 +1720,7 @@ fn emit_parse_instance_body(
                     w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                     w.puts("{");
                     w.inc();
-                    w.puts("let mut _i = 0;");
+                    w.puts("let mut _i = 0_usize;");
                     w.puts("loop {");
                     w.inc();
                     emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
@@ -1658,7 +1729,7 @@ fn emit_parse_instance_body(
                     if super::translator::needs_deref(element) {
                         w.puts("let _tmpa = *_tmpa;");
                     }
-                    w.puts("_i += 1;");
+                    w.puts("_i = _i.saturating_add(1);");
                     let until_ctx = ctx.with_element_type(Some(element));
                     let until_str = translate_expr(until_expr, &until_ctx);
                     w.puts(&format!("if {until_str} {{ break; }}"));
@@ -1678,8 +1749,8 @@ fn emit_parse_instance_body(
             let trans_args = translate_args(args, ctx, true);
 
             if let Some(size) = &inst.size_expr {
-                let size_str = translate_expr(size, ctx);
-                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = _io.read_bytes(usize::try_from({size_str})?)?.into();"));
+                let size_str = expr_to_usize(size, ctx);
+                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = _io.read_bytes({size_str})?.into();"));
                 w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                 w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                 if !trans_args.is_empty() {

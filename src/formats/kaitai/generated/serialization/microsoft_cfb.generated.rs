@@ -49,7 +49,7 @@ impl MicrosoftCfb {
             return Ok(self.dir.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((((((*self.header().ofs_dir()) as i32) + ((1) as i32))) as i32) * ((*self.sector_size()?) as i32)))?)?;
+        _io.seek(usize::try_from(((*self.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self.sector_size()?))?)?;
         let t = Self::read_into::<_, MicrosoftCfb_DirEntry>(&*_io, Some(self._root.clone()), None)?.into();
         *self.dir.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -64,7 +64,7 @@ impl MicrosoftCfb {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.sector_size()?)?)?;
-        *self.fat_raw.borrow_mut() = _io.read_bytes(usize::try_from((((*self.header().size_fat()) as i32) * ((*self.sector_size()?) as i32)))?)?.into();
+        *self.fat_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self.header().size_fat()).saturating_mul(*self.sector_size()?))?)?.into();
         let fat_raw = self.fat_raw.borrow();
         let _t_fat_raw_io = BytesReader::from(fat_raw.clone());
         let t = Self::read_into::<BytesReader, MicrosoftCfb_FatEntries>(&_t_fat_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -80,7 +80,7 @@ impl MicrosoftCfb {
             return Ok(self.sector_size.borrow());
         }
         self.f_sector_size.set(true);
-        *self.sector_size.borrow_mut() = ((((1) as i32) << ((*self.header().sector_shift()) as i32))).try_into()?;
+        *self.sector_size.borrow_mut() = ((1_i32).wrapping_shl(to_shift_amt(*self.header().sector_shift()))).try_into()?;
         Ok(self.sector_size.borrow())
     }
 }
@@ -140,23 +140,23 @@ impl KStruct for MicrosoftCfb_CfbHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.signature() == vec![0xd0u8, 0xcfu8, 0x11u8, 0xe0u8, 0xa1u8, 0xb1u8, 0x1au8, 0xe1u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cfb_header/seq/0".to_string() }));
         }
-        *self_rc.clsid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.clsid.borrow_mut() = _io.read_bytes(16_usize)?;
         if !(*self_rc.clsid() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cfb_header/seq/1".to_string() }));
         }
         *self_rc.version_minor.borrow_mut() = _io.read_u2le()?;
         *self_rc.version_major.borrow_mut() = _io.read_u2le()?;
-        *self_rc.byte_order.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.byte_order.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.byte_order() == vec![0xfeu8, 0xffu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cfb_header/seq/4".to_string() }));
         }
         *self_rc.sector_shift.borrow_mut() = _io.read_u2le()?;
         *self_rc.mini_sector_shift.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc.size_dir.borrow_mut() = _io.read_s4le()?;
         *self_rc.size_fat.borrow_mut() = _io.read_s4le()?;
         *self_rc.ofs_dir.borrow_mut() = _io.read_s4le()?;
@@ -363,14 +363,14 @@ impl KStruct for MicrosoftCfb_DirEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(64)?)?, "UTF-16LE")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(64_usize)?, "UTF-16LE")?;
         *self_rc.name_len.borrow_mut() = _io.read_u2le()?;
-        *self_rc.object_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.color_flag.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.object_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.color_flag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.left_sibling_id.borrow_mut() = _io.read_s4le()?;
         *self_rc.right_sibling_id.borrow_mut() = _io.read_s4le()?;
         *self_rc.child_id.borrow_mut() = _io.read_s4le()?;
-        *self_rc.clsid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.clsid.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.state.borrow_mut() = _io.read_u4le()?;
         *self_rc.time_create.borrow_mut() = _io.read_u8le()?;
         *self_rc.time_mod.borrow_mut() = _io.read_u8le()?;
@@ -387,10 +387,10 @@ impl MicrosoftCfb_DirEntry {
         if self.f_child.get() {
             return Ok(self.child.borrow());
         }
-        if (((*self.child_id()) as i32) != ((-(1)) as i32)) {
+        if ((to_i128(*self.child_id())) != (to_i128(-(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((((((((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()) as i32) + ((1) as i32))) as i32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as i32))) as i32) + (((((*self.child_id()) as i32) * ((128) as i32))) as i32)))?)?;
+            io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.child_id()).saturating_mul(128_i32)))?)?;
             let t = Self::read_into::<_, MicrosoftCfb_DirEntry>(&io, Some(self._root.clone()), None)?.into();
             *self.child.borrow_mut() = t;
             io.seek(_pos)?;
@@ -404,10 +404,10 @@ impl MicrosoftCfb_DirEntry {
         if self.f_left_sibling.get() {
             return Ok(self.left_sibling.borrow());
         }
-        if (((*self.left_sibling_id()) as i32) != ((-(1)) as i32)) {
+        if ((to_i128(*self.left_sibling_id())) != (to_i128(-(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((((((((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()) as i32) + ((1) as i32))) as i32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as i32))) as i32) + (((((*self.left_sibling_id()) as i32) * ((128) as i32))) as i32)))?)?;
+            io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.left_sibling_id()).saturating_mul(128_i32)))?)?;
             let t = Self::read_into::<_, MicrosoftCfb_DirEntry>(&io, Some(self._root.clone()), None)?.into();
             *self.left_sibling.borrow_mut() = t;
             io.seek(_pos)?;
@@ -425,7 +425,7 @@ impl MicrosoftCfb_DirEntry {
         if *self.object_type() == MicrosoftCfb_DirEntry_ObjType::RootStorage {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(((((((*self.ofs()) as i32) + ((1) as i32))) as i32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as i32)))?)?;
+            io.seek(usize::try_from(((*self.ofs()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?))?)?;
             *self.mini_stream.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?;
             io.seek(_pos)?;
         }
@@ -438,10 +438,10 @@ impl MicrosoftCfb_DirEntry {
         if self.f_right_sibling.get() {
             return Ok(self.right_sibling.borrow());
         }
-        if (((*self.right_sibling_id()) as i32) != ((-(1)) as i32)) {
+        if ((to_i128(*self.right_sibling_id())) != (to_i128(-(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((((((((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()) as i32) + ((1) as i32))) as i32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as i32))) as i32) + (((((*self.right_sibling_id()) as i32) * ((128) as i32))) as i32)))?)?;
+            io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.right_sibling_id()).saturating_mul(128_i32)))?)?;
             let t = Self::read_into::<_, MicrosoftCfb_DirEntry>(&io, Some(self._root.clone()), None)?.into();
             *self.right_sibling.borrow_mut() = t;
             io.seek(_pos)?;
@@ -635,10 +635,10 @@ impl KStruct for MicrosoftCfb_FatEntries {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 self_rc.entries.borrow_mut().push(_io.read_s4le()?);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

@@ -37,7 +37,7 @@ impl KStruct for QuakePak {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -118,7 +118,7 @@ impl KStruct for QuakePak_IndexEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(usize::try_from(56)?)?, 0), 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(56_usize)?, 0), 0, false), "UTF-8")?;
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -187,11 +187,11 @@ impl KStruct for QuakePak_IndexStruct {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, QuakePak_IndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

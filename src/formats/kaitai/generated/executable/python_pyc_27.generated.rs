@@ -41,7 +41,7 @@ impl KStruct for PythonPyc27 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.version_magic.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.version_magic.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.crlf.borrow_mut() = _io.read_u2le()?;
         *self_rc.modification_timestamp.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -203,7 +203,7 @@ impl KStruct for PythonPyc27_Assembly {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.string_magic.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.string_magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.string_magic() == vec![0x73u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/assembly/seq/0".to_string() }));
         }
@@ -275,7 +275,7 @@ impl KStruct for PythonPyc27_CodeObject {
         *self_rc.arg_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.local_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.stack_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.flags.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.flags.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         let t = Self::read_into::<_, PythonPyc27_Assembly>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.code.borrow_mut() = t;
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -435,7 +435,7 @@ impl KStruct for PythonPyc27_OpArg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.op_code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.op_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if i64::from(&*self_rc.op_code()) >= i64::from(&PythonPyc27_OpArg_OpCodeEnum::StoreName) {
             *self_rc.arg.borrow_mut() = _io.read_u2le()?;
         }
@@ -868,11 +868,11 @@ impl KStruct for PythonPyc27_OpArgs {
         let _io = io;
         *self_rc.items.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, PythonPyc27_OpArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -914,6 +914,7 @@ pub enum PythonPyc27_PyObject_Value {
     PythonPyc27_PyObject_Tuple(OptRc<PythonPyc27_PyObject_Tuple>),
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_CodeObject> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_CodeObject(x) = v {
             return x.clone();
@@ -927,6 +928,7 @@ impl From<OptRc<PythonPyc27_CodeObject>> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::U4(x) = v {
             return x.clone();
@@ -940,6 +942,7 @@ impl From<u32> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_InternedString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_InternedString(x) = v {
             return x.clone();
@@ -953,6 +956,7 @@ impl From<OptRc<PythonPyc27_PyObject_InternedString>> for PythonPyc27_PyObject_V
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyNone> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyNone(x) = v {
             return x.clone();
@@ -966,6 +970,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyNone>> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyFalse(x) = v {
             return x.clone();
@@ -979,6 +984,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyFalse>> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyTrue(x) = v {
             return x.clone();
@@ -992,6 +998,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyTrue>> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyString(x) = v {
             return x.clone();
@@ -1005,6 +1012,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyString>> for PythonPyc27_PyObject_Value {
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_StringRef> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_StringRef(x) = v {
             return x.clone();
@@ -1018,6 +1026,7 @@ impl From<OptRc<PythonPyc27_PyObject_StringRef>> for PythonPyc27_PyObject_Value 
     }
 }
 impl From<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Tuple> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPyc27_PyObject_Value) -> Self {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_Tuple(x) = v {
             return x.clone();
@@ -1045,7 +1054,7 @@ impl KStruct for PythonPyc27_PyObject {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.r#type() {
             PythonPyc27_PyObject_ObjectType::CodeObject => {
                 *self_rc.value_raw.borrow_mut() = _io.read_bytes_full()?.into();

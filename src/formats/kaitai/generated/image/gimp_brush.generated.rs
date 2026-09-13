@@ -76,7 +76,7 @@ impl GimpBrush {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = (((((((*self.header().width()) as u32) * ((*self.header().height()) as u32))) as u32) * ((i64::from(&*self.header().bytes_per_pixel())) as u32))).try_into()?;
+        *self.len_body.borrow_mut() = (((*self.header().width()).saturating_mul(*self.header().height())).saturating_mul(u32::try_from(i64::from(&*self.header().bytes_per_pixel()))?)).try_into()?;
         Ok(self.len_body.borrow())
     }
 }
@@ -209,8 +209,8 @@ impl KStruct for GimpBrush_Header {
         }
         *self_rc.width.borrow_mut() = _io.read_u4be()?;
         *self_rc.height.borrow_mut() = _io.read_u4be()?;
-        *self_rc.bytes_per_pixel.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.bytes_per_pixel.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x49u8, 0x4du8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
         }
@@ -290,6 +290,7 @@ pub enum GimpBrush_Row_Pixels {
     GimpBrush_Row_PixelRgba(OptRc<GimpBrush_Row_PixelRgba>),
 }
 impl From<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelGray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &GimpBrush_Row_Pixels) -> Self {
         if let GimpBrush_Row_Pixels::GimpBrush_Row_PixelGray(x) = v {
             return x.clone();
@@ -303,6 +304,7 @@ impl From<OptRc<GimpBrush_Row_PixelGray>> for GimpBrush_Row_Pixels {
     }
 }
 impl From<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelRgba> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &GimpBrush_Row_Pixels) -> Self {
         if let GimpBrush_Row_Pixels::GimpBrush_Row_PixelRgba(x) = v {
             return x.clone();

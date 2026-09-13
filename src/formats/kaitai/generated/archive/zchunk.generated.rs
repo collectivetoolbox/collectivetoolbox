@@ -44,7 +44,7 @@ impl KStruct for Zchunk {
             *self_rc.chunks.borrow_mut() = Vec::new();
             let l_chunks = self_rc.header_rest().index().chunks_metadata().len();
             for _i in 0..l_chunks {
-                self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata()[_i as usize].len_chunk().value()?)?)?);
+                self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
             }
         }
         Ok(())
@@ -211,7 +211,7 @@ impl Zchunk_ChecksumType {
             return Ok(self.len_checksum.borrow());
         }
         self.f_len_checksum.set(true);
-        *self.len_checksum.borrow_mut() = (if *self.value()? == Zchunk_ChecksumTypes::Sha1 { (20) as i32 } else { (if *self.value()? == Zchunk_ChecksumTypes::Sha256 { (32) as i32 } else { (if *self.value()? == Zchunk_ChecksumTypes::Sha512 { (64) as i32 } else { (if *self.value()? == Zchunk_ChecksumTypes::Sha512128 { (16) as i32 } else { (0) as i32 }) as i32 }) as i32 }) as i32 }).try_into()?;
+        *self.len_checksum.borrow_mut() = (if *self.value()? == Zchunk_ChecksumTypes::Sha1 { 20_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha256 { 32_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha512 { 64_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha512128 { 16_i32 } else { 0_i32 } } } }).try_into()?;
         Ok(self.len_checksum.borrow())
     }
     pub fn value(
@@ -384,14 +384,14 @@ impl KStruct for Zchunk_CompressedInteger {
         let _io = io;
         *self_rc.groups.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let f = |t : &mut Zchunk_CompressedInteger_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, Zchunk_CompressedInteger_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
                 let Some(_tmpa) = _t_groups.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.is_last() { break; }
             }
         }
@@ -422,7 +422,7 @@ impl Zchunk_CompressedInteger {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((((((((((((((((((((((((*self.groups()[0 as usize].value()) as u64) | ((if *self.len()? >= 2 { ((((*self.groups()[1 as usize].value()) as u64) << ((7) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 3 { ((((*self.groups()[2 as usize].value()) as u64) << ((14) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 4 { ((((*self.groups()[3 as usize].value()) as u64) << ((21) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 5 { ((((*self.groups()[4 as usize].value()) as u64) << ((28) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 6 { ((((*self.groups()[5 as usize].value()) as u64) << ((35) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 7 { ((((*self.groups()[6 as usize].value()) as u64) << ((42) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 8 { ((((*self.groups()[7 as usize].value()) as u64) << ((49) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 9 { ((((*self.groups()[8 as usize].value()) as u64) << ((56) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) | ((if *self.len()? >= 10 { ((((*self.groups()[9 as usize].value()) as u64) << ((63) as u64))) as u64 } else { (0) as u64 }) as u64)) as u64)).try_into()?;
+        *self.value.borrow_mut() = (u64::try_from(((((((((((((((((((*self.groups().get(0_usize).ok_or(KError::CastError)?.value()) | (if *self.len()? >= 2 { (*self.groups().get(1_usize).ok_or(KError::CastError)?.value()).wrapping_shl(7_u32) } else { 0_u64 }))) | (if *self.len()? >= 3 { (*self.groups().get(2_usize).ok_or(KError::CastError)?.value()).wrapping_shl(14_u32) } else { 0_u64 }))) | (if *self.len()? >= 4 { (*self.groups().get(3_usize).ok_or(KError::CastError)?.value()).wrapping_shl(21_u32) } else { 0_u64 }))) | (if *self.len()? >= 5 { (*self.groups().get(4_usize).ok_or(KError::CastError)?.value()).wrapping_shl(28_u32) } else { 0_u64 }))) | (if *self.len()? >= 6 { (*self.groups().get(5_usize).ok_or(KError::CastError)?.value()).wrapping_shl(35_u32) } else { 0_u64 }))) | (if *self.len()? >= 7 { (*self.groups().get(6_usize).ok_or(KError::CastError)?.value()).wrapping_shl(42_u32) } else { 0_u64 }))) | (if *self.len()? >= 8 { (*self.groups().get(7_usize).ok_or(KError::CastError)?.value()).wrapping_shl(49_u32) } else { 0_u64 }))) | (if *self.len()? >= 9 { (*self.groups().get(8_usize).ok_or(KError::CastError)?.value()).wrapping_shl(56_u32) } else { 0_u64 }))) | (if *self.len()? >= 10 { (*self.groups().get(9_usize).ok_or(KError::CastError)?.value()).wrapping_shl(63_u32) } else { 0_u64 })))?).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -467,7 +467,7 @@ impl KStruct for Zchunk_CompressedInteger_Group {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.is_last.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        if !(*self_rc.is_last() == if (((*self_rc.idx()) as i32) == ((9) as i32)) { true } else { *self_rc.is_last() }) {
+        if !(*self_rc.is_last() == if *self_rc.idx() == 9 { true } else { *self_rc.is_last() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/compressed_integer/types/group/seq/0".to_string() }));
         }
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
@@ -546,7 +546,7 @@ impl KStruct for Zchunk_HeaderLead {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(5)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(5_usize)?;
         let t = Self::read_into::<_, Zchunk_ChecksumType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.overall_checksum_type.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -569,7 +569,7 @@ impl Zchunk_HeaderLead {
             return Ok(self.is_detached_header.borrow());
         }
         self.f_is_detached_header.set(true);
-        *self.is_detached_header.borrow_mut() = ((((self.magic()[2 as usize]) as i32) == ((72) as i32))).try_into()?;
+        *self.is_detached_header.borrow_mut() = (*(self.magic().get(2_usize).ok_or(KError::CastError)?) == 72).try_into()?;
         Ok(self.is_detached_header.borrow())
     }
 }
@@ -794,7 +794,7 @@ impl Zchunk_Index {
             return Ok(self.num_data_chunks.borrow());
         }
         self.f_num_data_chunks.set(true);
-        *self.num_data_chunks.borrow_mut() = ((((*self.num_chunks().value()?) as i32) - ((1) as i32))).try_into()?;
+        *self.num_data_chunks.borrow_mut() = ((*self.num_chunks().value()?).saturating_sub(1_i32)).try_into()?;
         Ok(self.num_data_chunks.borrow())
     }
 }
@@ -1018,7 +1018,7 @@ impl Zchunk_Preface {
             return Ok(self.has_data_streams.borrow());
         }
         self.f_has_data_streams.set(true);
-        *self.has_data_streams.borrow_mut() = ((((*self.flags().value()?) as u64) & ((1) as u64)) != 0).try_into()?;
+        *self.has_data_streams.borrow_mut() = (((*self.flags().value()?) & (1_i32)) != 0).try_into()?;
         Ok(self.has_data_streams.borrow())
     }
     pub fn has_optional_elements(
@@ -1029,7 +1029,7 @@ impl Zchunk_Preface {
             return Ok(self.has_optional_elements.borrow());
         }
         self.f_has_optional_elements.set(true);
-        *self.has_optional_elements.borrow_mut() = ((((*self.flags().value()?) as u64) & ((2) as u64)) != 0).try_into()?;
+        *self.has_optional_elements.borrow_mut() = (((*self.flags().value()?) & (2_i32)) != 0).try_into()?;
         Ok(self.has_optional_elements.borrow())
     }
 
@@ -1045,7 +1045,7 @@ impl Zchunk_Preface {
             return Ok(self.has_uncompressed_source.borrow());
         }
         self.f_has_uncompressed_source.set(true);
-        *self.has_uncompressed_source.borrow_mut() = ((((*self.flags().value()?) as u64) & ((4) as u64)) != 0).try_into()?;
+        *self.has_uncompressed_source.borrow_mut() = (((*self.flags().value()?) & (4_i32)) != 0).try_into()?;
         Ok(self.has_uncompressed_source.borrow())
     }
 }

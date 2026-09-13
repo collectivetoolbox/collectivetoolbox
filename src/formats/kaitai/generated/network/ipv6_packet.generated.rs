@@ -45,8 +45,8 @@ impl KStruct for Ipv6Packet {
         *self_rc.payload_length.borrow_mut() = _io.read_u2be()?;
         *self_rc.next_header_type.borrow_mut() = _io.read_u1()?;
         *self_rc.hop_limit.borrow_mut() = _io.read_u1()?;
-        *self_rc.src_ipv6_addr.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.dst_ipv6_addr.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.src_ipv6_addr.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.dst_ipv6_addr.borrow_mut() = _io.read_bytes(16_usize)?;
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, None, None, &f)?.into();
         *self_rc.next_header.borrow_mut() = t;

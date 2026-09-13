@@ -55,9 +55,9 @@ impl KStruct for AppleSingleDouble {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.magic.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.version.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.num_entries.borrow_mut() = _io.read_u2be()?;
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = *self_rc.num_entries();
@@ -156,6 +156,7 @@ pub enum AppleSingleDouble_Entry_Body {
     Bytes(Vec<u8>),
 }
 impl From<&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AppleSingleDouble_Entry_Body) -> Self {
         if let AppleSingleDouble_Entry_Body::AppleSingleDouble_FinderInfo(x) = v {
             return x.clone();
@@ -169,6 +170,7 @@ impl From<OptRc<AppleSingleDouble_FinderInfo>> for AppleSingleDouble_Entry_Body 
     }
 }
 impl From<&AppleSingleDouble_Entry_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AppleSingleDouble_Entry_Body) -> Self {
         if let AppleSingleDouble_Entry_Body::Bytes(x) = v {
             return x.clone();
@@ -196,7 +198,7 @@ impl KStruct for AppleSingleDouble_Entry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?;
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
         Ok(())
@@ -363,8 +365,8 @@ impl KStruct for AppleSingleDouble_FinderInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.file_type.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
-        *self_rc.file_creator.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.file_type.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc.file_creator.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.flags.borrow_mut() = _io.read_u2be()?;
         let t = Self::read_into::<_, AppleSingleDouble_Point>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.location.borrow_mut() = t;

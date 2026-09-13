@@ -105,8 +105,8 @@ impl KStruct for MinecraftNbt {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        if  ((*self_rc.root_type()? == MinecraftNbt_Tag::End) && (false))  {
-            *self_rc.root_check.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+        if ({ let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End; false }) {
+            *self_rc.root_check.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         let t = Self::read_into::<_, MinecraftNbt_NamedTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.root.borrow_mut() = t;
@@ -123,8 +123,8 @@ impl MinecraftNbt {
         }
         self.f_root_type.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
-        *self.root_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        _io.seek(0_usize)?;
+        *self.root_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         _io.seek(_pos)?;
         Ok(self.root_type.borrow())
     }
@@ -245,6 +245,7 @@ pub enum MinecraftNbt_NamedTag_Payload {
     MinecraftNbt_TagString(OptRc<MinecraftNbt_TagString>),
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for i8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::S1(x) = v {
             return x.clone();
@@ -258,6 +259,7 @@ impl From<i8> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagByteArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagByteArray(x) = v {
             return x.clone();
@@ -271,6 +273,7 @@ impl From<OptRc<MinecraftNbt_TagByteArray>> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagCompound> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagCompound(x) = v {
             return x.clone();
@@ -284,6 +287,7 @@ impl From<OptRc<MinecraftNbt_TagCompound>> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for f64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::F8(x) = v {
             return x.clone();
@@ -297,6 +301,7 @@ impl From<f64> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for f32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::F4(x) = v {
             return x.clone();
@@ -310,6 +315,7 @@ impl From<f32> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::S4(x) = v {
             return x.clone();
@@ -323,6 +329,7 @@ impl From<i32> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagIntArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagIntArray(x) = v {
             return x.clone();
@@ -336,6 +343,7 @@ impl From<OptRc<MinecraftNbt_TagIntArray>> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagList(x) = v {
             return x.clone();
@@ -349,6 +357,7 @@ impl From<OptRc<MinecraftNbt_TagList>> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for i64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::S8(x) = v {
             return x.clone();
@@ -362,6 +371,7 @@ impl From<i64> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagLongArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagLongArray(x) = v {
             return x.clone();
@@ -375,6 +385,7 @@ impl From<OptRc<MinecraftNbt_TagLongArray>> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for i16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::S2(x) = v {
             return x.clone();
@@ -388,6 +399,7 @@ impl From<i16> for MinecraftNbt_NamedTag_Payload {
     }
 }
 impl From<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_NamedTag_Payload) -> Self {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagString(x) = v {
             return x.clone();
@@ -415,7 +427,7 @@ impl KStruct for MinecraftNbt_NamedTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.is_tag_end()?) {
             let t = Self::read_into::<_, MinecraftNbt_TagString>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.name.borrow_mut() = t;
@@ -601,13 +613,13 @@ impl KStruct for MinecraftNbt_TagCompound {
         let _io = io;
         *self_rc.tags.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, MinecraftNbt_NamedTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 self_rc.tags.borrow_mut().push(t);
                 let _t_tags = self_rc.tags.borrow();
                 let Some(_tmpa) = _t_tags.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.is_tag_end()? { break; }
             }
         }
@@ -623,7 +635,7 @@ impl MinecraftNbt_TagCompound {
             return Ok(self.dump_num_tags.borrow());
         }
         self.f_dump_num_tags.set(true);
-        *self.dump_num_tags.borrow_mut() = ((((self.tags().len()) as i32) - ((if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { (1) as i32 } else { (0) as i32 }) as i32))).try_into()?;
+        *self.dump_num_tags.borrow_mut() = ((i32::try_from(self.tags().len())?).saturating_sub(if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { 1_i32 } else { 0_i32 })).try_into()?;
         Ok(self.dump_num_tags.borrow())
     }
 }
@@ -728,6 +740,7 @@ pub enum MinecraftNbt_TagList_Tags {
     MinecraftNbt_TagString(OptRc<MinecraftNbt_TagString>),
 }
 impl From<&MinecraftNbt_TagList_Tags> for i8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::S1(x) = v {
             return x.clone();
@@ -741,6 +754,7 @@ impl From<i8> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagByteArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagByteArray(x) = v {
             return x.clone();
@@ -754,6 +768,7 @@ impl From<OptRc<MinecraftNbt_TagByteArray>> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagCompound> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagCompound(x) = v {
             return x.clone();
@@ -767,6 +782,7 @@ impl From<OptRc<MinecraftNbt_TagCompound>> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for f64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::F8(x) = v {
             return x.clone();
@@ -780,6 +796,7 @@ impl From<f64> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for f32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::F4(x) = v {
             return x.clone();
@@ -793,6 +810,7 @@ impl From<f32> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::S4(x) = v {
             return x.clone();
@@ -806,6 +824,7 @@ impl From<i32> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagIntArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagIntArray(x) = v {
             return x.clone();
@@ -819,6 +838,7 @@ impl From<OptRc<MinecraftNbt_TagIntArray>> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagList> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagList(x) = v {
             return x.clone();
@@ -832,6 +852,7 @@ impl From<OptRc<MinecraftNbt_TagList>> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for i64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::S8(x) = v {
             return x.clone();
@@ -845,6 +866,7 @@ impl From<i64> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagLongArray> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagLongArray(x) = v {
             return x.clone();
@@ -858,6 +880,7 @@ impl From<OptRc<MinecraftNbt_TagLongArray>> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for i16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::S2(x) = v {
             return x.clone();
@@ -871,6 +894,7 @@ impl From<i16> for MinecraftNbt_TagList_Tags {
     }
 }
 impl From<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagString> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MinecraftNbt_TagList_Tags) -> Self {
         if let MinecraftNbt_TagList_Tags::MinecraftNbt_TagString(x) = v {
             return x.clone();
@@ -898,7 +922,7 @@ impl KStruct for MinecraftNbt_TagList {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tags_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.tags_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = *self_rc.num_tags();
@@ -1076,7 +1100,7 @@ impl KStruct for MinecraftNbt_TagString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2be()?;
-        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_data())?)?, "UTF-8")?;
+        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_data()))?, "UTF-8")?;
         Ok(())
     }
 }

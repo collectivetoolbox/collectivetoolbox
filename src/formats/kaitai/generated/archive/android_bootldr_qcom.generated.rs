@@ -141,7 +141,7 @@ impl KStruct for AndroidBootldrQcom {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -281,7 +281,7 @@ impl AndroidBootldrQcom_ImgBody {
         if self.f_img_header.get() {
             return Ok(self.img_header.borrow());
         }
-        *self.img_header.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.img_headers()[*self.idx() as usize].clone();
+        *self.img_header.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.img_headers().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.clone();
         Ok(self.img_header.borrow())
     }
 }
@@ -320,7 +320,7 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(64)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         Ok(())
     }

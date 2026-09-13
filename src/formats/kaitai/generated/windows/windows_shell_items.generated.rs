@@ -45,14 +45,14 @@ impl KStruct for WindowsShellItems {
         let _io = io;
         *self_rc.items.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, WindowsShellItems_ShellItem>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
                 let _t_items = self_rc.items.borrow();
                 let Some(_tmpa) = _t_items.last() else { break; };
-                _i += 1;
-                if (((*_tmpa.len_data()) as i32) == ((0) as i32)) { break; }
+                _i = _i.saturating_add(1);
+                if *_tmpa.len_data() == 0 { break; }
             }
         }
         Ok(())
@@ -125,7 +125,7 @@ impl WindowsShellItems_FileEntryBody {
             return Ok(self.is_dir.borrow());
         }
         self.f_is_dir.set(true);
-        *self.is_dir.borrow_mut() = ((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code()) as u64) & ((1) as u64)) != 0).try_into()?;
+        *self.is_dir.borrow_mut() = (((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
     pub fn is_file(
@@ -136,7 +136,7 @@ impl WindowsShellItems_FileEntryBody {
             return Ok(self.is_file.borrow());
         }
         self.f_is_file.set(true);
-        *self.is_file.borrow_mut() = ((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code()) as u64) & ((2) as u64)) != 0).try_into()?;
+        *self.is_file.borrow_mut() = (((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code())) & (2_i32)) != 0).try_into()?;
         Ok(self.is_file.borrow())
     }
 }
@@ -195,7 +195,7 @@ impl KStruct for WindowsShellItems_RootFolderBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sort_index.borrow_mut() = _io.read_u1()?;
-        *self_rc.shell_folder_id.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.shell_folder_id.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -246,7 +246,7 @@ impl KStruct for WindowsShellItems_ShellItem {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
-        if (((*self_rc.len_data()) as i32) >= ((2) as i32)) {
+        if *self_rc.len_data() >= 2 {
             let t = Self::read_into::<_, WindowsShellItems_ShellItemData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.data.borrow_mut() = t;
         }
@@ -289,10 +289,8 @@ pub enum WindowsShellItems_ShellItemData_Body1 {
 }
 impl From<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
     fn from(v: &WindowsShellItems_ShellItemData_Body1) -> Self {
-        if let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v {
-            return x.clone();
-        }
-        panic!("expected WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody, got {:?}", v)
+        let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v;
+        x.clone()
     }
 }
 impl From<OptRc<WindowsShellItems_RootFolderBody>> for WindowsShellItems_ShellItemData_Body1 {
@@ -306,6 +304,7 @@ pub enum WindowsShellItems_ShellItemData_Body2 {
     WindowsShellItems_FileEntryBody(OptRc<WindowsShellItems_FileEntryBody>),
 }
 impl From<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_VolumeBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsShellItems_ShellItemData_Body2) -> Self {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_VolumeBody(x) = v {
             return x.clone();
@@ -319,6 +318,7 @@ impl From<OptRc<WindowsShellItems_VolumeBody>> for WindowsShellItems_ShellItemDa
     }
 }
 impl From<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_FileEntryBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsShellItems_ShellItemData_Body2) -> Self {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_FileEntryBody(x) = v {
             return x.clone();
@@ -357,7 +357,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
             }
             _ => {}
         }
-        match (((*self_rc.code()) as u64) & ((112) as u64)) {
+        match ((i32::from(*self_rc.code())) & (112_i32)) {
             32 => {
                 *self_rc.body2_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let body2_raw = self_rc.body2_raw.borrow();

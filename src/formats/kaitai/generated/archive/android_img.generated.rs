@@ -68,7 +68,7 @@ impl KStruct for AndroidImg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x41u8, 0x4eu8, 0x44u8, 0x52u8, 0x4fu8, 0x49u8, 0x44u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -83,18 +83,18 @@ impl KStruct for AndroidImg {
         *self_rc.header_version.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, AndroidImg_OsVersion>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.os_version.borrow_mut() = t;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(16)?)?, 0, false), "ASCII")?;
-        *self_rc.cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(512)?)?, 0, false), "ASCII")?;
-        *self_rc.sha.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
-        *self_rc.extra_cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(1024)?)?, 0, false), "ASCII")?;
-        if (((*self_rc.header_version()) as u32) > ((0) as u32)) {
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "ASCII")?;
+        *self_rc.cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(512_usize)?, 0, false), "ASCII")?;
+        *self_rc.sha.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc.extra_cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(1024_usize)?, 0, false), "ASCII")?;
+        if *self_rc.header_version() > 0 {
             let t = Self::read_into::<_, AndroidImg_SizeOffset>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.recovery_dtbo.borrow_mut() = t;
         }
-        if (((*self_rc.header_version()) as u32) > ((0) as u32)) {
+        if *self_rc.header_version() > 0 {
             *self_rc.boot_header_size.borrow_mut() = _io.read_u4le()?;
         }
-        if (((*self_rc.header_version()) as u32) > ((1) as u32)) {
+        if *self_rc.header_version() > 1 {
             let t = Self::read_into::<_, AndroidImg_LoadLong>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dtb.borrow_mut() = t;
         }
@@ -114,7 +114,7 @@ impl AndroidImg {
             return Ok(self.base.borrow());
         }
         self.f_base.set(true);
-        *self.base.borrow_mut() = ((((*self.kernel().addr()) as u32) - ((32768) as u32))).try_into()?;
+        *self.base.borrow_mut() = ((*self.kernel().addr()).saturating_sub(32768_u32)).try_into()?;
         Ok(self.base.borrow())
     }
     pub fn dtb_img(
@@ -125,9 +125,9 @@ impl AndroidImg {
             return Ok(self.dtb_img.borrow());
         }
         self.f_dtb_img.set(true);
-        if  (((((*self.header_version()) as u32) > ((1) as u32))) && ((((*self.dtb().size()) as u32) > ((0) as u32))))  {
+        if  ((*self.header_version() > 1) && (*self.dtb().size() > 0))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((((((((((((((((((((*self.page_size()) as u32) + ((*self.kernel().size()) as u32))) as u32) + ((*self.ramdisk().size()) as u32))) as u32) + ((*self.second().size()) as u32))) as u32) + ((*self.recovery_dtbo().size()) as u32))) as u32) + ((*self.page_size()) as u32))) as u32) - ((1) as u32))) as u32) / ((*self.page_size()) as u32))) as u32) * ((*self.page_size()) as u32)))?)?;
+            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(u32::try_from(*self.ramdisk().size())?)).saturating_add(u32::try_from(*self.second().size())?)).saturating_add(u32::try_from(*self.recovery_dtbo().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.dtb().size())?)?;
             _io.seek(_pos)?;
         }
@@ -145,8 +145,8 @@ impl AndroidImg {
             return Ok(self.dtb_offset.borrow());
         }
         self.f_dtb_offset.set(true);
-        if (((*self.header_version()) as u32) > ((1) as u32)) {
-            *self.dtb_offset.borrow_mut() = (if (((*self.dtb().addr()) as u64) > ((0) as u64)) { ((((*self.dtb().addr()) as u64) - ((*self.base()?) as u64))) as u64 } else { (0) as u64 }).try_into()?;
+        if *self.header_version() > 1 {
+            *self.dtb_offset.borrow_mut() = (if *self.dtb().addr() > 0 { (*self.dtb().addr()).saturating_sub(u64::try_from(*self.base()?)?) } else { 0_u64 }).try_into()?;
         }
         Ok(self.dtb_offset.borrow())
     }
@@ -176,7 +176,7 @@ impl AndroidImg {
             return Ok(self.kernel_offset.borrow());
         }
         self.f_kernel_offset.set(true);
-        *self.kernel_offset.borrow_mut() = ((((*self.kernel().addr()) as u32) - ((*self.base()?) as u32))).try_into()?;
+        *self.kernel_offset.borrow_mut() = ((*self.kernel().addr()).saturating_sub(u32::try_from(*self.base()?)?)).try_into()?;
         Ok(self.kernel_offset.borrow())
     }
     pub fn ramdisk_img(
@@ -187,9 +187,9 @@ impl AndroidImg {
             return Ok(self.ramdisk_img.borrow());
         }
         self.f_ramdisk_img.set(true);
-        if (((*self.ramdisk().size()) as u32) > ((0) as u32)) {
+        if *self.ramdisk().size() > 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((((((((((((((*self.page_size()) as u32) + ((*self.kernel().size()) as u32))) as u32) + ((*self.page_size()) as u32))) as u32) - ((1) as u32))) as u32) / ((*self.page_size()) as u32))) as u32) * ((*self.page_size()) as u32)))?)?;
+            _io.seek(usize::try_from((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.ramdisk().size())?)?;
             _io.seek(_pos)?;
         }
@@ -207,7 +207,7 @@ impl AndroidImg {
             return Ok(self.ramdisk_offset.borrow());
         }
         self.f_ramdisk_offset.set(true);
-        *self.ramdisk_offset.borrow_mut() = (if (((*self.ramdisk().addr()) as u32) > ((0) as u32)) { ((((*self.ramdisk().addr()) as u32) - ((*self.base()?) as u32))) as u32 } else { (0) as u32 }).try_into()?;
+        *self.ramdisk_offset.borrow_mut() = (if *self.ramdisk().addr() > 0 { (*self.ramdisk().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.ramdisk_offset.borrow())
     }
     pub fn recovery_dtbo_img(
@@ -218,7 +218,7 @@ impl AndroidImg {
             return Ok(self.recovery_dtbo_img.borrow());
         }
         self.f_recovery_dtbo_img.set(true);
-        if  (((((*self.header_version()) as u32) > ((0) as u32))) && ((((*self.recovery_dtbo().size()) as u32) > ((0) as u32))))  {
+        if  ((*self.header_version() > 0) && (*self.recovery_dtbo().size() > 0))  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.recovery_dtbo().offset())?)?;
             *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.recovery_dtbo().size())?)?;
@@ -234,9 +234,9 @@ impl AndroidImg {
             return Ok(self.second_img.borrow());
         }
         self.f_second_img.set(true);
-        if (((*self.second().size()) as u32) > ((0) as u32)) {
+        if *self.second().size() > 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((((((((((((((*self.page_size()) as u32) + ((*self.kernel().size()) as u32))) as u32) + ((*self.ramdisk().size()) as u32))) as u32) + ((*self.page_size()) as u32))) as u32) - ((1) as u32))) as u32) / ((*self.page_size()) as u32))) as u32) * ((*self.page_size()) as u32)))?)?;
+            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(u32::try_from(*self.ramdisk().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.second().size())?)?;
             _io.seek(_pos)?;
         }
@@ -254,7 +254,7 @@ impl AndroidImg {
             return Ok(self.second_offset.borrow());
         }
         self.f_second_offset.set(true);
-        *self.second_offset.borrow_mut() = (if (((*self.second().addr()) as u32) > ((0) as u32)) { ((((*self.second().addr()) as u32) - ((*self.base()?) as u32))) as u32 } else { (0) as u32 }).try_into()?;
+        *self.second_offset.borrow_mut() = (if *self.second().addr() > 0 { (*self.second().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.second_offset.borrow())
     }
 
@@ -269,7 +269,7 @@ impl AndroidImg {
             return Ok(self.tags_offset.borrow());
         }
         self.f_tags_offset.set(true);
-        *self.tags_offset.borrow_mut() = ((((*self.tags_load()) as u32) - ((*self.base()?) as u32))).try_into()?;
+        *self.tags_offset.borrow_mut() = ((*self.tags_load()).saturating_sub(u32::try_from(*self.base()?)?)).try_into()?;
         Ok(self.tags_offset.borrow())
     }
 }
@@ -494,7 +494,7 @@ impl AndroidImg_OsVersion {
             return Ok(self.major.borrow());
         }
         self.f_major.set(true);
-        *self.major.borrow_mut() = (((((((*self.version()) as u32) >> ((25) as u32))) as u32) & ((127) as u32))).try_into()?;
+        *self.major.borrow_mut() = ((((*self.version()).wrapping_shr(25_u32)) & (127_u32))).try_into()?;
         Ok(self.major.borrow())
     }
     pub fn minor(
@@ -505,7 +505,7 @@ impl AndroidImg_OsVersion {
             return Ok(self.minor.borrow());
         }
         self.f_minor.set(true);
-        *self.minor.borrow_mut() = (((((((*self.version()) as u32) >> ((18) as u32))) as u32) & ((127) as u32))).try_into()?;
+        *self.minor.borrow_mut() = ((((*self.version()).wrapping_shr(18_u32)) & (127_u32))).try_into()?;
         Ok(self.minor.borrow())
     }
     pub fn month(
@@ -516,7 +516,7 @@ impl AndroidImg_OsVersion {
             return Ok(self.month.borrow());
         }
         self.f_month.set(true);
-        *self.month.borrow_mut() = ((((*self.version()) as u32) & ((15) as u32))).try_into()?;
+        *self.month.borrow_mut() = (((*self.version()) & (15_u32))).try_into()?;
         Ok(self.month.borrow())
     }
     pub fn patch(
@@ -527,7 +527,7 @@ impl AndroidImg_OsVersion {
             return Ok(self.patch.borrow());
         }
         self.f_patch.set(true);
-        *self.patch.borrow_mut() = (((((((*self.version()) as u32) >> ((11) as u32))) as u32) & ((127) as u32))).try_into()?;
+        *self.patch.borrow_mut() = ((((*self.version()).wrapping_shr(11_u32)) & (127_u32))).try_into()?;
         Ok(self.patch.borrow())
     }
     pub fn year(
@@ -538,7 +538,7 @@ impl AndroidImg_OsVersion {
             return Ok(self.year.borrow());
         }
         self.f_year.set(true);
-        *self.year.borrow_mut() = ((((((((((*self.version()) as u32) >> ((4) as u32))) as u32) & ((127) as u32))) as u32) + ((2000) as u32))).try_into()?;
+        *self.year.borrow_mut() = (((((*self.version()).wrapping_shr(4_u32)) & (127_u32))).saturating_add(2000_u32)).try_into()?;
         Ok(self.year.borrow())
     }
 }

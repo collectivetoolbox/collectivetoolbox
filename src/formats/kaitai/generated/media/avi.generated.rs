@@ -35,12 +35,12 @@ impl KStruct for Avi {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.magic2.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic2() == vec![0x41u8, 0x56u8, 0x49u8, 0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -263,7 +263,7 @@ impl KStruct for Avi_AvihBody {
         *self_rc.suggested_buffer_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.width.borrow_mut() = _io.read_u4le()?;
         *self_rc.height.borrow_mut() = _io.read_u4le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -349,6 +349,7 @@ pub enum Avi_Block_Data {
     Bytes(Vec<u8>),
 }
 impl From<&Avi_Block_Data> for OptRc<Avi_AvihBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Avi_Block_Data) -> Self {
         if let Avi_Block_Data::Avi_AvihBody(x) = v {
             return x.clone();
@@ -362,6 +363,7 @@ impl From<OptRc<Avi_AvihBody>> for Avi_Block_Data {
     }
 }
 impl From<&Avi_Block_Data> for OptRc<Avi_ListBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Avi_Block_Data) -> Self {
         if let Avi_Block_Data::Avi_ListBody(x) = v {
             return x.clone();
@@ -375,6 +377,7 @@ impl From<OptRc<Avi_ListBody>> for Avi_Block_Data {
     }
 }
 impl From<&Avi_Block_Data> for OptRc<Avi_StrhBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Avi_Block_Data) -> Self {
         if let Avi_Block_Data::Avi_StrhBody(x) = v {
             return x.clone();
@@ -388,6 +391,7 @@ impl From<OptRc<Avi_StrhBody>> for Avi_Block_Data {
     }
 }
 impl From<&Avi_Block_Data> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Avi_Block_Data) -> Self {
         if let Avi_Block_Data::Bytes(x) = v {
             return x.clone();
@@ -415,7 +419,7 @@ impl KStruct for Avi_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.four_cc.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.four_cc.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
         match *self_rc.four_cc() {
             Avi_ChunkType::Avih => {
@@ -499,11 +503,11 @@ impl KStruct for Avi_Blocks {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Avi_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -546,7 +550,7 @@ impl KStruct for Avi_ListBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.list_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.list_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         let t = Self::read_into::<_, Avi_Blocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.data.borrow_mut() = t;
         Ok(())
@@ -709,8 +713,8 @@ impl KStruct for Avi_StrhBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.fcc_type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
-        *self_rc.fcc_handler.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.fcc_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.fcc_handler.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.priority.borrow_mut() = _io.read_u2le()?;
         *self_rc.language.borrow_mut() = _io.read_u2le()?;

@@ -36,6 +36,7 @@ pub enum SshPublicKey_Body {
     SshPublicKey_KeyRsa(OptRc<SshPublicKey_KeyRsa>),
 }
 impl From<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEcdsa> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SshPublicKey_Body) -> Self {
         if let SshPublicKey_Body::SshPublicKey_KeyEcdsa(x) = v {
             return x.clone();
@@ -49,6 +50,7 @@ impl From<OptRc<SshPublicKey_KeyEcdsa>> for SshPublicKey_Body {
     }
 }
 impl From<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyDsa> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SshPublicKey_Body) -> Self {
         if let SshPublicKey_Body::SshPublicKey_KeyDsa(x) = v {
             return x.clone();
@@ -62,6 +64,7 @@ impl From<OptRc<SshPublicKey_KeyDsa>> for SshPublicKey_Body {
     }
 }
 impl From<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEd25519> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SshPublicKey_Body) -> Self {
         if let SshPublicKey_Body::SshPublicKey_KeyEd25519(x) = v {
             return x.clone();
@@ -75,6 +78,7 @@ impl From<OptRc<SshPublicKey_KeyEd25519>> for SshPublicKey_Body {
     }
 }
 impl From<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyRsa> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SshPublicKey_Body) -> Self {
         if let SshPublicKey_Body::SshPublicKey_KeyRsa(x) = v {
             return x.clone();
@@ -219,7 +223,7 @@ impl SshPublicKey_Bignum2 {
             return Ok(self.length_in_bits.borrow());
         }
         self.f_length_in_bits.set(true);
-        *self.length_in_bits.borrow_mut() = (((((((*self.len()) as u32) - ((1) as u32))) as u32) * ((8) as u32))).try_into()?;
+        *self.length_in_bits.borrow_mut() = (((u32::try_from(*self.len())?).saturating_sub(1_u32)).saturating_mul(8_u32)).try_into()?;
         Ok(self.length_in_bits.borrow())
     }
 }

@@ -190,7 +190,7 @@ impl KStruct for StandardMidiFile_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x68u8, 0x64u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
@@ -259,7 +259,7 @@ impl KStruct for StandardMidiFile_MetaEventBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.meta_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.meta_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
@@ -496,7 +496,7 @@ impl StandardMidiFile_PitchBendEvent {
             return Ok(self.adj_bend_value.borrow());
         }
         self.f_adj_bend_value.set(true);
-        *self.adj_bend_value.borrow_mut() = ((((*self.bend_value()?) as i32) - ((16384) as i32))).try_into()?;
+        *self.adj_bend_value.borrow_mut() = ((*self.bend_value()?).saturating_sub(16384_i32)).try_into()?;
         Ok(self.adj_bend_value.borrow())
     }
     pub fn bend_value(
@@ -507,7 +507,7 @@ impl StandardMidiFile_PitchBendEvent {
             return Ok(self.bend_value.borrow());
         }
         self.f_bend_value.set(true);
-        *self.bend_value.borrow_mut() = ((((((((((*self.b2()) as i32) << ((7) as i32))) as i32) + ((*self.b1()) as i32))) as i32) - ((16384) as i32))).try_into()?;
+        *self.bend_value.borrow_mut() = ((((*self.b2()).wrapping_shl(7_u32)).saturating_add(i32::from(*self.b1()))).saturating_sub(16384_i32)).try_into()?;
         Ok(self.bend_value.borrow())
     }
 }
@@ -687,7 +687,7 @@ impl KStruct for StandardMidiFile_Track {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x72u8, 0x6bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/track/seq/0".to_string() }));
         }
@@ -748,6 +748,7 @@ pub enum StandardMidiFile_TrackEvent_EventBody {
     StandardMidiFile_PitchBendEvent(OptRc<StandardMidiFile_PitchBendEvent>),
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOffEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_NoteOffEvent(x) = v {
             return x.clone();
@@ -761,6 +762,7 @@ impl From<OptRc<StandardMidiFile_NoteOffEvent>> for StandardMidiFile_TrackEvent_
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOnEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_NoteOnEvent(x) = v {
             return x.clone();
@@ -774,6 +776,7 @@ impl From<OptRc<StandardMidiFile_NoteOnEvent>> for StandardMidiFile_TrackEvent_E
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_PolyphonicPressureEvent(x) = v {
             return x.clone();
@@ -787,6 +790,7 @@ impl From<OptRc<StandardMidiFile_PolyphonicPressureEvent>> for StandardMidiFile_
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ControllerEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ControllerEvent(x) = v {
             return x.clone();
@@ -800,6 +804,7 @@ impl From<OptRc<StandardMidiFile_ControllerEvent>> for StandardMidiFile_TrackEve
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ProgramChangeEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ProgramChangeEvent(x) = v {
             return x.clone();
@@ -813,6 +818,7 @@ impl From<OptRc<StandardMidiFile_ProgramChangeEvent>> for StandardMidiFile_Track
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ChannelPressureEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ChannelPressureEvent(x) = v {
             return x.clone();
@@ -826,6 +832,7 @@ impl From<OptRc<StandardMidiFile_ChannelPressureEvent>> for StandardMidiFile_Tra
     }
 }
 impl From<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PitchBendEvent> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &StandardMidiFile_TrackEvent_EventBody) -> Self {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_PitchBendEvent(x) = v {
             return x.clone();
@@ -856,11 +863,11 @@ impl KStruct for StandardMidiFile_TrackEvent {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.v_time.borrow_mut() = t;
         *self_rc.event_header.borrow_mut() = _io.read_u1()?;
-        if (((*self_rc.event_header()) as i32) == ((255) as i32)) {
+        if *self_rc.event_header() == 255 {
             let t = Self::read_into::<_, StandardMidiFile_MetaEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.meta_event_body.borrow_mut() = t;
         }
-        if (((*self_rc.event_header()) as i32) == ((240) as i32)) {
+        if *self_rc.event_header() == 240 {
             let t = Self::read_into::<_, StandardMidiFile_SysexEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.sysex_body.borrow_mut() = t;
         }
@@ -929,7 +936,7 @@ impl StandardMidiFile_TrackEvent {
         }
         self.f_channel.set(true);
         if *self.event_type()? != 240 {
-            *self.channel.borrow_mut() = ((((*self.event_header()) as u64) & ((15) as u64))).try_into()?;
+            *self.channel.borrow_mut() = (((i32::from(*self.event_header())) & (15_i32))).try_into()?;
         }
         Ok(self.channel.borrow())
     }
@@ -941,7 +948,7 @@ impl StandardMidiFile_TrackEvent {
             return Ok(self.event_type.borrow());
         }
         self.f_event_type.set(true);
-        *self.event_type.borrow_mut() = ((((*self.event_header()) as u64) & ((240) as u64))).try_into()?;
+        *self.event_type.borrow_mut() = (((i32::from(*self.event_header())) & (240_i32))).try_into()?;
         Ok(self.event_type.borrow())
     }
 }
@@ -1006,11 +1013,11 @@ impl KStruct for StandardMidiFile_TrackEvents {
         let _io = io;
         *self_rc.event.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, StandardMidiFile_TrackEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.event.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

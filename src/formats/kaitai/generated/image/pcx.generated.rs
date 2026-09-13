@@ -65,9 +65,9 @@ impl Pcx {
         if self.f_palette_256.get() {
             return Ok(self.palette_256.borrow());
         }
-        if  ((*self.hdr().version() == Pcx_Versions::V30) && ((((*self.hdr().bits_per_pixel()) as i32) == ((8) as i32))) && ((((*self.hdr().num_planes()) as i32) == ((1) as i32))))  {
+        if  ((*self.hdr().version() == Pcx_Versions::V30) && (*self.hdr().bits_per_pixel() == 8) && (*self.hdr().num_planes() == 1))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((_io.size()) as i32) - ((769) as i32)))?)?;
+            _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(769_i32))?)?;
             let t = Self::read_into::<_, Pcx_TPalette256>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.palette_256.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -199,12 +199,12 @@ impl KStruct for Pcx_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
-        *self_rc.version.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.encoding.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_u1()?;
         *self_rc.img_x_min.borrow_mut() = _io.read_u2le()?;
         *self_rc.img_y_min.borrow_mut() = _io.read_u2le()?;
@@ -212,8 +212,8 @@ impl KStruct for Pcx_Header {
         *self_rc.img_y_max.borrow_mut() = _io.read_u2le()?;
         *self_rc.hdpi.borrow_mut() = _io.read_u2le()?;
         *self_rc.vdpi.borrow_mut() = _io.read_u2le()?;
-        *self_rc.palette_16.borrow_mut() = _io.read_bytes(usize::try_from(48)?)?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.palette_16.borrow_mut() = _io.read_bytes(48_usize)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/11".to_string() }));
         }
@@ -404,7 +404,7 @@ impl KStruct for Pcx_TPalette256 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xcu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/t_palette_256/seq/0".to_string() }));
         }

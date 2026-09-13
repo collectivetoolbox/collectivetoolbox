@@ -824,6 +824,121 @@ pub fn modulo(a: i64, b: i64) -> i64 {
     a.rem_euclid(b)
 }
 
+/// Extracts a substring slice safely without panicking on out-of-bounds or invalid UTF-8 boundaries.
+pub fn substring<I1: TryInto<usize>, I2: TryInto<usize>>(s: &str, from: I1, to: I2) -> &str {
+    let Ok(from) = from.try_into() else { return ""; };
+    let Ok(to) = to.try_into() else { return ""; };
+    // Reason for fallback: out of bounds or invalid UTF-8 boundary substring defaults to empty string
+    s.get(from..to).unwrap_or("")
+}
+
+/// Converts an integer of any width safely to i128 for comparisons.
+pub fn to_i128<T: TryInto<i128>>(val: T) -> i128 {
+    // Reason for fallback: out of range integer for comparison defaults to 0
+    val.try_into().unwrap_or(0)
+}
+
+/// Converts an integer of any width safely to i64.
+pub fn to_i64<T: TryInto<i64>>(val: T) -> i64 {
+    // Reason for fallback: out of range integer defaults to 0
+    val.try_into().unwrap_or(0)
+}
+
+/// Safely converts a shift amount to u32 for bitwise shift operations.
+pub fn to_shift_amt<T: TryInto<u32>>(val: T) -> u32 {
+    // Reason for fallback: out of range bitwise shift amount defaults to 0
+    val.try_into().unwrap_or(0)
+}
+
+/// Converts a floating-point number to an integer for Kaitai expressions.
+pub fn float_to_int<F: Into<f64>>(f: F) -> i64 {
+    #[allow(clippy::as_conversions, clippy::cast_possible_truncation, reason = "Kaitai float to integer conversion")]
+    let res = f.into() as i64;
+    res
+}
+
+/// Trait for converting primitive numeric types to f64 for Kaitai expressions.
+pub trait ToF64 {
+    /// Converts `self` to `f64`.
+    fn to_f64(self) -> f64;
+}
+
+/// Trait for converting primitive numeric types to f32 for Kaitai expressions.
+pub trait ToF32 {
+    /// Converts `self` to `f32`.
+    fn to_f32(self) -> f32;
+}
+
+impl ToF64 for f64 {
+    fn to_f64(self) -> f64 {
+        self
+    }
+}
+
+impl ToF64 for f32 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+
+impl ToF32 for f32 {
+    fn to_f32(self) -> f32 {
+        self
+    }
+}
+
+impl ToF32 for f64 {
+    fn to_f32(self) -> f32 {
+        #[allow(
+            clippy::as_conversions,
+            clippy::cast_possible_truncation,
+            reason = "Kaitai f64 to f32 narrowing conversion"
+        )]
+        {
+            self as f32
+        }
+    }
+}
+
+macro_rules! impl_to_float {
+    ($($t:ty),*) => {
+        $(
+            impl ToF64 for $t {
+                fn to_f64(self) -> f64 {
+                    #[allow(
+                        clippy::as_conversions,
+                        clippy::cast_precision_loss,
+                        reason = "Kaitai numeric to f64 conversion"
+                    )]
+                    { self as f64 }
+                }
+            }
+            impl ToF32 for $t {
+                fn to_f32(self) -> f32 {
+                    #[allow(
+                        clippy::as_conversions,
+                        clippy::cast_precision_loss,
+                        reason = "Kaitai numeric to f32 conversion"
+                    )]
+                    { self as f32 }
+                }
+            }
+        )*
+    };
+}
+
+impl_to_float!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+
+/// Converts a numeric value safely to f64 for floating-point calculations.
+pub fn to_f64<T: ToF64>(val: T) -> f64 {
+    val.to_f64()
+}
+
+/// Converts a numeric value safely to f32 for floating-point calculations.
+pub fn to_f32<T: ToF32>(val: T) -> f32 {
+    val.to_f32()
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

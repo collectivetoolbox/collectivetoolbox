@@ -45,11 +45,11 @@ impl KStruct for DimeMessage {
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DimeMessage_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -140,7 +140,7 @@ impl KStruct for DimeMessage_OptionElement {
         let _io = io;
         *self_rc.element_format.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_element.borrow_mut() = _io.read_u2be()?;
-        *self_rc.element_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_element())?)?;
+        *self_rc.element_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_element()))?;
         Ok(())
     }
 }
@@ -196,11 +196,11 @@ impl KStruct for DimeMessage_OptionField {
         let _io = io;
         *self_rc.option_elements.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DimeMessage_OptionElement>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.option_elements.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -246,7 +246,7 @@ impl KStruct for DimeMessage_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(_io.pos() as i64) as i64, 4 as i64))?)?;
+        *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -322,10 +322,10 @@ impl KStruct for DimeMessage_Record {
         *self_rc.options.borrow_mut() = t;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options_padding.borrow_mut() = t;
-        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_id())?)?, "UTF-8")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_id()))?, "UTF-8")?;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.id_padding.borrow_mut() = t;
-        *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_type())?)?, "UTF-8")?;
+        *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_type()))?, "UTF-8")?;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.type_padding.borrow_mut() = t;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;

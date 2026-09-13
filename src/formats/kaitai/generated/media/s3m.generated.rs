@@ -71,20 +71,20 @@ impl KStruct for S3m {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.song_name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(28)?)?, 0, false);
-        *self_rc.magic1.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.song_name.borrow_mut() = bytes_terminate(&_io.read_bytes(28_usize)?, 0, false);
+        *self_rc.magic1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic1() == vec![0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
         *self_rc.file_type.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.num_orders.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_instruments.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_patterns.borrow_mut() = _io.read_u2le()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
         *self_rc.samples_format.borrow_mut() = _io.read_u2le()?;
-        *self_rc.magic2.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic2() == vec![0x53u8, 0x43u8, 0x52u8, 0x4du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/10".to_string() }));
         }
@@ -96,7 +96,7 @@ impl KStruct for S3m {
         io.align_to_byte()?;
         *self_rc.ultra_click_removal.borrow_mut() = _io.read_u1()?;
         *self_rc.has_custom_pan.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.ofs_special.borrow_mut() = _io.read_u2le()?;
         *self_rc.channels.borrow_mut() = Vec::new();
         let l_channels = 32;
@@ -104,7 +104,7 @@ impl KStruct for S3m {
             let t = Self::read_into::<_, S3m_Channel>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.channels.borrow_mut().push(t);
         }
-        *self_rc.orders.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.num_orders())?)?;
+        *self_rc.orders.borrow_mut() = _io.read_bytes(usize::from(*self_rc.num_orders()))?;
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = *self_rc.num_instruments();
         for _i in 0..l_instruments {
@@ -117,7 +117,7 @@ impl KStruct for S3m {
             let t = Self::read_into::<_, S3m_PatternPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patterns.borrow_mut().push(t);
         }
-        if (((*self_rc.has_custom_pan()) as i32) == ((252) as i32)) {
+        if *self_rc.has_custom_pan() == 252 {
             *self_rc.channel_pans.borrow_mut() = Vec::new();
             let l_channel_pans = 32;
             for _i in 0..l_channel_pans {
@@ -424,6 +424,7 @@ pub enum S3m_Instrument_Body {
     S3m_Instrument_Adlib(OptRc<S3m_Instrument_Adlib>),
 }
 impl From<&S3m_Instrument_Body> for OptRc<S3m_Instrument_Sampled> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &S3m_Instrument_Body) -> Self {
         if let S3m_Instrument_Body::S3m_Instrument_Sampled(x) = v {
             return x.clone();
@@ -437,6 +438,7 @@ impl From<OptRc<S3m_Instrument_Sampled>> for S3m_Instrument_Body {
     }
 }
 impl From<&S3m_Instrument_Body> for OptRc<S3m_Instrument_Adlib> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &S3m_Instrument_Body) -> Self {
         if let S3m_Instrument_Body::S3m_Instrument_Adlib(x) = v {
             return x.clone();
@@ -464,8 +466,8 @@ impl KStruct for S3m_Instrument {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.filename.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(12)?)?, 0, false);
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.filename.borrow_mut() = bytes_terminate(&_io.read_bytes(12_usize)?, 0, false);
         match *self_rc.r#type() {
             S3m_Instrument_InstTypes::Sample => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -483,9 +485,9 @@ impl KStruct for S3m_Instrument {
             }
         }
         *self_rc.tuning_hz.borrow_mut() = _io.read_u4le()?;
-        *self_rc.reserved2.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
-        *self_rc.sample_name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(28)?)?, 0, false);
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved2.borrow_mut() = _io.read_bytes(12_usize)?;
+        *self_rc.sample_name.borrow_mut() = bytes_terminate(&_io.read_bytes(28_usize)?, 0, false);
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0x43u8, 0x52u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/instrument/seq/6".to_string() }));
         }
@@ -611,11 +613,11 @@ impl KStruct for S3m_Instrument_Adlib {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/instrument/types/adlib/seq/0".to_string() }));
         }
-        *self_rc.unnamed1.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.unnamed1.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -691,7 +693,7 @@ impl S3m_Instrument_Sampled {
         }
         self.f_sample.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.paraptr_sample().value()?) as i32) * ((16) as i32)))?)?;
+        _io.seek(usize::try_from((*self.paraptr_sample().value()?).saturating_mul(16_i32))?)?;
         *self.sample.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_sample())?)?;
         _io.seek(_pos)?;
         Ok(self.sample.borrow())
@@ -789,7 +791,7 @@ impl S3m_InstrumentPtr {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.paraptr()) as i32) * ((16) as i32)))?)?;
+        _io.seek(usize::try_from((i32::from(*self.paraptr())).saturating_mul(16_i32))?)?;
         let t = Self::read_into::<_, S3m_Instrument>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -987,11 +989,11 @@ impl KStruct for S3m_PatternCells {
         let _io = io;
         *self_rc.cells.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, S3m_PatternCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.cells.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1048,7 +1050,7 @@ impl S3m_PatternPtr {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.paraptr()) as i32) * ((16) as i32)))?)?;
+        _io.seek(usize::try_from((i32::from(*self.paraptr())).saturating_mul(16_i32))?)?;
         let t = Self::read_into::<_, S3m_Pattern>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -1110,7 +1112,7 @@ impl S3m_SwappedU3 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.lo()) as u64) | (((((*self.hi()) as i32) << ((16) as i32))) as u64))).try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.lo())) | ((*self.hi()).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

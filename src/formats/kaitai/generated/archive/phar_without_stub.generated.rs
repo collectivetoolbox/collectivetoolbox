@@ -82,7 +82,7 @@ impl KStruct for PharWithoutStub {
         *self_rc.files.borrow_mut() = Vec::new();
         let l_files = *self_rc.manifest().num_files();
         for _i in 0..l_files {
-            self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries()[_i as usize].len_data_compressed())?)?);
+            self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_data_compressed())?)?);
         }
         if *self_rc.manifest().flags().has_signature()? {
             let t = Self::read_into::<_, PharWithoutStub_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -341,7 +341,7 @@ impl KStruct for PharWithoutStub_FileEntry {
         let t = Self::read_into::<_, PharWithoutStub_FileFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
-        if (((*self_rc.len_metadata()) as u32) != ((0) as u32)) {
+        if *self_rc.len_metadata() != 0 {
             let t = Self::read_into::<_, PharWithoutStub_SerializedValue>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
         }
@@ -491,7 +491,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.bzip2_compressed.borrow());
         }
         self.f_bzip2_compressed.set(true);
-        *self.bzip2_compressed.borrow_mut() = (((((((*self.value()) as u32) & ((8192) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.bzip2_compressed.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
         Ok(self.bzip2_compressed.borrow())
     }
 
@@ -506,7 +506,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.permissions.borrow());
         }
         self.f_permissions.set(true);
-        *self.permissions.borrow_mut() = ((((*self.value()) as u32) & ((511) as u32))).try_into()?;
+        *self.permissions.borrow_mut() = (((*self.value()) & (511_u32))).try_into()?;
         Ok(self.permissions.borrow())
     }
 
@@ -521,7 +521,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.zlib_compressed.borrow());
         }
         self.f_zlib_compressed.set(true);
-        *self.zlib_compressed.borrow_mut() = (((((((*self.value()) as u32) & ((4096) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.zlib_compressed.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
         Ok(self.zlib_compressed.borrow())
     }
 }
@@ -587,7 +587,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_bzip2_compressed.borrow());
         }
         self.f_any_bzip2_compressed.set(true);
-        *self.any_bzip2_compressed.borrow_mut() = (((((((*self.value()) as u32) & ((8192) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.any_bzip2_compressed.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
         Ok(self.any_bzip2_compressed.borrow())
     }
 
@@ -603,7 +603,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_zlib_compressed.borrow());
         }
         self.f_any_zlib_compressed.set(true);
-        *self.any_zlib_compressed.borrow_mut() = (((((((*self.value()) as u32) & ((4096) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.any_zlib_compressed.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
         Ok(self.any_zlib_compressed.borrow())
     }
 
@@ -618,7 +618,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.has_signature.borrow());
         }
         self.f_has_signature.set(true);
-        *self.has_signature.borrow_mut() = (((((((*self.value()) as u32) & ((65536) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.has_signature.borrow_mut() = (((*self.value()) & (65536_u32)) != 0).try_into()?;
         Ok(self.has_signature.borrow())
     }
 }
@@ -677,7 +677,7 @@ impl KStruct for PharWithoutStub_Manifest {
         *self_rc.len_alias.borrow_mut() = _io.read_u4le()?;
         *self_rc.alias.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_alias())?)?;
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
-        if (((*self_rc.len_metadata()) as u32) != ((0) as u32)) {
+        if *self_rc.len_metadata() != 0 {
             let t = Self::read_into::<_, PharWithoutStub_SerializedValue>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
         }
@@ -827,7 +827,7 @@ impl PharWithoutStub_SerializedValue {
             return Ok(self.parsed.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         let t = Self::read_into::<_, PhpSerializedValue>(&*_io, None, None)?.into();
         *self.parsed.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -874,9 +874,9 @@ impl KStruct for PharWithoutStub_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((((((_io.size()) as i32) - ((_io.pos()) as i32))) as i32) - ((8) as i32)))?)?;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((i32::try_from(_io.size())?).saturating_sub(i32::try_from(_io.pos())?)).saturating_sub(8_i32))?)?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x42u8, 0x4du8, 0x42u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/signature/seq/2".to_string() }));
         }

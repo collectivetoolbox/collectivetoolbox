@@ -35,11 +35,11 @@ impl KStruct for RtcpPayload {
         let _io = io;
         *self_rc.rtcp_packets.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, RtcpPayload_RtcpPacket>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.rtcp_packets.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -321,7 +321,7 @@ impl RtcpPayload_PacketStatusChunk {
             return Ok(self.s.borrow());
         }
         self.f_s.set(true);
-        *self.s.borrow_mut() = (if (if *self.t() { 1 } else { 0 }) == 0 { (*self.s2()) as u64 } else { (if (if *self.s1() { 1 } else { 0 }) == 0 { (1) as i32 } else { (0) as i32 }) as u64 }).try_into()?;
+        *self.s.borrow_mut() = (if (if *self.t() { 1 } else { 0 }) == 0 { *self.s2() } else { u64::try_from(if (if *self.s1() { 1 } else { 0 }) == 0 { 1_i32 } else { 0_i32 })? }).try_into()?;
         Ok(self.s.borrow())
     }
 }
@@ -372,6 +372,7 @@ pub enum RtcpPayload_PsfbAfbPacket_Contents {
     Bytes(Vec<u8>),
 }
 impl From<&RtcpPayload_PsfbAfbPacket_Contents> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Self {
         if let RtcpPayload_PsfbAfbPacket_Contents::RtcpPayload_PsfbAfbRembPacket(x) = v {
             return x.clone();
@@ -385,6 +386,7 @@ impl From<OptRc<RtcpPayload_PsfbAfbRembPacket>> for RtcpPayload_PsfbAfbPacket_Co
     }
 }
 impl From<&RtcpPayload_PsfbAfbPacket_Contents> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Self {
         if let RtcpPayload_PsfbAfbPacket_Contents::Bytes(x) = v {
             return x.clone();
@@ -500,7 +502,7 @@ impl RtcpPayload_PsfbAfbRembPacket {
             return Ok(self.max_total_bitrate.borrow());
         }
         self.f_max_total_bitrate.set(true);
-        *self.max_total_bitrate.borrow_mut() = ((((*self.br_mantissa()) as u64) * (((((1) as u64) << ((*self.br_exp()) as u64))) as u64))).try_into()?;
+        *self.max_total_bitrate.borrow_mut() = ((*self.br_mantissa()).saturating_mul((1_i32).wrapping_shl(to_shift_amt(*self.br_exp())))).try_into()?;
         Ok(self.max_total_bitrate.borrow())
     }
 }
@@ -549,6 +551,7 @@ pub enum RtcpPayload_PsfbPacket_FciBlock {
     Bytes(Vec<u8>),
 }
 impl From<&RtcpPayload_PsfbPacket_FciBlock> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Self {
         if let RtcpPayload_PsfbPacket_FciBlock::RtcpPayload_PsfbAfbPacket(x) = v {
             return x.clone();
@@ -562,6 +565,7 @@ impl From<OptRc<RtcpPayload_PsfbAfbPacket>> for RtcpPayload_PsfbPacket_FciBlock 
     }
 }
 impl From<&RtcpPayload_PsfbPacket_FciBlock> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Self {
         if let RtcpPayload_PsfbPacket_FciBlock::Bytes(x) = v {
             return x.clone();
@@ -695,7 +699,7 @@ impl RtcpPayload_ReportBlock {
             return Ok(self.cumulative_packets_lost.borrow());
         }
         self.f_cumulative_packets_lost.set(true);
-        *self.cumulative_packets_lost.borrow_mut() = ((((*self.lost_val()) as u64) & ((16777215) as u64))).try_into()?;
+        *self.cumulative_packets_lost.borrow_mut() = (((i32::from(*self.lost_val())) & (16777215_i32))).try_into()?;
         Ok(self.cumulative_packets_lost.borrow())
     }
     pub fn fraction_lost(
@@ -706,7 +710,7 @@ impl RtcpPayload_ReportBlock {
             return Ok(self.fraction_lost.borrow());
         }
         self.f_fraction_lost.set(true);
-        *self.fraction_lost.borrow_mut() = ((((*self.lost_val()) as i32) >> ((24) as i32))).try_into()?;
+        *self.fraction_lost.borrow_mut() = ((*self.lost_val()).wrapping_shr(24_u32)).try_into()?;
         Ok(self.fraction_lost.borrow())
     }
 }
@@ -822,6 +826,7 @@ pub enum RtcpPayload_RtcpPacket_Body {
     Bytes(Vec<u8>),
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_PsfbPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_PsfbPacket(x) = v {
             return x.clone();
@@ -835,6 +840,7 @@ impl From<OptRc<RtcpPayload_PsfbPacket>> for RtcpPayload_RtcpPacket_Body {
     }
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RrPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_RrPacket(x) = v {
             return x.clone();
@@ -848,6 +854,7 @@ impl From<OptRc<RtcpPayload_RrPacket>> for RtcpPayload_RtcpPacket_Body {
     }
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RtpfbPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_RtpfbPacket(x) = v {
             return x.clone();
@@ -861,6 +868,7 @@ impl From<OptRc<RtcpPayload_RtpfbPacket>> for RtcpPayload_RtcpPacket_Body {
     }
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SdesPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_SdesPacket(x) = v {
             return x.clone();
@@ -874,6 +882,7 @@ impl From<OptRc<RtcpPayload_SdesPacket>> for RtcpPayload_RtcpPacket_Body {
     }
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SrPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_SrPacket(x) = v {
             return x.clone();
@@ -887,6 +896,7 @@ impl From<OptRc<RtcpPayload_SrPacket>> for RtcpPayload_RtcpPacket_Body {
     }
 }
 impl From<&RtcpPayload_RtcpPacket_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
         if let RtcpPayload_RtcpPacket_Body::Bytes(x) = v {
             return x.clone();
@@ -918,7 +928,7 @@ impl KStruct for RtcpPayload_RtcpPacket {
         *self_rc.padding.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.subtype.borrow_mut() = _io.read_bits_int_be(5)?;
         io.align_to_byte()?;
-        *self_rc.payload_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.payload_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
         match *self_rc.payload_type() {
             RtcpPayload_PayloadType::Psfb => {
@@ -1025,6 +1035,7 @@ pub enum RtcpPayload_RtpfbPacket_FciBlock {
     Bytes(Vec<u8>),
 }
 impl From<&RtcpPayload_RtpfbPacket_FciBlock> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Self {
         if let RtcpPayload_RtpfbPacket_FciBlock::RtcpPayload_RtpfbTransportFeedbackPacket(x) = v {
             return x.clone();
@@ -1038,6 +1049,7 @@ impl From<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>> for RtcpPayload_Rtpfb
     }
 }
 impl From<&RtcpPayload_RtpfbPacket_FciBlock> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Self {
         if let RtcpPayload_RtpfbPacket_FciBlock::Bytes(x) = v {
             return x.clone();
@@ -1171,7 +1183,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
             return Ok(self.fb_pkt_count.borrow());
         }
         self.f_fb_pkt_count.set(true);
-        *self.fb_pkt_count.borrow_mut() = ((((*self.b4()) as u32) & ((255) as u32))).try_into()?;
+        *self.fb_pkt_count.borrow_mut() = (((*self.b4()) & (255_u32))).try_into()?;
         Ok(self.fb_pkt_count.borrow())
     }
     pub fn packet_status(
@@ -1182,7 +1194,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
             return Ok(self.packet_status.borrow());
         }
         self.f_packet_status.set(true);
-        *self.packet_status.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+        *self.packet_status.borrow_mut() = _io.read_bytes(0_usize)?;
         Ok(self.packet_status.borrow())
     }
     pub fn recv_delta(
@@ -1193,7 +1205,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
             return Ok(self.recv_delta.borrow());
         }
         self.f_recv_delta.set(true);
-        *self.recv_delta.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+        *self.recv_delta.borrow_mut() = _io.read_bytes(0_usize)?;
         Ok(self.recv_delta.borrow())
     }
     pub fn reference_time(
@@ -1204,7 +1216,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
             return Ok(self.reference_time.borrow());
         }
         self.f_reference_time.set(true);
-        *self.reference_time.borrow_mut() = ((((*self.b4()) as u32) >> ((8) as u32))).try_into()?;
+        *self.reference_time.borrow_mut() = ((*self.b4()).wrapping_shr(8_u32)).try_into()?;
         Ok(self.reference_time.borrow())
     }
 }
@@ -1317,12 +1329,12 @@ impl KStruct for RtcpPayload_SdesTlv {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if *self_rc.r#type() != RtcpPayload_SdesSubtype::Pad {
             *self_rc.length.borrow_mut() = _io.read_u1()?;
         }
         if *self_rc.r#type() != RtcpPayload_SdesSubtype::Pad {
-            *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.length())?)?;
+            *self_rc.value.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?;
         }
         Ok(())
     }
@@ -1377,11 +1389,11 @@ impl KStruct for RtcpPayload_SourceChunk {
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
         *self_rc.sdes_tlv.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, RtcpPayload_SdesTlv>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.sdes_tlv.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1460,7 +1472,7 @@ impl RtcpPayload_SrPacket {
             return Ok(self.ntp.borrow());
         }
         self.f_ntp.set(true);
-        *self.ntp.borrow_mut() = (((((((*self.ntp_msw()) as u32) << ((32) as u32))) as u32) & ((*self.ntp_lsw()) as u32))).try_into()?;
+        *self.ntp.borrow_mut() = ((((*self.ntp_msw()).wrapping_shl(32_u32)) & (*self.ntp_lsw()))).try_into()?;
         Ok(self.ntp.borrow())
     }
 }

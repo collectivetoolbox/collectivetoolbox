@@ -43,7 +43,7 @@ impl Fallout2Dat {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((_io.size()) as i32) - ((8) as i32)))?)?;
+        _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(8_i32))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Footer>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -57,7 +57,7 @@ impl Fallout2Dat {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((((((_io.size()) as i32) - ((8) as i32))) as u32) - ((*self.footer()?.index_size()) as u32)))?)?;
+        _io.seek(usize::try_from((u32::try_from((i32::try_from(_io.size())?).saturating_sub(8_i32))?).saturating_sub(*self.footer()?.index_size()))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Index>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -137,7 +137,7 @@ impl KStruct for Fallout2Dat_File {
         let _io = io;
         let t = Self::read_into::<_, Fallout2Dat_Pstr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.flags.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.flags.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.size_unpacked.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_packed.borrow_mut() = _io.read_u4le()?;
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;

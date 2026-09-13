@@ -47,11 +47,11 @@ impl KStruct for AmlogicEmmcPartitions {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x50u8, 0x54u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
-        *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(12)?)?, 0, false), "UTF-8")?;
+        *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(12_usize)?, 0, false), "UTF-8")?;
         *self_rc.num_partitions.borrow_mut() = _io.read_s4le()?;
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
         *self_rc.partitions.borrow_mut() = Vec::new();
@@ -133,12 +133,12 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(16)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "UTF-8")?;
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
         *self_rc.offset.borrow_mut() = _io.read_u8le()?;
         let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition_PartFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
         Ok(())
     }
 }

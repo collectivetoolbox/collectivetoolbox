@@ -35,12 +35,12 @@ impl KStruct for Webp {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
-        *self_rc.webp.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.webp.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.webp() == vec![0x57u8, 0x45u8, 0x42u8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -489,7 +489,7 @@ impl Webp_Anmf {
             return Ok(self.frame_height.borrow());
         }
         self.f_frame_height.set(true);
-        *self.frame_height.borrow_mut() = ((((*self.frame_height_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.frame_height.borrow_mut() = ((*self.frame_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.frame_height.borrow())
     }
     pub fn frame_width(
@@ -500,7 +500,7 @@ impl Webp_Anmf {
             return Ok(self.frame_width.borrow());
         }
         self.f_frame_width.set(true);
-        *self.frame_width.borrow_mut() = ((((*self.frame_width_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.frame_width.borrow_mut() = ((*self.frame_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.frame_width.borrow())
     }
     pub fn frame_x(
@@ -511,7 +511,7 @@ impl Webp_Anmf {
             return Ok(self.frame_x.borrow());
         }
         self.f_frame_x.set(true);
-        *self.frame_x.borrow_mut() = ((((*self.frame_x_div_2()) as u64) * ((2) as u64))).try_into()?;
+        *self.frame_x.borrow_mut() = ((*self.frame_x_div_2()).saturating_mul(2_u64)).try_into()?;
         Ok(self.frame_x.borrow())
     }
     pub fn frame_y(
@@ -522,7 +522,7 @@ impl Webp_Anmf {
             return Ok(self.frame_y.borrow());
         }
         self.f_frame_y.set(true);
-        *self.frame_y.borrow_mut() = ((((*self.frame_y_div_2()) as u64) * ((2) as u64))).try_into()?;
+        *self.frame_y.borrow_mut() = ((*self.frame_y_div_2()).saturating_mul(2_u64)).try_into()?;
         Ok(self.frame_y.borrow())
     }
 }
@@ -601,6 +601,7 @@ pub enum Webp_Chunk_Data {
     Bytes(Vec<u8>),
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Alph> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Alph(x) = v {
             return x.clone();
@@ -614,6 +615,7 @@ impl From<OptRc<Webp_Alph>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Anim> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Anim(x) = v {
             return x.clone();
@@ -627,6 +629,7 @@ impl From<OptRc<Webp_Anim>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Anmf> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Anmf(x) = v {
             return x.clone();
@@ -640,6 +643,7 @@ impl From<OptRc<Webp_Anmf>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Vp8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Vp8(x) = v {
             return x.clone();
@@ -653,6 +657,7 @@ impl From<OptRc<Webp_Vp8>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Vp8l> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Vp8l(x) = v {
             return x.clone();
@@ -666,6 +671,7 @@ impl From<OptRc<Webp_Vp8l>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Vp8x> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Vp8x(x) = v {
             return x.clone();
@@ -679,6 +685,7 @@ impl From<OptRc<Webp_Vp8x>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for OptRc<Webp_Xmp> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Webp_Xmp(x) = v {
             return x.clone();
@@ -692,6 +699,7 @@ impl From<OptRc<Webp_Xmp>> for Webp_Chunk_Data {
     }
 }
 impl From<&Webp_Chunk_Data> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Webp_Chunk_Data) -> Self {
         if let Webp_Chunk_Data::Bytes(x) = v {
             return x.clone();
@@ -719,7 +727,7 @@ impl KStruct for Webp_Chunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = i64::try_from(_io.read_u4le()?)?.try_into()?;
+        *self_rc.name.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         match *self_rc.name() {
             Webp_ChunkNames::Alph => {
@@ -782,8 +790,8 @@ impl KStruct for Webp_Chunk {
                 *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
-        if ((((((*self_rc.len_data()) as u32) % ((2) as u32))) as u32) != ((0) as u32)) {
-            *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        if (*self_rc.len_data()).checked_rem(2_u32).ok_or(KError::CastError)? != 0 {
+            *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.padding() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/seq/3".to_string() }));
             }
@@ -849,11 +857,11 @@ impl KStruct for Webp_Chunks {
         let _io = io;
         *self_rc.chunks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Webp_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.chunks.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -916,7 +924,7 @@ impl KStruct for Webp_Vp8 {
         *self_rc.show_frame.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.len_first_partition.borrow_mut() = _io.read_bits_int_be(19)?;
         io.align_to_byte()?;
-        *self_rc.start_code.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.start_code.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.start_code() == vec![0x9du8, 0x1u8, 0x2au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8/seq/4".to_string() }));
         }
@@ -1050,7 +1058,7 @@ impl Webp_Vp8l {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = ((((*self.image_height_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.image_height.borrow_mut() = ((*self.image_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.image_height.borrow())
     }
     pub fn image_width(
@@ -1061,7 +1069,7 @@ impl Webp_Vp8l {
             return Ok(self.image_width.borrow());
         }
         self.f_image_width.set(true);
-        *self.image_width.borrow_mut() = ((((*self.image_width_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.image_width.borrow_mut() = ((*self.image_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.image_width.borrow())
     }
 }
@@ -1175,7 +1183,7 @@ impl Webp_Vp8x {
             return Ok(self.canvas_height.borrow());
         }
         self.f_canvas_height.set(true);
-        *self.canvas_height.borrow_mut() = ((((*self.canvas_height_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.canvas_height.borrow_mut() = ((*self.canvas_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.canvas_height.borrow())
     }
     pub fn canvas_width(
@@ -1186,7 +1194,7 @@ impl Webp_Vp8x {
             return Ok(self.canvas_width.borrow());
         }
         self.f_canvas_width.set(true);
-        *self.canvas_width.borrow_mut() = ((((*self.canvas_width_minus_1()) as u64) + ((1) as u64))).try_into()?;
+        *self.canvas_width.borrow_mut() = ((*self.canvas_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.canvas_width.borrow())
     }
 }

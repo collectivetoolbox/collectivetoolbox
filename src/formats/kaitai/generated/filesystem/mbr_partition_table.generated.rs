@@ -42,14 +42,14 @@ impl KStruct for MbrPartitionTable {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.bootstrap_code.borrow_mut() = _io.read_bytes(usize::try_from(446)?)?;
+        *self_rc.bootstrap_code.borrow_mut() = _io.read_bytes(446_usize)?;
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = 4;
         for _i in 0..l_partitions {
             let t = Self::read_into::<_, MbrPartitionTable_PartitionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }
-        *self_rc.boot_signature.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.boot_signature.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.boot_signature() == vec![0x55u8, 0xaau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
@@ -123,7 +123,7 @@ impl MbrPartitionTable_Chs {
             return Ok(self.cylinder.borrow());
         }
         self.f_cylinder.set(true);
-        *self.cylinder.borrow_mut() = ((((*self.b3()) as i32) + ((((((((*self.b2()) as u64) & ((192) as u64))) as i32) << ((2) as i32))) as i32))).try_into()?;
+        *self.cylinder.borrow_mut() = ((i32::from(*self.b3())).saturating_add((((i32::from(*self.b2())) & (192_i32))).wrapping_shl(2_u32))).try_into()?;
         Ok(self.cylinder.borrow())
     }
     pub fn sector(
@@ -134,7 +134,7 @@ impl MbrPartitionTable_Chs {
             return Ok(self.sector.borrow());
         }
         self.f_sector.set(true);
-        *self.sector.borrow_mut() = ((((*self.b2()) as u64) & ((63) as u64))).try_into()?;
+        *self.sector.borrow_mut() = (((i32::from(*self.b2())) & (63_i32))).try_into()?;
         Ok(self.sector.borrow())
     }
 }

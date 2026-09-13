@@ -48,7 +48,7 @@ impl KStruct for Zisofs {
         let t = Self::read_into::<_, Zisofs_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.block_pointers.borrow_mut() = Vec::new();
-        let l_block_pointers = (((*self_rc.header().num_blocks()?) as i32) + ((1) as i32));
+        let l_block_pointers = (*self_rc.header().num_blocks()?).saturating_add(1_i32);
         for _i in 0..l_block_pointers {
             self_rc.block_pointers.borrow_mut().push(_io.read_u4le()?);
         }
@@ -67,7 +67,7 @@ impl Zisofs {
         *self.blocks.borrow_mut() = Vec::new();
         let l_blocks = *self.header().num_blocks()?;
         for _i in 0..l_blocks {
-            let f = |t : &mut Zisofs_Block| Ok(t.set_params((self.block_pointers()[_i as usize]).try_into().map_err(|_| KError::CastError)?, (self.block_pointers()[(_i + 1) as usize]).try_into().map_err(|_| KError::CastError)?));
+            let f = |t : &mut Zisofs_Block| Ok(t.set_params((*(self.block_pointers().get(usize::try_from(_i)?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?, (*(self.block_pointers().get(usize::try_from((_i).saturating_add(1_i32))?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Zisofs_Block>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.blocks.borrow_mut().push(t);
         }
@@ -166,7 +166,7 @@ impl Zisofs_Block {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = ((((*self.ofs_end()) as u32) - ((*self.ofs_start()) as u32))).try_into()?;
+        *self.len_data.borrow_mut() = ((*self.ofs_end()).saturating_sub(*self.ofs_start())).try_into()?;
         Ok(self.len_data.borrow())
     }
 }
@@ -207,7 +207,7 @@ impl KStruct for Zisofs_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x37u8, 0xe4u8, 0x53u8, 0x96u8, 0xc9u8, 0xdbu8, 0xd6u8, 0x7u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
@@ -218,7 +218,7 @@ impl KStruct for Zisofs_Header {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/2".to_string() }));
         }
         *self_rc.block_size_log2.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
         }
@@ -234,7 +234,7 @@ impl Zisofs_Header {
             return Ok(self.block_size.borrow());
         }
         self.f_block_size.set(true);
-        *self.block_size.borrow_mut() = ((((1) as i32) << ((*self.block_size_log2()) as i32))).try_into()?;
+        *self.block_size.borrow_mut() = ((1_i32).wrapping_shl(to_shift_amt(*self.block_size_log2()))).try_into()?;
         Ok(self.block_size.borrow())
     }
 
@@ -249,7 +249,7 @@ impl Zisofs_Header {
             return Ok(self.num_blocks.borrow());
         }
         self.f_num_blocks.set(true);
-        *self.num_blocks.borrow_mut() = (((((((*self.uncompressed_size()) as u32) / ((*self.block_size()?) as u32))) as u32) + ((if ((((((*self.uncompressed_size()) as u32) % ((*self.block_size()?) as u32))) as u32) != ((0) as u32)) { (1) as i32 } else { (0) as i32 }) as u32))).try_into()?;
+        *self.num_blocks.borrow_mut() = (((*self.uncompressed_size()).checked_div(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?).saturating_add(u32::try_from(if (*self.uncompressed_size()).checked_rem(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)? != 0 { 1_i32 } else { 0_i32 })?)).try_into()?;
         Ok(self.num_blocks.borrow())
     }
 }

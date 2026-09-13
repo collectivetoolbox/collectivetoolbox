@@ -47,13 +47,13 @@ impl KStruct for Wmf {
         *self_rc.header.borrow_mut() = t;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, Wmf_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 let _t_records = self_rc.records.borrow();
                 let Some(_tmpa) = _t_records.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.function() == Wmf_Func::Eof { break; }
             }
         }
@@ -551,7 +551,7 @@ impl KStruct for Wmf_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.metafile_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.metafile_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.header_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
@@ -775,7 +775,7 @@ impl KStruct for Wmf_ParamsSetbkmode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.bk_mode.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.bk_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         Ok(())
     }
 }
@@ -823,7 +823,7 @@ impl KStruct for Wmf_ParamsSetpolyfillmode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.poly_fill_mode.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.poly_fill_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         Ok(())
     }
 }
@@ -871,7 +871,7 @@ impl KStruct for Wmf_ParamsSetrop2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.draw_mode.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.draw_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         Ok(())
     }
 }
@@ -1093,6 +1093,7 @@ pub enum Wmf_Record_Params {
     Bytes(Vec<u8>),
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsPolygon> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsPolygon(x) = v {
             return x.clone();
@@ -1106,6 +1107,7 @@ impl From<OptRc<Wmf_ParamsPolygon>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsPolyline> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsPolyline(x) = v {
             return x.clone();
@@ -1119,6 +1121,7 @@ impl From<OptRc<Wmf_ParamsPolyline>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ColorRef> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ColorRef(x) = v {
             return x.clone();
@@ -1132,6 +1135,7 @@ impl From<OptRc<Wmf_ColorRef>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetbkmode> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsSetbkmode(x) = v {
             return x.clone();
@@ -1145,6 +1149,7 @@ impl From<OptRc<Wmf_ParamsSetbkmode>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsSetpolyfillmode(x) = v {
             return x.clone();
@@ -1158,6 +1163,7 @@ impl From<OptRc<Wmf_ParamsSetpolyfillmode>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetrop2> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsSetrop2(x) = v {
             return x.clone();
@@ -1171,6 +1177,7 @@ impl From<OptRc<Wmf_ParamsSetrop2>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindowext> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsSetwindowext(x) = v {
             return x.clone();
@@ -1184,6 +1191,7 @@ impl From<OptRc<Wmf_ParamsSetwindowext>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindoworg> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Wmf_ParamsSetwindoworg(x) = v {
             return x.clone();
@@ -1197,6 +1205,7 @@ impl From<OptRc<Wmf_ParamsSetwindoworg>> for Wmf_Record_Params {
     }
 }
 impl From<&Wmf_Record_Params> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Wmf_Record_Params) -> Self {
         if let Wmf_Record_Params::Bytes(x) = v {
             return x.clone();
@@ -1225,7 +1234,7 @@ impl KStruct for Wmf_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.function.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.function.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         match *self_rc.function() {
             Wmf_Func::Polygon => {
                 *self_rc.params_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -1349,11 +1358,11 @@ impl KStruct for Wmf_SpecialHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xd7u8, 0xcdu8, 0xc6u8, 0x9au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/0".to_string() }));
         }
-        *self_rc.handle.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.handle.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.handle() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/1".to_string() }));
         }
@@ -1362,7 +1371,7 @@ impl KStruct for Wmf_SpecialHeader {
         *self_rc.right.borrow_mut() = _io.read_s2le()?;
         *self_rc.bottom.borrow_mut() = _io.read_s2le()?;
         *self_rc.inch.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/7".to_string() }));
         }

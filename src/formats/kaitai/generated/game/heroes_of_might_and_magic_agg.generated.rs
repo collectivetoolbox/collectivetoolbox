@@ -56,15 +56,15 @@ impl HeroesOfMightAndMagicAgg {
         }
         self.f_filenames.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()) as u32) + ((*self.entries().last().ok_or(KError::EmptyIterator)?.size()) as u32)))?)?;
+        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add(u32::try_from(*self.entries().last().ok_or(KError::EmptyIterator)?.size())?))?)?;
         *self.filenames_raw.borrow_mut() = Vec::new();
         *self.filenames.borrow_mut() = Vec::new();
         let l_filenames = *self.num_files();
         for _i in 0..l_filenames {
-            self.filenames_raw.borrow_mut().push(_io.read_bytes(usize::try_from(15)?)?.into());
+            self.filenames_raw.borrow_mut().push(_io.read_bytes(15_usize)?.into());
             let filenames_raw = self.filenames_raw.borrow();
-            let io_filenames_raw = BytesReader::from(filenames_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, HeroesOfMightAndMagicAgg_Filename>(&io_filenames_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_filenames_raw = BytesReader::from(filenames_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let t = Self::read_into::<BytesReader, HeroesOfMightAndMagicAgg_Filename>(&_io_filenames_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.filenames.borrow_mut().push(t);
         }
         _io.seek(_pos)?;

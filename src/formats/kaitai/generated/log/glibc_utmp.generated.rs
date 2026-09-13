@@ -30,11 +30,11 @@ impl KStruct for GlibcUtmp {
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, GlibcUtmp_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -142,18 +142,18 @@ impl KStruct for GlibcUtmp_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ut_type.borrow_mut() = i64::try_from(_io.read_s4le()?)?.try_into()?;
+        *self_rc.ut_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         *self_rc.pid.borrow_mut() = _io.read_s4le()?;
-        *self_rc.line.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
-        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "UTF-8")?;
-        *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
-        *self_rc.host.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(256)?)?, "UTF-8")?;
+        *self_rc.line.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.host.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "UTF-8")?;
         *self_rc.exit.borrow_mut() = _io.read_u4le()?;
         *self_rc.session.borrow_mut() = _io.read_s4le()?;
         let t = Self::read_into::<_, GlibcUtmp_Timeval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tv.borrow_mut() = t;
-        *self_rc.addr_v6.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(20)?)?;
+        *self_rc.addr_v6.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(20_usize)?;
         Ok(())
     }
 }

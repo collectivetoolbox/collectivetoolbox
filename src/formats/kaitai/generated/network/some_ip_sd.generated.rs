@@ -47,7 +47,7 @@ impl KStruct for SomeIpSd {
         let _io = io;
         let t = Self::read_into::<_, SomeIpSd_SdFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.len_entries.borrow_mut() = _io.read_u4be()?;
         let t = Self::read_into::<_, SomeIpSdEntries>(&*_io, None, None)?.into();
         *self_rc.entries.borrow_mut() = t;

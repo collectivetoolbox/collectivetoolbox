@@ -50,11 +50,11 @@ impl KStruct for Jpeg {
         let _io = io;
         *self_rc.segments.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Jpeg_Segment>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.segments.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -138,7 +138,7 @@ impl KStruct for Jpeg_ExifInJpeg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.extra_zero.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.extra_zero.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.extra_zero() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/exif_in_jpeg/seq/0".to_string() }));
         }
@@ -187,6 +187,7 @@ pub enum Jpeg_Segment_Data {
     Bytes(Vec<u8>),
 }
 impl From<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp0> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Jpeg_Segment_Data) -> Self {
         if let Jpeg_Segment_Data::Jpeg_SegmentApp0(x) = v {
             return x.clone();
@@ -200,6 +201,7 @@ impl From<OptRc<Jpeg_SegmentApp0>> for Jpeg_Segment_Data {
     }
 }
 impl From<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Jpeg_Segment_Data) -> Self {
         if let Jpeg_Segment_Data::Jpeg_SegmentApp1(x) = v {
             return x.clone();
@@ -213,6 +215,7 @@ impl From<OptRc<Jpeg_SegmentApp1>> for Jpeg_Segment_Data {
     }
 }
 impl From<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSof0> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Jpeg_Segment_Data) -> Self {
         if let Jpeg_Segment_Data::Jpeg_SegmentSof0(x) = v {
             return x.clone();
@@ -226,6 +229,7 @@ impl From<OptRc<Jpeg_SegmentSof0>> for Jpeg_Segment_Data {
     }
 }
 impl From<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSos> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Jpeg_Segment_Data) -> Self {
         if let Jpeg_Segment_Data::Jpeg_SegmentSos(x) = v {
             return x.clone();
@@ -239,6 +243,7 @@ impl From<OptRc<Jpeg_SegmentSos>> for Jpeg_Segment_Data {
     }
 }
 impl From<&Jpeg_Segment_Data> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Jpeg_Segment_Data) -> Self {
         if let Jpeg_Segment_Data::Bytes(x) = v {
             return x.clone();
@@ -266,11 +271,11 @@ impl KStruct for Jpeg_Segment {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xffu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/segment/seq/0".to_string() }));
         }
-        *self_rc.marker.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.marker.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if  ((*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi) && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi))  {
             *self_rc.length.borrow_mut() = _io.read_u2be()?;
         }
@@ -509,15 +514,15 @@ impl KStruct for Jpeg_SegmentApp0 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(5)?)?, "ASCII")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
         *self_rc.version_minor.borrow_mut() = _io.read_u1()?;
-        *self_rc.density_units.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.density_units.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.density_x.borrow_mut() = _io.read_u2be()?;
         *self_rc.density_y.borrow_mut() = _io.read_u2be()?;
         *self_rc.thumbnail_x.borrow_mut() = _io.read_u1()?;
         *self_rc.thumbnail_y.borrow_mut() = _io.read_u1()?;
-        *self_rc.thumbnail.borrow_mut() = _io.read_bytes(usize::try_from(((((((*self_rc.thumbnail_x()) as u8) * ((*self_rc.thumbnail_y()) as u8))) as i32) * ((3) as i32)))?)?;
+        *self_rc.thumbnail.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.thumbnail_x()).saturating_mul(*self_rc.thumbnail_y()))).saturating_mul(3_i32))?)?;
         Ok(())
     }
 }
@@ -645,10 +650,8 @@ pub enum Jpeg_SegmentApp1_Body {
 }
 impl From<&Jpeg_SegmentApp1_Body> for OptRc<Jpeg_ExifInJpeg> {
     fn from(v: &Jpeg_SegmentApp1_Body) -> Self {
-        if let Jpeg_SegmentApp1_Body::Jpeg_ExifInJpeg(x) = v {
-            return x.clone();
-        }
-        panic!("expected Jpeg_SegmentApp1_Body::Jpeg_ExifInJpeg, got {:?}", v)
+        let Jpeg_SegmentApp1_Body::Jpeg_ExifInJpeg(x) = v;
+        x.clone()
     }
 }
 impl From<OptRc<Jpeg_ExifInJpeg>> for Jpeg_SegmentApp1_Body {
@@ -810,7 +813,7 @@ impl KStruct for Jpeg_SegmentSof0_Component {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.id.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.sampling_factors.borrow_mut() = _io.read_u1()?;
         *self_rc.quantization_table_id.borrow_mut() = _io.read_u1()?;
         Ok(())
@@ -825,7 +828,7 @@ impl Jpeg_SegmentSof0_Component {
             return Ok(self.sampling_x.borrow());
         }
         self.f_sampling_x.set(true);
-        *self.sampling_x.borrow_mut() = (((((((*self.sampling_factors()) as u64) & ((240) as u64)) as u64) >> 4) as i32)).try_into()?;
+        *self.sampling_x.borrow_mut() = ((((i32::from(*self.sampling_factors())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.sampling_x.borrow())
     }
     pub fn sampling_y(
@@ -836,7 +839,7 @@ impl Jpeg_SegmentSof0_Component {
             return Ok(self.sampling_y.borrow());
         }
         self.f_sampling_y.set(true);
-        *self.sampling_y.borrow_mut() = ((((*self.sampling_factors()) as u64) & ((15) as u64))).try_into()?;
+        *self.sampling_y.borrow_mut() = (((i32::from(*self.sampling_factors())) & (15_i32))).try_into()?;
         Ok(self.sampling_y.borrow())
     }
 }
@@ -982,7 +985,7 @@ impl KStruct for Jpeg_SegmentSos_Component {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.id.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.huffman_table.borrow_mut() = _io.read_u1()?;
         Ok(())
     }

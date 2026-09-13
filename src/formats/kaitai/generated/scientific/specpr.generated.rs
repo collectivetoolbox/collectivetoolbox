@@ -42,11 +42,11 @@ impl KStruct for Specpr {
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Specpr_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -141,7 +141,7 @@ impl Specpr_CoarseTimestamp {
             return Ok(self.seconds.borrow());
         }
         self.f_seconds.set(true);
-        *self.seconds.borrow_mut() = ((((*self.scaled_seconds()) as f64) * ((24000.0) as f64))).try_into()?;
+        *self.seconds.borrow_mut() = (((to_f64(*self.scaled_seconds())) * (24000.0))).try_into()?;
         Ok(self.seconds.borrow())
     }
 }
@@ -281,11 +281,11 @@ impl KStruct for Specpr_DataInitial {
         *self_rc.irespt.borrow_mut() = _io.read_s4be()?;
         *self_rc.irecno.borrow_mut() = _io.read_s4be()?;
         *self_rc.itpntr.borrow_mut() = _io.read_s4be()?;
-        *self_rc.ihist.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(60)?)?, 32), "UTF-8")?;
+        *self_rc.ihist.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(60_usize)?, 32), "UTF-8")?;
         *self_rc.mhist.borrow_mut() = Vec::new();
         let l_mhist = 4;
         for _i in 0..l_mhist {
-            self_rc.mhist.borrow_mut().push(bytes_to_str(&_io.read_bytes(usize::try_from(74)?)?, "UTF-8")?);
+            self_rc.mhist.borrow_mut().push(bytes_to_str(&_io.read_bytes(74_usize)?, "UTF-8")?);
         }
         *self_rc.nruns.borrow_mut() = _io.read_s4be()?;
         let t = Self::read_into::<_, Specpr_IllumAngle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -320,7 +320,7 @@ impl Specpr_DataInitial {
             return Ok(self.phase_angle_arcsec.borrow());
         }
         self.f_phase_angle_arcsec.set(true);
-        *self.phase_angle_arcsec.borrow_mut() = ((((*self.sphase()) as f64) / ((1500.0) as f64))).try_into()?;
+        *self.phase_angle_arcsec.borrow_mut() = (((to_f64(*self.sphase())) / (1500.0))).try_into()?;
         Ok(self.phase_angle_arcsec.borrow())
     }
 }
@@ -646,7 +646,7 @@ impl Specpr_Icflag {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = i64::try_from((((((((if *self.text() { 1 } else { 0 })) as i32) * ((1) as i32))) as i32) + ((((((if *self.continuation() { 1 } else { 0 })) as i32) * ((2) as i32))) as i32)))?.try_into()?;
+        *self.r#type.borrow_mut() = i64::try_from((((if *self.text() { 1 } else { 0 })).saturating_mul(1_i32)).saturating_add(((if *self.continuation() { 1 } else { 0 })).saturating_mul(2_i32)))?.try_into()?;
         Ok(self.r#type.borrow())
     }
 }
@@ -752,8 +752,8 @@ impl KStruct for Specpr_Identifiers {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ititle.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(40)?)?, 32), "UTF-8")?;
-        *self_rc.usernm.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "UTF-8")?;
+        *self_rc.ititle.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(40_usize)?, 32), "UTF-8")?;
+        *self_rc.usernm.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "UTF-8")?;
         Ok(())
     }
 }
@@ -825,7 +825,7 @@ impl Specpr_IllumAngle {
             return Ok(self.degrees_total.borrow());
         }
         self.f_degrees_total.set(true);
-        *self.degrees_total.borrow_mut() = ((((*self.minutes_total()?) as i32) / ((60) as i32))).try_into()?;
+        *self.degrees_total.borrow_mut() = ((*self.minutes_total()?).checked_div(60_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.degrees_total.borrow())
     }
     pub fn minutes_total(
@@ -836,7 +836,7 @@ impl Specpr_IllumAngle {
             return Ok(self.minutes_total.borrow());
         }
         self.f_minutes_total.set(true);
-        *self.minutes_total.borrow_mut() = ((((*self.seconds_total()?) as i32) / ((60) as i32))).try_into()?;
+        *self.minutes_total.borrow_mut() = ((*self.seconds_total()?).checked_div(60_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.minutes_total.borrow())
     }
     pub fn seconds_total(
@@ -847,7 +847,7 @@ impl Specpr_IllumAngle {
             return Ok(self.seconds_total.borrow());
         }
         self.f_seconds_total.set(true);
-        *self.seconds_total.borrow_mut() = ((((*self.angl()) as i32) / ((6000) as i32))).try_into()?;
+        *self.seconds_total.borrow_mut() = ((*self.angl()).checked_div(6000_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.seconds_total.borrow())
     }
 }
@@ -885,6 +885,7 @@ pub enum Specpr_Record_Content {
     Bytes(Vec<u8>),
 }
 impl From<&Specpr_Record_Content> for OptRc<Specpr_DataContinuation> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Specpr_Record_Content) -> Self {
         if let Specpr_Record_Content::Specpr_DataContinuation(x) = v {
             return x.clone();
@@ -898,6 +899,7 @@ impl From<OptRc<Specpr_DataContinuation>> for Specpr_Record_Content {
     }
 }
 impl From<&Specpr_Record_Content> for OptRc<Specpr_DataInitial> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Specpr_Record_Content) -> Self {
         if let Specpr_Record_Content::Specpr_DataInitial(x) = v {
             return x.clone();
@@ -911,6 +913,7 @@ impl From<OptRc<Specpr_DataInitial>> for Specpr_Record_Content {
     }
 }
 impl From<&Specpr_Record_Content> for OptRc<Specpr_TextContinuation> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Specpr_Record_Content) -> Self {
         if let Specpr_Record_Content::Specpr_TextContinuation(x) = v {
             return x.clone();
@@ -924,6 +927,7 @@ impl From<OptRc<Specpr_TextContinuation>> for Specpr_Record_Content {
     }
 }
 impl From<&Specpr_Record_Content> for OptRc<Specpr_TextInitial> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Specpr_Record_Content) -> Self {
         if let Specpr_Record_Content::Specpr_TextInitial(x) = v {
             return x.clone();
@@ -937,6 +941,7 @@ impl From<OptRc<Specpr_TextInitial>> for Specpr_Record_Content {
     }
 }
 impl From<&Specpr_Record_Content> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Specpr_Record_Content) -> Self {
         if let Specpr_Record_Content::Bytes(x) = v {
             return x.clone();
@@ -1052,7 +1057,7 @@ impl KStruct for Specpr_TextContinuation {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tdata.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(1532)?)?, "UTF-8")?;
+        *self_rc.tdata.borrow_mut() = bytes_to_str(&_io.read_bytes(1532_usize)?, "UTF-8")?;
         Ok(())
     }
 }
@@ -1103,7 +1108,7 @@ impl KStruct for Specpr_TextInitial {
         *self_rc.ids.borrow_mut() = t;
         *self_rc.itxtpt.borrow_mut() = _io.read_u4be()?;
         *self_rc.itxtch.borrow_mut() = _io.read_s4be()?;
-        *self_rc.itext.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(1476)?)?, "UTF-8")?;
+        *self_rc.itext.borrow_mut() = bytes_to_str(&_io.read_bytes(1476_usize)?, "UTF-8")?;
         Ok(())
     }
 }

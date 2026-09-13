@@ -31,11 +31,11 @@ impl KStruct for SomeIpContainer {
         let _io = io;
         *self_rc.some_ip_packages.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, SomeIp>(&*_io, None, None)?.into();
                 self_rc.some_ip_packages.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

@@ -44,7 +44,7 @@ impl KStruct for MozillaMar {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x41u8, 0x52u8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -202,6 +202,7 @@ pub enum MozillaMar_AdditionalSection_Bytes {
     Bytes(Vec<u8>),
 }
 impl From<&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MozillaMar_AdditionalSection_Bytes) -> Self {
         if let MozillaMar_AdditionalSection_Bytes::MozillaMar_ProductInformationBlock(x) = v {
             return x.clone();
@@ -215,6 +216,7 @@ impl From<OptRc<MozillaMar_ProductInformationBlock>> for MozillaMar_AdditionalSe
     }
 }
 impl From<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MozillaMar_AdditionalSection_Bytes) -> Self {
         if let MozillaMar_AdditionalSection_Bytes::Bytes(x) = v {
             return x.clone();
@@ -243,7 +245,7 @@ impl KStruct for MozillaMar_AdditionalSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_block.borrow_mut() = _io.read_u4be()?;
-        *self_rc.block_identifier.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.block_identifier.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.block_identifier() {
             MozillaMar_BlockIdentifiers::ProductInformation => {
                 *self_rc.bytes_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -312,11 +314,11 @@ impl KStruct for MozillaMar_IndexEntries {
         let _io = io;
         *self_rc.index_entry.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, MozillaMar_IndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.index_entry.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -489,8 +491,8 @@ impl KStruct for MozillaMar_ProductInformationBlock {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(64)?)?, 0, false), "UTF-8")?;
-        *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(32)?)?, 0, false), "UTF-8")?;
+        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
+        *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
         Ok(())
     }
 }
@@ -537,7 +539,7 @@ impl KStruct for MozillaMar_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.algorithm.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.algorithm.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.len_signature.borrow_mut() = _io.read_u4be()?;
         *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
         Ok(())

@@ -57,11 +57,11 @@ impl KStruct for WindowsResourceFile {
         let _io = io;
         *self_rc.resources.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, WindowsResourceFile_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.resources.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -129,14 +129,14 @@ impl KStruct for WindowsResourceFile_Resource {
         *self_rc.r#type.borrow_mut() = t;
         let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(modulo((((4) as i32) - ((_io.pos()) as i32)) as i64, 4 as i64))?)?;
+        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((4_i32).saturating_sub(i32::try_from(_io.pos())?)), 4_i64))?)?;
         *self_rc.format_version.borrow_mut() = _io.read_u4le()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
         *self_rc.language.borrow_mut() = _io.read_u2le()?;
         *self_rc.value_version.borrow_mut() = _io.read_u4le()?;
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
         *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
-        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(modulo((((4) as i32) - ((_io.pos()) as i32)) as i64, 4 as i64))?)?;
+        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((4_i32).saturating_sub(i32::try_from(_io.pos())?)), 4_i64))?)?;
         Ok(())
     }
 }
@@ -156,7 +156,7 @@ impl WindowsResourceFile_Resource {
             return Ok(self.type_as_predef.borrow());
         }
         self.f_type_as_predef.set(true);
-        if  ((!(*self.r#type().is_string()?)) && ((((*self.r#type().as_numeric()) as i32) <= ((255) as i32))))  {
+        if  ((!(*self.r#type().is_string()?)) && (*self.r#type().as_numeric() <= 255))  {
             *self.type_as_predef.borrow_mut() = i64::try_from(*self.r#type().as_numeric())?.try_into()?;
         }
         Ok(self.type_as_predef.borrow())
@@ -385,19 +385,19 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
         if *self_rc.is_string()? {
             *self_rc.rest.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 loop {
                     self_rc.rest.borrow_mut().push(_io.read_u2le()?);
                     let _t_rest = self_rc.rest.borrow();
                     let Some(_tmpa) = _t_rest.last() else { break; };
                     let _tmpa = *_tmpa;
-                    _i += 1;
-                    if (((_tmpa) as i32) == ((0) as i32)) { break; }
+                    _i = _i.saturating_add(1);
+                    if _tmpa == 0 { break; }
                 }
             }
         }
         if  ((*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0))  {
-            *self_rc.noop.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.noop.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         Ok(())
     }
@@ -414,7 +414,7 @@ impl WindowsResourceFile_UnicodeOrId {
         if *self.is_string()? {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.save_pos1()?)?)?;
-            *self.as_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(((((((*self.save_pos2()?) as i32) - ((*self.save_pos1()?) as i32))) as i32) - ((2) as i32)))?)?, "UTF-16LE")?;
+            *self.as_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(((*self.save_pos2()?).saturating_sub(*self.save_pos1()?)).saturating_sub(2_i32))?)?, "UTF-16LE")?;
             _io.seek(_pos)?;
         }
         Ok(self.as_string.borrow())
@@ -427,7 +427,7 @@ impl WindowsResourceFile_UnicodeOrId {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() = ((((*self.first()) as i32) != ((65535) as i32))).try_into()?;
+        *self.is_string.borrow_mut() = (*self.first() != 65535).try_into()?;
         Ok(self.is_string.borrow())
     }
     pub fn save_pos1(

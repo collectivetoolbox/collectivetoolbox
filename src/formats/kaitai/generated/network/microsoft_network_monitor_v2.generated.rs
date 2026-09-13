@@ -61,13 +61,13 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x47u8, 0x4du8, 0x42u8, 0x55u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.version_minor.borrow_mut() = _io.read_u1()?;
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
-        *self_rc.mac_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.mac_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         let t = Self::read_into::<_, WindowsSystemtime>(&*_io, None, None)?.into();
         *self_rc.time_capture_start.borrow_mut() = t;
         *self_rc.frame_table_ofs.borrow_mut() = _io.read_u4le()?;
@@ -583,6 +583,7 @@ pub enum MicrosoftNetworkMonitorV2_Frame_Body {
     Bytes(Vec<u8>),
 }
 impl From<&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Self {
         if let MicrosoftNetworkMonitorV2_Frame_Body::EthernetFrame(x) = v {
             return x.clone();
@@ -596,6 +597,7 @@ impl From<OptRc<EthernetFrame>> for MicrosoftNetworkMonitorV2_Frame_Body {
     }
 }
 impl From<&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Self {
         if let MicrosoftNetworkMonitorV2_Frame_Body::Bytes(x) = v {
             return x.clone();
@@ -715,11 +717,11 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, MicrosoftNetworkMonitorV2_FrameIndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

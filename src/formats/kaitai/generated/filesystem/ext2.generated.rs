@@ -43,7 +43,7 @@ impl Ext2 {
             return Ok(self.bg1.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(1024)?)?;
+        _io.seek(1024_usize)?;
         let t = Self::read_into::<_, Ext2_BlockGroup>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.bg1.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -56,7 +56,7 @@ impl Ext2 {
         if self.f_root_dir.get() {
             return Ok(self.root_dir.borrow());
         }
-        *self.root_dir.borrow_mut() = self.bg1()?.block_groups()[0 as usize].inodes()?[1 as usize].as_dir()?.clone();
+        *self.root_dir.borrow_mut() = self.bg1()?.block_groups().get(0_usize).ok_or(KError::CastError)?.inodes()?.get(1_usize).ok_or(KError::CastError)?.as_dir()?.clone();
         Ok(self.root_dir.borrow())
     }
 }
@@ -107,7 +107,7 @@ impl KStruct for Ext2_Bgd {
         *self_rc.free_blocks_count.borrow_mut() = _io.read_u2le()?;
         *self_rc.free_inodes_count.borrow_mut() = _io.read_u2le()?;
         *self_rc.used_dirs_count.borrow_mut() = _io.read_u2le()?;
-        *self_rc.pad_reserved.borrow_mut() = _io.read_bytes(usize::try_from((((2) as i32) + ((12) as i32)))?)?;
+        *self_rc.pad_reserved.borrow_mut() = _io.read_bytes(usize::try_from((2_i32).saturating_add(12_i32))?)?;
         Ok(())
     }
 }
@@ -121,8 +121,8 @@ impl Ext2_Bgd {
         }
         self.f_block_bitmap.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.block_bitmap_block()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?) as u32)))?)?;
-        *self.block_bitmap.borrow_mut() = _io.read_bytes(usize::try_from(1024)?)?;
+        _io.seek(usize::try_from((*self.block_bitmap_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
+        *self.block_bitmap.borrow_mut() = _io.read_bytes(1024_usize)?;
         _io.seek(_pos)?;
         Ok(self.block_bitmap.borrow())
     }
@@ -135,8 +135,8 @@ impl Ext2_Bgd {
         }
         self.f_inode_bitmap.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.inode_bitmap_block()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?) as u32)))?)?;
-        *self.inode_bitmap.borrow_mut() = _io.read_bytes(usize::try_from(1024)?)?;
+        _io.seek(usize::try_from((*self.inode_bitmap_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
+        *self.inode_bitmap.borrow_mut() = _io.read_bytes(1024_usize)?;
         _io.seek(_pos)?;
         Ok(self.inode_bitmap.borrow())
     }
@@ -149,7 +149,7 @@ impl Ext2_Bgd {
         }
         self.f_inodes.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.inode_table_block()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?) as u32)))?)?;
+        _io.seek(usize::try_from((*self.inode_table_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.inodes.borrow_mut() = Vec::new();
         let l_inodes = *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group();
         for _i in 0..l_inodes {
@@ -293,7 +293,7 @@ impl Ext2_BlockPtr {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ptr()) as u32) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?) as u32)))?)?;
+        _io.seek(usize::try_from((*self.ptr()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?)?.into();
         let body_raw = self.body_raw.borrow();
         let _t_body_raw_io = BytesReader::from(body_raw.clone());
@@ -344,11 +344,11 @@ impl KStruct for Ext2_Dir {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Ext2_DirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -400,9 +400,9 @@ impl KStruct for Ext2_DirEntry {
         *self_rc.inode_ptr.borrow_mut() = _io.read_u4le()?;
         *self_rc.rec_len.borrow_mut() = _io.read_u2le()?;
         *self_rc.name_len.borrow_mut() = _io.read_u1()?;
-        *self_rc.file_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.name_len())?)?, "UTF-8")?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(((((((*self_rc.rec_len()) as u16) - ((*self_rc.name_len()) as u16))) as i32) - ((8) as i32)))?)?;
+        *self_rc.file_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.name_len()))?, "UTF-8")?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.rec_len()).saturating_sub(u16::from(*self_rc.name_len())))).saturating_sub(8_i32))?)?;
         Ok(())
     }
 }
@@ -414,7 +414,7 @@ impl Ext2_DirEntry {
         if self.f_inode.get() {
             return Ok(self.inode.borrow());
         }
-        *self.inode.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.block_groups()[(((((((*self.inode_ptr()) as u32) - ((1) as u32))) as u32) / ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()) as u32))) as usize].inodes()?[(((((((*self.inode_ptr()) as u32) - ((1) as u32))) as u32) % ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()) as u32))) as usize].clone();
+        *self.inode.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.block_groups().get(usize::try_from(((*self.inode_ptr()).saturating_sub(1_u32)).checked_div(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()).ok_or(KError::CastError)?)?).ok_or(KError::CastError)?.inodes()?.get(usize::try_from(((*self.inode_ptr()).saturating_sub(1_u32)).checked_rem(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()).ok_or(KError::CastError)?)?).ok_or(KError::CastError)?.clone();
         Ok(self.inode.borrow())
     }
 }
@@ -568,7 +568,7 @@ impl KStruct for Ext2_Inode {
         *self_rc.file_acl.borrow_mut() = _io.read_u4le()?;
         *self_rc.dir_acl.borrow_mut() = _io.read_u4le()?;
         *self_rc.faddr.borrow_mut() = _io.read_u4le()?;
-        *self_rc.osd2.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.osd2.borrow_mut() = _io.read_bytes(12_usize)?;
         Ok(())
     }
 }
@@ -580,9 +580,9 @@ impl Ext2_Inode {
         if self.f_as_dir.get() {
             return Ok(self.as_dir.borrow());
         }
-        let io = KStream::clone(&*self.block()[0 as usize].body()?._io());
+        let io = KStream::clone(&*self.block().get(0_usize).ok_or(KError::CastError)?.body()?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(0)?)?;
+        io.seek(0_usize)?;
         let t = Self::read_into::<_, Ext2_Dir>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.as_dir.borrow_mut() = t;
         io.seek(_pos)?;
@@ -810,12 +810,12 @@ impl KStruct for Ext2_SuperBlockStruct {
         *self_rc.wtime.borrow_mut() = _io.read_u4le()?;
         *self_rc.mnt_count.borrow_mut() = _io.read_u2le()?;
         *self_rc.max_mnt_count.borrow_mut() = _io.read_u2le()?;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0xefu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/super_block_struct/seq/15".to_string() }));
         }
-        *self_rc.state.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
-        *self_rc.errors.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.state.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.errors.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.minor_rev_level.borrow_mut() = _io.read_u2le()?;
         *self_rc.lastcheck.borrow_mut() = _io.read_u4le()?;
         *self_rc.checkinterval.borrow_mut() = _io.read_u4le()?;
@@ -829,14 +829,14 @@ impl KStruct for Ext2_SuperBlockStruct {
         *self_rc.feature_compat.borrow_mut() = _io.read_u4le()?;
         *self_rc.feature_incompat.borrow_mut() = _io.read_u4le()?;
         *self_rc.feature_ro_compat.borrow_mut() = _io.read_u4le()?;
-        *self_rc.uuid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.volume_name.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.last_mounted.borrow_mut() = _io.read_bytes(usize::try_from(64)?)?;
+        *self_rc.uuid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.volume_name.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.last_mounted.borrow_mut() = _io.read_bytes(64_usize)?;
         *self_rc.algo_bitmap.borrow_mut() = _io.read_u4le()?;
         *self_rc.prealloc_blocks.borrow_mut() = _io.read_u1()?;
         *self_rc.prealloc_dir_blocks.borrow_mut() = _io.read_u1()?;
-        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
-        *self_rc.journal_uuid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.padding1.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc.journal_uuid.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.journal_inum.borrow_mut() = _io.read_u4le()?;
         *self_rc.journal_dev.borrow_mut() = _io.read_u4le()?;
         *self_rc.last_orphan.borrow_mut() = _io.read_u4le()?;
@@ -858,7 +858,7 @@ impl Ext2_SuperBlockStruct {
             return Ok(self.block_group_count.borrow());
         }
         self.f_block_group_count.set(true);
-        *self.block_group_count.borrow_mut() = ((((*self.blocks_count()) as u32) / ((*self.blocks_per_group()) as u32))).try_into()?;
+        *self.block_group_count.borrow_mut() = ((*self.blocks_count()).checked_div(*self.blocks_per_group()).ok_or(KError::CastError)?).try_into()?;
         Ok(self.block_group_count.borrow())
     }
     pub fn block_size(
@@ -869,7 +869,7 @@ impl Ext2_SuperBlockStruct {
             return Ok(self.block_size.borrow());
         }
         self.f_block_size.set(true);
-        *self.block_size.borrow_mut() = ((((1024) as u32) << ((*self.log_block_size()) as u32))).try_into()?;
+        *self.block_size.borrow_mut() = ((1024_i32).wrapping_shl(to_shift_amt(*self.log_block_size()))).try_into()?;
         Ok(self.block_size.borrow())
     }
 }

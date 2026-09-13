@@ -42,11 +42,11 @@ impl KStruct for Ogg {
         let _io = io;
         *self_rc.pages.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Ogg_Page>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.pages.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -105,11 +105,11 @@ impl KStruct for Ogg_Page {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.sync_code.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.sync_code.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.sync_code() == vec![0x4fu8, 0x67u8, 0x67u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/0".to_string() }));
         }
-        *self_rc.version.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.version.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.version() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/1".to_string() }));
         }
@@ -131,7 +131,7 @@ impl KStruct for Ogg_Page {
         *self_rc.segments.borrow_mut() = Vec::new();
         let l_segments = *self_rc.num_segments();
         for _i in 0..l_segments {
-            self_rc.segments.borrow_mut().push(_io.read_bytes(usize::try_from(self_rc.len_segments()[_i as usize])?)?);
+            self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(usize::try_from(_i)?).ok_or(KError::CastError)?)))?);
         }
         Ok(())
     }

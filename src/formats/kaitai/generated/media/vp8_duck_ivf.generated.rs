@@ -47,13 +47,13 @@ impl KStruct for Vp8DuckIvf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic1.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x44u8, 0x4bu8, 0x49u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_header.borrow_mut() = _io.read_u2le()?;
-        *self_rc.codec.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.codec.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.codec() == vec![0x56u8, 0x50u8, 0x38u8, 0x30u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }

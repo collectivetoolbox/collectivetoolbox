@@ -39,11 +39,11 @@ impl KStruct for SomeIpSdOptions {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, SomeIpSdOptions_SdOption>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -84,6 +84,7 @@ pub enum SomeIpSdOptions_SdOption_Content {
     SomeIpSdOptions_SdOption_SdLoadBalancingOption(OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>),
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdConfigurationOption(x) = v {
             return x.clone();
@@ -97,6 +98,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>> for SomeIpSdOpt
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv4EndpointOption(x) = v {
             return x.clone();
@@ -110,6 +112,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>> for SomeIpSdOpti
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv4MulticastOption(x) = v {
             return x.clone();
@@ -123,6 +126,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>> for SomeIpSdOpt
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption(x) = v {
             return x.clone();
@@ -136,6 +140,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>> for SomeIpSdOp
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv6EndpointOption(x) = v {
             return x.clone();
@@ -149,6 +154,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>> for SomeIpSdOpti
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv6MulticastOption(x) = v {
             return x.clone();
@@ -162,6 +168,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>> for SomeIpSdOpt
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption(x) = v {
             return x.clone();
@@ -175,6 +182,7 @@ impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>> for SomeIpSdOp
     }
 }
 impl From<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIpSdOptions_SdOption_Content) -> Self {
         if let SomeIpSdOptions_SdOption_Content::SomeIpSdOptions_SdOption_SdLoadBalancingOption(x) = v {
             return x.clone();
@@ -411,7 +419,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
-        if (((*self_rc.length()) as i32) != ((0) as i32)) {
+        if *self_rc.length() != 0 {
             let t = Self::read_into::<_, SomeIpSdOptions_SdOption_SdConfigKvPair>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.config.borrow_mut() = t;
         }
@@ -461,11 +469,11 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigStringsContainer {
         let _io = io;
         *self_rc.config_strings.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, SomeIpSdOptions_SdOption_SdConfigString>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.config_strings.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -560,7 +568,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -628,7 +636,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -696,7 +704,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -764,7 +772,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -832,7 +840,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -900,7 +908,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.address.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.address.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.l4_protocol.borrow_mut() = _io.read_u1()?;
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
@@ -1019,7 +1027,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdOptionHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }

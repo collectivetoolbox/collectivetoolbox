@@ -29,6 +29,7 @@ pub enum SomeIp_Payload {
     Bytes(Vec<u8>),
 }
 impl From<&SomeIp_Payload> for OptRc<SomeIpSd> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIp_Payload) -> Self {
         if let SomeIp_Payload::SomeIpSd(x) = v {
             return x.clone();
@@ -42,6 +43,7 @@ impl From<OptRc<SomeIpSd>> for SomeIp_Payload {
     }
 }
 impl From<&SomeIp_Payload> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SomeIp_Payload) -> Self {
         if let SomeIp_Payload::Bytes(x) = v {
             return x.clone();
@@ -147,8 +149,8 @@ impl KStruct for SomeIp_Header {
         *self_rc.request_id.borrow_mut() = t;
         *self_rc.protocol_version.borrow_mut() = _io.read_u1()?;
         *self_rc.interface_version.borrow_mut() = _io.read_u1()?;
-        *self_rc.message_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.return_code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.message_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.return_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }
@@ -166,7 +168,7 @@ impl SomeIp_Header {
             return Ok(self.is_valid_service_discovery.borrow());
         }
         self.f_is_valid_service_discovery.set(true);
-        *self.is_valid_service_discovery.borrow_mut() = ( (((((*self.message_id().value()?) as u32) == ((4294934784) as u32))) && ((((*self.protocol_version()) as i32) == ((1) as i32))) && ((((*self.interface_version()) as i32) == ((1) as i32))) && (*self.message_type() == SomeIp_Header_MessageTypeEnum::Notification) && (*self.return_code() == SomeIp_Header_ReturnCodeEnum::Ok)) ).try_into()?;
+        *self.is_valid_service_discovery.borrow_mut() = ( ((*self.message_id().value()? == 4294934784) && (*self.protocol_version() == 1) && (*self.interface_version() == 1) && (*self.message_type() == SomeIp_Header_MessageTypeEnum::Notification) && (*self.return_code() == SomeIp_Header_ReturnCodeEnum::Ok)) ).try_into()?;
         Ok(self.is_valid_service_discovery.borrow())
     }
 }
@@ -426,7 +428,7 @@ impl SomeIp_Header_MessageId {
         }
         self.f_value.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         *self.value.borrow_mut() = _io.read_u4be()?;
         _io.seek(_pos)?;
         Ok(self.value.borrow())
@@ -527,7 +529,7 @@ impl SomeIp_Header_RequestId {
         }
         self.f_value.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         *self.value.borrow_mut() = _io.read_u4be()?;
         _io.seek(_pos)?;
         Ok(self.value.borrow())

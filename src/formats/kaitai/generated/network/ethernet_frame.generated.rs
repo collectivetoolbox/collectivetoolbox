@@ -37,6 +37,7 @@ pub enum EthernetFrame_Body {
     Bytes(Vec<u8>),
 }
 impl From<&EthernetFrame_Body> for OptRc<Ipv4Packet> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &EthernetFrame_Body) -> Self {
         if let EthernetFrame_Body::Ipv4Packet(x) = v {
             return x.clone();
@@ -50,6 +51,7 @@ impl From<OptRc<Ipv4Packet>> for EthernetFrame_Body {
     }
 }
 impl From<&EthernetFrame_Body> for OptRc<Ipv6Packet> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &EthernetFrame_Body) -> Self {
         if let EthernetFrame_Body::Ipv6Packet(x) = v {
             return x.clone();
@@ -63,6 +65,7 @@ impl From<OptRc<Ipv6Packet>> for EthernetFrame_Body {
     }
 }
 impl From<&EthernetFrame_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &EthernetFrame_Body) -> Self {
         if let EthernetFrame_Body::Bytes(x) = v {
             return x.clone();
@@ -90,15 +93,15 @@ impl KStruct for EthernetFrame {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.dst_mac.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
-        *self_rc.src_mac.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
-        *self_rc.ether_type_1.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
+        *self_rc.dst_mac.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc.src_mac.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc.ether_type_1.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
             let t = Self::read_into::<_, EthernetFrame_TagControlInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.tci.borrow_mut() = t;
         }
         if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
-            *self_rc.ether_type_2.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
+            *self_rc.ether_type_2.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         }
         match *self_rc.ether_type()? {
             EthernetFrame_EtherTypeEnum::Ipv4 => {

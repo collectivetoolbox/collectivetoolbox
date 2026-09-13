@@ -145,7 +145,7 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        *self.name.borrow_mut() = if (((*self.name_zeroes()?) as u32) == ((0) as u32)) { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
+        *self.name.borrow_mut() = if *self.name_zeroes()? == 0 { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
         Ok(self.name.borrow())
     }
     pub fn name_from_offset(
@@ -156,10 +156,10 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_offset.borrow());
         }
         self.f_name_from_offset.set(true);
-        if (((*self.name_zeroes()?) as u32) == ((0) as u32)) {
+        if *self.name_zeroes()? == 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(if (((*self.name_zeroes()?) as u32) == ((0) as u32)) { ((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?) as u32) + ((*self.name_offset()?) as u32))) as u32 } else { (0) as u32 })?)?;
+            io.seek(usize::try_from(if *self.name_zeroes()? == 0 { (u32::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?)?).saturating_add(*self.name_offset()?) } else { 0_u32 })?)?;
             *self.name_from_offset.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ascii")?;
             io.seek(_pos)?;
         }
@@ -173,9 +173,9 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_short.borrow());
         }
         self.f_name_from_short.set(true);
-        if (((*self.name_zeroes()?) as u32) != ((0) as u32)) {
+        if *self.name_zeroes()? != 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(0)?)?;
+            _io.seek(0_usize)?;
             *self.name_from_short.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ascii")?;
             _io.seek(_pos)?;
         }
@@ -190,7 +190,7 @@ impl MicrosoftPe_Annoyingstring {
         }
         self.f_name_offset.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(4)?)?;
+        _io.seek(4_usize)?;
         *self.name_offset.borrow_mut() = _io.read_u4le()?;
         _io.seek(_pos)?;
         Ok(self.name_offset.borrow())
@@ -204,7 +204,7 @@ impl MicrosoftPe_Annoyingstring {
         }
         self.f_name_zeroes.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         *self.name_zeroes.borrow_mut() = _io.read_u4le()?;
         _io.seek(_pos)?;
         Ok(self.name_zeroes.borrow())
@@ -247,9 +247,9 @@ impl KStruct for MicrosoftPe_CertificateEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
-        *self_rc.revision.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
-        *self_rc.certificate_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
-        *self_rc.certificate_bytes.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.length()) as u32) - ((8) as u32)))?)?;
+        *self_rc.revision.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.certificate_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.certificate_bytes.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.length()).saturating_sub(8_u32))?)?;
         Ok(())
     }
 }
@@ -419,11 +419,11 @@ impl KStruct for MicrosoftPe_CertificateTable {
         let _io = io;
         *self_rc.items.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, MicrosoftPe_CertificateEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -483,7 +483,7 @@ impl KStruct for MicrosoftPe_CoffHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.machine.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.machine.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.number_of_sections.borrow_mut() = _io.read_u2le()?;
         *self_rc.time_date_stamp.borrow_mut() = _io.read_u4le()?;
         *self_rc.pointer_to_symbol_table.borrow_mut() = _io.read_u4le()?;
@@ -502,7 +502,7 @@ impl MicrosoftPe_CoffHeader {
             return Ok(self.symbol_name_table_offset.borrow());
         }
         self.f_symbol_name_table_offset.set(true);
-        *self.symbol_name_table_offset.borrow_mut() = ((((*self.pointer_to_symbol_table()) as u32) + ((*self.symbol_table_size()?) as u32))).try_into()?;
+        *self.symbol_name_table_offset.borrow_mut() = ((*self.pointer_to_symbol_table()).saturating_add(u32::try_from(*self.symbol_table_size()?)?)).try_into()?;
         Ok(self.symbol_name_table_offset.borrow())
     }
     pub fn symbol_name_table_size(
@@ -546,7 +546,7 @@ impl MicrosoftPe_CoffHeader {
             return Ok(self.symbol_table_size.borrow());
         }
         self.f_symbol_table_size.set(true);
-        *self.symbol_table_size.borrow_mut() = ((((*self.number_of_symbols()) as u32) * ((18) as u32))).try_into()?;
+        *self.symbol_table_size.borrow_mut() = ((*self.number_of_symbols()).saturating_mul(18_u32)).try_into()?;
         Ok(self.symbol_table_size.borrow())
     }
 }
@@ -874,8 +874,8 @@ impl MicrosoftPe_CoffSymbol {
         }
         self.f_data.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.section()?.pointer_to_raw_data()) as u32) + ((*self.value()) as u32)))?)?;
-        *self.data.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        _io.seek(usize::try_from((*self.section()?.pointer_to_raw_data()).saturating_add(*self.value()))?)?;
+        *self.data.borrow_mut() = _io.read_bytes(1_usize)?;
         _io.seek(_pos)?;
         Ok(self.data.borrow())
     }
@@ -886,7 +886,7 @@ impl MicrosoftPe_CoffSymbol {
         if self.f_section.get() {
             return Ok(self.section.borrow());
         }
-        *self.section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.pe()?.sections()[((((*self.section_number()) as i32) - ((1) as i32))) as usize].clone();
+        *self.section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.pe()?.sections().get(usize::try_from((i32::from(*self.section_number())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.clone();
         Ok(self.section.borrow())
     }
 }
@@ -998,11 +998,11 @@ impl KStruct for MicrosoftPe_MzPlaceholder {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x5au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/mz_placeholder/seq/0".to_string() }));
         }
-        *self_rc.data1.borrow_mut() = _io.read_bytes(usize::try_from(58)?)?;
+        *self_rc.data1.borrow_mut() = _io.read_bytes(58_usize)?;
         *self_rc.ofs_pe.borrow_mut() = _io.read_u4le()?;
         Ok(())
     }
@@ -1275,7 +1275,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderStd {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.format.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.format.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.major_linker_version.borrow_mut() = _io.read_u1()?;
         *self_rc.minor_linker_version.borrow_mut() = _io.read_u1()?;
         *self_rc.size_of_code.borrow_mut() = _io.read_u4le()?;
@@ -1408,7 +1408,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderWindows {
         *self_rc.size_of_image.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_headers.borrow_mut() = _io.read_u4le()?;
         *self_rc.check_sum.borrow_mut() = _io.read_u4le()?;
-        *self_rc.subsystem.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.subsystem.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.dll_characteristics.borrow_mut() = _io.read_u2le()?;
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.size_of_stack_reserve_32.borrow_mut() = _io.read_u4le()?;
@@ -1668,7 +1668,7 @@ impl KStruct for MicrosoftPe_PeHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.pe_signature.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.pe_signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.pe_signature() == vec![0x50u8, 0x45u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/pe_header/seq/0".to_string() }));
         }
@@ -1693,7 +1693,7 @@ impl MicrosoftPe_PeHeader {
         if self.f_certificate_table.get() {
             return Ok(self.certificate_table.borrow());
         }
-        if (((*self.optional_hdr().data_dirs().certificate_table().virtual_address()) as u32) != ((0) as u32)) {
+        if *self.optional_hdr().data_dirs().certificate_table().virtual_address() != 0 {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().virtual_address())?)?;
             *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().size())?)?.into();
@@ -1771,7 +1771,7 @@ impl KStruct for MicrosoftPe_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(8)?)?, 0), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "UTF-8")?;
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;

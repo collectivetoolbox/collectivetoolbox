@@ -71,13 +71,13 @@ impl KStruct for Sqlite3 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(16_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0x51u8, 0x4cu8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x6fu8, 0x72u8, 0x6du8, 0x61u8, 0x74u8, 0x20u8, 0x33u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.len_page_mod.borrow_mut() = _io.read_u2be()?;
-        *self_rc.write_version.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.read_version.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.write_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.read_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.reserved_space.borrow_mut() = _io.read_u1()?;
         *self_rc.max_payload_frac.borrow_mut() = _io.read_u1()?;
         *self_rc.min_payload_frac.borrow_mut() = _io.read_u1()?;
@@ -90,11 +90,11 @@ impl KStruct for Sqlite3 {
         *self_rc.schema_format.borrow_mut() = _io.read_u4be()?;
         *self_rc.def_page_cache_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.largest_root_page.borrow_mut() = _io.read_u4be()?;
-        *self_rc.text_encoding.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.text_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.user_version.borrow_mut() = _io.read_u4be()?;
         *self_rc.is_incremental_vacuum.borrow_mut() = _io.read_u4be()?;
         *self_rc.application_id.borrow_mut() = _io.read_u4be()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(20)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(20_usize)?;
         *self_rc.version_valid_for.borrow_mut() = _io.read_u4be()?;
         *self_rc.sqlite_version_number.borrow_mut() = _io.read_u4be()?;
         let t = Self::read_into::<_, Sqlite3_BtreePage>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -111,7 +111,7 @@ impl Sqlite3 {
             return Ok(self.len_page.borrow());
         }
         self.f_len_page.set(true);
-        *self.len_page.borrow_mut() = (if (((*self.len_page_mod()) as i32) == ((1) as i32)) { (65536) as i32 } else { (*self.len_page_mod()) as i32 }).try_into()?;
+        *self.len_page.borrow_mut() = (if *self.len_page_mod() == 1 { 65536_i32 } else { i32::from(*self.len_page_mod()) }).try_into()?;
         Ok(self.len_page.borrow())
     }
 }
@@ -404,7 +404,7 @@ impl KStruct for Sqlite3_BtreePage {
         *self_rc.num_cells.borrow_mut() = _io.read_u2be()?;
         *self_rc.ofs_cells.borrow_mut() = _io.read_u2be()?;
         *self_rc.num_frag_free_bytes.borrow_mut() = _io.read_u1()?;
-        if  (((((*self_rc.page_type()) as i32) == ((2) as i32))) || ((((*self_rc.page_type()) as i32) == ((5) as i32))))  {
+        if  ((*self_rc.page_type() == 2) || (*self_rc.page_type() == 5))  {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
         }
         *self_rc.cells.borrow_mut() = Vec::new();
@@ -608,7 +608,7 @@ impl KStruct for Sqlite3_CellPayload {
         *self_rc.column_contents.borrow_mut() = Vec::new();
         let l_column_contents = self_rc.column_serials().entries().len();
         for _i in 0..l_column_contents {
-            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries()[_i as usize].clone()));
+            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.clone()));
             let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.column_contents.borrow_mut().push(t);
         }
@@ -777,9 +777,10 @@ impl From<u8> for Sqlite3_ColumnContent_AsInt {
     }
 }
 impl From<&Sqlite3_ColumnContent_AsInt> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Sqlite3_ColumnContent_AsInt) -> Self {
         if let Sqlite3_ColumnContent_AsInt::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Sqlite3_ColumnContent_AsInt::U1 to u8, enum value {:?}", e)
     }
@@ -790,9 +791,10 @@ impl From<u16> for Sqlite3_ColumnContent_AsInt {
     }
 }
 impl From<&Sqlite3_ColumnContent_AsInt> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Sqlite3_ColumnContent_AsInt) -> Self {
         if let Sqlite3_ColumnContent_AsInt::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Sqlite3_ColumnContent_AsInt::U2 to u16, enum value {:?}", e)
     }
@@ -803,9 +805,10 @@ impl From<u64> for Sqlite3_ColumnContent_AsInt {
     }
 }
 impl From<&Sqlite3_ColumnContent_AsInt> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Sqlite3_ColumnContent_AsInt) -> Self {
         if let Sqlite3_ColumnContent_AsInt::Variant(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Sqlite3_ColumnContent_AsInt::Variant to u64, enum value {:?}", e)
     }
@@ -816,9 +819,10 @@ impl From<u32> for Sqlite3_ColumnContent_AsInt {
     }
 }
 impl From<&Sqlite3_ColumnContent_AsInt> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Sqlite3_ColumnContent_AsInt) -> Self {
         if let Sqlite3_ColumnContent_AsInt::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Sqlite3_ColumnContent_AsInt::U4 to u32, enum value {:?}", e)
     }
@@ -948,6 +952,7 @@ pub enum Sqlite3_RefCell_Body {
     Sqlite3_CellTableInterior(OptRc<Sqlite3_CellTableInterior>),
 }
 impl From<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexLeaf> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Sqlite3_RefCell_Body) -> Self {
         if let Sqlite3_RefCell_Body::Sqlite3_CellIndexLeaf(x) = v {
             return x.clone();
@@ -961,6 +966,7 @@ impl From<OptRc<Sqlite3_CellIndexLeaf>> for Sqlite3_RefCell_Body {
     }
 }
 impl From<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableLeaf> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Sqlite3_RefCell_Body) -> Self {
         if let Sqlite3_RefCell_Body::Sqlite3_CellTableLeaf(x) = v {
             return x.clone();
@@ -974,6 +980,7 @@ impl From<OptRc<Sqlite3_CellTableLeaf>> for Sqlite3_RefCell_Body {
     }
 }
 impl From<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexInterior> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Sqlite3_RefCell_Body) -> Self {
         if let Sqlite3_RefCell_Body::Sqlite3_CellIndexInterior(x) = v {
             return x.clone();
@@ -987,6 +994,7 @@ impl From<OptRc<Sqlite3_CellIndexInterior>> for Sqlite3_RefCell_Body {
     }
 }
 impl From<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableInterior> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Sqlite3_RefCell_Body) -> Self {
         if let Sqlite3_RefCell_Body::Sqlite3_CellTableInterior(x) = v {
             return x.clone();
@@ -1028,7 +1036,7 @@ impl Sqlite3_RefCell {
         }
         self.f_body.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(*self.ofs_body())?)?;
+        _io.seek(usize::from(*self.ofs_body()))?;
         match *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.page_type() {
             10 => {
                 let t = Self::read_into::<_, Sqlite3_CellIndexLeaf>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -1106,7 +1114,7 @@ impl Sqlite3_Serial {
             return Ok(self.is_blob.borrow());
         }
         self.f_is_blob.set(true);
-        *self.is_blob.borrow_mut() = ( ((*self.code().value()? >= 12) && (*self.code().value()? % 2 == 0)) ).try_into()?;
+        *self.is_blob.borrow_mut() = ( ((*self.code().value()? >= 12) && ((*self.code().value()?).checked_rem(2_i32).ok_or(KError::CastError)? == 0)) ).try_into()?;
         Ok(self.is_blob.borrow())
     }
     pub fn is_string(
@@ -1117,7 +1125,7 @@ impl Sqlite3_Serial {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() = ( ((*self.code().value()? >= 13) && (*self.code().value()? % 2 == 1)) ).try_into()?;
+        *self.is_string.borrow_mut() = ( ((*self.code().value()? >= 13) && ((*self.code().value()?).checked_rem(2_i32).ok_or(KError::CastError)? == 1)) ).try_into()?;
         Ok(self.is_string.borrow())
     }
     pub fn len_content(
@@ -1129,7 +1137,7 @@ impl Sqlite3_Serial {
         }
         self.f_len_content.set(true);
         if *self.code().value()? >= 12 {
-            *self.len_content.borrow_mut() = ((((*self.code().value()? - 12) as i32) / ((2) as i32))).try_into()?;
+            *self.len_content.borrow_mut() = (((*self.code().value()?).saturating_sub(12_i32)).checked_div(2_i32).ok_or(KError::CastError)?).try_into()?;
         }
         Ok(self.len_content.borrow())
     }
@@ -1170,11 +1178,11 @@ impl KStruct for Sqlite3_Serials {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Sqlite3_Serial>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

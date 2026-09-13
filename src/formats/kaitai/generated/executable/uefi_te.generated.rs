@@ -210,7 +210,7 @@ impl KStruct for UefiTe_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(8)?)?, 0), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "UTF-8")?;
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;
@@ -233,7 +233,7 @@ impl UefiTe_Section {
         }
         self.f_body.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((((((*self.pointer_to_raw_data()) as u32) - ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size()) as u32))) as u32) + ((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size()) as u32)))?)?;
+        _io.seek(usize::try_from(((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size()))).saturating_add(u32::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size())?))?)?;
         *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size_of_raw_data())?)?;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -326,13 +326,13 @@ impl KStruct for UefiTe_TeHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x56u8, 0x5au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/te_header/seq/0".to_string() }));
         }
-        *self_rc.machine.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.machine.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.num_sections.borrow_mut() = _io.read_u1()?;
-        *self_rc.subsystem.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.subsystem.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.stripped_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.entry_point_addr.borrow_mut() = _io.read_u4le()?;
         *self_rc.base_of_code.borrow_mut() = _io.read_u4le()?;

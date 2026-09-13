@@ -37,11 +37,11 @@ impl KStruct for Code6502 {
         let _io = io;
         *self_rc.operations.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Code6502_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.operations.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -560,9 +560,10 @@ impl From<u16> for Code6502_Operation_Args {
     }
 }
 impl From<&Code6502_Operation_Args> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Code6502_Operation_Args) -> Self {
         if let Code6502_Operation_Args::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Code6502_Operation_Args::U2 to u16, enum value {:?}", e)
     }
@@ -573,9 +574,10 @@ impl From<u8> for Code6502_Operation_Args {
     }
 }
 impl From<&Code6502_Operation_Args> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Code6502_Operation_Args) -> Self {
         if let Code6502_Operation_Args::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Code6502_Operation_Args::U1 to u8, enum value {:?}", e)
     }
@@ -586,9 +588,10 @@ impl From<i8> for Code6502_Operation_Args {
     }
 }
 impl From<&Code6502_Operation_Args> for i8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Code6502_Operation_Args) -> Self {
         if let Code6502_Operation_Args::S1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Code6502_Operation_Args::S1 to i8, enum value {:?}", e)
     }
@@ -621,7 +624,7 @@ impl KStruct for Code6502_Operation {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.code() {
             Code6502_Opcode::AdcAbs => {
                 *self_rc.args.borrow_mut() = Some(_io.read_u2le()?.into());

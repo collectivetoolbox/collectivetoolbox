@@ -51,12 +51,12 @@ impl KStruct for Utf8String {
         let _io = io;
         *self_rc.codepoints.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Utf8String_Utf8Codepoint| Ok(t.set_params((_io.pos()).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, Utf8String_Utf8Codepoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.codepoints.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -150,7 +150,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.len_bytes.borrow());
         }
         self.f_len_bytes.set(true);
-        *self.len_bytes.borrow_mut() = (if (((*self.byte0()?) as u64) & ((128) as u64)) == 0 { (1) as i32 } else { (if (((*self.byte0()?) as u64) & ((224) as u64)) == 192 { (2) as i32 } else { (if (((*self.byte0()?) as u64) & ((240) as u64)) == 224 { (3) as i32 } else { (if (((*self.byte0()?) as u64) & ((248) as u64)) == 240 { (4) as i32 } else { (-(1)) as i32 }) as i32 }) as i32 }) as i32 }).try_into()?;
+        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { -(1) } } } }).try_into()?;
         Ok(self.len_bytes.borrow())
     }
     pub fn raw0(
@@ -161,7 +161,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.raw0.borrow());
         }
         self.f_raw0.set(true);
-        *self.raw0.borrow_mut() = ((((self.bytes()[0 as usize]) as u64) & ((if *self.len_bytes()? == 1 { (127) as i32 } else { (if *self.len_bytes()? == 2 { (31) as i32 } else { (if *self.len_bytes()? == 3 { (15) as i32 } else { (if *self.len_bytes()? == 4 { (7) as i32 } else { (0) as i32 }) as i32 }) as i32 }) as i32 }) as u64))).try_into()?;
+        *self.raw0.borrow_mut() = (((i32::from(*(self.bytes().get(0_usize).ok_or(KError::CastError)?))) & (if *self.len_bytes()? == 1 { 127_i32 } else { if *self.len_bytes()? == 2 { 31_i32 } else { if *self.len_bytes()? == 3 { 15_i32 } else { if *self.len_bytes()? == 4 { 7_i32 } else { 0_i32 } } } }))).try_into()?;
         Ok(self.raw0.borrow())
     }
     pub fn raw1(
@@ -173,7 +173,7 @@ impl Utf8String_Utf8Codepoint {
         }
         self.f_raw1.set(true);
         if *self.len_bytes()? >= 2 {
-            *self.raw1.borrow_mut() = ((((self.bytes()[1 as usize]) as u64) & ((63) as u64))).try_into()?;
+            *self.raw1.borrow_mut() = (((i32::from(*(self.bytes().get(1_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw1.borrow())
     }
@@ -186,7 +186,7 @@ impl Utf8String_Utf8Codepoint {
         }
         self.f_raw2.set(true);
         if *self.len_bytes()? >= 3 {
-            *self.raw2.borrow_mut() = ((((self.bytes()[2 as usize]) as u64) & ((63) as u64))).try_into()?;
+            *self.raw2.borrow_mut() = (((i32::from(*(self.bytes().get(2_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw2.borrow())
     }
@@ -199,7 +199,7 @@ impl Utf8String_Utf8Codepoint {
         }
         self.f_raw3.set(true);
         if *self.len_bytes()? >= 4 {
-            *self.raw3.borrow_mut() = ((((self.bytes()[3 as usize]) as u64) & ((63) as u64))).try_into()?;
+            *self.raw3.borrow_mut() = (((i32::from(*(self.bytes().get(3_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw3.borrow())
     }
@@ -211,7 +211,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.value_as_int.borrow());
         }
         self.f_value_as_int.set(true);
-        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { (*self.raw0()?) as i32 } else { (if *self.len_bytes()? == 2 { (((((((*self.raw0()?) as i32) << ((6) as i32))) as u64) | ((*self.raw1()?) as u64))) as i32 } else { (if *self.len_bytes()? == 3 { ((((((((((*self.raw0()?) as i32) << ((12) as i32))) as u64) | (((((*self.raw1()?) as i32) << ((6) as i32))) as u64))) as u64) | ((*self.raw2()?) as u64))) as i32 } else { (if *self.len_bytes()? == 4 { (((((((((((((*self.raw0()?) as i32) << ((18) as i32))) as u64) | (((((*self.raw1()?) as i32) << ((12) as i32))) as u64))) as u64) | (((((*self.raw2()?) as i32) << ((6) as i32))) as u64))) as u64) | ((*self.raw3()?) as u64))) as i32 } else { (-(1)) as i32 }) as i32 }) as i32 }) as i32 }).try_into()?;
+        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { -(1) } } } }).try_into()?;
         Ok(self.value_as_int.borrow())
     }
 }

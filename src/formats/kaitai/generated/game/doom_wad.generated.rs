@@ -32,7 +32,7 @@ impl KStruct for DoomWad {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc.num_index_entries.borrow_mut() = _io.read_s4le()?;
         *self_rc.index_offset.borrow_mut() = _io.read_s4le()?;
         Ok(())
@@ -120,7 +120,7 @@ impl KStruct for DoomWad_Blockmap {
         *self_rc.num_cols.borrow_mut() = _io.read_s2le()?;
         *self_rc.num_rows.borrow_mut() = _io.read_s2le()?;
         *self_rc.linedefs_in_block.borrow_mut() = Vec::new();
-        let l_linedefs_in_block = (((*self_rc.num_cols()) as i16) * ((*self_rc.num_rows()) as i16));
+        let l_linedefs_in_block = (*self_rc.num_cols()).saturating_mul(*self_rc.num_rows());
         for _i in 0..l_linedefs_in_block {
             let t = Self::read_into::<_, DoomWad_Blockmap_Blocklist>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.linedefs_in_block.borrow_mut().push(t);
@@ -224,17 +224,17 @@ impl DoomWad_Blockmap_Blocklist {
         }
         self.f_linedefs.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.offset()) as i32) * ((2) as i32)))?)?;
+        _io.seek(usize::try_from((i32::from(*self.offset())).saturating_mul(2_i32))?)?;
         *self.linedefs.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 self.linedefs.borrow_mut().push(_io.read_s2le()?);
                 let _t_linedefs = self.linedefs.borrow();
                 let Some(_tmpa) = _t_linedefs.last() else { break; };
                 let _tmpa = *_tmpa;
-                _i += 1;
-                if (((_tmpa) as i32) == ((-(1)) as i32)) { break; }
+                _i = _i.saturating_add(1);
+                if ((to_i128(_tmpa)) == (to_i128(-(1)))) { break; }
             }
         }
         _io.seek(_pos)?;
@@ -282,6 +282,7 @@ pub enum DoomWad_IndexEntry_Contents {
     Bytes(Vec<u8>),
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Blockmap> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Blockmap(x) = v {
             return x.clone();
@@ -295,6 +296,7 @@ impl From<OptRc<DoomWad_Blockmap>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Linedefs> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Linedefs(x) = v {
             return x.clone();
@@ -308,6 +310,7 @@ impl From<OptRc<DoomWad_Linedefs>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Pnames> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Pnames(x) = v {
             return x.clone();
@@ -321,6 +324,7 @@ impl From<OptRc<DoomWad_Pnames>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sectors> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Sectors(x) = v {
             return x.clone();
@@ -334,6 +338,7 @@ impl From<OptRc<DoomWad_Sectors>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sidedefs> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Sidedefs(x) = v {
             return x.clone();
@@ -347,6 +352,7 @@ impl From<OptRc<DoomWad_Sidedefs>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Texture12> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Texture12(x) = v {
             return x.clone();
@@ -360,6 +366,7 @@ impl From<OptRc<DoomWad_Texture12>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Things> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Things(x) = v {
             return x.clone();
@@ -373,6 +380,7 @@ impl From<OptRc<DoomWad_Things>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Vertexes> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::DoomWad_Vertexes(x) = v {
             return x.clone();
@@ -386,6 +394,7 @@ impl From<OptRc<DoomWad_Vertexes>> for DoomWad_IndexEntry_Contents {
     }
 }
 impl From<&DoomWad_IndexEntry_Contents> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
         if let DoomWad_IndexEntry_Contents::Bytes(x) = v {
             return x.clone();
@@ -415,7 +424,7 @@ impl KStruct for DoomWad_IndexEntry {
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_s4le()?;
         *self_rc.size.borrow_mut() = _io.read_s4le()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(8)?)?, 0), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?;
         Ok(())
     }
 }
@@ -636,11 +645,11 @@ impl KStruct for DoomWad_Linedefs {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DoomWad_Linedef>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -691,7 +700,7 @@ impl KStruct for DoomWad_Pnames {
         *self_rc.names.borrow_mut() = Vec::new();
         let l_names = *self_rc.num_patches();
         for _i in 0..l_names {
-            self_rc.names.borrow_mut().push(bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(8)?)?, 0), "ASCII")?);
+            self_rc.names.borrow_mut().push(bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?);
         }
         Ok(())
     }
@@ -749,10 +758,10 @@ impl KStruct for DoomWad_Sector {
         let _io = io;
         *self_rc.floor_z.borrow_mut() = _io.read_s2le()?;
         *self_rc.ceil_z.borrow_mut() = _io.read_s2le()?;
-        *self_rc.floor_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "ASCII")?;
-        *self_rc.ceil_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "ASCII")?;
+        *self_rc.floor_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.ceil_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc.light.borrow_mut() = _io.read_s2le()?;
-        *self_rc.special_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.special_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
         Ok(())
     }
@@ -934,11 +943,11 @@ impl KStruct for DoomWad_Sectors {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DoomWad_Sector>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -987,9 +996,9 @@ impl KStruct for DoomWad_Sidedef {
         let _io = io;
         *self_rc.offset_x.borrow_mut() = _io.read_s2le()?;
         *self_rc.offset_y.borrow_mut() = _io.read_s2le()?;
-        *self_rc.upper_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "ASCII")?;
-        *self_rc.lower_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "ASCII")?;
-        *self_rc.normal_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "ASCII")?;
+        *self_rc.upper_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.lower_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.normal_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc.sector_id.borrow_mut() = _io.read_s2le()?;
         Ok(())
     }
@@ -1057,11 +1066,11 @@ impl KStruct for DoomWad_Sidedefs {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DoomWad_Sidedef>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1254,7 +1263,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(usize::try_from(8)?)?, 0), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?;
         *self_rc.masked.borrow_mut() = _io.read_u4le()?;
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
@@ -1473,11 +1482,11 @@ impl KStruct for DoomWad_Things {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DoomWad_Thing>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -1568,11 +1577,11 @@ impl KStruct for DoomWad_Vertexes {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DoomWad_Vertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

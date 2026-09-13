@@ -45,7 +45,7 @@ impl KStruct for GenmidiOp2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x23u8, 0x4fu8, 0x50u8, 0x4cu8, 0x5fu8, 0x49u8, 0x49u8, 0x23u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -58,7 +58,7 @@ impl KStruct for GenmidiOp2 {
         *self_rc.instrument_names.borrow_mut() = Vec::new();
         let l_instrument_names = 175;
         for _i in 0..l_instrument_names {
-            self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(usize::try_from(32)?)?, 0), 0, false), "UTF-8")?);
+            self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(32_usize)?, 0), 0, false), "UTF-8")?);
         }
         Ok(())
     }

@@ -101,7 +101,7 @@ impl SystemdJournal {
         }
         self.f_len_header.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(88)?)?;
+        _io.seek(88_usize)?;
         *self.len_header.borrow_mut() = _io.read_u8le()?;
         _io.seek(_pos)?;
         Ok(self.len_header.borrow())
@@ -231,7 +231,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry.get() {
             return Ok(self.entry.borrow());
         }
-        if (((*self.ofs_entry()) as u64) != ((0) as u64)) {
+        if *self.ofs_entry() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry())?)?;
@@ -248,7 +248,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry_array.get() {
             return Ok(self.entry_array.borrow());
         }
-        if (((*self.ofs_entry_array()) as u64) != ((0) as u64)) {
+        if *self.ofs_entry_array() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry_array())?)?;
@@ -265,7 +265,7 @@ impl SystemdJournal_DataObject {
         if self.f_head_field.get() {
             return Ok(self.head_field.borrow());
         }
-        if (((*self.ofs_head_field()) as u64) != ((0) as u64)) {
+        if *self.ofs_head_field() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_head_field())?)?;
@@ -282,7 +282,7 @@ impl SystemdJournal_DataObject {
         if self.f_next_hash.get() {
             return Ok(self.next_hash.borrow());
         }
-        if (((*self.ofs_next_hash()) as u64) != ((0) as u64)) {
+        if *self.ofs_next_hash() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_next_hash())?)?;
@@ -384,18 +384,18 @@ impl KStruct for SystemdJournal_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.signature() == vec![0x4cu8, 0x50u8, 0x4bu8, 0x53u8, 0x48u8, 0x48u8, 0x52u8, 0x48u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc.compatible_flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.incompatible_flags.borrow_mut() = _io.read_u4le()?;
-        *self_rc.state.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(7)?)?;
-        *self_rc.file_id.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.machine_id.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.boot_id.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.seqnum_id.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.state.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(7_usize)?;
+        *self_rc.file_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.machine_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.boot_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.seqnum_id.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.len_header.borrow_mut() = _io.read_u8le()?;
         *self_rc.len_arena.borrow_mut() = _io.read_u8le()?;
         *self_rc.ofs_data_hash_table.borrow_mut() = _io.read_u8le()?;
@@ -598,6 +598,7 @@ pub enum SystemdJournal_JournalObject_Payload {
     Bytes(Vec<u8>),
 }
 impl From<&SystemdJournal_JournalObject_Payload> for OptRc<SystemdJournal_DataObject> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SystemdJournal_JournalObject_Payload) -> Self {
         if let SystemdJournal_JournalObject_Payload::SystemdJournal_DataObject(x) = v {
             return x.clone();
@@ -611,6 +612,7 @@ impl From<OptRc<SystemdJournal_DataObject>> for SystemdJournal_JournalObject_Pay
     }
 }
 impl From<&SystemdJournal_JournalObject_Payload> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &SystemdJournal_JournalObject_Payload) -> Self {
         if let SystemdJournal_JournalObject_Payload::Bytes(x) = v {
             return x.clone();
@@ -638,10 +640,10 @@ impl KStruct for SystemdJournal_JournalObject {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo((((8) as i32) - ((_io.pos()) as i32)) as i64, 8 as i64))?)?;
-        *self_rc.object_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((8_i32).saturating_sub(i32::try_from(_io.pos())?)), 8_i64))?)?;
+        *self_rc.object_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc.len_object.borrow_mut() = _io.read_u8le()?;
         match *self_rc.object_type() {
             SystemdJournal_JournalObject_ObjectTypes::Data => {

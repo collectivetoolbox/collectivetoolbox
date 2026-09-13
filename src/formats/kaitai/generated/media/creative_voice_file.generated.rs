@@ -46,7 +46,7 @@ impl KStruct for CreativeVoiceFile {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(20)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(20_usize)?;
         if !(*self_rc.magic() == vec![0x43u8, 0x72u8, 0x65u8, 0x61u8, 0x74u8, 0x69u8, 0x76u8, 0x65u8, 0x20u8, 0x56u8, 0x6fu8, 0x69u8, 0x63u8, 0x65u8, 0x20u8, 0x46u8, 0x69u8, 0x6cu8, 0x65u8, 0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -55,11 +55,11 @@ impl KStruct for CreativeVoiceFile {
         *self_rc.checksum.borrow_mut() = _io.read_u2le()?;
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, CreativeVoiceFile_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.blocks.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -241,6 +241,7 @@ pub enum CreativeVoiceFile_Block_Body {
     Bytes(Vec<u8>),
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockExtraInfo(x) = v {
             return x.clone();
@@ -254,6 +255,7 @@ impl From<OptRc<CreativeVoiceFile_BlockExtraInfo>> for CreativeVoiceFile_Block_B
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockMarker> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockMarker(x) = v {
             return x.clone();
@@ -267,6 +269,7 @@ impl From<OptRc<CreativeVoiceFile_BlockMarker>> for CreativeVoiceFile_Block_Body
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockRepeatStart(x) = v {
             return x.clone();
@@ -280,6 +283,7 @@ impl From<OptRc<CreativeVoiceFile_BlockRepeatStart>> for CreativeVoiceFile_Block
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSilence> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSilence(x) = v {
             return x.clone();
@@ -293,6 +297,7 @@ impl From<OptRc<CreativeVoiceFile_BlockSilence>> for CreativeVoiceFile_Block_Bod
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundData(x) = v {
             return x.clone();
@@ -306,6 +311,7 @@ impl From<OptRc<CreativeVoiceFile_BlockSoundData>> for CreativeVoiceFile_Block_B
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundDataNew(x) = v {
             return x.clone();
@@ -319,6 +325,7 @@ impl From<OptRc<CreativeVoiceFile_BlockSoundDataNew>> for CreativeVoiceFile_Bloc
     }
 }
 impl From<&CreativeVoiceFile_Block_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
         if let CreativeVoiceFile_Block_Body::Bytes(x) = v {
             return x.clone();
@@ -346,7 +353,7 @@ impl KStruct for CreativeVoiceFile_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.block_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.block_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if *self_rc.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
             *self_rc.body_size1.borrow_mut() = _io.read_u2le()?;
         }
@@ -421,7 +428,7 @@ impl CreativeVoiceFile_Block {
         }
         self.f_body_size.set(true);
         if *self.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
-            *self.body_size.borrow_mut() = ((((*self.body_size1()) as i32) + (((((*self.body_size2()) as i32) << ((16) as i32))) as i32))).try_into()?;
+            *self.body_size.borrow_mut() = ((i32::from(*self.body_size1())).saturating_add((*self.body_size2()).wrapping_shl(16_u32))).try_into()?;
         }
         Ok(self.body_size.borrow())
     }
@@ -499,7 +506,7 @@ impl KStruct for CreativeVoiceFile_BlockExtraInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.freq_div.borrow_mut() = _io.read_u2le()?;
-        *self_rc.codec.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.num_channels_1.borrow_mut() = _io.read_u1()?;
         Ok(())
     }
@@ -517,7 +524,7 @@ impl CreativeVoiceFile_BlockExtraInfo {
             return Ok(self.num_channels.borrow());
         }
         self.f_num_channels.set(true);
-        *self.num_channels.borrow_mut() = ((((*self.num_channels_1()) as i32) + ((1) as i32))).try_into()?;
+        *self.num_channels.borrow_mut() = ((i32::from(*self.num_channels_1())).saturating_add(1_i32)).try_into()?;
         Ok(self.num_channels.borrow())
     }
     pub fn sample_rate(
@@ -528,7 +535,7 @@ impl CreativeVoiceFile_BlockExtraInfo {
             return Ok(self.sample_rate.borrow());
         }
         self.f_sample_rate.set(true);
-        *self.sample_rate.borrow_mut() = ((((256000000.0) as f64) / (((((*self.num_channels()?) as i32) * (((((65536) as i32) - ((*self.freq_div()) as i32))) as i32))) as f64))).try_into()?;
+        *self.sample_rate.borrow_mut() = (((256000000.0) / (to_f64((*self.num_channels()?).saturating_mul((65536_i32).saturating_sub(i32::from(*self.freq_div()))))))).try_into()?;
         Ok(self.sample_rate.borrow())
     }
 }
@@ -707,7 +714,7 @@ impl CreativeVoiceFile_BlockSilence {
             return Ok(self.duration_sec.borrow());
         }
         self.f_duration_sec.set(true);
-        *self.duration_sec.borrow_mut() = ((((*self.duration_samples()) as f64) / ((*self.sample_rate()?) as f64))).try_into()?;
+        *self.duration_sec.borrow_mut() = (((to_f64(*self.duration_samples())) / (*self.sample_rate()?))).try_into()?;
         Ok(self.duration_sec.borrow())
     }
     pub fn sample_rate(
@@ -718,7 +725,7 @@ impl CreativeVoiceFile_BlockSilence {
             return Ok(self.sample_rate.borrow());
         }
         self.f_sample_rate.set(true);
-        *self.sample_rate.borrow_mut() = ((((1000000.0) as f64) / (((((256) as i32) - ((*self.freq_div()) as i32))) as f64))).try_into()?;
+        *self.sample_rate.borrow_mut() = (((1000000.0) / (to_f64((256_i32).saturating_sub(i32::from(*self.freq_div())))))).try_into()?;
         Ok(self.sample_rate.borrow())
     }
 }
@@ -778,7 +785,7 @@ impl KStruct for CreativeVoiceFile_BlockSoundData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.freq_div.borrow_mut() = _io.read_u1()?;
-        *self_rc.codec.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
         Ok(())
     }
@@ -792,7 +799,7 @@ impl CreativeVoiceFile_BlockSoundData {
             return Ok(self.sample_rate.borrow());
         }
         self.f_sample_rate.set(true);
-        *self.sample_rate.borrow_mut() = ((((1000000.0) as f64) / (((((256) as i32) - ((*self.freq_div()) as i32))) as f64))).try_into()?;
+        *self.sample_rate.borrow_mut() = (((1000000.0) / (to_f64((256_i32).saturating_sub(i32::from(*self.freq_div())))))).try_into()?;
         Ok(self.sample_rate.borrow())
     }
 }
@@ -856,8 +863,8 @@ impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
         *self_rc.sample_rate.borrow_mut() = _io.read_u4le()?;
         *self_rc.bits_per_sample.borrow_mut() = _io.read_u1()?;
         *self_rc.num_channels.borrow_mut() = _io.read_u1()?;
-        *self_rc.codec.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.codec.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
         Ok(())
     }

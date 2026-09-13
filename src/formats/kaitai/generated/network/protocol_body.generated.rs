@@ -49,6 +49,7 @@ pub enum ProtocolBody_Body {
     UdpDatagram(OptRc<UdpDatagram>),
 }
 impl From<&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::ProtocolBody_OptionHopByHop(x) = v {
             return x.clone();
@@ -62,6 +63,7 @@ impl From<OptRc<ProtocolBody_OptionHopByHop>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<IcmpPacket> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::IcmpPacket(x) = v {
             return x.clone();
@@ -75,6 +77,7 @@ impl From<OptRc<IcmpPacket>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<Ipv4Packet> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::Ipv4Packet(x) = v {
             return x.clone();
@@ -88,6 +91,7 @@ impl From<OptRc<Ipv4Packet>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<Ipv6Packet> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::Ipv6Packet(x) = v {
             return x.clone();
@@ -101,6 +105,7 @@ impl From<OptRc<Ipv6Packet>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::ProtocolBody_NoNextHeader(x) = v {
             return x.clone();
@@ -114,6 +119,7 @@ impl From<OptRc<ProtocolBody_NoNextHeader>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<TcpSegment> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::TcpSegment(x) = v {
             return x.clone();
@@ -127,6 +133,7 @@ impl From<OptRc<TcpSegment>> for ProtocolBody_Body {
     }
 }
 impl From<&ProtocolBody_Body> for OptRc<UdpDatagram> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ProtocolBody_Body) -> Self {
         if let ProtocolBody_Body::UdpDatagram(x) = v {
             return x.clone();
@@ -771,7 +778,7 @@ impl KStruct for ProtocolBody_OptionHopByHop {
         let _io = io;
         *self_rc.next_header_type.borrow_mut() = _io.read_u1()?;
         *self_rc.hdr_ext_len.borrow_mut() = _io.read_u1()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if (((*self_rc.hdr_ext_len()) as i32) > ((0) as i32)) { ((((*self_rc.hdr_ext_len()) as i32) - ((1) as i32))) as i32 } else { (1) as i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.hdr_ext_len() > 0 { (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32) } else { 1_i32 })?)?;
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, None, None, &f)?.into();
         *self_rc.next_header.borrow_mut() = t;

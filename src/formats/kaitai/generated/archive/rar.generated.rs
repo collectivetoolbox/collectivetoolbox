@@ -33,6 +33,7 @@ pub enum Rar_Blocks {
     Rar_BlockV5(OptRc<Rar_BlockV5>),
 }
 impl From<&Rar_Blocks> for OptRc<Rar_Block> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rar_Blocks) -> Self {
         if let Rar_Blocks::Rar_Block(x) = v {
             return x.clone();
@@ -46,6 +47,7 @@ impl From<OptRc<Rar_Block>> for Rar_Blocks {
     }
 }
 impl From<&Rar_Blocks> for OptRc<Rar_BlockV5> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rar_Blocks) -> Self {
         if let Rar_Blocks::Rar_BlockV5(x) = v {
             return x.clone();
@@ -77,7 +79,7 @@ impl KStruct for Rar {
         *self_rc.magic.borrow_mut() = t;
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 match *self_rc.magic().version() {
                     0 => {
@@ -94,7 +96,7 @@ impl KStruct for Rar {
                     }
                     _ => {}
                 }
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -303,6 +305,7 @@ pub enum Rar_Block_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Rar_Block_Body> for OptRc<Rar_BlockFileHeader> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rar_Block_Body) -> Self {
         if let Rar_Block_Body::Rar_BlockFileHeader(x) = v {
             return x.clone();
@@ -316,6 +319,7 @@ impl From<OptRc<Rar_BlockFileHeader>> for Rar_Block_Body {
     }
 }
 impl From<&Rar_Block_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Rar_Block_Body) -> Self {
         if let Rar_Block_Body::Bytes(x) = v {
             return x.clone();
@@ -344,7 +348,7 @@ impl KStruct for Rar_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.crc16.borrow_mut() = _io.read_u2le()?;
-        *self_rc.block_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.block_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
         *self_rc.block_size.borrow_mut() = _io.read_u2le()?;
         if *self_rc.has_add()? {
@@ -377,7 +381,7 @@ impl Rar_Block {
             return Ok(self.body_size.borrow());
         }
         self.f_body_size.set(true);
-        *self.body_size.borrow_mut() = ((((*self.block_size()) as i32) - ((*self.header_size()?) as i32))).try_into()?;
+        *self.body_size.borrow_mut() = ((i32::from(*self.block_size())).saturating_sub(*self.header_size()?)).try_into()?;
         Ok(self.body_size.borrow())
     }
 
@@ -392,7 +396,7 @@ impl Rar_Block {
             return Ok(self.has_add.borrow());
         }
         self.f_has_add.set(true);
-        *self.has_add.borrow_mut() = ((((*self.flags()) as u64) & ((32768) as u64)) != 0).try_into()?;
+        *self.has_add.borrow_mut() = (((i32::from(*self.flags())) & (32768_i32)) != 0).try_into()?;
         Ok(self.has_add.borrow())
     }
     pub fn header_size(
@@ -403,7 +407,7 @@ impl Rar_Block {
             return Ok(self.header_size.borrow());
         }
         self.f_header_size.set(true);
-        *self.header_size.borrow_mut() = (if *self.has_add()? { (11) as i32 } else { (7) as i32 }).try_into()?;
+        *self.header_size.borrow_mut() = (if *self.has_add()? { 11_i32 } else { 7_i32 }).try_into()?;
         Ok(self.header_size.borrow())
     }
 }
@@ -503,19 +507,19 @@ impl KStruct for Rar_BlockFileHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.low_unp_size.borrow_mut() = _io.read_u4le()?;
-        *self_rc.host_os.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.host_os.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.file_crc32.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, DosDatetime>(&*_io, None, None)?.into();
         *self_rc.file_time.borrow_mut() = t;
         *self_rc.rar_version.borrow_mut() = _io.read_u1()?;
-        *self_rc.method.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.name_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.attr.borrow_mut() = _io.read_u4le()?;
-        if (((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags()) as u64) & ((256) as u64)) != 0 {
+        if ((i32::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags())) & (256_i32)) != 0 {
             *self_rc.high_pack_size.borrow_mut() = _io.read_u4le()?;
         }
-        *self_rc.file_name.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.name_size())?)?;
-        if (((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags()) as u64) & ((1024) as u64)) != 0 {
+        *self_rc.file_name.borrow_mut() = _io.read_bytes(usize::from(*self_rc.name_size()))?;
+        if ((i32::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags())) & (1024_i32)) != 0 {
             *self_rc.salt.borrow_mut() = _io.read_u8le()?;
         }
         Ok(())
@@ -684,13 +688,13 @@ impl KStruct for Rar_MagicSignature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic1.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
+        *self_rc.magic1.borrow_mut() = _io.read_bytes(6_usize)?;
         if !(*self_rc.magic1() == vec![0x52u8, 0x61u8, 0x72u8, 0x21u8, 0x1au8, 0x7u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/magic_signature/seq/0".to_string() }));
         }
         *self_rc.version.borrow_mut() = _io.read_u1()?;
-        if (((*self_rc.version()) as i32) == ((1) as i32)) {
-            *self_rc.magic3.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        if *self_rc.version() == 1 {
+            *self_rc.magic3.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.magic3() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/magic_signature/seq/2".to_string() }));
             }

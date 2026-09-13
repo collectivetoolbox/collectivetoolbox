@@ -40,11 +40,11 @@ impl KStruct for Rtpdump {
         *self_rc.file_header.borrow_mut() = t;
         *self_rc.packets.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Rtpdump_PacketT>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.packets.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -99,11 +99,11 @@ impl KStruct for Rtpdump_HeaderT {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.shebang.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.shebang.borrow_mut() = _io.read_bytes(12_usize)?;
         if !(*self_rc.shebang() == vec![0x23u8, 0x21u8, 0x72u8, 0x74u8, 0x70u8, 0x70u8, 0x6cu8, 0x61u8, 0x79u8, 0x31u8, 0x2eu8, 0x30u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/0".to_string() }));
         }
-        *self_rc.space.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.space.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.space() == vec![0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/1".to_string() }));
         }

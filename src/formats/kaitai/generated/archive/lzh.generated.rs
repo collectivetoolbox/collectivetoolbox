@@ -41,11 +41,11 @@ impl KStruct for Lzh {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Lzh_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -91,7 +91,7 @@ impl KStruct for Lzh_FileRecord {
         let _io = io;
         let t = Self::read_into::<_, Lzh_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
-        if (((*self_rc.header().header1().lha_level()) as i32) == ((0) as i32)) {
+        if *self_rc.header().header1().lha_level() == 0 {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
         }
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().header1().file_size_compr())?)?;
@@ -151,19 +151,19 @@ impl KStruct for Lzh_Header {
         let _io = io;
         let t = Self::read_into::<_, Lzh_Header1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header1.borrow_mut() = t;
-        if (((*self_rc.header1().lha_level()) as i32) == ((0) as i32)) {
+        if *self_rc.header1().lha_level() == 0 {
             *self_rc.filename_len.borrow_mut() = _io.read_u1()?;
         }
-        if (((*self_rc.header1().lha_level()) as i32) == ((0) as i32)) {
-            *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.filename_len())?)?, "ASCII")?;
+        if *self_rc.header1().lha_level() == 0 {
+            *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.filename_len()))?, "ASCII")?;
         }
-        if (((*self_rc.header1().lha_level()) as i32) == ((2) as i32)) {
+        if *self_rc.header1().lha_level() == 2 {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
         }
-        if (((*self_rc.header1().lha_level()) as i32) == ((2) as i32)) {
+        if *self_rc.header1().lha_level() == 2 {
             *self_rc.os.borrow_mut() = _io.read_u1()?;
         }
-        if (((*self_rc.header1().lha_level()) as i32) == ((2) as i32)) {
+        if *self_rc.header1().lha_level() == 2 {
             *self_rc.ext_header_size.borrow_mut() = _io.read_u2le()?;
         }
         Ok(())
@@ -241,7 +241,7 @@ impl KStruct for Lzh_Header1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_checksum.borrow_mut() = _io.read_u1()?;
-        *self_rc.method_id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(5)?)?, "ASCII")?;
+        *self_rc.method_id.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
         *self_rc.file_size_compr.borrow_mut() = _io.read_u4le()?;
         *self_rc.file_size_uncompr.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, DosDatetime>(&*_io, None, None)?.into();
@@ -335,7 +335,7 @@ impl KStruct for Lzh_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_len.borrow_mut() = _io.read_u1()?;
-        if (((*self_rc.header_len()) as i32) > ((0) as i32)) {
+        if *self_rc.header_len() > 0 {
             let t = Self::read_into::<_, Lzh_FileRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_record.borrow_mut() = t;
         }

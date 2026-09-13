@@ -51,7 +51,7 @@ impl Id3v11 {
             return Ok(self.id3v1_tag.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((_io.size()) as i32) - ((128) as i32)))?)?;
+        _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(128_i32))?)?;
         let t = Self::read_into::<_, Id3v11_Id3V11Tag>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.id3v1_tag.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -105,16 +105,16 @@ impl KStruct for Id3v11_Id3V11Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x54u8, 0x41u8, 0x47u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/id3_v1_1_tag/seq/0".to_string() }));
         }
-        *self_rc.title.borrow_mut() = _io.read_bytes(usize::try_from(30)?)?;
-        *self_rc.artist.borrow_mut() = _io.read_bytes(usize::try_from(30)?)?;
-        *self_rc.album.borrow_mut() = _io.read_bytes(usize::try_from(30)?)?;
-        *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
-        *self_rc.comment.borrow_mut() = _io.read_bytes(usize::try_from(30)?)?;
-        *self_rc.genre.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.title.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc.artist.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc.album.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.comment.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc.genre.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         Ok(())
     }
 }

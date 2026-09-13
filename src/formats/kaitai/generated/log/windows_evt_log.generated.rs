@@ -58,11 +58,11 @@ impl KStruct for WindowsEvtLog {
         *self_rc.header.borrow_mut() = t;
         *self_rc.records.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, WindowsEvtLog_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -117,7 +117,7 @@ impl KStruct for WindowsEvtLog_CursorRecordBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(12_usize)?;
         if !(*self_rc.magic() == vec![0x22u8, 0x22u8, 0x22u8, 0x22u8, 0x33u8, 0x33u8, 0x33u8, 0x33u8, 0x44u8, 0x44u8, 0x44u8, 0x44u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cursor_record_body/seq/0".to_string() }));
         }
@@ -200,7 +200,7 @@ impl KStruct for WindowsEvtLog_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4le()?;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4cu8, 0x66u8, 0x4cu8, 0x65u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/1".to_string() }));
         }
@@ -423,6 +423,7 @@ pub enum WindowsEvtLog_Record_Body {
     Bytes(Vec<u8>),
 }
 impl From<&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_RecordBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsEvtLog_Record_Body) -> Self {
         if let WindowsEvtLog_Record_Body::WindowsEvtLog_RecordBody(x) = v {
             return x.clone();
@@ -436,6 +437,7 @@ impl From<OptRc<WindowsEvtLog_RecordBody>> for WindowsEvtLog_Record_Body {
     }
 }
 impl From<&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_CursorRecordBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsEvtLog_Record_Body) -> Self {
         if let WindowsEvtLog_Record_Body::WindowsEvtLog_CursorRecordBody(x) = v {
             return x.clone();
@@ -449,6 +451,7 @@ impl From<OptRc<WindowsEvtLog_CursorRecordBody>> for WindowsEvtLog_Record_Body {
     }
 }
 impl From<&WindowsEvtLog_Record_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &WindowsEvtLog_Record_Body) -> Self {
         if let WindowsEvtLog_Record_Body::Bytes(x) = v {
             return x.clone();
@@ -601,10 +604,10 @@ impl KStruct for WindowsEvtLog_RecordBody {
         *self_rc.time_generated.borrow_mut() = _io.read_u4le()?;
         *self_rc.time_written.borrow_mut() = _io.read_u4le()?;
         *self_rc.event_id.borrow_mut() = _io.read_u4le()?;
-        *self_rc.event_type.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.event_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.num_strings.borrow_mut() = _io.read_u2le()?;
         *self_rc.event_category.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc.ofs_strings.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_user_sid.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_user_sid.borrow_mut() = _io.read_u4le()?;
@@ -623,7 +626,7 @@ impl WindowsEvtLog_RecordBody {
         }
         self.f_data.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ofs_data()) as u32) - ((8) as u32)))?)?;
+        _io.seek(usize::try_from((*self.ofs_data()).saturating_sub(8_u32))?)?;
         *self.data.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?;
         _io.seek(_pos)?;
         Ok(self.data.borrow())
@@ -637,7 +640,7 @@ impl WindowsEvtLog_RecordBody {
         }
         self.f_user_sid.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ofs_user_sid()) as u32) - ((8) as u32)))?)?;
+        _io.seek(usize::try_from((*self.ofs_user_sid()).saturating_sub(8_u32))?)?;
         *self.user_sid.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_user_sid())?)?;
         _io.seek(_pos)?;
         Ok(self.user_sid.borrow())

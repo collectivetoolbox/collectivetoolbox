@@ -43,7 +43,7 @@ impl KStruct for UdpDatagram {
         *self_rc.dst_port.borrow_mut() = _io.read_u2be()?;
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.length()) as i32) - ((8) as i32)))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(8_i32))?)?;
         Ok(())
     }
 }

@@ -41,7 +41,7 @@ impl KStruct for PsxTim {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x10u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -64,7 +64,7 @@ impl PsxTim {
             return Ok(self.bpp.borrow());
         }
         self.f_bpp.set(true);
-        *self.bpp.borrow_mut() = ((((*self.flags()) as u32) & ((3) as u32))).try_into()?;
+        *self.bpp.borrow_mut() = (((*self.flags()) & (3_u32))).try_into()?;
         Ok(self.bpp.borrow())
     }
     pub fn has_clut(
@@ -75,7 +75,7 @@ impl PsxTim {
             return Ok(self.has_clut.borrow());
         }
         self.f_has_clut.set(true);
-        *self.has_clut.borrow_mut() = (((((((*self.flags()) as u32) & ((8) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.has_clut.borrow_mut() = (((*self.flags()) & (8_u32)) != 0).try_into()?;
         Ok(self.has_clut.borrow())
     }
 }
@@ -184,7 +184,7 @@ impl KStruct for PsxTim_Bitmap {
         *self_rc.origin_y.borrow_mut() = _io.read_u2le()?;
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.len()) as u32) - ((12) as u32)))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((u32::try_from(*self_rc.len())?).saturating_sub(12_u32))?)?;
         Ok(())
     }
 }

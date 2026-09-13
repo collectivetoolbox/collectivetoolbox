@@ -42,7 +42,7 @@ impl KStruct for AndroidBootldrAsus {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -131,7 +131,7 @@ impl KStruct for AndroidBootldrAsus_Image {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(8)?)?, "UTF-8")?;
+        *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "UTF-8")?;
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
         let _tmpa = *self_rc.flags();

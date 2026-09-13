@@ -51,7 +51,7 @@ impl Luks {
         }
         self.f_payload.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.partition_header().payload_offset()) as u32) * ((512) as u32)))?)?;
+        _io.seek(usize::try_from((*self.partition_header().payload_offset()).saturating_mul(512_u32))?)?;
         *self.payload.borrow_mut() = _io.read_bytes_full()?;
         _io.seek(_pos)?;
         Ok(self.payload.borrow())
@@ -102,23 +102,23 @@ impl KStruct for Luks_PartitionHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(6)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(6_usize)?;
         if !(*self_rc.magic() == vec![0x4cu8, 0x55u8, 0x4bu8, 0x53u8, 0xbau8, 0xbeu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/0".to_string() }));
         }
-        *self_rc.version.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.version.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.version() == vec![0x0u8, 0x1u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/1".to_string() }));
         }
-        *self_rc.cipher_name_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
-        *self_rc.cipher_mode_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
-        *self_rc.hash_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(32)?)?, "UTF-8")?;
+        *self_rc.cipher_name_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.cipher_mode_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.hash_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc.payload_offset.borrow_mut() = _io.read_u4be()?;
         *self_rc.number_of_key_bytes.borrow_mut() = _io.read_u4be()?;
-        *self_rc.master_key_checksum.borrow_mut() = _io.read_bytes(usize::try_from(20)?)?;
-        *self_rc.master_key_salt_parameter.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.master_key_checksum.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc.master_key_salt_parameter.borrow_mut() = _io.read_bytes(32_usize)?;
         *self_rc.master_key_iterations_parameter.borrow_mut() = _io.read_u4be()?;
-        *self_rc.uuid.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(40)?)?, "UTF-8")?;
+        *self_rc.uuid.borrow_mut() = bytes_to_str(&_io.read_bytes(40_usize)?, "UTF-8")?;
         *self_rc.key_slots.borrow_mut() = Vec::new();
         let l_key_slots = 8;
         for _i in 0..l_key_slots {
@@ -225,9 +225,9 @@ impl KStruct for Luks_PartitionHeader_KeySlot {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.state_of_key_slot.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.state_of_key_slot.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.iteration_parameter.borrow_mut() = _io.read_u4be()?;
-        *self_rc.salt_parameter.borrow_mut() = _io.read_bytes(usize::try_from(32)?)?;
+        *self_rc.salt_parameter.borrow_mut() = _io.read_bytes(32_usize)?;
         *self_rc.start_sector_of_key_material.borrow_mut() = _io.read_u4be()?;
         *self_rc.number_of_anti_forensic_stripes.borrow_mut() = _io.read_u4be()?;
         Ok(())
@@ -243,8 +243,8 @@ impl Luks_PartitionHeader_KeySlot {
         }
         self.f_key_material.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.start_sector_of_key_material()) as u32) * ((512) as u32)))?)?;
-        *self.key_material.borrow_mut() = _io.read_bytes(usize::try_from((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_key_bytes()) as u32) * ((*self.number_of_anti_forensic_stripes()) as u32)))?)?;
+        _io.seek(usize::try_from((*self.start_sector_of_key_material()).saturating_mul(512_u32))?)?;
+        *self.key_material.borrow_mut() = _io.read_bytes(usize::try_from((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_key_bytes()).saturating_mul(*self.number_of_anti_forensic_stripes()))?)?;
         _io.seek(_pos)?;
         Ok(self.key_material.borrow())
     }

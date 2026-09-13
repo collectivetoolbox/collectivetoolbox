@@ -312,7 +312,7 @@ impl KStruct for FasttrackerXmModule_Instrument {
         *self_rc.samples.borrow_mut() = Vec::new();
         let l_samples = *self_rc.header().num_samples();
         for _i in 0..l_samples {
-            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params(self_rc.samples_headers()[_i as usize].clone()));
+            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params(self_rc.samples_headers().get(usize::try_from(_i)?).ok_or(KError::CastError)?.clone()));
             let t = Self::read_into_with_init::<_, FasttrackerXmModule_Instrument_SamplesData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.samples.borrow_mut().push(t);
         }
@@ -420,8 +420,8 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         *self_rc.panning_sustain_point.borrow_mut() = _io.read_u1()?;
         *self_rc.panning_loop_start_point.borrow_mut() = _io.read_u1()?;
         *self_rc.panning_loop_end_point.borrow_mut() = _io.read_u1()?;
-        *self_rc.volume_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.panning_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.volume_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.panning_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.vibrato_type.borrow_mut() = _io.read_u1()?;
         *self_rc.vibrato_sweep.borrow_mut() = _io.read_u1()?;
         *self_rc.vibrato_depth.borrow_mut() = _io.read_u1()?;
@@ -678,10 +678,10 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(22)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(22_usize)?, 0, false), "UTF-8")?;
         *self_rc.r#type.borrow_mut() = _io.read_u1()?;
         *self_rc.num_samples.borrow_mut() = _io.read_u2le()?;
-        if (((*self_rc.num_samples()) as i32) > ((0) as i32)) {
+        if *self_rc.num_samples() > 0 {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extra_header.borrow_mut() = t;
         }
@@ -762,7 +762,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
         *self_rc.panning.borrow_mut() = _io.read_u1()?;
         *self_rc.relative_note_number.borrow_mut() = _io.read_s1()?;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(22)?)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(22_usize)?, 0, false), "UTF-8")?;
         Ok(())
     }
 }
@@ -962,7 +962,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.header().sample_length()) as u32) * ((if *self_rc.header().r#type().is_sample_data_16_bit() { (2) as i32 } else { (1) as i32 }) as u32)))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().sample_length()).saturating_mul(u32::try_from(if *self_rc.header().r#type().is_sample_data_16_bit() { 2_i32 } else { 1_i32 })?))?)?;
         Ok(())
     }
 }
@@ -1015,7 +1015,7 @@ impl KStruct for FasttrackerXmModule_Pattern {
         let _io = io;
         let t = Self::read_into::<_, FasttrackerXmModule_Pattern_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
-        *self_rc.packed_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().main().len_packed_pattern())?)?;
+        *self_rc.packed_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.header().main().len_packed_pattern()))?;
         Ok(())
     }
 }
@@ -1112,9 +1112,10 @@ impl From<u8> for FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw {
     }
 }
 impl From<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Self {
         if let FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1 to u8, enum value {:?}", e)
     }
@@ -1125,9 +1126,10 @@ impl From<u16> for FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw {
     }
 }
 impl From<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Self {
         if let FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2 to u16, enum value {:?}", e)
     }
@@ -1180,7 +1182,7 @@ impl FasttrackerXmModule_Pattern_Header_HeaderMain {
             return Ok(self.num_rows.borrow());
         }
         self.f_num_rows.set(true);
-        *self.num_rows.borrow_mut() = ((((self.num_rows_raw()) as i32) + ((if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.preheader().version_number().value()? == 258 { (1) as i32 } else { (0) as i32 }) as i32))).try_into()?;
+        *self.num_rows.borrow_mut() = ((i32::try_from(self.num_rows_raw())?).saturating_add(if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.preheader().version_number().value()? == 258 { 1_i32 } else { 0_i32 })).try_into()?;
         Ok(self.num_rows.borrow())
     }
 }
@@ -1249,16 +1251,16 @@ impl KStruct for FasttrackerXmModule_Preheader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature0.borrow_mut() = _io.read_bytes(usize::try_from(17)?)?;
+        *self_rc.signature0.borrow_mut() = _io.read_bytes(17_usize)?;
         if !(*self_rc.signature0() == vec![0x45u8, 0x78u8, 0x74u8, 0x65u8, 0x6eu8, 0x64u8, 0x65u8, 0x64u8, 0x20u8, 0x4du8, 0x6fu8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x3au8, 0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/0".to_string() }));
         }
-        *self_rc.module_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(20)?)?, 0, false), "UTF-8")?;
-        *self_rc.signature1.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.module_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(20_usize)?, 0, false), "UTF-8")?;
+        *self_rc.signature1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.signature1() == vec![0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/2".to_string() }));
         }
-        *self_rc.tracker_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(20)?)?, 0, false), "UTF-8")?;
+        *self_rc.tracker_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(20_usize)?, 0, false), "UTF-8")?;
         let t = Self::read_into::<_, FasttrackerXmModule_Preheader_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version_number.borrow_mut() = t;
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
@@ -1359,7 +1361,7 @@ impl FasttrackerXmModule_Preheader_Version {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.major()) as i32) << ((8) as i32))) as u64) | ((*self.minor()) as u64))).try_into()?;
+        *self.value.borrow_mut() = ((((*self.major()).wrapping_shl(8_u32)) | (i32::from(*self.minor())))).try_into()?;
         Ok(self.value.borrow())
     }
 }

@@ -58,8 +58,8 @@ impl KStruct for TcpSegment {
         *self_rc.window_size.borrow_mut() = _io.read_u2be()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
         *self_rc.urgent_pointer.borrow_mut() = _io.read_u2be()?;
-        if (((((((((*self_rc.data_offset()) as u64) * ((4) as u64))) as u64) - ((20) as u64))) as u64) != ((0) as u64)) {
-            *self_rc.options.borrow_mut() = _io.read_bytes(usize::try_from(((((((*self_rc.data_offset()) as u64) * ((4) as u64))) as u64) - ((20) as u64)))?)?;
+        if ((*self_rc.data_offset()).saturating_mul(4_u64)).saturating_sub(20_u64) != 0 {
+            *self_rc.options.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.data_offset()).saturating_mul(4_u64)).saturating_sub(20_u64))?)?;
         }
         *self_rc.body.borrow_mut() = _io.read_bytes_full()?;
         Ok(())

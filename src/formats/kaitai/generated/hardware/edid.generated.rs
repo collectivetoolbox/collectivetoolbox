@@ -55,7 +55,7 @@ impl KStruct for Edid {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.magic() == vec![0x0u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -93,8 +93,8 @@ impl Edid {
             return Ok(self.gamma.borrow());
         }
         self.f_gamma.set(true);
-        if (((*self.gamma_mod()) as i32) != ((255) as i32)) {
-            *self.gamma.borrow_mut() = (((((((*self.gamma_mod()) as i32) + ((100) as i32))) as f64) / ((100.0) as f64))).try_into()?;
+        if *self.gamma_mod() != 255 {
+            *self.gamma.borrow_mut() = (((to_f64((i32::from(*self.gamma_mod())).saturating_add(100_i32))) / (100.0))).try_into()?;
         }
         Ok(self.gamma.borrow())
     }
@@ -106,7 +106,7 @@ impl Edid {
             return Ok(self.mfg_id_ch1.borrow());
         }
         self.f_mfg_id_ch1.set(true);
-        *self.mfg_id_ch1.borrow_mut() = (((((((*self.mfg_bytes()) as u64) & ((31744) as u64)) as u64) >> 10) as i32)).try_into()?;
+        *self.mfg_id_ch1.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (31744_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.mfg_id_ch1.borrow())
     }
     pub fn mfg_id_ch2(
@@ -117,7 +117,7 @@ impl Edid {
             return Ok(self.mfg_id_ch2.borrow());
         }
         self.f_mfg_id_ch2.set(true);
-        *self.mfg_id_ch2.borrow_mut() = (((((((*self.mfg_bytes()) as u64) & ((992) as u64)) as u64) >> 5) as i32)).try_into()?;
+        *self.mfg_id_ch2.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (992_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.mfg_id_ch2.borrow())
     }
     pub fn mfg_id_ch3(
@@ -128,7 +128,7 @@ impl Edid {
             return Ok(self.mfg_id_ch3.borrow());
         }
         self.f_mfg_id_ch3.set(true);
-        *self.mfg_id_ch3.borrow_mut() = ((((*self.mfg_bytes()) as u64) & ((31) as u64))).try_into()?;
+        *self.mfg_id_ch3.borrow_mut() = (((i32::from(*self.mfg_bytes())) & (31_i32))).try_into()?;
         Ok(self.mfg_id_ch3.borrow())
     }
     pub fn mfg_str(
@@ -139,7 +139,7 @@ impl Edid {
             return Ok(self.mfg_str.borrow());
         }
         self.f_mfg_str.set(true);
-        *self.mfg_str.borrow_mut() = bytes_to_str(&vec![((((*self.mfg_id_ch1()?) as i32) + ((64) as i32))) as u8, ((((*self.mfg_id_ch2()?) as i32) + ((64) as i32))) as u8, ((((*self.mfg_id_ch3()?) as i32) + ((64) as i32))) as u8], "ASCII")?.to_string();
+        *self.mfg_str.borrow_mut() = bytes_to_str(&vec![u8::try_from((*self.mfg_id_ch1()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch2()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch3()?).saturating_add(64_i32))?], "ASCII")?.to_string();
         Ok(self.mfg_str.borrow())
     }
     pub fn mfg_year(
@@ -150,7 +150,7 @@ impl Edid {
             return Ok(self.mfg_year.borrow());
         }
         self.f_mfg_year.set(true);
-        *self.mfg_year.borrow_mut() = ((((*self.mfg_year_mod()) as i32) + ((1990) as i32))).try_into()?;
+        *self.mfg_year.borrow_mut() = ((i32::from(*self.mfg_year_mod())).saturating_add(1990_i32)).try_into()?;
         Ok(self.mfg_year.borrow())
     }
 }
@@ -403,7 +403,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_x.borrow());
         }
         self.f_blue_x.set(true);
-        *self.blue_x.borrow_mut() = ((((*self.blue_x_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.blue_x.borrow_mut() = (((to_f64(*self.blue_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_x.borrow())
     }
     pub fn blue_x_int(
@@ -414,7 +414,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_x_int.borrow());
         }
         self.f_blue_x_int.set(true);
-        *self.blue_x_int.borrow_mut() = (((((((*self.blue_x_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.blue_x_1_0()) as u64))).try_into()?;
+        *self.blue_x_int.borrow_mut() = (((u64::try_from((*self.blue_x_9_2()).wrapping_shl(2_u32))?) | (*self.blue_x_1_0()))).try_into()?;
         Ok(self.blue_x_int.borrow())
     }
 
@@ -429,7 +429,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_y.borrow());
         }
         self.f_blue_y.set(true);
-        *self.blue_y.borrow_mut() = ((((*self.blue_y_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.blue_y.borrow_mut() = (((to_f64(*self.blue_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_y.borrow())
     }
     pub fn blue_y_int(
@@ -440,7 +440,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_y_int.borrow());
         }
         self.f_blue_y_int.set(true);
-        *self.blue_y_int.borrow_mut() = (((((((*self.blue_y_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.blue_y_1_0()) as u64))).try_into()?;
+        *self.blue_y_int.borrow_mut() = (((u64::try_from((*self.blue_y_9_2()).wrapping_shl(2_u32))?) | (*self.blue_y_1_0()))).try_into()?;
         Ok(self.blue_y_int.borrow())
     }
 
@@ -455,7 +455,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_x.borrow());
         }
         self.f_green_x.set(true);
-        *self.green_x.borrow_mut() = ((((*self.green_x_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.green_x.borrow_mut() = (((to_f64(*self.green_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_x.borrow())
     }
     pub fn green_x_int(
@@ -466,7 +466,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_x_int.borrow());
         }
         self.f_green_x_int.set(true);
-        *self.green_x_int.borrow_mut() = (((((((*self.green_x_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.green_x_1_0()) as u64))).try_into()?;
+        *self.green_x_int.borrow_mut() = (((u64::try_from((*self.green_x_9_2()).wrapping_shl(2_u32))?) | (*self.green_x_1_0()))).try_into()?;
         Ok(self.green_x_int.borrow())
     }
 
@@ -481,7 +481,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_y.borrow());
         }
         self.f_green_y.set(true);
-        *self.green_y.borrow_mut() = ((((*self.green_y_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.green_y.borrow_mut() = (((to_f64(*self.green_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_y.borrow())
     }
     pub fn green_y_int(
@@ -492,7 +492,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_y_int.borrow());
         }
         self.f_green_y_int.set(true);
-        *self.green_y_int.borrow_mut() = (((((((*self.green_y_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.green_y_1_0()) as u64))).try_into()?;
+        *self.green_y_int.borrow_mut() = (((u64::try_from((*self.green_y_9_2()).wrapping_shl(2_u32))?) | (*self.green_y_1_0()))).try_into()?;
         Ok(self.green_y_int.borrow())
     }
 
@@ -507,7 +507,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_x.borrow());
         }
         self.f_red_x.set(true);
-        *self.red_x.borrow_mut() = ((((*self.red_x_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.red_x.borrow_mut() = (((to_f64(*self.red_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_x.borrow())
     }
     pub fn red_x_int(
@@ -518,7 +518,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_x_int.borrow());
         }
         self.f_red_x_int.set(true);
-        *self.red_x_int.borrow_mut() = (((((((*self.red_x_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.red_x_1_0()) as u64))).try_into()?;
+        *self.red_x_int.borrow_mut() = (((u64::try_from((*self.red_x_9_2()).wrapping_shl(2_u32))?) | (*self.red_x_1_0()))).try_into()?;
         Ok(self.red_x_int.borrow())
     }
 
@@ -533,7 +533,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_y.borrow());
         }
         self.f_red_y.set(true);
-        *self.red_y.borrow_mut() = ((((*self.red_y_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.red_y.borrow_mut() = (((to_f64(*self.red_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_y.borrow())
     }
     pub fn red_y_int(
@@ -544,7 +544,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_y_int.borrow());
         }
         self.f_red_y_int.set(true);
-        *self.red_y_int.borrow_mut() = (((((((*self.red_y_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.red_y_1_0()) as u64))).try_into()?;
+        *self.red_y_int.borrow_mut() = (((u64::try_from((*self.red_y_9_2()).wrapping_shl(2_u32))?) | (*self.red_y_1_0()))).try_into()?;
         Ok(self.red_y_int.borrow())
     }
 
@@ -559,7 +559,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_x.borrow());
         }
         self.f_white_x.set(true);
-        *self.white_x.borrow_mut() = ((((*self.white_x_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.white_x.borrow_mut() = (((to_f64(*self.white_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_x.borrow())
     }
     pub fn white_x_int(
@@ -570,7 +570,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_x_int.borrow());
         }
         self.f_white_x_int.set(true);
-        *self.white_x_int.borrow_mut() = (((((((*self.white_x_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.white_x_1_0()) as u64))).try_into()?;
+        *self.white_x_int.borrow_mut() = (((u64::try_from((*self.white_x_9_2()).wrapping_shl(2_u32))?) | (*self.white_x_1_0()))).try_into()?;
         Ok(self.white_x_int.borrow())
     }
 
@@ -585,7 +585,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_y.borrow());
         }
         self.f_white_y.set(true);
-        *self.white_y.borrow_mut() = ((((*self.white_y_int()?) as f64) / ((1024.0) as f64))).try_into()?;
+        *self.white_y.borrow_mut() = (((to_f64(*self.white_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_y.borrow())
     }
     pub fn white_y_int(
@@ -596,7 +596,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_y_int.borrow());
         }
         self.f_white_y_int.set(true);
-        *self.white_y_int.borrow_mut() = (((((((*self.white_y_9_2()) as i32) << ((2) as i32))) as u64) | ((*self.white_y_1_0()) as u64))).try_into()?;
+        *self.white_y_int.borrow_mut() = (((u64::try_from((*self.white_y_9_2()).wrapping_shl(2_u32))?) | (*self.white_y_1_0()))).try_into()?;
         Ok(self.white_y_int.borrow())
     }
 }
@@ -1026,8 +1026,8 @@ impl Edid_StdTiming {
         }
         self.f_bytes_lookahead.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
-        *self.bytes_lookahead.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        _io.seek(0_usize)?;
+        *self.bytes_lookahead.borrow_mut() = _io.read_bytes(2_usize)?;
         _io.seek(_pos)?;
         Ok(self.bytes_lookahead.borrow())
     }
@@ -1044,7 +1044,7 @@ impl Edid_StdTiming {
         }
         self.f_horiz_active_pixels.set(true);
         if *self.is_used()? {
-            *self.horiz_active_pixels.borrow_mut() = (((((((*self.horiz_active_pixels_mod()) as i32) + ((31) as i32))) as i32) * ((8) as i32))).try_into()?;
+            *self.horiz_active_pixels.borrow_mut() = (((i32::from(*self.horiz_active_pixels_mod())).saturating_add(31_i32)).saturating_mul(8_i32)).try_into()?;
         }
         Ok(self.horiz_active_pixels.borrow())
     }
@@ -1072,7 +1072,7 @@ impl Edid_StdTiming {
         }
         self.f_refresh_rate.set(true);
         if *self.is_used()? {
-            *self.refresh_rate.borrow_mut() = ((((*self.refresh_rate_mod()) as u64) + ((60) as u64))).try_into()?;
+            *self.refresh_rate.borrow_mut() = ((*self.refresh_rate_mod()).saturating_add(60_u64)).try_into()?;
         }
         Ok(self.refresh_rate.borrow())
     }

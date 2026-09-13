@@ -64,7 +64,7 @@ impl KStruct for RtpPacket {
             let t = Self::read_into::<_, RtpPacket_HeaderExtention>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header_extension.borrow_mut() = t;
         }
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((((((_io.size()) as i32) - ((_io.pos()) as i32))) as i32) - ((*self_rc.len_padding()?) as i32)))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((i32::try_from(_io.size())?).saturating_sub(i32::try_from(_io.pos())?)).saturating_sub(*self_rc.len_padding()?))?)?;
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
         Ok(())
     }
@@ -82,7 +82,7 @@ impl RtpPacket {
             return Ok(self.len_padding.borrow());
         }
         self.f_len_padding.set(true);
-        *self.len_padding.borrow_mut() = (if *self.has_padding() { (*self.len_padding_if_exists()?) as i32 } else { (0) as i32 }).try_into()?;
+        *self.len_padding.borrow_mut() = (if *self.has_padding() { i32::from(*self.len_padding_if_exists()?) } else { 0_i32 }).try_into()?;
         Ok(self.len_padding.borrow())
     }
 
@@ -100,7 +100,7 @@ impl RtpPacket {
         self.f_len_padding_if_exists.set(true);
         if *self.has_padding() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((_io.size()) as i32) - ((1) as i32)))?)?;
+            _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(1_i32))?)?;
             *self.len_padding_if_exists.borrow_mut() = _io.read_u1()?;
             _io.seek(_pos)?;
         }

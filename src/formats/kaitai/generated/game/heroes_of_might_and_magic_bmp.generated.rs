@@ -34,7 +34,7 @@ impl KStruct for HeroesOfMightAndMagicBmp {
         *self_rc.magic.borrow_mut() = _io.read_u2le()?;
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.width()) as u16) * ((*self_rc.height()) as u16)))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from((*self_rc.width()).saturating_mul(*self_rc.height())))?;
         Ok(())
     }
 }

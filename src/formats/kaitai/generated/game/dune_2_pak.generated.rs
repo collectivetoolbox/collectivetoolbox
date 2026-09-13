@@ -49,7 +49,7 @@ impl Dune2Pak {
         }
         self.f_dir_size.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(0)?)?;
+        _io.seek(0_usize)?;
         *self.dir_size.borrow_mut() = _io.read_u4le()?;
         _io.seek(_pos)?;
         Ok(self.dir_size.borrow())
@@ -98,7 +98,7 @@ impl KStruct for Dune2Pak_File {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
-        if (((*self_rc.ofs()) as u32) != ((0) as u32)) {
+        if *self_rc.ofs() != 0 {
             *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         }
         Ok(())
@@ -123,11 +123,11 @@ impl Dune2Pak_File {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if (((*self.ofs()) as u32) != ((0) as u32)) {
+        if *self.ofs() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs())?)?;
-            *self.body.borrow_mut() = io.read_bytes(usize::try_from((((*self.next_ofs()?) as u32) - ((*self.ofs()) as u32)))?)?;
+            *self.body.borrow_mut() = io.read_bytes(usize::try_from((u32::try_from(*self.next_ofs()?)?).saturating_sub(*self.ofs()))?)?;
             io.seek(_pos)?;
         }
         Ok(self.body.borrow())
@@ -140,8 +140,8 @@ impl Dune2Pak_File {
             return Ok(self.next_ofs.borrow());
         }
         self.f_next_ofs.set(true);
-        if (((*self.ofs()) as u32) != ((0) as u32)) {
-            *self.next_ofs.borrow_mut() = (if (((*self.next_ofs0()?) as u32) == ((0) as u32)) { (self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size()) as u32 } else { (*self.next_ofs0()?) as u32 }).try_into()?;
+        if *self.ofs() != 0 {
+            *self.next_ofs.borrow_mut() = (if *self.next_ofs0()? == 0 { u32::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())? } else { *self.next_ofs0()? }).try_into()?;
         }
         Ok(self.next_ofs.borrow())
     }
@@ -153,8 +153,8 @@ impl Dune2Pak_File {
             return Ok(self.next_ofs0.borrow());
         }
         self.f_next_ofs0.set(true);
-        if (((*self.ofs()) as u32) != ((0) as u32)) {
-            *self.next_ofs0.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.dir().files()[((((*self.idx()) as u32) + ((1) as u32))) as usize].ofs()).try_into()?;
+        if *self.ofs() != 0 {
+            *self.next_ofs0.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.dir().files().get(usize::try_from((*self.idx()).saturating_add(1_u32))?).ok_or(KError::CastError)?.ofs()).try_into()?;
         }
         Ok(self.next_ofs0.borrow())
     }
@@ -200,12 +200,12 @@ impl KStruct for Dune2Pak_Files {
         let _io = io;
         *self_rc.files.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Dune2Pak_File| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, Dune2Pak_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.files.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

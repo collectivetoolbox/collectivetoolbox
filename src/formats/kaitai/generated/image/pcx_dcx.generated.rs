@@ -37,20 +37,20 @@ impl KStruct for PcxDcx {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xb1u8, 0x68u8, 0xdeu8, 0x3au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.files.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, PcxDcx_PcxOffset>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.files.borrow_mut().push(t);
                 let _t_files = self_rc.files.borrow();
                 let Some(_tmpa) = _t_files.last() else { break; };
-                _i += 1;
-                if (((*_tmpa.ofs_body()) as u32) == ((0) as u32)) { break; }
+                _i = _i.saturating_add(1);
+                if *_tmpa.ofs_body() == 0 { break; }
             }
         }
         Ok(())
@@ -111,7 +111,7 @@ impl PcxDcx_PcxOffset {
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
-        if (((*self.ofs_body()) as u32) != ((0) as u32)) {
+        if *self.ofs_body() != 0 {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_body())?)?;
             let t = Self::read_into::<_, Pcx>(&*_io, None, None)?.into();

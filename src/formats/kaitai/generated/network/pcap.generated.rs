@@ -40,16 +40,16 @@ impl KStruct for Pcap {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic_number.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.magic_number.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         let t = Self::read_into::<_, Pcap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc.packets.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Pcap_Packet>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.packets.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -829,7 +829,7 @@ impl KStruct for Pcap_Header {
         *self_rc.thiszone.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
         *self_rc.sigfigs.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.snaplen.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        *self_rc.network.borrow_mut() = i64::try_from(_io.read_u4()?)?.try_into()?;
+        *self_rc.network.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         Ok(())
     }
 }
@@ -922,6 +922,7 @@ pub enum Pcap_Packet_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Pcap_Packet_Body> for OptRc<EthernetFrame> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Pcap_Packet_Body) -> Self {
         if let Pcap_Packet_Body::EthernetFrame(x) = v {
             return x.clone();
@@ -935,6 +936,7 @@ impl From<OptRc<EthernetFrame>> for Pcap_Packet_Body {
     }
 }
 impl From<&Pcap_Packet_Body> for OptRc<PacketPpi> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Pcap_Packet_Body) -> Self {
         if let Pcap_Packet_Body::PacketPpi(x) = v {
             return x.clone();
@@ -948,6 +950,7 @@ impl From<OptRc<PacketPpi>> for Pcap_Packet_Body {
     }
 }
 impl From<&Pcap_Packet_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Pcap_Packet_Body) -> Self {
         if let Pcap_Packet_Body::Bytes(x) = v {
             return x.clone();

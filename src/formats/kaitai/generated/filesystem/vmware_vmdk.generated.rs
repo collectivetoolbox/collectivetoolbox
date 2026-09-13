@@ -53,7 +53,7 @@ impl KStruct for VmwareVmdk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4bu8, 0x44u8, 0x4du8, 0x56u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -69,8 +69,8 @@ impl KStruct for VmwareVmdk {
         *self_rc.start_primary_grain.borrow_mut() = _io.read_s8le()?;
         *self_rc.size_metadata.borrow_mut() = _io.read_s8le()?;
         *self_rc.is_dirty.borrow_mut() = _io.read_u1()?;
-        *self_rc.stuff.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
-        *self_rc.compression_method.borrow_mut() = i64::try_from(_io.read_u2le()?)?.try_into()?;
+        *self_rc.stuff.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         Ok(())
     }
 }
@@ -84,8 +84,8 @@ impl VmwareVmdk {
         }
         self.f_descriptor.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.start_descriptor()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
-        *self.descriptor.borrow_mut() = _io.read_bytes(usize::try_from((((*self.size_descriptor()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
+        _io.seek(usize::try_from((*self.start_descriptor()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        *self.descriptor.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_descriptor()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
         _io.seek(_pos)?;
         Ok(self.descriptor.borrow())
     }
@@ -98,8 +98,8 @@ impl VmwareVmdk {
         }
         self.f_grain_primary.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.start_primary_grain()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
-        *self.grain_primary.borrow_mut() = _io.read_bytes(usize::try_from((((*self.size_grain()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
+        _io.seek(usize::try_from((*self.start_primary_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        *self.grain_primary.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
         _io.seek(_pos)?;
         Ok(self.grain_primary.borrow())
     }
@@ -112,8 +112,8 @@ impl VmwareVmdk {
         }
         self.f_grain_secondary.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.start_secondary_grain()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
-        *self.grain_secondary.borrow_mut() = _io.read_bytes(usize::try_from((((*self.size_grain()) as i64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?) as i64)))?)?;
+        _io.seek(usize::try_from((*self.start_secondary_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        *self.grain_secondary.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
         _io.seek(_pos)?;
         Ok(self.grain_secondary.borrow())
     }

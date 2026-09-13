@@ -107,9 +107,10 @@ impl From<u8> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::U1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::U1 to u8, enum value {:?}", e)
     }
@@ -120,9 +121,10 @@ impl From<u16> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::U2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::U2 to u16, enum value {:?}", e)
     }
@@ -133,9 +135,10 @@ impl From<u32> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::U4 to u32, enum value {:?}", e)
     }
@@ -146,9 +149,10 @@ impl From<u64> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::U8 to u64, enum value {:?}", e)
     }
@@ -159,9 +163,10 @@ impl From<i8> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for i8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::S1(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::S1 to i8, enum value {:?}", e)
     }
@@ -172,9 +177,10 @@ impl From<i16> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for i16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::S2(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::S2 to i16, enum value {:?}", e)
     }
@@ -185,9 +191,10 @@ impl From<i32> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::S4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::S4 to i32, enum value {:?}", e)
     }
@@ -198,9 +205,10 @@ impl From<i64> for Msgpack_IntExtra {
     }
 }
 impl From<&Msgpack_IntExtra> for i64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Msgpack_IntExtra) -> Self {
         if let Msgpack_IntExtra::S8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Msgpack_IntExtra::S8 to i64, enum value {:?}", e)
     }
@@ -334,7 +342,7 @@ impl Msgpack {
         }
         self.f_bool_value.set(true);
         if *self.is_bool()? {
-            *self.bool_value.borrow_mut() = ((((*self.b1()) as i32) == ((195) as i32))).try_into()?;
+            *self.bool_value.borrow_mut() = (*self.b1() == 195).try_into()?;
         }
         Ok(self.bool_value.borrow())
     }
@@ -347,7 +355,7 @@ impl Msgpack {
         }
         self.f_float_value.set(true);
         if *self.is_float()? {
-            *self.float_value.borrow_mut() = (if *self.is_float_32()? { (*self.float_32_value()) as f64 } else { (*self.float_64_value()) as f64 }).try_into()?;
+            *self.float_value.borrow_mut() = (if *self.is_float_32()? { to_f64(*self.float_32_value()) } else { *self.float_64_value() }).try_into()?;
         }
         Ok(self.float_value.borrow())
     }
@@ -360,7 +368,7 @@ impl Msgpack {
         }
         self.f_int_value.set(true);
         if *self.is_int()? {
-            *self.int_value.borrow_mut() = (if *self.is_pos_int7()? { (*self.pos_int7_value()?) as i32 } else { (if *self.is_neg_int5()? { (*self.neg_int5_value()?) as i32 } else { (4919) as i32 }) as i32 }).try_into()?;
+            *self.int_value.borrow_mut() = (if *self.is_pos_int7()? { i32::from(*self.pos_int7_value()?) } else { if *self.is_neg_int5()? { *self.neg_int5_value()? } else { 4919_i32 } }).try_into()?;
         }
         Ok(self.int_value.borrow())
     }
@@ -391,7 +399,7 @@ impl Msgpack {
             return Ok(self.is_array_16.borrow());
         }
         self.f_is_array_16.set(true);
-        *self.is_array_16.borrow_mut() = ((((*self.b1()) as i32) == ((220) as i32))).try_into()?;
+        *self.is_array_16.borrow_mut() = (*self.b1() == 220).try_into()?;
         Ok(self.is_array_16.borrow())
     }
 
@@ -406,7 +414,7 @@ impl Msgpack {
             return Ok(self.is_array_32.borrow());
         }
         self.f_is_array_32.set(true);
-        *self.is_array_32.borrow_mut() = ((((*self.b1()) as i32) == ((221) as i32))).try_into()?;
+        *self.is_array_32.borrow_mut() = (*self.b1() == 221).try_into()?;
         Ok(self.is_array_32.borrow())
     }
     pub fn is_bool(
@@ -417,7 +425,7 @@ impl Msgpack {
             return Ok(self.is_bool.borrow());
         }
         self.f_is_bool.set(true);
-        *self.is_bool.borrow_mut() = ( (((((*self.b1()) as i32) == ((194) as i32))) || ((((*self.b1()) as i32) == ((195) as i32)))) ).try_into()?;
+        *self.is_bool.borrow_mut() = ( ((*self.b1() == 194) || (*self.b1() == 195)) ).try_into()?;
         Ok(self.is_bool.borrow())
     }
 
@@ -432,7 +440,7 @@ impl Msgpack {
             return Ok(self.is_fix_array.borrow());
         }
         self.f_is_fix_array.set(true);
-        *self.is_fix_array.borrow_mut() = ((((*self.b1()) as u64) & ((240) as u64)) == 144).try_into()?;
+        *self.is_fix_array.borrow_mut() = (((i32::from(*self.b1())) & (240_i32)) == 144).try_into()?;
         Ok(self.is_fix_array.borrow())
     }
 
@@ -447,7 +455,7 @@ impl Msgpack {
             return Ok(self.is_fix_map.borrow());
         }
         self.f_is_fix_map.set(true);
-        *self.is_fix_map.borrow_mut() = ((((*self.b1()) as u64) & ((240) as u64)) == 128).try_into()?;
+        *self.is_fix_map.borrow_mut() = (((i32::from(*self.b1())) & (240_i32)) == 128).try_into()?;
         Ok(self.is_fix_map.borrow())
     }
 
@@ -462,7 +470,7 @@ impl Msgpack {
             return Ok(self.is_fix_str.borrow());
         }
         self.f_is_fix_str.set(true);
-        *self.is_fix_str.borrow_mut() = ((((*self.b1()) as u64) & ((224) as u64)) == 160).try_into()?;
+        *self.is_fix_str.borrow_mut() = (((i32::from(*self.b1())) & (224_i32)) == 160).try_into()?;
         Ok(self.is_fix_str.borrow())
     }
     pub fn is_float(
@@ -488,7 +496,7 @@ impl Msgpack {
             return Ok(self.is_float_32.borrow());
         }
         self.f_is_float_32.set(true);
-        *self.is_float_32.borrow_mut() = ((((*self.b1()) as i32) == ((202) as i32))).try_into()?;
+        *self.is_float_32.borrow_mut() = (*self.b1() == 202).try_into()?;
         Ok(self.is_float_32.borrow())
     }
 
@@ -503,7 +511,7 @@ impl Msgpack {
             return Ok(self.is_float_64.borrow());
         }
         self.f_is_float_64.set(true);
-        *self.is_float_64.borrow_mut() = ((((*self.b1()) as i32) == ((203) as i32))).try_into()?;
+        *self.is_float_64.borrow_mut() = (*self.b1() == 203).try_into()?;
         Ok(self.is_float_64.borrow())
     }
     pub fn is_int(
@@ -544,7 +552,7 @@ impl Msgpack {
             return Ok(self.is_map_16.borrow());
         }
         self.f_is_map_16.set(true);
-        *self.is_map_16.borrow_mut() = ((((*self.b1()) as i32) == ((222) as i32))).try_into()?;
+        *self.is_map_16.borrow_mut() = (*self.b1() == 222).try_into()?;
         Ok(self.is_map_16.borrow())
     }
 
@@ -559,7 +567,7 @@ impl Msgpack {
             return Ok(self.is_map_32.borrow());
         }
         self.f_is_map_32.set(true);
-        *self.is_map_32.borrow_mut() = ((((*self.b1()) as i32) == ((223) as i32))).try_into()?;
+        *self.is_map_32.borrow_mut() = (*self.b1() == 223).try_into()?;
         Ok(self.is_map_32.borrow())
     }
     pub fn is_neg_int5(
@@ -570,7 +578,7 @@ impl Msgpack {
             return Ok(self.is_neg_int5.borrow());
         }
         self.f_is_neg_int5.set(true);
-        *self.is_neg_int5.borrow_mut() = ((((*self.b1()) as u64) & ((224) as u64)) == 224).try_into()?;
+        *self.is_neg_int5.borrow_mut() = (((i32::from(*self.b1())) & (224_i32)) == 224).try_into()?;
         Ok(self.is_neg_int5.borrow())
     }
 
@@ -585,7 +593,7 @@ impl Msgpack {
             return Ok(self.is_nil.borrow());
         }
         self.f_is_nil.set(true);
-        *self.is_nil.borrow_mut() = ((((*self.b1()) as i32) == ((192) as i32))).try_into()?;
+        *self.is_nil.borrow_mut() = (*self.b1() == 192).try_into()?;
         Ok(self.is_nil.borrow())
     }
     pub fn is_pos_int7(
@@ -596,7 +604,7 @@ impl Msgpack {
             return Ok(self.is_pos_int7.borrow());
         }
         self.f_is_pos_int7.set(true);
-        *self.is_pos_int7.borrow_mut() = ((((*self.b1()) as u64) & ((128) as u64)) == 0).try_into()?;
+        *self.is_pos_int7.borrow_mut() = (((i32::from(*self.b1())) & (128_i32)) == 0).try_into()?;
         Ok(self.is_pos_int7.borrow())
     }
     pub fn is_str(
@@ -622,7 +630,7 @@ impl Msgpack {
             return Ok(self.is_str_16.borrow());
         }
         self.f_is_str_16.set(true);
-        *self.is_str_16.borrow_mut() = ((((*self.b1()) as i32) == ((218) as i32))).try_into()?;
+        *self.is_str_16.borrow_mut() = (*self.b1() == 218).try_into()?;
         Ok(self.is_str_16.borrow())
     }
 
@@ -637,7 +645,7 @@ impl Msgpack {
             return Ok(self.is_str_32.borrow());
         }
         self.f_is_str_32.set(true);
-        *self.is_str_32.borrow_mut() = ((((*self.b1()) as i32) == ((219) as i32))).try_into()?;
+        *self.is_str_32.borrow_mut() = (*self.b1() == 219).try_into()?;
         Ok(self.is_str_32.borrow())
     }
 
@@ -652,7 +660,7 @@ impl Msgpack {
             return Ok(self.is_str_8.borrow());
         }
         self.f_is_str_8.set(true);
-        *self.is_str_8.borrow_mut() = ((((*self.b1()) as i32) == ((217) as i32))).try_into()?;
+        *self.is_str_8.borrow_mut() = (*self.b1() == 217).try_into()?;
         Ok(self.is_str_8.borrow())
     }
     pub fn neg_int5_value(
@@ -664,7 +672,7 @@ impl Msgpack {
         }
         self.f_neg_int5_value.set(true);
         if *self.is_neg_int5()? {
-            *self.neg_int5_value.borrow_mut() = (-((((*self.b1()) as u64) & ((31) as u64)) as i64)).try_into()?;
+            *self.neg_int5_value.borrow_mut() = (-(((i32::from(*self.b1())) & (31_i32)))).try_into()?;
         }
         Ok(self.neg_int5_value.borrow())
     }
@@ -681,7 +689,7 @@ impl Msgpack {
         }
         self.f_num_array_elements.set(true);
         if *self.is_array()? {
-            *self.num_array_elements.borrow_mut() = (if *self.is_fix_array()? { ((((*self.b1()) as u64) & ((15) as u64))) as u32 } else { (if *self.is_array_16()? { (*self.num_array_elements_16()) as u32 } else { (*self.num_array_elements_32()) as u32 }) as u32 }).try_into()?;
+            *self.num_array_elements.borrow_mut() = (if *self.is_fix_array()? { u32::try_from(((i32::from(*self.b1())) & (15_i32)))? } else { if *self.is_array_16()? { u32::from(*self.num_array_elements_16()) } else { *self.num_array_elements_32() } }).try_into()?;
         }
         Ok(self.num_array_elements.borrow())
     }
@@ -698,7 +706,7 @@ impl Msgpack {
         }
         self.f_num_map_elements.set(true);
         if *self.is_map()? {
-            *self.num_map_elements.borrow_mut() = (if *self.is_fix_map()? { ((((*self.b1()) as u64) & ((15) as u64))) as u32 } else { (if *self.is_map_16()? { (*self.num_map_elements_16()) as u32 } else { (*self.num_map_elements_32()) as u32 }) as u32 }).try_into()?;
+            *self.num_map_elements.borrow_mut() = (if *self.is_fix_map()? { u32::try_from(((i32::from(*self.b1())) & (15_i32)))? } else { if *self.is_map_16()? { u32::from(*self.num_map_elements_16()) } else { *self.num_map_elements_32() } }).try_into()?;
         }
         Ok(self.num_map_elements.borrow())
     }
@@ -724,7 +732,7 @@ impl Msgpack {
         }
         self.f_str_len.set(true);
         if *self.is_str()? {
-            *self.str_len.borrow_mut() = (if *self.is_fix_str()? { ((((*self.b1()) as u64) & ((31) as u64))) as u32 } else { (if *self.is_str_8()? { (*self.str_len_8()) as u32 } else { (if *self.is_str_16()? { (*self.str_len_16()) as u32 } else { (*self.str_len_32()) as u32 }) as u32 }) as u32 }).try_into()?;
+            *self.str_len.borrow_mut() = (if *self.is_fix_str()? { u32::try_from(((i32::from(*self.b1())) & (31_i32)))? } else { if *self.is_str_8()? { u32::from(*self.str_len_8()) } else { if *self.is_str_16()? { u32::from(*self.str_len_16()) } else { *self.str_len_32() } } }).try_into()?;
         }
         Ok(self.str_len.borrow())
     }

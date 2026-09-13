@@ -53,20 +53,20 @@ impl KStruct for Elf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x7fu8, 0x45u8, 0x4cu8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
-        *self_rc.bits.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.endian.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.bits.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.endian.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.ei_version.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (1).try_into()?;
         if !(*self_rc.ei_version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
-        *self_rc.abi.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.abi.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.abi_version.borrow_mut() = _io.read_u1()?;
-        *self_rc.pad.borrow_mut() = _io.read_bytes(usize::try_from(7)?)?;
+        *self_rc.pad.borrow_mut() = _io.read_bytes(7_usize)?;
         if !(*self_rc.pad() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }
@@ -3814,7 +3814,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.conf_alt.borrow());
         }
         self.f_conf_alt.set(true);
-        *self.conf_alt.borrow_mut() = (((((((*self.value()) as u32) & ((8192) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.conf_alt.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
         Ok(self.conf_alt.borrow())
     }
 
@@ -3829,7 +3829,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.direct.borrow());
         }
         self.f_direct.set(true);
-        *self.direct.borrow_mut() = (((((((*self.value()) as u32) & ((256) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.direct.borrow_mut() = (((*self.value()) & (256_u32)) != 0).try_into()?;
         Ok(self.direct.borrow())
     }
 
@@ -3844,7 +3844,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_dne.borrow());
         }
         self.f_disp_rel_dne.set(true);
-        *self.disp_rel_dne.borrow_mut() = (((((((*self.value()) as u32) & ((32768) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.disp_rel_dne.borrow_mut() = (((*self.value()) & (32768_u32)) != 0).try_into()?;
         Ok(self.disp_rel_dne.borrow())
     }
 
@@ -3859,7 +3859,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_pnd.borrow());
         }
         self.f_disp_rel_pnd.set(true);
-        *self.disp_rel_pnd.borrow_mut() = (((((((*self.value()) as u32) & ((65536) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.disp_rel_pnd.borrow_mut() = (((*self.value()) & (65536_u32)) != 0).try_into()?;
         Ok(self.disp_rel_pnd.borrow())
     }
 
@@ -3874,7 +3874,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.edited.borrow());
         }
         self.f_edited.set(true);
-        *self.edited.borrow_mut() = (((((((*self.value()) as u32) & ((2097152) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.edited.borrow_mut() = (((*self.value()) & (2097152_u32)) != 0).try_into()?;
         Ok(self.edited.borrow())
     }
 
@@ -3889,7 +3889,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.end_filtee.borrow());
         }
         self.f_end_filtee.set(true);
-        *self.end_filtee.borrow_mut() = (((((((*self.value()) as u32) & ((16384) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.end_filtee.borrow_mut() = (((*self.value()) & (16384_u32)) != 0).try_into()?;
         Ok(self.end_filtee.borrow())
     }
 
@@ -3904,7 +3904,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.glob_audit.borrow());
         }
         self.f_glob_audit.set(true);
-        *self.glob_audit.borrow_mut() = (((((((*self.value()) as u32) & ((16777216) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.glob_audit.borrow_mut() = (((*self.value()) & (16777216_u32)) != 0).try_into()?;
         Ok(self.glob_audit.borrow())
     }
 
@@ -3919,7 +3919,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((((((*self.value()) as u32) & ((4) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.group.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
         Ok(self.group.borrow())
     }
     pub fn ign_mul_def(
@@ -3930,7 +3930,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.ign_mul_def.borrow());
         }
         self.f_ign_mul_def.set(true);
-        *self.ign_mul_def.borrow_mut() = (((((((*self.value()) as u32) & ((262144) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.ign_mul_def.borrow_mut() = (((*self.value()) & (262144_u32)) != 0).try_into()?;
         Ok(self.ign_mul_def.borrow())
     }
 
@@ -3945,7 +3945,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.init_first.borrow());
         }
         self.f_init_first.set(true);
-        *self.init_first.borrow_mut() = (((((((*self.value()) as u32) & ((32) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.init_first.borrow_mut() = (((*self.value()) & (32_u32)) != 0).try_into()?;
         Ok(self.init_first.borrow())
     }
 
@@ -3960,7 +3960,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.interpose.borrow());
         }
         self.f_interpose.set(true);
-        *self.interpose.borrow_mut() = (((((((*self.value()) as u32) & ((1024) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.interpose.borrow_mut() = (((*self.value()) & (1024_u32)) != 0).try_into()?;
         Ok(self.interpose.borrow())
     }
 
@@ -3975,7 +3975,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.kmod.borrow());
         }
         self.f_kmod.set(true);
-        *self.kmod.borrow_mut() = (((((((*self.value()) as u32) & ((268435456) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.kmod.borrow_mut() = (((*self.value()) & (268435456_u32)) != 0).try_into()?;
         Ok(self.kmod.borrow())
     }
 
@@ -3990,7 +3990,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.load_fltr.borrow());
         }
         self.f_load_fltr.set(true);
-        *self.load_fltr.borrow_mut() = (((((((*self.value()) as u32) & ((16) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.load_fltr.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
         Ok(self.load_fltr.borrow())
     }
 
@@ -4006,7 +4006,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_common.borrow());
         }
         self.f_no_common.set(true);
-        *self.no_common.borrow_mut() = (((((((*self.value()) as u32) & ((1073741824) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_common.borrow_mut() = (((*self.value()) & (1073741824_u32)) != 0).try_into()?;
         Ok(self.no_common.borrow())
     }
 
@@ -4021,7 +4021,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_def_lib.borrow());
         }
         self.f_no_def_lib.set(true);
-        *self.no_def_lib.borrow_mut() = (((((((*self.value()) as u32) & ((2048) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_def_lib.borrow_mut() = (((*self.value()) & (2048_u32)) != 0).try_into()?;
         Ok(self.no_def_lib.borrow())
     }
 
@@ -4036,7 +4036,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_delete.borrow());
         }
         self.f_no_delete.set(true);
-        *self.no_delete.borrow_mut() = (((((((*self.value()) as u32) & ((8) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_delete.borrow_mut() = (((*self.value()) & (8_u32)) != 0).try_into()?;
         Ok(self.no_delete.borrow())
     }
 
@@ -4051,7 +4051,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_direct.borrow());
         }
         self.f_no_direct.set(true);
-        *self.no_direct.borrow_mut() = (((((((*self.value()) as u32) & ((131072) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_direct.borrow_mut() = (((*self.value()) & (131072_u32)) != 0).try_into()?;
         Ok(self.no_direct.borrow())
     }
 
@@ -4066,7 +4066,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_dump.borrow());
         }
         self.f_no_dump.set(true);
-        *self.no_dump.borrow_mut() = (((((((*self.value()) as u32) & ((4096) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_dump.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
         Ok(self.no_dump.borrow())
     }
     pub fn no_hdr(
@@ -4077,7 +4077,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_hdr.borrow());
         }
         self.f_no_hdr.set(true);
-        *self.no_hdr.borrow_mut() = (((((((*self.value()) as u32) & ((1048576) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_hdr.borrow_mut() = (((*self.value()) & (1048576_u32)) != 0).try_into()?;
         Ok(self.no_hdr.borrow())
     }
     pub fn no_ksyms(
@@ -4088,7 +4088,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_ksyms.borrow());
         }
         self.f_no_ksyms.set(true);
-        *self.no_ksyms.borrow_mut() = (((((((*self.value()) as u32) & ((524288) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_ksyms.borrow_mut() = (((*self.value()) & (524288_u32)) != 0).try_into()?;
         Ok(self.no_ksyms.borrow())
     }
 
@@ -4103,7 +4103,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_open.borrow());
         }
         self.f_no_open.set(true);
-        *self.no_open.borrow_mut() = (((((((*self.value()) as u32) & ((64) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_open.borrow_mut() = (((*self.value()) & (64_u32)) != 0).try_into()?;
         Ok(self.no_open.borrow())
     }
     pub fn no_reloc(
@@ -4114,7 +4114,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_reloc.borrow());
         }
         self.f_no_reloc.set(true);
-        *self.no_reloc.borrow_mut() = (((((((*self.value()) as u32) & ((4194304) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.no_reloc.borrow_mut() = (((*self.value()) & (4194304_u32)) != 0).try_into()?;
         Ok(self.no_reloc.borrow())
     }
 
@@ -4129,7 +4129,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.now.borrow());
         }
         self.f_now.set(true);
-        *self.now.borrow_mut() = (((((((*self.value()) as u32) & ((1) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.now.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
         Ok(self.now.borrow())
     }
 
@@ -4144,7 +4144,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((((((*self.value()) as u32) & ((128) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.origin.borrow_mut() = (((*self.value()) & (128_u32)) != 0).try_into()?;
         Ok(self.origin.borrow())
     }
 
@@ -4159,7 +4159,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.pie.borrow());
         }
         self.f_pie.set(true);
-        *self.pie.borrow_mut() = (((((((*self.value()) as u32) & ((134217728) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.pie.borrow_mut() = (((*self.value()) & (134217728_u32)) != 0).try_into()?;
         Ok(self.pie.borrow())
     }
 
@@ -4174,7 +4174,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.rtld_global.borrow());
         }
         self.f_rtld_global.set(true);
-        *self.rtld_global.borrow_mut() = (((((((*self.value()) as u32) & ((2) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.rtld_global.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
         Ok(self.rtld_global.borrow())
     }
 
@@ -4189,7 +4189,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.singleton.borrow());
         }
         self.f_singleton.set(true);
-        *self.singleton.borrow_mut() = (((((((*self.value()) as u32) & ((33554432) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.singleton.borrow_mut() = (((*self.value()) & (33554432_u32)) != 0).try_into()?;
         Ok(self.singleton.borrow())
     }
 
@@ -4205,7 +4205,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.stub.borrow());
         }
         self.f_stub.set(true);
-        *self.stub.borrow_mut() = (((((((*self.value()) as u32) & ((67108864) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.stub.borrow_mut() = (((*self.value()) & (67108864_u32)) != 0).try_into()?;
         Ok(self.stub.borrow())
     }
 
@@ -4220,7 +4220,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.sym_intpose.borrow());
         }
         self.f_sym_intpose.set(true);
-        *self.sym_intpose.borrow_mut() = (((((((*self.value()) as u32) & ((8388608) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.sym_intpose.borrow_mut() = (((*self.value()) & (8388608_u32)) != 0).try_into()?;
         Ok(self.sym_intpose.borrow())
     }
 
@@ -4235,7 +4235,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.trans.borrow());
         }
         self.f_trans.set(true);
-        *self.trans.borrow_mut() = (((((((*self.value()) as u32) & ((512) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.trans.borrow_mut() = (((*self.value()) & (512_u32)) != 0).try_into()?;
         Ok(self.trans.borrow())
     }
 
@@ -4250,7 +4250,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.weak_filter.borrow());
         }
         self.f_weak_filter.set(true);
-        *self.weak_filter.borrow_mut() = (((((((*self.value()) as u32) & ((536870912) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.weak_filter.borrow_mut() = (((*self.value()) & (536870912_u32)) != 0).try_into()?;
         Ok(self.weak_filter.borrow())
     }
 }
@@ -4326,7 +4326,7 @@ impl Elf_DtFlagValues {
             return Ok(self.bind_now.borrow());
         }
         self.f_bind_now.set(true);
-        *self.bind_now.borrow_mut() = (((((((*self.value()) as u32) & ((8) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.bind_now.borrow_mut() = (((*self.value()) & (8_u32)) != 0).try_into()?;
         Ok(self.bind_now.borrow())
     }
 
@@ -4341,7 +4341,7 @@ impl Elf_DtFlagValues {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((((((*self.value()) as u32) & ((1) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.origin.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
         Ok(self.origin.borrow())
     }
 
@@ -4356,7 +4356,7 @@ impl Elf_DtFlagValues {
             return Ok(self.static_tls.borrow());
         }
         self.f_static_tls.set(true);
-        *self.static_tls.borrow_mut() = (((((((*self.value()) as u32) & ((16) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.static_tls.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
         Ok(self.static_tls.borrow())
     }
 
@@ -4371,7 +4371,7 @@ impl Elf_DtFlagValues {
             return Ok(self.symbolic.borrow());
         }
         self.f_symbolic.set(true);
-        *self.symbolic.borrow_mut() = (((((((*self.value()) as u32) & ((2) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.symbolic.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
         Ok(self.symbolic.borrow())
     }
 
@@ -4386,7 +4386,7 @@ impl Elf_DtFlagValues {
             return Ok(self.textrel.borrow());
         }
         self.f_textrel.set(true);
-        *self.textrel.borrow_mut() = (((((((*self.value()) as u32) & ((4) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.textrel.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
         Ok(self.textrel.borrow())
     }
 }
@@ -4442,9 +4442,10 @@ impl From<u32> for Elf_EndianElf_EntryPoint {
     }
 }
 impl From<&Elf_EndianElf_EntryPoint> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_EntryPoint) -> Self {
         if let Elf_EndianElf_EntryPoint::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_EntryPoint::U4 to u32, enum value {:?}", e)
     }
@@ -4455,9 +4456,10 @@ impl From<u64> for Elf_EndianElf_EntryPoint {
     }
 }
 impl From<&Elf_EndianElf_EntryPoint> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_EntryPoint) -> Self {
         if let Elf_EndianElf_EntryPoint::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_EntryPoint::U8 to u64, enum value {:?}", e)
     }
@@ -4484,9 +4486,10 @@ impl From<u32> for Elf_EndianElf_OfsProgramHeaders {
     }
 }
 impl From<&Elf_EndianElf_OfsProgramHeaders> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_OfsProgramHeaders) -> Self {
         if let Elf_EndianElf_OfsProgramHeaders::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_OfsProgramHeaders::U4 to u32, enum value {:?}", e)
     }
@@ -4497,9 +4500,10 @@ impl From<u64> for Elf_EndianElf_OfsProgramHeaders {
     }
 }
 impl From<&Elf_EndianElf_OfsProgramHeaders> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_OfsProgramHeaders) -> Self {
         if let Elf_EndianElf_OfsProgramHeaders::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_OfsProgramHeaders::U8 to u64, enum value {:?}", e)
     }
@@ -4526,9 +4530,10 @@ impl From<u32> for Elf_EndianElf_OfsSectionHeaders {
     }
 }
 impl From<&Elf_EndianElf_OfsSectionHeaders> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_OfsSectionHeaders) -> Self {
         if let Elf_EndianElf_OfsSectionHeaders::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_OfsSectionHeaders::U4 to u32, enum value {:?}", e)
     }
@@ -4539,9 +4544,10 @@ impl From<u64> for Elf_EndianElf_OfsSectionHeaders {
     }
 }
 impl From<&Elf_EndianElf_OfsSectionHeaders> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_OfsSectionHeaders) -> Self {
         if let Elf_EndianElf_OfsSectionHeaders::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_OfsSectionHeaders::U8 to u64, enum value {:?}", e)
     }
@@ -4584,8 +4590,8 @@ impl KStruct for Elf_EndianElf {
         if *self_rc._is_le.borrow() == 0 {
             return Err(KError::UndecidedEndianness { src_path: "/types/endian_elf".to_string() });
         }
-        *self_rc.e_type.borrow_mut() = i64::try_from(_io.read_u2()?)?.try_into()?;
-        *self_rc.machine.borrow_mut() = i64::try_from(_io.read_u2()?)?.try_into()?;
+        *self_rc.e_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
+        *self_rc.machine.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
         *self_rc.e_version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
@@ -4614,7 +4620,7 @@ impl KStruct for Elf_EndianElf {
             }
             _ => {}
         }
-        *self_rc.flags.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.flags.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.e_ehsize.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.program_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.num_program_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
@@ -4644,11 +4650,11 @@ impl Elf_EndianElf {
         *self.program_headers.borrow_mut() = Vec::new();
         let l_program_headers = *self.num_program_headers();
         for _i in 0..l_program_headers {
-            self.program_headers_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.program_header_size())?)?.into());
+            self.program_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.program_header_size()))?.into());
             let program_headers_raw = self.program_headers_raw.borrow();
-            let io_program_headers_raw = BytesReader::from(program_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let _io_program_headers_raw = BytesReader::from(program_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
             let f = |t : &mut Elf_EndianElf_ProgramHeader| Ok(t.set_endian(*self._is_le.borrow()));
-            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_ProgramHeader>(&io_program_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_ProgramHeader>(&_io_program_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.program_headers.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -4668,11 +4674,11 @@ impl Elf_EndianElf {
         *self.section_headers.borrow_mut() = Vec::new();
         let l_section_headers = *self.num_section_headers();
         for _i in 0..l_section_headers {
-            self.section_headers_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.section_header_size())?)?.into());
+            self.section_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.section_header_size()))?.into());
             let section_headers_raw = self.section_headers_raw.borrow();
-            let io_section_headers_raw = BytesReader::from(section_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let _io_section_headers_raw = BytesReader::from(section_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
             let f = |t : &mut Elf_EndianElf_SectionHeader| Ok(t.set_endian(*self._is_le.borrow()));
-            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_SectionHeader>(&io_section_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_SectionHeader>(&_io_section_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.section_headers.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -4685,10 +4691,10 @@ impl Elf_EndianElf {
         if self.f_section_names.get() {
             return Ok(self.section_names.borrow());
         }
-        if  (((((*self.section_names_idx()) as i32) != ((i64::from(&Elf_SectionHeaderIdxSpecial::Undefined)) as i32))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))  {
+        if  ((((to_i128(*self.section_names_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(self.section_headers()?[*self.section_names_idx() as usize].ofs_body())?)?;
-            *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?[*self.section_names_idx() as usize].len_body())?)?.into();
+            _io.seek(usize::try_from(self.section_headers()?.get(usize::try_from(*self.section_names_idx())?).ok_or(KError::CastError)?.ofs_body())?)?;
+            *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?.get(usize::try_from(*self.section_names_idx())?).ok_or(KError::CastError)?.len_body())?)?.into();
             let section_names_raw = self.section_names_raw.borrow();
             let _t_section_names_raw_io = BytesReader::from(section_names_raw.clone());
             let f = |t : &mut Elf_EndianElf_StringsStruct| Ok(t.set_endian(*self._is_le.borrow()));
@@ -4825,12 +4831,12 @@ impl KStruct for Elf_EndianElf_DynsymSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Elf_EndianElf_DynsymSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_DynsymSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -4953,7 +4959,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.is_sh_idx_os.borrow());
         }
         self.f_is_sh_idx_os.set(true);
-        *self.is_sh_idx_os.borrow_mut() = ( (((((*self.sh_idx()) as i32) >= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_os()?) as i32))) && ((((*self.sh_idx()) as i32) <= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_os()?) as i32)))) ).try_into()?;
+        *self.is_sh_idx_os.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_os()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_os()?))))) ).try_into()?;
         Ok(self.is_sh_idx_os.borrow())
     }
     pub fn is_sh_idx_proc(
@@ -4964,7 +4970,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.is_sh_idx_proc.borrow());
         }
         self.f_is_sh_idx_proc.set(true);
-        *self.is_sh_idx_proc.borrow_mut() = ( (((((*self.sh_idx()) as i32) >= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_proc()?) as i32))) && ((((*self.sh_idx()) as i32) <= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_proc()?) as i32)))) ).try_into()?;
+        *self.is_sh_idx_proc.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_proc()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_proc()?))))) ).try_into()?;
         Ok(self.is_sh_idx_proc.borrow())
     }
     pub fn is_sh_idx_reserved(
@@ -4975,7 +4981,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.is_sh_idx_reserved.borrow());
         }
         self.f_is_sh_idx_reserved.set(true);
-        *self.is_sh_idx_reserved.borrow_mut() = ( (((((*self.sh_idx()) as i32) >= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_reserved()?) as i32))) && ((((*self.sh_idx()) as i32) <= ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_reserved()?) as i32)))) ).try_into()?;
+        *self.is_sh_idx_reserved.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_reserved()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_reserved()?))))) ).try_into()?;
         Ok(self.is_sh_idx_reserved.borrow())
     }
     pub fn name(
@@ -4986,8 +4992,8 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if  (((((*self.ofs_name()) as u32) != ((0) as u32))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().unwrap())._io());
+        if  ((*self.ofs_name() != 0) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -5014,7 +5020,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.size.borrow());
         }
         self.f_size.set(true);
-        *self.size.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { (*self.size_b32()) as u64 } else { (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { (*self.size_b64()) as u64 } else { (0) as u64 }) as u64 }).try_into()?;
+        *self.size.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { u64::from(*self.size_b32()) } else { if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { *self.size_b64() } else { 0_u64 } }).try_into()?;
         Ok(self.size.borrow())
     }
     pub fn value(
@@ -5025,7 +5031,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { (*self.value_b32()) as u64 } else { (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { (*self.value_b64()) as u64 } else { (0) as u64 }) as u64 }).try_into()?;
+        *self.value.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { u64::from(*self.value_b32()) } else { if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { *self.value_b64() } else { 0_u64 } }).try_into()?;
         Ok(self.value.borrow())
     }
 
@@ -5040,7 +5046,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.visibility.borrow());
         }
         self.f_visibility.set(true);
-        *self.visibility.borrow_mut() = i64::try_from((((*self.other()) as u64) & ((7) as u64)))?.try_into()?;
+        *self.visibility.borrow_mut() = i64::try_from(((i32::from(*self.other())) & (7_i32)))?.try_into()?;
         Ok(self.visibility.borrow())
     }
 }
@@ -5129,12 +5135,12 @@ impl KStruct for Elf_EndianElf_NoteSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Elf_EndianElf_NoteSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_NoteSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -5197,9 +5203,9 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, 0, false);
-        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(*self_rc.len_name() as i64) as i64, 4 as i64))?)?;
+        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_name()))), 4_i64))?)?;
         *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
-        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(-(*self_rc.len_descriptor() as i64) as i64, 4 as i64))?)?;
+        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_descriptor()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -5314,14 +5320,14 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let f = |t : &mut Elf_EndianElf_PhDynamicSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_PhDynamicSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
                 let Some(_tmpa) = _t_entries.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
@@ -5383,9 +5389,10 @@ impl From<u32> for Elf_EndianElf_PhDynamicSectionEntry_Tag {
     }
 }
 impl From<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Self {
         if let Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_Tag::U4 to u32, enum value {:?}", e)
     }
@@ -5396,9 +5403,10 @@ impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_Tag {
     }
 }
 impl From<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Self {
         if let Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_Tag::U8 to u64, enum value {:?}", e)
     }
@@ -5425,9 +5433,10 @@ impl From<u32> for Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr {
     }
 }
 impl From<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Self {
         if let Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4 to u32, enum value {:?}", e)
     }
@@ -5438,9 +5447,10 @@ impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr {
     }
 }
 impl From<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Self {
         if let Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8 to u64, enum value {:?}", e)
     }
@@ -5534,7 +5544,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = ( (((((self.value_or_ptr()) as u64) != ((0) as u64))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((self.value_or_ptr() != 0) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
     pub fn tag_enum(
@@ -5611,9 +5621,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_OfsBody {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_OfsBody> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Self {
         if let Elf_EndianElf_ProgramHeader_OfsBody::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_OfsBody::U4 to u32, enum value {:?}", e)
     }
@@ -5624,9 +5635,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_OfsBody {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_OfsBody> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Self {
         if let Elf_EndianElf_ProgramHeader_OfsBody::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_OfsBody::U8 to u64, enum value {:?}", e)
     }
@@ -5653,9 +5665,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_VirtAddr {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_VirtAddr> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Self {
         if let Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_VirtAddr::U4 to u32, enum value {:?}", e)
     }
@@ -5666,9 +5679,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_VirtAddr {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_VirtAddr> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Self {
         if let Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_VirtAddr::U8 to u64, enum value {:?}", e)
     }
@@ -5695,9 +5709,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_PhysAddr {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_PhysAddr> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Self {
         if let Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_PhysAddr::U4 to u32, enum value {:?}", e)
     }
@@ -5708,9 +5723,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_PhysAddr {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_PhysAddr> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Self {
         if let Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_PhysAddr::U8 to u64, enum value {:?}", e)
     }
@@ -5737,9 +5753,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_LenBody {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_LenBody> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Self {
         if let Elf_EndianElf_ProgramHeader_LenBody::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_LenBody::U4 to u32, enum value {:?}", e)
     }
@@ -5750,9 +5767,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_LenBody {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_LenBody> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Self {
         if let Elf_EndianElf_ProgramHeader_LenBody::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_LenBody::U8 to u64, enum value {:?}", e)
     }
@@ -5779,9 +5797,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_MemorySize {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_MemorySize> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Self {
         if let Elf_EndianElf_ProgramHeader_MemorySize::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_MemorySize::U4 to u32, enum value {:?}", e)
     }
@@ -5792,9 +5811,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_MemorySize {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_MemorySize> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Self {
         if let Elf_EndianElf_ProgramHeader_MemorySize::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_MemorySize::U8 to u64, enum value {:?}", e)
     }
@@ -5821,9 +5841,10 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_Align {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_Align> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_Align) -> Self {
         if let Elf_EndianElf_ProgramHeader_Align::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_Align::U4 to u32, enum value {:?}", e)
     }
@@ -5834,9 +5855,10 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_Align {
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_Align> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ProgramHeader_Align) -> Self {
         if let Elf_EndianElf_ProgramHeader_Align::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_Align::U8 to u64, enum value {:?}", e)
     }
@@ -5860,6 +5882,7 @@ pub enum Elf_EndianElf_ProgramHeader_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_PhDynamicSection(x) = v {
             return x.clone();
@@ -5873,6 +5896,7 @@ impl From<OptRc<Elf_EndianElf_PhDynamicSection>> for Elf_EndianElf_ProgramHeader
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_ProgramHeader_PhInterpreter(x) = v {
             return x.clone();
@@ -5886,6 +5910,7 @@ impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>> for Elf_EndianElf_Pr
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_NoteSection(x) = v {
             return x.clone();
@@ -5899,6 +5924,7 @@ impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_ProgramHeader_Body
     }
 }
 impl From<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
         if let Elf_EndianElf_ProgramHeader_Body::Bytes(x) = v {
             return x.clone();
@@ -5917,10 +5943,8 @@ pub enum Elf_EndianElf_ProgramHeader_FlagsObj {
 }
 impl From<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
     fn from(v: &Elf_EndianElf_ProgramHeader_FlagsObj) -> Self {
-        if let Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags(x) = v {
-            return x.clone();
-        }
-        panic!("expected Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags, got {:?}", v)
+        let Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags(x) = v;
+        x.clone()
     }
 }
 impl From<OptRc<Elf_PhdrTypeFlags>> for Elf_EndianElf_ProgramHeader_FlagsObj {
@@ -5943,7 +5967,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
             *self_rc.flags64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         }
@@ -6045,7 +6069,7 @@ impl Elf_EndianElf_ProgramHeader {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if (((self.len_body()) as u64) != ((0) as u64)) {
+        if self.len_body() != 0 {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.ofs_body())?)?;
@@ -6269,12 +6293,12 @@ impl KStruct for Elf_EndianElf_RelocationSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Elf_EndianElf_RelocationSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_RelocationSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -6330,9 +6354,10 @@ impl From<u32> for Elf_EndianElf_RelocationSectionEntry_Offset {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Offset> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Offset::U4 to u32, enum value {:?}", e)
     }
@@ -6343,9 +6368,10 @@ impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Offset {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Offset> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Offset::U8 to u64, enum value {:?}", e)
     }
@@ -6372,9 +6398,10 @@ impl From<u32> for Elf_EndianElf_RelocationSectionEntry_Info {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Info> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Info::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Info::U4 to u32, enum value {:?}", e)
     }
@@ -6385,9 +6412,10 @@ impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Info {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Info> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Info::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Info::U8 to u64, enum value {:?}", e)
     }
@@ -6414,9 +6442,10 @@ impl From<i32> for Elf_EndianElf_RelocationSectionEntry_Addend {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Addend::S4 to i32, enum value {:?}", e)
     }
@@ -6427,9 +6456,10 @@ impl From<i64> for Elf_EndianElf_RelocationSectionEntry_Addend {
     }
 }
 impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
         if let Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Addend::S8 to i64, enum value {:?}", e)
     }
@@ -6575,9 +6605,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Flags {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Flags> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Flags) -> Self {
         if let Elf_EndianElf_SectionHeader_Flags::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Flags::U4 to u32, enum value {:?}", e)
     }
@@ -6588,9 +6619,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Flags {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Flags> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Flags) -> Self {
         if let Elf_EndianElf_SectionHeader_Flags::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Flags::U8 to u64, enum value {:?}", e)
     }
@@ -6617,9 +6649,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Addr {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Addr> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Addr) -> Self {
         if let Elf_EndianElf_SectionHeader_Addr::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Addr::U4 to u32, enum value {:?}", e)
     }
@@ -6630,9 +6663,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Addr {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Addr> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Addr) -> Self {
         if let Elf_EndianElf_SectionHeader_Addr::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Addr::U8 to u64, enum value {:?}", e)
     }
@@ -6659,9 +6693,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_OfsBody {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_OfsBody> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Self {
         if let Elf_EndianElf_SectionHeader_OfsBody::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_OfsBody::U4 to u32, enum value {:?}", e)
     }
@@ -6672,9 +6707,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_OfsBody {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_OfsBody> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Self {
         if let Elf_EndianElf_SectionHeader_OfsBody::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_OfsBody::U8 to u64, enum value {:?}", e)
     }
@@ -6701,9 +6737,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_LenBody {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_LenBody> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Self {
         if let Elf_EndianElf_SectionHeader_LenBody::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_LenBody::U4 to u32, enum value {:?}", e)
     }
@@ -6714,9 +6751,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_LenBody {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_LenBody> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Self {
         if let Elf_EndianElf_SectionHeader_LenBody::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_LenBody::U8 to u64, enum value {:?}", e)
     }
@@ -6743,9 +6781,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Align {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Align> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Align) -> Self {
         if let Elf_EndianElf_SectionHeader_Align::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Align::U4 to u32, enum value {:?}", e)
     }
@@ -6756,9 +6795,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Align {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Align> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_Align) -> Self {
         if let Elf_EndianElf_SectionHeader_Align::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Align::U8 to u64, enum value {:?}", e)
     }
@@ -6785,9 +6825,10 @@ impl From<u32> for Elf_EndianElf_SectionHeader_EntrySize {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_EntrySize> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Self {
         if let Elf_EndianElf_SectionHeader_EntrySize::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_EntrySize::U4 to u32, enum value {:?}", e)
     }
@@ -6798,9 +6839,10 @@ impl From<u64> for Elf_EndianElf_SectionHeader_EntrySize {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_EntrySize> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Self {
         if let Elf_EndianElf_SectionHeader_EntrySize::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_SectionHeader_EntrySize::U8 to u64, enum value {:?}", e)
     }
@@ -6829,6 +6871,7 @@ pub enum Elf_EndianElf_SectionHeader_Body {
     Elf_EndianElf_VersymSection(OptRc<Elf_EndianElf_VersymSection>),
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_DynsymSection(x) = v {
             return x.clone();
@@ -6842,6 +6885,7 @@ impl From<OptRc<Elf_EndianElf_DynsymSection>> for Elf_EndianElf_SectionHeader_Bo
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerneedSection(x) = v {
             return x.clone();
@@ -6855,6 +6899,7 @@ impl From<OptRc<Elf_EndianElf_VerneedSection>> for Elf_EndianElf_SectionHeader_B
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_NoteSection(x) = v {
             return x.clone();
@@ -6868,6 +6913,7 @@ impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_SectionHeader_Body
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Bytes(x) = v {
             return x.clone();
@@ -6881,6 +6927,7 @@ impl From<Vec<u8>> for Elf_EndianElf_SectionHeader_Body {
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_StringsStruct(x) = v {
             return x.clone();
@@ -6894,6 +6941,7 @@ impl From<OptRc<Elf_EndianElf_StringsStruct>> for Elf_EndianElf_SectionHeader_Bo
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerdefSection(x) = v {
             return x.clone();
@@ -6907,6 +6955,7 @@ impl From<OptRc<Elf_EndianElf_VerdefSection>> for Elf_EndianElf_SectionHeader_Bo
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_RelocationSection(x) = v {
             return x.clone();
@@ -6920,6 +6969,7 @@ impl From<OptRc<Elf_EndianElf_RelocationSection>> for Elf_EndianElf_SectionHeade
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_ShDynamicSection(x) = v {
             return x.clone();
@@ -6933,6 +6983,7 @@ impl From<OptRc<Elf_EndianElf_ShDynamicSection>> for Elf_EndianElf_SectionHeader
     }
 }
 impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VersymSection(x) = v {
             return x.clone();
@@ -6961,7 +7012,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u4()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.flags.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -7152,8 +7203,8 @@ impl Elf_EndianElf_SectionHeader {
         if self.f_linked_section.get() {
             return Ok(self.linked_section.borrow());
         }
-        if  (((((*self.linked_section_idx()) as u32) != ((i64::from(&Elf_SectionHeaderIdxSpecial::Undefined)) as u32))) && ((((*self.linked_section_idx()) as u32) < ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()) as u32))))  {
-            *self.linked_section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().section_headers()?[*self.linked_section_idx() as usize].clone();
+        if  ((((to_i128(*self.linked_section_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (((to_i128(*self.linked_section_idx())) < (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers())))))  {
+            *self.linked_section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().section_headers()?.get(usize::try_from(*self.linked_section_idx())?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.linked_section.borrow())
     }
@@ -7295,14 +7346,14 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let f = |t : &mut Elf_EndianElf_ShDynamicSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_ShDynamicSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
                 let Some(_tmpa) = _t_entries.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
@@ -7377,9 +7428,10 @@ impl From<u32> for Elf_EndianElf_ShDynamicSectionEntry_Tag {
     }
 }
 impl From<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Self {
         if let Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_Tag::U4 to u32, enum value {:?}", e)
     }
@@ -7390,9 +7442,10 @@ impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_Tag {
     }
 }
 impl From<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Self {
         if let Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_Tag::U8 to u64, enum value {:?}", e)
     }
@@ -7419,9 +7472,10 @@ impl From<u32> for Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr {
     }
 }
 impl From<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Self {
         if let Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4 to u32, enum value {:?}", e)
     }
@@ -7432,9 +7486,10 @@ impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr {
     }
 }
 impl From<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Self {
         if let Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) = e {
-            return *v
+            return *v;
         }
         panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8 to u64, enum value {:?}", e)
     }
@@ -7528,7 +7583,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = ( (((((self.value_or_ptr()) as u64) != ((0) as u64))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((self.value_or_ptr() != 0) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
     pub fn tag_enum(
@@ -7551,7 +7606,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         }
         self.f_value_str.set(true);
         if  ((*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().unwrap())._io());
+            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.value_or_ptr())?)?;
             *self.value_str.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
@@ -7610,10 +7665,10 @@ impl KStruct for Elf_EndianElf_StringsStruct {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 self_rc.entries.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -7676,7 +7731,7 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.ofs_start()? < 0 {
-            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
@@ -7702,7 +7757,7 @@ impl Elf_EndianElf_VerdauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().unwrap())._io());
+            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -7717,9 +7772,9 @@ impl Elf_EndianElf_VerdauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (((*self.ofs_next()) as u32) != ((0) as u32)) {
+        if *self.ofs_next() != 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_next()) as u32)))?)?;
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
@@ -7928,7 +7983,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.ofs_start()? < 0 {
-            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
@@ -7979,7 +8034,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
             return Ok(self.first_aux.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_first_aux()) as u32)))?)?;
+        _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_first_aux()))?)?;
         let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
         *self.first_aux.borrow_mut() = t;
@@ -8005,9 +8060,9 @@ impl Elf_EndianElf_VerdefSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (((*self.ofs_next()) as u32) != ((0) as u32)) {
+        if *self.ofs_next() != 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_next()) as u32)))?)?;
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
@@ -8163,7 +8218,7 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.ofs_start()? < 0 {
-            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
@@ -8206,7 +8261,7 @@ impl Elf_EndianElf_VernauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().unwrap())._io());
+            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8221,9 +8276,9 @@ impl Elf_EndianElf_VernauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (((*self.ofs_next()) as u32) != ((0) as u32)) {
+        if *self.ofs_next() != 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_next()) as u32)))?)?;
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
@@ -8460,7 +8515,7 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if *self_rc.ofs_start()? < 0 {
-            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(usize::try_from(0)?)?;
+            *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
@@ -8501,7 +8556,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         }
         self.f_file_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().unwrap())._io());
+            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_file_name())?)?;
             *self.file_name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8522,7 +8577,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
             return Ok(self.first_aux.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_first_aux()) as u32)))?)?;
+        _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_first_aux()))?)?;
         let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
         *self.first_aux.borrow_mut() = t;
@@ -8536,9 +8591,9 @@ impl Elf_EndianElf_VerneedSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (((*self.ofs_next()) as u32) != ((0) as u32)) {
+        if *self.ofs_next() != 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((*self.ofs_start()?) as u32) + ((*self.ofs_next()) as u32)))?)?;
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
@@ -8688,7 +8743,7 @@ impl Elf_EndianElf_VersionFlags {
             return Ok(self.base.borrow());
         }
         self.f_base.set(true);
-        *self.base.borrow_mut() = ((((*self.value()) as u64) & ((1) as u64)) != 0).try_into()?;
+        *self.base.borrow_mut() = (((i32::from(*self.value())) & (1_i32)) != 0).try_into()?;
         Ok(self.base.borrow())
     }
 
@@ -8705,7 +8760,7 @@ impl Elf_EndianElf_VersionFlags {
             return Ok(self.info.borrow());
         }
         self.f_info.set(true);
-        *self.info.borrow_mut() = ((((*self.value()) as u64) & ((4) as u64)) != 0).try_into()?;
+        *self.info.borrow_mut() = (((i32::from(*self.value())) & (4_i32)) != 0).try_into()?;
         Ok(self.info.borrow())
     }
 
@@ -8724,7 +8779,7 @@ impl Elf_EndianElf_VersionFlags {
             return Ok(self.weak.borrow());
         }
         self.f_weak.set(true);
-        *self.weak.borrow_mut() = ((((*self.value()) as u64) & ((2) as u64)) != 0).try_into()?;
+        *self.weak.borrow_mut() = (((i32::from(*self.value())) & (2_i32)) != 0).try_into()?;
         Ok(self.weak.borrow())
     }
 }
@@ -8788,7 +8843,7 @@ impl Elf_EndianElf_VersionIndex {
             return Ok(self.is_hidden.borrow());
         }
         self.f_is_hidden.set(true);
-        *self.is_hidden.borrow_mut() = ((((*self.raw()) as u64) & ((32768) as u64)) != 0).try_into()?;
+        *self.is_hidden.borrow_mut() = (((i32::from(*self.raw())) & (32768_i32)) != 0).try_into()?;
         Ok(self.is_hidden.borrow())
     }
 
@@ -8806,7 +8861,7 @@ impl Elf_EndianElf_VersionIndex {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.raw()) as u64) & ((32767) as u64))).try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.raw())) & (32767_i32))).try_into()?;
         Ok(self.value.borrow())
     }
 
@@ -8892,12 +8947,12 @@ impl KStruct for Elf_EndianElf_VersymSection {
         let _io = io;
         *self_rc.entries.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let f = |t : &mut Elf_EndianElf_VersionIndex| Ok(t.set_endian(*self_rc._is_le.borrow()));
                 let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionIndex>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -8987,7 +9042,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.execute.borrow());
         }
         self.f_execute.set(true);
-        *self.execute.borrow_mut() = (((((((*self.value()) as u32) & ((1) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.execute.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
         Ok(self.execute.borrow())
     }
     pub fn mask_proc(
@@ -8998,7 +9053,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((((((*self.value()) as u32) & ((4026531840) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.mask_proc.borrow_mut() = (((*self.value()) & (4026531840_u32)) != 0).try_into()?;
         Ok(self.mask_proc.borrow())
     }
     pub fn read(
@@ -9009,7 +9064,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.read.borrow());
         }
         self.f_read.set(true);
-        *self.read.borrow_mut() = (((((((*self.value()) as u32) & ((4) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.read.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
         Ok(self.read.borrow())
     }
     pub fn write(
@@ -9020,7 +9075,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((((((*self.value()) as u32) & ((2) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.write.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
         Ok(self.write.borrow())
     }
 }
@@ -9119,7 +9174,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.alloc.borrow());
         }
         self.f_alloc.set(true);
-        *self.alloc.borrow_mut() = (((((((*self.value()) as u32) & ((2) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.alloc.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
         Ok(self.alloc.borrow())
     }
 
@@ -9134,7 +9189,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.compressed.borrow());
         }
         self.f_compressed.set(true);
-        *self.compressed.borrow_mut() = (((((((*self.value()) as u32) & ((2048) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.compressed.borrow_mut() = (((*self.value()) & (2048_u32)) != 0).try_into()?;
         Ok(self.compressed.borrow())
     }
 
@@ -9149,7 +9204,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exclude.borrow());
         }
         self.f_exclude.set(true);
-        *self.exclude.borrow_mut() = (((((((*self.value()) as u32) & ((2147483648) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.exclude.borrow_mut() = (((*self.value()) & (2147483648_u32)) != 0).try_into()?;
         Ok(self.exclude.borrow())
     }
 
@@ -9164,7 +9219,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exec_instr.borrow());
         }
         self.f_exec_instr.set(true);
-        *self.exec_instr.borrow_mut() = (((((((*self.value()) as u32) & ((4) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.exec_instr.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
         Ok(self.exec_instr.borrow())
     }
 
@@ -9180,7 +9235,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.gnu_mbind.borrow());
         }
         self.f_gnu_mbind.set(true);
-        *self.gnu_mbind.borrow_mut() = (((((((*self.value()) as u32) & ((16777216) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.gnu_mbind.borrow_mut() = (((*self.value()) & (16777216_u32)) != 0).try_into()?;
         Ok(self.gnu_mbind.borrow())
     }
 
@@ -9195,7 +9250,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((((((*self.value()) as u32) & ((512) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.group.borrow_mut() = (((*self.value()) & (512_u32)) != 0).try_into()?;
         Ok(self.group.borrow())
     }
 
@@ -9210,7 +9265,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.info_link.borrow());
         }
         self.f_info_link.set(true);
-        *self.info_link.borrow_mut() = (((((((*self.value()) as u32) & ((64) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.info_link.borrow_mut() = (((*self.value()) & (64_u32)) != 0).try_into()?;
         Ok(self.info_link.borrow())
     }
 
@@ -9225,7 +9280,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.link_order.borrow());
         }
         self.f_link_order.set(true);
-        *self.link_order.borrow_mut() = (((((((*self.value()) as u32) & ((128) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.link_order.borrow_mut() = (((*self.value()) & (128_u32)) != 0).try_into()?;
         Ok(self.link_order.borrow())
     }
 
@@ -9240,7 +9295,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_os.borrow());
         }
         self.f_mask_os.set(true);
-        *self.mask_os.borrow_mut() = (((((((*self.value()) as u32) & ((267386880) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.mask_os.borrow_mut() = (((*self.value()) & (267386880_u32)) != 0).try_into()?;
         Ok(self.mask_os.borrow())
     }
 
@@ -9255,7 +9310,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((((((*self.value()) as u32) & ((4026531840) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.mask_proc.borrow_mut() = (((*self.value()) & (4026531840_u32)) != 0).try_into()?;
         Ok(self.mask_proc.borrow())
     }
 
@@ -9270,7 +9325,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.merge.borrow());
         }
         self.f_merge.set(true);
-        *self.merge.borrow_mut() = (((((((*self.value()) as u32) & ((16) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.merge.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
         Ok(self.merge.borrow())
     }
 
@@ -9293,7 +9348,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.ordered.borrow());
         }
         self.f_ordered.set(true);
-        *self.ordered.borrow_mut() = (((((((*self.value()) as u32) & ((1073741824) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.ordered.borrow_mut() = (((*self.value()) & (1073741824_u32)) != 0).try_into()?;
         Ok(self.ordered.borrow())
     }
 
@@ -9308,7 +9363,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.os_nonconforming.borrow());
         }
         self.f_os_nonconforming.set(true);
-        *self.os_nonconforming.borrow_mut() = (((((((*self.value()) as u32) & ((256) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.os_nonconforming.borrow_mut() = (((*self.value()) & (256_u32)) != 0).try_into()?;
         Ok(self.os_nonconforming.borrow())
     }
 
@@ -9325,7 +9380,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.retain.borrow());
         }
         self.f_retain.set(true);
-        *self.retain.borrow_mut() = (((((((*self.value()) as u32) & ((2097152) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.retain.borrow_mut() = (((*self.value()) & (2097152_u32)) != 0).try_into()?;
         Ok(self.retain.borrow())
     }
 
@@ -9340,7 +9395,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.strings.borrow());
         }
         self.f_strings.set(true);
-        *self.strings.borrow_mut() = (((((((*self.value()) as u32) & ((32) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.strings.borrow_mut() = (((*self.value()) & (32_u32)) != 0).try_into()?;
         Ok(self.strings.borrow())
     }
 
@@ -9357,7 +9412,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.tls.borrow());
         }
         self.f_tls.set(true);
-        *self.tls.borrow_mut() = (((((((*self.value()) as u32) & ((1024) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.tls.borrow_mut() = (((*self.value()) & (1024_u32)) != 0).try_into()?;
         Ok(self.tls.borrow())
     }
 
@@ -9372,7 +9427,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((((((*self.value()) as u32) & ((1) as u32))) as u32) != ((0) as u32))).try_into()?;
+        *self.write.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
         Ok(self.write.borrow())
     }
 }

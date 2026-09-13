@@ -51,13 +51,13 @@ impl KStruct for VlqBase128Be {
         let _io = io;
         *self_rc.groups.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, VlqBase128Be_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
                 let Some(_tmpa) = _t_groups.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if !(*_tmpa.has_next()) { break; }
             }
         }
@@ -73,7 +73,7 @@ impl VlqBase128Be {
             return Ok(self.last.borrow());
         }
         self.f_last.set(true);
-        *self.last.borrow_mut() = ((((self.groups().len()) as i32) - ((1) as i32))).try_into()?;
+        *self.last.borrow_mut() = ((i32::try_from(self.groups().len())?).saturating_sub(1_i32)).try_into()?;
         Ok(self.last.borrow())
     }
 
@@ -88,7 +88,7 @@ impl VlqBase128Be {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((((((((((((((((((*self.groups()[*self.last()? as usize].value()) as u64) + ((if *self.last()? >= 1 { ((((*self.groups()[((((*self.last()?) as i32) - ((1) as i32))) as usize].value()) as u64) << ((7) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 2 { ((((*self.groups()[((((*self.last()?) as i32) - ((2) as i32))) as usize].value()) as u64) << ((14) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 3 { ((((*self.groups()[((((*self.last()?) as i32) - ((3) as i32))) as usize].value()) as u64) << ((21) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 4 { ((((*self.groups()[((((*self.last()?) as i32) - ((4) as i32))) as usize].value()) as u64) << ((28) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 5 { ((((*self.groups()[((((*self.last()?) as i32) - ((5) as i32))) as usize].value()) as u64) << ((35) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 6 { ((((*self.groups()[((((*self.last()?) as i32) - ((6) as i32))) as usize].value()) as u64) << ((42) as u64))) as u64 } else { (0) as u64 }) as u64))) as u64) + ((if *self.last()? >= 7 { ((((*self.groups()[((((*self.last()?) as i32) - ((7) as i32))) as usize].value()) as u64) << ((49) as u64))) as u64 } else { (0) as u64 }) as u64)) as u64)).try_into()?;
+        *self.value.borrow_mut() = (u64::try_from((((((((*self.groups().get(usize::try_from(*self.last()?)?).ok_or(KError::CastError)?.value()).saturating_add(if *self.last()? >= 1 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(1_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(7_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 2 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(2_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(14_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 3 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(3_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(21_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 4 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(4_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(28_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 5 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(5_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(35_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 6 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(6_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(42_u32) } else { 0_u64 })).saturating_add(if *self.last()? >= 7 { (*self.groups().get(usize::try_from((*self.last()?).saturating_sub(7_i32))?).ok_or(KError::CastError)?.value()).wrapping_shl(49_u32) } else { 0_u64 }))?).try_into()?;
         Ok(self.value.borrow())
     }
 }

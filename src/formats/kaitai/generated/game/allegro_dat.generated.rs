@@ -46,8 +46,8 @@ impl KStruct for AllegroDat {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.pack_magic.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
-        *self_rc.dat_magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.pack_magic.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.dat_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.dat_magic() == vec![0x41u8, 0x4cu8, 0x4cu8, 0x2eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
@@ -196,6 +196,7 @@ pub enum AllegroDat_DatFont_Body {
     AllegroDat_DatFont8(OptRc<AllegroDat_DatFont8>),
 }
 impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont39> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatFont_Body) -> Self {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont39(x) = v {
             return x.clone();
@@ -209,6 +210,7 @@ impl From<OptRc<AllegroDat_DatFont39>> for AllegroDat_DatFont_Body {
     }
 }
 impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont16> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatFont_Body) -> Self {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont16(x) = v {
             return x.clone();
@@ -222,6 +224,7 @@ impl From<OptRc<AllegroDat_DatFont16>> for AllegroDat_DatFont_Body {
     }
 }
 impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatFont_Body) -> Self {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont8(x) = v {
             return x.clone();
@@ -331,7 +334,7 @@ impl KStruct for AllegroDat_DatFont16 {
         *self_rc.chars.borrow_mut() = Vec::new();
         let l_chars = 95;
         for _i in 0..l_chars {
-            self_rc.chars.borrow_mut().push(_io.read_bytes(usize::try_from(16)?)?);
+            self_rc.chars.borrow_mut().push(_io.read_bytes(16_usize)?);
         }
         Ok(())
     }
@@ -434,7 +437,7 @@ impl KStruct for AllegroDat_DatFont39_FontChar {
         let _io = io;
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.width()) as u16) * ((*self_rc.height()) as u16)))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::from((*self_rc.width()).saturating_mul(*self_rc.height())))?;
         Ok(())
     }
 }
@@ -491,7 +494,7 @@ impl KStruct for AllegroDat_DatFont39_Range {
         *self_rc.start_char.borrow_mut() = _io.read_u4be()?;
         *self_rc.end_char.borrow_mut() = _io.read_u4be()?;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = ((((((*self_rc.end_char()) as u32) - ((*self_rc.start_char()) as u32))) as u32) + ((1) as u32));
+        let l_chars = ((*self_rc.end_char()).saturating_sub(*self_rc.start_char())).saturating_add(1_u32);
         for _i in 0..l_chars {
             let t = Self::read_into::<_, AllegroDat_DatFont39_FontChar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chars.borrow_mut().push(t);
@@ -566,7 +569,7 @@ impl KStruct for AllegroDat_DatFont8 {
         *self_rc.chars.borrow_mut() = Vec::new();
         let l_chars = 95;
         for _i in 0..l_chars {
-            self_rc.chars.borrow_mut().push(_io.read_bytes(usize::try_from(8)?)?);
+            self_rc.chars.borrow_mut().push(_io.read_bytes(8_usize)?);
         }
         Ok(())
     }
@@ -606,6 +609,7 @@ pub enum AllegroDat_DatObject_Body {
     Bytes(Vec<u8>),
 }
 impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatBitmap> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatObject_Body) -> Self {
         if let AllegroDat_DatObject_Body::AllegroDat_DatBitmap(x) = v {
             return x.clone();
@@ -619,6 +623,7 @@ impl From<OptRc<AllegroDat_DatBitmap>> for AllegroDat_DatObject_Body {
     }
 }
 impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatFont> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatObject_Body) -> Self {
         if let AllegroDat_DatObject_Body::AllegroDat_DatFont(x) = v {
             return x.clone();
@@ -632,6 +637,7 @@ impl From<OptRc<AllegroDat_DatFont>> for AllegroDat_DatObject_Body {
     }
 }
 impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatRleSprite> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatObject_Body) -> Self {
         if let AllegroDat_DatObject_Body::AllegroDat_DatRleSprite(x) = v {
             return x.clone();
@@ -645,6 +651,7 @@ impl From<OptRc<AllegroDat_DatRleSprite>> for AllegroDat_DatObject_Body {
     }
 }
 impl From<&AllegroDat_DatObject_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &AllegroDat_DatObject_Body) -> Self {
         if let AllegroDat_DatObject_Body::Bytes(x) = v {
             return x.clone();
@@ -674,13 +681,13 @@ impl KStruct for AllegroDat_DatObject {
         let _io = io;
         *self_rc.properties.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, AllegroDat_Property>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.properties.borrow_mut().push(t);
                 let _t_properties = self_rc.properties.borrow();
                 let Some(_tmpa) = _t_properties.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if !(*_tmpa.is_valid()?) { break; }
             }
         }
@@ -855,9 +862,9 @@ impl KStruct for AllegroDat_Property {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "UTF-8")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
         if *self_rc.is_valid()? {
-            *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "UTF-8")?;
+            *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
         }
         if *self_rc.is_valid()? {
             *self_rc.len_body.borrow_mut() = _io.read_u4be()?;

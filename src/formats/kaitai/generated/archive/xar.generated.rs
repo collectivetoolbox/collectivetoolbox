@@ -221,7 +221,7 @@ impl Xar_FileHeader {
             return Ok(self.checksum_algorithm_name.borrow());
         }
         self.f_checksum_algorithm_name.set(true);
-        *self.checksum_algorithm_name.borrow_mut() = if *self.has_checksum_alg_name()? { self.checksum_alg_name().to_string() } else { if (((*self.checksum_algorithm_int()) as u32) == ((i64::from(&Xar_ChecksumAlgorithmsApple::None)) as u32)) { "none".to_string() } else { if (((*self.checksum_algorithm_int()) as u32) == ((i64::from(&Xar_ChecksumAlgorithmsApple::Sha1)) as u32)) { "sha1".to_string() } else { if (((*self.checksum_algorithm_int()) as u32) == ((i64::from(&Xar_ChecksumAlgorithmsApple::Md5)) as u32)) { "md5".to_string() } else { if (((*self.checksum_algorithm_int()) as u32) == ((i64::from(&Xar_ChecksumAlgorithmsApple::Sha256)) as u32)) { "sha256".to_string() } else { if (((*self.checksum_algorithm_int()) as u32) == ((i64::from(&Xar_ChecksumAlgorithmsApple::Sha512)) as u32)) { "sha512".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string();
+        *self.checksum_algorithm_name.borrow_mut() = if *self.has_checksum_alg_name()? { self.checksum_alg_name().to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::None)))) { "none".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha1)))) { "sha1".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Md5)))) { "md5".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha256)))) { "sha256".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha512)))) { "sha512".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string();
         Ok(self.checksum_algorithm_name.borrow())
     }
     pub fn has_checksum_alg_name(
@@ -232,7 +232,7 @@ impl Xar_FileHeader {
             return Ok(self.has_checksum_alg_name.borrow());
         }
         self.f_has_checksum_alg_name.set(true);
-        *self.has_checksum_alg_name.borrow_mut() = ( (((((*self.checksum_algorithm_int()) as u32) == ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.checksum_algorithm_other()?) as u32))) && ((((*self.len_header()?) as i32) >= ((32) as i32))) && ((((*self.len_header()?) as i32) % ((4) as i32)) == 0)) ).try_into()?;
+        *self.has_checksum_alg_name.borrow_mut() = ( ((((to_i128(*self.checksum_algorithm_int())) == (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.checksum_algorithm_other()?)))) && (*self.len_header()? >= 32) && ((i32::from(*self.len_header()?)).checked_rem(4_i32).ok_or(KError::CastError)? == 0)) ).try_into()?;
         Ok(self.has_checksum_alg_name.borrow())
     }
     pub fn len_header(
@@ -310,7 +310,7 @@ impl KStruct for Xar_FileHeaderPrefix {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x78u8, 0x61u8, 0x72u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header_prefix/seq/0".to_string() }));
         }

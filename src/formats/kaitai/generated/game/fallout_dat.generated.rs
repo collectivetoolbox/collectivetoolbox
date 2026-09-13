@@ -153,7 +153,7 @@ impl KStruct for FalloutDat_File {
         let _io = io;
         let t = Self::read_into::<_, FalloutDat_Pstr>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.flags.borrow_mut() = i64::try_from(_io.read_u4be()?)?.try_into()?;
+        *self_rc.flags.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.offset.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_unpacked.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_packed.borrow_mut() = _io.read_u4be()?;
@@ -172,7 +172,7 @@ impl FalloutDat_File {
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.offset())?)?;
-        *self.contents.borrow_mut() = io.read_bytes(usize::try_from(if *self.flags() == FalloutDat_Compression::None { (*self.size_unpacked()) as u32 } else { (*self.size_packed()) as u32 })?)?;
+        *self.contents.borrow_mut() = io.read_bytes(usize::try_from(if *self.flags() == FalloutDat_Compression::None { *self.size_unpacked() } else { *self.size_packed() })?)?;
         io.seek(_pos)?;
         Ok(self.contents.borrow())
     }
@@ -306,7 +306,7 @@ impl KStruct for FalloutDat_Pstr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u1()?;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.size())?)?, "ASCII")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.size()))?, "ASCII")?;
         Ok(())
     }
 }

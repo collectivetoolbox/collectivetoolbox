@@ -40,11 +40,11 @@ impl KStruct for ZxSpectrumTap {
         let _io = io;
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, ZxSpectrumTap_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.blocks.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -160,7 +160,7 @@ impl KStruct for ZxSpectrumTap_ArrayParams {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
         *self_rc.var_name.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved1.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x80u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/array_params/seq/2".to_string() }));
         }
@@ -222,16 +222,16 @@ impl KStruct for ZxSpectrumTap_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_block.borrow_mut() = _io.read_u2le()?;
-        *self_rc.flag.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        if  (((((*self_rc.len_block()) as i32) == ((19) as i32))) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header))  {
+        *self_rc.flag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        if  ((*self_rc.len_block() == 19) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header))  {
             let t = Self::read_into::<_, ZxSpectrumTap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header.borrow_mut() = t;
         }
-        if (((*self_rc.len_block()) as i32) == ((19) as i32)) {
-            *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.header().len_data()) as i32) + ((4) as i32)))?)?;
+        if *self_rc.len_block() == 19 {
+            *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_data())).saturating_add(4_i32))?)?;
         }
         if *self_rc.flag() == ZxSpectrumTap_FlagEnum::Data {
-            *self_rc.headerless_data.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.len_block()) as i32) - ((1) as i32)))?)?;
+            *self_rc.headerless_data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_block())).saturating_sub(1_i32))?)?;
         }
         Ok(())
     }
@@ -294,7 +294,7 @@ impl KStruct for ZxSpectrumTap_BytesParams {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u2le()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         Ok(())
     }
 }
@@ -336,6 +336,7 @@ pub enum ZxSpectrumTap_Header_Params {
     ZxSpectrumTap_ProgramParams(OptRc<ZxSpectrumTap_ProgramParams>),
 }
 impl From<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_BytesParams> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ZxSpectrumTap_Header_Params) -> Self {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_BytesParams(x) = v {
             return x.clone();
@@ -349,6 +350,7 @@ impl From<OptRc<ZxSpectrumTap_BytesParams>> for ZxSpectrumTap_Header_Params {
     }
 }
 impl From<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ArrayParams> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ZxSpectrumTap_Header_Params) -> Self {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_ArrayParams(x) = v {
             return x.clone();
@@ -362,6 +364,7 @@ impl From<OptRc<ZxSpectrumTap_ArrayParams>> for ZxSpectrumTap_Header_Params {
     }
 }
 impl From<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ProgramParams> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &ZxSpectrumTap_Header_Params) -> Self {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_ProgramParams(x) = v {
             return x.clone();
@@ -389,8 +392,8 @@ impl KStruct for ZxSpectrumTap_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.header_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.filename.borrow_mut() = bytes_strip_right(&_io.read_bytes(usize::try_from(10)?)?, 32);
+        *self_rc.header_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.filename.borrow_mut() = bytes_strip_right(&_io.read_bytes(10_usize)?, 32);
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
         match *self_rc.header_type() {
             ZxSpectrumTap_HeaderTypeEnum::Bytes => {

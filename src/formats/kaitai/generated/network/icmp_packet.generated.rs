@@ -31,7 +31,7 @@ impl KStruct for IcmpPacket {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.icmp_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.icmp_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if *self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::DestinationUnreachable {
             let t = Self::read_into::<_, IcmpPacket_DestinationUnreachableMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.destination_unreachable.borrow_mut() = t;
@@ -143,7 +143,7 @@ impl KStruct for IcmpPacket_DestinationUnreachableMsg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
         Ok(())
     }
@@ -267,7 +267,7 @@ impl KStruct for IcmpPacket_EchoMsg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.code.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.code() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/echo_msg/seq/0".to_string() }));
         }
@@ -335,7 +335,7 @@ impl KStruct for IcmpPacket_TimeExceededMsg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
         Ok(())
     }

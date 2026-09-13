@@ -41,13 +41,13 @@ impl KStruct for HashcatRestore {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
-        *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(256)?)?, 0, false), "UTF-8")?;
+        *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(256_usize)?, 0, false), "UTF-8")?;
         *self_rc.dicts_pos.borrow_mut() = _io.read_u4le()?;
         *self_rc.masks_pos.borrow_mut() = _io.read_u4le()?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.current_restore_point.borrow_mut() = _io.read_u8le()?;
         *self_rc.argc.borrow_mut() = _io.read_u4le()?;
-        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.padding2.borrow_mut() = _io.read_bytes(12_usize)?;
         *self_rc.argv.borrow_mut() = Vec::new();
         let l_argv = *self_rc.argc();
         for _i in 0..l_argv {

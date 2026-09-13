@@ -78,7 +78,7 @@ impl KStruct for Id3v24_Footer {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x33u8, 0x44u8, 0x49u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/footer/seq/0".to_string() }));
         }
@@ -221,7 +221,7 @@ impl KStruct for Id3v24_Frame {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "ASCII")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size.borrow_mut() = t;
         let t = Self::read_into::<_, Id3v24_Frame_FlagsStatus>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -453,7 +453,7 @@ impl KStruct for Id3v24_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(3)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x49u8, 0x44u8, 0x33u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
@@ -596,7 +596,7 @@ impl KStruct for Id3v24_HeaderEx {
         *self_rc.size.borrow_mut() = t;
         let t = Self::read_into::<_, Id3v24_HeaderEx_FlagsEx>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags_ex.borrow_mut() = t;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc.size().value()?) as u64) - ((5) as u64)))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.size().value()?).saturating_sub(5_u64))?)?;
         Ok(())
     }
 }
@@ -714,7 +714,7 @@ impl KStruct for Id3v24_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?) as u64) - ((_io.pos()) as u64)))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?).saturating_sub(u64::try_from(_io.pos())?))?)?;
         Ok(())
     }
 }
@@ -766,14 +766,14 @@ impl KStruct for Id3v24_Tag {
         }
         *self_rc.frames.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, Id3v24_Frame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.frames.borrow_mut().push(t);
                 let _t_frames = self_rc.frames.borrow();
                 let Some(_tmpa) = _t_frames.last() else { break; };
-                _i += 1;
-                if  ((((((((_io.pos()) as u64) + ((*_tmpa.size().value()?) as u64))) as u64) > ((*self_rc.header().size().value()?) as u64))) || (*_tmpa.is_invalid()?))  { break; }
+                _i = _i.saturating_add(1);
+                if  ((((to_i128((u64::try_from(_io.pos())?).saturating_add(*_tmpa.size().value()?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         if !(*self_rc.header().flags().flag_footer()) {
@@ -909,7 +909,7 @@ impl Id3v24_U2beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.byte0().value()) as u64) << ((7) as u64))) as u64) | ((*self.byte1().value()) as u64))).try_into()?;
+        *self.value.borrow_mut() = ((((*self.byte0().value()).wrapping_shl(7_u32)) | (*self.byte1().value()))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -971,7 +971,7 @@ impl Id3v24_U4beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((((*self.short0().value()?) as u64) << ((14) as u64))) as u64) | ((*self.short1().value()?) as u64))).try_into()?;
+        *self.value.borrow_mut() = ((((*self.short0().value()?).wrapping_shl(14_u32)) | (*self.short1().value()?))).try_into()?;
         Ok(self.value.borrow())
     }
 }

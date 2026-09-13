@@ -38,7 +38,7 @@ impl KStruct for Ico {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x0u8, 0x0u8, 0x1u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -118,7 +118,7 @@ impl KStruct for Ico_IconDirEntry {
         *self_rc.width.borrow_mut() = _io.read_u1()?;
         *self_rc.height.borrow_mut() = _io.read_u1()?;
         *self_rc.num_colors.borrow_mut() = _io.read_u1()?;
-        *self_rc.reserved.borrow_mut() = _io.read_bytes(usize::try_from(1)?)?;
+        *self_rc.reserved.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/icon_dir_entry/seq/3".to_string() }));
         }
@@ -180,7 +180,7 @@ impl Ico_IconDirEntry {
         self.f_png_header.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_img())?)?;
-        *self.png_header.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self.png_header.borrow_mut() = _io.read_bytes(8_usize)?;
         _io.seek(_pos)?;
         Ok(self.png_header.borrow())
     }

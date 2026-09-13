@@ -50,7 +50,7 @@ impl KStruct for Utf16WithBom {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.bom.borrow_mut() = _io.read_bytes(usize::try_from(2)?)?;
+        *self_rc.bom.borrow_mut() = _io.read_bytes(2_usize)?;
         if *self_rc.is_be()? {
             *self_rc.str_be.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
         }

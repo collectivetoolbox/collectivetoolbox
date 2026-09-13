@@ -58,10 +58,10 @@ impl DosMz {
             return Ok(self.relocations.borrow());
         }
         self.f_relocations.set(true);
-        if (((*self.header().mz().ofs_relocations()) as i32) != ((0) as i32)) {
+        if *self.header().mz().ofs_relocations() != 0 {
             let io = KStream::clone(&*self.header()._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(*self.header().mz().ofs_relocations())?)?;
+            io.seek(usize::from(*self.header().mz().ofs_relocations()))?;
             *self.relocations.borrow_mut() = Vec::new();
             let l_relocations = *self.header().mz().num_relocations();
             for _i in 0..l_relocations {
@@ -117,7 +117,7 @@ impl KStruct for DosMz_ExeHeader {
         let _io = io;
         let t = Self::read_into::<_, DosMz_MzHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mz.borrow_mut() = t;
-        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.mz().len_header()? - 0)?)?;
+        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.mz().len_header()?).saturating_sub(0))?)?;
         Ok(())
     }
 }
@@ -130,7 +130,7 @@ impl DosMz_ExeHeader {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = ((((if (((*self.mz().last_page_extra_bytes()) as i32) == ((0) as i32)) { ((((*self.mz().num_pages()) as i32) * ((512) as i32))) as i32 } else { ((((((((((*self.mz().num_pages()) as i32) - ((1) as i32))) as i32) * ((512) as i32))) as i32) + ((*self.mz().last_page_extra_bytes()) as i32))) as i32 }) as i32) - ((*self.mz().len_header()?) as i32))).try_into()?;
+        *self.len_body.borrow_mut() = ((if *self.mz().last_page_extra_bytes() == 0 { (i32::from(*self.mz().num_pages())).saturating_mul(512_i32) } else { (((i32::from(*self.mz().num_pages())).saturating_sub(1_i32)).saturating_mul(512_i32)).saturating_add(i32::from(*self.mz().last_page_extra_bytes())) }).saturating_sub(*self.mz().len_header()?)).try_into()?;
         Ok(self.len_body.borrow())
     }
 }
@@ -188,7 +188,7 @@ impl KStruct for DosMz_MzHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(2)?)?, "UTF-8")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "UTF-8")?;
         *self_rc.last_page_extra_bytes.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_pages.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_relocations.borrow_mut() = _io.read_u2le()?;
@@ -214,7 +214,7 @@ impl DosMz_MzHeader {
             return Ok(self.len_header.borrow());
         }
         self.f_len_header.set(true);
-        *self.len_header.borrow_mut() = ((((*self.header_size()) as i32) * ((16) as i32))).try_into()?;
+        *self.len_header.borrow_mut() = ((i32::from(*self.header_size())).saturating_mul(16_i32)).try_into()?;
         Ok(self.len_header.borrow())
     }
 }

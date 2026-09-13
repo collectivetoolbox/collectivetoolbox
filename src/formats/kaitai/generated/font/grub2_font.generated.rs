@@ -34,19 +34,19 @@ impl KStruct for Grub2Font {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(12)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(12_usize)?;
         if !(*self_rc.magic() == vec![0x46u8, 0x49u8, 0x4cu8, 0x45u8, 0x0u8, 0x0u8, 0x0u8, 0x4u8, 0x50u8, 0x46u8, 0x46u8, 0x32u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.sections.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, Grub2Font_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.sections.borrow_mut().push(t);
                 let _t_sections = self_rc.sections.borrow();
                 let Some(_tmpa) = _t_sections.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.section_type() == "DATA" { break; }
             }
         }
@@ -143,11 +143,11 @@ impl KStruct for Grub2Font_ChixSection {
         let _io = io;
         *self_rc.characters.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, Grub2Font_ChixSection_Character>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.characters.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())
@@ -274,7 +274,7 @@ impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
         *self_rc.x_offset.borrow_mut() = _io.read_s2be()?;
         *self_rc.y_offset.borrow_mut() = _io.read_s2be()?;
         *self_rc.device_width.borrow_mut() = _io.read_s2be()?;
-        *self_rc.bitmap_data.borrow_mut() = _io.read_bytes(usize::try_from((((((((((*self_rc.width()) as u16) * ((*self_rc.height()) as u16))) as i32) + ((7) as i32))) as i32) / ((8) as i32)))?)?;
+        *self_rc.bitmap_data.borrow_mut() = _io.read_bytes(usize::try_from(((i32::from((*self_rc.width()).saturating_mul(*self_rc.height()))).saturating_add(7_i32)).checked_div(8_i32).ok_or(KError::CastError)?)?)?;
         Ok(())
     }
 }
@@ -597,6 +597,7 @@ pub enum Grub2Font_Section_Body {
     Bytes(Vec<u8>),
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_AsceSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_AsceSection(x) = v {
             return x.clone();
@@ -610,6 +611,7 @@ impl From<OptRc<Grub2Font_AsceSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_ChixSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_ChixSection(x) = v {
             return x.clone();
@@ -623,6 +625,7 @@ impl From<OptRc<Grub2Font_ChixSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_DescSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_DescSection(x) = v {
             return x.clone();
@@ -636,6 +639,7 @@ impl From<OptRc<Grub2Font_DescSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_FamiSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_FamiSection(x) = v {
             return x.clone();
@@ -649,6 +653,7 @@ impl From<OptRc<Grub2Font_FamiSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxhSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_MaxhSection(x) = v {
             return x.clone();
@@ -662,6 +667,7 @@ impl From<OptRc<Grub2Font_MaxhSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxwSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_MaxwSection(x) = v {
             return x.clone();
@@ -675,6 +681,7 @@ impl From<OptRc<Grub2Font_MaxwSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_NameSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_NameSection(x) = v {
             return x.clone();
@@ -688,6 +695,7 @@ impl From<OptRc<Grub2Font_NameSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_PtszSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_PtszSection(x) = v {
             return x.clone();
@@ -701,6 +709,7 @@ impl From<OptRc<Grub2Font_PtszSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_SlanSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_SlanSection(x) = v {
             return x.clone();
@@ -714,6 +723,7 @@ impl From<OptRc<Grub2Font_SlanSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for OptRc<Grub2Font_WeigSection> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Grub2Font_WeigSection(x) = v {
             return x.clone();
@@ -727,6 +737,7 @@ impl From<OptRc<Grub2Font_WeigSection>> for Grub2Font_Section_Body {
     }
 }
 impl From<&Grub2Font_Section_Body> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &Grub2Font_Section_Body) -> Self {
         if let Grub2Font_Section_Body::Bytes(x) = v {
             return x.clone();
@@ -754,7 +765,7 @@ impl KStruct for Grub2Font_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.section_type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(4)?)?, "UTF-8")?;
+        *self_rc.section_type.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
         if *self_rc.section_type() != "DATA" {
             match self_rc.section_type().as_str() {

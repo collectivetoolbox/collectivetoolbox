@@ -902,7 +902,7 @@ impl KStruct for Uimage_Uheader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x27u8, 0x5u8, 0x19u8, 0x56u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/uheader/seq/0".to_string() }));
         }
@@ -912,11 +912,11 @@ impl KStruct for Uimage_Uheader {
         *self_rc.load_address.borrow_mut() = _io.read_u4be()?;
         *self_rc.entry_address.borrow_mut() = _io.read_u4be()?;
         *self_rc.data_crc.borrow_mut() = _io.read_u4be()?;
-        *self_rc.os_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.architecture.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.image_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.compression_type.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(32)?)?, 0, false), "UTF-8")?;
+        *self_rc.os_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.architecture.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.image_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.compression_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
         Ok(())
     }
 }

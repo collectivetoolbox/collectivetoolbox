@@ -50,7 +50,7 @@ impl GptPartitionTable {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((((_io.size()) as i32) - ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as i32)))?)?;
+        io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?))?)?;
         let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.backup.borrow_mut() = t;
         io.seek(_pos)?;
@@ -117,12 +117,12 @@ impl KStruct for GptPartitionTable_PartitionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.type_guid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
-        *self_rc.guid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.type_guid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc.guid.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.first_lba.borrow_mut() = _io.read_u8le()?;
         *self_rc.last_lba.borrow_mut() = _io.read_u8le()?;
         *self_rc.attributes.borrow_mut() = _io.read_u8le()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(72)?)?, "UTF-16LE")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(72_usize)?, "UTF-16LE")?;
         Ok(())
     }
 }
@@ -203,7 +203,7 @@ impl KStruct for GptPartitionTable_PartitionHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(8)?)?;
+        *self_rc.signature.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.signature() == vec![0x45u8, 0x46u8, 0x49u8, 0x20u8, 0x50u8, 0x41u8, 0x52u8, 0x54u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/0".to_string() }));
         }
@@ -215,7 +215,7 @@ impl KStruct for GptPartitionTable_PartitionHeader {
         *self_rc.backup_lba.borrow_mut() = _io.read_u8le()?;
         *self_rc.first_usable_lba.borrow_mut() = _io.read_u8le()?;
         *self_rc.last_usable_lba.borrow_mut() = _io.read_u8le()?;
-        *self_rc.disk_guid.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.disk_guid.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.entries_start.borrow_mut() = _io.read_u8le()?;
         *self_rc.entries_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.entries_size.borrow_mut() = _io.read_u4le()?;
@@ -234,15 +234,15 @@ impl GptPartitionTable_PartitionHeader {
         self.f_entries.set(true);
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((((*self.entries_start()) as u64) * ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?) as u64)))?)?;
+        io.seek(usize::try_from((*self.entries_start()).saturating_mul(u64::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         *self.entries_raw.borrow_mut() = Vec::new();
         *self.entries.borrow_mut() = Vec::new();
         let l_entries = *self.entries_count();
         for _i in 0..l_entries {
             self.entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entries_size())?)?.into());
             let entries_raw = self.entries_raw.borrow();
-            let io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, GptPartitionTable_PartitionEntry>(&io_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let t = Self::read_into::<BytesReader, GptPartitionTable_PartitionEntry>(&_io_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.entries.borrow_mut().push(t);
         }
         io.seek(_pos)?;

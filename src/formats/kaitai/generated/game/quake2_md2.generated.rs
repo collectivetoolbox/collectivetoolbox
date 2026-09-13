@@ -134,7 +134,7 @@ impl KStruct for Quake2Md2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x49u8, 0x44u8, 0x50u8, 0x32u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
@@ -228,8 +228,8 @@ from Quake anorms.h
         for _i in 0..l_frames {
             self.frames_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.bytes_per_frame())?)?.into());
             let frames_raw = self.frames_raw.borrow();
-            let io_frames_raw = BytesReader::from(frames_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, Quake2Md2_Frame>(&io_frames_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_frames_raw = BytesReader::from(frames_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let t = Self::read_into::<BytesReader, Quake2Md2_Frame>(&_io_frames_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.frames.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -244,7 +244,7 @@ from Quake anorms.h
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_gl_cmds())?)?;
-        *self.gl_cmds_raw.borrow_mut() = _io.read_bytes(usize::try_from(0 * *self.num_gl_cmds())?)?.into();
+        *self.gl_cmds_raw.borrow_mut() = _io.read_bytes(usize::try_from((4).saturating_mul(*self.num_gl_cmds()))?)?.into();
         let gl_cmds_raw = self.gl_cmds_raw.borrow();
         let _t_gl_cmds_raw_io = BytesReader::from(gl_cmds_raw.clone());
         let t = Self::read_into::<BytesReader, Quake2Md2_GlCmdsList>(&_t_gl_cmds_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -266,9 +266,9 @@ from Quake anorms.h
         *self.skins.borrow_mut() = Vec::new();
         let l_skins = *self.num_skins();
         for _i in 0..l_skins {
-            self.skins_raw.borrow_mut().push(_io.read_bytes(usize::try_from(64)?)?.into());
+            self.skins_raw.borrow_mut().push(_io.read_bytes(64_usize)?.into());
             let skins_raw = self.skins_raw.borrow();
-            let io_skins_raw = BytesReader::from(skins_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let _io_skins_raw = BytesReader::from(skins_raw.last().ok_or(KError::EmptyIterator)?.clone());
         }
         _io.seek(_pos)?;
         Ok(self.skins.borrow())
@@ -496,7 +496,7 @@ impl Quake2Md2_CompressedVec {
             return Ok(self.x.borrow());
         }
         self.f_x.set(true);
-        *self.x.borrow_mut() = (((((((*self.x_compressed()) as f32) * ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().x()) as f32))) as f32) + ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().x()) as f32))).try_into()?;
+        *self.x.borrow_mut() = (((((to_f32(*self.x_compressed())) * (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().x()))) + (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().x()))).try_into()?;
         Ok(self.x.borrow())
     }
     pub fn y(
@@ -507,7 +507,7 @@ impl Quake2Md2_CompressedVec {
             return Ok(self.y.borrow());
         }
         self.f_y.set(true);
-        *self.y.borrow_mut() = (((((((*self.y_compressed()) as f32) * ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().y()) as f32))) as f32) + ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().y()) as f32))).try_into()?;
+        *self.y.borrow_mut() = (((((to_f32(*self.y_compressed())) * (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().y()))) + (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().y()))).try_into()?;
         Ok(self.y.borrow())
     }
     pub fn z(
@@ -518,7 +518,7 @@ impl Quake2Md2_CompressedVec {
             return Ok(self.z.borrow());
         }
         self.f_z.set(true);
-        *self.z.borrow_mut() = (((((((*self.z_compressed()) as f32) * ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().z()) as f32))) as f32) + ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().z()) as f32))).try_into()?;
+        *self.z.borrow_mut() = (((((to_f32(*self.z_compressed())) * (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().z()))) + (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().z()))).try_into()?;
         Ok(self.z.borrow())
     }
 }
@@ -573,7 +573,7 @@ impl KStruct for Quake2Md2_Frame {
         *self_rc.scale.borrow_mut() = t;
         let t = Self::read_into::<_, Quake2Md2_Vec3f>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.translate.borrow_mut() = t;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(usize::try_from(16)?)?, 0, false), "ascii")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "ascii")?;
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.vertices_per_frame();
         for _i in 0..l_vertices {
@@ -658,7 +658,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.num_vertices.borrow());
         }
         self.f_num_vertices.set(true);
-        *self.num_vertices.borrow_mut() = (if (((*self.cmd_num_vertices()) as i32) < ((0) as i32)) { (-(*self.cmd_num_vertices())) as i32 } else { (*self.cmd_num_vertices()) as i32 }).try_into()?;
+        *self.num_vertices.borrow_mut() = (if *self.cmd_num_vertices() < 0 { -(*self.cmd_num_vertices()) } else { *self.cmd_num_vertices() }).try_into()?;
         Ok(self.num_vertices.borrow())
     }
     pub fn primitive(
@@ -669,7 +669,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.primitive.borrow());
         }
         self.f_primitive.set(true);
-        *self.primitive.borrow_mut() = if (((*self.cmd_num_vertices()) as i32) < ((0) as i32)) { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
+        *self.primitive.borrow_mut() = if *self.cmd_num_vertices() < 0 { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
         Ok(self.primitive.borrow())
     }
 }
@@ -715,14 +715,14 @@ impl KStruct for Quake2Md2_GlCmdsList {
         if !(_io.is_eof()) {
             *self_rc.items.borrow_mut() = Vec::new();
             {
-                let mut _i = 0;
+                let mut _i = 0_usize;
                 loop {
                     let t = Self::read_into::<_, Quake2Md2_GlCmd>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.items.borrow_mut().push(t);
                     let _t_items = self_rc.items.borrow();
                     let Some(_tmpa) = _t_items.last() else { break; };
-                    _i += 1;
-                    if (((*_tmpa.cmd_num_vertices()) as i32) == ((0) as i32)) { break; }
+                    _i = _i.saturating_add(1);
+                    if *_tmpa.cmd_num_vertices() == 0 { break; }
                 }
             }
         }
@@ -839,7 +839,7 @@ impl Quake2Md2_TexPoint {
             return Ok(self.s_normalized.borrow());
         }
         self.f_s_normalized.set(true);
-        *self.s_normalized.borrow_mut() = (((((((*self.s_px()) as f64) + ((0.0) as f64))) as f64) / ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.skin_width_px()) as f64))).try_into()?;
+        *self.s_normalized.borrow_mut() = (((((to_f64(*self.s_px())) + (0.0))) / (to_f64(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.skin_width_px())))).try_into()?;
         Ok(self.s_normalized.borrow())
     }
     pub fn t_normalized(
@@ -850,7 +850,7 @@ impl Quake2Md2_TexPoint {
             return Ok(self.t_normalized.borrow());
         }
         self.f_t_normalized.set(true);
-        *self.t_normalized.borrow_mut() = (((((((*self.t_px()) as f64) + ((0.0) as f64))) as f64) / ((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.skin_height_px()) as f64))).try_into()?;
+        *self.t_normalized.borrow_mut() = (((((to_f64(*self.t_px())) + (0.0))) / (to_f64(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.skin_height_px())))).try_into()?;
         Ok(self.t_normalized.borrow())
     }
 }
@@ -1028,7 +1028,7 @@ impl Quake2Md2_Vertex {
             return Ok(self.normal.borrow());
         }
         self.f_normal.set(true);
-        *self.normal.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.anorms_table()?[*self.normal_index() as usize].to_vec();
+        *self.normal.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.anorms_table()?.get(usize::try_from(*self.normal_index())?).ok_or(KError::CastError)?.to_vec();
         Ok(self.normal.borrow())
     }
 }

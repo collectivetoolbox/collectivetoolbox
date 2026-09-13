@@ -59,13 +59,13 @@ impl KStruct for PythonPickle {
         let _io = io;
         *self_rc.ops.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, PythonPickle_Op>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.ops.borrow_mut().push(t);
                 let _t_ops = self_rc.ops.borrow();
                 let Some(_tmpa) = _t_ops.last() else { break; };
-                _i += 1;
+                _i = _i.saturating_add(1);
                 if *_tmpa.code() == PythonPickle_Opcode::Stop { break; }
             }
         }
@@ -672,7 +672,7 @@ impl KStruct for PythonPickle_Bytes1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
         Ok(())
     }
 }
@@ -967,7 +967,7 @@ impl KStruct for PythonPickle_Long1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
         Ok(())
     }
 }
@@ -1117,6 +1117,7 @@ pub enum PythonPickle_Op_Arg {
     PythonPickle_Unicodestringnl(OptRc<PythonPickle_Unicodestringnl>),
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_NoArg> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_NoArg(x) = v {
             return x.clone();
@@ -1130,6 +1131,7 @@ impl From<OptRc<PythonPickle_NoArg>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes4> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes4(x) = v {
             return x.clone();
@@ -1143,6 +1145,7 @@ impl From<OptRc<PythonPickle_Bytes4>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes8(x) = v {
             return x.clone();
@@ -1156,6 +1159,7 @@ impl From<OptRc<PythonPickle_Bytes8>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for f64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::F8(x) = v {
             return x.clone();
@@ -1169,6 +1173,7 @@ impl From<f64> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for u8 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::U1(x) = v {
             return x.clone();
@@ -1182,6 +1187,7 @@ impl From<u8> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for i32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::S4(x) = v {
             return x.clone();
@@ -1195,6 +1201,7 @@ impl From<i32> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for u16 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::U2(x) = v {
             return x.clone();
@@ -1208,6 +1215,7 @@ impl From<u16> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String4> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_String4(x) = v {
             return x.clone();
@@ -1221,6 +1229,7 @@ impl From<OptRc<PythonPickle_String4>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring4> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring4(x) = v {
             return x.clone();
@@ -1234,6 +1243,7 @@ impl From<OptRc<PythonPickle_Unicodestring4>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring8(x) = v {
             return x.clone();
@@ -1247,6 +1257,7 @@ impl From<OptRc<PythonPickle_Unicodestring8>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytearray8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Bytearray8(x) = v {
             return x.clone();
@@ -1260,6 +1271,7 @@ impl From<OptRc<PythonPickle_Bytearray8>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for u32 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::U4(x) = v {
             return x.clone();
@@ -1273,6 +1285,7 @@ impl From<u32> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Floatnl> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Floatnl(x) = v {
             return x.clone();
@@ -1286,6 +1299,7 @@ impl From<OptRc<PythonPickle_Floatnl>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for u64 {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::U8(x) = v {
             return x.clone();
@@ -1299,6 +1313,7 @@ impl From<u64> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlShort> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_DecimalnlShort(x) = v {
             return x.clone();
@@ -1312,6 +1327,7 @@ impl From<OptRc<PythonPickle_DecimalnlShort>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescapePair> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_StringnlNoescapePair(x) = v {
             return x.clone();
@@ -1325,6 +1341,7 @@ impl From<OptRc<PythonPickle_StringnlNoescapePair>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlLong> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_DecimalnlLong(x) = v {
             return x.clone();
@@ -1338,6 +1355,7 @@ impl From<OptRc<PythonPickle_DecimalnlLong>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Long1(x) = v {
             return x.clone();
@@ -1351,6 +1369,7 @@ impl From<OptRc<PythonPickle_Long1>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long4> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Long4(x) = v {
             return x.clone();
@@ -1364,6 +1383,7 @@ impl From<OptRc<PythonPickle_Long4>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescape> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_StringnlNoescape(x) = v {
             return x.clone();
@@ -1377,6 +1397,7 @@ impl From<OptRc<PythonPickle_StringnlNoescape>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes1(x) = v {
             return x.clone();
@@ -1390,6 +1411,7 @@ impl From<OptRc<PythonPickle_Bytes1>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_String1(x) = v {
             return x.clone();
@@ -1403,6 +1425,7 @@ impl From<OptRc<PythonPickle_String1>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring1> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring1(x) = v {
             return x.clone();
@@ -1416,6 +1439,7 @@ impl From<OptRc<PythonPickle_Unicodestring1>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Stringnl> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Stringnl(x) = v {
             return x.clone();
@@ -1429,6 +1453,7 @@ impl From<OptRc<PythonPickle_Stringnl>> for PythonPickle_Op_Arg {
     }
 }
 impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestringnl> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &PythonPickle_Op_Arg) -> Self {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestringnl(x) = v {
             return x.clone();
@@ -1456,7 +1481,7 @@ impl KStruct for PythonPickle_Op {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() = i64::try_from(_io.read_u1()?)?.try_into()?;
+        *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.code() {
             PythonPickle_Opcode::Additems => {
                 *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -1963,7 +1988,7 @@ impl KStruct for PythonPickle_String1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
         Ok(())
     }
 }
@@ -2213,7 +2238,7 @@ impl KStruct for PythonPickle_Unicodestring1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "utf8")?;
+        *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "utf8")?;
         Ok(())
     }
 }

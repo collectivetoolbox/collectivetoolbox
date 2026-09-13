@@ -310,7 +310,7 @@ impl KStruct for DnsPacket_Address {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ip.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.ip.borrow_mut() = _io.read_bytes(4_usize)?;
         Ok(())
     }
 }
@@ -350,7 +350,7 @@ impl KStruct for DnsPacket_AddressV6 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ip_v6.borrow_mut() = _io.read_bytes(usize::try_from(16)?)?;
+        *self_rc.ip_v6.borrow_mut() = _io.read_bytes(16_usize)?;
         Ok(())
     }
 }
@@ -393,6 +393,7 @@ pub enum DnsPacket_Answer_Payload {
     Bytes(Vec<u8>),
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Address> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_Address(x) = v {
             return x.clone();
@@ -406,6 +407,7 @@ impl From<OptRc<DnsPacket_Address>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AddressV6> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_AddressV6(x) = v {
             return x.clone();
@@ -419,6 +421,7 @@ impl From<OptRc<DnsPacket_AddressV6>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_DomainName> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_DomainName(x) = v {
             return x.clone();
@@ -432,6 +435,7 @@ impl From<OptRc<DnsPacket_DomainName>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_MxInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_MxInfo(x) = v {
             return x.clone();
@@ -445,6 +449,7 @@ impl From<OptRc<DnsPacket_MxInfo>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AuthorityInfo> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_AuthorityInfo(x) = v {
             return x.clone();
@@ -458,6 +463,7 @@ impl From<OptRc<DnsPacket_AuthorityInfo>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Service> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_Service(x) = v {
             return x.clone();
@@ -471,6 +477,7 @@ impl From<OptRc<DnsPacket_Service>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_TxtBody> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::DnsPacket_TxtBody(x) = v {
             return x.clone();
@@ -484,6 +491,7 @@ impl From<OptRc<DnsPacket_TxtBody>> for DnsPacket_Answer_Payload {
     }
 }
 impl From<&DnsPacket_Answer_Payload> for Vec<u8> {
+    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
     fn from(v: &DnsPacket_Answer_Payload) -> Self {
         if let DnsPacket_Answer_Payload::Bytes(x) = v {
             return x.clone();
@@ -513,8 +521,8 @@ impl KStruct for DnsPacket_Answer {
         let _io = io;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
-        *self_rc.answer_class.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.answer_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.ttl.borrow_mut() = _io.read_s4be()?;
         *self_rc.rdlength.borrow_mut() = _io.read_u2be()?;
         match *self_rc.r#type() {
@@ -748,14 +756,14 @@ impl KStruct for DnsPacket_DomainName {
         let _io = io;
         *self_rc.name.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             loop {
                 let t = Self::read_into::<_, DnsPacket_Label>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.name.borrow_mut().push(t);
                 let _t_name = self_rc.name.borrow();
                 let Some(_tmpa) = _t_name.last() else { break; };
-                _i += 1;
-                if  (((((*_tmpa.length()) as i32) == ((0) as i32))) || ((((*_tmpa.length()) as i32) >= ((192) as i32))))  { break; }
+                _i = _i.saturating_add(1);
+                if  ((*_tmpa.length() == 0) || (*_tmpa.length() >= 192))  { break; }
             }
         }
         Ok(())
@@ -811,7 +819,7 @@ impl KStruct for DnsPacket_Label {
             *self_rc.pointer.borrow_mut() = t;
         }
         if !(*self_rc.is_pointer()?) {
-            *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "UTF-8")?;
+            *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "UTF-8")?;
         }
         Ok(())
     }
@@ -825,7 +833,7 @@ impl DnsPacket_Label {
             return Ok(self.is_pointer.borrow());
         }
         self.f_is_pointer.set(true);
-        *self.is_pointer.borrow_mut() = ((((*self.length()) as i32) >= ((192) as i32))).try_into()?;
+        *self.is_pointer.borrow_mut() = (*self.length() >= 192).try_into()?;
         Ok(self.is_pointer.borrow())
     }
 }
@@ -964,7 +972,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.aa.borrow());
         }
         self.f_aa.set(true);
-        *self.aa.borrow_mut() = (((((((*self.flag()) as u64) & ((1024) as u64)) as u64) >> 10) as i32)).try_into()?;
+        *self.aa.borrow_mut() = ((((i32::from(*self.flag())) & (1024_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.aa.borrow())
     }
     pub fn ad(
@@ -975,7 +983,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.ad.borrow());
         }
         self.f_ad.set(true);
-        *self.ad.borrow_mut() = (((((((*self.flag()) as u64) & ((32) as u64)) as u64) >> 5) as i32)).try_into()?;
+        *self.ad.borrow_mut() = ((((i32::from(*self.flag())) & (32_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.ad.borrow())
     }
     pub fn cd(
@@ -986,7 +994,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.cd.borrow());
         }
         self.f_cd.set(true);
-        *self.cd.borrow_mut() = (((((((*self.flag()) as u64) & ((16) as u64)) as u64) >> 4) as i32)).try_into()?;
+        *self.cd.borrow_mut() = ((((i32::from(*self.flag())) & (16_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.cd.borrow())
     }
     pub fn is_opcode_valid(
@@ -1008,7 +1016,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.opcode.borrow());
         }
         self.f_opcode.set(true);
-        *self.opcode.borrow_mut() = (((((((*self.flag()) as u64) & ((30720) as u64)) as u64) >> 11) as i32)).try_into()?;
+        *self.opcode.borrow_mut() = ((((i32::from(*self.flag())) & (30720_i32))).wrapping_shr(11_u32)).try_into()?;
         Ok(self.opcode.borrow())
     }
     pub fn qr(
@@ -1019,7 +1027,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.qr.borrow());
         }
         self.f_qr.set(true);
-        *self.qr.borrow_mut() = (((((((*self.flag()) as u64) & ((32768) as u64)) as u64) >> 15) as i32)).try_into()?;
+        *self.qr.borrow_mut() = ((((i32::from(*self.flag())) & (32768_i32))).wrapping_shr(15_u32)).try_into()?;
         Ok(self.qr.borrow())
     }
     pub fn ra(
@@ -1030,7 +1038,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.ra.borrow());
         }
         self.f_ra.set(true);
-        *self.ra.borrow_mut() = (((((((*self.flag()) as u64) & ((128) as u64)) as u64) >> 7) as i32)).try_into()?;
+        *self.ra.borrow_mut() = ((((i32::from(*self.flag())) & (128_i32))).wrapping_shr(7_u32)).try_into()?;
         Ok(self.ra.borrow())
     }
     pub fn rcode(
@@ -1041,7 +1049,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.rcode.borrow());
         }
         self.f_rcode.set(true);
-        *self.rcode.borrow_mut() = (((((((*self.flag()) as u64) & ((15) as u64)) as u64) >> 0) as i32)).try_into()?;
+        *self.rcode.borrow_mut() = ((((i32::from(*self.flag())) & (15_i32))).wrapping_shr(0_u32)).try_into()?;
         Ok(self.rcode.borrow())
     }
     pub fn rd(
@@ -1052,7 +1060,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.rd.borrow());
         }
         self.f_rd.set(true);
-        *self.rd.borrow_mut() = (((((((*self.flag()) as u64) & ((256) as u64)) as u64) >> 8) as i32)).try_into()?;
+        *self.rd.borrow_mut() = ((((i32::from(*self.flag())) & (256_i32))).wrapping_shr(8_u32)).try_into()?;
         Ok(self.rd.borrow())
     }
     pub fn tc(
@@ -1063,7 +1071,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.tc.borrow());
         }
         self.f_tc.set(true);
-        *self.tc.borrow_mut() = (((((((*self.flag()) as u64) & ((512) as u64)) as u64) >> 9) as i32)).try_into()?;
+        *self.tc.borrow_mut() = ((((i32::from(*self.flag())) & (512_i32))).wrapping_shr(9_u32)).try_into()?;
         Ok(self.tc.borrow())
     }
     pub fn z(
@@ -1074,7 +1082,7 @@ impl DnsPacket_PacketFlags {
             return Ok(self.z.borrow());
         }
         self.f_z.set(true);
-        *self.z.borrow_mut() = (((((((*self.flag()) as u64) & ((64) as u64)) as u64) >> 6) as i32)).try_into()?;
+        *self.z.borrow_mut() = ((((i32::from(*self.flag())) & (64_i32))).wrapping_shr(6_u32)).try_into()?;
         Ok(self.z.borrow())
     }
 }
@@ -1128,7 +1136,7 @@ impl DnsPacket_PointerStruct {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((((*self.value()) as i32) + ((((((((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.length()) as i32) - ((192) as i32))) as i32) << ((8) as i32))) as i32)))?)?;
+        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.length())).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&io, Some(self._root.clone()), None)?.into();
         *self.contents.borrow_mut() = t;
         io.seek(_pos)?;
@@ -1177,8 +1185,8 @@ impl KStruct for DnsPacket_Query {
         let _io = io;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
-        *self_rc.query_class.borrow_mut() = i64::try_from(_io.read_u2be()?)?.try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.query_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         Ok(())
     }
 }
@@ -1292,7 +1300,7 @@ impl KStruct for DnsPacket_Txt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
-        *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "UTF-8")?;
+        *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "UTF-8")?;
         Ok(())
     }
 }
@@ -1339,11 +1347,11 @@ impl KStruct for DnsPacket_TxtBody {
         let _io = io;
         *self_rc.data.borrow_mut() = Vec::new();
         {
-            let mut _i = 0;
+            let mut _i = 0_usize;
             while !_io.is_eof() {
                 let t = Self::read_into::<_, DnsPacket_Txt>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.data.borrow_mut().push(t);
-                _i += 1;
+                _i = _i.saturating_add(1);
             }
         }
         Ok(())

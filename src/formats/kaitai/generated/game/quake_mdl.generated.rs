@@ -162,15 +162,15 @@ impl KStruct for QuakeMdl_MdlFrame {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = _io.read_s4le()?;
-        if (((*self_rc.r#type()) as i32) != ((0) as i32)) {
+        if *self_rc.r#type() != 0 {
             let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.min.borrow_mut() = t;
         }
-        if (((*self_rc.r#type()) as i32) != ((0) as i32)) {
+        if *self_rc.r#type() != 0 {
             let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.max.borrow_mut() = t;
         }
-        if (((*self_rc.r#type()) as i32) != ((0) as i32)) {
+        if *self_rc.r#type() != 0 {
             *self_rc.time.borrow_mut() = Vec::new();
             let l_time = *self_rc.r#type();
             for _i in 0..l_time {
@@ -195,7 +195,7 @@ impl QuakeMdl_MdlFrame {
             return Ok(self.num_simple_frames.borrow());
         }
         self.f_num_simple_frames.set(true);
-        *self.num_simple_frames.borrow_mut() = (if (((*self.r#type()) as i32) == ((0) as i32)) { (1) as i32 } else { (*self.r#type()) as i32 }).try_into()?;
+        *self.num_simple_frames.borrow_mut() = (if *self.r#type() == 0 { 1_i32 } else { *self.r#type() }).try_into()?;
         Ok(self.num_simple_frames.borrow())
     }
 }
@@ -274,7 +274,7 @@ impl KStruct for QuakeMdl_MdlHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ident.borrow_mut() = _io.read_bytes(usize::try_from(4)?)?;
+        *self_rc.ident.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.ident() == vec![0x49u8, 0x44u8, 0x50u8, 0x4fu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/mdl_header/seq/0".to_string() }));
         }
@@ -315,7 +315,7 @@ impl QuakeMdl_MdlHeader {
             return Ok(self.skin_size.borrow());
         }
         self.f_skin_size.set(true);
-        *self.skin_size.borrow_mut() = ((((*self.skin_width()) as i32) * ((*self.skin_height()) as i32))).try_into()?;
+        *self.skin_size.borrow_mut() = ((*self.skin_width()).saturating_mul(*self.skin_height())).try_into()?;
         Ok(self.skin_size.borrow())
     }
 }
@@ -468,7 +468,7 @@ impl KStruct for QuakeMdl_MdlSimpleFrame {
         *self_rc.bbox_min.borrow_mut() = t;
         let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bbox_max.borrow_mut() = t;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(usize::try_from(16)?)?, 0), 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(16_usize)?, 0), 0, false), "ASCII")?;
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_verts();
         for _i in 0..l_vertices {
@@ -534,20 +534,20 @@ impl KStruct for QuakeMdl_MdlSkin {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.group.borrow_mut() = _io.read_s4le()?;
-        if (((*self_rc.group()) as i32) == ((0) as i32)) {
+        if *self_rc.group() == 0 {
             *self_rc.single_texture_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().skin_size()?)?)?;
         }
-        if (((*self_rc.group()) as i32) != ((0) as i32)) {
+        if *self_rc.group() != 0 {
             *self_rc.num_frames.borrow_mut() = _io.read_u4le()?;
         }
-        if (((*self_rc.group()) as i32) != ((0) as i32)) {
+        if *self_rc.group() != 0 {
             *self_rc.frame_times.borrow_mut() = Vec::new();
             let l_frame_times = *self_rc.num_frames();
             for _i in 0..l_frame_times {
                 self_rc.frame_times.borrow_mut().push(_io.read_f4le()?);
             }
         }
-        if (((*self_rc.group()) as i32) != ((0) as i32)) {
+        if *self_rc.group() != 0 {
             *self_rc.group_texture_data.borrow_mut() = Vec::new();
             let l_group_texture_data = *self_rc.num_frames();
             for _i in 0..l_group_texture_data {
