@@ -2,11 +2,11 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-#![allow(unused_imports)]
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(irrefutable_let_patterns)]
-#![allow(unused_comparisons)]
+#![allow(unused_imports, reason = "Generated parser module")]
+#![allow(non_snake_case, reason = "Generated parser module")]
+#![allow(non_camel_case_types, reason = "Generated parser module")]
+#![allow(irrefutable_let_patterns, reason = "Generated parser module")]
+#![allow(unused_comparisons, reason = "Generated parser module")]
 
 extern crate kaitai;
 use kaitai::*;
@@ -51,7 +51,7 @@ impl KStruct for WindowsSystemtime {
         self_rc._self.set(Ok(self_rc.clone()));
         let _rrc = self_rc._root.get_value().borrow().upgrade();
         let _prc = self_rc._parent.get_value().borrow().upgrade();
-        let _r = _rrc.as_ref().unwrap();
+        let _r = _rrc.as_ref().ok_or(KError::MissingRoot)?;
         *self_rc.year.borrow_mut() = _io.read_u2le()?.into();
         *self_rc.month.borrow_mut() = _io.read_u2le()?.into();
         *self_rc.dow.borrow_mut() = _io.read_u2le()?.into();

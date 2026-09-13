@@ -84,6 +84,7 @@ impl SpecRegistry {
     /// Returns an error if the imported file cannot be found or parsed.
     pub fn load_import(&mut self, import_str: &str, current_file: Option<&Path>) -> Result<()> {
         let clean_path = import_str.trim_start_matches('/');
+        // Reason for fallback: import string without path separator is already the base name
         let base_name = clean_path
             .rsplit('/')
             .next()

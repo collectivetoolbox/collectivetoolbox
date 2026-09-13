@@ -58,7 +58,7 @@ use crate::spec::{
 fn java_string_hash(s: &str) -> u32 {
     let mut h: u32 = 0;
     for b in s.bytes() {
-        h = h.wrapping_mul(31).wrapping_add(b as u32);
+        h = h.wrapping_mul(31).wrapping_add(u32::from(b));
     }
     h
 }
@@ -66,7 +66,7 @@ fn java_string_hash(s: &str) -> u32 {
 fn value_or_expr_to_expr(ve: &ValueOrExpr) -> Result<Expr> {
     match ve {
         ValueOrExpr::Expr(s) => parse_expr(s),
-        ValueOrExpr::Int(i) => Ok(Expr::IntNum(*i as i128)),
+        ValueOrExpr::Int(i) => Ok(Expr::IntNum(i128::from(*i))),
         ValueOrExpr::Float(f) => Ok(Expr::FloatNum(*f)),
         ValueOrExpr::Bool(b) => Ok(Expr::Bool(*b)),
     }
@@ -165,6 +165,7 @@ pub fn resolve_ksy(
     collect_all_external_types_rec(&root_spec, &mut all_ext);
     if let Some(meta) = &ksy.meta {
         for imp in &meta.imports {
+            // Reason for fallback: import string without slash separator is used as its own stem
             let stem = imp
                 .trim_start_matches('/')
                 .split('/')
@@ -283,6 +284,7 @@ fn resolve_switch_type(dt: &DataType) -> DataType {
                 Some(prev) => Some(combine_types(&prev, c)),
             };
         }
+        // Reason for fallback: switch type with empty cases retains the original switch data type
         combined.unwrap_or_else(|| dt.clone())
     } else {
         dt.clone()
@@ -690,6 +692,7 @@ fn resolve_class_spec(
         .meta
         .as_ref()
         .and_then(|m| m.license.as_ref().map(|l| l.to_string()));
+    // Reason for fallback: absent meta.imports defaults to empty list
     let meta_imports = ksy
         .meta
         .as_ref()
@@ -697,6 +700,7 @@ fn resolve_class_spec(
         .unwrap_or_default();
 
     let doc = ksy.doc.clone();
+    // Reason for fallback: absent doc_ref list defaults to empty vector
     let doc_refs = ksy.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
 
     // Resolve enums
@@ -706,15 +710,19 @@ fn resolve_class_spec(
         let mut value_docs_map = IndexMap::new();
         let mut value_doc_refs_map = IndexMap::new();
         for (raw_key, val_spec) in enum_values {
+            // Reason for fallback: parse failure on malformed enum key defaults to 0 value
             let num: i64 = if let Some(stripped) = raw_key.strip_prefix("0x") {
+                // Reason for fallback: hex parse failure on malformed enum key defaults to 0
                 i64::from_str_radix(stripped, 16).unwrap_or(0)
             } else {
+                // Reason for fallback: decimal parse failure on malformed enum key defaults to 0
                 raw_key.parse().unwrap_or(0)
             };
             let (label, doc, doc_ref) = match val_spec {
                 EnumValueSpec::Simple(s) => (s.clone(), None, None),
                 EnumValueSpec::Bool(b) => (b.to_string(), None, None),
                 EnumValueSpec::Detailed(d) => (
+                    // Reason for fallback: detailed enum entry lacking explicit id defaults to synthetic val_{num}
                     d.id.clone().unwrap_or_else(|| format!("val_{num}")),
                     d.doc.clone(),
                     d.doc_ref.as_ref().map(|r| r.as_slice().to_vec()),
@@ -748,6 +756,7 @@ fn resolve_class_spec(
     let mut external_types = Vec::new();
 
     for (seq_idx, attr) in ksy.seq.iter().enumerate() {
+        // Reason for fallback: unnamed sequential attribute receives synthetic index-based identifier
         let attr_id = attr
             .id
             .clone()
@@ -776,6 +785,7 @@ fn resolve_class_spec(
             }
         }
 
+        // Reason for fallback: absent doc_ref list defaults to empty vector
         let attr_doc_refs = attr.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
 
         let src_path = if name.len() <= 1 {
@@ -815,6 +825,7 @@ fn resolve_class_spec(
             scopes,
             registry,
         )?;
+        // Reason for fallback: absent doc_ref list defaults to empty vector
         let inst_doc_refs = inst_spec.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
         resolved_instances.insert(
             inst_id.clone(),
@@ -858,6 +869,7 @@ fn resolve_class_spec(
     let mut resolved_params = Vec::new();
     for p in &ksy.params {
         let (param_type, _) = if let Some(enum_name) = &p.enum_spec {
+            // Reason for fallback: enum parameter without explicit underlying type defaults to u4 per Kaitai spec
             resolve_simple_type(
                 p.type_spec.as_deref().unwrap_or("u4"),
                 Some(enum_name),
@@ -883,6 +895,7 @@ fn resolve_class_spec(
                 None,
             )
         };
+        // Reason for fallback: absent doc_ref list defaults to empty vector
         let param_doc_refs = p.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
         resolved_params.push(ResolvedParam {
             id: p.id.clone(),
@@ -971,6 +984,7 @@ fn resolve_attr_data_type(
                 } else {
                     None
                 };
+                // Reason for fallback: default string reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                 DataType::Str {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
@@ -1066,6 +1080,7 @@ fn resolve_attr_data_type(
                 } else {
                     None
                 };
+                // Reason for fallback: default string reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                 DataType::Str {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
@@ -1104,10 +1119,12 @@ fn resolve_attr_data_type(
                             count
                         }
                     };
+                    // Reason for fallback: contents length conversion overflow falls back to 0
                     Some(Expr::IntNum(i128::try_from(len).unwrap_or(0)))
                 } else {
                     None
                 };
+                // Reason for fallback: default byte array reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                 DataType::Bytes {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
@@ -1145,14 +1162,19 @@ fn resolve_enum_info(
 ) -> (Vec<String>, String, Option<Vec<String>>) {
     if ename.contains("::") {
         let parts: Vec<&str> = ename.split("::").collect();
-        let name = parts.last().unwrap().to_string();
-        let owner: Vec<String> = parts[..parts.len().saturating_sub(1)].iter().map(|s| (*s).to_string()).collect();
+        let (name, owner) = if let Some((last, prefix)) = parts.split_last() {
+            ((*last).to_string(), prefix.iter().map(|s| (*s).to_string()).collect())
+        } else {
+            (ename.to_string(), Vec::new())
+        };
         let mut full_path = owner.clone();
         full_path.push(name.clone());
+        // Reason for fallback: if no scope is active, assume external enum reference
         let is_external = scopes.first().map_or(true, |root| root.0 != &owner[..]);
         let ext = if is_external { Some(full_path) } else { None };
         (owner, name, ext)
     } else {
+        // Reason for fallback: empty scopes defaults to empty owner path
         let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
         for (scope_name, scope_ksy) in scopes.iter().rev() {
             if scope_ksy.enums.contains_key(ename) {
@@ -1343,9 +1365,7 @@ fn resolve_simple_type(
                 ));
             }
         }
-    } else {
-        let type_parts = &parts[..parts.len().saturating_sub(1)];
-        let enum_last = parts.last().unwrap();
+    } else if let Some((enum_last, type_parts)) = parts.split_last() {
         for (scope_name, scope_ksy) in scopes.iter().rev() {
             let mut curr_ksy = *scope_ksy;
             let mut found = true;
@@ -1504,6 +1524,7 @@ fn resolve_instance(
                     } else {
                         None
                     };
+                    // Reason for fallback: default string reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                     DataType::Str {
                         size: size_expr,
                         size_eos: inst.size_eos.unwrap_or(false),
@@ -1577,6 +1598,7 @@ fn resolve_instance(
             }
         }
     } else if let Some(enum_name) = &inst.enum_name {
+        // Reason for fallback: empty scopes defaults to empty owner path
         let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
         for (scope_name, scope_ksy) in scopes.iter().rev() {
             if scope_ksy.enums.contains_key(enum_name) {
@@ -1589,7 +1611,9 @@ fn resolve_instance(
             name: enum_name.clone(),
             underlying: None,
         }
+    // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
     } else if inst.size.is_some() || inst.size_eos.unwrap_or(false) {
+        // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
         DataType::Bytes {
             size: size_expr.clone(),
             size_eos: inst.size_eos.unwrap_or(false),
@@ -1600,6 +1624,7 @@ fn resolve_instance(
             process: inst.process.clone(),
         }
     } else if let Some(val_ex) = &value_expr {
+        // Reason for fallback: uninferrable expression type defaults to integer calculation type
         infer_expr_type(val_ex, scopes, registry).unwrap_or(DataType::CalcIntType)
     } else {
         DataType::CalcIntType
@@ -1735,9 +1760,11 @@ fn infer_expr_type(
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
         Expr::List(elements) => {
+            // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
             let elem_type = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)).unwrap_or(DataType::CalcIntType);
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
+                // Reason for fallback: list length integer conversion overflow defaults to 0
                 repeat: RepeatMode::Expr(Expr::IntNum(i128::try_from(elements.len()).unwrap_or(0))),
             })
         }

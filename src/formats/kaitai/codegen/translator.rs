@@ -368,6 +368,7 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
         "_io" => "_io".to_string(),
         "_index" => "_i".to_string(),
         "_" => "_tmpa".to_string(),
+        // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
         "_sizeof" => calculate_class_seq_size(ctx.current_class).unwrap_or(0).to_string(),
         other => {
             let self_name = ctx.self_name();
@@ -542,6 +543,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     };
     let is_vlq_value = match detect_type_approx(value, ctx) {
         Some(DataType::UserType { names, .. }) => {
+            // Reason for fallback: empty names list cannot match vlq_base128 prefix
             names.last().map_or(false, |n| n.starts_with("vlq_base128")) && attr == "value"
         }
         _ => false,
@@ -558,6 +560,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     };
     let (q, unwrap) = if is_inst {
         let returns_opt = if let Some(tc) = target_class {
+            // Reason for fallback: absent instance attribute is not an optional-returning instance
             tc.instances.get(attr).map_or(false, |inst| {
                 match &inst.data_type {
                     DataType::SwitchType { cases, .. } => {
@@ -585,8 +588,8 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         } else {
             format!("*{t}.{escaped_attr}(){q}{unwrap}")
         }
-    } else if t.starts_with('*') {
-        format!("{}.{escaped_attr}(){q}{unwrap}", &t[1..])
+    } else if let Some(stripped) = t.strip_prefix('*') {
+        format!("{stripped}.{escaped_attr}(){q}{unwrap}")
     } else {
         format!("{t}.{escaped_attr}(){q}{unwrap}")
     }
@@ -890,6 +893,7 @@ fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> S
 /// Strips leading `*` if present.
 #[must_use]
 pub fn remove_deref(s: &str) -> &str {
+    // Reason for fallback: string without leading asterisk remains unchanged
     s.strip_prefix('*').unwrap_or(s)
 }
 
@@ -1040,9 +1044,11 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
         }
         Expr::UnaryOp { operand, .. } => detect_type_approx(operand, ctx),
         Expr::List(elements) => {
+            // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
             let elem_type = elements.first().and_then(|e| detect_type_approx(e, ctx)).unwrap_or(DataType::CalcIntType);
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
+                // Reason for fallback: list length integer conversion overflow defaults to 0
                 repeat: RepeatMode::Expr(Expr::IntNum(i128::try_from(elements.len()).unwrap_or(0))),
             })
         }
@@ -1285,6 +1291,7 @@ fn resolve_switch_type(dt: &DataType) -> DataType {
                 Some(prev) => Some(combine_types(&prev, c)),
             };
         }
+        // Reason for fallback: switch type with empty cases retains the original switch data type
         combined.unwrap_or_else(|| dt.clone())
     } else {
         dt.clone()
@@ -1414,6 +1421,7 @@ pub fn translate_validation_custom_expr(
                     }
                     if let Expr::Name(sn) = right.as_ref() {
                         if sn == "_sizeof" {
+                            // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                             let sz = calculate_class_seq_size(current_class).unwrap_or(0);
                             return format!("(((_tmpa as i32) {op_str} ({sz} as i32)))");
                         }
@@ -1458,6 +1466,7 @@ pub fn translate_validation_custom_expr(
         }
         Expr::Name(n) if n == "_" => "_tmpa".to_string(),
         Expr::Name(n) if n == "_sizeof" => {
+            // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
             calculate_class_seq_size(current_class).unwrap_or(0).to_string()
         }
         Expr::IntNum(n) => format!("{n}"),

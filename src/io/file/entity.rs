@@ -807,19 +807,25 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
         // back to the verbatim path.
         match path.parent() {
             Some(p) if !p.as_os_str().is_empty() => {
+                // Reason for fallback: retain verbatim path if parent canonicalization fails
                 std::fs::canonicalize(p)
                     .map(|can_p| {
+                        // Reason for fallback: retain canonicalized parent when path has no file_name
                         path.file_name()
                             .map_or_else(|| can_p.clone(), |name| can_p.join(name))
                     })
                     .unwrap_or_else(|_| path.to_path_buf())
             }
-            _ => std::fs::canonicalize(".")
-                .map(|can_p| {
-                    path.file_name()
-                        .map_or_else(|| can_p.clone(), |name| can_p.join(name))
-                })
-                .unwrap_or_else(|_| path.to_path_buf()),
+            _ => {
+                // Reason for fallback: retain verbatim path if current directory canonicalization fails
+                std::fs::canonicalize(".")
+                    .map(|can_p| {
+                        // Reason for fallback: retain canonicalized parent when path has no file_name
+                        path.file_name()
+                            .map_or_else(|| can_p.clone(), |name| can_p.join(name))
+                    })
+                    .unwrap_or_else(|_| path.to_path_buf())
+            }
         }
     } else {
         // Reason for fallback: Existence is already guaranteed by
@@ -827,6 +833,7 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
         // ancestor traversal permissions, sandboxed environments, or virtual
         // filesystems like `/proc`), retain the verbatim caller-supplied path
         // rather than failing ingestion of a valid file.
+        // Reason for fallback: retain verbatim path if canonicalization fails
         std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
     }
 }

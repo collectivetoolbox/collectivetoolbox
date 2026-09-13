@@ -234,6 +234,7 @@ impl ClassSpec {
     /// Formats the parent class type name in UpperCamelCase.
     #[must_use]
     pub fn parent_class_type_name(&self) -> String {
+        // Reason for fallback: types without an explicit parent belong directly to the root class
         self.parent_name
             .as_ref()
             .map_or_else(|| self.root_class_type_name(), |p| types_to_class_name(p))

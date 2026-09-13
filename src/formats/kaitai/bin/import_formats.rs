@@ -114,9 +114,11 @@ fn run() -> Result<()> {
     );
 
     let default_dest = PathBuf::from("src/formats/kaitai/data/definitions");
+    // Reason for fallback: default destination directory when not explicitly specified
     let dest_dir = cli.dest_dir.as_ref().unwrap_or(&default_dest);
 
     let default_licenses = dest_dir.join("licenses");
+    // Reason for fallback: default licenses directory when not explicitly specified
     let licenses_dir = cli.licenses_dir.as_ref().unwrap_or(&default_licenses);
 
     ensure!(
@@ -153,8 +155,7 @@ fn run() -> Result<()> {
 
         let base_name = source_path
             .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default();
+            .and_then(|s| s.to_str())?;
 
         if SKIPPED_FORMATS.contains(&base_name) {
             unmatched.push(UnmatchedFile {
@@ -238,6 +239,7 @@ fn run() -> Result<()> {
     if !unmatched.is_empty() {
         println!("\n=== Non-Matched Files ===");
         for item in &unmatched {
+            // Reason for fallback: unmatched file without detected license displays as 'no license'
             let lic_info = item
                 .license
                 .as_deref()

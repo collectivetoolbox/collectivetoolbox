@@ -71,6 +71,7 @@ pub fn compile_class(spec: &ClassSpec) -> String {
 }
 
 fn emit_file_header(w: &mut CodeWriter, spec: &ClassSpec) {
+    // Reason for fallback: kaitai specifications without explicit license metadata default to CC0-1.0
     let license = spec.meta_license.as_deref().unwrap_or("CC0-1.0");
     w.puts(&format!("// SPDX-License-Identifier: {license}"));
     w.puts("// license-linter:allow-non-AGPL");
@@ -395,6 +396,7 @@ fn emit_switch_enum(
             "Elf_EndianElf_VersymSection",
         ];
         variants.sort_by_key(|(name, _)| {
+            // Reason for fallback: variants not listed in expected_order sort last
             expected_order
                 .iter()
                 .position(|&x| x == name)
@@ -659,10 +661,11 @@ fn emit_read_array_element(
         w.puts(&format!("match {match_target} {{"));
         w.inc();
         for (case_key, case_type) in cases {
-            let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
-                || (case_key.starts_with('"') && case_key.ends_with('"'))
+            let pattern = if let Some(inner) = case_key
+                .strip_prefix('\'')
+                .and_then(|s| s.strip_suffix('\''))
+                .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
             {
-                let inner = &case_key[1..case_key.len().saturating_sub(1)];
                 if is_str_switch {
                     format!("\"{inner}\"")
                 } else if inner.len() > 1 {
@@ -892,6 +895,7 @@ fn emit_attr_validation(
                 validation_primitive_type(target_dt)
             };
             let min_str = if is_sizeof {
+                // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
                 translate_expr(min_expr, ctx)
@@ -959,6 +963,7 @@ fn get_target_args(
         }
         _ => {
             if let Some(tc) = target_class {
+                // Reason for fallback: types without parent_name do not match KStructUnit parent
                 if tc.parent_name.as_ref().map(|p| p.len() == 1 && p[0] == "KStructUnit").unwrap_or(false) {
                     "None".to_string()
                 } else {
@@ -1077,10 +1082,11 @@ fn emit_switch_read(
     let escaped_id = escape_rust_keyword(id);
 
     for (case_key, case_type) in cases {
-        let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
-            || (case_key.starts_with('"') && case_key.ends_with('"'))
+        let pattern = if let Some(inner) = case_key
+            .strip_prefix('\'')
+            .and_then(|s| s.strip_suffix('\''))
+            .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
         {
-            let inner = &case_key[1..case_key.len().saturating_sub(1)];
             if is_str_switch {
                 format!("\"{inner}\"")
             } else if inner.len() > 1 {
@@ -1172,6 +1178,7 @@ fn read_expr_for_type(
                 let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
                 format!("if {self_field} == 1 {{ {io}.read_{prefix}{width}le()?.into() }} else {{ {io}.read_{prefix}{width}be()?.into() }}")
             } else {
+                // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
                     Endianness::Big | Endianness::Inherited => "be",
                     Endianness::Little => "le",
@@ -1184,6 +1191,7 @@ fn read_expr_for_type(
                 let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
                 format!("if {self_field} == 1 {{ {io}.read_f{width}le()?.into() }} else {{ {io}.read_f{width}be()?.into() }}")
             } else {
+                // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
                     Endianness::Big | Endianness::Inherited => "be",
                     Endianness::Little => "le",
@@ -1272,6 +1280,7 @@ fn read_expr_for_type(
                         if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
                             format!("{io}.read_{p}{width}()?")
                         } else {
+                            // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                             let e = match endian.unwrap_or(Endianness::Big) {
                                 Endianness::Big | Endianness::Inherited => "be",
                                 Endianness::Little => "le",
@@ -1401,6 +1410,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     }
                     DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. } => {
                         let no_deref = super::translator::remove_deref(&expr_str);
+                        // Reason for fallback: string without leading ampersand remains unchanged
                         let no_vec = no_deref.strip_prefix('&').unwrap_or(no_deref);
                         if no_vec.starts_with("vec![") {
                             no_vec.to_string()
@@ -1510,10 +1520,11 @@ fn emit_parse_instance_body(
                 if case_key == "_" {
                     continue;
                 }
-                let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
-                    || (case_key.starts_with('"') && case_key.ends_with('"'))
+                let pattern = if let Some(inner) = case_key
+                    .strip_prefix('\'')
+                    .and_then(|s| s.strip_suffix('\''))
+                    .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
                 {
-                    let inner = &case_key[1..case_key.len().saturating_sub(1)];
                     if is_str_switch {
                         format!("\"{inner}\"")
                     } else if inner.len() > 1 {
@@ -1553,6 +1564,7 @@ fn emit_parse_instance_body(
                     let type_name = types_to_class_name(names);
                     let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
                     let target_class = super::translator::find_class_spec(ctx.root, names);
+                    // Reason for fallback: absent target class specification does not have dynamic or inherited endianness
                     let has_dyn_endian = target_class.map(|tc| tc.has_dynamic_endian()).unwrap_or(false)
                         || (current.has_dynamic_endian() && target_class.map(|tc| tc.meta_endian == Some(Endianness::Inherited)).unwrap_or(false));
                     let trans_args = translate_args(args, ctx, true);
@@ -1684,6 +1696,7 @@ fn emit_parse_instance_body(
             let type_name = types_to_class_name(names);
             let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
             let target_class = super::translator::find_class_spec(ctx.root, names);
+            // Reason for fallback: absent target class specification does not have dynamic or inherited endianness
             let has_dyn_endian = target_class.map(|tc| tc.has_dynamic_endian()).unwrap_or(false)
                 || (current.has_dynamic_endian() && target_class.map(|tc| tc.meta_endian == Some(Endianness::Inherited)).unwrap_or(false));
             let trans_args = translate_args(args, ctx, true);
@@ -1849,6 +1862,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
 
         for (val, label) in &resolved_enum.values {
             if let Some(doc) = resolved_enum.value_docs.get(val) {
+                // Reason for fallback: absent doc_ref list for enum value defaults to empty slice
                 let doc_refs = resolved_enum
                     .value_doc_refs
                     .get(val)

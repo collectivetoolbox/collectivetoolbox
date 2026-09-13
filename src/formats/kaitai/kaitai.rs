@@ -69,12 +69,6 @@ pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[path = "data/fixtures/windows_systemtime.rs"]
-mod fixture_windows_systemtime;
-
-
-
-#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -87,6 +81,9 @@ mod fixture_windows_systemtime;
 )]
 mod tests {
     use super::*;
+
+    #[path = "data/fixtures/windows_systemtime.rs"]
+    mod fixture_windows_systemtime;
 
     #[crate::ctb_test]
     fn test_parse_apple_single_double() -> anyhow::Result<()> {

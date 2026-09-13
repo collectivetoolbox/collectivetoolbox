@@ -459,14 +459,15 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                             val.push(ch);
                             idx = idx.saturating_add(1);
                         }
-                        other => val.push(other as char),
+                        other => val.push(char::from(other)),
                     }
                 } else {
-                    val.push(bytes[idx] as char);
+                    let b = *bytes.get(idx).context("Byte offset out of bounds")?;
+                    val.push(char::from(b));
                 }
                 idx = idx.saturating_add(1);
             }
-            ensure!(idx < len && bytes[idx] == quote, "Unterminated string literal");
+            ensure!(idx < len && bytes.get(idx).copied() == Some(quote), "Unterminated string literal");
             idx = idx.saturating_add(1);
             tokens.push(Token {
                 kind: TokenKind::Str(val),
@@ -599,7 +600,7 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             continue;
         }
 
-        bail!("Unexpected character in expression at byte offset {}: '{}'", idx, b as char);
+        bail!("Unexpected character in expression at byte offset {}: '{}'", idx, char::from(b));
     }
 
     tokens.push(Token {

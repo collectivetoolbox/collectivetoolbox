@@ -110,15 +110,19 @@ struct Parser {
     idx: usize,
 }
 
+const EOF_TOKEN: Token = Token {
+    kind: TokenKind::Eof,
+    pos: 0,
+};
+
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, idx: 0 }
     }
 
     fn peek(&self) -> &Token {
-        self.tokens.get(self.idx).unwrap_or_else(|| {
-            self.tokens.last().expect("Tokens vec is never empty due to EOF")
-        })
+        // Reason for fallback: index past end yields trailing token or EOF fallback
+        self.tokens.get(self.idx).or_else(|| self.tokens.last()).unwrap_or(&EOF_TOKEN)
     }
 
     fn peek_kind(&self) -> &TokenKind {
@@ -130,12 +134,13 @@ impl Parser {
     }
 
     fn bump(&mut self) -> Token {
-        if self.idx < self.tokens.len() {
-            let tok = self.tokens[self.idx].clone();
+        if let Some(tok) = self.tokens.get(self.idx) {
+            let tok = tok.clone();
             self.idx = self.idx.saturating_add(1);
             tok
         } else {
-            self.tokens.last().cloned().expect("Tokens vec is not empty")
+            // Reason for fallback: index past end yields trailing token or EOF fallback
+            self.tokens.last().cloned().unwrap_or_else(|| EOF_TOKEN.clone())
         }
     }
 
