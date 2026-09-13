@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: MIT
+// license-linter:allow-non-AGPL
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+== License information for parts derived from kaitai_struct_tests, from https://raw.githubusercontent.com/kaitai-io/kaitai_struct_tests/59afee013e1a8e5fb894ca99838f55ef7b329cb3/LICENSE :
+
+MIT License
+
+Copyright (c) 2019 Kaitai Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
+// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
+
+#[derive(Default, Debug, Clone)]
+pub struct ValidOptionalId {
+    pub(crate) _root: SharedType<ValidOptionalId>,
+    pub(crate) _parent: SharedType<ValidOptionalId>,
+    pub(crate) _self_shared: SharedType<Self>,
+    unnamed0: RefCell<Vec<u8>>,
+    unnamed1: RefCell<u8>,
+    unnamed2: RefCell<i8>,
+    _io: RefCell<BytesReader>,
+}
+impl KStruct for ValidOptionalId {
+    type Root = ValidOptionalId;
+    type Parent = ValidOptionalId;
+
+    fn read<S: KStream>(
+        self_rc: &OptRc<Self>,
+        io: &S,
+        root: SharedType<Self::Root>,
+        parent: SharedType<Self::Parent>,
+    ) -> KResult<()> {
+        *self_rc._io.borrow_mut() = io.clone();
+        self_rc._root.set(root.get());
+        self_rc._parent.set(parent.get());
+        self_rc._self_shared.set(Ok(self_rc.clone()));
+        let _io = io;
+        *self_rc.unnamed0.borrow_mut() = _io.read_bytes(6_usize)?;
+        if !(*self_rc.unnamed0() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        }
+        *self_rc.unnamed1.borrow_mut() = _io.read_u1()?;
+        let expected: u8 = (255).try_into()?;
+        if !(*self_rc.unnamed1() == expected) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
+        }
+        *self_rc.unnamed2.borrow_mut() = _io.read_s1()?;
+        let _borrowed = self_rc.unnamed2();
+        let _tmpa = *_borrowed;
+        if !(((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))))) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/2".to_string() }));
+        }
+        Ok(())
+    }
+}
+impl ValidOptionalId {
+}
+impl ValidOptionalId {
+    pub fn unnamed0(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0.borrow()
+    }
+}
+impl ValidOptionalId {
+    pub fn unnamed1(&self) -> Ref<'_, u8> {
+        self.unnamed1.borrow()
+    }
+}
+impl ValidOptionalId {
+    pub fn unnamed2(&self) -> Ref<'_, i8> {
+        self.unnamed2.borrow()
+    }
+}
+impl ValidOptionalId {
+    pub fn _io(&self) -> Ref<'_, BytesReader> {
+        self._io.borrow()
+    }
+}

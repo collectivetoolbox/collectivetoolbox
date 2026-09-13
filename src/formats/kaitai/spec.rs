@@ -83,17 +83,44 @@ impl StringOrVec {
 
 /// A value that can be represented as an integer, float, boolean, or string
 /// expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum ValueOrExpr {
-    /// 64-bit signed integer.
-    Int(i64),
+    /// 128-bit integer.
+    Int(i128),
     /// 64-bit floating point.
     Float(f64),
     /// Boolean flag.
     Bool(bool),
     /// Expression string.
     Expr(String),
+}
+
+impl<'de> Deserialize<'de> for ValueOrExpr {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let val = serde_yaml::Value::deserialize(deserializer)?;
+        match val {
+            serde_yaml::Value::Bool(b) => Ok(Self::Bool(b)),
+            serde_yaml::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Ok(Self::Int(i128::from(i)))
+                } else if let Some(u) = n.as_u64() {
+                    Ok(Self::Int(i128::from(u)))
+                } else if let Some(f) = n.as_f64() {
+                    Ok(Self::Float(f))
+                } else {
+                    Err(serde::de::Error::custom("invalid number"))
+                }
+            }
+            serde_yaml::Value::String(s) => Ok(Self::Expr(s)),
+            other => Err(serde::de::Error::custom(format!(
+                "unexpected value in ValueOrExpr: {other:?}"
+            ))),
+        }
+    }
 }
 
 /// A string or numeric value (e.g. for version numbers or identifiers).

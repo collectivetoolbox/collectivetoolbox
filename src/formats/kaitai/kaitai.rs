@@ -72,6 +72,17 @@ pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&KAITAI_DATA_DIR, key)
 }
 
+#[path = "generated/test_formats.generated.rs"]
+pub mod test_formats;
+pub use test_formats as formats;
+
+#[path = "kaitai_struct_tests/spec/rust/src/custom_fx.rs"]
+pub mod custom_fx;
+#[path = "kaitai_struct_tests/spec/rust/src/custom_fx_no_args.rs"]
+pub mod custom_fx_no_args;
+#[path = "kaitai_struct_tests/spec/rust/src/my_custom_fx.rs"]
+pub mod my_custom_fx;
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

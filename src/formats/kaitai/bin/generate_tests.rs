@@ -82,7 +82,7 @@ fn main() -> Result<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let default_kst_dir = manifest_dir.join("kaitai_struct_tests/spec/ks");
     let default_formats_dir = manifest_dir.join("kaitai_struct_tests/formats");
-    let default_out_dir = manifest_dir.join("kaitai_struct_tests/spec/rust/tests");
+    let default_out_dir = manifest_dir.join("tests/generated");
 
     // Reason for fallback: default test specification directory when not specified
     let kst_dir = cli.kst_dir.unwrap_or(default_kst_dir);

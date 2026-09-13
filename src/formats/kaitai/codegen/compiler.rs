@@ -49,17 +49,34 @@ use super::writer::CodeWriter;
 use crate::expr::Expr;
 use crate::precompile::hierarchy::{
     to_upper_camel_case, types_to_class_name, ClassSpec, ResolvedAttr, ResolvedInstance,
-    ValidationRule,
+    ResolvedValidation, ValidationRule,
 };
 use crate::precompile::types::{BitEndianness, DataType, Endianness, RepeatMode};
 
-/// Compiles a root `ClassSpec` and all its nested types into a complete Rust source file string.
+/// Compiles a root `ClassSpec` and all its nested types into a complete Rust
+/// source file string.
 #[must_use]
 pub fn compile_class(spec: &ClassSpec) -> String {
+    compile_class_with_header(spec, None)
+}
+
+/// Compiles a root `ClassSpec` with an optional custom license header comment.
+#[must_use]
+pub fn compile_class_with_header(spec: &ClassSpec, custom_header: Option<&str>) -> String {
     let mut writer = CodeWriter::new();
 
     // 1. File header and license comments
-    emit_file_header(&mut writer, spec);
+    if let Some(header) = custom_header {
+        writer.puts(header.trim_end());
+        writer.puts(
+            "// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild",
+        );
+        writer.newline();
+        writer.puts("use kaitai::*;");
+        writer.puts("use std::cell::{Cell, Ref, RefCell};");
+    } else {
+        emit_file_header(&mut writer, spec);
+    }
 
     // 2. Imports
     emit_imports(&mut writer, spec);
@@ -427,30 +444,31 @@ fn emit_switch_enum(
             }
 
             if seen_from_from.insert(inner_type.clone()) {
-                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-                w.inc();
                 if variants.len() == 1 {
+                    w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
+                    w.inc();
                     w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
                     w.inc();
                     w.puts(&format!("let {enum_name}::{v_name}(v) = e;"));
                     w.puts("*v");
                     w.dec();
                     w.puts("}");
-                } else {
-                    w.puts("#[allow(clippy::panic, reason = \"Fallible Kaitai switch-type variant conversion\")]");
-                    w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
-                    w.inc();
-                    w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
-                    w.inc();
-                    w.puts("return *v;");
-                    w.dec();
-                    w.puts("}");
-                    w.puts(&format!(
-                        "panic!(\"trying to convert from enum {enum_name}::{v_name} to {inner_type}, enum value {{:?}}\", e)"
-                    ));
                     w.dec();
                     w.puts("}");
                 }
+                w.puts(&format!("impl TryFrom<&{enum_name}> for {inner_type} {{"));
+                w.inc();
+                w.puts("type Error = KError;");
+                w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
+                w.inc();
+                w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
+                w.inc();
+                w.puts("return Ok(*v);");
+                w.dec();
+                w.puts("}");
+                w.puts("Err(KError::CastError)");
+                w.dec();
+                w.puts("}");
                 w.dec();
                 w.puts("}");
             }
@@ -467,15 +485,15 @@ fn emit_switch_enum(
         let resolved = combined.unwrap_or(DataType::CalcIntType);
         let target_ret = rust_field_type(&resolved, class, attr_id);
         if target_ret != "usize" && seen_from_from.insert(target_ret.clone()) {
-            w.puts(&format!("impl From<&{enum_name}> for {target_ret} {{"));
+            w.puts(&format!("impl TryFrom<&{enum_name}> for {target_ret} {{"));
             w.inc();
-            w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+            w.puts("type Error = KError;");
+            w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
             w.inc();
             w.puts("match e {");
             w.inc();
             for (v_name, _) in &variants {
-                w.puts("// Reason for fallback: invalid enum conversion to target type defaults to 0");
-                w.puts(&format!("{enum_name}::{v_name}(v) => {target_ret}::try_from(*v).unwrap_or(0),"));
+                w.puts(&format!("{enum_name}::{v_name}(v) => Ok({target_ret}::try_from(*v)?),"));
             }
             w.dec();
             w.puts("}");
@@ -484,18 +502,18 @@ fn emit_switch_enum(
             w.dec();
             w.puts("}");
         }
-        w.puts(&format!("impl From<&{enum_name}> for usize {{"));
+        w.puts(&format!("impl TryFrom<&{enum_name}> for usize {{"));
         w.inc();
-        w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+        w.puts("type Error = KError;");
+        w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
         w.inc();
         w.puts("match e {");
         w.inc();
         for (v_name, inner_type) in &variants {
             if inner_type == "u8" || inner_type == "u16" {
-                w.puts(&format!("{enum_name}::{v_name}(v) => usize::from(*v),"));
+                w.puts(&format!("{enum_name}::{v_name}(v) => Ok(usize::from(*v)),"));
             } else {
-                w.puts("// Reason for fallback: invalid enum conversion to usize defaults to 0");
-                w.puts(&format!("{enum_name}::{v_name}(v) => usize::try_from(*v).unwrap_or(0),"));
+                w.puts(&format!("{enum_name}::{v_name}(v) => Ok(usize::try_from(*v)?),"));
             }
         }
         w.dec();
@@ -510,30 +528,31 @@ fn emit_switch_enum(
         let mut seen_from_into = BTreeSet::new();
         for (v_name, inner_type) in &variants {
             if seen_from_from.insert(inner_type.clone()) {
-                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-                w.inc();
                 if variants.len() == 1 {
+                    w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
+                    w.inc();
                     w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
                     w.inc();
                     w.puts(&format!("let {enum_name}::{v_name}(x) = v;"));
                     w.puts("x.clone()");
                     w.dec();
                     w.puts("}");
-                } else {
-                    w.puts("#[allow(clippy::panic, reason = \"Fallible Kaitai switch-type variant conversion\")]");
-                    w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
-                    w.inc();
-                    w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
-                    w.inc();
-                    w.puts("return x.clone();");
-                    w.dec();
-                    w.puts("}");
-                    w.puts(&format!(
-                        "panic!(\"expected {enum_name}::{v_name}, got {{:?}}\", v)"
-                    ));
                     w.dec();
                     w.puts("}");
                 }
+                w.puts(&format!("impl TryFrom<&{enum_name}> for {inner_type} {{"));
+                w.inc();
+                w.puts("type Error = KError;");
+                w.puts(&format!("fn try_from(v: &{enum_name}) -> Result<Self, Self::Error> {{"));
+                w.inc();
+                w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
+                w.inc();
+                w.puts("return Ok(x.clone());");
+                w.dec();
+                w.puts("}");
+                w.puts("Err(KError::CastError)");
+                w.dec();
+                w.puts("}");
                 w.dec();
                 w.puts("}");
             }
@@ -689,10 +708,15 @@ fn emit_read_array_element(
     } else if let DataType::SwitchType { cases, switch_on } = element {
         let sw_type = super::translator::detect_type_approx(switch_on, ctx);
         let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
+        let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+            || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
         let switch_on_expr = translate_expr(switch_on, ctx);
         let match_target = if is_str_switch {
             let stripped = super::translator::remove_deref(&switch_on_expr);
             format!("{stripped}.as_str()")
+        } else if is_bytes_switch {
+            let stripped = super::translator::remove_deref(&switch_on_expr);
+            format!("{stripped}.as_slice()")
         } else {
             switch_on_expr
         };
@@ -877,20 +901,19 @@ fn validation_primitive_type(dt: &DataType) -> &'static str {
     }
 }
 
-fn emit_attr_validation(
+fn emit_validation_check(
     w: &mut CodeWriter,
     current: &ClassSpec,
-    attr: &ResolvedAttr,
+    data_type: &DataType,
+    valid: &ResolvedValidation,
     ctx: &TranslationContext<'_>,
+    access_expr: &str,
 ) {
-    let Some(valid) = &attr.valid else { return };
-    let id = &attr.id;
-    let self_name = ctx.self_name();
     let src_path = &valid.src_path;
 
-    let (is_repeated, elem_dt) = match &attr.data_type {
+    let (is_repeated, elem_dt) = match data_type {
         DataType::ArrayType { element, repeat } if !matches!(repeat, RepeatMode::None) => (true, element.as_ref()),
-        _ => (false, &attr.data_type),
+        _ => (false, data_type),
     };
 
     match &valid.rule {
@@ -907,24 +930,24 @@ fn emit_attr_validation(
                         | DataType::Bits1 { .. }
                         | DataType::CalcBoolType
                 ) {
-                    let expected_str = translate_expr(expected_expr, ctx);
-                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x == {expected_str}) {{"));
+                    let expected_str = translate_expr(&expected_expr, ctx);
+                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x == {expected_str}) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
                 } else {
                     let ty_cast = validation_primitive_type(elem_dt);
-                    let expected_str = translate_expr(expected_expr, ctx);
+                    let expected_str = translate_expr(&expected_expr, ctx);
                     w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
-                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x == expected) {{"));
+                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x == expected) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
                 }
             } else if matches!(
-                attr.data_type,
+                data_type,
                 DataType::Bytes { .. }
                     | DataType::CalcBytesType
                     | DataType::ArrayType { .. }
@@ -934,17 +957,24 @@ fn emit_attr_validation(
                     | DataType::Bits1 { .. }
                     | DataType::CalcBoolType
             ) {
-                let expected_str = translate_expr(expected_expr, ctx);
-                w.puts(&format!("if !(*{self_name}.{id}() == {expected_str}) {{"));
+                let expected_str = translate_expr(&expected_expr, ctx);
+                w.puts(&format!("if !(*{access_expr} == {expected_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
                 w.puts("}");
             } else {
-                let ty_cast = validation_primitive_type(&attr.data_type);
-                let expected_str = translate_expr(expected_expr, ctx);
+                let resolved_dt = super::translator::resolve_switch_type(data_type);
+                let ty_cast = validation_primitive_type(&resolved_dt);
+                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = data_type {
+                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+                } else {
+                    false
+                };
+                let deref = if is_numeric_switch { "" } else { "*" };
+                let expected_str = translate_expr(&expected_expr, ctx);
                 w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
-                w.puts(&format!("if !(*{self_name}.{id}() == expected) {{"));
+                w.puts(&format!("if !({deref}{access_expr} == expected) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
@@ -953,26 +983,66 @@ fn emit_attr_validation(
         }
         ValidationRule::Min(min_expr) => {
             let is_sizeof = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
-            let target_dt = if is_repeated { elem_dt } else { &attr.data_type };
-            let ty_cast = validation_primitive_type(target_dt);
+            let target_dt = if is_repeated { elem_dt } else { data_type };
+            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let ty_cast = validation_primitive_type(&resolved_target_dt);
             let min_str = if is_sizeof {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
-                translate_expr(min_expr, ctx)
+                translate_expr(&min_expr, ctx)
             };
+            let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+            } else {
+                false
+            };
+            let deref = if is_numeric_switch { "" } else { "*" };
             if is_repeated {
                 w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x >= min_val) {{"));
+                w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x >= min_val) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
                 w.puts("}");
             } else {
                 w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                w.puts(&format!("if !(*{self_name}.{id}() >= min_val) {{"));
+                w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+            }
+        }
+        ValidationRule::Max(max_expr) => {
+            let is_sizeof = matches!(max_expr, Expr::Name(n) if n == "_sizeof");
+            let target_dt = if is_repeated { elem_dt } else { data_type };
+            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let ty_cast = validation_primitive_type(&resolved_target_dt);
+            let max_str = if is_sizeof {
+                // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
+                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+            } else {
+                translate_expr(&max_expr, ctx)
+            };
+            let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+            } else {
+                false
+            };
+            let deref = if is_numeric_switch { "" } else { "*" };
+            if is_repeated {
+                w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x <= max_val) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+            } else {
+                w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                 w.dec();
                 w.puts("}");
             }
@@ -980,11 +1050,11 @@ fn emit_attr_validation(
         ValidationRule::Expr(expr) => {
             if is_repeated {
                 let deref = if super::translator::needs_deref(elem_dt) { "*" } else { "&*" };
-                w.puts(&format!("for _item in {self_name}.{id}().iter() {{"));
+                w.puts(&format!("for _item in {access_expr}.iter() {{"));
                 w.inc();
                 w.puts(&format!("let _tmpa = {deref}_item;"));
                 let val_ctx = ctx.with_element_type(Some(elem_dt));
-                let cond_str = super::translator::translate_validation_custom_expr(expr, elem_dt, current, &val_ctx);
+                let cond_str = super::translator::translate_validation_custom_expr(&expr, elem_dt, current, &val_ctx);
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -993,10 +1063,11 @@ fn emit_attr_validation(
                 w.dec();
                 w.puts("}");
             } else {
-                let deref = if super::translator::needs_deref(&attr.data_type) { "*" } else { "&*" };
-                w.puts(&format!("let _tmpa = {deref}{self_name}.{id}();"));
-                let val_ctx = ctx.with_element_type(Some(&attr.data_type));
-                let cond_str = super::translator::translate_validation_custom_expr(expr, &attr.data_type, current, &val_ctx);
+                let deref = if super::translator::needs_deref(data_type) { "*" } else { "&*" };
+                w.puts(&format!("let _borrowed = {access_expr};"));
+                w.puts(&format!("let _tmpa = {deref}_borrowed;"));
+                let val_ctx = ctx.with_element_type(Some(data_type));
+                let cond_str = super::translator::translate_validation_custom_expr(&expr, data_type, current, &val_ctx);
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -1006,6 +1077,18 @@ fn emit_attr_validation(
         }
         _ => {}
     }
+}
+
+fn emit_attr_validation(
+    w: &mut CodeWriter,
+    current: &ClassSpec,
+    attr: &ResolvedAttr,
+    ctx: &TranslationContext<'_>,
+) {
+    let Some(valid) = &attr.valid else { return };
+    let id = &attr.id;
+    let self_name = ctx.self_name();
+    emit_validation_check(w, current, &attr.data_type, valid, ctx, &format!("{self_name}.{id}()"));
 }
 
 fn get_target_args(
@@ -1126,10 +1209,15 @@ fn emit_switch_read(
     let (switch_on, is_str_switch) = if let DataType::SwitchType { switch_on, .. } = &attr.data_type {
         let sw_type = super::translator::detect_type_approx(switch_on, ctx);
         let is_str = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
+        let is_bytes = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+            || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
         let sw_expr = translate_expr(switch_on, ctx);
         if is_str {
             let stripped = super::translator::remove_deref(&sw_expr);
             (format!("{stripped}.as_str()"), true)
+        } else if is_bytes {
+            let stripped = super::translator::remove_deref(&sw_expr);
+            (format!("{stripped}.as_slice()"), false)
         } else {
             (sw_expr, false)
         }
@@ -1591,10 +1679,15 @@ fn emit_parse_instance_body(
             let sw_type = super::translator::detect_type_approx(switch_on, ctx);
             let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType))
                 || cases.keys().any(|k| (k.starts_with('"') && k.ends_with('"')) || (k.starts_with('\'') && k.ends_with('\'')));
+            let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+                || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
             let switch_on_expr = translate_expr(switch_on, ctx);
             let match_target = if is_str_switch {
                 let stripped = super::translator::remove_deref(&switch_on_expr);
                 format!("{stripped}.as_str()")
+            } else if is_bytes_switch {
+                let stripped = super::translator::remove_deref(&switch_on_expr);
+                format!("{stripped}.as_slice()")
             } else if (switch_on_expr.starts_with("self.")
                 || switch_on_expr.starts_with("self_rc.")
                 || switch_on_expr.starts_with("_r.")
@@ -1839,6 +1932,10 @@ fn emit_parse_instance_body(
         }
     }
 
+    if let Some(valid) = &inst.valid {
+        emit_validation_check(w, current, &inst.data_type, valid, ctx, &format!("self.{escaped_inst_id}.borrow()"));
+    }
+
     if inst.pos_expr.is_some() {
         w.puts(&format!("{io_var}.seek(_pos)?;"));
     }
@@ -1863,7 +1960,7 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
                 w.puts(&format!("pub fn {}(&self) -> {target_ret} {{", attr.id));
                 w.inc();
                 w.puts("// Reason for fallback: unwrap on parsed numeric switch option falls back to 0");
-                w.puts(&format!("self.{escaped_id}.borrow().as_ref().map(|v| v.into()).unwrap_or(0)"));
+                w.puts(&format!("self.{escaped_id}.borrow().as_ref().and_then(|v| {target_ret}::try_from(v).ok()).unwrap_or(0)"));
                 w.dec();
                 w.puts("}");
             }
@@ -1962,7 +2059,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
             .any(|l| to_upper_camel_case(l) == "Unknown");
         let catchall = if has_unknown { "UnknownVariant" } else { "Unknown" };
 
-        w.puts("#[derive(Debug, PartialEq, Clone)]");
+        w.puts("#[derive(Debug, PartialEq, Copy, Clone)]");
         w.puts(&format!("pub enum {full_enum_name} {{"));
         w.inc();
 

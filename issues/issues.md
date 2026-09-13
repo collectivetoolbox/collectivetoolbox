@@ -50,6 +50,10 @@ use one of the float conversion helpers from utilities? Also the     clippy::as_
 
 - Kaitai should use Result (bail on violated invariants) and remove all panicking code
 
+- kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
+
+- Not all generated files have .generated in their name
+
 - Regenerate Guix packaging in CI
 
 - [x] ia should read in chunks / range requests:

@@ -66,7 +66,7 @@ pub mod codegen;
 
 use parser::parse_ksy_slice;
 use precompile::{resolve_ksy, SpecRegistry};
-use codegen::compile_to_rust;
+use codegen::{compile_to_rust_with_header, LICENSE_HEADER};
 
 fn write_if_changed(path: &Path, content: &str) -> Result<()> {
     if path.exists() {
@@ -182,15 +182,25 @@ fn main() -> Result<()> {
             let bytes = fs::read(ksy_path)?;
             match parse_ksy_slice(&bytes) {
                 Ok(ksy) => match resolve_ksy(stem, &ksy, Some(&registry)) {
-                    Ok(spec) => match compile_to_rust(&spec) {
-                        Ok(rust_code) => {
-                            write_if_changed(&out_file, &rust_code)?;
-                            updated_cache.insert(rel_key, (mtime, size));
+                    Ok(spec) => {
+                        let is_kaitai_tests = ksy_path
+                            .components()
+                            .any(|c| c.as_os_str() == "kaitai_struct_tests");
+                        let header = if is_kaitai_tests {
+                            Some(LICENSE_HEADER)
+                        } else {
+                            None
+                        };
+                        match compile_to_rust_with_header(&spec, header) {
+                            Ok(rust_code) => {
+                                write_if_changed(&out_file, &rust_code)?;
+                                updated_cache.insert(rel_key, (mtime, size));
+                            }
+                            Err(e) => {
+                                println!("cargo:warning=Failed to generate Rust for {stem}: {e}");
+                            }
                         }
-                        Err(e) => {
-                            println!("cargo:warning=Failed to generate Rust for {stem}: {e}");
-                        }
-                    },
+                    }
                     Err(e) => {
                         println!("cargo:warning=Failed to resolve {stem}: {e}");
                     }
@@ -216,6 +226,9 @@ fn main() -> Result<()> {
     }
     write_if_changed(&cache_file, &cache_content)?;
 
+    // 7. Compile test suite if available
+    compile_test_suite(&manifest_dir, &generated_dir)?;
+
     Ok(())
 }
 
@@ -234,7 +247,7 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
 
-            if path.is_dir() && !name.starts_with('.') {
+            if path.is_dir() && !name.starts_with('.') && name != "test_formats" {
                 let cat_mod = path.join("mod.rs");
                 if cat_mod.exists() {
                     let _ = fs::remove_file(cat_mod);
@@ -272,7 +285,7 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                 }
             } else if path.is_file() && name.ends_with(".rs") {
                 let cat_name = name.trim_end_matches(".rs").to_string();
-                if !categories.contains(&cat_name) {
+                if !categories.contains(&cat_name) && name != "test_formats.generated.rs" {
                     let _ = fs::remove_file(&path);
                 }
             }
@@ -288,6 +301,169 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
     }
     let root_file = manifest_dir.join("generated.rs");
     write_if_changed(&root_file, &root_rs)?;
+
+    Ok(())
+}
+
+fn compile_test_suite(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
+    let kaitai_tests_dir = manifest_dir.join("kaitai_struct_tests");
+    if !kaitai_tests_dir.exists() {
+        return Ok(());
+    }
+
+    let kst_dir = kaitai_tests_dir.join("spec/ks");
+    let test_rs_dir = manifest_dir.join("tests/generated");
+    let formats_dir = kaitai_tests_dir.join("formats");
+    let test_formats_dir = generated_dir.join("test_formats");
+    fs::create_dir_all(&test_formats_dir)?;
+    fs::create_dir_all(&test_rs_dir)?;
+
+    println!("cargo:rerun-if-changed=kaitai_struct_tests/spec/ks");
+    println!("cargo:rerun-if-changed=kaitai_struct_tests/formats");
+    println!("cargo:rerun-if-changed=kaitai_struct_tests/spec/rust/src");
+
+    // 1. Regenerate test files from KST specs if needed
+    let kst_cache_file = test_rs_dir.join(".build_cache");
+    let _ = codegen::test_generator::regenerate_tests_from_kst(
+        &kst_dir,
+        &test_rs_dir,
+        Some(&formats_dir),
+        &kst_cache_file,
+        false,
+    )?;
+
+    // 2. Load test format build cache
+    let cache_file = test_formats_dir.join(".build_cache");
+    let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
+    if let Ok(cache_str) = fs::read_to_string(&cache_file) {
+        for line in cache_str.lines() {
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() == 3 {
+                if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                    cache.insert(parts[0].to_string(), (mtime, size));
+                }
+            }
+        }
+    }
+
+    // 3. Discover all .ksy format files in kaitai_struct_tests/formats
+    let mut ksy_files: Vec<(String, PathBuf, PathBuf)> = Vec::new();
+    for entry in WalkDir::new(&formats_dir) {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+            let rel_path = path.strip_prefix(&formats_dir)?;
+            let stem = path
+                .file_stem()
+                .context("Missing file stem")?
+                .to_string_lossy()
+                .to_string();
+            ksy_files.push((stem, path.to_path_buf(), rel_path.to_path_buf()));
+        }
+    }
+
+    // 4. Build SpecRegistry
+    let mut registry = SpecRegistry::new(vec![formats_dir.clone()]);
+    for (stem, path, _) in &ksy_files {
+        if let Ok(bytes) = fs::read(path) {
+            if let Ok(ksy) = parse_ksy_slice(&bytes) {
+                registry.insert(stem.clone(), ksy);
+            }
+        }
+    }
+
+    // 5. Compile .ksy files into test_formats/*.generated.rs
+    let mut updated_cache = cache.clone();
+    let mut successfully_compiled_formats = Vec::new();
+
+    for (stem, ksy_path, rel_path) in &ksy_files {
+        let metadata = fs::metadata(ksy_path)?;
+        let mtime = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let size = metadata.len();
+        let rel_key = rel_path.to_string_lossy().to_string();
+        let out_file = test_formats_dir.join(format!("{stem}.generated.rs"));
+
+        let cached = cache.get(&rel_key);
+        let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
+
+        if up_to_date {
+            successfully_compiled_formats.push(stem.clone());
+        } else {
+            let bytes = fs::read(ksy_path)?;
+            if let Ok(ksy) = parse_ksy_slice(&bytes) {
+                if let Ok(spec) = resolve_ksy(stem, &ksy, Some(&registry)) {
+                    let is_kaitai_tests = ksy_path
+                        .components()
+                        .any(|c| c.as_os_str() == "kaitai_struct_tests");
+                    let header = if is_kaitai_tests {
+                        Some(LICENSE_HEADER)
+                    } else {
+                        None
+                    };
+                    if let Ok(rust_code) = compile_to_rust_with_header(&spec, header) {
+                        write_if_changed(&out_file, &rust_code)?;
+                        updated_cache.insert(rel_key, (mtime, size));
+                        successfully_compiled_formats.push(stem.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // 6. Write test_formats.generated.rs
+    successfully_compiled_formats.sort();
+    let mut test_formats_rs = String::new();
+    test_formats_rs.push_str("// @generated by ctb-formats-kaitai::build\n\n");
+    test_formats_rs.push_str("pub use super::*;\n\n");
+    for stem in &successfully_compiled_formats {
+        test_formats_rs.push_str(&format!(
+            "#[path = \"test_formats/{stem}.generated.rs\"]\npub mod {stem};\npub use {stem}::*;\n"
+        ));
+    }
+    let test_formats_root = generated_dir.join("test_formats.generated.rs");
+    write_if_changed(&test_formats_root, &test_formats_rs)?;
+
+    // 7. Write updated cache for test formats
+    let mut cache_content = String::new();
+    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
+    sorted_keys.sort();
+    for key in sorted_keys {
+        if let Some((mtime, size)) = updated_cache.get(&key) {
+            cache_content.push_str(&format!("{key}\t{mtime}\t{size}\n"));
+        }
+    }
+    write_if_changed(&cache_file, &cache_content)?;
+
+    // 8. Generate tests/spec_modules.generated.rs
+    let tests_dir = manifest_dir.join("tests");
+    fs::create_dir_all(&tests_dir)?;
+    let spec_modules_file = tests_dir.join("spec_modules.generated.rs");
+
+    let mut spec_modules = Vec::new();
+    if test_rs_dir.exists() {
+        for entry in fs::read_dir(&test_rs_dir)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("test_") && name.ends_with(".generated.rs") {
+                let mod_name = name.trim_end_matches(".generated.rs").to_string();
+                spec_modules.push((mod_name, name));
+            }
+        }
+    }
+    spec_modules.sort();
+
+    let mut spec_rs_content = String::new();
+    spec_rs_content.push_str("// @generated by ctb-formats-kaitai::build\n\n");
+    for (mod_name, filename) in &spec_modules {
+        spec_rs_content.push_str(&format!(
+            "#[path = \"generated/{filename}\"]\nmod {mod_name};\n"
+        ));
+    }
+    write_if_changed(&spec_modules_file, &spec_rs_content)?;
 
     Ok(())
 }

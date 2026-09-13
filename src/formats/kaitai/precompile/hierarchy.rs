@@ -137,6 +137,8 @@ pub struct ResolvedInstance {
     /// Associated enum type name if explicitly specified.
     #[serde(default)]
     pub enum_name: Option<String>,
+    /// Validation constraint if specified.
+    pub valid: Option<ResolvedValidation>,
 }
 
 /// Resolved enumeration type.

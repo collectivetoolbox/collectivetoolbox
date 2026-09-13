@@ -39,10 +39,10 @@ pub struct MyCustomFx {
 impl MyCustomFx {
     pub fn new(p_key: u8, p_flag: bool, _p_some_bytes: &[u8]) -> Self {
         if p_flag {
-            Self { key: p_key as i32 }
+            Self { key: i32::from(p_key) }
         } else {
             Self {
-                key: -(p_key as i32),
+                key: (0_i32).saturating_sub(i32::from(p_key)),
             }
         }
     }
@@ -52,7 +52,8 @@ impl CustomDecoder for MyCustomFx {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, String> {
         let mut res = bytes.to_vec();
         for i in res.iter_mut() {
-            *i = (*i as i32 + self.key) as u8;
+            let val = i32::from(*i).saturating_add(self.key);
+            *i = u8::try_from(val & 0xff).map_err(|e| e.to_string())?;
         }
         Ok(res)
     }

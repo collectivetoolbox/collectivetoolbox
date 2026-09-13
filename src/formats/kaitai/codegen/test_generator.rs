@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Test generator that transforms upstream Kaitai Struct test files into
 //! repository-compliant Rust tests with caching support.
-const LICENSE_HEADER: &str = r#"// SPDX-License-Identifier: MIT
+pub const LICENSE_HEADER: &str = r#"// SPDX-License-Identifier: MIT
 // license-linter:allow-non-AGPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
@@ -91,7 +91,7 @@ use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
 use crate::precompile::hierarchy::to_upper_camel_case;
-use crate::spec::kst::{parse_kst_file, KstException, KstSpec};
+use crate::spec::kst::{parse_kst_file, KstException};
 use crate::spec::KsyFile;
 
 /// Statistics reporting the results of test generation.

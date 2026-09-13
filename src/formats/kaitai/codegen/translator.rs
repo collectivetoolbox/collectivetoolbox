@@ -328,7 +328,7 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     {
                         format!("(0_i32).saturating_sub(to_i32({inner_str}))")
                     } else {
-                        format!("(0_i32).saturating_sub({inner_str})")
+                        format!("(0_i32).saturating_sub(to_i32({inner_str}))")
                     }
                 }
                 UnaryOp::Invert => format!("!({inner_str})"),
@@ -371,7 +371,7 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                 } else {
                     inner_str
                 };
-                format!("Into::<OptRc<{user_class}>>::into(&{arg})")
+                format!("OptRc::<{user_class}>::try_from(&{arg})?")
             } else {
                 let inner_str = translate_expr(value, ctx);
                 let rust_type = match raw_type.as_str() {
@@ -583,14 +583,19 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         return "0_i32".to_string();
     }
     let t = translate_expr(value, ctx);
-    let is_stream = t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" || t.ends_with("._io");
+    let is_stream = t.ends_with("._io()")
+        || t == "_io"
+        || t == "&_io"
+        || t == "&*_io"
+        || t.ends_with("._io")
+        || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
     if is_stream && attr == "eof" {
         let stripped = remove_deref(&t);
         return format!("{stripped}.is_eof()");
     }
     if is_stream && (attr == "size" || attr == "length") {
         let stripped = remove_deref(&t);
-        return format!("{stripped}.size()");
+        return format!("(i64::try_from({stripped}.size())?)");
     }
     if is_stream && attr == "pos" {
         let stripped = remove_deref(&t);
@@ -651,7 +656,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         }
         if matches!(val_type, Some(DataType::Float { .. } | DataType::CalcFloatType)) {
             let t_val = if t.starts_with('*') { t } else { format!("*{t}") };
-            return format!("float_to_int({t_val})");
+            return format!("float_to_int({t_val})?");
         }
         if matches!(val_type, Some(DataType::CalcIntType | DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::Bits { .. })) {
             if matches!(val_type, Some(DataType::IntMulti { signed: false, width: 8, .. })) || is_usize_expr_str(&t) {
@@ -660,6 +665,35 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
             return format!("i64::from({t})");
         }
         return format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?");
+    }
+    if attr == "reverse" {
+        let stripped = remove_deref(&t);
+        return format!("reverse_string(&{stripped})?");
+    }
+    if attr == "min" || attr == "max" {
+        let stripped = remove_deref(&t);
+        let is_float = matches!(val_type, Some(DataType::ArrayType { element, .. }) if matches!(element.as_ref(), DataType::Float { .. } | DataType::CalcFloatType));
+        if is_float {
+            if attr == "min" {
+                return format!("*{stripped}.iter().reduce(|a, b| if (a.min(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
+            } else {
+                return format!("*{stripped}.iter().reduce(|a, b| if (a.max(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
+            }
+        } else {
+            return format!("*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?");
+        }
+    }
+    if attr == "first" {
+        let stripped = remove_deref(&t);
+        return format!("*{stripped}.first().ok_or(KError::EmptyIterator)?");
+    }
+    if attr == "last" {
+        let stripped = remove_deref(&t);
+        return format!("*{stripped}.last().ok_or(KError::EmptyIterator)?");
+    }
+    if attr == "size" || attr == "length" {
+        let stripped = remove_deref(&t);
+        return format!("(i64::try_from({stripped}.len())?)");
     }
     let escaped_attr = super::escape_rust_keyword(attr);
     let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
@@ -923,7 +957,7 @@ fn widen_expr(
         if *n >= 0 || !target_ct.starts_with('u') {
             return format!("{n}_{target_ct}");
         }
-        return format!("{target_ct}::try_from({n}).unwrap_or(0)");
+        return format!("{target_ct}::try_from({n})?");
     }
     if matches!(expr, Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_)) {
         if let Some(num_str) = expr_str.strip_suffix("_i32") {
@@ -1171,8 +1205,6 @@ fn translate_compare(
     };
     let mut l_raw = translate_expr(left, ctx);
     let mut r_raw = translate_expr(right, ctx);
-    let l_is_lit = matches!(left, Expr::IntNum(_));
-    let r_is_lit = matches!(right, Expr::IntNum(_));
 
     if !l_raw.starts_with('*') && (l_raw.starts_with("self.") || l_raw.starts_with("self_rc.")) && !is_usize_expr_str(&l_raw) {
         if matches!(right, Expr::List(_) | Expr::Str(_))
@@ -1189,13 +1221,50 @@ fn translate_compare(
         }
     }
 
+    if l_raw == "_tmpa"
+        && matches!(
+            lt,
+            Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType)
+        )
+    {
+        l_raw = "*_tmpa".to_string();
+    }
+    if r_raw == "_tmpa"
+        && matches!(
+            rt,
+            Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType)
+        )
+    {
+        r_raw = "*_tmpa".to_string();
+    }
+
+    let is_str_cmp = matches!(lt, Some(DataType::Str { .. } | DataType::CalcStrType))
+        || matches!(rt, Some(DataType::Str { .. } | DataType::CalcStrType))
+        || matches!(left, Expr::Str(_))
+        || matches!(right, Expr::Str(_));
+    if is_str_cmp {
+        let l_clean = remove_deref(&l_raw);
+        let r_clean = remove_deref(&r_raw);
+        let l_str = if l_clean.starts_with('"') || l_clean.ends_with(".as_str()") {
+            l_clean.to_string()
+        } else {
+            format!("{l_clean}.as_str()")
+        };
+        let r_str = if r_clean.starts_with('"') || r_clean.ends_with(".as_str()") {
+            r_clean.to_string()
+        } else {
+            format!("{r_clean}.as_str()")
+        };
+        return format!("({l_str} {op_str} {r_str})");
+    }
+
     if let (Some(t1), Some(t2)) = (&lt, &rt) {
         if matches!(t1, DataType::Float { .. } | DataType::CalcFloatType)
             || matches!(t2, DataType::Float { .. } | DataType::CalcFloatType)
         {
             return format!("((to_f64({l_raw})) {op_str} (to_f64({r_raw})))");
         }
-        if !l_is_lit && !r_is_lit && t1 != t2 && is_numeric_type(t1) && is_numeric_type(t2) {
+        if t1 != t2 && is_numeric_type(t1) && is_numeric_type(t2) {
             return format!("((to_i128({l_raw})) {op_str} (to_i128({r_raw})))");
         }
     }
@@ -1234,14 +1303,39 @@ fn translate_if_exp(
     }
 
     // If UserType or EnumType or ArrayType, clone
+    let t_resolved = t_dt.as_ref().map(resolve_switch_type);
+    let f_resolved = f_dt.as_ref().map(resolve_switch_type);
+    let t_effective = t_resolved.as_ref().or(t_dt.as_ref());
+    let f_effective = f_resolved.as_ref().or(f_dt.as_ref());
+
     if matches!(
-        t_dt,
+        t_effective,
         Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
     ) || matches!(
-        f_dt,
+        f_effective,
         Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
     ) {
-        return format!("if {cond_str} {{ {t_clean}.clone() }} else {{ {f_clean}.clone() }}");
+        let t_val = if is_switch_type(if_true, ctx) {
+            if let Some(DataType::UserType { names, .. }) = t_effective {
+                let user_class = types_to_class_name(names);
+                format!("OptRc::<{user_class}>::try_from(&*({t_clean}).as_ref().ok_or(KError::CastError)?)?")
+            } else {
+                format!("{t_clean}.clone()")
+            }
+        } else {
+            format!("{t_clean}.clone()")
+        };
+        let f_val = if is_switch_type(if_false, ctx) {
+            if let Some(DataType::UserType { names, .. }) = f_effective {
+                let user_class = types_to_class_name(names);
+                format!("OptRc::<{user_class}>::try_from(&*({f_clean}).as_ref().ok_or(KError::CastError)?)?")
+            } else {
+                format!("{f_clean}.clone()")
+            }
+        } else {
+            format!("{f_clean}.clone()")
+        };
+        return format!("if {cond_str} {{ {t_val} }} else {{ {f_val} }}");
     }
 
     // Numeric branches coercion
@@ -1406,10 +1500,13 @@ fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>)
         return None;
     }
     let root = ctx.root;
+    let parts: Vec<&str> = type_name.split("::").collect();
     let mut scope = ctx.current_class.name.clone();
     loop {
         let mut candidate = scope.clone();
-        candidate.push(type_name.to_string());
+        for p in &parts {
+            candidate.push((*p).to_string());
+        }
         if let Some(spec) = find_class_spec(root, &candidate) {
             return Some(spec);
         }
@@ -1418,8 +1515,18 @@ fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>)
         }
         scope.pop();
     }
-    if let Some(spec) = root.subclasses.get(type_name) {
-        return Some(spec);
+    if parts.len() == 1 {
+        if let Some(spec) = root.subclasses.get(type_name) {
+            return Some(spec);
+        }
+    } else {
+        let mut candidate = root.name.clone();
+        for p in &parts {
+            candidate.push((*p).to_string());
+        }
+        if let Some(spec) = find_class_spec(root, &candidate) {
+            return Some(spec);
+        }
     }
     None
 }
@@ -1447,6 +1554,29 @@ pub fn resolve_enum_type_name(
     current_class: &ClassSpec,
     root: Option<&ClassSpec>,
 ) -> String {
+    if let Some((class_path, simple_enum_name)) = enum_name.rsplit_once("::") {
+        let parts: Vec<&str> = class_path.split("::").collect();
+        let search_bases = [Some(current_class), root];
+        for base_opt in search_bases {
+            if let Some(base) = base_opt {
+                let mut curr = base;
+                let mut found = true;
+                for part in &parts {
+                    if let Some(sub) = curr.subclasses.get(*part) {
+                        curr = sub;
+                    } else {
+                        found = false;
+                        break;
+                    }
+                }
+                if found && curr.enums.contains_key(simple_enum_name) {
+                    let mut full_parts = curr.name.clone();
+                    full_parts.push(simple_enum_name.to_string());
+                    return types_to_class_name(&full_parts);
+                }
+            }
+        }
+    }
     if current_class.enums.contains_key(enum_name) {
         let mut parts = current_class.name.clone();
         parts.push(enum_name.to_string());
@@ -1920,6 +2050,13 @@ pub(crate) fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
             t1_eff.clone()
         }
+        (DataType::UserType { .. }, DataType::UserType { .. }) => {
+            DataType::UserType {
+                names: vec!["struct".to_string()],
+                is_external: true,
+                args: Vec::new(),
+            }
+        }
         (DataType::CalcFloatType, DataType::Float { width, endian })
         | (DataType::Float { width, endian }, DataType::CalcFloatType) => {
             if *width == 4 {
@@ -2084,8 +2221,14 @@ pub fn translate_validation_custom_expr(
                     }
                 }
             }
-            let l = translate_validation_custom_expr(left, dt, current_class, ctx);
-            let r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            let mut l = translate_validation_custom_expr(left, dt, current_class, ctx);
+            let mut r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            if l == "_tmpa" && !needs_deref(dt) {
+                l = "*_tmpa".to_string();
+            }
+            if r == "_tmpa" && !needs_deref(dt) {
+                r = "*_tmpa".to_string();
+            }
             let lt = if matches!(left.as_ref(), Expr::Name(n) if n == "_") {
                 Some(dt.clone())
             } else if matches!(left.as_ref(), Expr::Subscript { .. })
@@ -2143,7 +2286,7 @@ pub fn translate_validation_custom_expr(
                     }
                 }
                 _ => {
-                    format!("((to_i128({l})) {op_str} (to_i128({r})))")
+                    format!("({l} {op_str} {r})")
                 }
             }
         }

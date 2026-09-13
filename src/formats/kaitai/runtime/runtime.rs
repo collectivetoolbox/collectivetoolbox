@@ -199,6 +199,10 @@ impl<T> OptRc<T> {
         self.0.is_none()
     }
 
+    pub fn as_ref(&self) -> Option<&T> {
+        self.0.as_deref()
+    }
+
     #[expect(
         clippy::unwrap_used,
         reason = "OptRc acts as a smart pointer whose get_mut() requires an initialized inner Rc"
@@ -325,6 +329,75 @@ impl KStruct for KStructUnit {
         Ok(())
     }
 }
+
+#[derive(Clone, Default)]
+pub struct Struct {
+    inner: Option<Rc<dyn std::any::Any>>,
+}
+
+impl std::fmt::Debug for Struct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Struct({:?})", self.inner.is_some())
+    }
+}
+
+impl PartialEq for Struct {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.inner, &other.inner) {
+            (None, None) => true,
+            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Struct {
+    pub fn new<T: 'static>(val: T) -> Self {
+        Self {
+            inner: Some(Rc::new(val)),
+        }
+    }
+
+    pub fn downcast<T: 'static>(&self) -> Option<&T> {
+        self.inner.as_ref()?.downcast_ref::<T>()
+    }
+}
+
+impl Struct {
+    pub fn downcast_optrc<T: 'static + Clone>(&self) -> Result<OptRc<T>, KError> {
+        self.inner
+            .as_ref()
+            .and_then(|a| {
+                a.downcast_ref::<OptRc<T>>()
+                    .cloned()
+                    .or_else(|| a.downcast_ref::<T>().cloned().map(OptRc::from))
+            })
+            .ok_or(KError::CastError)
+    }
+}
+
+impl OptRc<Struct> {
+    pub fn downcast_optrc<T: 'static + Clone>(&self) -> Result<OptRc<T>, KError> {
+        let inner_struct = self.as_ref().ok_or(KError::CastError)?;
+        inner_struct.downcast_optrc()
+    }
+}
+
+impl KStruct for Struct {
+    type Root = Struct;
+    type Parent = Struct;
+
+    fn read<S: KStream>(
+        _self_rc: &OptRc<Self>,
+        _io: &S,
+        _root: SharedType<Self::Root>,
+        _parent: SharedType<Self::Parent>,
+    ) -> KResult<()> {
+        Ok(())
+    }
+}
+
+pub type Io = BytesReader;
 
 impl From<std::io::Error> for KError {
     fn from(err: std::io::Error) -> Self {
@@ -857,10 +930,10 @@ pub fn to_shift_amt<T: TryInto<u32>>(val: T) -> u32 {
 }
 
 /// Converts a floating-point number to an integer for Kaitai expressions.
-pub fn float_to_int<F: Into<f64>>(f: F) -> i64 {
-    #[allow(clippy::as_conversions, clippy::cast_possible_truncation, reason = "Kaitai float to integer conversion")]
-    let res = f.into() as i64;
-    res
+pub fn float_to_int<F: Into<f64>>(f: F) -> KResult<i64> {
+    let val: f64 = f.into();
+    utilities::math::approx_float::f64_to_i64_approx(val)
+        .map_err(|_| KError::CastError)
 }
 
 /// Trait for converting primitive numeric types to f64 for Kaitai expressions.
@@ -895,45 +968,111 @@ impl ToF32 for f32 {
 
 impl ToF32 for f64 {
     fn to_f32(self) -> f32 {
-        #[allow(
-            clippy::as_conversions,
-            clippy::cast_possible_truncation,
-            reason = "Kaitai f64 to f32 narrowing conversion"
-        )]
-        {
-            self as f32
-        }
+        utilities::math::approx_float::f64_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 
-macro_rules! impl_to_float {
-    ($($t:ty),*) => {
-        $(
-            impl ToF64 for $t {
-                fn to_f64(self) -> f64 {
-                    #[allow(
-                        clippy::as_conversions,
-                        clippy::cast_precision_loss,
-                        reason = "Kaitai numeric to f64 conversion"
-                    )]
-                    { self as f64 }
-                }
-            }
-            impl ToF32 for $t {
-                fn to_f32(self) -> f32 {
-                    #[allow(
-                        clippy::as_conversions,
-                        clippy::cast_precision_loss,
-                        reason = "Kaitai numeric to f32 conversion"
-                    )]
-                    { self as f32 }
-                }
-            }
-        )*
-    };
+impl ToF64 for u8 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for u16 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for u32 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for i8 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for i16 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for i32 {
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+impl ToF64 for u64 {
+    fn to_f64(self) -> f64 {
+        utilities::math::approx_float::u64_to_f64_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF64 for usize {
+    fn to_f64(self) -> f64 {
+        utilities::math::approx_float::usize_to_f64_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF64 for i64 {
+    fn to_f64(self) -> f64 {
+        utilities::math::approx_float::i64_to_f64_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF64 for isize {
+    fn to_f64(self) -> f64 {
+        utilities::math::approx_float::isize_to_f64_approx(self).unwrap_or(0.0)
+    }
 }
 
-impl_to_float!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+impl ToF32 for u8 {
+    fn to_f32(self) -> f32 {
+        f32::from(self)
+    }
+}
+impl ToF32 for u16 {
+    fn to_f32(self) -> f32 {
+        f32::from(self)
+    }
+}
+impl ToF32 for i8 {
+    fn to_f32(self) -> f32 {
+        f32::from(self)
+    }
+}
+impl ToF32 for i16 {
+    fn to_f32(self) -> f32 {
+        f32::from(self)
+    }
+}
+impl ToF32 for u32 {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::u32_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF32 for u64 {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::u64_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF32 for usize {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::usize_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF32 for i32 {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::i32_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF32 for i64 {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::i64_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
+impl ToF32 for isize {
+    fn to_f32(self) -> f32 {
+        utilities::math::approx_float::isize_to_f32_approx(self).unwrap_or(0.0)
+    }
+}
 
 /// Converts a numeric value safely to f64 for floating-point calculations.
 pub fn to_f64<T: ToF64>(val: T) -> f64 {

@@ -49,7 +49,7 @@ use super::hierarchy::{
 };
 use super::imports::SpecRegistry;
 use super::types::{BitEndianness, DataType, Endianness, RepeatMode};
-use crate::expr::{parse_expr, Expr, Operator, UnaryOp};
+use crate::expr::{parse_expr, BoolOp, CmpOp, Expr, Operator, UnaryOp};
 use crate::spec::{
     AttrSpec, ContentsSpec, EndianSpec, EnumValueSpec, InstanceSpec, KsyFile, TypeSpec,
     ValidationSpec, ValueOrExpr,
@@ -66,7 +66,7 @@ fn java_string_hash(s: &str) -> u32 {
 fn value_or_expr_to_expr(ve: &ValueOrExpr) -> Result<Expr> {
     match ve {
         ValueOrExpr::Expr(s) => parse_expr(s),
-        ValueOrExpr::Int(i) => Ok(Expr::IntNum(i128::from(*i))),
+        ValueOrExpr::Int(i) => Ok(Expr::IntNum(*i)),
         ValueOrExpr::Float(f) => Ok(Expr::FloatNum(*f)),
         ValueOrExpr::Bool(b) => Ok(Expr::Bool(*b)),
     }
@@ -856,7 +856,7 @@ fn resolve_class_spec(
     // Resolve instances
     let mut resolved_instances = IndexMap::new();
     for (inst_id, inst_spec) in &ksy.instances {
-        let (dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached) = resolve_instance(
+        let (dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached, valid) = resolve_instance(
             inst_id,
             inst_spec,
             meta_endian,
@@ -880,6 +880,7 @@ fn resolve_class_spec(
                 is_cached,
                 parent_expr: inst_spec.parent.clone(),
                 enum_name: inst_spec.enum_name.clone(),
+                valid,
             },
         );
     }
@@ -986,7 +987,7 @@ fn resolve_attr_data_type(
                 if let Some(r_expr) = &attr.repeat_expr {
                     let parsed = match r_expr {
                         ValueOrExpr::Expr(s) => parse_expr(s)?,
-                        ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                        ValueOrExpr::Int(i) => Expr::IntNum(*i),
                         ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                         ValueOrExpr::Bool(b) => Expr::Bool(*b),
                     };
@@ -1015,7 +1016,7 @@ fn resolve_attr_data_type(
                 let size_expr = if let Some(s) = &attr.size {
                     Some(match s {
                         ValueOrExpr::Expr(e) => parse_expr(e)?,
-                        ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                        ValueOrExpr::Int(i) => Expr::IntNum(*i),
                         ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                         ValueOrExpr::Bool(b) => Expr::Bool(*b),
                     })
@@ -1111,7 +1112,7 @@ fn resolve_attr_data_type(
                 let size_expr = if let Some(s) = &attr.size {
                     Some(match s {
                         ValueOrExpr::Expr(e) => parse_expr(e)?,
-                        ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                        ValueOrExpr::Int(i) => Expr::IntNum(*i),
                         ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                         ValueOrExpr::Bool(b) => Expr::Bool(*b),
                     })
@@ -1138,7 +1139,7 @@ fn resolve_attr_data_type(
                 let size_expr = if let Some(s) = &attr.size {
                     Some(match s {
                         ValueOrExpr::Expr(e) => parse_expr(e)?,
-                        ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                        ValueOrExpr::Int(i) => Expr::IntNum(*i),
                         ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                         ValueOrExpr::Bool(b) => Expr::Bool(*b),
                     })
@@ -1200,11 +1201,31 @@ fn resolve_enum_info(
 ) -> (Vec<String>, String, Option<Vec<String>>) {
     if ename.contains("::") {
         let parts: Vec<&str> = ename.split("::").collect();
-        let (name, owner) = if let Some((last, prefix)) = parts.split_last() {
-            ((*last).to_string(), prefix.iter().map(|s| (*s).to_string()).collect())
+        let (name, owner_parts) = if let Some((last, prefix)) = parts.split_last() {
+            ((*last).to_string(), prefix.to_vec())
         } else {
             (ename.to_string(), Vec::new())
         };
+        for (scope_name, scope_ksy) in scopes.iter().rev() {
+            let mut curr_ksy = *scope_ksy;
+            let mut found = true;
+            for part in &owner_parts {
+                if let Some(child_ksy) = curr_ksy.types.get(*part) {
+                    curr_ksy = child_ksy;
+                } else {
+                    found = false;
+                    break;
+                }
+            }
+            if found && curr_ksy.enums.contains_key(&name) {
+                let mut full_owner = scope_name.to_vec();
+                for p in &owner_parts {
+                    full_owner.push((*p).to_string());
+                }
+                return (full_owner, name, None);
+            }
+        }
+        let owner: Vec<String> = owner_parts.iter().map(|s| (*s).to_string()).collect();
         let mut full_path = owner.clone();
         full_path.push(name.clone());
         // Reason for fallback: if no scope is active, assume external enum reference
@@ -1269,6 +1290,9 @@ fn resolve_simple_type(
             }
             return Ok((underlying, None));
         }
+    }
+    if clean_str == "io" {
+        return Ok((DataType::KaitaiStreamType, None));
     }
     if clean_str == "bool" {
         return Ok((DataType::CalcBoolType, None));
@@ -1500,11 +1524,12 @@ fn resolve_instance(
     Option<Expr>,
     Option<Expr>,
     bool,
+    Option<ResolvedValidation>,
 )> {
     let value_expr = if let Some(v) = &inst.value {
         Some(match v {
             ValueOrExpr::Expr(s) => parse_expr(s)?,
-            ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+            ValueOrExpr::Int(i) => Expr::IntNum(*i),
             ValueOrExpr::Float(f) => Expr::FloatNum(*f),
             ValueOrExpr::Bool(b) => Expr::Bool(*b),
         })
@@ -1515,7 +1540,7 @@ fn resolve_instance(
     let pos_expr = if let Some(p) = &inst.pos {
         Some(match p {
             ValueOrExpr::Expr(s) => parse_expr(s)?,
-            ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+            ValueOrExpr::Int(i) => Expr::IntNum(*i),
             ValueOrExpr::Float(f) => Expr::FloatNum(*f),
             ValueOrExpr::Bool(b) => Expr::Bool(*b),
         })
@@ -1526,9 +1551,100 @@ fn resolve_instance(
     let size_expr = if let Some(s) = &inst.size {
         Some(match s {
             ValueOrExpr::Expr(s) => parse_expr(s)?,
-            ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+            ValueOrExpr::Int(i) => Expr::IntNum(*i),
             ValueOrExpr::Float(f) => Expr::FloatNum(*f),
             ValueOrExpr::Bool(b) => Expr::Bool(*b),
+        })
+    } else if let Some(c) = &inst.contents {
+        let len = match c {
+            ContentsSpec::Text(s) => s.len(),
+            ContentsSpec::Sequence(seq) => {
+                let mut count = 0usize;
+                for item in seq {
+                    if item.as_i64().is_some() {
+                        count = count.saturating_add(1);
+                    } else if let Some(s) = item.as_str() {
+                        count = count.saturating_add(s.len());
+                    }
+                }
+                count
+            }
+        };
+        Some(Expr::IntNum(i128::try_from(len).unwrap_or(0)))
+    } else {
+        None
+    };
+
+    let valid = if let Some(contents) = &inst.contents {
+        let bytes: Vec<Expr> = match contents {
+            ContentsSpec::Text(s) => s.bytes().map(|b| Expr::IntNum(i128::from(b))).collect(),
+            ContentsSpec::Sequence(seq) => {
+                let mut v = Vec::new();
+                for item in seq {
+                    if let Some(n) = item.as_i64() {
+                        v.push(Expr::IntNum(i128::from(n)));
+                    } else if let Some(s) = item.as_str() {
+                        for b in s.bytes() {
+                            v.push(Expr::IntNum(i128::from(b)));
+                        }
+                    }
+                }
+                v
+            }
+        };
+        Some(ResolvedValidation {
+            rule: ValidationRule::Eq(Expr::List(bytes)),
+            src_path: format!("/instances/{_inst_id}"),
+        })
+    } else if let Some(valid_spec) = &inst.valid {
+        let rule = match valid_spec {
+            ValidationSpec::Simple(val_or_expr) => {
+                let expr = value_or_expr_to_expr(val_or_expr)?;
+                ValidationRule::Eq(expr)
+            }
+            ValidationSpec::Detailed(d) => {
+                if let Some(eq_val) = &d.eq {
+                    let expr = value_or_expr_to_expr(eq_val)?;
+                    ValidationRule::Eq(expr)
+                } else if let (Some(min_val), Some(max_val)) = (&d.min, &d.max) {
+                    let min_expr = value_or_expr_to_expr(min_val)?;
+                    let max_expr = value_or_expr_to_expr(max_val)?;
+                    ValidationRule::Expr(Expr::BoolOp {
+                        op: BoolOp::And,
+                        values: vec![
+                            Expr::Compare {
+                                left: Box::new(Expr::Name("_".to_string())),
+                                op: CmpOp::GtE,
+                                right: Box::new(min_expr),
+                            },
+                            Expr::Compare {
+                                left: Box::new(Expr::Name("_".to_string())),
+                                op: CmpOp::LtE,
+                                right: Box::new(max_expr),
+                            },
+                        ],
+                    })
+                } else if let Some(min_val) = &d.min {
+                    let expr = value_or_expr_to_expr(min_val)?;
+                    ValidationRule::Min(expr)
+                } else if let Some(max_val) = &d.max {
+                    let expr = value_or_expr_to_expr(max_val)?;
+                    ValidationRule::Expr(Expr::Compare {
+                        left: Box::new(Expr::Name("_".to_string())),
+                        op: CmpOp::LtE,
+                        right: Box::new(expr),
+                    })
+                } else if let Some(expr_str) = &d.expr {
+                    let expr = parse_expr(expr_str)?;
+                    ValidationRule::Expr(expr)
+                } else {
+                    bail!("Invalid validation spec in instance {_inst_id}");
+                }
+            }
+        };
+        Some(ResolvedValidation {
+            rule,
+            src_path: format!("/instances/{_inst_id}"),
         })
     } else {
         None
@@ -1555,7 +1671,7 @@ fn resolve_instance(
                     let size_expr = if let Some(sz) = &inst.size {
                         Some(match sz {
                             ValueOrExpr::Expr(e) => parse_expr(e)?,
-                            ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                            ValueOrExpr::Int(i) => Expr::IntNum(*i),
                             ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                             ValueOrExpr::Bool(b) => Expr::Bool(*b),
                         })
@@ -1650,7 +1766,7 @@ fn resolve_instance(
             underlying: None,
         }
     // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
-    } else if inst.size.is_some() || inst.size_eos.unwrap_or(false) {
+    } else if inst.contents.is_some() || inst.size.is_some() || inst.size_eos.unwrap_or(false) {
         // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
         DataType::Bytes {
             size: size_expr.clone(),
@@ -1678,7 +1794,7 @@ fn resolve_instance(
                 if let Some(r_expr) = &inst.repeat_expr {
                     let parsed = match r_expr {
                         ValueOrExpr::Expr(s) => parse_expr(s)?,
-                        ValueOrExpr::Int(i) => Expr::IntNum(i128::from(*i)),
+                        ValueOrExpr::Int(i) => Expr::IntNum(*i),
                         ValueOrExpr::Float(f) => Expr::FloatNum(*f),
                         ValueOrExpr::Bool(b) => Expr::Bool(*b),
                     };
@@ -1706,7 +1822,7 @@ fn resolve_instance(
         dt
     };
 
-    Ok((dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached))
+    Ok((dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached, valid))
 }
 
 fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
@@ -1776,6 +1892,13 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         }
         (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
             t1.clone()
+        }
+        (DataType::UserType { .. }, DataType::UserType { .. }) => {
+            DataType::UserType {
+                names: vec!["struct".to_string()],
+                is_external: true,
+                args: Vec::new(),
+            }
         }
         _ => t1.clone(),
     }
@@ -1965,7 +2088,7 @@ fn infer_expr_type(
                     if let Some(val) = &inst.value {
                         let val_ex = match val {
                             ValueOrExpr::Expr(s) => parse_expr(s).ok(),
-                            ValueOrExpr::Int(i) => Some(Expr::IntNum(i128::from(*i))),
+                            ValueOrExpr::Int(i) => Some(Expr::IntNum(*i)),
                             ValueOrExpr::Float(f) => Some(Expr::FloatNum(*f)),
                             ValueOrExpr::Bool(b) => Some(Expr::Bool(*b)),
                         };
@@ -2092,7 +2215,7 @@ fn infer_expr_type(
                 if let Some(val) = &inst.value {
                     let val_ex = match val {
                         ValueOrExpr::Expr(s) => parse_expr(s).ok(),
-                        ValueOrExpr::Int(i) => Some(Expr::IntNum(i128::from(*i))),
+                        ValueOrExpr::Int(i) => Some(Expr::IntNum(*i)),
                         ValueOrExpr::Float(f) => Some(Expr::FloatNum(*f)),
                         ValueOrExpr::Bool(b) => Some(Expr::Bool(*b)),
                     };
