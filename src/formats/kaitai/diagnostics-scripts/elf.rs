@@ -6612,11 +6612,11 @@ impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
         panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Addend::S8 to i64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for usize {
+impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
     fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => *v as usize,
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => *v as usize,
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => *v as i64,
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => *v as i64,
         }
     }
 }
@@ -6694,7 +6694,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
     }
 }
 impl Elf_EndianElf_RelocationSectionEntry {
-    pub fn addend(&self) -> usize {
+    pub fn addend(&self) -> i64 {
         self.addend.borrow().as_ref().unwrap().into()
     }
     pub fn addend_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Addend>> {

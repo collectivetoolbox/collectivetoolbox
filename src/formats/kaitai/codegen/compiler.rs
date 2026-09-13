@@ -43,6 +43,7 @@ use crate::utilities::*;
 
 use std::collections::BTreeSet;
 
+use super::escape_rust_keyword;
 use super::translator::{needs_deref, translate_expr, TranslationContext};
 use super::writer::CodeWriter;
 use crate::expr::Expr;
@@ -92,6 +93,9 @@ fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
     for ext in &root_spec.external_types {
         if let Some(first) = ext.first() {
             let class_name = types_to_class_name(ext);
+            if class_name == root_spec.class_type_name() || root_spec.name.first() == Some(first) {
+                continue;
+            }
             w.puts(&format!("use super::{first}::{class_name};"));
         }
     }
@@ -120,12 +124,14 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
 
     for p in &current.params {
         let field_type = rust_field_type(&p.data_type, current, &p.id);
-        w.puts(&format!("{}: RefCell<{field_type}>,", p.id));
+        let escaped_id = escape_rust_keyword(&p.id);
+        w.puts(&format!("{escaped_id}: RefCell<{field_type}>,"));
     }
 
     for attr in &current.seq {
         let field_type = rust_field_type(&attr.data_type, current, &attr.id);
-        w.puts(&format!("{}: RefCell<{field_type}>,", attr.id));
+        let escaped_id = escape_rust_keyword(&attr.id);
+        w.puts(&format!("{escaped_id}: RefCell<{field_type}>,"));
     }
 
     w.puts("_io: RefCell<BytesReader>,");
@@ -152,8 +158,9 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
     // Instances: cache flags and fields
     for (inst_id, inst) in &current.instances {
         let field_type = rust_field_type(&inst.data_type, current, inst_id);
+        let escaped_id = escape_rust_keyword(inst_id);
         w.puts(&format!("f_{inst_id}: Cell<bool>,"));
-        w.puts(&format!("{inst_id}: RefCell<{field_type}>,"));
+        w.puts(&format!("{escaped_id}: RefCell<{field_type}>,"));
     }
 
     if current.has_dynamic_endian() {
@@ -165,12 +172,20 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
 
     // Switch enums and their From implementations
     for attr in &current.seq {
-        if let DataType::SwitchType { cases, .. } = &attr.data_type {
+        let dt = match &attr.data_type {
+            DataType::ArrayType { element, .. } => element.as_ref(),
+            other => other,
+        };
+        if let DataType::SwitchType { cases, .. } = dt {
             emit_switch_enum(w, current, &attr.id, cases);
         }
     }
     for (inst_id, inst) in &current.instances {
-        if let DataType::SwitchType { cases, .. } = &inst.data_type {
+        let dt = match &inst.data_type {
+            DataType::ArrayType { element, .. } => element.as_ref(),
+            other => other,
+        };
+        if let DataType::SwitchType { cases, .. } = dt {
             emit_switch_enum(w, current, inst_id, cases);
         }
     }
@@ -181,11 +196,12 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
     if !current.params.is_empty() {
         for p in &current.params {
             let p_type = rust_field_type(&p.data_type, current, &p.id);
+            let escaped_p = escape_rust_keyword(&p.id);
             w.puts(&format!("impl {class_name} {{"));
             w.inc();
-            w.puts(&format!("pub fn {}(&self) -> Ref<'_, {p_type}> {{", p.id));
+            w.puts(&format!("pub fn {escaped_p}(&self) -> Ref<'_, {p_type}> {{"));
             w.inc();
-            w.puts(&format!("self.{}.borrow()", p.id));
+            w.puts(&format!("self.{escaped_p}.borrow()"));
             w.dec();
             w.puts("}");
             w.dec();
@@ -197,7 +213,8 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
             .iter()
             .map(|p| {
                 let t = rust_field_type(&p.data_type, current, &p.id);
-                format!("{}: {t}", p.id)
+                let escaped_p = escape_rust_keyword(&p.id);
+                format!("{escaped_p}: {t}")
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -207,7 +224,8 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
         w.puts(&format!("pub fn set_params(&mut self, {params_args}) {{"));
         w.inc();
         for p in &current.params {
-            w.puts(&format!("*self.{}.borrow_mut() = {};", p.id, p.id));
+            let escaped_p = escape_rust_keyword(&p.id);
+            w.puts(&format!("*self.{escaped_p}.borrow_mut() = {escaped_p};"));
         }
         w.dec();
         w.puts("}");
@@ -243,7 +261,15 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
 }
 
 fn has_substream(attr: &ResolvedAttr) -> bool {
-    attr.raw_id.is_some()
+    if attr.raw_id.is_some() {
+        return true;
+    }
+    if let DataType::SwitchType { cases, .. } = &attr.data_type {
+        if cases.values().any(|ct| matches!(ct, DataType::UserType { .. })) {
+            return true;
+        }
+    }
+    false
 }
 
 fn rust_field_type(dt: &DataType, current: &ClassSpec, attr_id: &str) -> String {
@@ -278,7 +304,10 @@ fn rust_field_type(dt: &DataType, current: &ClassSpec, attr_id: &str) -> String 
             format!("OptRc<{target_name}>")
         }
         DataType::ArrayType { element, .. } => {
-            let inner = rust_field_type(element, current, attr_id);
+            let inner = match element.as_ref() {
+                DataType::SwitchType { .. } => switch_enum_name(current, attr_id),
+                other => rust_field_type(other, current, attr_id),
+            };
             format!("Vec<{inner}>")
         }
         DataType::SwitchType { .. } => {
@@ -389,33 +418,39 @@ fn emit_switch_enum(
         });
 
     if enum_only_numeric {
+        let mut seen_from_into = BTreeSet::new();
+        let mut seen_from_from = BTreeSet::new();
         for (v_name, inner_type) in &variants {
-            w.puts(&format!("impl From<{inner_type}> for {enum_name} {{"));
-            w.inc();
-            w.puts(&format!("fn from(v: {inner_type}) -> Self {{"));
-            w.inc();
-            w.puts(&format!("Self::{v_name}(v)"));
-            w.dec();
-            w.puts("}");
-            w.dec();
-            w.puts("}");
+            if seen_from_into.insert(inner_type.clone()) {
+                w.puts(&format!("impl From<{inner_type}> for {enum_name} {{"));
+                w.inc();
+                w.puts(&format!("fn from(v: {inner_type}) -> Self {{"));
+                w.inc();
+                w.puts(&format!("Self::{v_name}(v)"));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
 
-            w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-            w.inc();
-            w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
-            w.inc();
-            w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
-            w.inc();
-            w.puts("return *v");
-            w.dec();
-            w.puts("}");
-            w.puts(&format!(
-                "panic!(\"trying to convert from enum {enum_name}::{v_name} to {inner_type}, enum value {{:?}}\", e)"
-            ));
-            w.dec();
-            w.puts("}");
-            w.dec();
-            w.puts("}");
+            if seen_from_from.insert(inner_type.clone()) {
+                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
+                w.inc();
+                w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+                w.inc();
+                w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
+                w.inc();
+                w.puts("return *v");
+                w.dec();
+                w.puts("}");
+                w.puts(&format!(
+                    "panic!(\"trying to convert from enum {enum_name}::{v_name} to {inner_type}, enum value {{:?}}\", e)"
+                ));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
         }
 
         w.puts(&format!("impl From<&{enum_name}> for usize {{"));
@@ -435,33 +470,39 @@ fn emit_switch_enum(
         w.puts("}");
         w.newline();
     } else {
+        let mut seen_from_from = BTreeSet::new();
+        let mut seen_from_into = BTreeSet::new();
         for (v_name, inner_type) in &variants {
-            w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-            w.inc();
-            w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
-            w.inc();
-            w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
-            w.inc();
-            w.puts("return x.clone();");
-            w.dec();
-            w.puts("}");
-            w.puts(&format!(
-                "panic!(\"expected {enum_name}::{v_name}, got {{:?}}\", v)"
-            ));
-            w.dec();
-            w.puts("}");
-            w.dec();
-            w.puts("}");
+            if seen_from_from.insert(inner_type.clone()) {
+                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
+                w.inc();
+                w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
+                w.inc();
+                w.puts(&format!("if let {enum_name}::{v_name}(x) = v {{"));
+                w.inc();
+                w.puts("return x.clone();");
+                w.dec();
+                w.puts("}");
+                w.puts(&format!(
+                    "panic!(\"expected {enum_name}::{v_name}, got {{:?}}\", v)"
+                ));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
 
-            w.puts(&format!("impl From<{inner_type}> for {enum_name} {{"));
-            w.inc();
-            w.puts(&format!("fn from(v: {inner_type}) -> Self {{"));
-            w.inc();
-            w.puts(&format!("Self::{v_name}(v)"));
-            w.dec();
-            w.puts("}");
-            w.dec();
-            w.puts("}");
+            if seen_from_into.insert(inner_type.clone()) {
+                w.puts(&format!("impl From<{inner_type}> for {enum_name} {{"));
+                w.inc();
+                w.puts(&format!("fn from(v: {inner_type}) -> Self {{"));
+                w.inc();
+                w.puts(&format!("Self::{v_name}(v)"));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
         }
     }
 }
@@ -505,7 +546,7 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
             let pattern = if case_key.contains("::") {
                 let parts: Vec<&str> = case_key.split("::").collect();
                 if parts.len() == 2 {
-                    let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current);
+                    let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(root));
                     let variant = to_upper_camel_case(parts[1]);
                     format!("{enum_scoped}::{variant}")
                 } else {
@@ -616,6 +657,77 @@ fn emit_read_array_element(
             ));
         }
         w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
+    } else if let DataType::SwitchType { cases, switch_on } = element {
+        let switch_on_expr = translate_expr(switch_on, ctx);
+        w.puts(&format!("match {switch_on_expr} {{"));
+        w.inc();
+        for (case_key, case_type) in cases {
+            let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
+                || (case_key.starts_with('"') && case_key.ends_with('"'))
+            {
+                let inner = &case_key[1..case_key.len().saturating_sub(1)];
+                if inner.len() > 1 {
+                    format!("b\"{inner}\"")
+                } else {
+                    case_key.clone()
+                }
+            } else if case_key.contains("::") {
+                let parts: Vec<&str> = case_key.split("::").collect();
+                if parts.len() == 2 {
+                    let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
+                    let variant = to_upper_camel_case(parts[1]);
+                    format!("{enum_scoped}::{variant}")
+                } else {
+                    case_key.clone()
+                }
+            } else {
+                case_key.clone()
+            };
+
+            w.puts(&format!("{pattern} => {{"));
+            w.inc();
+
+            if let DataType::UserType { names, is_external, args } = case_type {
+                w.puts(&format!("let _t_{id}_raw = _io.read_bytes_full()?.into();"));
+                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw);"));
+                let type_name = types_to_class_name(names);
+                let target_args = if *is_external {
+                    "None, None".to_string()
+                } else {
+                    format!("Some({self_name}._root.clone()), Some({self_name}._self.clone())")
+                };
+                if args.is_empty() {
+                    w.puts(&format!(
+                        "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
+                    ));
+                } else {
+                    let trans_args = args.iter().map(|a| {
+                        let s = translate_expr(a, ctx);
+                        match a {
+                            Expr::Name(n) if n == "_index" => "(_i) as _".to_string(),
+                            Expr::IntNum(_) => format!("({s}) as _"),
+                            _ => s,
+                        }
+                    }).collect::<Vec<_>>().join(", ");
+                    w.puts(&format!(
+                        "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
+                    ));
+                    w.puts(&format!(
+                        "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
+                    ));
+                }
+                w.puts(&format!("{self_name}.{id}.borrow_mut().push(t.into());"));
+            } else {
+                let val = read_expr_for_type(case_type, current, ctx, "_io");
+                w.puts(&format!("{self_name}.{id}.borrow_mut().push({val}.into());"));
+            }
+
+            w.dec();
+            w.puts("}");
+        }
+        w.puts("_ => {}");
+        w.dec();
+        w.puts("}");
     } else {
         let elem_val = read_expr_for_type(element, current, ctx, io);
         w.puts(&format!("{self_name}.{id}.borrow_mut().push({elem_val});"));
@@ -866,12 +978,14 @@ fn emit_single_read(
                 "let t = Self::read_into_with_init::<_, {type_name}>(&*_io, {target_args}, &f)?.into();"
             ));
         }
-        w.puts(&format!("*{self_name}.{id}.borrow_mut() = t;"));
+        let escaped_id = escape_rust_keyword(id);
+        w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = t;"));
         return;
     }
 
     let val = read_expr_for_type(&attr.data_type, current, ctx, "_io");
-    w.puts(&format!("*{self_name}.{id}.borrow_mut() = {val};"));
+    let escaped_id = escape_rust_keyword(id);
+    w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = {val};"));
 }
 
 fn emit_switch_read(
@@ -892,13 +1006,23 @@ fn emit_switch_read(
     w.puts(&format!("match {switch_on} {{"));
     w.inc();
 
-    let any_user_types = cases.values().any(|ct| matches!(ct, DataType::UserType { .. }));
+    let _any_user_types = cases.values().any(|ct| matches!(ct, DataType::UserType { .. }));
+    let escaped_id = escape_rust_keyword(id);
 
     for (case_key, case_type) in cases {
-        let pattern = if case_key.contains("::") {
+        let pattern = if (case_key.starts_with('\'') && case_key.ends_with('\''))
+            || (case_key.starts_with('"') && case_key.ends_with('"'))
+        {
+            let inner = &case_key[1..case_key.len().saturating_sub(1)];
+            if inner.len() > 1 {
+                format!("b\"{inner}\"")
+            } else {
+                case_key.clone()
+            }
+        } else if case_key.contains("::") {
             let parts: Vec<&str> = case_key.split("::").collect();
             if parts.len() == 2 {
-                let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current);
+                let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
                 let variant = to_upper_camel_case(parts[1]);
                 format!("{enum_scoped}::{variant}")
             } else {
@@ -942,10 +1066,10 @@ fn emit_switch_read(
                     "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
                 ));
             }
-            w.puts(&format!("*{self_name}.{id}.borrow_mut() = Some(t);"));
+            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
         } else {
             let val = read_expr_for_type(case_type, current, ctx, "_io");
-            w.puts(&format!("*{self_name}.{id}.borrow_mut() = Some({val});"));
+            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some({val});"));
         }
 
         w.dec();
@@ -954,10 +1078,11 @@ fn emit_switch_read(
 
     // Default case
     if !cases.contains_key("_") {
-        if any_user_types {
+        let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
+        if has_bytes_case {
             w.puts("_ => {");
             w.inc();
-            w.puts(&format!("*{self_name}.{id}.borrow_mut() = Some(_io.read_bytes_full()?.into());"));
+            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(_io.read_bytes_full()?.into());"));
             w.dec();
             w.puts("}");
         } else {
@@ -1121,8 +1246,9 @@ fn read_expr_for_type(
             } else {
                 format!("Some({}._root.clone()), Some({}._self.clone())", ctx.self_name(), ctx.self_name())
             };
+            let io_ref = if io == "_io" { "&*_io".to_string() } else { format!("&{io}") };
             if args.is_empty() {
-                format!("Self::read_into::<_, {type_name}>(&*{io}, {target_args})?.into()")
+                format!("Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()")
             } else {
                 let trans_args = args.iter().map(|a| {
                     let s = translate_expr(a, ctx);
@@ -1132,7 +1258,7 @@ fn read_expr_for_type(
                         _ => s,
                     }
                 }).collect::<Vec<_>>().join(", ");
-                format!("{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>(&*{io}, {target_args}, &f)?.into() }}")
+                format!("{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into() }}")
             }
         }
         DataType::ArrayType { element, .. } => {
@@ -1176,7 +1302,8 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                 _ => rust_field_type(&inst.data_type, current, inst_id),
             };
 
-            w.puts(&format!("pub fn {inst_id}("));
+            let escaped_inst_id = escape_rust_keyword(inst_id);
+            w.puts(&format!("pub fn {escaped_inst_id}("));
             w.inc();
             w.puts("&self");
             w.dec();
@@ -1190,7 +1317,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
 
             w.puts(&format!("if self.f_{inst_id}.get() {{"));
             w.inc();
-            w.puts(&format!("return Ok(self.{inst_id}.borrow());"));
+            w.puts(&format!("return Ok(self.{escaped_inst_id}.borrow());"));
             w.dec();
             w.puts("}");
             if !matches!(inst.data_type, DataType::UserType { .. }) {
@@ -1230,7 +1357,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                         format!("({expr_str}) as {native_type}")
                     }
                 };
-                w.puts(&format!("*self.{inst_id}.borrow_mut() = {val_str};"));
+                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {val_str};"));
             } else {
                 emit_parse_instance_body(w, current, inst_id, inst, &ctx);
             }
@@ -1240,7 +1367,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                 w.puts("}");
             }
 
-            w.puts(&format!("Ok(self.{inst_id}.borrow())"));
+            w.puts(&format!("Ok(self.{escaped_inst_id}.borrow())"));
             w.dec();
             w.puts("}");
         }
@@ -1257,6 +1384,7 @@ fn emit_parse_instance_body(
     inst: &ResolvedInstance,
     ctx: &TranslationContext<'_>,
 ) {
+    let escaped_inst_id = escape_rust_keyword(inst_id);
     let io_var = if let Some(io_ex) = &inst.io_expr {
         let io_str = translate_expr(io_ex, ctx);
         let deref = if io_str.starts_with('*') {
@@ -1290,7 +1418,7 @@ fn emit_parse_instance_body(
                 let pattern = if case_key.contains("::") {
                     let parts: Vec<&str> = case_key.split("::").collect();
                     if parts.len() == 2 {
-                        let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current);
+                        let enum_scoped = super::translator::resolve_enum_type_name(parts[0], current, Some(ctx.root));
                         let variant = to_upper_camel_case(parts[1]);
                         format!("{enum_scoped}::{variant}")
                     } else {
@@ -1310,7 +1438,7 @@ fn emit_parse_instance_body(
                     w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                     (format!("&_t_{inst_id}_raw_io"), "BytesReader")
                 } else {
-                    (if io_var == "_io" { "&*_io".to_string() } else { format!("&*{io_var}") }, "_")
+                    (if io_var == "_io" { "&*_io".to_string() } else { format!("&{io_var}") }, "_")
                 };
 
                 if let DataType::UserType { names, is_external, args } = case_type {
@@ -1339,7 +1467,7 @@ fn emit_parse_instance_body(
                             "let t = Self::read_into::<{stream_type}, {type_name}>({io_ref}, {target_args})?.into();"
                         ));
                     }
-                    w.puts(&format!("*self.{inst_id}.borrow_mut() = Some(t);"));
+                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some(t);"));
                 }
 
                 w.dec();
@@ -1355,7 +1483,7 @@ fn emit_parse_instance_body(
                 };
                 w.puts("_ => {");
                 w.inc();
-                w.puts(&format!("*self.{inst_id}.borrow_mut() = Some({fallback});"));
+                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"));
                 w.dec();
                 w.puts("}");
             } else {
@@ -1369,12 +1497,12 @@ fn emit_parse_instance_body(
             match repeat {
                 RepeatMode::None => {
                     let elem_val = read_expr_for_type(element, current, ctx, "_io");
-                    w.puts(&format!("*self.{inst_id}.borrow_mut() = {elem_val};"));
+                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {elem_val};"));
                 }
                 RepeatMode::Expr(repeat_expr) => {
                     if let Some(size) = &inst.size_expr {
                         w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = Vec::new();"));
-                        w.puts(&format!("*self.{inst_id}.borrow_mut() = Vec::new();"));
+                        w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                         let count_str = translate_expr(repeat_expr, ctx);
                         w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0..l_{inst_id} {{"));
@@ -1396,12 +1524,12 @@ fn emit_parse_instance_body(
                             } else {
                                 w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&io_{inst_id}_raw, {target_args})?.into();"));
                             }
-                            w.puts(&format!("self.{inst_id}.borrow_mut().push(t);"));
+                            w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push(t);"));
                         }
                         w.dec();
                         w.puts("}");
                     } else {
-                        w.puts(&format!("*self.{inst_id}.borrow_mut() = Vec::new();"));
+                        w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                         let count_str = translate_expr(repeat_expr, ctx);
                         w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0..l_{inst_id} {{"));
@@ -1412,7 +1540,7 @@ fn emit_parse_instance_body(
                     }
                 }
                 RepeatMode::Eos => {
-                    w.puts(&format!("*self.{inst_id}.borrow_mut() = Vec::new();"));
+                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                     w.puts("{");
                     w.inc();
                     w.puts("let mut _i = 0;");
@@ -1426,7 +1554,7 @@ fn emit_parse_instance_body(
                     w.puts("}");
                 }
                 RepeatMode::Until(until_expr) => {
-                    w.puts(&format!("*self.{inst_id}.borrow_mut() = Vec::new();"));
+                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                     w.puts("{");
                     w.inc();
                     w.puts("let mut _i = 0;");
@@ -1434,7 +1562,7 @@ fn emit_parse_instance_body(
                     w.inc();
                     emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
                     let deref = if needs_deref(element) { "*" } else { "" };
-                    w.puts(&format!("let _t_{inst_id} = self.{inst_id}.borrow();"));
+                    w.puts(&format!("let _t_{inst_id} = self.{escaped_inst_id}.borrow();"));
                     w.puts(&format!("let _tmpa = {deref}_t_{inst_id}.last().unwrap();"));
                     w.puts("_i += 1;");
                     let until_str = translate_expr(until_expr, ctx);
@@ -1469,9 +1597,9 @@ fn emit_parse_instance_body(
                 } else {
                     w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&_t_{inst_id}_raw_io, {target_args})?.into();"));
                 }
-                w.puts(&format!("*self.{inst_id}.borrow_mut() = t;"));
+                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = t;"));
             } else {
-                let io_ref = if io_var == "_io" { "&*_io" } else { &format!("&*{io_var}") };
+                let io_ref = if io_var == "_io" { "&*_io".to_string() } else { format!("&{io_var}") };
                 if !trans_args.is_empty() {
                     w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"));
                     w.puts(&format!("let t = Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into();"));
@@ -1481,12 +1609,12 @@ fn emit_parse_instance_body(
                 } else {
                     w.puts(&format!("let t = Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into();"));
                 }
-                w.puts(&format!("*self.{inst_id}.borrow_mut() = t;"));
+                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = t;"));
             }
         }
         other => {
             let elem_val = read_expr_for_type(other, current, ctx, io_var);
-            w.puts(&format!("*self.{inst_id}.borrow_mut() = {elem_val};"));
+            w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {elem_val};"));
         }
     }
 
@@ -1505,31 +1633,37 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
         }
         w.puts(&format!("impl {class_name} {{"));
         w.inc();
+        let escaped_id = escape_rust_keyword(&attr.id);
         if let DataType::SwitchType { cases, .. } = &attr.data_type {
             let is_numeric = !cases.is_empty() && cases.values().all(super::translator::is_numeric_type);
             if is_numeric {
                 w.puts(&format!("pub fn {}(&self) -> usize {{", attr.id));
                 w.inc();
-                w.puts(&format!("self.{}.borrow().as_ref().unwrap().into()", attr.id));
+                w.puts(&format!("self.{escaped_id}.borrow().as_ref().unwrap().into()"));
                 w.dec();
                 w.puts("}");
             }
             let fn_name = if is_numeric {
-                format!("{}_enum", attr.id)
+                let candidate = format!("{}_enum", attr.id);
+                if current.instances.contains_key(&candidate) {
+                    format!("{}_switch_enum", attr.id)
+                } else {
+                    candidate
+                }
             } else {
-                attr.id.clone()
+                escaped_id.clone()
             };
             let enum_name = switch_enum_name(current, &attr.id);
             w.puts(&format!("pub fn {fn_name}(&self) -> Ref<'_, Option<{enum_name}>> {{"));
             w.inc();
-            w.puts(&format!("self.{}.borrow()", attr.id));
+            w.puts(&format!("self.{escaped_id}.borrow()"));
             w.dec();
             w.puts("}");
         } else {
             let ret_type = rust_field_type(&attr.data_type, current, &attr.id);
-            w.puts(&format!("pub fn {}(&self) -> Ref<'_, {ret_type}> {{", attr.id));
+            w.puts(&format!("pub fn {escaped_id}(&self) -> Ref<'_, {ret_type}> {{"));
             w.inc();
-            w.puts(&format!("self.{}.borrow()", attr.id));
+            w.puts(&format!("self.{escaped_id}.borrow()"));
             w.dec();
             w.puts("}");
         }
@@ -1598,6 +1732,12 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
         parts.push(enum_name.clone());
         let full_enum_name = types_to_class_name(&parts);
 
+        let has_unknown = resolved_enum
+            .values
+            .values()
+            .any(|l| to_upper_camel_case(l) == "Unknown");
+        let catchall = if has_unknown { "UnknownVariant" } else { "Unknown" };
+
         w.puts("#[derive(Debug, PartialEq, Clone)]");
         w.puts(&format!("pub enum {full_enum_name} {{"));
         w.inc();
@@ -1615,7 +1755,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
             let variant_name = to_upper_camel_case(label);
             w.puts(&format!("{variant_name},"));
         }
-        w.puts("Unknown(i64),");
+        w.puts(&format!("{catchall}(i64),"));
         w.dec();
         w.puts("}");
         w.newline();
@@ -1632,7 +1772,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
             let variant_name = to_upper_camel_case(label);
             w.puts(&format!("{val} => Ok({full_enum_name}::{variant_name}),"));
         }
-        w.puts(&format!("_ => Ok({full_enum_name}::Unknown(flag)),"));
+        w.puts(&format!("_ => Ok({full_enum_name}::{catchall}(flag)),"));
         w.dec();
         w.puts("}");
         w.dec();
@@ -1652,7 +1792,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
             let variant_name = to_upper_camel_case(label);
             w.puts(&format!("{full_enum_name}::{variant_name} => {val},"));
         }
-        w.puts(&format!("{full_enum_name}::Unknown(v) => v"));
+        w.puts(&format!("{full_enum_name}::{catchall}(v) => v"));
         w.dec();
         w.puts("}");
         w.dec();
@@ -1664,7 +1804,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
         // Default
         w.puts(&format!("impl Default for {full_enum_name} {{"));
         w.inc();
-        w.puts(&format!("fn default() -> Self {{ {full_enum_name}::Unknown(0) }}"));
+        w.puts(&format!("fn default() -> Self {{ {full_enum_name}::{catchall}(0) }}"));
         w.dec();
         w.puts("}");
         w.newline();

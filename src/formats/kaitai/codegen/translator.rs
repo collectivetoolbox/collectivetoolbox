@@ -43,7 +43,7 @@ use crate::utilities::*;
 
 use crate::expr::ast::{BoolOp, CmpOp, Expr, Operator, UnaryOp};
 use crate::precompile::hierarchy::{to_upper_camel_case, types_to_class_name, ClassSpec};
-use crate::precompile::types::DataType;
+use crate::precompile::types::{DataType, Endianness};
 
 /// Context for translating Kaitai expressions into Rust code.
 #[derive(Debug, Clone)]
@@ -177,7 +177,17 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             let inner_str = translate_expr(operand, ctx);
             match op {
                 UnaryOp::Not => format!("!({inner_str})"),
-                UnaryOp::Minus => format!("-({inner_str})"),
+                UnaryOp::Minus => {
+                    if inner_str.ends_with(".pos()")
+                        || inner_str.ends_with("_raw()")
+                        || inner_str.ends_with(".len()")
+                        || inner_str.ends_with(".size()")
+                    {
+                        format!("-({inner_str} as i64)")
+                    } else {
+                        format!("-({inner_str})")
+                    }
+                }
                 UnaryOp::Invert => format!("!({inner_str})"),
             }
         }
@@ -190,18 +200,48 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             if_false,
         } => translate_if_exp(condition, if_true, if_false, ctx),
         Expr::CastToType { value, type_name } => {
-            let inner_str = translate_expr(value, ctx);
             let raw_type = type_name.name_as_str();
-            if let Some(user_class) = resolve_user_class_name(&raw_type, ctx) {
+            if raw_type == "bytes" {
+                if let Expr::List(elements) = &**value {
+                    let elems = elements
+                        .iter()
+                        .map(|e| {
+                            let s = translate_expr(e, ctx);
+                            format!("({s}) as u8")
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("vec![{elems}]")
+                } else {
+                    let inner_str = translate_expr(value, ctx);
+                    format!("Into::<Vec<u8>>::into(&{inner_str})")
+                }
+            } else if let Some(user_class) = resolve_user_class_name(&raw_type, ctx) {
+                let inner_str = translate_expr(value, ctx);
                 format!("Into::<OptRc<{user_class}>>::into(&{inner_str})")
             } else {
-                format!("({inner_str} as {raw_type})")
+                let inner_str = translate_expr(value, ctx);
+                let rust_type = match raw_type.as_str() {
+                    "u1" => "u8",
+                    "u2" => "u16",
+                    "u4" => "u32",
+                    "u8" => "u64",
+                    "s1" => "i8",
+                    "s2" => "i16",
+                    "s4" => "i32",
+                    "s8" => "i64",
+                    "f4" => "f32",
+                    "f8" => "f64",
+                    "str" => "String",
+                    other => other,
+                };
+                format!("({inner_str} as {rust_type})")
             }
         }
         Expr::EnumByLabel {
             enum_name, label, ..
         } => {
-            let scoped_enum = resolve_enum_type_name(enum_name, ctx.current_class);
+            let scoped_enum = resolve_enum_type_name(enum_name, ctx.current_class, Some(ctx.root));
             let variant = to_upper_camel_case(label);
             format!("{scoped_enum}::{variant}")
         }
@@ -224,27 +264,28 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
         "_sizeof" => calculate_class_seq_size(ctx.current_class).unwrap_or(0).to_string(),
         other => {
             let self_name = ctx.self_name();
+            let escaped = super::escape_rust_keyword(other);
             // Check if it's an instance
             if let Some(_inst) = ctx.current_class.instances.get(other) {
                 // Instances are fallible and return KResult<Ref<'_, T>>
-                format!("*{self_name}.{other}()?")
+                format!("*{self_name}.{escaped}()?")
             } else if let Some(attr) = ctx.current_class.seq.iter().find(|a| a.id == other) {
                 // Sequential attribute
                 if needs_deref(&attr.data_type) {
-                    format!("*{self_name}.{other}()")
+                    format!("*{self_name}.{escaped}()")
                 } else {
-                    format!("{self_name}.{other}()")
+                    format!("{self_name}.{escaped}()")
                 }
             } else if let Some(param) = ctx.current_class.params.iter().find(|p| p.id == other) {
                 // Constructor parameter
                 if needs_deref(&param.data_type) {
-                    format!("*{self_name}.{other}()")
+                    format!("*{self_name}.{escaped}()")
                 } else {
-                    format!("{self_name}.{other}()")
+                    format!("{self_name}.{escaped}()")
                 }
             } else {
                 // Unknown name, format as method call on self
-                format!("{self_name}.{other}()")
+                format!("{self_name}.{escaped}()")
             }
         }
     }
@@ -313,7 +354,34 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         return "0".to_string();
     }
     let t = translate_expr(value, ctx);
-    if t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" {
+    let is_stream = t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" || t.ends_with("._io");
+    if is_stream && attr == "eof" {
+        return format!("{t}.is_eof()");
+    }
+    if is_stream && (attr == "size" || attr == "length") {
+        return format!("{t}.size()");
+    }
+    let val_type = detect_type_approx(value, ctx);
+    if (attr == "size" || attr == "length")
+        && matches!(
+            val_type,
+            Some(
+                DataType::Bytes { .. }
+                    | DataType::Str { .. }
+                    | DataType::ArrayType { .. }
+                    | DataType::CalcBytesType
+                    | DataType::CalcStrType
+            )
+        )
+    {
+        let stripped = remove_deref(&t);
+        return format!("{stripped}.len()");
+    }
+    if attr == "to_s" {
+        let stripped = remove_deref(&t);
+        return format!("{stripped}.to_string()");
+    }
+    if is_stream {
         return format!("{t}.{attr}()");
     }
     if attr == "_parent" {
@@ -326,12 +394,21 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         return format!("{t}._io()");
     }
     if attr == "to_i" {
-        let val_type = detect_type_approx(value, ctx);
+        if matches!(val_type, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) {
+            return format!("(if *{t} {{ 1 }} else {{ 0 }})");
+        }
+        if matches!(val_type, Some(DataType::Float { .. } | DataType::CalcFloatType)) {
+            return format!("(*{t} as i64)");
+        }
         if matches!(val_type, Some(DataType::EnumType { .. })) {
             return format!("i64::from(&{t})");
         }
+        if matches!(val_type, Some(DataType::CalcIntType | DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::Bits { .. })) {
+            return format!("(*{t} as i64)");
+        }
         return format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?");
     }
+    let escaped_attr = super::escape_rust_keyword(attr);
     let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
         Some(DataType::UserType { names, .. }) => find_class_spec(ctx.root, &names),
         _ => None,
@@ -361,14 +438,14 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     let deref = !is_numeric_switch_attr(attr, ctx.root);
     if deref {
         if t.starts_with('*') {
-            format!("{t}.{attr}(){q}{unwrap}")
+            format!("{t}.{escaped_attr}(){q}{unwrap}")
         } else {
-            format!("*{t}.{attr}(){q}{unwrap}")
+            format!("*{t}.{escaped_attr}(){q}{unwrap}")
         }
     } else if t.starts_with('*') {
-        format!("{}.{attr}(){q}{unwrap}", &t[1..])
+        format!("{}.{escaped_attr}(){q}{unwrap}", &t[1..])
     } else {
-        format!("{t}.{attr}(){q}{unwrap}")
+        format!("{t}.{escaped_attr}(){q}{unwrap}")
     }
 }
 
@@ -406,7 +483,7 @@ fn is_numeric_switch_attr(attr_name: &str, root: &ClassSpec) -> bool {
     }
 }
 
-fn is_signed_int_type(dt: &DataType) -> bool {
+pub(crate) fn is_signed_int_type(dt: &DataType) -> bool {
     match dt {
         DataType::Int1 { signed: true } => true,
         DataType::IntMulti { signed: true, .. } => true,
@@ -425,6 +502,13 @@ fn translate_bin_op(
     let rt = detect_type_approx(right, ctx);
     let l = translate_expr(left, ctx);
     let r = translate_expr(right, ctx);
+    if op == Operator::Add {
+        if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+        {
+            return format!("format!(\"{{}}{{}}\", {l}, {r})");
+        }
+    }
 
     if let (Some(t1), Some(t2)) = (&lt, &rt) {
         if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::Mod {
@@ -512,8 +596,26 @@ fn translate_compare(
             return format!("(({l} as {ct}) {op_str} ({r} as {ct}))");
         }
     }
-    let l = translate_expr(left, ctx);
-    let r = translate_expr(right, ctx);
+    let l_raw = translate_expr(left, ctx);
+    let r_raw = translate_expr(right, ctx);
+    let l = if (l_raw.starts_with("self.") || l_raw.starts_with("self_rc.") || l_raw.starts_with("_r.") || l_raw.starts_with("_prc."))
+        && !l_raw.starts_with('*')
+        && !l_raw.ends_with(']')
+        && !matches!(lt, Some(DataType::UserType { .. }))
+    {
+        format!("*{l_raw}")
+    } else {
+        l_raw
+    };
+    let r = if (r_raw.starts_with("self.") || r_raw.starts_with("self_rc.") || r_raw.starts_with("_r.") || r_raw.starts_with("_prc."))
+        && !r_raw.starts_with('*')
+        && !r_raw.ends_with(']')
+        && !matches!(rt, Some(DataType::UserType { .. }))
+    {
+        format!("*{r_raw}")
+    } else {
+        r_raw
+    };
     format!("{l} {op_str} {r}")
 }
 
@@ -527,27 +629,38 @@ fn translate_if_exp(
     let true_raw = translate_expr(if_true, ctx);
     let false_raw = translate_expr(if_false, ctx);
 
-    // Check if true branch returns a type requiring .clone()
-    let needs_clone = if let Some(dt) = detect_type_approx(if_true, ctx) {
-        matches!(
-            dt,
-            DataType::EnumType { .. }
-                | DataType::UserType { .. }
-                | DataType::Str { .. }
-                | DataType::Bytes { .. }
-                | DataType::ArrayType { .. }
-        )
-    } else {
-        false
-    };
+    let t_dt = detect_type_approx(if_true, ctx);
+    let f_dt = detect_type_approx(if_false, ctx);
 
-    if needs_clone {
-        let t = remove_deref(&true_raw);
-        let f = remove_deref(&false_raw);
-        format!("if {cond_str} {{ {t}.clone() }} else {{ {f}.clone() }}")
-    } else {
-        format!("if {cond_str} {{ {true_raw} }} else {{ {false_raw} }}")
+    let t_clean = remove_deref(&true_raw);
+    let f_clean = remove_deref(&false_raw);
+
+    // If one of the branches is String, coerce both to String
+    if matches!(t_dt, Some(DataType::Str { .. } | DataType::CalcStrType))
+        || matches!(f_dt, Some(DataType::Str { .. } | DataType::CalcStrType))
+    {
+        return format!("if {cond_str} {{ {t_clean}.to_string() }} else {{ {f_clean}.to_string() }}");
     }
+
+    // If one of the branches is Bytes, coerce both to Vec<u8>
+    if matches!(t_dt, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+        || matches!(f_dt, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+    {
+        return format!("if {cond_str} {{ {t_clean}.to_vec() }} else {{ {f_clean}.to_vec() }}");
+    }
+
+    // If UserType or EnumType or ArrayType, clone
+    if matches!(
+        t_dt,
+        Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
+    ) || matches!(
+        f_dt,
+        Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
+    ) {
+        return format!("if {cond_str} {{ {t_clean}.clone() }} else {{ {f_clean}.clone() }}");
+    }
+
+    format!("if {cond_str} {{ {true_raw} }} else {{ {false_raw} }}")
 }
 
 fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> String {
@@ -581,6 +694,16 @@ fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> S
                     format!("{t}[{from}..{to}]")
                 } else {
                     format!("{t}.to_string()")
+                }
+            }
+            "to_s" => {
+                if let Some(arg) = args.first() {
+                    let enc = translate_expr(arg, ctx);
+                    let stripped = remove_deref(&t);
+                    format!("bytes_to_str(&{stripped}, {enc})?")
+                } else {
+                    let stripped = remove_deref(&t);
+                    format!("{stripped}.to_string()")
                 }
             }
             "reverse" => {
@@ -676,13 +799,36 @@ fn resolve_user_class_name(type_name: &str, ctx: &TranslationContext<'_>) -> Opt
     None
 }
 
+fn find_enum_owner<'a>(class: &'a ClassSpec, enum_name: &str) -> Option<&'a ClassSpec> {
+    if class.enums.contains_key(enum_name) {
+        return Some(class);
+    }
+    for sub in class.subclasses.values() {
+        if let Some(found) = find_enum_owner(sub, enum_name) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 /// Resolves an enum type name to its scoped Rust enum name (e.g. `EthernetFrame_EtherTypeEnum`).
 #[must_use]
-pub fn resolve_enum_type_name(enum_name: &str, current_class: &ClassSpec) -> String {
+pub fn resolve_enum_type_name(
+    enum_name: &str,
+    current_class: &ClassSpec,
+    root: Option<&ClassSpec>,
+) -> String {
     if current_class.enums.contains_key(enum_name) {
         let mut parts = current_class.name.clone();
         parts.push(enum_name.to_string());
         return types_to_class_name(&parts);
+    }
+    if let Some(root_spec) = root {
+        if let Some(owner) = find_enum_owner(root_spec, enum_name) {
+            let mut parts = owner.name.clone();
+            parts.push(enum_name.to_string());
+            return types_to_class_name(&parts);
+        }
     }
     // If not found in current class, check root class
     let mut parts = current_class.root_name.clone();
@@ -767,10 +913,46 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             }
             None
         }
+        Expr::IfExp { if_true, if_false, .. } => {
+            let t1 = detect_type_approx(if_true, ctx);
+            let t2 = detect_type_approx(if_false, ctx);
+            match (t1, t2) {
+                (Some(a), Some(b)) => Some(combine_types(&a, &b)),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                (None, None) => None,
+            }
+        }
+        Expr::Subscript { value, .. } => {
+            if let Some(target_dt) = detect_type_approx(value, ctx) {
+                let resolved_dt = resolve_switch_type(&target_dt);
+                if let DataType::ArrayType { element: elem, .. } = resolved_dt {
+                    return Some(*elem);
+                }
+            }
+            None
+        }
+        Expr::BinOp { left, op: Operator::Add, right } => {
+            let lt = detect_type_approx(left, ctx);
+            let rt = detect_type_approx(right, ctx);
+            if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            {
+                Some(DataType::CalcStrType)
+            } else {
+                Some(DataType::CalcIntType)
+            }
+        }
         Expr::BinOp { .. } => Some(DataType::CalcIntType),
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" {
+            if attr == "to_i" || attr == "length" || attr == "size" {
                 return Some(DataType::CalcIntType);
+            }
+            if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                return Some(DataType::CalcStrType);
+            }
+            if attr == "eof" {
+                return Some(DataType::CalcBoolType);
             }
             if let Some(target_dt) = detect_type_approx(value, ctx) {
                 let resolved_dt = resolve_switch_type(&target_dt);
@@ -783,6 +965,34 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 }
             }
             None
+        }
+        Expr::Call { func, .. } => {
+            if let Expr::Attribute { attr, .. } = &**func {
+                if attr == "to_i" || attr == "length" || attr == "size" {
+                    return Some(DataType::CalcIntType);
+                }
+                if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                    return Some(DataType::CalcStrType);
+                }
+                if attr == "eof" {
+                    return Some(DataType::CalcBoolType);
+                }
+            }
+            None
+        }
+        Expr::CastToType { type_name, .. } => {
+            let s = type_name.name_as_str();
+            if s == "bytes" {
+                Some(DataType::CalcBytesType)
+            } else if s == "str" {
+                Some(DataType::CalcStrType)
+            } else if s.starts_with('u') || s.starts_with('s') {
+                Some(DataType::CalcIntType)
+            } else if s.starts_with('f') {
+                Some(DataType::CalcFloatType)
+            } else {
+                None
+            }
         }
         Expr::EnumByLabel { enum_name, .. } | Expr::EnumById { enum_name, .. } => {
             Some(DataType::EnumType {
@@ -831,7 +1041,8 @@ pub(crate) fn is_numeric_type(dt: &DataType) -> bool {
         | DataType::IntMulti { .. }
         | DataType::Float { .. }
         | DataType::CalcIntType
-        | DataType::CalcFloatType => true,
+        | DataType::CalcFloatType
+        | DataType::Bits { .. } => true,
         DataType::SwitchType { cases, .. } => cases.values().all(is_numeric_type),
         _ => false,
     }
@@ -844,6 +1055,13 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         return t1_eff;
     }
     match (&t1_eff, &t2_eff) {
+        (DataType::Bits { .. }, _) | (_, DataType::Bits { .. }) => {
+            DataType::IntMulti {
+                signed: false,
+                width: 8,
+                endian: Some(Endianness::Big),
+            }
+        }
         (DataType::Int1 { signed: false }, DataType::Int1 { signed: true })
         | (DataType::Int1 { signed: true }, DataType::Int1 { signed: false }) => {
             DataType::Int1 { signed: false }
@@ -887,6 +1105,8 @@ fn kaitai_primitive_to_native(dt: &DataType) -> &'static str {
         DataType::IntMulti { signed: true, width: 2, .. } => "i16",
         DataType::IntMulti { signed: true, width: 4, .. } => "i32",
         DataType::IntMulti { signed: true, width: 8, .. } => "i64",
+        DataType::Bits { .. } => "u64",
+        DataType::Bits1 { .. } => "bool",
         DataType::CalcIntType => "i32",
         DataType::Float { width: 4, .. } => "f32",
         DataType::Float { width: 8, .. } | DataType::CalcFloatType => "f64",

@@ -91,22 +91,24 @@ impl CodeWriter {
         self.puts("/**");
         if let Some(t) = text {
             for line in t.lines() {
-                if line.trim().is_empty() {
+                let sanitized = line.replace("*/", "* /").replace("/*", "/ *");
+                if sanitized.trim().is_empty() {
                     self.puts(" *");
                 } else {
-                    self.puts(&format!(" * {line}"));
+                    self.puts(&format!(" * {sanitized}"));
                 }
             }
         }
         for r in doc_refs {
-            if r.starts_with("http://") || r.starts_with("https://") {
-                if r.contains(' ') {
-                    self.puts(&format!(" * \\sa {r}"));
+            let sanitized_r = r.replace("*/", "* /").replace("/*", "/ *");
+            if sanitized_r.starts_with("http://") || sanitized_r.starts_with("https://") {
+                if sanitized_r.contains(' ') {
+                    self.puts(&format!(" * \\sa {sanitized_r}"));
                 } else {
-                    self.puts(&format!(" * \\sa {r} Source"));
+                    self.puts(&format!(" * \\sa {sanitized_r} Source"));
                 }
             } else {
-                self.puts(&format!(" * \\sa {r}"));
+                self.puts(&format!(" * \\sa {sanitized_r}"));
             }
         }
         self.puts(" */");

@@ -49,7 +49,7 @@ use super::hierarchy::{
 };
 use super::imports::SpecRegistry;
 use super::types::{BitEndianness, DataType, Endianness, RepeatMode};
-use crate::expr::{parse_expr, Expr, UnaryOp};
+use crate::expr::{parse_expr, Expr, Operator, UnaryOp};
 use crate::spec::{
     AttrSpec, ContentsSpec, EndianSpec, EnumValueSpec, InstanceSpec, KsyFile, TypeSpec,
     ValidationSpec, ValueOrExpr,
@@ -160,12 +160,67 @@ pub fn resolve_ksy(
     let mut root_spec = resolve_class_spec(&top_name, None, &top_name, ksy, registry, None, &scopes)?;
     markup_parent_types(&mut root_spec);
     update_instance_types(&mut root_spec);
+
+    let mut all_ext = Vec::new();
+    collect_all_external_types_rec(&root_spec, &mut all_ext);
+    if let Some(meta) = &ksy.meta {
+        for imp in &meta.imports {
+            let stem = imp
+                .trim_start_matches('/')
+                .split('/')
+                .last()
+                .unwrap_or(imp)
+                .to_string();
+            let ext = vec![stem];
+            if !all_ext.contains(&ext) {
+                all_ext.push(ext);
+            }
+        }
+    }
+    root_spec.external_types = all_ext;
+
     root_spec.external_types.sort_by(|a, b| {
         let ha = java_string_hash(&a.join("::"));
         let hb = java_string_hash(&b.join("::"));
         ha.cmp(&hb).then_with(|| a.cmp(b))
     });
     Ok(root_spec)
+}
+
+fn collect_all_external_types_rec(class: &ClassSpec, out: &mut Vec<Vec<String>>) {
+    for ext in &class.external_types {
+        if !out.contains(ext) {
+            out.push(ext.clone());
+        }
+    }
+    for attr in &class.seq {
+        collect_external_from_dt(&attr.data_type, out);
+    }
+    for inst in class.instances.values() {
+        collect_external_from_dt(&inst.data_type, out);
+    }
+    for sub in class.subclasses.values() {
+        collect_all_external_types_rec(sub, out);
+    }
+}
+
+fn collect_external_from_dt(dt: &DataType, out: &mut Vec<Vec<String>>) {
+    match dt {
+        DataType::UserType { names, is_external, .. } => {
+            if *is_external && !out.contains(names) {
+                out.push(names.clone());
+            }
+        }
+        DataType::ArrayType { element, .. } => {
+            collect_external_from_dt(element, out);
+        }
+        DataType::SwitchType { cases, .. } => {
+            for case_dt in cases.values() {
+                collect_external_from_dt(case_dt, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_used_user_types(dt: &DataType, out: &mut Vec<Vec<String>>) {
@@ -240,8 +295,14 @@ fn infer_expr_type_with_root(
 ) -> Option<DataType> {
     match expr {
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" {
+            if attr == "to_i" || attr == "length" || attr == "size" {
                 return Some(DataType::CalcIntType);
+            }
+            if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                return Some(DataType::CalcStrType);
+            }
+            if attr == "eof" {
+                return Some(DataType::CalcBoolType);
             }
             if let Expr::Name(name) = &**value {
                 let target_class_name: Option<Vec<String>> = if name == "_root" {
@@ -261,6 +322,56 @@ fn infer_expr_type_with_root(
                 return infer_attr_type_in_class(root, &names, attr);
             }
             None
+        }
+        Expr::Call { func, .. } => {
+            if let Expr::Attribute { attr, .. } = &**func {
+                if attr == "to_i" || attr == "length" || attr == "size" {
+                    return Some(DataType::CalcIntType);
+                }
+                if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                    return Some(DataType::CalcStrType);
+                }
+                if attr == "eof" {
+                    return Some(DataType::CalcBoolType);
+                }
+            }
+            None
+        }
+        Expr::CastToType { type_name, .. } => {
+            let s = type_name.name_as_str();
+            if s == "bytes" {
+                Some(DataType::CalcBytesType)
+            } else if s == "str" {
+                Some(DataType::CalcStrType)
+            } else if s.starts_with('u') || s.starts_with('s') {
+                Some(DataType::CalcIntType)
+            } else if s.starts_with('f') {
+                Some(DataType::CalcFloatType)
+            } else {
+                None
+            }
+        }
+        Expr::Str(_) => Some(DataType::CalcStrType),
+        Expr::IfExp { if_true, if_false, .. } => {
+            let t1 = infer_expr_type_with_root(if_true, curr_class_name, root);
+            let t2 = infer_expr_type_with_root(if_false, curr_class_name, root);
+            match (t1, t2) {
+                (Some(a), Some(b)) => Some(combine_types(&a, &b)),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                (None, None) => None,
+            }
+        }
+        Expr::BinOp { left, op: Operator::Add, right } => {
+            let lt = infer_expr_type_with_root(left, curr_class_name, root);
+            let rt = infer_expr_type_with_root(right, curr_class_name, root);
+            if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            {
+                Some(DataType::CalcStrType)
+            } else {
+                Some(DataType::CalcIntType)
+            }
         }
         _ => None,
     }
@@ -893,15 +1004,22 @@ fn resolve_simple_type(
 
     // 1. Bit types
     if let Some(bit_str) = clean_str.strip_prefix('b') {
-        if let Ok(count) = bit_str.parse::<usize>() {
+        let (num_str, bit_endian) = if let Some(stripped) = bit_str.strip_suffix("le") {
+            (stripped, BitEndianness::Little)
+        } else if let Some(stripped) = bit_str.strip_suffix("be") {
+            (stripped, BitEndianness::Big)
+        } else {
+            (bit_str, BitEndianness::Big)
+        };
+        if let Ok(count) = num_str.parse::<usize>() {
             let underlying = if count == 1 {
                 DataType::Bits1 {
-                    bit_endian: BitEndianness::Big,
+                    bit_endian,
                 }
             } else {
                 DataType::Bits {
                     count,
-                    bit_endian: BitEndianness::Big,
+                    bit_endian,
                 }
             };
             if let Some(ename) = enum_name {
@@ -926,6 +1044,20 @@ fn resolve_simple_type(
     }
     if clean_str == "bool" {
         return Ok((DataType::CalcBoolType, None));
+    }
+    if clean_str == "bytes" {
+        return Ok((
+            DataType::Bytes {
+                size: None,
+                size_eos: false,
+                terminator: None,
+                include: false,
+                consume: false,
+                pad_right: None,
+                process: None,
+            },
+            None,
+        ));
     }
     if clean_str == "str" {
         return Ok((
@@ -1307,6 +1439,16 @@ fn resolve_instance(
             name: enum_name.clone(),
             underlying: None,
         }
+    } else if inst.size.is_some() || inst.size_eos.unwrap_or(false) {
+        DataType::Bytes {
+            size: size_expr.clone(),
+            size_eos: inst.size_eos.unwrap_or(false),
+            terminator: None,
+            include: false,
+            consume: false,
+            pad_right: None,
+            process: inst.process.clone(),
+        }
     } else if let Some(val_ex) = &value_expr {
         infer_expr_type(val_ex, scopes, registry).unwrap_or(DataType::CalcIntType)
     } else {
@@ -1437,6 +1579,18 @@ fn infer_expr_type(
                 (None, None) => None,
             }
         }
+        Expr::BinOp { left, op: Operator::Add, right } => {
+            let lt = infer_expr_type(left, scopes, registry);
+            let rt = infer_expr_type(right, scopes, registry);
+            if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            {
+                Some(DataType::CalcStrType)
+            } else {
+                Some(DataType::CalcIntType)
+            }
+        }
+        Expr::BinOp { .. } => Some(DataType::CalcIntType),
         Expr::Name(name) => {
             for (scope_name, scope_ksy) in scopes.iter().rev() {
                 if let Some(attr) = scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name)) {
@@ -1487,8 +1641,14 @@ fn infer_expr_type(
             }
         }
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" {
+            if attr == "to_i" || attr == "length" || attr == "size" {
                 return Some(DataType::CalcIntType);
+            }
+            if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                return Some(DataType::CalcStrType);
+            }
+            if attr == "eof" {
+                return Some(DataType::CalcBoolType);
             }
             let target_ksy = if let Expr::Name(name) = &**value {
                 if name == "_root" {
@@ -1578,6 +1738,34 @@ fn infer_expr_type(
                 }
             }
             None
+        }
+        Expr::Call { func, .. } => {
+            if let Expr::Attribute { attr, .. } = &**func {
+                if attr == "to_i" || attr == "length" || attr == "size" {
+                    return Some(DataType::CalcIntType);
+                }
+                if attr == "to_s" || attr == "substring" || attr == "reverse" {
+                    return Some(DataType::CalcStrType);
+                }
+                if attr == "eof" {
+                    return Some(DataType::CalcBoolType);
+                }
+            }
+            None
+        }
+        Expr::CastToType { type_name, .. } => {
+            let s = type_name.name_as_str();
+            if s == "bytes" {
+                Some(DataType::CalcBytesType)
+            } else if s == "str" {
+                Some(DataType::CalcStrType)
+            } else if s.starts_with('u') || s.starts_with('s') {
+                Some(DataType::CalcIntType)
+            } else if s.starts_with('f') {
+                Some(DataType::CalcFloatType)
+            } else {
+                None
+            }
         }
         _ => None,
     }

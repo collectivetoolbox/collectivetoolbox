@@ -153,7 +153,7 @@ pub struct AppleSingleDouble_Entry {
     pub _root: SharedType<AppleSingleDouble>,
     pub _parent: SharedType<AppleSingleDouble>,
     pub _self: SharedType<Self>,
-    type: RefCell<AppleSingleDouble_Entry_Types>,
+    r#type: RefCell<AppleSingleDouble_Entry_Types>,
     ofs_body: RefCell<u32>,
     len_body: RefCell<u32>,
     _io: RefCell<BytesReader>,
@@ -209,7 +209,7 @@ impl KStruct for AppleSingleDouble_Entry {
         let _rrc = self_rc._root.get_value().borrow().upgrade();
         let _prc = self_rc._parent.get_value().borrow().upgrade();
         let _r = _rrc.as_ref().unwrap();
-        *self_rc.type.borrow_mut() = (_io.read_u4be()? as i64).try_into()?;
+        *self_rc.r#type.borrow_mut() = (_io.read_u4be()? as i64).try_into()?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?.into();
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?.into();
         Ok(())
@@ -229,7 +229,7 @@ impl AppleSingleDouble_Entry {
         self.f_body.set(true);
         let _pos = _io.pos();
         _io.seek(*self.ofs_body() as usize)?;
-        match *self.type() {
+        match *self.r#type() {
             AppleSingleDouble_Entry_Types::FinderInfo => {
                 *self.body_raw.borrow_mut() = _io.read_bytes(*self.len_body() as usize)?.into();
                 let body_raw = self.body_raw.borrow();
@@ -246,8 +246,8 @@ impl AppleSingleDouble_Entry {
     }
 }
 impl AppleSingleDouble_Entry {
-    pub fn type(&self) -> Ref<'_, AppleSingleDouble_Entry_Types> {
-        self.type.borrow()
+    pub fn r#type(&self) -> Ref<'_, AppleSingleDouble_Entry_Types> {
+        self.r#type.borrow()
     }
 }
 impl AppleSingleDouble_Entry {

@@ -59,6 +59,25 @@ pub fn compile_to_rust(spec: &ClassSpec) -> Result<String> {
     Ok(compile_class(spec))
 }
 
+/// Escapes a Rust keyword with a raw identifier prefix (`r#`).
+/// This is intentionally different from upstream which tracks this problem as <https://github.com/kaitai-io/kaitai_struct/issues/90>
+#[must_use]
+pub fn escape_rust_keyword(name: &str) -> String {
+    if name.starts_with("r#") {
+        return name.to_string();
+    }
+    match name {
+        "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern"
+        | "false" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" | "match"
+        | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "static"
+        | "struct" | "trait" | "true" | "type" | "unsafe" | "use" | "where"
+        | "while" | "async" | "await" | "dyn" | "abstract" | "become" | "box"
+        | "do" | "final" | "macro" | "override" | "priv" | "typeof" | "unsized"
+        | "virtual" | "yield" | "try" => format!("r#{name}"),
+        _ => name.to_string(),
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
