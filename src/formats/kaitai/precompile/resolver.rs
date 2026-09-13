@@ -461,15 +461,46 @@ fn infer_expr_type_with_root(
                 (None, None) => None,
             }
         }
-        Expr::BinOp { left, op: Operator::Add, right } => {
+        Expr::FloatNum(_) => Some(DataType::CalcFloatType),
+        Expr::IntNum(x) => {
+            if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
+                Some(DataType::CalcIntType)
+            } else if *x >= 0 && *x <= i128::from(u32::MAX) {
+                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+            } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
+                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+            } else {
+                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+            }
+        }
+        Expr::Bool(_) | Expr::Compare { .. } | Expr::BoolOp { .. } => {
+            Some(DataType::CalcBoolType)
+        }
+        Expr::UnaryOp { op: UnaryOp::Not, .. } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp { operand, .. } => infer_expr_type_with_root(operand, curr_class_name, root),
+        Expr::BinOp { left, op, right } => {
             let lt = infer_expr_type_with_root(left, curr_class_name, root);
             let rt = infer_expr_type_with_root(right, curr_class_name, root);
-            if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            if *op == Operator::Add {
+                if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                    || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                {
+                    return Some(DataType::CalcStrType);
+                }
+            }
+            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
+                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
             {
-                Some(DataType::CalcStrType)
-            } else {
-                Some(DataType::CalcIntType)
+                return match (lt, rt) {
+                    (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
+                    (Some(t), None) | (None, Some(t)) => Some(t),
+                    _ => Some(DataType::CalcFloatType),
+                };
+            }
+            match (lt, rt) {
+                (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
+                (Some(t), None) | (None, Some(t)) => Some(t),
+                _ => Some(DataType::CalcIntType),
             }
         }
         Expr::Name(name) => {
@@ -522,12 +553,14 @@ fn update_instance_types(root: &mut ClassSpec) {
         for class_name in &all_names {
             let Some(curr) = find_class_spec(root, class_name) else { continue };
             for (inst_id, inst) in &curr.instances {
-                if matches!(inst.data_type, DataType::CalcIntType) {
-                    if let Some(val_ex) = &inst.value_expr {
-                        if let Some(inferred) = infer_expr_type_with_root(val_ex, class_name, root) {
-                            if !matches!(inferred, DataType::SwitchType { .. }) {
-                                updates.push((class_name.clone(), inst_id.clone(), inferred));
-                            }
+                if let Some(val_ex) = &inst.value_expr {
+                    if let Some(inferred) = infer_expr_type_with_root(val_ex, class_name, root) {
+                        if !matches!(inferred, DataType::SwitchType { .. })
+                            && (matches!(inst.data_type, DataType::CalcIntType)
+                                || (matches!(inferred, DataType::Float { .. } | DataType::CalcFloatType)
+                                    && !matches!(inst.data_type, DataType::Float { .. } | DataType::CalcFloatType)))
+                        {
+                            updates.push((class_name.clone(), inst_id.clone(), inferred));
                         }
                     }
                 }
@@ -1149,13 +1182,13 @@ fn resolve_attr_data_type(
         }
     };
 
-    let final_type = if repeat_mode != RepeatMode::None {
+    let final_type = if repeat_mode == RepeatMode::None {
+        base_type
+    } else {
         DataType::ArrayType {
             element: Box::new(base_type),
             repeat: repeat_mode,
         }
-    } else {
-        base_type
     };
 
     Ok((final_type, raw_id, io_id, external_types))
@@ -1720,8 +1753,18 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                 endian: e1.or(*e2),
             }
         }
-        (DataType::CalcFloatType, DataType::Float { .. })
-        | (DataType::Float { .. }, DataType::CalcFloatType) => DataType::CalcFloatType,
+        (DataType::CalcFloatType, DataType::Float { width, endian })
+        | (DataType::Float { width, endian }, DataType::CalcFloatType) => {
+            if *width == 4 {
+                DataType::Float { width: 4, endian: *endian }
+            } else {
+                DataType::CalcFloatType
+            }
+        }
+        (DataType::CalcFloatType, _) | (_, DataType::CalcFloatType) => DataType::CalcFloatType,
+        (DataType::Float { width, endian }, _) | (_, DataType::Float { width, endian }) => {
+            DataType::Float { width: *width, endian: *endian }
+        }
         (DataType::Bytes { .. } | DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) => {
             DataType::CalcBytesType
         }
@@ -1755,18 +1798,28 @@ fn infer_expr_type(
             operand,
         } => infer_expr_type(operand, scopes, registry),
         Expr::IntNum(x) => {
-            if *x >= 0 && *x <= 127 {
-                Some(DataType::Int1 { signed: true })
-            } else if *x >= 0 && *x <= 255 {
-                Some(DataType::Int1 { signed: false })
-            } else {
+            if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
                 Some(DataType::CalcIntType)
+            } else if *x >= 0 && *x <= i128::from(u32::MAX) {
+                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+            } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
+                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+            } else {
+                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
             }
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
         Expr::List(elements) => {
             // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
-            let elem_type = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)).unwrap_or(DataType::CalcIntType);
+            let mut elem_type = DataType::CalcIntType;
+            if let Some(first) = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)) {
+                elem_type = first;
+                for e in elements.iter().skip(1) {
+                    if let Some(t) = infer_expr_type(e, scopes, registry) {
+                        elem_type = combine_types(&elem_type, &t);
+                    }
+                }
+            }
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
                 // Reason for fallback: list length integer conversion overflow defaults to 0
@@ -1784,15 +1837,29 @@ fn infer_expr_type(
                 (None, None) => None,
             }
         }
-        Expr::BinOp { left, op: Operator::Add, right } => {
+        Expr::BinOp { left, op, right } => {
             let lt = infer_expr_type(left, scopes, registry);
             let rt = infer_expr_type(right, scopes, registry);
-            if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+            if *op == Operator::Add {
+                if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                    || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
+                {
+                    return Some(DataType::CalcStrType);
+                }
+            }
+            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
+                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
             {
-                Some(DataType::CalcStrType)
-            } else {
-                Some(DataType::CalcIntType)
+                return match (lt, rt) {
+                    (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
+                    (Some(t), None) | (None, Some(t)) => Some(t),
+                    _ => Some(DataType::CalcFloatType),
+                };
+            }
+            match (lt, rt) {
+                (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
+                (Some(t), None) | (None, Some(t)) => Some(t),
+                _ => Some(DataType::CalcIntType),
             }
         }
         Expr::EnumByLabel { enum_name, .. } => {
@@ -1807,8 +1874,26 @@ fn infer_expr_type(
             }
             None
         }
-        Expr::BinOp { .. } => Some(DataType::CalcIntType),
         Expr::Name(name) => {
+            if name == "_root" {
+                if let Some((root_name, _)) = scopes.first() {
+                    return Some(DataType::UserType {
+                        names: root_name.to_vec(),
+                        is_external: false,
+                        args: Vec::new(),
+                    });
+                }
+            } else if name == "_parent" {
+                if scopes.len() >= 2 {
+                    if let Some((parent_name, _)) = scopes.get(scopes.len().saturating_sub(2)) {
+                        return Some(DataType::UserType {
+                            names: parent_name.to_vec(),
+                            is_external: false,
+                            args: Vec::new(),
+                        });
+                    }
+                }
+            }
             for (scope_name, scope_ksy) in scopes.iter().rev() {
                 if let Some(attr) = scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name)) {
                     if let Some(enum_name) = &attr.enum_name {
@@ -1877,6 +1962,21 @@ fn infer_expr_type(
                             underlying: None,
                         });
                     }
+                    if let Some(val) = &inst.value {
+                        let val_ex = match val {
+                            ValueOrExpr::Expr(s) => parse_expr(s).ok(),
+                            ValueOrExpr::Int(i) => Some(Expr::IntNum(i128::from(*i))),
+                            ValueOrExpr::Float(f) => Some(Expr::FloatNum(*f)),
+                            ValueOrExpr::Bool(b) => Some(Expr::Bool(*b)),
+                        };
+                        if let Some(val_ex) = val_ex {
+                            let mut new_scopes = scopes.to_vec();
+                            new_scopes.push((scope_name, scope_ksy));
+                            if let Some(dt) = infer_expr_type(&val_ex, &new_scopes, registry) {
+                                return Some(dt);
+                            }
+                        }
+                    }
                 }
             }
             None
@@ -1899,6 +1999,19 @@ fn infer_expr_type(
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
                 return Some(DataType::CalcStrType);
+            }
+            if attr == "_parent" {
+                if let Some(DataType::UserType { names, .. }) = infer_expr_type(value, scopes, registry) {
+                    if names.len() > 1 {
+                        let mut pnames = names.clone();
+                        pnames.pop();
+                        return Some(DataType::UserType {
+                            names: pnames,
+                            is_external: false,
+                            args: Vec::new(),
+                        });
+                    }
+                }
             }
             if attr == "eof" {
                 return Some(DataType::CalcBoolType);

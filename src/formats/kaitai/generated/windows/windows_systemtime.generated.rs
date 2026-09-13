@@ -2,8 +2,8 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::{BytesReader, KResult, KStream, KStruct, OptRc, SharedType};
-use std::cell::{Ref, RefCell};
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * Microsoft Windows SYSTEMTIME structure, stores individual components
@@ -13,18 +13,18 @@ use std::cell::{Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct WindowsSystemtime {
-    pub(crate) root: SharedType<WindowsSystemtime>,
-    pub(crate) parent: SharedType<WindowsSystemtime>,
-    pub(crate) self_shared: SharedType<Self>,
-    pub year: RefCell<u16>,
-    pub month: RefCell<u16>,
-    pub dow: RefCell<u16>,
-    pub day: RefCell<u16>,
-    pub hour: RefCell<u16>,
-    pub min: RefCell<u16>,
-    pub sec: RefCell<u16>,
-    pub msec: RefCell<u16>,
-    io: RefCell<BytesReader>,
+    pub(crate) _root: SharedType<WindowsSystemtime>,
+    pub(crate) _parent: SharedType<WindowsSystemtime>,
+    pub(crate) _self_shared: SharedType<Self>,
+    year: RefCell<u16>,
+    month: RefCell<u16>,
+    dow: RefCell<u16>,
+    day: RefCell<u16>,
+    hour: RefCell<u16>,
+    min: RefCell<u16>,
+    sec: RefCell<u16>,
+    msec: RefCell<u16>,
+    _io: RefCell<BytesReader>,
 }
 impl KStruct for WindowsSystemtime {
     type Root = WindowsSystemtime;
@@ -36,18 +36,19 @@ impl KStruct for WindowsSystemtime {
         root: SharedType<Self::Root>,
         parent: SharedType<Self::Parent>,
     ) -> KResult<()> {
-        *self_rc.io.borrow_mut() = io.clone();
-        self_rc.root.set(root.get());
-        self_rc.parent.set(parent.get());
-        self_rc.self_shared.set(Ok(self_rc.clone()));
-        *self_rc.year.borrow_mut() = io.read_u2le()?;
-        *self_rc.month.borrow_mut() = io.read_u2le()?;
-        *self_rc.dow.borrow_mut() = io.read_u2le()?;
-        *self_rc.day.borrow_mut() = io.read_u2le()?;
-        *self_rc.hour.borrow_mut() = io.read_u2le()?;
-        *self_rc.min.borrow_mut() = io.read_u2le()?;
-        *self_rc.sec.borrow_mut() = io.read_u2le()?;
-        *self_rc.msec.borrow_mut() = io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
+        self_rc._root.set(root.get());
+        self_rc._parent.set(parent.get());
+        self_rc._self_shared.set(Ok(self_rc.clone()));
+        let _io = io;
+        *self_rc.year.borrow_mut() = _io.read_u2le()?;
+        *self_rc.month.borrow_mut() = _io.read_u2le()?;
+        *self_rc.dow.borrow_mut() = _io.read_u2le()?;
+        *self_rc.day.borrow_mut() = _io.read_u2le()?;
+        *self_rc.hour.borrow_mut() = _io.read_u2le()?;
+        *self_rc.min.borrow_mut() = _io.read_u2le()?;
+        *self_rc.sec.borrow_mut() = _io.read_u2le()?;
+        *self_rc.msec.borrow_mut() = _io.read_u2le()?;
         Ok(())
     }
 }
@@ -64,7 +65,7 @@ impl WindowsSystemtime {
 }
 
 /**
- * Month (1 = January, 2 = February, etc.)
+ * Month (January = 1)
  */
 impl WindowsSystemtime {
     pub fn month(&self) -> Ref<'_, u16> {
@@ -73,7 +74,7 @@ impl WindowsSystemtime {
 }
 
 /**
- * Day of week (0 = Sunday, 1 = Monday, etc.)
+ * Day of week (Sun = 0)
  */
 impl WindowsSystemtime {
     pub fn dow(&self) -> Ref<'_, u16> {
@@ -127,6 +128,6 @@ impl WindowsSystemtime {
 }
 impl WindowsSystemtime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
-        self.io.borrow()
+        self._io.borrow()
     }
 }

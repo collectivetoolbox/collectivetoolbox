@@ -2,6 +2,21 @@
 
 pub use super::*;
 
+#[path = "windows/regf.generated.rs"]
+pub mod regf;
+pub use regf::*;
+#[path = "windows/windows_lnk_file.generated.rs"]
+pub mod windows_lnk_file;
+pub use windows_lnk_file::*;
+#[path = "windows/windows_minidump.generated.rs"]
+pub mod windows_minidump;
+pub use windows_minidump::*;
+#[path = "windows/windows_resource_file.generated.rs"]
+pub mod windows_resource_file;
+pub use windows_resource_file::*;
+#[path = "windows/windows_shell_items.generated.rs"]
+pub mod windows_shell_items;
+pub use windows_shell_items::*;
 #[path = "windows/windows_systemtime.generated.rs"]
 pub mod windows_systemtime;
 pub use windows_systemtime::*;

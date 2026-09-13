@@ -6,7 +6,6 @@ applyTo: '**'
 - A copy of dependencies are in `vendor/ctb-vendored/`. These can be referenced but should never be edited; they are auto-updated from crates.io. Similarly, the dependencies in `vendor/upstream-for-reference` should never be updated. Limited patches to other folders within the `vendor/` folder are acceptable when necessary.
 - You may write important notes you would like to save for the long term into the `memories/` folder in the repository. These will be reviewed and managed as part of the code.
 - If `get_test_help_bytes` fails, or some other failures related to assets loading, it means the asset bundle failed to build. This happens intermittently, particularly when running whole-workspace tests. To fix this, run `cargo clean` and re-test.
-- The tests aren't fast, but they sometimes deadlock too; this is the case if they produce no new output for a minute or more. Compilation also seems to deadlock occasionally.
 - Tests cannot listen on any ports; they need to use other approaches, e.g. mocks, in such cases.
 - Prefer building or testing individual workspace crates. A full build takes 5 to 10 minutes.
 - To see the latest changes, use `git diff origin..HEAD`; I often commit while the agent is running for ease of reviewing, so `git diff` will be blank.
@@ -37,18 +36,9 @@ applyTo: '**'
 - Use secure best practices and patterns, for instance never passing secrets as command-line arguments, or ensuring that secrets are zeroized and have minimal lifetime and cloning in memory.
 - When writing shell scripts, never use `rm -f`, `cp -f`, or similar. Check for the failure cases and handle them explicitly instead.
 - Avoid returning HTTP 5xx errors if possible. The response bodies can be discarded by the CDN, making them confusing to debug.
-- Never add non-layout Tailwind/EncreCSS styles (such as text size, font weight, letter spacing, background/text colors, e.g. text-xs, font-bold, text-gray-500, tracking-wider) to templates. Never use faux-headers (such as span elements with utility styling classes) in templates; use proper semantic HTML tags (like h2, h3) and ensure high-contrast accessible text styling. Project-wide stylesheet is preferred for most uses. Use semantic HTML markup.
-  - For the vast majority of use cases you shouldn't need to add new CSS other than positioning of widgets, unless you're adding specifically a new themeable widget component.
-- Use icon assets instead of inline SVG if available.
-- Avoid inline JavaScript or CSS in templates.
-- Prefer `rem` CSS units over `px`.
-- Do not create new ad-hoc components, such as button styling, unless specifically requested. If a specific concept, like ".btn-secondary" or ".btn-secondary.selected" is missing, add it to the appropriate component CSS file. Do not reinvent wheels. Use CSS classes sparingly, to supplement HTML where needed without redundancy (use `<button>`, not `<button class="button">`).
 - If you reuse algorithms or code from another file, include a comment noting the source.
 - Never delete license blocks or copyright information.
-- Design guidelines are maintained in docs/design-system.md. It should be kept up to date with new UI components where applicable.
-- Avoid !important in CSS; prefer precedence corrections.
 - Any important or nontrivial code should have test coverage.
-- Prefer rem sizes, not px or em.
 - The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
 - Panicing unwrap, expect, etc. should not be introduced in new code.
 - Indexing that may panic is prohibited by Clippy lints.
@@ -64,10 +54,20 @@ applyTo: '**'
   - Infallible cases and invariants must use ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar, not fallbacks like unwrap_or(), to avoid hiding broken assumptions.
   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
 - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
-- Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
+- Don't remove the standard file boilerplate even though the standard use of "allow" in them causes a Clippy warning.
 - If you make changes in troubleshooting that don't work, remove them later.
-- Use the newtype pattern whenever it may reduce confusion.
+- Use the newtype pattern, or branded types in JavaScript, whenever it may reduce confusion.
 - Do not add backticks around actual words/names of tools in docblocks just because Clippy complains about them (like MathML or StageL); add them to clippy.toml. Only add backticks for code, variable names, and similar.
+
+- Never add non-layout Tailwind/EncreCSS styles (such as text size, font weight, letter spacing, background/text colors, e.g. text-xs, font-bold, text-gray-500, tracking-wider) to templates. Never use faux-headers (such as span elements with utility styling classes) in templates; use proper semantic HTML tags (like h2, h3) and ensure high-contrast accessible text styling. Project-wide stylesheet is preferred for most uses. Use semantic HTML markup.
+  - For the vast majority of use cases you shouldn't need to add new CSS other than positioning of widgets, unless you're adding specifically a new themeable widget component.
+- Use icon assets instead of inline SVG if available.
+- Avoid inline JavaScript or CSS in templates.
+- Prefer `rem` CSS units over `px`.
+- Do not create new ad-hoc components, such as button styling, unless specifically requested. If a specific concept, like ".btn-secondary" or ".btn-secondary.selected" is missing, add it to the appropriate component CSS file. Do not reinvent wheels. Use CSS classes sparingly, to supplement HTML where needed without redundancy (use `<button>`, not `<button class="button">`).
+- Design guidelines are maintained in docs/design-system.md. It should be kept up to date with new UI components where applicable.
+- Avoid !important in CSS; prefer precedence corrections.
+- Prefer rem sizes, not px or em.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

@@ -98,8 +98,6 @@ fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=precompile");
     println!("cargo:rerun-if-changed=codegen.rs");
     println!("cargo:rerun-if-changed=codegen");
-    println!("cargo:rerun-if-env-changed=CTB_KAITAI_ALL");
-    println!("cargo:rerun-if-env-changed=CTB_KAITAI_GENERATE");
 
     if !definitions_dir.exists() {
         return Ok(());
@@ -155,24 +153,7 @@ fn main() -> Result<()> {
     }
 
     // 4. Compile .ksy files into .generated.rs
-    let compile_all = std::env::var("CTB_KAITAI_ALL").is_ok();
-    let generate_enabled = compile_all || std::env::var("CTB_KAITAI_GENERATE").is_ok();
-    let to_compile: Vec<_> = if compile_all {
-        ksy_files.clone()
-    } else if generate_enabled {
-        ksy_files
-            .iter()
-            .filter(|(stem, _, _)| {
-                matches!(
-                    stem.as_str(),
-                    "windows_systemtime"
-                )
-            })
-            .cloned()
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let to_compile = ksy_files.clone();
 
     let mut updated_cache = cache.clone();
     for (stem, ksy_path, rel_path) in &to_compile {

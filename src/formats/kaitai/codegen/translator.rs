@@ -690,9 +690,24 @@ fn translate_bin_op(
                 Operator::LShift => "<<",
                 Operator::RShift => ">>",
             };
-            let combined = combine_types(t1, t2);
+            let mut combined = combine_types(t1, t2);
+            if matches!(op, Operator::BitAnd | Operator::BitOr | Operator::BitXor) {
+                if let DataType::IntMulti { width, endian, .. } = combined {
+                    combined = DataType::IntMulti {
+                        signed: false,
+                        width,
+                        endian,
+                    };
+                } else if matches!(combined, DataType::CalcIntType) {
+                    combined = DataType::IntMulti {
+                        signed: false,
+                        width: 8,
+                        endian: None,
+                    };
+                }
+            }
             let ct = kaitai_primitive_to_native(&combined);
-            return format!("(({l} as {ct}) {op_str} ({r} as {ct}))");
+            return format!("((({l}) as {ct}) {op_str} (({r}) as {ct}))");
         }
     }
 
@@ -751,7 +766,7 @@ fn translate_compare(
             let ct = kaitai_primitive_to_native(&combined);
             let l = translate_expr(left, ctx);
             let r = translate_expr(right, ctx);
-            return format!("(({l} as {ct}) {op_str} ({r} as {ct}))");
+            return format!("((({l}) as {ct}) {op_str} (({r}) as {ct}))");
         }
     }
     let l_raw = translate_expr(left, ctx);
@@ -831,6 +846,11 @@ fn translate_if_exp(
             let ct = kaitai_primitive_to_native(&combined);
             return format!("if {cond_str} {{ ({true_raw}) as {ct} }} else {{ ({false_raw}) as {ct} }}");
         }
+    }
+
+    let is_stream = |t: &str| t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" || t.ends_with("._io");
+    if is_stream(&true_raw) || is_stream(&false_raw) {
+        return format!("if {cond_str} {{ KStream::clone(&*{t_clean}) }} else {{ KStream::clone(&*{f_clean}) }}");
     }
 
     format!("if {cond_str} {{ {true_raw} }} else {{ {false_raw} }}")
@@ -1033,12 +1053,14 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
     let current_class = ctx.current_class;
     match expr {
         Expr::IntNum(x) => {
-            if (0..=127).contains(x) {
-                Some(DataType::Int1 { signed: true })
-            } else if (128..=255).contains(x) {
-                Some(DataType::Int1 { signed: false })
-            } else {
+            if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
                 Some(DataType::CalcIntType)
+            } else if *x >= 0 && *x <= i128::from(u32::MAX) {
+                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+            } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
+                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+            } else {
+                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
             }
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
@@ -1058,7 +1080,15 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
         Expr::UnaryOp { operand, .. } => detect_type_approx(operand, ctx),
         Expr::List(elements) => {
             // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
-            let elem_type = elements.first().and_then(|e| detect_type_approx(e, ctx)).unwrap_or(DataType::CalcIntType);
+            let mut elem_type = DataType::CalcIntType;
+            if let Some(first) = elements.first().and_then(|e| detect_type_approx(e, ctx)) {
+                elem_type = first;
+                for e in elements.iter().skip(1) {
+                    if let Some(t) = detect_type_approx(e, ctx) {
+                        elem_type = combine_types(&elem_type, &t);
+                    }
+                }
+            }
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
                 // Reason for fallback: list length integer conversion overflow defaults to 0
@@ -1164,6 +1194,15 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 {
                     return Some(DataType::CalcStrType);
                 }
+            }
+            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
+                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
+            {
+                return match (lt, rt) {
+                    (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
+                    (Some(t), None) | (None, Some(t)) => Some(t),
+                    _ => Some(DataType::CalcFloatType),
+                };
             }
             if let (Some(t1), Some(t2)) = (&lt, &rt) {
                 if is_numeric_type(t1) && is_numeric_type(t2) {
@@ -1362,14 +1401,30 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                     width: (*w1).max(*w2),
                     endian: *e1,
                 }
+            } else if *w1 >= 4 || *w2 >= 4 {
+                DataType::IntMulti {
+                    signed: false,
+                    width: (*w1).max(*w2).max(8),
+                    endian: *e1,
+                }
             } else {
-                DataType::CalcIntType
+                DataType::IntMulti {
+                    signed: true,
+                    width: 4,
+                    endian: *e1,
+                }
             }
         }
-        (DataType::Bytes { .. } | DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) => {
+        (DataType::CalcBytesType, DataType::Bytes { .. })
+        | (DataType::Bytes { .. }, DataType::CalcBytesType)
+        | (DataType::Bytes { .. }, DataType::Bytes { .. })
+        | (DataType::CalcBytesType, DataType::CalcBytesType) => {
             DataType::CalcBytesType
         }
-        (DataType::Str { .. } | DataType::CalcStrType, DataType::Str { .. } | DataType::CalcStrType) => {
+        (DataType::CalcStrType, DataType::Str { .. })
+        | (DataType::Str { .. }, DataType::CalcStrType)
+        | (DataType::Str { .. }, DataType::Str { .. })
+        | (DataType::CalcStrType, DataType::CalcStrType) => {
             DataType::CalcStrType
         }
         (DataType::CalcBoolType | DataType::Bits1 { .. }, DataType::CalcBoolType | DataType::Bits1 { .. }) => {
@@ -1378,6 +1433,36 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
             t1_eff.clone()
         }
+        (DataType::CalcFloatType, DataType::Float { width, endian })
+        | (DataType::Float { width, endian }, DataType::CalcFloatType) => {
+            if *width == 4 {
+                DataType::Float { width: 4, endian: *endian }
+            } else {
+                DataType::CalcFloatType
+            }
+        }
+        (DataType::Float { width: w1, endian: e1 }, DataType::Float { width: w2, endian: e2 }) => {
+            DataType::Float {
+                width: (*w1).max(*w2),
+                endian: e1.or(*e2),
+            }
+        }
+        (DataType::CalcFloatType, other) if is_numeric_type(other) => DataType::CalcFloatType,
+        (other, DataType::CalcFloatType) if is_numeric_type(other) => DataType::CalcFloatType,
+        (DataType::Float { width, endian }, other) if is_numeric_type(other) => {
+            DataType::Float { width: *width, endian: *endian }
+        }
+        (other, DataType::Float { width, endian }) if is_numeric_type(other) => {
+            DataType::Float { width: *width, endian: *endian }
+        }
+        (DataType::CalcIntType, DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. }) => {
+            DataType::CalcIntType
+        }
+        (DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. }, DataType::CalcIntType) => {
+            DataType::CalcIntType
+        }
+        (DataType::CalcIntType, other) if is_numeric_type(other) => other.clone(),
+        (other, DataType::CalcIntType) if is_numeric_type(other) => other.clone(),
         (a, b) if is_numeric_type(a) && is_numeric_type(b) => DataType::CalcIntType,
         _ => DataType::CalcIntType,
     }
