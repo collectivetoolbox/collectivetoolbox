@@ -163,13 +163,15 @@ pub fn transform_test_content(src_name: &str, content: &str) -> Result<String> {
 
         // 5. Transform data read line:
         // let bytes = fs::read("../../src/<name>.bin").unwrap();
-        if trimmed.starts_with("let bytes = fs::read(") && trimmed.contains("../../src/") {
-            if let Some(start) = trimmed.find("../../src/") {
-                let after_prefix = &trimmed[start.saturating_add(10)..];
-                if let Some(end) = after_prefix.find(".bin\").unwrap();") {
-                    let bin_name = &after_prefix[..end.saturating_add(4)];
+        if trimmed.starts_with("let bytes = fs::read(") {
+            if let Some((_, after_prefix)) = trimmed.split_once("../../src/") {
+                if let Some((bin_stem, _)) = after_prefix.split_once(".bin\").unwrap();") {
+                    let bin_name = format!("{bin_stem}.bin");
                     let indent = line.len().saturating_sub(line.trim_start().len());
-                    let pad = &line[..indent];
+                    let pad = line
+                        .get(..indent)
+                        // Reason for fallback: default to unindented if line has no leading whitespace
+                        .unwrap_or("");
                     lines_out.push(format!(
                         "{pad}let manifest_dir = std::path::PathBuf::from(env!(\"CARGO_MANIFEST_DIR\"));"
                     ));
@@ -261,7 +263,11 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
         serde_yaml::Value::String(s) => {
             let trimmed = s.trim();
             if trimmed.starts_with('[') && trimmed.ends_with(']') {
-                let inner = &trimmed[1..trimmed.len().saturating_sub(1)];
+                let inner = trimmed
+                    .strip_prefix('[')
+                    .and_then(|str_val| str_val.strip_suffix(']'))
+                    // Reason for fallback: default to empty slice if inner array contents are missing
+                    .unwrap_or("");
                 let items: Vec<String> = inner
                     .split(',')
                     .map(|item| {
@@ -278,15 +284,15 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 format!("vec![{}]", items.join(", "))
             } else if s.contains("::") {
                 let parts: Vec<&str> = s.split("::").collect();
-                if parts.len() == 3 {
-                    let fmt = to_upper_camel_case(parts[0]);
-                    let enum_name = to_upper_camel_case(parts[1]);
-                    let variant = to_upper_camel_case(parts[2]);
+                if let [p0, p1, p2] = parts.as_slice() {
+                    let fmt = to_upper_camel_case(p0);
+                    let enum_name = to_upper_camel_case(p1);
+                    let variant = to_upper_camel_case(p2);
                     format!("{fmt}_{enum_name}::{variant}")
-                } else if parts.len() == 2 {
+                } else if let [p0, p1] = parts.as_slice() {
                     let fmt = to_upper_camel_case(current_format);
-                    let enum_name = to_upper_camel_case(parts[0]);
-                    let variant = to_upper_camel_case(parts[1]);
+                    let enum_name = to_upper_camel_case(p0);
+                    let variant = to_upper_camel_case(p1);
                     format!("{fmt}_{enum_name}::{variant}")
                 } else {
                     s.clone()
@@ -324,11 +330,8 @@ pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
             continue;
         }
 
-        if let Some(bracket_pos) = part.find('[') {
-            if let Some(end_bracket) = part.find(']') {
-                let field_name = &part[..bracket_pos];
-                let index_str = &part[bracket_pos.saturating_add(1)..end_bracket];
-
+        if let Some((field_name, rest)) = part.split_once('[') {
+            if let Some((index_str, _)) = rest.split_once(']') {
                 let is_inst = current_ksy
                     .map(|k| k.instances.contains_key(field_name))
                     // Reason for fallback: unknown attribute context defaults to sequence field access
@@ -520,9 +523,9 @@ pub fn regenerate_tests_from_kst(
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
             for line in cache_str.lines() {
                 let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                        cache.insert(parts[0].to_string(), (mtime, size));
+                if let [p0, p1, p2] = parts.as_slice() {
+                    if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
+                        cache.insert((*p0).to_string(), (mtime, size));
                     }
                 }
             }
@@ -634,9 +637,9 @@ pub fn regenerate_tests(
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
             for line in cache_str.lines() {
                 let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                        cache.insert(parts[0].to_string(), (mtime, size));
+                if let [p0, p1, p2] = parts.as_slice() {
+                    if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
+                        cache.insert((*p0).to_string(), (mtime, size));
                     }
                 }
             }
