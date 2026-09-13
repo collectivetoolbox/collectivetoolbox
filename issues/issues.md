@@ -36,8 +36,8 @@
 
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
-- Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation?
-- Kaitai Struct make sure all fixtures are tested
+- [x] Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation
+- [x] Kaitai Struct make sure all fixtures are tested
 
 - Regenerate Guix packaging in CI
 

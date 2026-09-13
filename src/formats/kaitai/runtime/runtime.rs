@@ -45,13 +45,14 @@ SOFTWARE.
 
 */
 
-use encoding::{label::encoding_from_whatwg_label, DecoderTrap};
+#[allow(clippy::wildcard_imports)]
+pub(crate) use ctb_utilities::*;
+
 use flate2::read::ZlibDecoder;
 
 use std::{
     any::{type_name, Any},
     cell::{Ref, RefCell, RefMut},
-    convert::TryInto,
     fmt,
     io::{Read, Seek, SeekFrom},
     ops::Deref,
@@ -77,6 +78,14 @@ pub enum KError {
     UndecidedEndianness { src_path: String },
 }
 pub type KResult<T> = Result<T, KError>;
+
+impl fmt::Display for KError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl std::error::Error for KError {}
 
 /// Details of the failed validation.
 ///
@@ -272,19 +281,12 @@ pub trait KStruct: Default {
         if let Some(rc) = opt_rc {
             rc
         } else {
-            let t_any = &t.get() as &dyn Any;
+            let t_any: &dyn Any = &t.get();
             //println!("`{}` is a '{}' type", type_name_of_val(&t), type_name::<Rc<U>>());
             match t_any.downcast_ref::<Rc<U>>() {
                 Some(as_result) => SharedType::<U>::new(Rc::clone(as_result)),
                 None => {
                     if panic {
-                        #[cfg(feature = "type_name_of_val")]
-                        panic!(
-                            "`{}` is not a '{}' type",
-                            std::any::type_name_of_val(&t),
-                            type_name::<Rc<U>>()
-                        );
-                        #[cfg(not(feature = "type_name_of_val"))]
                         panic!("`{:p}` is not a '{}' type", &t, type_name::<Rc<U>>());
                     }
                     SharedType::<U>::empty()
@@ -344,7 +346,8 @@ pub trait KStream {
     }
 
     fn read_s1(&self) -> KResult<i8> {
-        Ok(self.read_bytes(1)?[0] as i8)
+        let b = self.read_bytes(1)?[0];
+        Ok(i8::from_ne_bytes([b]))
     }
     fn read_s2be(&self) -> KResult<i16> {
         Ok(i16::from_be_bytes(self.read_bytes(2)?.try_into().unwrap()))
@@ -400,8 +403,8 @@ pub trait KStream {
         Ok(f64::from_le_bytes(self.read_bytes(8)?.try_into().unwrap()))
     }
 
-    fn get_state(&self) -> Ref<ReaderState>;
-    fn get_state_mut(&self) -> RefMut<ReaderState>;
+    fn get_state(&self) -> Ref<'_, ReaderState>;
+    fn get_state_mut(&self) -> RefMut<'_, ReaderState>;
 
     fn align_to_byte(&self) -> KResult<()> {
         let mut inner = self.get_state_mut();
@@ -585,7 +588,8 @@ impl BytesReader {
     }
 
     fn from_buffer(bytes: Vec<u8>) -> Self {
-        let file_size = bytes.len() as u64;
+        // Reason for fallback: in-memory buffer length exceeding u64 defaults to empty stream size 0
+        let file_size = u64::try_from(bytes.len()).unwrap_or(0);
         let r: Box<dyn ReadSeek> = Box::new(std::io::Cursor::new(bytes));
         BytesReader {
             state: RefCell::new(ReaderState::default()),
@@ -600,10 +604,14 @@ impl BytesReader {
             .buf
             .borrow_mut()
             .stream_position()?;
-        if self.pos() != cur_pos as usize {
+        // Reason for fallback: seek position exceeding target platform pointer width defaults to 0 offset
+        let cur_pos_usize = usize::try_from(cur_pos).unwrap_or(0);
+        if self.pos() != cur_pos_usize {
+            // Reason for fallback: stream position exceeding u64 seek range defaults to beginning of stream
+            let pos_u64 = u64::try_from(self.pos()).unwrap_or(0);
             self.buf
                 .borrow_mut()
-                .seek(SeekFrom::Start(self.pos() as u64))?;
+                .seek(SeekFrom::Start(pos_u64))?;
         }
         Ok(())
     }
@@ -614,16 +622,17 @@ impl KStream for BytesReader {
         Clone::clone(self)
     }
 
-    fn get_state(&self) -> Ref<ReaderState> {
+    fn get_state(&self) -> Ref<'_, ReaderState> {
         self.state.borrow()
     }
 
-    fn get_state_mut(&self) -> RefMut<ReaderState> {
+    fn get_state_mut(&self) -> RefMut<'_, ReaderState> {
         self.state.borrow_mut()
     }
 
     fn size(&self) -> usize {
-        self.file_size as usize
+        // Reason for fallback: file size exceeding pointer width cannot be represented in usize and defaults to 0
+        usize::try_from(self.file_size).unwrap_or(0)
     }
 
     fn read_bytes_not_aligned(&self, len: usize) -> KResult<Vec<u8>> {
@@ -682,18 +691,19 @@ pub fn bytes_terminate(bytes: &Vec<u8>, term: u8, include_term: bool) -> Vec<u8>
 }
 
 pub fn bytes_to_str(bytes: &Vec<u8>, label: &str) -> KResult<String> {
-    if let Some(enc) = encoding_from_whatwg_label(label) {
-        return Ok(enc
-            .decode(bytes.as_slice(), DecoderTrap::Replace)
-            .expect("this should never fail because we use DecoderTrap::Replace"));
+    if label.eq_ignore_ascii_case("cp437") || label.eq_ignore_ascii_case("ibm437") {
+        return ctb_formats_encoding::decode(
+            ctb_formats_encoding::CharEncoding::cp437(),
+            bytes,
+        )
+        .map_err(|e| KError::BytesDecodingError {
+            msg: e.to_string(),
+        });
     }
 
-    if label.eq_ignore_ascii_case("cp437") || label.eq_ignore_ascii_case("ibm437") {
-        use std::io::BufReader;
-        let reader = BufReader::new(bytes.as_slice());
-        let mut buffer = reader.bytes();
-        let mut r = cp437::Reader::new(&mut buffer);
-        return Ok(r.consume(bytes.len()));
+    if let Some(enc) = encoding_rs::Encoding::for_label(label.as_bytes()) {
+        let (cow, _had_errors) = enc.decode_without_bom_handling(bytes);
+        return Ok(cow.into_owned());
     }
 
     Err(KError::UnknownEncoding {
@@ -746,12 +756,20 @@ pub fn modulo(a: i64, b: i64) -> i64 {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use tempfile::tempdir;
 
-    #[test]
+    #[crate::ctb_test]
     fn basic_strip_right() {
         let b = vec![1, 2, 3, 4, 5, 5, 5, 5];
         let c = bytes_strip_right(&b, 5);
@@ -759,7 +777,7 @@ mod tests {
         assert_eq!([1, 2, 3, 4], c[..]);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn basic_read_bytes() {
         let b = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let reader = BytesReader::from(b);
@@ -776,7 +794,7 @@ mod tests {
         assert_eq!(reader.read_bytes(1).unwrap()[..], [8]);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bits_single() {
         let b = vec![0x80];
         let reader = BytesReader::from(b);
@@ -784,7 +802,7 @@ mod tests {
         assert_eq!(reader.read_bits_int_be(1).unwrap(), 1);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bits_multiple() {
         // 0xA0
         let b = vec![0b10100000];
@@ -795,7 +813,7 @@ mod tests {
         assert_eq!(reader.read_bits_int_be(1).unwrap(), 1);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bits_large() {
         let b = vec![0b10100000];
         let reader = BytesReader::from(b);
@@ -803,7 +821,7 @@ mod tests {
         assert_eq!(reader.read_bits_int_be(3).unwrap(), 5);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bits_span() {
         let b = vec![0x01, 0x80];
         let reader = BytesReader::from(b);
@@ -811,7 +829,7 @@ mod tests {
         assert_eq!(reader.read_bits_int_be(9).unwrap(), 3);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bits_too_large() {
         let b: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         let reader = BytesReader::from(b);
@@ -822,7 +840,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn read_bytes_term() {
         let b = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let reader = BytesReader::from(b);
@@ -835,9 +853,8 @@ mod tests {
             reader.read_bytes_term(3, true, false, true).unwrap()[..],
             [3]
         );
-        assert_eq!(
-            reader.read_bytes_term(3, false, true, true).unwrap()[..],
-            []
+        assert!(
+            reader.read_bytes_term(3, false, true, true).unwrap().is_empty()
         );
         assert_eq!(
             reader.read_bytes_term(5, true, true, true).unwrap()[..],
@@ -863,7 +880,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn process_xor_one_test() {
         let b = vec![0x66];
         let reader = BytesReader::from(b);
@@ -871,7 +888,7 @@ mod tests {
         assert_eq!(0x65, res[0]);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn process_xor_many_test() {
         let b = vec![0x66, 0x6F];
         let reader = BytesReader::from(b);
@@ -880,7 +897,7 @@ mod tests {
         assert_eq!(vec![0x65, 0x6C], res);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn process_rotate_left_test() {
         let b = vec![0x09, 0xAC];
         let reader = BytesReader::from(b);
@@ -889,7 +906,7 @@ mod tests {
         assert_eq!(expected, res);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn basic_seek() {
         let b = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let reader = BytesReader::from(b);
@@ -903,19 +920,35 @@ mod tests {
         reader.seek(9).unwrap();
     }
 
-    fn dump_and_open(bytes: &[u8]) -> BytesReader {
-        let tmp_dir = tempdir().unwrap();
-        let file_path = tmp_dir.path().join("test.txt");
-        {
-            let mut tmp_file = std::fs::File::create(file_path.clone()).unwrap();
-            tmp_file.write_all(bytes).unwrap();
-        }
-        BytesReader::open(file_path).unwrap()
+    #[crate::ctb_test]
+    fn test_bytes_to_str_cp437() -> anyhow::Result<()> {
+        let bytes = vec![0x30, 0x31, 0x41, 0x42, 0xdb, 0x9b];
+        let s = bytes_to_str(&bytes, "cp437")
+            .map_err(|e| anyhow::anyhow!("Decoding failed: {e:?}"))?;
+        assert_eq!(s, "01AB█¢");
+        Ok(())
     }
 
-    #[test]
+    #[crate::ctb_test]
+    fn test_bytes_to_str_utf8() -> anyhow::Result<()> {
+        let bytes = "Hello, 世界!".as_bytes().to_vec();
+        let s = bytes_to_str(&bytes, "utf-8")
+            .map_err(|e| anyhow::anyhow!("Decoding failed: {e:?}"))?;
+        assert_eq!(s, "Hello, 世界!");
+        Ok(())
+    }
+
+    fn dump_and_open(bytes: &[u8]) -> (tempfile::TempDir, BytesReader) {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let file_path = tmp_dir.path().join("test.txt");
+        std::fs::write(&file_path, bytes).unwrap();
+        let reader = BytesReader::open(file_path).unwrap();
+        (tmp_dir, reader)
+    }
+
+    #[crate::ctb_test]
     fn basic_read_bytes_file() {
-        let reader = dump_and_open(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let (_tmp, reader) = dump_and_open(&[1, 2, 3, 4, 5, 6, 7, 8]);
 
         assert_eq!(reader.read_bytes(4).unwrap()[..], [1, 2, 3, 4]);
         assert_eq!(reader.read_bytes(3).unwrap()[..], [5, 6, 7]);
@@ -929,9 +962,9 @@ mod tests {
         assert_eq!(reader.read_bytes(1).unwrap()[..], [8]);
     }
 
-    #[test]
+    #[crate::ctb_test]
     fn basic_seek_file() {
-        let reader = dump_and_open(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let (_tmp, reader) = dump_and_open(&[1, 2, 3, 4, 5, 6, 7, 8]);
 
         assert_eq!(reader.read_bytes(4).unwrap()[..], [1, 2, 3, 4]);
         let pos = reader.pos();

@@ -1,0 +1,21 @@
+[package]
+name = "kaitai"
+version = "0.11.0"
+edition = "2024"
+
+[lib]
+path = "runtime.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-formats-encoding = { path = "../../encoding" }
+ctb-utilities = { path = "../../../utilities" }
+encoding_rs = "0.8.35"
+flate2 = "1.0.31"
+unicode-segmentation = "1.12.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[lints]
+workspace = true

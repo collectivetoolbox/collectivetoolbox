@@ -55,6 +55,7 @@ pub mod spec;
 
 pub use codegen::*;
 pub use expr::*;
+pub use kaitai::*;
 pub use parser::*;
 pub use precompile::*;
 pub use spec::*;
@@ -66,6 +67,12 @@ static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&KAITAI_DATA_DIR, key)
 }
+
+#[cfg(test)]
+#[path = "data/fixtures/windows_systemtime.rs"]
+mod fixture_windows_systemtime;
+
+
 
 #[cfg(test)]
 #[allow(
@@ -146,6 +153,42 @@ mod tests {
         ensure!(ksy.types.contains_key("endian_elf"));
         Ok(())
     }
+
+
+
+    #[crate::ctb_test]
+    fn test_runtime_windows_systemtime() -> anyhow::Result<()> {
+        let bytes = vec![
+            0xea, 0x07, // year: 2026
+            0x09, 0x00, // month: 9
+            0x00, 0x00, // dow: 0 (Sunday)
+            0x0d, 0x00, // day: 13
+            0x0c, 0x00, // hour: 12
+            0x1e, 0x00, // min: 30
+            0x2d, 0x00, // sec: 45
+            0xf4, 0x01, // msec: 500
+        ];
+        let stream = BytesReader::from(bytes);
+        let rc = std::rc::Rc::new(fixture_windows_systemtime::WindowsSystemtime::default());
+        let root = OptRc::from(rc.clone());
+        fixture_windows_systemtime::WindowsSystemtime::read(
+            &root,
+            &stream,
+            SharedType::new(rc),
+            SharedType::empty(),
+        )?;
+        ensure!(*root.year() == 2026);
+        ensure!(*root.month() == 9);
+        ensure!(*root.dow() == 0);
+        ensure!(*root.day() == 13);
+        ensure!(*root.hour() == 12);
+        ensure!(*root.min() == 30);
+        ensure!(*root.sec() == 45);
+        ensure!(*root.msec() == 500);
+        Ok(())
+    }
+
+
 }
 
 /* License information for parts derived from Kaitai Struct:
