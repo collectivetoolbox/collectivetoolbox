@@ -280,7 +280,7 @@ gen_backup_dir="$(mktemp -d)"
 while IFS= read -r f; do
     mkdir -p "$gen_backup_dir/$(dirname "$f")"
     cp "$f" "$gen_backup_dir/$f"
-done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' \) \
+done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' -o -name 'generated.rs' \) \
     ! -path '*/packaging/guix/generated/*' \
     ! -path '*/vendor/*')
 
