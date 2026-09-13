@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 // license-linter:allow-non-AGPL
 /*

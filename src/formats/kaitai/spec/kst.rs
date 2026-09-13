@@ -112,6 +112,7 @@ pub fn parse_kst_file(path: &Path) -> Result<KstSpec> {
     clippy::unwrap_in_result,
     clippy::panic_in_result_fn,
     clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
