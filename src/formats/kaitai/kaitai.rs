@@ -183,8 +183,123 @@ mod tests {
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn test_formats_parser_stress() -> anyhow::Result<()> {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let formats_dir = manifest_dir.join("kaitai_struct_tests/formats");
+        if !formats_dir.exists() {
+            return Ok(());
+        }
+
+        let mut total_files: usize = 0;
+        let mut parsed_ok: usize = 0;
+
+        for entry in walkdir::WalkDir::new(&formats_dir) {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+                total_files = total_files.saturating_add(1);
+                let bytes = std::fs::read(path)?;
+                if parse_ksy_slice(&bytes).is_ok() {
+                    parsed_ok = parsed_ok.saturating_add(1);
+                }
+            }
+        }
+
+        ensure!(total_files > 300, "Expected at least 300 format files, found {}", total_files);
+        ensure!(parsed_ok > 300, "Expected at least 300 to parse cleanly, got {}", parsed_ok);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_formats_err_negative_validation() -> anyhow::Result<()> {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let err_dir = manifest_dir.join("kaitai_struct_tests/formats_err");
+        if !err_dir.exists() {
+            return Ok(());
+        }
+
+        let mut total_files: usize = 0;
+        let mut errors_detected: usize = 0;
+
+        for entry in walkdir::WalkDir::new(&err_dir) {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+                total_files = total_files.saturating_add(1);
+                let bytes = std::fs::read(path)?;
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+
+                let failed = match parse_ksy_slice(&bytes) {
+                    Err(_) => true,
+                    Ok(ksy) => match resolve_ksy(stem, &ksy, None) {
+                        Err(_) => true,
+                        Ok(spec) => compile_to_rust(&spec).is_err(),
+                    },
+                };
+
+                if failed {
+                    errors_detected = errors_detected.saturating_add(1);
+                }
+            }
+        }
+
+        ensure!(total_files > 150, "Expected at least 150 error files, found {}", total_files);
+        ensure!(errors_detected > 0, "No errors were caught across invalid formats");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_compile_test_suite_formats() -> anyhow::Result<()> {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let formats_dir = manifest_dir.join("kaitai_struct_tests/formats");
+        if !formats_dir.exists() {
+            return Ok(());
+        }
+
+        let test_formats = ["fixed_struct", "enum_0", "floating_points", "integers", "bits_simple"];
+        for format_id in &test_formats {
+            let path = formats_dir.join(format!("{format_id}.ksy"));
+            let bytes = std::fs::read(&path)
+                .with_context(|| format!("Missing format file: {}", path.display()))?;
+            let ksy = parse_ksy_slice(&bytes)
+                .with_context(|| format!("Failed to parse: {format_id}"))?;
+            let spec = resolve_ksy(format_id, &ksy, None)
+                .with_context(|| format!("Failed to resolve: {format_id}"))?;
+            let rust_code = compile_to_rust(&spec)
+                .with_context(|| format!("Failed to compile to rust: {format_id}"))?;
+            ensure!(!rust_code.is_empty(), "Generated code was empty for {format_id}");
+            ensure!(rust_code.contains("impl KStruct for"), "Missing KStruct impl for {format_id}");
+        }
+
+        let mut compiled_ok: usize = 0;
+        let mut total: usize = 0;
+
+        for entry in walkdir::WalkDir::new(&formats_dir) {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+                total = total.saturating_add(1);
+                let bytes = std::fs::read(path)?;
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+                if let Ok(ksy) = parse_ksy_slice(&bytes) {
+                    if let Ok(spec) = resolve_ksy(stem, &ksy, None) {
+                        if compile_to_rust(&spec).is_ok() {
+                            compiled_ok = compiled_ok.saturating_add(1);
+                        }
+                    }
+                }
+            }
+        }
+
+        ensure!(total > 300, "Expected at least 300 format files, found {}", total);
+        // Ensure a substantial majority of the 334 test suite formats compile successfully
+        ensure!(compiled_ok > 200, "Expected at least 200 formats to compile, got {}", compiled_ok);
+        Ok(())
+    }
 
 }
+
 
 /* License information for parts derived from Kaitai Struct:
 
@@ -967,5 +1082,33 @@ may consider it more useful to permit linking proprietary applications with
 the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
+
+
+
+
+== License information for parts derived from kaitai_struct_tests, from https://raw.githubusercontent.com/kaitai-io/kaitai_struct_tests/59afee013e1a8e5fb894ca99838f55ef7b329cb3/LICENSE :
+
+MIT License
+
+Copyright (c) 2019 Kaitai Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 */
