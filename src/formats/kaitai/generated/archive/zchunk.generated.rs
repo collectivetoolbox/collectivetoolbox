@@ -44,7 +44,7 @@ impl KStruct for Zchunk {
             *self_rc.chunks.borrow_mut() = Vec::new();
             let l_chunks = usize::try_from(self_rc.header_rest().index().chunks_metadata().len())?;
             for _i in 0_usize..l_chunks {
-                self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
+                self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(_i).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
             }
         }
         Ok(())
@@ -196,7 +196,7 @@ impl KStruct for Zchunk_ChecksumType {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.raw.borrow_mut() = t;
         let _tmpa = &*self_rc.raw();
-        if !(((*self_rc.len_checksum()? as i32) != (0 as i32))) {
+        if !((*self_rc.len_checksum()? != 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/checksum_type/seq/0".to_string() }));
         }
         Ok(())
@@ -222,7 +222,7 @@ impl Zchunk_ChecksumType {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = i64::try_from(*self.raw().value()?)?.try_into()?;
+        *self.value.borrow_mut() = i64::from(*self.raw().value()?).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -422,7 +422,7 @@ impl Zchunk_CompressedInteger {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (u64::try_from(((((((((((((((((((*self.groups().get(0_usize).ok_or(KError::CastError)?.value()) | (u64::try_from(if *self.len()? >= 2 { (i32::try_from(*self.groups().get(1_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(7_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 3 { (i32::try_from(*self.groups().get(2_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(14_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 4 { (i32::try_from(*self.groups().get(3_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(21_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 5 { (i32::try_from(*self.groups().get(4_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(28_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 6 { (i32::try_from(*self.groups().get(5_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(35_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 7 { (i32::try_from(*self.groups().get(6_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(42_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 8 { (i32::try_from(*self.groups().get(7_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(49_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 9 { (i32::try_from(*self.groups().get(8_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(56_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 10 { (i32::try_from(*self.groups().get(9_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(63_u32) } else { 0_i32 })?)))?).try_into()?;
+        *self.value.borrow_mut() = (((((((((((((((((((*self.groups().get(0_usize).ok_or(KError::CastError)?.value()) | (u64::try_from(if *self.len()? >= 2 { (i32::try_from(*self.groups().get(1_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(7_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 3 { (i32::try_from(*self.groups().get(2_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(14_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 4 { (i32::try_from(*self.groups().get(3_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(21_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 5 { (i32::try_from(*self.groups().get(4_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(28_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 6 { (i32::try_from(*self.groups().get(5_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(35_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 7 { (i32::try_from(*self.groups().get(6_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(42_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 8 { (i32::try_from(*self.groups().get(7_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(49_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 9 { (i32::try_from(*self.groups().get(8_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(56_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 10 { (i32::try_from(*self.groups().get(9_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(63_u32) } else { 0_i32 })?))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -663,7 +663,7 @@ impl KStruct for Zchunk_HeaderWithoutLead {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_signatures.borrow_mut() = t;
         let _tmpa = &*self_rc.num_signatures();
-        if !(((*_tmpa.value()? as i32) == (0 as i32))) {
+        if !((*_tmpa.value()? == 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/header_without_lead/seq/3".to_string() }));
         }
         Ok(())
@@ -751,14 +751,14 @@ impl KStruct for Zchunk_Index {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_chunks.borrow_mut() = t;
         let _tmpa = &*self_rc.num_chunks();
-        if !(((*_tmpa.value()? as i32) >= (1 as i32))) {
+        if !((*_tmpa.value()? >= 1_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/1".to_string() }));
         }
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_data_streams()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.dict_stream.borrow_mut() = t;
             let _tmpa = &*self_rc.dict_stream();
-            if !(((*_tmpa.value()? as i32) == (0 as i32))) {
+            if !((*_tmpa.value()? == 0_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/2".to_string() }));
             }
         }
@@ -970,20 +970,20 @@ impl KStruct for Zchunk_Preface {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
         let _tmpa = &*self_rc.flags();
-        if !(((*_tmpa.value()? as i32) <= (7 as i32))) {
+        if !((*_tmpa.value()? <= 7_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/1".to_string() }));
         }
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.compression_type_int.borrow_mut() = t;
         let _tmpa = &*self_rc.compression_type_int();
-        if !( (((*_tmpa.value()? as i64) == (i64::from(&Zchunk_CompressionTypes::None) as i64)) || ((*_tmpa.value()? as i64) == (i64::from(&Zchunk_CompressionTypes::Zstd) as i64))) ) {
+        if !( (((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::None)))) || ((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::Zstd))))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/2".to_string() }));
         }
         if *self_rc.has_optional_elements()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.num_optional_elements.borrow_mut() = t;
             let _tmpa = &*self_rc.num_optional_elements();
-            if !(((*_tmpa.value()? as i32) >= (1 as i32))) {
+            if !((*_tmpa.value()? >= 1_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/3".to_string() }));
             }
         }
@@ -1007,7 +1007,7 @@ impl Zchunk_Preface {
             return Ok(self.compression_type.borrow());
         }
         self.f_compression_type.set(true);
-        *self.compression_type.borrow_mut() = i64::try_from(*self.compression_type_int().value()?)?.try_into()?;
+        *self.compression_type.borrow_mut() = i64::from(*self.compression_type_int().value()?).try_into()?;
         Ok(self.compression_type.borrow())
     }
     pub fn has_data_streams(

@@ -120,7 +120,7 @@ impl KStruct for Luks_PartitionHeader {
         *self_rc.master_key_iterations_parameter.borrow_mut() = _io.read_u4be()?;
         *self_rc.uuid.borrow_mut() = bytes_to_str(&_io.read_bytes(40_usize)?, "UTF-8")?;
         *self_rc.key_slots.borrow_mut() = Vec::new();
-        let l_key_slots = usize::try_from(8)?;
+        let l_key_slots = 8_usize;
         for _i in 0_usize..l_key_slots {
             let t = Self::read_into::<_, Luks_PartitionHeader_KeySlot>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.key_slots.borrow_mut().push(t);

@@ -238,7 +238,7 @@ impl ChromePak_Alias {
         if self.f_resource.get() {
             return Ok(self.resource.borrow());
         }
-        *self.resource.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::try_from(*self.resource_idx())?).ok_or(KError::CastError)?.clone();
+        *self.resource.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::from(*self.resource_idx())).ok_or(KError::CastError)?.clone();
         Ok(self.resource.borrow())
     }
 }

@@ -181,7 +181,7 @@ impl Quake2Md2 {
             return Ok(self.anim_num_frames.borrow());
         }
         self.f_anim_num_frames.set(true);
-        *self.anim_num_frames.borrow_mut() = vec![(40) as i32, (6) as i32, (8) as i32, (4) as i32, (4) as i32, (4) as i32, (6) as i32, (12) as i32, (11) as i32, (17) as i32, (11) as i32, (12) as i32, (19) as i32, (6) as i32, (9) as i32, (4) as i32, (5) as i32, (6) as i32, (6) as i32, (8) as i32];
+        *self.anim_num_frames.borrow_mut() = vec![40_i32, 6_i32, 8_i32, 4_i32, 4_i32, 4_i32, 6_i32, 12_i32, 11_i32, 17_i32, 11_i32, 12_i32, 19_i32, 6_i32, 9_i32, 4_i32, 5_i32, 6_i32, 6_i32, 8_i32];
         Ok(self.anim_num_frames.borrow())
     }
     pub fn anim_start_indices(
@@ -192,7 +192,7 @@ impl Quake2Md2 {
             return Ok(self.anim_start_indices.borrow());
         }
         self.f_anim_start_indices.set(true);
-        *self.anim_start_indices.borrow_mut() = vec![(0) as i32, (40) as i32, (46) as i32, (54) as i32, (58) as i32, (62) as i32, (66) as i32, (72) as i32, (84) as i32, (95) as i32, (112) as i32, (123) as i32, (135) as i32, (154) as i32, (160) as i32, (169) as i32, (173) as i32, (178) as i32, (184) as i32, (190) as i32];
+        *self.anim_start_indices.borrow_mut() = vec![0_i32, 40_i32, 46_i32, 54_i32, 58_i32, 62_i32, 66_i32, 72_i32, 84_i32, 95_i32, 112_i32, 123_i32, 135_i32, 154_i32, 160_i32, 169_i32, 173_i32, 178_i32, 184_i32, 190_i32];
         Ok(self.anim_start_indices.borrow())
     }
 
@@ -658,7 +658,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.num_vertices.borrow());
         }
         self.f_num_vertices.set(true);
-        *self.num_vertices.borrow_mut() = (if *self.cmd_num_vertices() < 0 { -(*self.cmd_num_vertices()) } else { *self.cmd_num_vertices() }).try_into()?;
+        *self.num_vertices.borrow_mut() = (if *self.cmd_num_vertices() < 0 { (0_i32).saturating_sub(*self.cmd_num_vertices()) } else { *self.cmd_num_vertices() }).try_into()?;
         Ok(self.num_vertices.borrow())
     }
     pub fn primitive(
@@ -767,7 +767,7 @@ impl KStruct for Quake2Md2_GlVertex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tex_coords_normalized.borrow_mut() = Vec::new();
-        let l_tex_coords_normalized = usize::try_from(2)?;
+        let l_tex_coords_normalized = 2_usize;
         for _i in 0_usize..l_tex_coords_normalized {
             self_rc.tex_coords_normalized.borrow_mut().push(_io.read_f4le()?);
         }
@@ -895,12 +895,12 @@ impl KStruct for Quake2Md2_Triangle {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.vertex_indices.borrow_mut() = Vec::new();
-        let l_vertex_indices = usize::try_from(3)?;
+        let l_vertex_indices = 3_usize;
         for _i in 0_usize..l_vertex_indices {
             self_rc.vertex_indices.borrow_mut().push(_io.read_u2le()?);
         }
         *self_rc.tex_point_indices.borrow_mut() = Vec::new();
-        let l_tex_point_indices = usize::try_from(3)?;
+        let l_tex_point_indices = 3_usize;
         for _i in 0_usize..l_tex_point_indices {
             self_rc.tex_point_indices.borrow_mut().push(_io.read_u2le()?);
         }
@@ -1028,7 +1028,7 @@ impl Quake2Md2_Vertex {
             return Ok(self.normal.borrow());
         }
         self.f_normal.set(true);
-        *self.normal.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.anorms_table()?.get(usize::try_from(*self.normal_index())?).ok_or(KError::CastError)?.to_vec();
+        *self.normal.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.anorms_table()?.get(usize::from(*self.normal_index())).ok_or(KError::CastError)?.to_vec();
         Ok(self.normal.borrow())
     }
 }

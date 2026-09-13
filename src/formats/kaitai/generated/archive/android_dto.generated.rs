@@ -104,7 +104,7 @@ impl KStruct for AndroidDto_DtTableEntry {
         *self_rc.id.borrow_mut() = _io.read_u4be()?;
         *self_rc.rev.borrow_mut() = _io.read_u4be()?;
         *self_rc.custom.borrow_mut() = Vec::new();
-        let l_custom = usize::try_from(4)?;
+        let l_custom = 4_usize;
         for _i in 0_usize..l_custom {
             self_rc.custom.borrow_mut().push(_io.read_u4be()?);
         }

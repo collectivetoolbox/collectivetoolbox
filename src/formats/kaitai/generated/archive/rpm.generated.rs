@@ -65,7 +65,7 @@ impl KStruct for Rpm {
         let f = |t : &mut Rpm_Header| Ok(t.set_params(true));
         let t = Self::read_into_with_init::<_, Rpm_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.signature.borrow_mut() = t;
-        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(_io.pos()))), 8_i64))?)?;
+        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 8_i64))?)?;
         if *self_rc.ofs_header()? < 0 {
             *self_rc.unnamed3.borrow_mut() = _io.read_bytes(0_usize)?;
         }
@@ -78,7 +78,7 @@ impl KStruct for Rpm {
         *self_rc.signature_tags_steps.borrow_mut() = Vec::new();
         let l_signature_tags_steps = usize::try_from(*self_rc.signature().header_record().num_index_records())?;
         for _i in 0_usize..l_signature_tags_steps {
-            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { -(1) } else { *self_rc.signature_tags_steps().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
+            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { (0_i32).saturating_sub(1) } else { *self_rc.signature_tags_steps().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Rpm_SignatureTagsStep>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.signature_tags_steps.borrow_mut().push(t);
         }
@@ -94,7 +94,7 @@ impl Rpm {
             return Ok(self.has_signature_size_tag.borrow());
         }
         self.f_has_signature_size_tag.set(true);
-        *self.has_signature_size_tag.borrow_mut() = (*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()? != -(1)).try_into()?;
+        *self.has_signature_size_tag.borrow_mut() = (*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()? != (0_i32).saturating_sub(1)).try_into()?;
         Ok(self.has_signature_size_tag.borrow())
     }
     pub fn len_header(
@@ -2130,7 +2130,7 @@ impl Rpm_HeaderIndexRecord {
         }
         self.f_header_tag.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_header()? {
-            *self.header_tag.borrow_mut() = i64::try_from(*self.tag_raw())?.try_into()?;
+            *self.header_tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.header_tag.borrow())
     }
@@ -2169,7 +2169,7 @@ impl Rpm_HeaderIndexRecord {
         }
         self.f_signature_tag.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_signature() {
-            *self.signature_tag.borrow_mut() = i64::try_from(*self.tag_raw())?.try_into()?;
+            *self.signature_tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.signature_tag.borrow())
     }
@@ -2422,7 +2422,7 @@ impl KStruct for Rpm_RecordTypeBin {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(1)?;
+        let l_values = 1_usize;
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.len_value())?)?);
         }
@@ -2476,7 +2476,7 @@ impl KStruct for Rpm_RecordTypeString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(1)?;
+        let l_values = 1_usize;
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
@@ -2876,7 +2876,7 @@ impl Rpm_SignatureTagsStep {
             return Ok(self.size_tag_idx.borrow());
         }
         self.f_size_tag_idx.set(true);
-        *self.size_tag_idx.borrow_mut() = (if ((to_i128(*self.prev_size_tag_idx())) != (to_i128(-(1)))) { *self.prev_size_tag_idx() } else { if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.record_type() == Rpm_RecordTypes::Uint32) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.num_values()? >= 1))  { *self.idx() } else { -(1) } }).try_into()?;
+        *self.size_tag_idx.borrow_mut() = (if ((to_i128(*self.prev_size_tag_idx())) != (to_i128((0_i32).saturating_sub(1)))) { *self.prev_size_tag_idx() } else { if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.record_type() == Rpm_RecordTypes::Uint32) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.num_values()? >= 1))  { *self.idx() } else { (0_i32).saturating_sub(1) } }).try_into()?;
         Ok(self.size_tag_idx.borrow())
     }
 }

@@ -559,7 +559,7 @@ impl KStruct for Ext2_Inode {
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.osd1.borrow_mut() = _io.read_u4le()?;
         *self_rc.block.borrow_mut() = Vec::new();
-        let l_block = usize::try_from(15)?;
+        let l_block = 15_usize;
         for _i in 0_usize..l_block {
             let t = Self::read_into::<_, Ext2_BlockPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block.borrow_mut().push(t);
@@ -841,7 +841,7 @@ impl KStruct for Ext2_SuperBlockStruct {
         *self_rc.journal_dev.borrow_mut() = _io.read_u4le()?;
         *self_rc.last_orphan.borrow_mut() = _io.read_u4le()?;
         *self_rc.hash_seed.borrow_mut() = Vec::new();
-        let l_hash_seed = usize::try_from(4)?;
+        let l_hash_seed = 4_usize;
         for _i in 0_usize..l_hash_seed {
             self_rc.hash_seed.borrow_mut().push(_io.read_u4le()?);
         }

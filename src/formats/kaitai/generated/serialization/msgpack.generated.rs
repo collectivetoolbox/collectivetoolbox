@@ -216,10 +216,8 @@ impl From<&Msgpack_IntExtra> for i64 {
 impl From<&Msgpack_IntExtra> for usize {
     fn from(e: &Msgpack_IntExtra) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Msgpack_IntExtra::U1(v) => usize::from(*v),
+            Msgpack_IntExtra::U2(v) => usize::from(*v),
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             Msgpack_IntExtra::U4(v) => usize::try_from(*v).unwrap_or(0),
             // Reason for fallback: invalid enum conversion to usize defaults to 0
@@ -672,7 +670,7 @@ impl Msgpack {
         }
         self.f_neg_int5_value.set(true);
         if *self.is_neg_int5()? {
-            *self.neg_int5_value.borrow_mut() = (-(((i32::from(*self.b1())) & (31_i32)))).try_into()?;
+            *self.neg_int5_value.borrow_mut() = ((0_i32).saturating_sub(((i32::from(*self.b1())) & (31_i32)))).try_into()?;
         }
         Ok(self.neg_int5_value.borrow())
     }

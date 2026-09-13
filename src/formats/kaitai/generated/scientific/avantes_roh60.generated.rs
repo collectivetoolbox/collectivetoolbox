@@ -77,14 +77,14 @@ impl KStruct for AvantesRoh60 {
         *self_rc.wlx3.borrow_mut() = _io.read_f4le()?;
         *self_rc.wlx4.borrow_mut() = _io.read_f4le()?;
         *self_rc.unknown2.borrow_mut() = Vec::new();
-        let l_unknown2 = usize::try_from(9)?;
+        let l_unknown2 = 9_usize;
         for _i in 0_usize..l_unknown2 {
             self_rc.unknown2.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.ipixfirst.borrow_mut() = _io.read_f4le()?;
         *self_rc.ipixlast.borrow_mut() = _io.read_f4le()?;
         *self_rc.unknown3.borrow_mut() = Vec::new();
-        let l_unknown3 = usize::try_from(4)?;
+        let l_unknown3 = 4_usize;
         for _i in 0_usize..l_unknown3 {
             self_rc.unknown3.borrow_mut().push(_io.read_f4le()?);
         }

@@ -38,7 +38,7 @@ impl KStruct for HeroesOfMightAndMagicAgg {
         let _io = io;
         *self_rc.num_files.borrow_mut() = _io.read_u2le()?;
         *self_rc.entries.borrow_mut() = Vec::new();
-        let l_entries = usize::try_from(*self_rc.num_files())?;
+        let l_entries = usize::from(*self_rc.num_files());
         for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, HeroesOfMightAndMagicAgg_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
@@ -59,7 +59,7 @@ impl HeroesOfMightAndMagicAgg {
         _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add(*self.entries().last().ok_or(KError::EmptyIterator)?.size()))?)?;
         *self.filenames_raw.borrow_mut() = Vec::new();
         *self.filenames.borrow_mut() = Vec::new();
-        let l_filenames = usize::try_from(*self.num_files())?;
+        let l_filenames = usize::from(*self.num_files());
         for _i in 0_usize..l_filenames {
             self.filenames_raw.borrow_mut().push(_io.read_bytes(15_usize)?.into());
             let filenames_raw = self.filenames_raw.borrow();

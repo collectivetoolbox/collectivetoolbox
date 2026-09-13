@@ -1129,12 +1129,12 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
         *self_rc.num_streams.borrow_mut() = _io.read_u1()?;
         *self_rc.rssi_combined.borrow_mut() = _io.read_u1()?;
         *self_rc.rssi_ant_ctl.borrow_mut() = Vec::new();
-        let l_rssi_ant_ctl = usize::try_from(4)?;
+        let l_rssi_ant_ctl = 4_usize;
         for _i in 0_usize..l_rssi_ant_ctl {
             self_rc.rssi_ant_ctl.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc.rssi_ant_ext.borrow_mut() = Vec::new();
-        let l_rssi_ant_ext = usize::try_from(4)?;
+        let l_rssi_ant_ext = 4_usize;
         for _i in 0_usize..l_rssi_ant_ext {
             self_rc.rssi_ant_ext.borrow_mut().push(_io.read_u1()?);
         }
@@ -1142,13 +1142,13 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
         let t = Self::read_into::<_, PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ext_channel_flags.borrow_mut() = t;
         *self_rc.rf_signal_noise.borrow_mut() = Vec::new();
-        let l_rf_signal_noise = usize::try_from(4)?;
+        let l_rf_signal_noise = 4_usize;
         for _i in 0_usize..l_rf_signal_noise {
             let t = Self::read_into::<_, PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.rf_signal_noise.borrow_mut().push(t);
         }
         *self_rc.evm.borrow_mut() = Vec::new();
-        let l_evm = usize::try_from(4)?;
+        let l_evm = 4_usize;
         for _i in 0_usize..l_evm {
             self_rc.evm.borrow_mut().push(_io.read_u4le()?);
         }

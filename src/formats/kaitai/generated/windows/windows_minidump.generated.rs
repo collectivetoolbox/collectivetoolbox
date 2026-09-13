@@ -584,7 +584,7 @@ impl KStruct for WindowsMinidump_ExceptionRecord {
         *self_rc.num_params.borrow_mut() = _io.read_u4le()?;
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
         *self_rc.params.borrow_mut() = Vec::new();
-        let l_params = usize::try_from(15)?;
+        let l_params = 15_usize;
         for _i in 0_usize..l_params {
             self_rc.params.borrow_mut().push(_io.read_u8le()?);
         }

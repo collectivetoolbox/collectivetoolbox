@@ -63,7 +63,7 @@ impl KStruct for Tga {
         *self_rc.image_id.borrow_mut() = _io.read_bytes(usize::from(*self_rc.image_id_len()))?;
         if *self_rc.color_map_type() == Tga_ColorMapEnum::HasColorMap {
             *self_rc.color_map.borrow_mut() = Vec::new();
-            let l_color_map = usize::try_from(*self_rc.num_color_map())?;
+            let l_color_map = usize::from(*self_rc.num_color_map());
             for _i in 0_usize..l_color_map {
                 self_rc.color_map.borrow_mut().push(_io.read_bytes(usize::try_from(((i32::from(*self_rc.color_map_depth())).saturating_add(7_i32)).checked_div(8_i32).ok_or(KError::CastError)?)?)?);
             }
@@ -307,7 +307,7 @@ impl KStruct for Tga_TgaExtArea {
         *self_rc.ext_area_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.author_name.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "UTF-8")?;
         *self_rc.comments.borrow_mut() = Vec::new();
-        let l_comments = usize::try_from(4)?;
+        let l_comments = 4_usize;
         for _i in 0_usize..l_comments {
             self_rc.comments.borrow_mut().push(bytes_to_str(&_io.read_bytes(81_usize)?, "UTF-8")?);
         }

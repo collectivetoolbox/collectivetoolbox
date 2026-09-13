@@ -1677,7 +1677,7 @@ impl KStruct for MicrosoftPe_PeHeader {
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.optional_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
-        let l_sections = usize::try_from(*self_rc.coff_hdr().number_of_sections())?;
+        let l_sections = usize::from(*self_rc.coff_hdr().number_of_sections());
         for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, MicrosoftPe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);

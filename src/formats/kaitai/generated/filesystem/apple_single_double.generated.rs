@@ -60,7 +60,7 @@ impl KStruct for AppleSingleDouble {
         *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.num_entries.borrow_mut() = _io.read_u2be()?;
         *self_rc.entries.borrow_mut() = Vec::new();
-        let l_entries = usize::try_from(*self_rc.num_entries())?;
+        let l_entries = usize::from(*self_rc.num_entries());
         for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, AppleSingleDouble_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);

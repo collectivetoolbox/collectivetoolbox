@@ -521,7 +521,7 @@ impl Swf_RecordHeader {
             return Ok(self.tag_type.borrow());
         }
         self.f_tag_type.set(true);
-        *self.tag_type.borrow_mut() = i64::try_from((i32::from(*self.tag_code_and_length())).wrapping_shr(6_u32))?.try_into()?;
+        *self.tag_type.borrow_mut() = i64::from((i32::from(*self.tag_code_and_length())).wrapping_shr(6_u32)).try_into()?;
         Ok(self.tag_type.borrow())
     }
 }
@@ -821,7 +821,7 @@ impl KStruct for Swf_SymbolClassBody {
         let _io = io;
         *self_rc.num_symbols.borrow_mut() = _io.read_u2le()?;
         *self_rc.symbols.borrow_mut() = Vec::new();
-        let l_symbols = usize::try_from(*self_rc.num_symbols())?;
+        let l_symbols = usize::from(*self_rc.num_symbols());
         for _i in 0_usize..l_symbols {
             let t = Self::read_into::<_, Swf_SymbolClassBody_Symbol>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.symbols.borrow_mut().push(t);

@@ -246,7 +246,7 @@ impl KStruct for DimeMessage_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }

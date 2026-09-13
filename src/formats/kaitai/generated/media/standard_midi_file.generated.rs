@@ -50,7 +50,7 @@ impl KStruct for StandardMidiFile {
         let t = Self::read_into::<_, StandardMidiFile_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc.tracks.borrow_mut() = Vec::new();
-        let l_tracks = usize::try_from(*self_rc.hdr().num_tracks())?;
+        let l_tracks = usize::from(*self_rc.hdr().num_tracks());
         for _i in 0_usize..l_tracks {
             let t = Self::read_into::<_, StandardMidiFile_Track>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tracks.borrow_mut().push(t);

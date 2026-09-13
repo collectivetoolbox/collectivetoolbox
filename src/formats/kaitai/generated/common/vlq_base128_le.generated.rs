@@ -72,7 +72,7 @@ impl KStruct for VlqBase128Le {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { *self_rc.groups().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { if _i == 9 { 9223372036854775808_u64 } else { (*self_rc.groups().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
+                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { *self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { if _i == 9 { 9223372036854775808_u64 } else { (*self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, VlqBase128Le_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
@@ -104,7 +104,7 @@ impl VlqBase128Le {
             return Ok(self.sign_bit.borrow());
         }
         self.f_sign_bit.set(true);
-        *self.sign_bit.borrow_mut() = (u64::try_from(if *self.len()? == 10 { 9223372036854775808_u64 } else { (*self.groups().last().ok_or(KError::EmptyIterator)?.multiplier()).saturating_mul(64_u64) })?).try_into()?;
+        *self.sign_bit.borrow_mut() = (if *self.len()? == 10 { 9223372036854775808_u64 } else { (*self.groups().last().ok_or(KError::EmptyIterator)?.multiplier()).saturating_mul(64_u64) }).try_into()?;
         Ok(self.sign_bit.borrow())
     }
 
@@ -130,7 +130,7 @@ impl VlqBase128Le {
             return Ok(self.value_signed.borrow());
         }
         self.f_value_signed.set(true);
-        *self.value_signed.borrow_mut() = (if  ((*self.sign_bit()? > 0) && (*self.value()? >= *self.sign_bit()?))  { -(i64::try_from((*self.sign_bit()?).saturating_sub((*self.value()?).saturating_sub(*self.sign_bit()?)))?) } else { i64::try_from(*self.value()?)? }).try_into()?;
+        *self.value_signed.borrow_mut() = (if  ((*self.sign_bit()? > 0) && (*self.value()? >= *self.sign_bit()?))  { (0_i64).saturating_sub(i64::from((*self.sign_bit()?).saturating_sub((*self.value()?).saturating_sub(*self.sign_bit()?)))) } else { i64::from(*self.value()?) }).try_into()?;
         Ok(self.value_signed.borrow())
     }
 }
@@ -217,7 +217,7 @@ impl VlqBase128Le_Group {
             return Ok(self.interm_value.borrow());
         }
         self.f_interm_value.set(true);
-        *self.interm_value.borrow_mut() = (u64::try_from((*self.prev_interm_value()).saturating_add((*self.value()).saturating_mul(*self.multiplier())))?).try_into()?;
+        *self.interm_value.borrow_mut() = ((*self.prev_interm_value()).saturating_add((*self.value()).saturating_mul(*self.multiplier()))).try_into()?;
         Ok(self.interm_value.borrow())
     }
 }

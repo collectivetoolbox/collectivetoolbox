@@ -486,7 +486,7 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
         *self_rc.br_mantissa.borrow_mut() = _io.read_bits_int_be(18)?;
         io.align_to_byte()?;
         *self_rc.ssrc_list.borrow_mut() = Vec::new();
-        let l_ssrc_list = usize::try_from(*self_rc.num_ssrc())?;
+        let l_ssrc_list = usize::from(*self_rc.num_ssrc());
         for _i in 0_usize..l_ssrc_list {
             self_rc.ssrc_list.borrow_mut().push(_io.read_u4be()?);
         }

@@ -5183,7 +5183,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
         *self_rc.number_of_device_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc.colorant_and_phosphor_encoding.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.ciexy_coordinates_per_channel.borrow_mut() = Vec::new();
-        let l_ciexy_coordinates_per_channel = usize::try_from(*self_rc.number_of_device_channels())?;
+        let l_ciexy_coordinates_per_channel = usize::from(*self_rc.number_of_device_channels());
         for _i in 0_usize..l_ciexy_coordinates_per_channel {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ciexy_coordinates_per_channel.borrow_mut().push(t);
@@ -7060,7 +7060,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_16_type/seq/4".to_string() }));
         }
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
-        let l_encoded_e_parameters = usize::try_from(9)?;
+        let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
@@ -7180,7 +7180,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_8_type/seq/4".to_string() }));
         }
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
-        let l_encoded_e_parameters = usize::try_from(9)?;
+        let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
@@ -10097,7 +10097,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
         *self_rc.number_of_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc.count_of_measurement_types.borrow_mut() = _io.read_u2be()?;
         *self_rc.response_curve_structure_offsets.borrow_mut() = Vec::new();
-        let l_response_curve_structure_offsets = usize::try_from(*self_rc.count_of_measurement_types())?;
+        let l_response_curve_structure_offsets = usize::from(*self_rc.count_of_measurement_types());
         for _i in 0_usize..l_response_curve_structure_offsets {
             self_rc.response_curve_structure_offsets.borrow_mut().push(_io.read_u4be()?);
         }

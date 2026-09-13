@@ -76,7 +76,7 @@ impl KStruct for Edid {
         let t = Self::read_into::<_, Edid_EstTimingsInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.est_timings.borrow_mut() = t;
         *self_rc.std_timings.borrow_mut() = Vec::new();
-        let l_std_timings = usize::try_from(8)?;
+        let l_std_timings = 8_usize;
         for _i in 0_usize..l_std_timings {
             let t = Self::read_into::<_, Edid_StdTiming>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.std_timings.borrow_mut().push(t);

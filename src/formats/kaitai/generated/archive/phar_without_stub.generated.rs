@@ -82,7 +82,7 @@ impl KStruct for PharWithoutStub {
         *self_rc.files.borrow_mut() = Vec::new();
         let l_files = usize::try_from(*self_rc.manifest().num_files())?;
         for _i in 0_usize..l_files {
-            self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_data_compressed())?)?);
+            self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(_i).ok_or(KError::CastError)?.len_data_compressed())?)?);
         }
         if *self_rc.manifest().flags().has_signature()? {
             let t = Self::read_into::<_, PharWithoutStub_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

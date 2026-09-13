@@ -332,7 +332,7 @@ impl KStruct for AllegroDat_DatFont16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = usize::try_from(95)?;
+        let l_chars = 95_usize;
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(16_usize)?);
         }
@@ -567,7 +567,7 @@ impl KStruct for AllegroDat_DatFont8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = usize::try_from(95)?;
+        let l_chars = 95_usize;
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(8_usize)?);
         }

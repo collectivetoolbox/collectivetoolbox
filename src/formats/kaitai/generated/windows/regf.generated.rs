@@ -599,7 +599,7 @@ impl Regf_HiveBinCell {
             return Ok(self.cell_size.borrow());
         }
         self.f_cell_size.set(true);
-        *self.cell_size.borrow_mut() = ((if *self.cell_size_raw() < 0 { -(1) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
+        *self.cell_size.borrow_mut() = ((if *self.cell_size_raw() < 0 { (0_i32).saturating_sub(1) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
         Ok(self.cell_size.borrow())
     }
     pub fn is_allocated(
@@ -902,7 +902,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
         *self_rc.items.borrow_mut() = Vec::new();
-        let l_items = usize::try_from(*self_rc.count())?;
+        let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLhLf_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
@@ -1001,7 +1001,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
         *self_rc.items.borrow_mut() = Vec::new();
-        let l_items = usize::try_from(*self_rc.count())?;
+        let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
@@ -1093,7 +1093,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
         *self_rc.items.borrow_mut() = Vec::new();
-        let l_items = usize::try_from(*self_rc.count())?;
+        let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListRi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);

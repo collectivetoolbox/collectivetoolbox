@@ -63,7 +63,7 @@ impl DosMz {
             let _pos = io.pos();
             io.seek(usize::from(*self.header().mz().ofs_relocations()))?;
             *self.relocations.borrow_mut() = Vec::new();
-            let l_relocations = usize::try_from(*self.header().mz().num_relocations())?;
+            let l_relocations = usize::from(*self.header().mz().num_relocations());
             for _i in 0_usize..l_relocations {
                 let t = Self::read_into::<_, DosMz_Relocation>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 self.relocations.borrow_mut().push(t);

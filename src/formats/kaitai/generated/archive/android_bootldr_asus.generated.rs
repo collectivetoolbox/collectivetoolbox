@@ -54,7 +54,7 @@ impl KStruct for AndroidBootldrAsus {
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
         *self_rc.reserved2.borrow_mut() = _io.read_u4le()?;
         *self_rc.images.borrow_mut() = Vec::new();
-        let l_images = usize::try_from(3)?;
+        let l_images = 3_usize;
         for _i in 0_usize..l_images {
             let t = Self::read_into::<_, AndroidBootldrAsus_Image>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
@@ -135,7 +135,7 @@ impl KStruct for AndroidBootldrAsus_Image {
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
         let _tmpa = *self_rc.flags();
-        if !((((((_tmpa as i32) & (1 as i32)) as i32) as i32) != (0 as i32))) {
+        if !(((_tmpa & 1_u8) != 0_u8)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/image/seq/2".to_string() }));
         }
         *self_rc.reserved1.borrow_mut() = _io.read_u1()?;

@@ -157,7 +157,7 @@ impl WindowsResourceFile_Resource {
         }
         self.f_type_as_predef.set(true);
         if  ((!(*self.r#type().is_string()?)) && (*self.r#type().as_numeric() <= 255))  {
-            *self.type_as_predef.borrow_mut() = i64::try_from(*self.r#type().as_numeric())?.try_into()?;
+            *self.type_as_predef.borrow_mut() = i64::from(*self.r#type().as_numeric()).try_into()?;
         }
         Ok(self.type_as_predef.borrow())
     }

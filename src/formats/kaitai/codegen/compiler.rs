@@ -490,9 +490,13 @@ fn emit_switch_enum(
         w.inc();
         w.puts("match e {");
         w.inc();
-        for (v_name, _) in &variants {
-            w.puts("// Reason for fallback: invalid enum conversion to usize defaults to 0");
-            w.puts(&format!("{enum_name}::{v_name}(v) => usize::try_from(*v).unwrap_or(0),"));
+        for (v_name, inner_type) in &variants {
+            if inner_type == "u8" || inner_type == "u16" {
+                w.puts(&format!("{enum_name}::{v_name}(v) => usize::from(*v),"));
+            } else {
+                w.puts("// Reason for fallback: invalid enum conversion to usize defaults to 0");
+                w.puts(&format!("{enum_name}::{v_name}(v) => usize::try_from(*v).unwrap_or(0),"));
+            }
         }
         w.dec();
         w.puts("}");
@@ -798,8 +802,8 @@ fn emit_attr_read(
             }
             RepeatMode::Expr(repeat_expr) => {
                 w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
-                let count_str = translate_expr(repeat_expr, ctx);
-                w.puts(&format!("let l_{id} = usize::try_from({count_str})?;"));
+                let count_str = expr_to_usize(repeat_expr, ctx);
+                w.puts(&format!("let l_{id} = {count_str};"));
                 w.puts(&format!("for _i in 0_usize..l_{id} {{"));
                 w.inc();
                 emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
@@ -1489,7 +1493,25 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     }
                     DataType::EnumType { .. } => {
                         if inst.enum_name.is_some() {
-                            format!("i64::try_from({expr_str})?.try_into()?")
+                            match super::translator::detect_type_approx(value_expr, &val_ctx) {
+                                Some(
+                                    DataType::Bits { .. }
+                                    | DataType::IntMulti { signed: false, width: 8, .. },
+                                ) => {
+                                    format!("i64::try_from({expr_str})?.try_into()?")
+                                }
+                                Some(DataType::IntMulti { signed: true, width: 8, .. }) => {
+                                    format!("({expr_str}).try_into()?")
+                                }
+                                Some(
+                                    DataType::Int1 { .. }
+                                    | DataType::IntMulti { .. }
+                                    | DataType::CalcIntType,
+                                ) => {
+                                    format!("i64::from({expr_str}).try_into()?")
+                                }
+                                _ => format!("i64::try_from({expr_str})?.try_into()?"),
+                            }
                         } else {
                             expr_str
                         }
@@ -1704,8 +1726,8 @@ fn emit_parse_instance_body(
                     if let Some(size) = &inst.size_expr {
                         w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = Vec::new();"));
                         w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                        let count_str = translate_expr(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = usize::try_from({count_str})?;"));
+                        let count_str = expr_to_usize(repeat_expr, ctx);
+                        w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
                         let size_str = expr_to_usize(size, ctx);
@@ -1727,8 +1749,8 @@ fn emit_parse_instance_body(
                         w.puts("}");
                     } else {
                         w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                        let count_str = translate_expr(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = usize::try_from({count_str})?;"));
+                        let count_str = expr_to_usize(repeat_expr, ctx);
+                        w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
                         emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");

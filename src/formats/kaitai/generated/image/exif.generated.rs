@@ -2020,7 +2020,7 @@ impl KStruct for Exif_ExifBody_Ifd {
         let _io = io;
         *self_rc.num_fields.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.fields.borrow_mut() = Vec::new();
-        let l_fields = usize::try_from(*self_rc.num_fields())?;
+        let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
             let f = |t : &mut Exif_ExifBody_IfdField| Ok(t.set_endian(*self_rc._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_IfdField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
@@ -2467,7 +2467,7 @@ impl Exif_ExifBody_IfdField {
         }
         self.f_gps_tag.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_gps_ifd() {
-            *self.gps_tag.borrow_mut() = i64::try_from(*self.tag_raw())?.try_into()?;
+            *self.gps_tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.gps_tag.borrow())
     }
@@ -2520,7 +2520,7 @@ impl Exif_ExifBody_IfdField {
         if  ((*self.num_values() == 1) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (*Into::<OptRc<Exif_ExifBody_Slongs>>::into(&*(self.data()?).as_ref().ok_or(KError::CastError)?).values().first().ok_or(KError::EmptyIterator)? >= 0)) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) ))  {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(u32::try_from(*Into::<OptRc<Exif_ExifBody_Slongs>>::into(&*(self.data()?).as_ref().ok_or(KError::CastError)?).values().first().ok_or(KError::EmptyIterator)?)?)? } else { *Into::<OptRc<Exif_ExifBody_Longs>>::into(&*(self.data()?).as_ref().ok_or(KError::CastError)?).values().first().ok_or(KError::EmptyIterator)? })?)?;
+            io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(*Into::<OptRc<Exif_ExifBody_Slongs>>::into(&*(self.data()?).as_ref().ok_or(KError::CastError)?).values().first().ok_or(KError::EmptyIterator)?)? } else { *Into::<OptRc<Exif_ExifBody_Longs>>::into(&*(self.data()?).as_ref().ok_or(KError::CastError)?).values().first().ok_or(KError::EmptyIterator)? })?)?;
             let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(*self.tag()? == Exif_Tag::GpsInfo));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(&io, Some(self._root.clone()), None, &f)?.into();
             *self.sub_ifd.borrow_mut() = t;
@@ -2537,7 +2537,7 @@ impl Exif_ExifBody_IfdField {
         }
         self.f_tag.set(true);
         if !(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_gps_ifd()) {
-            *self.tag.borrow_mut() = i64::try_from(*self.tag_raw())?.try_into()?;
+            *self.tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.tag.borrow())
     }

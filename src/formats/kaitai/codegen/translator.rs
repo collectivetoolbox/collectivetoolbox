@@ -43,7 +43,7 @@ use crate::utilities::*;
 
 use crate::expr::ast::{BoolOp, CmpOp, Expr, Operator, UnaryOp};
 use crate::precompile::hierarchy::{to_upper_camel_case, types_to_class_name, ClassSpec};
-use crate::precompile::types::{DataType, Endianness, RepeatMode};
+use crate::precompile::types::{BitEndianness, DataType, Endianness, RepeatMode};
 
 /// Context for translating Kaitai expressions into Rust code.
 #[derive(Debug, Clone)]
@@ -201,7 +201,14 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     let ct = kaitai_primitive_to_native(elem_dt);
                     let elems = elements
                         .iter()
-                        .map(|e| format!("({}) as {ct}", translate_expr(e, ctx)))
+                        .map(|e| match e {
+                            Expr::IntNum(n) => format!("{n}_{ct}"),
+                            Expr::FloatNum(f) => format!("{f}_{ct}"),
+                            other => {
+                                let s = translate_expr(other, ctx);
+                                widen_expr(other, &s, detect_type_approx(other, ctx).as_ref(), elem_dt, ctx)
+                            }
+                        })
                         .collect::<Vec<_>>()
                         .join(", ");
                     return format!("vec![{elems}]");
@@ -264,7 +271,19 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                 Expr::IntNum(n) if *n >= 0 => format!("{n}_usize"),
                 _ => {
                     let i = translate_expr(idx, ctx);
-                    format!("usize::try_from({i})?")
+                    if is_usize_expr_str(&i) {
+                        i
+                    } else {
+                        match detect_type_approx(idx, ctx) {
+                            Some(DataType::Int1 { signed: false })
+                            | Some(DataType::IntMulti {
+                                signed: false,
+                                width: 1 | 2,
+                                ..
+                            }) => format!("usize::from({i})"),
+                            _ => format!("usize::try_from({i})?"),
+                        }
+                    }
                 }
             };
             if is_numeric_switch_array {
@@ -283,9 +302,19 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     let op_type = detect_type_approx(operand, ctx);
                     if matches!(
                         op_type,
+                        Some(DataType::Float { .. } | DataType::CalcFloatType)
+                    ) {
+                        format!("-({inner_str})")
+                    } else if matches!(
+                        op_type,
                         Some(DataType::IntMulti { signed: false, width: 8, .. })
                     ) {
-                        format!("-(to_i64({inner_str}))")
+                        format!("(0_i64).saturating_sub(to_i64({inner_str}))")
+                    } else if matches!(
+                        op_type,
+                        Some(DataType::IntMulti { signed: true, width: 8, .. })
+                    ) {
+                        format!("(0_i64).saturating_sub({inner_str})")
                     } else if matches!(
                         op_type,
                         Some(DataType::Int1 { signed: false }
@@ -297,9 +326,9 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         || inner_str.ends_with(".size()")
                         || inner_str.contains(" as u")
                     {
-                        format!("-(to_i32({inner_str}))")
+                        format!("(0_i32).saturating_sub(to_i32({inner_str}))")
                     } else {
-                        format!("-({inner_str})")
+                        format!("(0_i32).saturating_sub({inner_str})")
                     }
                 }
                 UnaryOp::Invert => format!("!({inner_str})"),
@@ -362,7 +391,30 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                 if let Expr::IntNum(n) = &**value {
                     format!("{n}_{rust_type}")
                 } else {
-                    format!("{rust_type}::try_from({inner_str})?")
+                    let val_dt = detect_type_approx(value, ctx);
+                    let target_dt = match raw_type.as_str() {
+                        "u1" | "b1" => Some(DataType::Int1 { signed: false }),
+                        "s1" => Some(DataType::Int1 { signed: true }),
+                        "u2" => Some(DataType::IntMulti { signed: false, width: 2, endian: None }),
+                        "s2" => Some(DataType::IntMulti { signed: true, width: 2, endian: None }),
+                        "u4" => Some(DataType::IntMulti { signed: false, width: 4, endian: None }),
+                        "s4" => Some(DataType::IntMulti { signed: true, width: 4, endian: None }),
+                        "u8" => Some(DataType::IntMulti { signed: false, width: 8, endian: None }),
+                        "s8" => Some(DataType::IntMulti { signed: true, width: 8, endian: None }),
+                        _ => None,
+                    };
+                    if let (Some(vdt), Some(tdt)) = (val_dt.as_ref(), target_dt.as_ref()) {
+                        let from_native = kaitai_primitive_to_native(vdt);
+                        if from_native == rust_type {
+                            inner_str
+                        } else if is_lossless_integer_conversion(vdt, tdt) {
+                            format!("{rust_type}::from({inner_str})")
+                        } else {
+                            format!("{rust_type}::try_from({inner_str})?")
+                        }
+                    } else {
+                        format!("{rust_type}::try_from({inner_str})?")
+                    }
                 }
             }
         }
@@ -861,7 +913,7 @@ fn widen_expr(
     expr_str: &str,
     from_type: Option<&DataType>,
     target_type: &DataType,
-    ctx: &TranslationContext<'_>,
+    _ctx: &TranslationContext<'_>,
 ) -> String {
     let target_ct = kaitai_primitive_to_native(target_type);
     if let Expr::IntNum(n) = expr {
@@ -1694,8 +1746,24 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 Some(DataType::CalcBytesType)
             } else if s == "str" {
                 Some(DataType::CalcStrType)
-            } else if matches!(s.as_str(), "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
-                Some(DataType::CalcIntType)
+            } else if s == "u1" {
+                Some(DataType::Int1 { signed: false })
+            } else if s == "s1" {
+                Some(DataType::Int1 { signed: true })
+            } else if s == "u2" {
+                Some(DataType::IntMulti { signed: false, width: 2, endian: None })
+            } else if s == "s2" {
+                Some(DataType::IntMulti { signed: true, width: 2, endian: None })
+            } else if s == "u4" {
+                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+            } else if s == "s4" {
+                Some(DataType::IntMulti { signed: true, width: 4, endian: None })
+            } else if s == "u8" {
+                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+            } else if s == "s8" {
+                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+            } else if s == "b1" {
+                Some(DataType::Bits1 { bit_endian: BitEndianness::Big })
             } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else if let Some(spec) = resolve_user_class_spec(&s, ctx) {
@@ -1909,6 +1977,37 @@ fn kaitai_primitive_to_native(dt: &DataType) -> &'static str {
 }
 
 /// Translates a custom validation expression (such as `_ & 0x8000 == 0` or `_ == 0 or _ >= _sizeof`).
+fn integer_suffix_for_type(dt: Option<&DataType>, fallback_native: &str) -> &'static str {
+    if let Some(d) = dt {
+        match kaitai_primitive_to_native(d) {
+            "u8" => "u8",
+            "u16" => "u16",
+            "u32" => "u32",
+            "u64" => "u64",
+            "i8" => "i8",
+            "i16" => "i16",
+            "i32" => "i32",
+            "i64" => "i64",
+            "usize" => "usize",
+            _ => "i32",
+        }
+    } else {
+        match fallback_native {
+            "u8" => "u8",
+            "u16" => "u16",
+            "u32" => "u32",
+            "u64" => "u64",
+            "i8" => "i8",
+            "i16" => "i16",
+            "i32" => "i32",
+            "i64" => "i64",
+            "usize" => "usize",
+            _ => "i32",
+        }
+    }
+}
+
+/// Translates a custom validation expression (such as `_ & 0x8000 == 0` or `_ == 0 or _ >= _sizeof`).
 #[must_use]
 pub fn translate_validation_custom_expr(
     expr: &Expr,
@@ -1916,11 +2015,39 @@ pub fn translate_validation_custom_expr(
     current_class: &ClassSpec,
     ctx: &TranslationContext<'_>,
 ) -> String {
+    let dt_native = kaitai_primitive_to_native(dt);
+    let dt_suffix = integer_suffix_for_type(Some(dt), dt_native);
     match expr {
-        Expr::BinOp { left, op: Operator::BitAnd, right } => {
-            let l = translate_validation_custom_expr(left, dt, current_class, ctx);
-            let r = translate_validation_custom_expr(right, dt, current_class, ctx);
-            format!("((({l} as i32) & ({r} as i32)) as i32)")
+        Expr::BinOp { left, op, right }
+            if *op == Operator::BitAnd || *op == Operator::BitOr || *op == Operator::BitXor =>
+        {
+            let op_char = match op {
+                Operator::BitAnd => '&',
+                Operator::BitOr => '|',
+                Operator::BitXor => '^',
+                _ => '&',
+            };
+            let l = if let Expr::Name(n) = left.as_ref() {
+                if n == "_" {
+                    "_tmpa".to_string()
+                } else {
+                    translate_validation_custom_expr(left, dt, current_class, ctx)
+                }
+            } else {
+                translate_validation_custom_expr(left, dt, current_class, ctx)
+            };
+            let r = match right.as_ref() {
+                Expr::IntNum(n) => format!("{n}_{dt_suffix}"),
+                Expr::UnaryOp { op: UnaryOp::Invert, operand } => match operand.as_ref() {
+                    Expr::IntNum(n) => format!("!({n}_{dt_suffix})"),
+                    _ => {
+                        let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
+                        format!("!({inner})")
+                    }
+                },
+                _ => translate_validation_custom_expr(right, dt, current_class, ctx),
+            };
+            format!("({l} {op_char} {r})")
         }
         Expr::Compare { left, op, right } => {
             let op_str = match op {
@@ -1931,44 +2058,94 @@ pub fn translate_validation_custom_expr(
                 CmpOp::Gt => ">",
                 CmpOp::GtE => ">=",
             };
+            if matches!(left.as_ref(), Expr::Str(_)) || matches!(right.as_ref(), Expr::Str(_)) {
+                let l = translate_validation_custom_expr(left, dt, current_class, ctx);
+                let r = translate_validation_custom_expr(right, dt, current_class, ctx);
+                return format!("({l} {op_str} {r})");
+            }
             if let Expr::Name(n) = left.as_ref() {
                 if n == "_" {
-                    if let Expr::IntNum(0) = right.as_ref() {
-                        return format!("(((_tmpa as u32) {op_str} (0 as u32)))");
+                    if let Expr::IntNum(val) = right.as_ref() {
+                        return format!("(_tmpa {op_str} {val}_{dt_suffix})");
                     }
                     if let Expr::Name(sn) = right.as_ref() {
                         if sn == "_sizeof" {
                             // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                             let sz = calculate_class_seq_size(current_class).unwrap_or(0);
-                            return format!("(((_tmpa as i32) {op_str} ({sz} as i32)))");
+                            return format!("(_tmpa {op_str} {sz}_{dt_suffix})");
                         }
                     }
                 }
             }
-            if matches!(
-                dt,
-                DataType::Str { .. }
-                    | DataType::CalcStrType
-                    | DataType::Bytes { .. }
-                    | DataType::CalcBytesType
-                    | DataType::ArrayType { .. }
-            ) {
-                let l = translate_validation_custom_expr(left, dt, current_class, ctx);
-                let r = translate_validation_custom_expr(right, dt, current_class, ctx);
-                return format!("({l} {op_str} {r})");
+            if let Expr::Name(n) = right.as_ref() {
+                if n == "_" {
+                    if let Expr::IntNum(val) = left.as_ref() {
+                        return format!("({val}_{dt_suffix} {op_str} _tmpa)");
+                    }
+                }
             }
             let l = translate_validation_custom_expr(left, dt, current_class, ctx);
             let r = translate_validation_custom_expr(right, dt, current_class, ctx);
-            let lt = detect_type_approx(left, ctx);
-            let rt = detect_type_approx(right, ctx);
-            let ct = match (&lt, &rt) {
-                (Some(t1), Some(t2)) if is_numeric_type(t1) && is_numeric_type(t2) => {
-                    kaitai_primitive_to_native(&combine_types(t1, t2))
-                }
-                _ if matches!(left.as_ref(), Expr::BinOp { op: Operator::BitAnd, .. }) => "i32",
-                _ => kaitai_primitive_to_native(dt),
+            let lt = if matches!(left.as_ref(), Expr::Name(n) if n == "_") {
+                Some(dt.clone())
+            } else if matches!(left.as_ref(), Expr::Subscript { .. })
+                && matches!(dt, DataType::Bytes { .. } | DataType::CalcBytesType)
+            {
+                Some(DataType::Int1 { signed: false })
+            } else if matches!(
+                left.as_ref(),
+                Expr::BinOp { op: Operator::BitAnd | Operator::BitOr | Operator::BitXor, .. }
+            ) {
+                Some(dt.clone())
+            } else {
+                detect_type_approx(left, ctx)
             };
-            format!("(({l} as {ct}) {op_str} ({r} as {ct}))")
+            let rt = if matches!(right.as_ref(), Expr::Name(n) if n == "_") {
+                Some(dt.clone())
+            } else if matches!(right.as_ref(), Expr::Subscript { .. })
+                && matches!(dt, DataType::Bytes { .. } | DataType::CalcBytesType)
+            {
+                Some(DataType::Int1 { signed: false })
+            } else if matches!(
+                right.as_ref(),
+                Expr::BinOp { op: Operator::BitAnd | Operator::BitOr | Operator::BitXor, .. }
+            ) {
+                Some(dt.clone())
+            } else {
+                detect_type_approx(right, ctx)
+            };
+            if let Expr::IntNum(n) = right.as_ref() {
+                let target_suffix = if is_usize_expr_str(&l) {
+                    "usize"
+                } else {
+                    integer_suffix_for_type(lt.as_ref(), dt_suffix)
+                };
+                return format!("({l} {op_str} {n}_{target_suffix})");
+            }
+            if let Expr::IntNum(n) = left.as_ref() {
+                let target_suffix = if is_usize_expr_str(&r) {
+                    "usize"
+                } else {
+                    integer_suffix_for_type(rt.as_ref(), dt_suffix)
+                };
+                return format!("({n}_{target_suffix} {op_str} {r})");
+            }
+            match (&lt, &rt) {
+                (Some(t1), Some(t2)) => {
+                    let c1 = kaitai_primitive_to_native(t1);
+                    let c2 = kaitai_primitive_to_native(t2);
+                    if c1 == c2 {
+                        format!("({l} {op_str} {r})")
+                    } else if is_numeric_type(t1) && is_numeric_type(t2) {
+                        format!("((to_i128({l})) {op_str} (to_i128({r})))")
+                    } else {
+                        format!("({l} {op_str} {r})")
+                    }
+                }
+                _ => {
+                    format!("((to_i128({l})) {op_str} (to_i128({r})))")
+                }
+            }
         }
         Expr::BoolOp { op, values } => {
             let op_str = match op {
@@ -1981,10 +2158,15 @@ pub fn translate_validation_custom_expr(
                 .collect();
             format!(" ({}) ", rendered.join(op_str))
         }
+        Expr::UnaryOp { op: UnaryOp::Not, operand } => {
+            let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
+            format!("!({inner})")
+        }
         Expr::Name(n) if n == "_" => "_tmpa".to_string(),
         Expr::Name(n) if n == "_sizeof" => {
             // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-            calculate_class_seq_size(current_class).unwrap_or(0).to_string()
+            let sz = calculate_class_seq_size(current_class).unwrap_or(0);
+            format!("{sz}_{dt_suffix}")
         }
         Expr::IntNum(n) => format!("{n}"),
         other => translate_expr(other, ctx),

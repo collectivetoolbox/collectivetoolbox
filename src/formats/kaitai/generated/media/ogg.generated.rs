@@ -124,14 +124,14 @@ impl KStruct for Ogg_Page {
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_segments.borrow_mut() = _io.read_u1()?;
         *self_rc.len_segments.borrow_mut() = Vec::new();
-        let l_len_segments = usize::try_from(*self_rc.num_segments())?;
+        let l_len_segments = usize::from(*self_rc.num_segments());
         for _i in 0_usize..l_len_segments {
             self_rc.len_segments.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc.segments.borrow_mut() = Vec::new();
-        let l_segments = usize::try_from(*self_rc.num_segments())?;
+        let l_segments = usize::from(*self_rc.num_segments());
         for _i in 0_usize..l_segments {
-            self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(usize::try_from(_i)?).ok_or(KError::CastError)?)))?);
+            self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(_i).ok_or(KError::CastError)?)))?);
         }
         Ok(())
     }

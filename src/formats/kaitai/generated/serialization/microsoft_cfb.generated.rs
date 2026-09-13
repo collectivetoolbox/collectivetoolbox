@@ -167,7 +167,7 @@ impl KStruct for MicrosoftCfb_CfbHeader {
         *self_rc.ofs_difat.borrow_mut() = _io.read_s4le()?;
         *self_rc.size_difat.borrow_mut() = _io.read_s4le()?;
         *self_rc.difat.borrow_mut() = Vec::new();
-        let l_difat = usize::try_from(109)?;
+        let l_difat = 109_usize;
         for _i in 0_usize..l_difat {
             self_rc.difat.borrow_mut().push(_io.read_s4le()?);
         }
@@ -387,7 +387,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_child.get() {
             return Ok(self.child.borrow());
         }
-        if ((to_i128(*self.child_id())) != (to_i128(-(1)))) {
+        if ((to_i128(*self.child_id())) != (to_i128((0_i32).saturating_sub(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.child_id()).saturating_mul(128_i32)))?)?;
@@ -404,7 +404,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_left_sibling.get() {
             return Ok(self.left_sibling.borrow());
         }
-        if ((to_i128(*self.left_sibling_id())) != (to_i128(-(1)))) {
+        if ((to_i128(*self.left_sibling_id())) != (to_i128((0_i32).saturating_sub(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.left_sibling_id()).saturating_mul(128_i32)))?)?;
@@ -438,7 +438,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_right_sibling.get() {
             return Ok(self.right_sibling.borrow());
         }
-        if ((to_i128(*self.right_sibling_id())) != (to_i128(-(1)))) {
+        if ((to_i128(*self.right_sibling_id())) != (to_i128((0_i32).saturating_sub(1)))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.right_sibling_id()).saturating_mul(128_i32)))?)?;

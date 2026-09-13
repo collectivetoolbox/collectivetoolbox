@@ -819,12 +819,12 @@ impl KStruct for Uf2_Block {
         *self_rc.flags.borrow_mut() = t;
         *self_rc.target_address.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.target_address();
-        if !((((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? as u32) == (0 as u32))) {
+        if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/3".to_string() }));
         }
         *self_rc.len_payload.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.len_payload();
-        if !((((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? as u32) == (0 as u32))) {
+        if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/4".to_string() }));
         }
         *self_rc.block_number.borrow_mut() = _io.read_u4le()?;
@@ -1157,7 +1157,7 @@ impl KStruct for Uf2_ExtensionTag {
         let _io = io;
         *self_rc.len_tag.borrow_mut() = _io.read_u1()?;
         let _tmpa = *self_rc.len_tag();
-        if !( ((((_tmpa as u32) == (0 as u32))) || ((_tmpa as i32) >= (*self_rc.min_len_tag()? as i32))) ) {
+        if !( ((_tmpa == 0_u8) || ((to_i128(_tmpa)) >= (to_i128(*self_rc.min_len_tag()?)))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/extension_tag/seq/0".to_string() }));
         }
         *self_rc.tag_type.borrow_mut() = i64::try_from(_io.read_bits_int_le(24)?)?.try_into()?;
@@ -1165,7 +1165,7 @@ impl KStruct for Uf2_ExtensionTag {
         if *self_rc.len_tag() != 0 {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
         }
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_tag()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_tag()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -1270,7 +1270,7 @@ impl KStruct for Uf2_Flags {
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
         let _tmpa = *self_rc.value();
-        if !( ((((((_tmpa as i32) & (!(61441) as i32)) as i32) as u32) == (0 as u32)) && !( ((*self_rc.is_file_container()?) && (*self_rc.has_extension_tags()?)) )) ) {
+        if !( (((_tmpa & !(61441_u32)) == 0_u32) && !( (*self_rc.is_file_container()? && *self_rc.has_extension_tags()?) )) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/flags/seq/0".to_string() }));
         }
         Ok(())

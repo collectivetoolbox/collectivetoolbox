@@ -408,7 +408,7 @@ impl KStruct for Sqlite3_BtreePage {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
         }
         *self_rc.cells.borrow_mut() = Vec::new();
-        let l_cells = usize::try_from(*self_rc.num_cells())?;
+        let l_cells = usize::from(*self_rc.num_cells());
         for _i in 0_usize..l_cells {
             let t = Self::read_into::<_, Sqlite3_RefCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.cells.borrow_mut().push(t);
@@ -608,7 +608,7 @@ impl KStruct for Sqlite3_CellPayload {
         *self_rc.column_contents.borrow_mut() = Vec::new();
         let l_column_contents = usize::try_from(self_rc.column_serials().entries().len())?;
         for _i in 0_usize..l_column_contents {
-            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.clone()));
+            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries().get(_i).ok_or(KError::CastError)?.clone()));
             let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.column_contents.borrow_mut().push(t);
         }
@@ -830,10 +830,8 @@ impl From<&Sqlite3_ColumnContent_AsInt> for u32 {
 impl From<&Sqlite3_ColumnContent_AsInt> for usize {
     fn from(e: &Sqlite3_ColumnContent_AsInt) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Sqlite3_ColumnContent_AsInt::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Sqlite3_ColumnContent_AsInt::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Sqlite3_ColumnContent_AsInt::U1(v) => usize::from(*v),
+            Sqlite3_ColumnContent_AsInt::U2(v) => usize::from(*v),
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             Sqlite3_ColumnContent_AsInt::Variant(v) => usize::try_from(*v).unwrap_or(0),
             // Reason for fallback: invalid enum conversion to usize defaults to 0

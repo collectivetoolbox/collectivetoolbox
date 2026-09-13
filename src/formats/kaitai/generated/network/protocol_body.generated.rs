@@ -235,7 +235,7 @@ impl ProtocolBody {
             return Ok(self.protocol.borrow());
         }
         self.f_protocol.set(true);
-        *self.protocol.borrow_mut() = i64::try_from(*self.protocol_num())?.try_into()?;
+        *self.protocol.borrow_mut() = i64::from(*self.protocol_num()).try_into()?;
         Ok(self.protocol.borrow())
     }
 }

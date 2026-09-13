@@ -58,7 +58,7 @@ impl KStruct for DnsPacket {
         }
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.queries.borrow_mut() = Vec::new();
-            let l_queries = usize::try_from(*self_rc.qdcount())?;
+            let l_queries = usize::from(*self_rc.qdcount());
             for _i in 0_usize..l_queries {
                 let t = Self::read_into::<_, DnsPacket_Query>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.queries.borrow_mut().push(t);
@@ -66,7 +66,7 @@ impl KStruct for DnsPacket {
         }
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.answers.borrow_mut() = Vec::new();
-            let l_answers = usize::try_from(*self_rc.ancount())?;
+            let l_answers = usize::from(*self_rc.ancount());
             for _i in 0_usize..l_answers {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.answers.borrow_mut().push(t);
@@ -74,7 +74,7 @@ impl KStruct for DnsPacket {
         }
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.authorities.borrow_mut() = Vec::new();
-            let l_authorities = usize::try_from(*self_rc.nscount())?;
+            let l_authorities = usize::from(*self_rc.nscount());
             for _i in 0_usize..l_authorities {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.authorities.borrow_mut().push(t);
@@ -82,7 +82,7 @@ impl KStruct for DnsPacket {
         }
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.additionals.borrow_mut() = Vec::new();
-            let l_additionals = usize::try_from(*self_rc.arcount())?;
+            let l_additionals = usize::from(*self_rc.arcount());
             for _i in 0_usize..l_additionals {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.additionals.borrow_mut().push(t);

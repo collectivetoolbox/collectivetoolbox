@@ -574,7 +574,7 @@ impl KStruct for Png_AtchChunk {
         let _io = io;
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         let _tmpa = &*self_rc.file_name();
-        if !( ((_tmpa.len() != 0) && (substring(&_tmpa, 0, 1) != ".")) ) {
+        if !( ((_tmpa.len() != 0_usize) && (substring(&_tmpa, 0, 1) != ".")) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/atch_chunk/seq/0".to_string() }));
         }
         *self_rc.compression.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
@@ -1549,7 +1549,7 @@ impl KStruct for Png_Chunk {
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
         *self_rc.type_raw.borrow_mut() = _io.read_bytes(4_usize)?;
         let _tmpa = &*self_rc.type_raw();
-        if !( ( ( ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 122)) )  &&  ( ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 65) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 90))  ||  ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 97) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 122)) ) ) ) {
+        if !( ( ( ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 122_u8)) ) ) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/chunk/seq/1".to_string() }));
         }
         match self_rc.r#type()?.as_str() {
@@ -2635,7 +2635,7 @@ impl KStruct for Png_GamaChunk {
         let _io = io;
         *self_rc.gamma_int.borrow_mut() = _io.read_u4be()?;
         let _tmpa = *self_rc.gamma_int();
-        if !((((_tmpa as u32) != (0 as u32)))) {
+        if !((_tmpa != 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/gama_chunk/seq/0".to_string() }));
         }
         Ok(())
@@ -4010,10 +4010,8 @@ impl From<&Png_SpltEntry_Red> for u16 {
 impl From<&Png_SpltEntry_Red> for usize {
     fn from(e: &Png_SpltEntry_Red) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Red::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Red::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Png_SpltEntry_Red::U1(v) => usize::from(*v),
+            Png_SpltEntry_Red::U2(v) => usize::from(*v),
         }
     }
 }
@@ -4054,10 +4052,8 @@ impl From<&Png_SpltEntry_Green> for u16 {
 impl From<&Png_SpltEntry_Green> for usize {
     fn from(e: &Png_SpltEntry_Green) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Green::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Green::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Png_SpltEntry_Green::U1(v) => usize::from(*v),
+            Png_SpltEntry_Green::U2(v) => usize::from(*v),
         }
     }
 }
@@ -4098,10 +4094,8 @@ impl From<&Png_SpltEntry_Blue> for u16 {
 impl From<&Png_SpltEntry_Blue> for usize {
     fn from(e: &Png_SpltEntry_Blue) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Blue::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Blue::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Png_SpltEntry_Blue::U1(v) => usize::from(*v),
+            Png_SpltEntry_Blue::U2(v) => usize::from(*v),
         }
     }
 }
@@ -4142,10 +4136,8 @@ impl From<&Png_SpltEntry_Alpha> for u16 {
 impl From<&Png_SpltEntry_Alpha> for usize {
     fn from(e: &Png_SpltEntry_Alpha) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Alpha::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Png_SpltEntry_Alpha::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Png_SpltEntry_Alpha::U1(v) => usize::from(*v),
+            Png_SpltEntry_Alpha::U2(v) => usize::from(*v),
         }
     }
 }

@@ -409,7 +409,7 @@ impl KStruct for Pcx_TPalette256 {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/t_palette_256/seq/0".to_string() }));
         }
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = usize::try_from(256)?;
+        let l_colors = 256_usize;
         for _i in 0_usize..l_colors {
             let t = Self::read_into::<_, Pcx_Rgb>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);

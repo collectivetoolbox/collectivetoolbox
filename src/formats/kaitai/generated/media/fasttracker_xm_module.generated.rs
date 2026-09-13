@@ -49,13 +49,13 @@ impl KStruct for FasttrackerXmModule {
         let t = Self::read_into::<_, FasttrackerXmModule_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.patterns.borrow_mut() = Vec::new();
-        let l_patterns = usize::try_from(*self_rc.header().num_patterns())?;
+        let l_patterns = usize::from(*self_rc.header().num_patterns());
         for _i in 0_usize..l_patterns {
             let t = Self::read_into::<_, FasttrackerXmModule_Pattern>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patterns.borrow_mut().push(t);
         }
         *self_rc.instruments.borrow_mut() = Vec::new();
-        let l_instruments = usize::try_from(*self_rc.header().num_instruments())?;
+        let l_instruments = usize::from(*self_rc.header().num_instruments());
         for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
@@ -183,7 +183,7 @@ impl KStruct for FasttrackerXmModule_Header {
         *self_rc.default_tempo.borrow_mut() = _io.read_u2le()?;
         *self_rc.default_bpm.borrow_mut() = _io.read_u2le()?;
         *self_rc.pattern_order_table.borrow_mut() = Vec::new();
-        let l_pattern_order_table = usize::try_from(256)?;
+        let l_pattern_order_table = 256_usize;
         for _i in 0_usize..l_pattern_order_table {
             self_rc.pattern_order_table.borrow_mut().push(_io.read_u1()?);
         }
@@ -304,15 +304,15 @@ impl KStruct for FasttrackerXmModule_Instrument {
         let t = Self::read_into::<_, FasttrackerXmModule_Instrument_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.samples_headers.borrow_mut() = Vec::new();
-        let l_samples_headers = usize::try_from(*self_rc.header().num_samples())?;
+        let l_samples_headers = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples_headers {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_SampleHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.samples_headers.borrow_mut().push(t);
         }
         *self_rc.samples.borrow_mut() = Vec::new();
-        let l_samples = usize::try_from(*self_rc.header().num_samples())?;
+        let l_samples = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples {
-            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params(self_rc.samples_headers().get(usize::try_from(_i)?).ok_or(KError::CastError)?.clone()));
+            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params(self_rc.samples_headers().get(_i).ok_or(KError::CastError)?.clone()));
             let t = Self::read_into_with_init::<_, FasttrackerXmModule_Instrument_SamplesData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.samples.borrow_mut().push(t);
         }
@@ -396,18 +396,18 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         let _io = io;
         *self_rc.len_sample_header.borrow_mut() = _io.read_u4le()?;
         *self_rc.idx_sample_per_note.borrow_mut() = Vec::new();
-        let l_idx_sample_per_note = usize::try_from(96)?;
+        let l_idx_sample_per_note = 96_usize;
         for _i in 0_usize..l_idx_sample_per_note {
             self_rc.idx_sample_per_note.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc.volume_points.borrow_mut() = Vec::new();
-        let l_volume_points = usize::try_from(12)?;
+        let l_volume_points = 12_usize;
         for _i in 0_usize..l_volume_points {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.volume_points.borrow_mut().push(t);
         }
         *self_rc.panning_points.borrow_mut() = Vec::new();
-        let l_panning_points = usize::try_from(12)?;
+        let l_panning_points = 12_usize;
         for _i in 0_usize..l_panning_points {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.panning_points.borrow_mut().push(t);
@@ -1137,10 +1137,8 @@ impl From<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u16 {
 impl From<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for usize {
     fn from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => usize::try_from(*v).unwrap_or(0),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => usize::from(*v),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => usize::from(*v),
         }
     }
 }

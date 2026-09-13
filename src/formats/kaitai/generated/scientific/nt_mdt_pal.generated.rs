@@ -121,10 +121,10 @@ impl KStruct for NtMdtPal_ColTable {
         let _io = io;
         *self_rc.size1.borrow_mut() = _io.read_u1()?;
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
-        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::try_from(*self_rc.index())?).ok_or(KError::CastError)?.name_size()))?, "UTF-8")?;
+        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.name_size()))?, "UTF-8")?;
         *self_rc.unkn1.borrow_mut() = _io.read_u2be()?;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::try_from(*self_rc.index())?).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
+        let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_colors {
             let t = Self::read_into::<_, NtMdtPal_Color>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);

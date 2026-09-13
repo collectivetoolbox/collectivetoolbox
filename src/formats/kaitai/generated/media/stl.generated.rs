@@ -117,7 +117,7 @@ impl KStruct for Stl_Triangle {
         let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.normal.borrow_mut() = t;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = usize::try_from(3)?;
+        let l_vertices = 3_usize;
         for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);

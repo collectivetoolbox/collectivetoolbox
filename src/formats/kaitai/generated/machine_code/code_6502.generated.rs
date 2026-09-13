@@ -599,10 +599,8 @@ impl From<&Code6502_Operation_Args> for i8 {
 impl From<&Code6502_Operation_Args> for usize {
     fn from(e: &Code6502_Operation_Args) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Code6502_Operation_Args::U2(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Code6502_Operation_Args::U1(v) => usize::try_from(*v).unwrap_or(0),
+            Code6502_Operation_Args::U2(v) => usize::from(*v),
+            Code6502_Operation_Args::U1(v) => usize::from(*v),
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             Code6502_Operation_Args::S1(v) => usize::try_from(*v).unwrap_or(0),
         }

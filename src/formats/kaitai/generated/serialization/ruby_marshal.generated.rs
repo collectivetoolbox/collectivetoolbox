@@ -375,10 +375,8 @@ impl From<&RubyMarshal_PackedInt_Encoded> for u32 {
 impl From<&RubyMarshal_PackedInt_Encoded> for usize {
     fn from(e: &RubyMarshal_PackedInt_Encoded) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            RubyMarshal_PackedInt_Encoded::U1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            RubyMarshal_PackedInt_Encoded::U2(v) => usize::try_from(*v).unwrap_or(0),
+            RubyMarshal_PackedInt_Encoded::U1(v) => usize::from(*v),
+            RubyMarshal_PackedInt_Encoded::U2(v) => usize::from(*v),
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             RubyMarshal_PackedInt_Encoded::U4(v) => usize::try_from(*v).unwrap_or(0),
         }
@@ -403,8 +401,7 @@ impl From<&RubyMarshal_PackedInt_Encoded2> for u8 {
 impl From<&RubyMarshal_PackedInt_Encoded2> for usize {
     fn from(e: &RubyMarshal_PackedInt_Encoded2) -> Self {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            RubyMarshal_PackedInt_Encoded2::U1(v) => usize::try_from(*v).unwrap_or(0),
+            RubyMarshal_PackedInt_Encoded2::U1(v) => usize::from(*v),
         }
     }
 }

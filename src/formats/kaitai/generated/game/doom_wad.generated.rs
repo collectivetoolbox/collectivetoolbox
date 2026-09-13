@@ -234,7 +234,7 @@ impl DoomWad_Blockmap_Blocklist {
                 let Some(_tmpa) = _t_linedefs.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa)) == (to_i128(-(1)))) { break; }
+                if ((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(1)))) { break; }
             }
         }
         _io.seek(_pos)?;
@@ -1270,7 +1270,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         *self_rc.column_directory.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_patches.borrow_mut() = _io.read_u2le()?;
         *self_rc.patches.borrow_mut() = Vec::new();
-        let l_patches = usize::try_from(*self_rc.num_patches())?;
+        let l_patches = usize::from(*self_rc.num_patches());
         for _i in 0_usize..l_patches {
             let t = Self::read_into::<_, DoomWad_Texture12_Patch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patches.borrow_mut().push(t);

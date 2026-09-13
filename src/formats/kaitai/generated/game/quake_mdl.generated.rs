@@ -682,7 +682,7 @@ impl KStruct for QuakeMdl_MdlTriangle {
         let _io = io;
         *self_rc.faces_front.borrow_mut() = _io.read_s4le()?;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = usize::try_from(3)?;
+        let l_vertices = 3_usize;
         for _i in 0_usize..l_vertices {
             self_rc.vertices.borrow_mut().push(_io.read_s4le()?);
         }
@@ -732,7 +732,7 @@ impl KStruct for QuakeMdl_MdlVertex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(3)?;
+        let l_values = 3_usize;
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }

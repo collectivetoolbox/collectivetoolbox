@@ -60,7 +60,7 @@ impl Riff {
             return Ok(self.chunk_id.borrow());
         }
         self.f_chunk_id.set(true);
-        *self.chunk_id.borrow_mut() = i64::try_from(*self.chunk().id())?.try_into()?;
+        *self.chunk_id.borrow_mut() = i64::from(*self.chunk().id()).try_into()?;
         Ok(self.chunk_id.borrow())
     }
     pub fn is_riff_chunk(
@@ -343,7 +343,7 @@ impl Riff_ChunkType {
             return Ok(self.chunk_id.borrow());
         }
         self.f_chunk_id.set(true);
-        *self.chunk_id.borrow_mut() = i64::try_from(*self.chunk().id())?.try_into()?;
+        *self.chunk_id.borrow_mut() = i64::from(*self.chunk().id()).try_into()?;
         Ok(self.chunk_id.borrow())
     }
     pub fn chunk_id_readable(
@@ -625,7 +625,7 @@ impl Riff_ListChunkData {
             return Ok(self.form_type.borrow());
         }
         self.f_form_type.set(true);
-        *self.form_type.borrow_mut() = i64::try_from(*self.parent_chunk_data().form_type())?.try_into()?;
+        *self.form_type.borrow_mut() = i64::from(*self.parent_chunk_data().form_type()).try_into()?;
         Ok(self.form_type.borrow())
     }
     pub fn form_type_readable(

@@ -69,7 +69,7 @@ impl BlenderBlend {
             return Ok(self.sdna_structs.borrow());
         }
         self.f_sdna_structs.set(true);
-        *self.sdna_structs.borrow_mut() = Into::<OptRc<BlenderBlend_Dna1Body>>::into(&*(self.blocks().get(usize::try_from((self.blocks().len()).saturating_sub(2_usize))?).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?).structs().to_vec();
+        *self.sdna_structs.borrow_mut() = Into::<OptRc<BlenderBlend_Dna1Body>>::into(&*(self.blocks().get((self.blocks().len()).saturating_sub(2_usize)).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?).structs().to_vec();
         Ok(self.sdna_structs.borrow())
     }
 }
@@ -380,7 +380,7 @@ impl BlenderBlend_DnaField {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        *self.name.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.names().get(usize::try_from(*self.idx_name())?).ok_or(KError::CastError)?.to_string();
+        *self.name.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.names().get(usize::from(*self.idx_name())).ok_or(KError::CastError)?.to_string();
         Ok(self.name.borrow())
     }
     pub fn r#type(
@@ -391,7 +391,7 @@ impl BlenderBlend_DnaField {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::try_from(*self.idx_type())?).ok_or(KError::CastError)?.to_string();
+        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::from(*self.idx_type())).ok_or(KError::CastError)?.to_string();
         Ok(self.r#type.borrow())
     }
 }
@@ -446,7 +446,7 @@ impl KStruct for BlenderBlend_DnaStruct {
         *self_rc.idx_type.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_fields.borrow_mut() = _io.read_u2le()?;
         *self_rc.fields.borrow_mut() = Vec::new();
-        let l_fields = usize::try_from(*self_rc.num_fields())?;
+        let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
             let t = Self::read_into::<_, BlenderBlend_DnaField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.fields.borrow_mut().push(t);
@@ -463,7 +463,7 @@ impl BlenderBlend_DnaStruct {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::try_from(*self.idx_type())?).ok_or(KError::CastError)?.to_string();
+        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::from(*self.idx_type())).ok_or(KError::CastError)?.to_string();
         Ok(self.r#type.borrow())
     }
 }

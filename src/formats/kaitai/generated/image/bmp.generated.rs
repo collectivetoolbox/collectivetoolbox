@@ -587,8 +587,7 @@ impl From<&Bmp_BitmapHeader_ImageWidth> for usize {
         match e {
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             Bmp_BitmapHeader_ImageWidth::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bmp_BitmapHeader_ImageWidth::U2(v) => usize::try_from(*v).unwrap_or(0),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => usize::from(*v),
         }
     }
 }
@@ -768,7 +767,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { -(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
+        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { (0_i32).saturating_sub(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
         Ok(self.image_height.borrow())
     }
     pub fn is_color_mask_here(

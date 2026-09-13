@@ -47,7 +47,7 @@ impl KStruct for GranTurismoVol {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
         *self_rc.offsets.borrow_mut() = Vec::new();
-        let l_offsets = usize::try_from(*self_rc.num_files())?;
+        let l_offsets = usize::from(*self_rc.num_files());
         for _i in 0_usize..l_offsets {
             self_rc.offsets.borrow_mut().push(_io.read_u4le()?);
         }
@@ -66,7 +66,7 @@ impl GranTurismoVol {
         let _pos = _io.pos();
         _io.seek(usize::try_from(((*self.ofs_dir()?) & (4294965248_u32)))?)?;
         *self.files.borrow_mut() = Vec::new();
-        let l_files = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries())?;
+        let l_files = usize::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries());
         for _i in 0_usize..l_files {
             let t = Self::read_into::<_, GranTurismoVol_FileInfo>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.files.borrow_mut().push(t);
@@ -169,7 +169,7 @@ impl GranTurismoVol_FileInfo {
         self.f_body.set(true);
         if !(*self.is_dir()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from(*self.offset_idx())?).ok_or(KError::CastError)?)) & (4294965248_u32)))?)?;
+            _io.seek(usize::try_from(((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?)) & (4294965248_u32)))?)?;
             *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size()?)?)?;
             _io.seek(_pos)?;
         }
@@ -205,7 +205,7 @@ impl GranTurismoVol_FileInfo {
             return Ok(self.size.borrow());
         }
         self.f_size.set(true);
-        *self.size.borrow_mut() = ((((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from((i32::from(*self.offset_idx())).saturating_add(1_i32))?).ok_or(KError::CastError)?)) & (4294965248_u32))).saturating_sub(*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from(*self.offset_idx())?).ok_or(KError::CastError)?))).try_into()?;
+        *self.size.borrow_mut() = ((((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from((i32::from(*self.offset_idx())).saturating_add(1_i32))?).ok_or(KError::CastError)?)) & (4294965248_u32))).saturating_sub(*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?))).try_into()?;
         Ok(self.size.borrow())
     }
 }

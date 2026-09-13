@@ -92,8 +92,7 @@ impl From<&Bcd_Digits> for usize {
         match e {
             // Reason for fallback: invalid enum conversion to usize defaults to 0
             Bcd_Digits::Variant(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bcd_Digits::U1(v) => usize::try_from(*v).unwrap_or(0),
+            Bcd_Digits::U1(v) => usize::from(*v),
         }
     }
 }
@@ -114,7 +113,7 @@ impl KStruct for Bcd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.digits.borrow_mut() = Vec::new();
-        let l_digits = usize::try_from(*self_rc.num_digits())?;
+        let l_digits = usize::from(*self_rc.num_digits());
         for _i in 0_usize..l_digits {
             match *self_rc.bits_per_digit() {
                 4 => {

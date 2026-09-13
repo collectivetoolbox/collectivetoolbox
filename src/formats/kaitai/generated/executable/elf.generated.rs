@@ -4648,7 +4648,7 @@ impl Elf_EndianElf {
         _io.seek(usize::try_from(self.ofs_program_headers())?)?;
         *self.program_headers_raw.borrow_mut() = Vec::new();
         *self.program_headers.borrow_mut() = Vec::new();
-        let l_program_headers = usize::try_from(*self.num_program_headers())?;
+        let l_program_headers = usize::from(*self.num_program_headers());
         for _i in 0_usize..l_program_headers {
             self.program_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.program_header_size()))?.into());
             let program_headers_raw = self.program_headers_raw.borrow();
@@ -4672,7 +4672,7 @@ impl Elf_EndianElf {
         _io.seek(usize::try_from(self.ofs_section_headers())?)?;
         *self.section_headers_raw.borrow_mut() = Vec::new();
         *self.section_headers.borrow_mut() = Vec::new();
-        let l_section_headers = usize::try_from(*self.num_section_headers())?;
+        let l_section_headers = usize::from(*self.num_section_headers());
         for _i in 0_usize..l_section_headers {
             self.section_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.section_header_size()))?.into());
             let section_headers_raw = self.section_headers_raw.borrow();
@@ -4693,8 +4693,8 @@ impl Elf_EndianElf {
         }
         if  ((((to_i128(*self.section_names_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(self.section_headers()?.get(usize::try_from(*self.section_names_idx())?).ok_or(KError::CastError)?.ofs_body())?)?;
-            *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?.get(usize::try_from(*self.section_names_idx())?).ok_or(KError::CastError)?.len_body())?)?.into();
+            _io.seek(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.ofs_body())?)?;
+            *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.len_body())?)?.into();
             let section_names_raw = self.section_names_raw.borrow();
             let _t_section_names_raw_io = BytesReader::from(section_names_raw.clone());
             let f = |t : &mut Elf_EndianElf_StringsStruct| Ok(t.set_endian(*self._is_le.borrow()));
@@ -5009,7 +5009,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.sh_idx_special.borrow());
         }
         self.f_sh_idx_special.set(true);
-        *self.sh_idx_special.borrow_mut() = i64::try_from(*self.sh_idx())?.try_into()?;
+        *self.sh_idx_special.borrow_mut() = i64::from(*self.sh_idx()).try_into()?;
         Ok(self.sh_idx_special.borrow())
     }
     pub fn size(
@@ -5046,7 +5046,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.visibility.borrow());
         }
         self.f_visibility.set(true);
-        *self.visibility.borrow_mut() = i64::try_from(((i32::from(*self.other())) & (7_i32)))?.try_into()?;
+        *self.visibility.borrow_mut() = i64::from(((i32::from(*self.other())) & (7_i32))).try_into()?;
         Ok(self.visibility.borrow())
     }
 }
@@ -5203,9 +5203,9 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, 0, false);
-        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_name()))), 4_i64))?)?;
+        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_name()))), 4_i64))?)?;
         *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
-        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
+        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -7736,7 +7736,7 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _tmpa = *self_rc.ofs_next();
-        if !( ((((_tmpa as u32) == (0 as u32))) || (((_tmpa as i32) >= (8 as i32)))) ) {
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 8_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdaux_entry/seq/2".to_string() }));
         }
         Ok(())
@@ -7993,7 +7993,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
         *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.version_index.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let _tmpa = *self_rc.version_index();
-        if !((((((_tmpa as i32) & (32768 as i32)) as i32) as i32) == (0 as i32))) {
+        if !(((_tmpa & 32768_u16) == 0_u16)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/3".to_string() }));
         }
         *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
@@ -8009,7 +8009,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
         }
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _tmpa = *self_rc.ofs_next();
-        if !( ((((_tmpa as u32) == (0 as u32))) || (((_tmpa as i32) >= (20 as i32)))) ) {
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 20_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/7".to_string() }));
         }
         Ok(())
@@ -8089,7 +8089,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
             return Ok(self.version_index_special.borrow());
         }
         self.f_version_index_special.set(true);
-        *self.version_index_special.borrow_mut() = i64::try_from(*self.version_index())?.try_into()?;
+        *self.version_index_special.borrow_mut() = i64::from(*self.version_index()).try_into()?;
         Ok(self.version_index_special.borrow())
     }
 }
@@ -8228,7 +8228,7 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _tmpa = *self_rc.ofs_next();
-        if !( ((((_tmpa as u32) == (0 as u32))) || (((_tmpa as i32) >= (16 as i32)))) ) {
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/vernaux_entry/seq/5".to_string() }));
         }
         Ok(())
@@ -8535,7 +8535,7 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
         }
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _tmpa = *self_rc.ofs_next();
-        if !( ((((_tmpa as u32) == (0 as u32))) || (((_tmpa as i32) >= (16 as i32)))) ) {
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verneed_section_entry/seq/5".to_string() }));
         }
         Ok(())
@@ -8887,7 +8887,7 @@ impl Elf_EndianElf_VersionIndex {
             return Ok(self.version_index_special.borrow());
         }
         self.f_version_index_special.set(true);
-        *self.version_index_special.borrow_mut() = i64::try_from(*self.raw())?.try_into()?;
+        *self.version_index_special.borrow_mut() = i64::from(*self.raw()).try_into()?;
         Ok(self.version_index_special.borrow())
     }
 }

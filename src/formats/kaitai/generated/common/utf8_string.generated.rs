@@ -150,7 +150,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.len_bytes.borrow());
         }
         self.f_len_bytes.set(true);
-        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { -(1) } } } }).try_into()?;
+        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { (0_i32).saturating_sub(1) } } } }).try_into()?;
         Ok(self.len_bytes.borrow())
     }
     pub fn raw0(
@@ -211,7 +211,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.value_as_int.borrow());
         }
         self.f_value_as_int.set(true);
-        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { -(1) } } } }).try_into()?;
+        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { (0_i32).saturating_sub(1) } } } }).try_into()?;
         Ok(self.value_as_int.borrow())
     }
 }

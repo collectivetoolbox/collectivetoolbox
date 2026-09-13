@@ -54,7 +54,7 @@ impl KStruct for UefiTe {
         let t = Self::read_into::<_, UefiTe_TeHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.te_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
-        let l_sections = usize::try_from(*self_rc.te_hdr().num_sections())?;
+        let l_sections = usize::from(*self_rc.te_hdr().num_sections());
         for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, UefiTe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
