@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
 # Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Run Guix garbage collection safely within the devcontainer, protecting
 # all essential cross-compiled packages and v86 image components while
 # reclaiming disk space from temporary build artifacts and superseded items.
 
 set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." || exit 1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
