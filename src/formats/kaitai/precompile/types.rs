@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,121 +29,206 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Internal semantic type system for Kaitai Struct.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
+use crate::expr::Expr;
 
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Byte endianness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Endianness {
+    /// Little-endian (`le`).
+    Little,
+    /// Big-endian (`be`).
+    Big,
+    /// Inherited from parent enclosing type.
+    Inherited,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
+impl Endianness {
+    /// Returns the suffix used in Kaitai stream methods (e.g. `le`, `be`).
+    #[must_use]
+    pub fn to_suffix(&self) -> &'static str {
+        match self {
+            Self::Little => "le",
+            Self::Big => "be",
+            Self::Inherited => "",
+        }
+    }
+}
 
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+/// Bit endianness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BitEndianness {
+    /// Little-endian bits.
+    Little,
+    /// Big-endian bits.
+    Big,
+}
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+/// Attribute repetition mode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum RepeatMode {
+    /// Not repeated (single element).
+    None,
+    /// Repeat until End Of Stream.
+    Eos,
+    /// Repeat a fixed count evaluated by expression.
+    Expr(Expr),
+    /// Repeat until boolean expression is true.
+    Until(Expr),
+}
+
+/// Data types in the Kaitai Struct compiler semantic model.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DataType {
+    /// 1-byte integer (`u1` or `s1`).
+    Int1 {
+        /// Whether the integer is signed.
+        signed: bool,
+    },
+    /// Multi-byte integer (`u2`, `u4`, `u8`, `s2`, `s4`, `s8`).
+    IntMulti {
+        /// Whether the integer is signed.
+        signed: bool,
+        /// Size in bytes (2, 4, or 8).
+        width: usize,
+        /// Explicit endianness if specified.
+        endian: Option<Endianness>,
+    },
+    /// 1-bit boolean (`b1`).
+    Bits1 {
+        /// Bit endianness (`le` or `be`).
+        bit_endian: BitEndianness,
+    },
+    /// Multi-bit integer (`b2` .. `b64`).
+    Bits {
+        /// Total bit count.
+        count: usize,
+        /// Bit endianness.
+        bit_endian: BitEndianness,
+    },
+    /// Floating point number (`f4` or `f8`).
+    Float {
+        /// Size in bytes (4 or 8).
+        width: usize,
+        /// Explicit endianness if specified.
+        endian: Option<Endianness>,
+    },
+    /// Raw byte buffer.
+    Bytes {
+        /// Explicit byte length expression if bounded.
+        size: Option<Expr>,
+        /// Read until End Of Stream.
+        size_eos: bool,
+        /// Terminator byte.
+        terminator: Option<u8>,
+        /// Consume terminator byte.
+        consume: bool,
+        /// Include terminator byte in result.
+        include: bool,
+        /// Pad byte to strip from right.
+        pad_right: Option<u8>,
+        /// Processing algorithm name (e.g. `zlib`).
+        process: Option<String>,
+    },
+    /// Text string.
+    Str {
+        /// Explicit byte length expression if bounded.
+        size: Option<Expr>,
+        /// Read until End Of Stream.
+        size_eos: bool,
+        /// String character encoding (e.g. `UTF-8`, `ASCII`).
+        encoding: Option<String>,
+        /// Terminator byte.
+        terminator: Option<u8>,
+        /// Consume terminator byte.
+        consume: bool,
+        /// Include terminator byte in result.
+        include: bool,
+        /// Pad byte to strip from right.
+        pad_right: Option<u8>,
+    },
+    /// Custom user-defined or imported struct type.
+    UserType {
+        /// Scoped path of the type (e.g. `["ethernet_frame", "tag_control_info"]` or `["ipv4_packet"]`).
+        names: Vec<String>,
+        /// Whether the type comes from an external imported `.ksy` file.
+        is_external: bool,
+        /// Arguments passed to constructor of parameterized type.
+        #[serde(default)]
+        args: Vec<Expr>,
+    },
+    /// Enumeration type.
+    EnumType {
+        /// Scoped type names of the enum owner.
+        owner: Vec<String>,
+        /// Enumeration name.
+        name: String,
+        /// Underlying integer or bits type if specified.
+        underlying: Option<Box<DataType>>,
+    },
+    /// Repeated array of elements.
+    ArrayType {
+        /// Element data type.
+        element: Box<DataType>,
+        /// Repetition mode.
+        repeat: RepeatMode,
+    },
+    /// Union / type switch based on conditional expression.
+    SwitchType {
+        /// Expression to match against.
+        switch_on: Expr,
+        /// Case values mapping to resulting data types.
+        cases: IndexMap<String, DataType>,
+    },
+    /// IO stream reader type (`BytesReader`).
+    KaitaiStreamType,
+    /// Calculated integer from expression.
+    CalcIntType,
+    /// Calculated float from expression.
+    CalcFloatType,
+    /// Calculated boolean from expression.
+    CalcBoolType,
+    /// Calculated string from expression.
+    CalcStrType,
+    /// Calculated byte vector from expression.
+    CalcBytesType,
+}
+
+impl DataType {
+    /// Returns true if this type is a numeric integer type.
+    #[must_use]
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            self,
+            Self::Int1 { .. }
+                | Self::IntMulti { .. }
+                | Self::Bits { .. }
+                | Self::CalcIntType
+        )
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+    /// Returns true if this type is signed.
+    #[must_use]
+    pub fn is_signed(&self) -> bool {
+        match self {
+            Self::Int1 { signed } | Self::IntMulti { signed, .. } => *signed,
+            Self::CalcIntType => true,
+            _ => false,
+        }
     }
 }
 

@@ -39,6 +39,8 @@
 - Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation?
 - Kaitai Struct make sure all fixtures are tested
 
+- Regenerate Guix packaging in CI
+
 - [x] ia should read in chunks / range requests:
 
 Error: Failed to read download body

@@ -276,11 +276,12 @@ fi
 
 echo "Backing up generated files for offline regeneration and drift check..."
 gen_backup_dir="$(mktemp -d)"
+# FIXME Guix
 while IFS= read -r f; do
     mkdir -p "$gen_backup_dir/$(dirname "$f")"
     cp "$f" "$gen_backup_dir/$f"
 done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' \) \
-    ! -path '*/packaging/guix/generated/*' \ # FIXME
+    ! -path '*/packaging/guix/generated/*' \
     ! -path '*/vendor/*')
 
 echo "Cleaning generated files to verify offline regeneration..."

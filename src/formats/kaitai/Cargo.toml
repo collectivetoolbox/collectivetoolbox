@@ -19,6 +19,14 @@ serde_yaml = "0.9.34"
 indexmap = { version = "2.14.0", features = ["serde"] }
 clap = { version = "4.5.60", features = ["derive"] }
 walkdir = "2.5.0"
+kaitai = { git = "https://github.com/kaitai-io/kaitai_struct_rust_runtime.git", commit = "99596131793229cdee71775e1b4c72f18467ef79" }
+
+[build-dependencies]
+anyhow = "1.0.100"
+indexmap = { version = "2.14.0", features = ["serde"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml = "0.9.34"
+walkdir = "2.5.0"
 
 [lints]
 workspace = true

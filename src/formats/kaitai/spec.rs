@@ -309,6 +309,9 @@ pub struct AttrSpec {
     pub process: Option<String>,
     /// Validation rules.
     pub valid: Option<ValidationSpec>,
+    /// Enforced parent expression or false.
+    #[serde(default)]
+    pub parent: Option<ValueOrExpr>,
 }
 
 /// Instance specification (value or parse instance).
@@ -367,6 +370,9 @@ pub struct InstanceSpec {
     pub process: Option<String>,
     /// Validation rules.
     pub valid: Option<ValidationSpec>,
+    /// Enforced parent expression or false.
+    #[serde(default)]
+    pub parent: Option<ValueOrExpr>,
 }
 
 /// Metadata block (`meta:`).
@@ -468,8 +474,6 @@ where
     Ok(out)
 }
 
-/// Alias for `KsyFile` matching Kaitai's `ClassSpec` nomenclature.
-pub type ClassSpec = KsyFile;
 
 /* License information for parts derived from Kaitai Struct:
 

@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,121 +29,93 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Code formatting and output buffer for generated Rust source.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
-
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
-
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Buffered writer for generating indented Rust source code.
+#[derive(Debug, Default, Clone)]
+pub struct CodeWriter {
+    buffer: String,
+    indent_level: usize,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+impl CodeWriter {
+    /// Creates a new `CodeWriter`.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            buffer: String::new(),
+            indent_level: 0,
+        }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
+    /// Increases indentation by one level (4 spaces).
+    pub fn inc(&mut self) {
+        self.indent_level = self.indent_level.saturating_add(1);
     }
 
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
+    /// Decreases indentation by one level.
+    pub fn dec(&mut self) {
+        self.indent_level = self.indent_level.saturating_sub(1);
     }
 
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    /// Writes a blank line without trailing whitespace.
+    pub fn newline(&mut self) {
+        self.buffer.push('\n');
+    }
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+    /// Writes an indented line with a trailing newline.
+    pub fn puts(&mut self, line: &str) {
+        if line.is_empty() {
+            self.buffer.push('\n');
+            return;
+        }
+        for _ in 0..self.indent_level {
+            self.buffer.push_str("    ");
+        }
+        self.buffer.push_str(line);
+        self.buffer.push('\n');
+    }
+
+    /// Writes a formatted Javadoc-style docblock comment (`/** ... */`).
+    pub fn docblock(&mut self, text: Option<&str>, doc_refs: &[String]) {
+        self.puts("/**");
+        if let Some(t) = text {
+            for line in t.lines() {
+                if line.trim().is_empty() {
+                    self.puts(" *");
+                } else {
+                    self.puts(&format!(" * {line}"));
+                }
+            }
+        }
+        for r in doc_refs {
+            if r.starts_with("http://") || r.starts_with("https://") {
+                if r.contains(' ') {
+                    self.puts(&format!(" * \\sa {r}"));
+                } else {
+                    self.puts(&format!(" * \\sa {r} Source"));
+                }
+            } else {
+                self.puts(&format!(" * \\sa {r}"));
+            }
+        }
+        self.puts(" */");
+    }
+
+    /// Returns the accumulated source code.
+    #[must_use]
+    pub fn finish(self) -> String {
+        self.buffer
     }
 }
 

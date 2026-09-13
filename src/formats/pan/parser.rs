@@ -717,8 +717,8 @@ fn detect_data_obfuscation_params(payload: &[u8]) -> Option<PanDataObfuscation> 
     }
 }
 
-/// Check whether a DATA section payload uses position-dependent XOR
-/// obfuscation.
+/// Check whether a DATA section payload is read-only, which uses
+/// position-dependent XOR obfuscation.
 fn is_obfuscated_data_payload(payload: &[u8]) -> bool {
     detect_data_obfuscation_params(payload).is_some()
 }
@@ -3455,12 +3455,12 @@ fn extract_macro_code(macro_bytes: &[u8], name_len: usize) -> Option<String> {
     decode_macro_procedure_bytes(chunk)
 }
 
-/// Deobfuscate a locked/scrambled Panorama macro payload if it uses the
+/// Deobfuscate a Panorama macro from a read-only ("locked") database using a
 /// position-dependent XOR stream cipher.
 ///
-/// In locked/password-protected Panorama databases, the macro body (from the
-/// compiled bytecode header through the trailing source code) is scrambled
-/// with a linear XOR stream cipher. In big-endian files, the bytecode header
+/// In locked Panorama databases, the macro body (from the compiled bytecode
+/// header through the trailing source code) is obfuscated with a linear XOR
+/// stream cipher. In big-endian files, the bytecode header
 /// `[0xFF, 0xEC, 0x00, 0x00, 0x00, 0x00]` appears as
 /// `[0xF9, 0xE5, 0x0C, 0x0F, 0x12, 0x15]`, and in little-endian files
 /// `[0xEC, 0xFF, 0x00, 0x00, 0x00, 0x00]` appears as

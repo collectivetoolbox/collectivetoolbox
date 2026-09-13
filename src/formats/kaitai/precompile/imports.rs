@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,120 +29,115 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Import resolution and registry for multi-specification compilations.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
+use std::fs;
+use std::path::{Path, PathBuf};
+use indexmap::IndexMap;
 
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
+use crate::parser::parse_ksy_slice;
+use crate::spec::KsyFile;
 
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Registry holding all loaded `.ksy` specifications.
+#[derive(Debug, Default, Clone)]
+pub struct SpecRegistry {
+    /// Loaded specifications keyed by canonical name or path.
+    pub specs: IndexMap<String, KsyFile>,
+    /// Base directories searched for imports.
+    pub search_dirs: Vec<PathBuf>,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+impl SpecRegistry {
+    /// Creates a new `SpecRegistry` with the provided base search directories.
+    #[must_use]
+    pub fn new(search_dirs: Vec<PathBuf>) -> Self {
+        Self {
+            specs: IndexMap::new(),
+            search_dirs,
+        }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
+    /// Inserts a pre-parsed specification into the registry.
+    pub fn insert(&mut self, id: String, ksy: KsyFile) {
+        self.specs.insert(id, ksy);
     }
 
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
+    /// Looks up a loaded specification by id.
+    #[must_use]
+    pub fn get(&self, id: &str) -> Option<&KsyFile> {
+        self.specs.get(id)
     }
 
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    /// Recursively loads an import specified in a `meta.imports` list.
+    ///
+    /// # Errors
+    /// Returns an error if the imported file cannot be found or parsed.
+    pub fn load_import(&mut self, import_str: &str, current_file: Option<&Path>) -> Result<()> {
+        let clean_path = import_str.trim_start_matches('/');
+        let base_name = clean_path
+            .rsplit('/')
+            .next()
+            .unwrap_or(clean_path);
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
+        if self.specs.contains_key(base_name) {
+            return Ok(());
+        }
+
+        // Try locating the file
+        let mut candidates = Vec::new();
+
+        // 1. If relative and current_file is provided:
+        if !import_str.starts_with('/') {
+            if let Some(cur) = current_file {
+                if let Some(parent) = cur.parent() {
+                    candidates.push(parent.join(format!("{import_str}.ksy")));
+                }
+            }
+        }
+
+        // 2. Search in search_dirs
+        for dir in &self.search_dirs {
+            candidates.push(dir.join(format!("{clean_path}.ksy")));
+            // Also try just base_name in category directories
+            candidates.push(dir.join(format!("{base_name}.ksy")));
+        }
+
+        let mut found_path = None;
+        for cand in candidates {
+            if cand.is_file() {
+                found_path = Some(cand);
+                break;
+            }
+        }
+
+        let Some(path) = found_path else {
+            bail!("Could not resolve import '{}'", import_str);
+        };
+
+        let content = fs::read(&path)
+            .with_context(|| format!("Failed to read imported file {}", path.display()))?;
+        let ksy = parse_ksy_slice(&content)
+            .with_context(|| format!("Failed to parse imported file {}", path.display()))?;
+
+        self.specs.insert(base_name.to_string(), ksy.clone());
+
+        // Recursively resolve imports of the imported spec
+        if let Some(meta) = &ksy.meta {
+            for sub_imp in &meta.imports {
+                self.load_import(sub_imp, Some(&path))?;
+            }
+        }
+
         Ok(())
     }
 }

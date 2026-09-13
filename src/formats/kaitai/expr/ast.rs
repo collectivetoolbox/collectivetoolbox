@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,123 +29,236 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Abstract Syntax Tree (AST) definitions for Kaitai Struct expressions.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
+use serde::{Deserialize, Serialize};
 
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
-
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Type path and array designation in expressions.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct TypeId {
+    /// Whether the type path is absolute (prefixed with `::`).
+    pub absolute: bool,
+    /// Individual namespace / type name components.
+    pub names: Vec<String>,
+    /// Whether this denotes an array of the given type.
+    pub is_array: bool,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+impl TypeId {
+    /// Creates a new `TypeId`.
+    #[must_use]
+    pub fn new(absolute: bool, names: Vec<String>, is_array: bool) -> Self {
+        Self {
+            absolute,
+            names,
+            is_array,
+        }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+    /// Formats the type identifier as a human-readable string.
+    #[must_use]
+    pub fn name_as_str(&self) -> String {
+        let mut out = String::new();
+        if self.absolute {
+            out.push_str("::");
+        }
+        out.push_str(&self.names.join("::"));
+        if self.is_array {
+            out.push_str("[]");
+        }
+        out
     }
 }
+
+/// Boolean logical operators (`and`, `or`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BoolOp {
+    /// Logical conjunction (`and`).
+    And,
+    /// Logical disjunction (`or`).
+    Or,
+}
+
+/// Arithmetic and bitwise binary operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Operator {
+    /// Addition (`+`).
+    Add,
+    /// Subtraction (`-`).
+    Sub,
+    /// Multiplication (`*`).
+    Mult,
+    /// Division (`/`).
+    Div,
+    /// Modulo remainder (`%`).
+    Mod,
+    /// Left bit shift (`<<`).
+    LShift,
+    /// Right bit shift (`>>`).
+    RShift,
+    /// Bitwise OR (`|`).
+    BitOr,
+    /// Bitwise XOR (`^`).
+    BitXor,
+    /// Bitwise AND (`&`).
+    BitAnd,
+}
+
+/// Unary prefix operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UnaryOp {
+    /// Bitwise inversion (`~`).
+    Invert,
+    /// Logical negation (`not`).
+    Not,
+    /// Arithmetic negation (`-`).
+    Minus,
+}
+
+/// Comparison operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CmpOp {
+    /// Equality (`==`).
+    Eq,
+    /// Inequality (`!=`).
+    NotEq,
+    /// Strictly less than (`<`).
+    Lt,
+    /// Less than or equal to (`<=`).
+    LtE,
+    /// Strictly greater than (`>`).
+    Gt,
+    /// Greater than or equal to (`>=`).
+    GtE,
+}
+
+/// Abstract syntax tree representing Kaitai Struct expressions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Expr {
+    /// Multi-value boolean operator (`a and b and c` or `a or b or c`).
+    BoolOp {
+        /// Boolean operator.
+        op: BoolOp,
+        /// Operands evaluated in sequence.
+        values: Vec<Expr>,
+    },
+    /// Binary arithmetic/bitwise operation.
+    BinOp {
+        /// Left-hand operand.
+        left: Box<Expr>,
+        /// Binary operator.
+        op: Operator,
+        /// Right-hand operand.
+        right: Box<Expr>,
+    },
+    /// Unary operation (`-x`, `not x`, `~x`).
+    UnaryOp {
+        /// Unary operator.
+        op: UnaryOp,
+        /// Operand expression.
+        operand: Box<Expr>,
+    },
+    /// Ternary conditional expression (`cond ? if_true : if_false`).
+    IfExp {
+        /// Condition expression.
+        condition: Box<Expr>,
+        /// Expression evaluated if true.
+        if_true: Box<Expr>,
+        /// Expression evaluated if false.
+        if_false: Box<Expr>,
+    },
+    /// Relational comparison (`left < right`).
+    Compare {
+        /// Left operand.
+        left: Box<Expr>,
+        /// Comparison operator.
+        op: CmpOp,
+        /// Right operand.
+        right: Box<Expr>,
+    },
+    /// Function or method invocation (`func(arg1, arg2)`).
+    Call {
+        /// Target function or method expression.
+        func: Box<Expr>,
+        /// Arguments passed to call.
+        args: Vec<Expr>,
+    },
+    /// 128-bit integer constant literal.
+    IntNum(i128),
+    /// Floating point literal value.
+    FloatNum(f64),
+    /// String constant literal.
+    Str(String),
+    /// Boolean constant (`true` or `false`).
+    Bool(bool),
+    /// Enum member lookup by label (`enum_name::member`).
+    EnumByLabel {
+        /// Name of the enumeration type.
+        enum_name: String,
+        /// Member label identifier.
+        label: String,
+        /// Scope / enclosing type path.
+        in_type: TypeId,
+    },
+    /// Enum member lookup by integer expression (`enum_name(value)`).
+    EnumById {
+        /// Name of the enumeration type.
+        enum_name: String,
+        /// Integer expression value.
+        id: Box<Expr>,
+        /// Scope / enclosing type path.
+        in_type: TypeId,
+    },
+    /// Field / attribute access (`obj.attr`).
+    Attribute {
+        /// Target receiver expression.
+        value: Box<Expr>,
+        /// Attribute identifier.
+        attr: String,
+    },
+    /// Type casting expression (`val.as<type>`).
+    CastToType {
+        /// Source value expression.
+        value: Box<Expr>,
+        /// Target type designation.
+        type_name: TypeId,
+    },
+    /// Byte size lookup (`sizeof<type>`).
+    ByteSizeOfType(TypeId),
+    /// Bit size lookup (`bitsizeof<type>`).
+    BitSizeOfType(TypeId),
+    /// Array or buffer subscript (`arr[idx]`).
+    Subscript {
+        /// Collection or buffer expression.
+        value: Box<Expr>,
+        /// Subscript index expression.
+        idx: Box<Expr>,
+    },
+    /// Unqualified identifier name (e.g. variable, field name).
+    Name(String),
+    /// Literal list of expressions (`[a, b, c]`).
+    List(Vec<Expr>),
+}
+
+/// Type designation with optional arguments.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeWithArguments {
+    /// Base type path.
+    pub type_name: TypeId,
+    /// Arguments provided to type.
+    pub arguments: Vec<Expr>,
+}
+
 
 /* License information for parts derived from Kaitai Struct:
 

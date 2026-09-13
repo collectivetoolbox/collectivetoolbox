@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,122 +29,584 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Lexical analyzer / tokenizer for Kaitai Struct expression language.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
-
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
-
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Token categories recognized in Kaitai Struct expressions.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenKind {
+    /// Keyword `not`.
+    KwNot,
+    /// Keyword `and`.
+    KwAnd,
+    /// Keyword `or`.
+    KwOr,
+    /// Keyword `true`.
+    KwTrue,
+    /// Keyword `false`.
+    KwFalse,
+    /// Keyword `sizeof`.
+    KwSizeof,
+    /// Keyword `bitsizeof`.
+    KwBitsizeof,
+    /// Keyword `as`.
+    KwAs,
+    /// Keyword `if`.
+    KwIf,
+    /// Identifier or symbol name.
+    Ident(String),
+    /// Integer literal.
+    Int(i128),
+    /// Floating point literal.
+    Float(f64),
+    /// String literal without surrounding quotes.
+    Str(String),
+    /// Scope resolution operator `::`.
+    ColonColon,
+    /// Conditional ternary operator `?`.
+    Question,
+    /// Separator colon `:`.
+    Colon,
+    /// Left parenthesis `(`.
+    LParen,
+    /// Right parenthesis `)`.
+    RParen,
+    /// Left bracket `[`.
+    LBracket,
+    /// Right bracket `]`.
+    RBracket,
+    /// Left brace `{`.
+    LBrace,
+    /// Right brace `}`.
+    RBrace,
+    /// Comma delimiter `,`.
+    Comma,
+    /// Member access operator `.`.
+    Dot,
+    /// Left shift `<<`.
+    LShift,
+    /// Right shift `>>`.
+    RShift,
+    /// Less than or equal `<=`.
+    LtE,
+    /// Greater than or equal `>=`.
+    GtE,
+    /// Equality `==`.
+    Eq,
+    /// Inequality `!=`.
+    NotEq,
+    /// Less than `<`.
+    Lt,
+    /// Greater than `>`.
+    Gt,
+    /// Addition `+`.
+    Plus,
+    /// Subtraction `-`.
+    Minus,
+    /// Multiplication `*`.
+    Star,
+    /// Division `/`.
+    Slash,
+    /// Remainder `%`.
+    Percent,
+    /// Bitwise OR `|`.
+    Pipe,
+    /// Bitwise AND `&`.
+    Ampersand,
+    /// Bitwise XOR `^`.
+    Caret,
+    /// Bitwise NOT `~`.
+    Tilde,
+    /// End of expression stream.
+    Eof,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
+/// Token with positional offset information.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    /// Token category and payload.
+    pub kind: TokenKind,
+    /// Byte offset within source text.
+    pub pos: usize,
+}
 
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+/// Tokenizes a Kaitai Struct expression string.
+///
+/// # Errors
+/// Returns an error if an invalid character, incomplete literal, or syntax error is encountered.
+pub fn tokenize(src: &str) -> Result<Vec<Token>> {
+    let mut tokens = Vec::new();
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut idx = 0;
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+    while idx < len {
+        let b = bytes[idx];
+
+        // Whitespace
+        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            idx = idx.saturating_add(1);
+            continue;
+        }
+
+        // Two-character punctuation
+        if idx.saturating_add(1) < len {
+            let next = bytes[idx.saturating_add(1)];
+            match (b, next) {
+                (b':', b':') => {
+                    tokens.push(Token {
+                        kind: TokenKind::ColonColon,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'<', b'<') => {
+                    tokens.push(Token {
+                        kind: TokenKind::LShift,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'>', b'>') => {
+                    tokens.push(Token {
+                        kind: TokenKind::RShift,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'<', b'=') => {
+                    tokens.push(Token {
+                        kind: TokenKind::LtE,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'>', b'=') => {
+                    tokens.push(Token {
+                        kind: TokenKind::GtE,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'=', b'=') => {
+                    tokens.push(Token {
+                        kind: TokenKind::Eq,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                (b'!', b'=') => {
+                    tokens.push(Token {
+                        kind: TokenKind::NotEq,
+                        pos: idx,
+                    });
+                    idx = idx.saturating_add(2);
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
+        // Single-character punctuation
+        match b {
+            b'?' => {
+                tokens.push(Token {
+                    kind: TokenKind::Question,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b':' => {
+                tokens.push(Token {
+                    kind: TokenKind::Colon,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'(' => {
+                tokens.push(Token {
+                    kind: TokenKind::LParen,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b')' => {
+                tokens.push(Token {
+                    kind: TokenKind::RParen,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'[' => {
+                tokens.push(Token {
+                    kind: TokenKind::LBracket,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b']' => {
+                tokens.push(Token {
+                    kind: TokenKind::RBracket,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'{' => {
+                tokens.push(Token {
+                    kind: TokenKind::LBrace,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'}' => {
+                tokens.push(Token {
+                    kind: TokenKind::RBrace,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b',' => {
+                tokens.push(Token {
+                    kind: TokenKind::Comma,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'.' => {
+                // Check if this is a leading dot float, e.g. .5, but not .attr
+                if idx.saturating_add(1) < len && bytes[idx.saturating_add(1)].is_ascii_digit() {
+                    let start = idx;
+                    idx = idx.saturating_add(1);
+                    while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+                        idx = idx.saturating_add(1);
+                    }
+                    if idx < len && (bytes[idx] == b'e' || bytes[idx] == b'E') {
+                        idx = idx.saturating_add(1);
+                        if idx < len && (bytes[idx] == b'+' || bytes[idx] == b'-') {
+                            idx = idx.saturating_add(1);
+                        }
+                        while idx < len && bytes[idx].is_ascii_digit() {
+                            idx = idx.saturating_add(1);
+                        }
+                    }
+                    let num_str = src.get(start..idx).context("Invalid slice")?.replace('_', "");
+                    let float_val: f64 = num_str.parse().context("Invalid float literal")?;
+                    tokens.push(Token {
+                        kind: TokenKind::Float(float_val),
+                        pos: start,
+                    });
+                    continue;
+                }
+                tokens.push(Token {
+                    kind: TokenKind::Dot,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'<' => {
+                tokens.push(Token {
+                    kind: TokenKind::Lt,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'>' => {
+                tokens.push(Token {
+                    kind: TokenKind::Gt,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'+' => {
+                tokens.push(Token {
+                    kind: TokenKind::Plus,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'-' => {
+                tokens.push(Token {
+                    kind: TokenKind::Minus,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'*' => {
+                tokens.push(Token {
+                    kind: TokenKind::Star,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'/' => {
+                tokens.push(Token {
+                    kind: TokenKind::Slash,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'%' => {
+                tokens.push(Token {
+                    kind: TokenKind::Percent,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'|' => {
+                tokens.push(Token {
+                    kind: TokenKind::Pipe,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'&' => {
+                tokens.push(Token {
+                    kind: TokenKind::Ampersand,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'^' => {
+                tokens.push(Token {
+                    kind: TokenKind::Caret,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            b'~' => {
+                tokens.push(Token {
+                    kind: TokenKind::Tilde,
+                    pos: idx,
+                });
+                idx = idx.saturating_add(1);
+                continue;
+            }
+            _ => {}
+        }
+
+        // Strings
+        if b == b'\'' || b == b'"' {
+            let quote = b;
+            let start = idx;
+            idx = idx.saturating_add(1);
+            let mut val = String::new();
+            while idx < len && bytes[idx] != quote {
+                if bytes[idx] == b'\\' {
+                    idx = idx.saturating_add(1);
+                    ensure!(idx < len, "Unterminated escape sequence in string literal");
+                    match bytes[idx] {
+                        b'n' => val.push('\n'),
+                        b'r' => val.push('\r'),
+                        b't' => val.push('\t'),
+                        b'\\' => val.push('\\'),
+                        b'\'' => val.push('\''),
+                        b'"' => val.push('"'),
+                        b'0' => val.push('\0'),
+                        b'a' => val.push('\u{0007}'),
+                        b'b' => val.push('\u{0008}'),
+                        b'f' => val.push('\u{000C}'),
+                        b'v' => val.push('\u{000B}'),
+                        b'u' => {
+                            idx = idx.saturating_add(1);
+                            ensure!(idx.saturating_add(4) <= len, "Incomplete unicode escape in string literal");
+                            let hex_str = src.get(idx..idx.saturating_add(4)).context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16).context("Invalid unicode hex escape")?;
+                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            val.push(ch);
+                            idx = idx.saturating_add(3); // loop step will add 1 more
+                        }
+                        b'x' => {
+                            idx = idx.saturating_add(1);
+                            ensure!(idx.saturating_add(2) <= len, "Incomplete hex escape in string literal");
+                            let hex_str = src.get(idx..idx.saturating_add(2)).context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16).context("Invalid hex escape")?;
+                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            val.push(ch);
+                            idx = idx.saturating_add(1);
+                        }
+                        other => val.push(other as char),
+                    }
+                } else {
+                    val.push(bytes[idx] as char);
+                }
+                idx = idx.saturating_add(1);
+            }
+            ensure!(idx < len && bytes[idx] == quote, "Unterminated string literal");
+            idx = idx.saturating_add(1);
+            tokens.push(Token {
+                kind: TokenKind::Str(val),
+                pos: start,
+            });
+            continue;
+        }
+
+        // Numbers (integers or floats)
+        if b.is_ascii_digit() {
+            let start = idx;
+            // Check for prefixes (0x, 0o, 0b)
+            if b == b'0' && idx.saturating_add(1) < len {
+                let p = bytes[idx.saturating_add(1)];
+                if p == b'x' || p == b'X' {
+                    idx = idx.saturating_add(2);
+                    let num_start = idx;
+                    while idx < len && (bytes[idx].is_ascii_hexdigit() || bytes[idx] == b'_') {
+                        idx = idx.saturating_add(1);
+                    }
+                    ensure!(idx > num_start, "Empty hex literal");
+                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                    let num = i128::from_str_radix(&clean, 16).context("Invalid hex integer literal")?;
+                    tokens.push(Token {
+                        kind: TokenKind::Int(num),
+                        pos: start,
+                    });
+                    continue;
+                } else if p == b'o' || p == b'O' {
+                    idx = idx.saturating_add(2);
+                    let num_start = idx;
+                    while idx < len && ((bytes[idx] >= b'0' && bytes[idx] <= b'7') || bytes[idx] == b'_') {
+                        idx = idx.saturating_add(1);
+                    }
+                    ensure!(idx > num_start, "Empty octal literal");
+                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                    let num = i128::from_str_radix(&clean, 8).context("Invalid octal integer literal")?;
+                    tokens.push(Token {
+                        kind: TokenKind::Int(num),
+                        pos: start,
+                    });
+                    continue;
+                } else if p == b'b' || p == b'B' {
+                    idx = idx.saturating_add(2);
+                    let num_start = idx;
+                    while idx < len && (bytes[idx] == b'0' || bytes[idx] == b'1' || bytes[idx] == b'_') {
+                        idx = idx.saturating_add(1);
+                    }
+                    ensure!(idx > num_start, "Empty binary literal");
+                    let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
+                    let num = i128::from_str_radix(&clean, 2).context("Invalid binary integer literal")?;
+                    tokens.push(Token {
+                        kind: TokenKind::Int(num),
+                        pos: start,
+                    });
+                    continue;
+                }
+            }
+
+            // Decimal integer or float
+            let mut is_float = false;
+            while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+                idx = idx.saturating_add(1);
+            }
+
+            // Check for fractional part
+            if idx < len && bytes[idx] == b'.' {
+                let next_idx = idx.saturating_add(1);
+                if next_idx >= len || (!bytes[next_idx].is_ascii_alphabetic() && bytes[next_idx] != b'_') {
+                    is_float = true;
+                    idx = next_idx;
+                    while idx < len && (bytes[idx].is_ascii_digit() || bytes[idx] == b'_') {
+                        idx = idx.saturating_add(1);
+                    }
+                }
+            }
+
+            // Check for exponent part
+            if idx < len && (bytes[idx] == b'e' || bytes[idx] == b'E') {
+                is_float = true;
+                idx = idx.saturating_add(1);
+                if idx < len && (bytes[idx] == b'+' || bytes[idx] == b'-') {
+                    idx = idx.saturating_add(1);
+                }
+                while idx < len && bytes[idx].is_ascii_digit() {
+                    idx = idx.saturating_add(1);
+                }
+            }
+
+            let mut num_str = src.get(start..idx).context("Invalid slice")?.replace('_', "");
+            if is_float {
+                if num_str.ends_with('.') {
+                    num_str.push('0');
+                }
+                let f_val: f64 = num_str.parse().context("Invalid float literal")?;
+                tokens.push(Token {
+                    kind: TokenKind::Float(f_val),
+                    pos: start,
+                });
+            } else {
+                let i_val: i128 = num_str.parse().context("Invalid integer literal")?;
+                tokens.push(Token {
+                    kind: TokenKind::Int(i_val),
+                    pos: start,
+                });
+            }
+            continue;
+        }
+
+        // Identifiers and keywords
+        if b.is_ascii_alphabetic() || b == b'_' {
+            let start = idx;
+            while idx < len && (bytes[idx].is_ascii_alphanumeric() || bytes[idx] == b'_') {
+                idx = idx.saturating_add(1);
+            }
+            let text = src.get(start..idx).context("Invalid slice")?;
+            let kind = match text {
+                "not" => TokenKind::KwNot,
+                "and" => TokenKind::KwAnd,
+                "or" => TokenKind::KwOr,
+                "true" => TokenKind::KwTrue,
+                "false" => TokenKind::KwFalse,
+                "sizeof" => TokenKind::KwSizeof,
+                "bitsizeof" => TokenKind::KwBitsizeof,
+                "as" => TokenKind::KwAs,
+                "if" => TokenKind::KwIf,
+                _ => TokenKind::Ident(text.to_string()),
+            };
+            tokens.push(Token { kind, pos: start });
+            continue;
+        }
+
+        bail!("Unexpected character in expression at byte offset {}: '{}'", idx, b as char);
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
-    }
+    tokens.push(Token {
+        kind: TokenKind::Eof,
+        pos: len,
+    });
+    Ok(tokens)
 }
 
 /* License information for parts derived from Kaitai Struct:

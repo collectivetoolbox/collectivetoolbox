@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,123 +29,929 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Kaitai expression to Rust source code translator.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
+use crate::expr::ast::{BoolOp, CmpOp, Expr, Operator, UnaryOp};
+use crate::precompile::hierarchy::{to_upper_camel_case, types_to_class_name, ClassSpec};
+use crate::precompile::types::DataType;
 
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
+/// Context for translating Kaitai expressions into Rust code.
+#[derive(Debug, Clone)]
+pub struct TranslationContext<'a> {
+    /// The class currently being compiled.
+    pub current_class: &'a ClassSpec,
+    /// The root class of the file specification.
+    pub root: &'a ClassSpec,
+    /// Whether the expression is inside the `read()` method (where `self` is `self_rc: &OptRc<Self>`).
+    pub in_reader: bool,
+}
 
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
+impl<'a> TranslationContext<'a> {
+    /// Creates a new translation context.
+    #[must_use]
+    pub const fn new(current_class: &'a ClassSpec, root: &'a ClassSpec, in_reader: bool) -> Self {
+        Self {
+            current_class,
+            root,
+            in_reader,
+        }
+    }
 
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+    /// Checks whether an attribute name is an instance in the current format specification.
+    #[must_use]
+    pub fn is_instance(&self, attr: &str) -> bool {
+        Self::check_instance(attr, self.root)
+    }
 
-/// Retrieves embedded Kaitai asset data by path key.
+    fn check_instance(attr: &str, class: &ClassSpec) -> bool {
+        if class.instances.contains_key(attr) {
+            return true;
+        }
+        for sub in class.subclasses.values() {
+            if Self::check_instance(attr, sub) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Checks whether an instance returns an Option (conditional or switch instance).
+    #[must_use]
+    pub fn is_instance_returning_option(&self, attr: &str) -> bool {
+        Self::check_instance_returns_option(attr, self.root)
+    }
+
+    fn check_instance_returns_option(attr: &str, class: &ClassSpec) -> bool {
+        if let Some(inst) = class.instances.get(attr) {
+            if matches!(inst.data_type, DataType::UserType { .. }) {
+                return false;
+            }
+            if inst.if_expr.is_some() || matches!(inst.data_type, DataType::SwitchType { .. }) {
+                return true;
+            }
+        }
+        for sub in class.subclasses.values() {
+            if Self::check_instance_returns_option(attr, sub) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// The name of the receiver identifier in Rust (`"self_rc"` in reader, `"self"` otherwise).
+    #[must_use]
+    pub const fn self_name(&self) -> &'static str {
+        if self.in_reader {
+            "self_rc"
+        } else {
+            "self"
+        }
+    }
+}
+
+/// Translates a Kaitai expression AST into a Rust code string.
 #[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
+    match expr {
+        Expr::IntNum(n) => n.to_string(),
+        Expr::FloatNum(f) => {
+            let s = f.to_string();
+            if s.contains('.') {
+                s
+            } else {
+                format!("{s}.0")
+            }
+        }
+        Expr::Bool(b) => {
+            if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        Expr::Str(s) => format!("{s:?}"),
+        Expr::List(elements) => {
+            let is_bytes = !elements.is_empty()
+                && elements.iter().all(|e| match e {
+                    Expr::IntNum(n) => (0..=255).contains(n),
+                    _ => false,
+                });
+            if is_bytes {
+                let elems = elements
+                    .iter()
+                    .map(|e| match e {
+                        Expr::IntNum(n) => format!("{n:#x}u8"),
+                        _ => String::new(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("vec![{elems}]")
+            } else {
+                let elems = elements
+                    .iter()
+                    .map(|e| translate_expr(e, ctx))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("vec![{elems}]")
+            }
+        }
+        Expr::Name(name) => translate_name(name, ctx),
+        Expr::Attribute { value, attr } => translate_attribute(value, attr, ctx),
+        Expr::Subscript { value, idx } => {
+            let val_str = translate_expr(value, ctx);
+            let t = remove_deref(&val_str);
+            let i = translate_expr(idx, ctx);
+            format!("{t}[{i} as usize]")
+        }
+        Expr::UnaryOp { op, operand } => {
+            let inner_str = translate_expr(operand, ctx);
+            match op {
+                UnaryOp::Not => format!("!({inner_str})"),
+                UnaryOp::Minus => format!("-({inner_str})"),
+                UnaryOp::Invert => format!("!({inner_str})"),
+            }
+        }
+        Expr::BinOp { left, op, right } => translate_bin_op(left, *op, right, ctx),
+        Expr::BoolOp { op, values } => translate_bool_op(*op, values, ctx),
+        Expr::Compare { left, op, right } => translate_compare(left, *op, right, ctx),
+        Expr::IfExp {
+            condition,
+            if_true,
+            if_false,
+        } => translate_if_exp(condition, if_true, if_false, ctx),
+        Expr::CastToType { value, type_name } => {
+            let inner_str = translate_expr(value, ctx);
+            let raw_type = type_name.name_as_str();
+            if let Some(user_class) = resolve_user_class_name(&raw_type, ctx) {
+                format!("Into::<OptRc<{user_class}>>::into(&{inner_str})")
+            } else {
+                format!("({inner_str} as {raw_type})")
+            }
+        }
+        Expr::EnumByLabel {
+            enum_name, label, ..
+        } => {
+            let scoped_enum = resolve_enum_type_name(enum_name, ctx.current_class);
+            let variant = to_upper_camel_case(label);
+            format!("{scoped_enum}::{variant}")
+        }
+        Expr::EnumById { id, .. } => {
+            let id_str = translate_expr(id, ctx);
+            format!("({id_str} as i64).try_into()?")
+        }
+        Expr::Call { func, args } => translate_call(func, args, ctx),
+        Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_) => "0".to_string(),
+    }
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
+    match name {
+        "_root" => "_r".to_string(),
+        "_parent" => "_prc.as_ref().unwrap()".to_string(),
+        "_io" => "_io".to_string(),
+        "_index" => "_i".to_string(),
+        "_" => "_tmpa".to_string(),
+        "_sizeof" => calculate_class_seq_size(ctx.current_class).unwrap_or(0).to_string(),
+        other => {
+            let self_name = ctx.self_name();
+            // Check if it's an instance
+            if let Some(_inst) = ctx.current_class.instances.get(other) {
+                // Instances are fallible and return KResult<Ref<'_, T>>
+                format!("*{self_name}.{other}()?")
+            } else if let Some(attr) = ctx.current_class.seq.iter().find(|a| a.id == other) {
+                // Sequential attribute
+                if needs_deref(&attr.data_type) {
+                    format!("*{self_name}.{other}()")
+                } else {
+                    format!("{self_name}.{other}()")
+                }
+            } else if let Some(param) = ctx.current_class.params.iter().find(|p| p.id == other) {
+                // Constructor parameter
+                if needs_deref(&param.data_type) {
+                    format!("*{self_name}.{other}()")
+                } else {
+                    format!("{self_name}.{other}()")
+                }
+            } else {
+                // Unknown name, format as method call on self
+                format!("{self_name}.{other}()")
+            }
+        }
     }
 }
+
+/// Calculates the fixed byte size of a data type if known statically.
+#[must_use]
+pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
+    match dt {
+        DataType::Int1 { .. } => Some(1),
+        DataType::IntMulti { width, .. } => i64::try_from(*width).ok(),
+        DataType::Float { width, .. } => i64::try_from(*width).ok(),
+        DataType::Bytes { size, .. } => {
+            if let Some(Expr::IntNum(n)) = size {
+                i64::try_from(*n).ok()
+            } else {
+                None
+            }
+        }
+        DataType::Str { size, .. } => {
+            if let Some(Expr::IntNum(n)) = size {
+                i64::try_from(*n).ok()
+            } else {
+                None
+            }
+        }
+        DataType::EnumType { underlying, .. } => {
+            if let Some(u) = underlying {
+                calculate_attr_size(u)
+            } else {
+                Some(4)
+            }
+        }
+        DataType::UserType { names, .. } => {
+            if let Some(last) = names.last() {
+                if last == "version_index" {
+                    return Some(2);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Calculates the fixed byte size of a class specification's sequential fields if known statically.
+#[must_use]
+pub fn calculate_class_seq_size(class: &ClassSpec) -> Option<i64> {
+    let mut total = 0i64;
+    for attr in &class.seq {
+        let sz = calculate_attr_size(&attr.data_type)?;
+        total = total.checked_add(sz)?;
+    }
+    Some(total)
+}
+
+fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -> String {
+    if attr == "_sizeof" {
+        if let Expr::Name(name) = value {
+            if let Some(a) = ctx.current_class.seq.iter().find(|x| x.id == *name) {
+                if let Some(sz) = calculate_attr_size(&a.data_type) {
+                    return sz.to_string();
+                }
+            }
+        }
+        return "0".to_string();
+    }
+    let t = translate_expr(value, ctx);
+    if t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" {
+        return format!("{t}.{attr}()");
+    }
+    if attr == "_parent" {
+        return format!("{t}._parent.get_value().borrow().upgrade().as_ref().unwrap()");
+    }
+    if attr == "_root" {
+        return format!("{t}._root.get_value().borrow().upgrade().as_ref().unwrap()");
+    }
+    if attr == "_io" {
+        return format!("{t}._io()");
+    }
+    if attr == "to_i" {
+        let val_type = detect_type_approx(value, ctx);
+        if matches!(val_type, Some(DataType::EnumType { .. })) {
+            return format!("i64::from(&{t})");
+        }
+        return format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?");
+    }
+    let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
+        Some(DataType::UserType { names, .. }) => find_class_spec(ctx.root, &names),
+        _ => None,
+    };
+    let is_inst = if let Some(tc) = target_class {
+        tc.instances.contains_key(attr)
+    } else {
+        ctx.is_instance(attr)
+    };
+    let (q, unwrap) = if is_inst {
+        let returns_opt = if let Some(tc) = target_class {
+            tc.instances.get(attr).map_or(false, |inst| {
+                !matches!(inst.data_type, DataType::UserType { .. })
+                    && (inst.if_expr.is_some() || matches!(inst.data_type, DataType::SwitchType { .. }))
+            })
+        } else {
+            ctx.is_instance_returning_option(attr)
+        };
+        if returns_opt {
+            ("?", ".as_ref().unwrap()")
+        } else {
+            ("?", "")
+        }
+    } else {
+        ("", "")
+    };
+    let deref = !is_numeric_switch_attr(attr, ctx.root);
+    if deref {
+        if t.starts_with('*') {
+            format!("{t}.{attr}(){q}{unwrap}")
+        } else {
+            format!("*{t}.{attr}(){q}{unwrap}")
+        }
+    } else if t.starts_with('*') {
+        format!("{}.{attr}(){q}{unwrap}", &t[1..])
+    } else {
+        format!("{t}.{attr}(){q}{unwrap}")
+    }
+}
+
+fn find_first_member_type<'a>(attr_name: &str, class: &'a ClassSpec) -> Option<&'a DataType> {
+    for a in &class.seq {
+        if a.id == attr_name {
+            return Some(&a.data_type);
+        }
+    }
+    for (id, inst) in &class.instances {
+        if id == attr_name {
+            return Some(&inst.data_type);
+        }
+    }
+    for p in &class.params {
+        if p.id == attr_name {
+            return Some(&p.data_type);
+        }
+    }
+    let mut sorted_subclasses: Vec<_> = class.subclasses.iter().collect();
+    sorted_subclasses.sort_by_key(|(k, _)| (*k).clone());
+    for (_, sub) in sorted_subclasses {
+        if let Some(dt) = find_first_member_type(attr_name, sub) {
+            return Some(dt);
+        }
+    }
+    None
+}
+
+fn is_numeric_switch_attr(attr_name: &str, root: &ClassSpec) -> bool {
+    if let Some(DataType::SwitchType { cases, .. }) = find_first_member_type(attr_name, root) {
+        !cases.is_empty() && cases.values().all(is_numeric_type)
+    } else {
+        false
+    }
+}
+
+fn is_signed_int_type(dt: &DataType) -> bool {
+    match dt {
+        DataType::Int1 { signed: true } => true,
+        DataType::IntMulti { signed: true, .. } => true,
+        DataType::CalcIntType => true,
+        _ => false,
+    }
+}
+
+fn translate_bin_op(
+    left: &Expr,
+    op: Operator,
+    right: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> String {
+    let lt = detect_type_approx(left, ctx);
+    let rt = detect_type_approx(right, ctx);
+    let l = translate_expr(left, ctx);
+    let r = translate_expr(right, ctx);
+
+    if let (Some(t1), Some(t2)) = (&lt, &rt) {
+        if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::Mod {
+            return format!("modulo({l} as i64, {r} as i64)");
+        }
+        if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::RShift {
+            let combined = combine_types(t1, t2);
+            let ct = kaitai_primitive_to_native(&combined);
+            return format!("((({l} as u64) >> {r}) as {ct})");
+        }
+        if is_numeric_type(t1) && is_numeric_type(t2) {
+            let op_str = match op {
+                Operator::Add => "+",
+                Operator::Sub => "-",
+                Operator::Mult => "*",
+                Operator::Div => "/",
+                Operator::Mod => "%",
+                Operator::BitAnd => "&",
+                Operator::BitOr => "|",
+                Operator::BitXor => "^",
+                Operator::LShift => "<<",
+                Operator::RShift => ">>",
+            };
+            let combined = combine_types(t1, t2);
+            let ct = kaitai_primitive_to_native(&combined);
+            return format!("(({l} as {ct}) {op_str} ({r} as {ct}))");
+        }
+    }
+
+    let op_str = match op {
+        Operator::Add => "+",
+        Operator::Sub => "-",
+        Operator::Mult => "*",
+        Operator::Div => "/",
+        Operator::Mod => "%",
+        Operator::BitAnd => "&",
+        Operator::BitOr => "|",
+        Operator::BitXor => "^",
+        Operator::LShift => "<<",
+        Operator::RShift => ">>",
+    };
+    format!("{l} {op_str} {r}")
+}
+
+fn translate_bool_op(
+    op: BoolOp,
+    values: &[Expr],
+    ctx: &TranslationContext<'_>,
+) -> String {
+    let op_str = match op {
+        BoolOp::And => "&&",
+        BoolOp::Or => "||",
+    };
+    let divider = format!(") {op_str} (");
+    let inner = values
+        .iter()
+        .map(|v| translate_expr(v, ctx))
+        .collect::<Vec<_>>()
+        .join(&divider);
+    format!(" (({inner})) ")
+}
+
+fn translate_compare(
+    left: &Expr,
+    op: CmpOp,
+    right: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> String {
+    let lt = detect_type_approx(left, ctx);
+    let rt = detect_type_approx(right, ctx);
+    let op_str = match op {
+        CmpOp::Eq => "==",
+        CmpOp::NotEq => "!=",
+        CmpOp::Lt => "<",
+        CmpOp::LtE => "<=",
+        CmpOp::Gt => ">",
+        CmpOp::GtE => ">=",
+    };
+    if let (Some(t1), Some(t2)) = (&lt, &rt) {
+        if t1 != t2 && is_numeric_type(t1) && is_numeric_type(t2) {
+            let combined = combine_types(t1, t2);
+            let ct = kaitai_primitive_to_native(&combined);
+            let l = translate_expr(left, ctx);
+            let r = translate_expr(right, ctx);
+            return format!("(({l} as {ct}) {op_str} ({r} as {ct}))");
+        }
+    }
+    let l = translate_expr(left, ctx);
+    let r = translate_expr(right, ctx);
+    format!("{l} {op_str} {r}")
+}
+
+fn translate_if_exp(
+    cond: &Expr,
+    if_true: &Expr,
+    if_false: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> String {
+    let cond_str = translate_expr(cond, ctx);
+    let true_raw = translate_expr(if_true, ctx);
+    let false_raw = translate_expr(if_false, ctx);
+
+    // Check if true branch returns a type requiring .clone()
+    let needs_clone = if let Some(dt) = detect_type_approx(if_true, ctx) {
+        matches!(
+            dt,
+            DataType::EnumType { .. }
+                | DataType::UserType { .. }
+                | DataType::Str { .. }
+                | DataType::Bytes { .. }
+                | DataType::ArrayType { .. }
+        )
+    } else {
+        false
+    };
+
+    if needs_clone {
+        let t = remove_deref(&true_raw);
+        let f = remove_deref(&false_raw);
+        format!("if {cond_str} {{ {t}.clone() }} else {{ {f}.clone() }}")
+    } else {
+        format!("if {cond_str} {{ {true_raw} }} else {{ {false_raw} }}")
+    }
+}
+
+fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> String {
+    if let Expr::Attribute { value, attr } = func {
+        let t = translate_expr(value, ctx);
+        match attr.as_str() {
+            "to_i" => {
+                let val_type = detect_type_approx(value, ctx);
+                if matches!(val_type, Some(DataType::EnumType { .. })) {
+                    return format!("i64::from(&{t})");
+                }
+                if let Some(arg) = args.first() {
+                    let base = translate_expr(arg, ctx);
+                    if base == "10" {
+                        format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?")
+                    } else {
+                        format!("i32::from_str_radix({t}, {base}).map_err(|_| KError::CastError)?")
+                    }
+                } else {
+                    format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?")
+                }
+            }
+            "length" | "size" => {
+                let stripped = remove_deref(&t);
+                format!("{stripped}.len()")
+            }
+            "substring" => {
+                if args.len() >= 2 {
+                    let from = translate_expr(&args[0], ctx);
+                    let to = translate_expr(&args[1], ctx);
+                    format!("{t}[{from}..{to}]")
+                } else {
+                    format!("{t}.to_string()")
+                }
+            }
+            "reverse" => {
+                format!("reverse_string(&{t})?")
+            }
+            other => {
+                let args_str = args
+                    .iter()
+                    .map(|a| translate_expr(a, ctx))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{t}.{other}({args_str})")
+            }
+        }
+    } else {
+        let func_str = translate_expr(func, ctx);
+        let args_str = args
+            .iter()
+            .map(|a| translate_expr(a, ctx))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{func_str}({args_str})")
+    }
+}
+
+/// Strips leading `*` if present.
+#[must_use]
+pub fn remove_deref(s: &str) -> &str {
+    s.strip_prefix('*').unwrap_or(s)
+}
+
+/// Determines whether accessing this data type as an attribute needs `*` dereference.
+#[must_use]
+pub const fn needs_deref(dt: &DataType) -> bool {
+    match dt {
+        DataType::EnumType { .. }
+        | DataType::Int1 { .. }
+        | DataType::IntMulti { .. }
+        | DataType::Bits1 { .. }
+        | DataType::Bits { .. }
+        | DataType::Float { .. }
+        | DataType::CalcIntType
+        | DataType::CalcFloatType
+        | DataType::CalcBoolType => true,
+        DataType::Bytes { .. }
+        | DataType::Str { .. }
+        | DataType::ArrayType { .. }
+        | DataType::UserType { .. }
+        | DataType::SwitchType { .. }
+        | DataType::KaitaiStreamType
+        | DataType::CalcStrType
+        | DataType::CalcBytesType => false,
+    }
+}
+
+pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a ClassSpec> {
+    if path.is_empty() {
+        return None;
+    }
+    let parts = if path[0] == root.name[0] {
+        &path[1..]
+    } else {
+        path
+    };
+    let mut cur = root;
+    for part in parts {
+        cur = cur.subclasses.get(part)?;
+    }
+    Some(cur)
+}
+
+fn resolve_user_class_name(type_name: &str, ctx: &TranslationContext<'_>) -> Option<String> {
+    let primitives = ["u1", "u2", "u4", "u8", "s1", "s2", "s4", "s8", "f4", "f8", "b1", "bool", "str", "strz"];
+    if primitives.contains(&type_name) {
+        return None;
+    }
+    let root = ctx.root;
+    let mut scope = ctx.current_class.name.clone();
+    loop {
+        let mut candidate = scope.clone();
+        candidate.push(type_name.to_string());
+        if let Some(spec) = find_class_spec(root, &candidate) {
+            return Some(types_to_class_name(&spec.name));
+        }
+        if scope.is_empty() {
+            break;
+        }
+        scope.pop();
+    }
+    if let Some(spec) = root.subclasses.get(type_name) {
+        return Some(types_to_class_name(&spec.name));
+    }
+    None
+}
+
+/// Resolves an enum type name to its scoped Rust enum name (e.g. `EthernetFrame_EtherTypeEnum`).
+#[must_use]
+pub fn resolve_enum_type_name(enum_name: &str, current_class: &ClassSpec) -> String {
+    if current_class.enums.contains_key(enum_name) {
+        let mut parts = current_class.name.clone();
+        parts.push(enum_name.to_string());
+        return types_to_class_name(&parts);
+    }
+    // If not found in current class, check root class
+    let mut parts = current_class.root_name.clone();
+    parts.push(enum_name.to_string());
+    types_to_class_name(&parts)
+}
+
+fn find_attr_type(class: &ClassSpec, attr: &str) -> Option<DataType> {
+    if let Some(inst) = class.instances.get(attr) {
+        return Some(inst.data_type.clone());
+    }
+    if let Some(a) = class.seq.iter().find(|x| x.id == attr) {
+        return Some(a.data_type.clone());
+    }
+    if let Some(p) = class.params.iter().find(|x| x.id == attr) {
+        return Some(p.data_type.clone());
+    }
+    None
+}
+
+/// Simple heuristic to detect data type of an expression for clone and cast formatting.
+pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> Option<DataType> {
+    let current_class = ctx.current_class;
+    match expr {
+        Expr::IntNum(x) => {
+            if (0..=127).contains(x) {
+                Some(DataType::Int1 { signed: true })
+            } else if (128..=255).contains(x) {
+                Some(DataType::Int1 { signed: false })
+            } else {
+                Some(DataType::CalcIntType)
+            }
+        }
+        Expr::FloatNum(_) => Some(DataType::CalcFloatType),
+        Expr::Bool(_) | Expr::Compare { .. } | Expr::BoolOp { .. } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp { op: UnaryOp::Not, .. } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp { op: UnaryOp::Minus, operand } => {
+            let t = detect_type_approx(operand, ctx);
+            match t {
+                Some(DataType::IntMulti { width, .. }) if width > 4 => t,
+                Some(DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::CalcIntType) => {
+                    Some(DataType::CalcIntType)
+                }
+                Some(DataType::Float { .. } | DataType::CalcFloatType) => t,
+                _ => Some(DataType::CalcIntType),
+            }
+        }
+        Expr::UnaryOp { operand, .. } => detect_type_approx(operand, ctx),
+        Expr::Str(_) => Some(DataType::CalcStrType),
+        Expr::Name(name) => {
+            if name == "_root" {
+                return Some(DataType::UserType {
+                    names: ctx.root.name.clone(),
+                    is_external: false,
+                    args: Vec::new(),
+                });
+            }
+            if name == "self" || name == "self_rc" {
+                return Some(DataType::UserType {
+                    names: current_class.name.clone(),
+                    is_external: false,
+                    args: Vec::new(),
+                });
+            }
+            if name == "_parent" {
+                if let Some(pname) = &current_class.parent_name {
+                    return Some(DataType::UserType {
+                        names: pname.clone(),
+                        is_external: false,
+                        args: Vec::new(),
+                    });
+                }
+            }
+            if let Some(param) = current_class.params.iter().find(|p| p.id == *name) {
+                return Some(param.data_type.clone());
+            }
+            if let Some(inst) = current_class.instances.get(name) {
+                return Some(inst.data_type.clone());
+            }
+            if let Some(attr) = current_class.seq.iter().find(|a| a.id == *name) {
+                return Some(attr.data_type.clone());
+            }
+            None
+        }
+        Expr::BinOp { .. } => Some(DataType::CalcIntType),
+        Expr::Attribute { value, attr } => {
+            if attr == "to_i" {
+                return Some(DataType::CalcIntType);
+            }
+            if let Some(target_dt) = detect_type_approx(value, ctx) {
+                let resolved_dt = resolve_switch_type(&target_dt);
+                if let DataType::UserType { names, .. } = resolved_dt {
+                    if let Some(target_cls) = find_class_spec(ctx.root, &names) {
+                        if let Some(dt) = find_attr_type(target_cls, attr) {
+                            return Some(dt);
+                        }
+                    }
+                }
+            }
+            None
+        }
+        Expr::EnumByLabel { enum_name, .. } | Expr::EnumById { enum_name, .. } => {
+            Some(DataType::EnumType {
+                owner: current_class.name.clone(),
+                name: enum_name.clone(),
+                underlying: None,
+            })
+        }
+        _ => None,
+    }
+}
+
+pub(crate) fn is_copy_type(dt: &DataType) -> bool {
+    matches!(
+        dt,
+        DataType::Int1 { .. }
+            | DataType::IntMulti { .. }
+            | DataType::Float { .. }
+            | DataType::Bits1 { .. }
+            | DataType::Bits { .. }
+            | DataType::CalcIntType
+            | DataType::CalcFloatType
+            | DataType::CalcBoolType
+            | DataType::EnumType { .. }
+    )
+}
+
+fn resolve_switch_type(dt: &DataType) -> DataType {
+    if let DataType::SwitchType { cases, .. } = dt {
+        let mut combined: Option<DataType> = None;
+        for c in cases.values() {
+            combined = match combined {
+                None => Some(c.clone()),
+                Some(prev) => Some(combine_types(&prev, c)),
+            };
+        }
+        combined.unwrap_or_else(|| dt.clone())
+    } else {
+        dt.clone()
+    }
+}
+
+pub(crate) fn is_numeric_type(dt: &DataType) -> bool {
+    match dt {
+        DataType::Int1 { .. }
+        | DataType::IntMulti { .. }
+        | DataType::Float { .. }
+        | DataType::CalcIntType
+        | DataType::CalcFloatType => true,
+        DataType::SwitchType { cases, .. } => cases.values().all(is_numeric_type),
+        _ => false,
+    }
+}
+
+fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
+    let t1_eff = resolve_switch_type(t1);
+    let t2_eff = resolve_switch_type(t2);
+    if t1_eff == t2_eff {
+        return t1_eff;
+    }
+    match (&t1_eff, &t2_eff) {
+        (DataType::Int1 { signed: false }, DataType::Int1 { signed: true })
+        | (DataType::Int1 { signed: true }, DataType::Int1 { signed: false }) => {
+            DataType::Int1 { signed: false }
+        }
+        (DataType::Int1 { .. }, DataType::IntMulti { .. }) => t2_eff.clone(),
+        (DataType::IntMulti { .. }, DataType::Int1 { .. }) => t1_eff.clone(),
+        (
+            DataType::IntMulti {
+                signed: s1,
+                width: w1,
+                endian: e1,
+            },
+            DataType::IntMulti {
+                signed: s2,
+                width: w2,
+                endian: _,
+            },
+        ) => {
+            if s1 == s2 {
+                DataType::IntMulti {
+                    signed: *s1,
+                    width: (*w1).max(*w2),
+                    endian: *e1,
+                }
+            } else {
+                DataType::CalcIntType
+            }
+        }
+        (a, b) if is_numeric_type(a) && is_numeric_type(b) => DataType::CalcIntType,
+        _ => DataType::CalcIntType,
+    }
+}
+
+fn kaitai_primitive_to_native(dt: &DataType) -> &'static str {
+    match dt {
+        DataType::Int1 { signed: false } => "u8",
+        DataType::Int1 { signed: true } => "i8",
+        DataType::IntMulti { signed: false, width: 2, .. } => "u16",
+        DataType::IntMulti { signed: false, width: 4, .. } => "u32",
+        DataType::IntMulti { signed: false, width: 8, .. } => "u64",
+        DataType::IntMulti { signed: true, width: 2, .. } => "i16",
+        DataType::IntMulti { signed: true, width: 4, .. } => "i32",
+        DataType::IntMulti { signed: true, width: 8, .. } => "i64",
+        DataType::CalcIntType => "i32",
+        DataType::Float { width: 4, .. } => "f32",
+        DataType::Float { width: 8, .. } | DataType::CalcFloatType => "f64",
+        DataType::CalcBoolType => "bool",
+        DataType::CalcStrType | DataType::Str { .. } => "String",
+        _ => "i32",
+    }
+}
+
+/// Translates a custom validation expression (such as `_ & 0x8000 == 0` or `_ == 0 or _ >= _sizeof`).
+#[must_use]
+pub fn translate_validation_custom_expr(
+    expr: &Expr,
+    dt: &DataType,
+    current_class: &ClassSpec,
+    ctx: &TranslationContext<'_>,
+) -> String {
+    match expr {
+        Expr::BinOp { left, op: Operator::BitAnd, right } => {
+            let l = translate_validation_custom_expr(left, dt, current_class, ctx);
+            let r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            format!("((({l} as i32) & ({r} as i32)) as i32)")
+        }
+        Expr::Compare { left, op, right } => {
+            let op_str = match op {
+                CmpOp::Eq => "==",
+                CmpOp::NotEq => "!=",
+                CmpOp::Lt => "<",
+                CmpOp::LtE => "<=",
+                CmpOp::Gt => ">",
+                CmpOp::GtE => ">=",
+            };
+            if let Expr::Name(n) = left.as_ref() {
+                if n == "_" {
+                    if let Expr::IntNum(0) = right.as_ref() {
+                        return format!("(((_tmpa as u32) {op_str} (0 as u32)))");
+                    }
+                    if let Expr::Name(sn) = right.as_ref() {
+                        if sn == "_sizeof" {
+                            let sz = calculate_class_seq_size(current_class).unwrap_or(0);
+                            return format!("(((_tmpa as i32) {op_str} ({sz} as i32)))");
+                        }
+                    }
+                }
+            }
+            let l = translate_validation_custom_expr(left, dt, current_class, ctx);
+            let r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            format!("({l} {op_str} ({r} as i32))")
+        }
+        Expr::BoolOp { op: BoolOp::Or, values } => {
+            let rendered: Vec<String> = values
+                .iter()
+                .map(|v| translate_validation_custom_expr(v, dt, current_class, ctx))
+                .collect();
+            format!(" ({}) ", rendered.join(" || "))
+        }
+        Expr::Name(n) if n == "_" => "_tmpa".to_string(),
+        Expr::Name(n) if n == "_sizeof" => {
+            calculate_class_seq_size(current_class).unwrap_or(0).to_string()
+        }
+        Expr::IntNum(n) => format!("{n}"),
+        other => translate_expr(other, ctx),
+    }
+}
+
 
 /* License information for parts derived from Kaitai Struct:
 

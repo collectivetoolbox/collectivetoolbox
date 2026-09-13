@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,122 +29,281 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
+//! Build script for compiling Kaitai Struct format definitions into Rust source files.
 
-//! Kaitai Struct compiler and runtime integration for format specifications.
-
-#[allow(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
-)]
-pub(crate) use ctb_utilities::*;
-
-use include_dir::{include_dir, Dir};
-
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
-
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
-}
-
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
+#![allow(
     clippy::indexing_slicing,
     clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
+    clippy::shadow_unrelated,
+    reason = "Build script code generation"
 )]
-mod tests {
-    use super::*;
 
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
+use anyhow::{Context, Result};
+use walkdir::WalkDir;
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+pub(crate) mod utilities {
+    pub use anyhow::{Result, Context, bail, ensure};
+}
+
+#[path = "expr.rs"]
+pub mod expr;
+#[path = "spec.rs"]
+pub mod spec;
+#[path = "parser.rs"]
+pub mod parser;
+#[path = "precompile.rs"]
+pub mod precompile;
+#[path = "codegen.rs"]
+pub mod codegen;
+
+use parser::parse_ksy_slice;
+use precompile::{resolve_ksy, SpecRegistry};
+use codegen::compile_to_rust;
+
+fn write_if_changed(path: &Path, content: &str) -> Result<()> {
+    if path.exists() {
+        if let Ok(existing) = fs::read_to_string(path) {
+            if existing == content {
+                return Ok(());
+            }
+        }
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, content)?;
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
+    let definitions_dir = manifest_dir.join("data/definitions");
+    let generated_dir = manifest_dir.join("generated");
+
+    println!("cargo:rerun-if-changed=data/definitions");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=spec.rs");
+    println!("cargo:rerun-if-changed=parser.rs");
+    println!("cargo:rerun-if-changed=expr.rs");
+    println!("cargo:rerun-if-changed=expr");
+    println!("cargo:rerun-if-changed=precompile.rs");
+    println!("cargo:rerun-if-changed=precompile");
+    println!("cargo:rerun-if-changed=codegen.rs");
+    println!("cargo:rerun-if-changed=codegen");
+    println!("cargo:rerun-if-env-changed=CTB_KAITAI_ALL");
+    println!("cargo:rerun-if-env-changed=CTB_KAITAI_GENERATE");
+
+    if !definitions_dir.exists() {
+        return Ok(());
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    fs::create_dir_all(&generated_dir)?;
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
+    // 1. Load build cache (rel_path -> (mtime_nanos, size_bytes))
+    let cache_file = generated_dir.join(".build_cache");
+    let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
+    if let Ok(cache_str) = fs::read_to_string(&cache_file) {
+        for line in cache_str.lines() {
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() == 3 {
+                if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                    cache.insert(parts[0].to_string(), (mtime, size));
+                }
+            }
+        }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
+    // 2. Discover all .ksy files (skipping 'licenses' directory)
+    let mut ksy_files: Vec<(String, PathBuf, PathBuf)> = Vec::new();
+    for entry in WalkDir::new(&definitions_dir) {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+            let rel_path = path.strip_prefix(&definitions_dir)?;
+            let rel_components: Vec<_> = rel_path
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().to_string())
+                .collect();
+            if rel_components.first().map(|s| s.as_str()) == Some("licenses") {
+                continue;
+            }
+            let stem = path
+                .file_stem()
+                .context("Missing file stem")?
+                .to_string_lossy()
+                .to_string();
+            ksy_files.push((stem, path.to_path_buf(), rel_path.to_path_buf()));
+        }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+    // 3. Build SpecRegistry
+    let mut registry = SpecRegistry::new(vec![definitions_dir.clone()]);
+    for (stem, path, _) in &ksy_files {
+        if let Ok(bytes) = fs::read(path) {
+            if let Ok(ksy) = parse_ksy_slice(&bytes) {
+                registry.insert(stem.clone(), ksy);
+            }
+        }
     }
+
+    // 4. Compile .ksy files into .generated.rs
+    let compile_all = std::env::var("CTB_KAITAI_ALL").is_ok();
+    let generate_enabled = compile_all || std::env::var("CTB_KAITAI_GENERATE").is_ok();
+    let to_compile: Vec<_> = if compile_all {
+        ksy_files.clone()
+    } else if generate_enabled {
+        ksy_files
+            .iter()
+            .filter(|(stem, _, _)| {
+                matches!(
+                    stem.as_str(),
+                    "windows_systemtime"
+                )
+            })
+            .cloned()
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let mut updated_cache = cache.clone();
+    for (stem, ksy_path, rel_path) in &to_compile {
+        let metadata = fs::metadata(ksy_path)?;
+        let mtime = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let size = metadata.len();
+        let rel_key = rel_path.to_string_lossy().to_string();
+
+        let mut out_rel_path = rel_path.clone();
+        out_rel_path.set_file_name(format!("{stem}.generated.rs"));
+        let out_file = generated_dir.join(&out_rel_path);
+
+        let cached = cache.get(&rel_key);
+        let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
+
+        if !up_to_date {
+            let bytes = fs::read(ksy_path)?;
+            match parse_ksy_slice(&bytes) {
+                Ok(ksy) => match resolve_ksy(stem, &ksy, Some(&registry)) {
+                    Ok(spec) => match compile_to_rust(&spec) {
+                        Ok(rust_code) => {
+                            write_if_changed(&out_file, &rust_code)?;
+                            updated_cache.insert(rel_key, (mtime, size));
+                        }
+                        Err(e) => {
+                            println!("cargo:warning=Failed to generate Rust for {stem}: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        println!("cargo:warning=Failed to resolve {stem}: {e}");
+                    }
+                },
+                Err(e) => {
+                    println!("cargo:warning=Failed to parse {stem}.ksy: {e}");
+                }
+            }
+        }
+    }
+
+    // 5. Generate module files adhering to workspace style (strictly no mod.rs)
+    generate_module_files(&manifest_dir, &generated_dir)?;
+
+    // 6. Write updated cache
+    let mut cache_content = String::new();
+    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
+    sorted_keys.sort();
+    for key in sorted_keys {
+        if let Some((mtime, size)) = updated_cache.get(&key) {
+            cache_content.push_str(&format!("{key}\t{mtime}\t{size}\n"));
+        }
+    }
+    write_if_changed(&cache_file, &cache_content)?;
+
+    Ok(())
+}
+
+fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
+    // Clean up any legacy mod.rs files if present
+    let root_mod = generated_dir.join("mod.rs");
+    if root_mod.exists() {
+        let _ = fs::remove_file(root_mod);
+    }
+
+    let mut categories = Vec::new();
+
+    if generated_dir.exists() {
+        for entry in fs::read_dir(generated_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            if path.is_dir() && !name.starts_with('.') {
+                let cat_mod = path.join("mod.rs");
+                if cat_mod.exists() {
+                    let _ = fs::remove_file(cat_mod);
+                }
+
+                let mut gen_files = Vec::new();
+                for sub_entry in fs::read_dir(&path)? {
+                    let sub_entry = sub_entry?;
+                    let sub_path = sub_entry.path();
+                    let sub_name = sub_entry.file_name().to_string_lossy().to_string();
+                    if sub_path.is_file() && sub_name.ends_with(".generated.rs") {
+                        let mod_name = sub_name.trim_end_matches(".generated.rs").to_string();
+                        gen_files.push((mod_name, sub_name));
+                    }
+                }
+
+                if !gen_files.is_empty() {
+                    gen_files.sort();
+                    let mut cat_rs = String::new();
+                    cat_rs.push_str("// @generated by ctb-formats-kaitai::codegen\n");
+                    cat_rs.push_str("#![allow(unused_imports, clippy::wildcard_imports)]\n\n");
+                    cat_rs.push_str("use super::*;\n\n");
+                    for (mod_name, filename) in &gen_files {
+                        cat_rs.push_str(&format!(
+                            "#[path = \"{name}/{filename}\"]\npub mod {mod_name};\n"
+                        ));
+                    }
+                    let cat_file = generated_dir.join(format!("{name}.rs"));
+                    write_if_changed(&cat_file, &cat_rs)?;
+                    categories.push(name);
+                } else {
+                    let cat_file = generated_dir.join(format!("{name}.rs"));
+                    if cat_file.exists() {
+                        let _ = fs::remove_file(cat_file);
+                    }
+                }
+            } else if path.is_file() && name.ends_with(".rs") {
+                let cat_name = name.trim_end_matches(".rs").to_string();
+                if !categories.contains(&cat_name) {
+                    let _ = fs::remove_file(&path);
+                }
+            }
+        }
+    }
+
+    categories.sort();
+    let mut root_rs = String::new();
+    root_rs.push_str("// @generated by ctb-formats-kaitai::codegen\n");
+    root_rs.push_str("#![allow(unused_imports, clippy::wildcard_imports)]\n\n");
+    for cat in &categories {
+        root_rs.push_str(&format!("pub mod {cat};\npub use {cat}::*;\n"));
+    }
+    let root_file = manifest_dir.join("generated.rs");
+    write_if_changed(&root_file, &root_rs)?;
+
+    Ok(())
 }
 
 /* License information for parts derived from Kaitai Struct:

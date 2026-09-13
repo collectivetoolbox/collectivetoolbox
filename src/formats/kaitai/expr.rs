@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,42 +29,27 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Kaitai Struct expression language parsing and AST.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
-
-pub mod codegen;
-pub mod expr;
-pub mod generated;
+#[path = "expr/ast.rs"]
+pub mod ast;
+#[path = "expr/lexer.rs"]
+pub mod lexer;
+#[path = "expr/parser.rs"]
 pub mod parser;
-pub mod precompile;
-pub mod spec;
 
-pub use codegen::*;
-pub use expr::*;
+pub use ast::*;
 pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
-}
 
 #[cfg(test)]
 #[allow(
@@ -82,68 +66,176 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    fn test_parse_arithmetic() -> anyhow::Result<()> {
+        let e = parse_expr("len - 4")?;
+        assert_eq!(
+            e,
+            Expr::BinOp {
+                left: Box::new(Expr::Name("len".to_string())),
+                op: Operator::Sub,
+                right: Box::new(Expr::IntNum(4)),
+            }
+        );
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
+        let e2 = parse_expr("a + b * c")?;
+        assert_eq!(
+            e2,
+            Expr::BinOp {
+                left: Box::new(Expr::Name("a".to_string())),
+                op: Operator::Add,
+                right: Box::new(Expr::BinOp {
+                    left: Box::new(Expr::Name("b".to_string())),
+                    op: Operator::Mult,
+                    right: Box::new(Expr::Name("c".to_string())),
+                }),
+            }
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
+    fn test_parse_ternary() -> anyhow::Result<()> {
+        let e = parse_expr("flag ? 1 : 2")?;
+        assert_eq!(
+            e,
+            Expr::IfExp {
+                condition: Box::new(Expr::Name("flag".to_string())),
+                if_true: Box::new(Expr::IntNum(1)),
+                if_false: Box::new(Expr::IntNum(2)),
+            }
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
+    fn test_parse_comparison_and_logic() -> anyhow::Result<()> {
+        let e = parse_expr("x >= 2 and not y < 10")?;
+        assert_eq!(
+            e,
+            Expr::BoolOp {
+                op: BoolOp::And,
+                values: vec![
+                    Expr::Compare {
+                        left: Box::new(Expr::Name("x".to_string())),
+                        op: CmpOp::GtE,
+                        right: Box::new(Expr::IntNum(2)),
+                    },
+                    Expr::UnaryOp {
+                        op: UnaryOp::Not,
+                        operand: Box::new(Expr::Compare {
+                            left: Box::new(Expr::Name("y".to_string())),
+                            op: CmpOp::Lt,
+                            right: Box::new(Expr::IntNum(10)),
+                        }),
+                    }
+                ],
+            }
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    fn test_parse_enum_by_label() -> anyhow::Result<()> {
+        let e = parse_expr("ether_type_enum::ipv4")?;
+        assert_eq!(
+            e,
+            Expr::EnumByLabel {
+                enum_name: "ether_type_enum".to_string(),
+                label: "ipv4".to_string(),
+                in_type: TypeId::default(),
+            }
+        );
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
+        let e2 = parse_expr("parent::file_type::apple_single")?;
+        assert_eq!(
+            e2,
+            Expr::EnumByLabel {
+                enum_name: "file_type".to_string(),
+                label: "apple_single".to_string(),
+                in_type: TypeId {
+                    absolute: false,
+                    names: vec!["parent".to_string()],
+                    is_array: false,
+                },
+            }
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_member_and_calls() -> anyhow::Result<()> {
+        let e = parse_expr("_io.size()")?;
+        assert_eq!(
+            e,
+            Expr::Call {
+                func: Box::new(Expr::Attribute {
+                    value: Box::new(Expr::Name("_io".to_string())),
+                    attr: "size".to_string(),
+                }),
+                args: vec![],
+            }
+        );
+
+        let e2 = parse_expr("entries[i].offset")?;
+        assert_eq!(
+            e2,
+            Expr::Attribute {
+                value: Box::new(Expr::Subscript {
+                    value: Box::new(Expr::Name("entries".to_string())),
+                    idx: Box::new(Expr::Name("i".to_string())),
+                }),
+                attr: "offset".to_string(),
+            }
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_cast_and_sizeof() -> anyhow::Result<()> {
+        let e = parse_expr("raw.as<u4>")?;
+        assert_eq!(
+            e,
+            Expr::CastToType {
+                value: Box::new(Expr::Name("raw".to_string())),
+                type_name: TypeId {
+                    absolute: false,
+                    names: vec!["u4".to_string()],
+                    is_array: false,
+                },
+            }
+        );
+
+        let e2 = parse_expr("sizeof<header>")?;
+        assert_eq!(
+            e2,
+            Expr::ByteSizeOfType(TypeId {
+                absolute: false,
+                names: vec!["header".to_string()],
+                is_array: false,
+            })
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_number_literals() -> anyhow::Result<()> {
+        assert_eq!(parse_expr("0x8100")?, Expr::IntNum(0x8100));
+        assert_eq!(parse_expr("0b1010_0001")?, Expr::IntNum(0b1010_0001));
+        assert_eq!(parse_expr("0o77")?, Expr::IntNum(0o77));
+        assert_eq!(parse_expr("12_345")?, Expr::IntNum(12345));
+        assert_eq!(parse_expr("3.14")?, Expr::FloatNum(3.14));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_type_ref() -> anyhow::Result<()> {
+        let t1 = parse_type_ref("header")?;
+        assert_eq!(t1.type_name.names, vec!["header"]);
+        assert!(t1.arguments.is_empty());
+
+        let t2 = parse_type_ref("custom_type(1, _io.size())")?;
+        assert_eq!(t2.type_name.names, vec!["custom_type"]);
+        assert_eq!(t2.arguments.len(), 2);
         Ok(())
     }
 }

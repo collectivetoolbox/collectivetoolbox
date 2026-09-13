@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -30,121 +29,650 @@ Portions of Kaitai Struct compiler are based on scala/xml/Utility.scala from Sca
 Copyright (c) 2002-2017 EPFL
 Copyright (c) 2011-2017 Lightbend, Inc.
 
-See full license information for Kaitai Struct compiler at the end of this file.
+See full license information at the end of this file.
 */
 
-// See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
-
-//! Kaitai Struct compiler and runtime integration for format specifications.
+//! Parser for Kaitai Struct expressions.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-use include_dir::{include_dir, Dir};
+use super::ast::{
+    BoolOp, CmpOp, Expr, Operator, TypeId, TypeWithArguments, UnaryOp,
+};
+use super::lexer::{tokenize, Token, TokenKind};
 
-pub mod codegen;
-pub mod expr;
-pub mod generated;
-pub mod parser;
-pub mod precompile;
-pub mod spec;
-
-pub use codegen::*;
-pub use expr::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
-static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded Kaitai asset data by path key.
-#[must_use]
-pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&KAITAI_DATA_DIR, key)
+/// Parses a Kaitai Struct expression string into an `Expr` AST.
+///
+/// # Errors
+/// Returns an error if the expression syntax is invalid or unparseable.
+pub fn parse_expr(src: &str) -> Result<Expr> {
+    let tokens = tokenize(src)?;
+    let mut parser = Parser::new(tokens);
+    let expr = parser.parse_test()?;
+    ensure!(
+        parser.peek_kind() == &TokenKind::Eof,
+        "Unexpected trailing tokens in expression '{}' at offset {}",
+        src,
+        parser.peek_pos()
+    );
+    Ok(expr)
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
+/// Parses a type reference string with optional arguments (e.g. `type_name` or `type_name(arg1, arg2)`).
+///
+/// # Errors
+/// Returns an error if the type reference syntax is invalid.
+pub fn parse_type_ref(src: &str) -> Result<TypeWithArguments> {
+    let tokens = tokenize(src)?;
+    let mut parser = Parser::new(tokens);
+    let type_name = parser.parse_type_id()?;
+    let mut arguments = Vec::new();
+    if parser.peek_kind() == &TokenKind::LParen {
+        parser.bump();
+        if parser.peek_kind() != &TokenKind::RParen {
+            loop {
+                let arg = parser.parse_test()?;
+                arguments.push(arg);
+                if parser.peek_kind() == &TokenKind::Comma {
+                    parser.bump();
+                    if parser.peek_kind() == &TokenKind::RParen {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        ensure!(
+            parser.peek_kind() == &TokenKind::RParen,
+            "Expected ')' closing type arguments"
+        );
+        parser.bump();
+    }
+    ensure!(
+        parser.peek_kind() == &TokenKind::Eof,
+        "Unexpected trailing tokens in type reference '{}'",
+        src
+    );
+    Ok(TypeWithArguments {
+        type_name,
+        arguments,
+    })
+}
 
-    #[crate::ctb_test]
-    fn test_parse_apple_single_double() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/apple_single_double.ksy")
-            .context("apple_single_double.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+struct Parser {
+    tokens: Vec<Token>,
+    idx: usize,
+}
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("apple_single_double"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("be".to_string())));
-        ensure!(ksy.seq.len() == 5);
-        ensure!(ksy.enums.contains_key("file_type"));
-        ensure!(ksy.types.contains_key("entry"));
-        Ok(())
+impl Parser {
+    fn new(tokens: Vec<Token>) -> Self {
+        Self { tokens, idx: 0 }
     }
 
-    #[crate::ctb_test]
-    fn test_parse_windows_systemtime() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/windows_systemtime.ksy")
-            .context("windows_systemtime.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("windows_systemtime"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
-        Ok(())
+    fn peek(&self) -> &Token {
+        self.tokens.get(self.idx).unwrap_or_else(|| {
+            self.tokens.last().expect("Tokens vec is never empty due to EOF")
+        })
     }
 
-    #[crate::ctb_test]
-    fn test_parse_ethernet_frame() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/ethernet_frame.ksy")
-            .context("ethernet_frame.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
-
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("ethernet_frame"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(meta.imports.len() == 2);
-        ensure!(meta.imports[0] == "/network/ipv4_packet");
-        ensure!(meta.imports[1] == "/network/ipv6_packet");
-        ensure!(ksy.instances.contains_key("ether_type"));
-        ensure!(ksy.types.contains_key("tag_control_info"));
-        ensure!(ksy.enums.contains_key("ether_type_enum"));
-        Ok(())
+    fn peek_kind(&self) -> &TokenKind {
+        &self.peek().kind
     }
 
-    #[crate::ctb_test]
-    fn test_parse_elf() -> anyhow::Result<()> {
-        let data = get_kaitai_data("fixtures/elf.ksy")
-            .context("elf.ksy fixture missing")?;
-        let ksy = parse_ksy_slice(&data)?;
+    fn peek_pos(&self) -> usize {
+        self.peek().pos
+    }
 
-        let meta = ksy.meta.as_ref().context("missing meta")?;
-        ensure!(meta.id.as_deref() == Some("elf"));
-        ensure!(meta.license.as_deref() == Some("CC0-1.0"));
-        ensure!(ksy.seq.len() == 8);
-        ensure!(ksy.enums.contains_key("bits"));
-        ensure!(ksy.enums.contains_key("endian"));
-        ensure!(ksy.types.contains_key("endian_elf"));
-        Ok(())
+    fn bump(&mut self) -> Token {
+        if self.idx < self.tokens.len() {
+            let tok = self.tokens[self.idx].clone();
+            self.idx = self.idx.saturating_add(1);
+            tok
+        } else {
+            self.tokens.last().cloned().expect("Tokens vec is not empty")
+        }
+    }
+
+    // test = or_test ("?" test ":" test)?
+    fn parse_test(&mut self) -> Result<Expr> {
+        let condition = self.parse_or_test()?;
+        if self.peek_kind() == &TokenKind::Question {
+            self.bump();
+            let if_true = self.parse_test()?;
+            ensure!(
+                self.peek_kind() == &TokenKind::Colon,
+                "Expected ':' in ternary conditional expression"
+            );
+            self.bump();
+            let if_false = self.parse_test()?;
+            Ok(Expr::IfExp {
+                condition: Box::new(condition),
+                if_true: Box::new(if_true),
+                if_false: Box::new(if_false),
+            })
+        } else {
+            Ok(condition)
+        }
+    }
+
+    // or_test = and_test ("or" and_test)*
+    fn parse_or_test(&mut self) -> Result<Expr> {
+        let first = self.parse_and_test()?;
+        if self.peek_kind() == &TokenKind::KwOr {
+            let mut values = vec![first];
+            while self.peek_kind() == &TokenKind::KwOr {
+                self.bump();
+                values.push(self.parse_and_test()?);
+            }
+            Ok(Expr::BoolOp {
+                op: BoolOp::Or,
+                values,
+            })
+        } else {
+            Ok(first)
+        }
+    }
+
+    // and_test = not_test ("and" not_test)*
+    fn parse_and_test(&mut self) -> Result<Expr> {
+        let first = self.parse_not_test()?;
+        if self.peek_kind() == &TokenKind::KwAnd {
+            let mut values = vec![first];
+            while self.peek_kind() == &TokenKind::KwAnd {
+                self.bump();
+                values.push(self.parse_not_test()?);
+            }
+            Ok(Expr::BoolOp {
+                op: BoolOp::And,
+                values,
+            })
+        } else {
+            Ok(first)
+        }
+    }
+
+    // not_test = "not" not_test | comparison
+    fn parse_not_test(&mut self) -> Result<Expr> {
+        if self.peek_kind() == &TokenKind::KwNot {
+            self.bump();
+            let operand = self.parse_not_test()?;
+            Ok(Expr::UnaryOp {
+                op: UnaryOp::Not,
+                operand: Box::new(operand),
+            })
+        } else {
+            self.parse_comparison()
+        }
+    }
+
+    // comparison = expr (comp_op expr)?
+    fn parse_comparison(&mut self) -> Result<Expr> {
+        let left = self.parse_bitor_expr()?;
+        let op = match self.peek_kind() {
+            TokenKind::Eq => Some(CmpOp::Eq),
+            TokenKind::NotEq => Some(CmpOp::NotEq),
+            TokenKind::Lt => Some(CmpOp::Lt),
+            TokenKind::LtE => Some(CmpOp::LtE),
+            TokenKind::Gt => Some(CmpOp::Gt),
+            TokenKind::GtE => Some(CmpOp::GtE),
+            _ => None,
+        };
+        if let Some(cmp) = op {
+            self.bump();
+            let right = self.parse_bitor_expr()?;
+            Ok(Expr::Compare {
+                left: Box::new(left),
+                op: cmp,
+                right: Box::new(right),
+            })
+        } else {
+            Ok(left)
+        }
+    }
+
+    // expr = xor_expr ("|" xor_expr)*
+    fn parse_bitor_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_bitxor_expr()?;
+        while self.peek_kind() == &TokenKind::Pipe {
+            self.bump();
+            let right = self.parse_bitxor_expr()?;
+            left = Expr::BinOp {
+                left: Box::new(left),
+                op: Operator::BitOr,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // xor_expr = and_expr ("^" and_expr)*
+    fn parse_bitxor_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_bitand_expr()?;
+        while self.peek_kind() == &TokenKind::Caret {
+            self.bump();
+            let right = self.parse_bitand_expr()?;
+            left = Expr::BinOp {
+                left: Box::new(left),
+                op: Operator::BitXor,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // and_expr = shift_expr ("&" shift_expr)*
+    fn parse_bitand_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_shift_expr()?;
+        while self.peek_kind() == &TokenKind::Ampersand {
+            self.bump();
+            let right = self.parse_shift_expr()?;
+            left = Expr::BinOp {
+                left: Box::new(left),
+                op: Operator::BitAnd,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // shift_expr = arith_expr (("<<" | ">>") arith_expr)*
+    fn parse_shift_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_arith_expr()?;
+        loop {
+            let op = match self.peek_kind() {
+                TokenKind::LShift => Some(Operator::LShift),
+                TokenKind::RShift => Some(Operator::RShift),
+                _ => None,
+            };
+            if let Some(bin_op) = op {
+                self.bump();
+                let right = self.parse_arith_expr()?;
+                left = Expr::BinOp {
+                    left: Box::new(left),
+                    op: bin_op,
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    // arith_expr = term (("+" | "-") term)*
+    fn parse_arith_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_term()?;
+        loop {
+            let op = match self.peek_kind() {
+                TokenKind::Plus => Some(Operator::Add),
+                TokenKind::Minus => Some(Operator::Sub),
+                _ => None,
+            };
+            if let Some(bin_op) = op {
+                self.bump();
+                let right = self.parse_term()?;
+                left = Expr::BinOp {
+                    left: Box::new(left),
+                    op: bin_op,
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    // term = factor (("*" | "/" | "%") factor)*
+    fn parse_term(&mut self) -> Result<Expr> {
+        let mut left = self.parse_factor()?;
+        loop {
+            let op = match self.peek_kind() {
+                TokenKind::Star => Some(Operator::Mult),
+                TokenKind::Slash => Some(Operator::Div),
+                TokenKind::Percent => Some(Operator::Mod),
+                _ => None,
+            };
+            if let Some(bin_op) = op {
+                self.bump();
+                let right = self.parse_factor()?;
+                left = Expr::BinOp {
+                    left: Box::new(left),
+                    op: bin_op,
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    // factor = ("+" factor) | ("-" factor) | ("~" factor) | power
+    fn parse_factor(&mut self) -> Result<Expr> {
+        match self.peek_kind() {
+            TokenKind::Plus => {
+                self.bump();
+                self.parse_factor()
+            }
+            TokenKind::Minus => {
+                self.bump();
+                let operand = self.parse_factor()?;
+                Ok(Expr::UnaryOp {
+                    op: UnaryOp::Minus,
+                    operand: Box::new(operand),
+                })
+            }
+            TokenKind::Tilde => {
+                self.bump();
+                let operand = self.parse_factor()?;
+                Ok(Expr::UnaryOp {
+                    op: UnaryOp::Invert,
+                    operand: Box::new(operand),
+                })
+            }
+            _ => self.parse_power(),
+        }
+    }
+
+    // power = atom trailer*
+    fn parse_power(&mut self) -> Result<Expr> {
+        let mut expr = self.parse_atom()?;
+        loop {
+            match self.peek_kind() {
+                TokenKind::LParen => {
+                    self.bump();
+                    let mut args = Vec::new();
+                    if self.peek_kind() != &TokenKind::RParen {
+                        loop {
+                            args.push(self.parse_test()?);
+                            if self.peek_kind() == &TokenKind::Comma {
+                                self.bump();
+                                if self.peek_kind() == &TokenKind::RParen {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    ensure!(
+                        self.peek_kind() == &TokenKind::RParen,
+                        "Expected ')' after function arguments"
+                    );
+                    self.bump();
+                    expr = Expr::Call {
+                        func: Box::new(expr),
+                        args,
+                    };
+                }
+                TokenKind::LBracket => {
+                    self.bump();
+                    let idx = self.parse_test()?;
+                    ensure!(
+                        self.peek_kind() == &TokenKind::RBracket,
+                        "Expected ']' after subscript index"
+                    );
+                    self.bump();
+                    expr = Expr::Subscript {
+                        value: Box::new(expr),
+                        idx: Box::new(idx),
+                    };
+                }
+                TokenKind::Dot => {
+                    self.bump();
+                    // Check if followed by `as<type_name>`
+                    if self.peek_kind() == &TokenKind::KwAs {
+                        self.bump();
+                        ensure!(
+                            self.peek_kind() == &TokenKind::Lt,
+                            "Expected '<' after .as"
+                        );
+                        self.bump();
+                        let type_name = self.parse_type_id()?;
+                        ensure!(
+                            self.peek_kind() == &TokenKind::Gt,
+                            "Expected '>' closing .as<...>"
+                        );
+                        self.bump();
+                        expr = Expr::CastToType {
+                            value: Box::new(expr),
+                            type_name,
+                        };
+                    } else if let TokenKind::Ident(attr) = self.peek_kind() {
+                        let attr_name = attr.clone();
+                        self.bump();
+                        expr = Expr::Attribute {
+                            value: Box::new(expr),
+                            attr: attr_name,
+                        };
+                    } else {
+                        bail!("Expected identifier or 'as' after '.', got {:?}", self.peek_kind());
+                    }
+                }
+                _ => break,
+            }
+        }
+        Ok(expr)
+    }
+
+    // atom
+    fn parse_atom(&mut self) -> Result<Expr> {
+        match self.peek_kind() {
+            TokenKind::LParen => {
+                self.bump();
+                let inner = self.parse_test()?;
+                ensure!(
+                    self.peek_kind() == &TokenKind::RParen,
+                    "Expected ')' closing parenthesized expression"
+                );
+                self.bump();
+                Ok(inner)
+            }
+            TokenKind::LBracket => {
+                self.bump();
+                let mut elements = Vec::new();
+                if self.peek_kind() != &TokenKind::RBracket {
+                    loop {
+                        elements.push(self.parse_test()?);
+                        if self.peek_kind() == &TokenKind::Comma {
+                            self.bump();
+                            if self.peek_kind() == &TokenKind::RBracket {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                ensure!(
+                    self.peek_kind() == &TokenKind::RBracket,
+                    "Expected ']' closing list literal"
+                );
+                self.bump();
+                Ok(Expr::List(elements))
+            }
+            TokenKind::KwTrue => {
+                self.bump();
+                Ok(Expr::Bool(true))
+            }
+            TokenKind::KwFalse => {
+                self.bump();
+                Ok(Expr::Bool(false))
+            }
+            TokenKind::Int(n) => {
+                let val = *n;
+                self.bump();
+                Ok(Expr::IntNum(val))
+            }
+            TokenKind::Float(f) => {
+                let val = *f;
+                self.bump();
+                Ok(Expr::FloatNum(val))
+            }
+            TokenKind::Str(s) => {
+                let val = s.clone();
+                self.bump();
+                Ok(Expr::Str(val))
+            }
+            TokenKind::KwSizeof => {
+                self.bump();
+                ensure!(
+                    self.peek_kind() == &TokenKind::Lt,
+                    "Expected '<' after sizeof"
+                );
+                self.bump();
+                let type_name = self.parse_type_id()?;
+                ensure!(
+                    self.peek_kind() == &TokenKind::Gt,
+                    "Expected '>' after sizeof type"
+                );
+                self.bump();
+                Ok(Expr::ByteSizeOfType(type_name))
+            }
+            TokenKind::KwBitsizeof => {
+                self.bump();
+                ensure!(
+                    self.peek_kind() == &TokenKind::Lt,
+                    "Expected '<' after bitsizeof"
+                );
+                self.bump();
+                let type_name = self.parse_type_id()?;
+                ensure!(
+                    self.peek_kind() == &TokenKind::Gt,
+                    "Expected '>' after bitsizeof type"
+                );
+                self.bump();
+                Ok(Expr::BitSizeOfType(type_name))
+            }
+            TokenKind::ColonColon => {
+                // Absolute enum or scoped identifier, e.g. ::foo::bar
+                self.bump();
+                let mut parts = Vec::new();
+                parts.push(self.parse_scoped_ident_part()?);
+                while self.peek_kind() == &TokenKind::ColonColon {
+                    self.bump();
+                    parts.push(self.parse_scoped_ident_part()?);
+                }
+                if parts.len() >= 2 {
+                    let label = parts.pop().context("Missing label")?;
+                    let enum_name = parts.pop().context("Missing enum name")?;
+                    Ok(Expr::EnumByLabel {
+                        enum_name,
+                        label,
+                        in_type: TypeId {
+                            absolute: true,
+                            names: parts,
+                            is_array: false,
+                        },
+                    })
+                } else {
+                    let name = parts.pop().context("Missing identifier")?;
+                    Ok(Expr::Name(name))
+                }
+            }
+            TokenKind::Ident(ident) => {
+                let first = ident.clone();
+                self.bump();
+
+                // Check if followed by `::` for enum lookup
+                if self.peek_kind() == &TokenKind::ColonColon {
+                    let mut parts = vec![first];
+                    while self.peek_kind() == &TokenKind::ColonColon {
+                        self.bump();
+                        parts.push(self.parse_scoped_ident_part()?);
+                    }
+                    if parts.len() >= 2 {
+                        let label = parts.pop().context("Missing label")?;
+                        let enum_name = parts.pop().context("Missing enum name")?;
+                        Ok(Expr::EnumByLabel {
+                            enum_name,
+                            label,
+                            in_type: TypeId {
+                                absolute: false,
+                                names: parts,
+                                is_array: false,
+                            },
+                        })
+                    } else {
+                        Ok(Expr::Name(parts.pop().context("Missing name")?))
+                    }
+                } else {
+                    Ok(Expr::Name(first))
+                }
+            }
+            other => bail!("Unexpected token in expression: {:?}", other),
+        }
+    }
+
+    fn parse_type_id(&mut self) -> Result<TypeId> {
+        let absolute = if self.peek_kind() == &TokenKind::ColonColon {
+            self.bump();
+            true
+        } else {
+            false
+        };
+
+        let mut names = Vec::new();
+        if let TokenKind::Ident(name) = self.peek_kind() {
+            names.push(name.clone());
+            self.bump();
+        } else {
+            bail!("Expected identifier in type name, got {:?}", self.peek_kind());
+        }
+
+        while self.peek_kind() == &TokenKind::ColonColon {
+            self.bump();
+            if let TokenKind::Ident(name) = self.peek_kind() {
+                names.push(name.clone());
+                self.bump();
+            } else {
+                bail!("Expected identifier after '::' in type name");
+            }
+        }
+
+        let is_array = if self.peek_kind() == &TokenKind::LBracket {
+            self.bump();
+            ensure!(
+                self.peek_kind() == &TokenKind::RBracket,
+                "Expected ']' closing type array bracket"
+            );
+            self.bump();
+            true
+        } else {
+            false
+        };
+
+        Ok(TypeId {
+            absolute,
+            names,
+            is_array,
+        })
+    }
+
+    fn parse_scoped_ident_part(&mut self) -> Result<String> {
+        match self.peek_kind() {
+            TokenKind::Ident(s) => {
+                let s = s.clone();
+                self.bump();
+                Ok(s)
+            }
+            TokenKind::KwTrue => {
+                self.bump();
+                Ok("true".to_string())
+            }
+            TokenKind::KwFalse => {
+                self.bump();
+                Ok("false".to_string())
+            }
+            _ => bail!("Expected identifier after '::'"),
+        }
     }
 }
 
