@@ -185,6 +185,40 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
         }
         Expr::Str(s) => format!("{s:?}"),
         Expr::List(elements) => {
+            if let Some(elem_dt) = ctx.element_type {
+                if matches!(elem_dt, DataType::Str { .. } | DataType::CalcStrType) {
+                    let elems = elements
+                        .iter()
+                        .map(|e| match e {
+                            Expr::Str(s) => format!("{s:?}.to_string()"),
+                            other => format!("{}.to_string()", translate_expr(other, ctx)),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return format!("vec![{elems}]");
+                }
+                if is_numeric_type(elem_dt) {
+                    let ct = kaitai_primitive_to_native(elem_dt);
+                    let elems = elements
+                        .iter()
+                        .map(|e| format!("({}) as {ct}", translate_expr(e, ctx)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return format!("vec![{elems}]");
+                }
+            }
+            let is_str_list = !elements.is_empty() && elements.iter().all(|e| matches!(e, Expr::Str(_)));
+            if is_str_list {
+                let elems = elements
+                    .iter()
+                    .map(|e| match e {
+                        Expr::Str(s) => format!("{s:?}.to_string()"),
+                        other => format!("{}.to_string()", translate_expr(other, ctx)),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return format!("vec![{elems}]");
+            }
             let is_bytes = !elements.is_empty()
                 && elements.iter().all(|e| match e {
                     Expr::IntNum(n) => (0..=255).contains(n),
@@ -237,27 +271,17 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             match op {
                 UnaryOp::Not => format!("!({inner_str})"),
                 UnaryOp::Minus => {
-                    if !ctx.root.name.first().map_or(false, |n| n == "elf") {
-                        let op_type = detect_type_approx(operand, ctx);
-                        if matches!(
-                            op_type,
-                            Some(DataType::Int1 { signed: false }
-                                | DataType::IntMulti { signed: false, .. }
-                                | DataType::Bits { .. })
-                        ) || inner_str.ends_with(".pos()")
-                            || inner_str.ends_with("_raw()")
-                            || inner_str.ends_with(".len()")
-                            || inner_str.ends_with(".size()")
-                            || inner_str.contains(" as u")
-                        {
-                            format!("-({inner_str} as i64)")
-                        } else {
-                            format!("-({inner_str})")
-                        }
-                    } else if inner_str.ends_with(".pos()")
+                    let op_type = detect_type_approx(operand, ctx);
+                    if matches!(
+                        op_type,
+                        Some(DataType::Int1 { signed: false }
+                            | DataType::IntMulti { signed: false, .. }
+                            | DataType::Bits { .. })
+                    ) || inner_str.ends_with(".pos()")
                         || inner_str.ends_with("_raw()")
                         || inner_str.ends_with(".len()")
                         || inner_str.ends_with(".size()")
+                        || inner_str.contains(" as u")
                     {
                         format!("-({inner_str} as i64)")
                     } else {
@@ -785,14 +809,12 @@ fn translate_if_exp(
         return format!("if {cond_str} {{ {t_clean}.clone() }} else {{ {f_clean}.clone() }}");
     }
 
-    // Numeric branches coercion (skip elf to preserve golden fixture)
-    if !ctx.root.name.first().map_or(false, |n| n == "elf") {
-        if let (Some(t_type), Some(f_type)) = (&t_dt, &f_dt) {
-            if is_numeric_type(t_type) && is_numeric_type(f_type) {
-                let combined = combine_types(t_type, f_type);
-                let ct = kaitai_primitive_to_native(&combined);
-                return format!("if {cond_str} {{ ({true_raw}) as {ct} }} else {{ ({false_raw}) as {ct} }}");
-            }
+    // Numeric branches coercion
+    if let (Some(t_type), Some(f_type)) = (&t_dt, &f_dt) {
+        if is_numeric_type(t_type) && is_numeric_type(f_type) {
+            let combined = combine_types(t_type, f_type);
+            let ct = kaitai_primitive_to_native(&combined);
+            return format!("if {cond_str} {{ ({true_raw}) as {ct} }} else {{ ({false_raw}) as {ct} }}");
         }
     }
 
@@ -824,12 +846,13 @@ fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> S
                 format!("{stripped}.len()")
             }
             "substring" => {
+                let stripped = remove_deref(&t);
                 if args.len() >= 2 {
                     let from = translate_expr(&args[0], ctx);
                     let to = translate_expr(&args[1], ctx);
-                    format!("{t}[{from}..{to}]")
+                    format!("&{stripped}[{from}..{to}]")
                 } else {
-                    format!("{t}.to_string()")
+                    format!("{stripped}.to_string()")
                 }
             }
             "to_s" => {
@@ -1107,22 +1130,13 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 if let DataType::ArrayType { element: elem, .. } = resolved_dt {
                     return Some(*elem);
                 }
+                if matches!(resolved_dt, DataType::Bytes { .. } | DataType::CalcBytesType) {
+                    return Some(DataType::Int1 { signed: false });
+                }
             }
             None
         }
         Expr::BinOp { left, op, right } => {
-            if ctx.root.name.first().map_or(false, |n| n == "elf") {
-                if *op == Operator::Add {
-                    let lt = detect_type_approx(left, ctx);
-                    let rt = detect_type_approx(right, ctx);
-                    if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                        || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                    {
-                        return Some(DataType::CalcStrType);
-                    }
-                }
-                return Some(DataType::CalcIntType);
-            }
             let lt = detect_type_approx(left, ctx);
             let rt = detect_type_approx(right, ctx);
             if *op == Operator::Add {
@@ -1406,19 +1420,30 @@ pub fn translate_validation_custom_expr(
                     }
                 }
             }
-            if matches!(dt, DataType::Str { .. } | DataType::CalcStrType) {
+            if matches!(
+                dt,
+                DataType::Str { .. }
+                    | DataType::CalcStrType
+                    | DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. }
+            ) {
                 let l = translate_validation_custom_expr(left, dt, current_class, ctx);
                 let r = translate_validation_custom_expr(right, dt, current_class, ctx);
                 return format!("({l} {op_str} {r})");
             }
             let l = translate_validation_custom_expr(left, dt, current_class, ctx);
             let r = translate_validation_custom_expr(right, dt, current_class, ctx);
-            let ct = if matches!(left.as_ref(), Expr::BinOp { op: Operator::BitAnd, .. }) {
-                "i32"
-            } else {
-                kaitai_primitive_to_native(dt)
+            let lt = detect_type_approx(left, ctx);
+            let rt = detect_type_approx(right, ctx);
+            let ct = match (&lt, &rt) {
+                (Some(t1), Some(t2)) if is_numeric_type(t1) && is_numeric_type(t2) => {
+                    kaitai_primitive_to_native(&combine_types(t1, t2))
+                }
+                _ if matches!(left.as_ref(), Expr::BinOp { op: Operator::BitAnd, .. }) => "i32",
+                _ => kaitai_primitive_to_native(dt),
             };
-            format!("({l} {op_str} ({r} as {ct}))")
+            format!("(({l} as {ct}) {op_str} ({r} as {ct}))")
         }
         Expr::BoolOp { op, values } => {
             let op_str = match op {

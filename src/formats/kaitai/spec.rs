@@ -219,6 +219,9 @@ pub struct ParamDefSpec {
     /// Parameter data type.
     #[serde(rename = "type")]
     pub type_spec: Option<String>,
+    /// Parameter enum specification if this parameter has an enum type.
+    #[serde(rename = "enum", default)]
+    pub enum_spec: Option<String>,
     /// Parameter documentation.
     pub doc: Option<String>,
     /// Documentation references.

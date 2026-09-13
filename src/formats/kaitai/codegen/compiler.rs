@@ -826,9 +826,47 @@ fn emit_attr_validation(
     let self_name = ctx.self_name();
     let src_path = &valid.src_path;
 
+    let (is_repeated, elem_dt) = match &attr.data_type {
+        DataType::ArrayType { element, repeat } if !matches!(repeat, RepeatMode::None) => (true, element.as_ref()),
+        _ => (false, &attr.data_type),
+    };
+
     match &valid.rule {
         ValidationRule::Eq(expected_expr) => {
-            if matches!(attr.data_type, DataType::Bytes { .. }) {
+            if is_repeated {
+                if matches!(
+                    elem_dt,
+                    DataType::Bytes { .. }
+                        | DataType::CalcBytesType
+                        | DataType::ArrayType { .. }
+                        | DataType::Str { .. }
+                        | DataType::CalcStrType
+                        | DataType::EnumType { .. }
+                ) {
+                    let expected_str = translate_expr(expected_expr, ctx);
+                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| *_x == {expected_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    let ty_cast = validation_primitive_type(elem_dt);
+                    let expected_str = translate_expr(expected_expr, ctx);
+                    w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| (*_x as {ty_cast}) == ({expected_str} as {ty_cast})) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else if matches!(
+                attr.data_type,
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. }
+                    | DataType::Str { .. }
+                    | DataType::CalcStrType
+                    | DataType::EnumType { .. }
+            ) {
                 let expected_str = translate_expr(expected_expr, ctx);
                 w.puts(&format!("if !(*{self_name}.{id}() == {expected_str}) {{"));
                 w.inc();
@@ -847,32 +885,57 @@ fn emit_attr_validation(
         }
         ValidationRule::Min(min_expr) => {
             let is_sizeof = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
+            let target_dt = if is_repeated { elem_dt } else { &attr.data_type };
             let ty_cast = if is_sizeof {
                 "i32"
             } else {
-                validation_primitive_type(&attr.data_type)
+                validation_primitive_type(target_dt)
             };
             let min_str = if is_sizeof {
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
                 translate_expr(min_expr, ctx)
             };
-            w.puts(&format!("if !(((*{self_name}.{id}() as {ty_cast}) >= ({min_str} as {ty_cast}))) {{"));
-            w.inc();
-            w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
-            w.dec();
-            w.puts("}");
+            if is_repeated {
+                w.puts(&format!("if !{self_name}.{id}().iter().all(|_x| (*_x as {ty_cast}) >= ({min_str} as {ty_cast})) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+            } else {
+                w.puts(&format!("if !(((*{self_name}.{id}() as {ty_cast}) >= ({min_str} as {ty_cast}))) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+            }
         }
         ValidationRule::Expr(expr) => {
-            let deref = if super::translator::needs_deref(&attr.data_type) { "*" } else { "&*" };
-            w.puts(&format!("let _tmpa = {deref}{self_name}.{id}();"));
-            let val_ctx = ctx.with_element_type(Some(&attr.data_type));
-            let cond_str = super::translator::translate_validation_custom_expr(expr, &attr.data_type, current, &val_ctx);
-            w.puts(&format!("if !({cond_str}) {{"));
-            w.inc();
-            w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
-            w.dec();
-            w.puts("}");
+            if is_repeated {
+                let deref = if super::translator::needs_deref(elem_dt) { "*" } else { "&*" };
+                w.puts(&format!("for _item in {self_name}.{id}().iter() {{"));
+                w.inc();
+                w.puts(&format!("let _tmpa = {deref}_item;"));
+                let val_ctx = ctx.with_element_type(Some(elem_dt));
+                let cond_str = super::translator::translate_validation_custom_expr(expr, elem_dt, current, &val_ctx);
+                w.puts(&format!("if !({cond_str}) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            } else {
+                let deref = if super::translator::needs_deref(&attr.data_type) { "*" } else { "&*" };
+                w.puts(&format!("let _tmpa = {deref}{self_name}.{id}();"));
+                let val_ctx = ctx.with_element_type(Some(&attr.data_type));
+                let cond_str = super::translator::translate_validation_custom_expr(expr, &attr.data_type, current, &val_ctx);
+                w.puts(&format!("if !({cond_str}) {{"));
+                w.inc();
+                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
+                w.dec();
+                w.puts("}");
+            }
         }
         _ => {}
     }
@@ -925,7 +988,7 @@ fn translate_args(args: &[Expr], ctx: &TranslationContext<'_>, into: bool) -> St
                     return format!("({translated}).try_into().map_err(|_| KError::CastError)?");
                 }
             } else if !super::translator::is_copy_type(t) {
-                return format!("&{translated}");
+                return format!("{translated}.clone()");
             }
         }
         if translated.ends_with(']') {
@@ -1147,7 +1210,7 @@ fn read_expr_for_type(
                 format!("{io}.read_bytes_full()?.into()")
             } else if let Some(size_expr) = size {
                 let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes({s} as usize)?.into()")
+                format!("{io}.read_bytes(({s}) as usize)?.into()")
             } else if let Some(term) = terminator {
                 format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?.into()")
             } else {
@@ -1177,7 +1240,7 @@ fn read_expr_for_type(
                 format!("{io}.read_bytes_full()?.into()")
             } else if let Some(size_expr) = size {
                 let s = translate_expr(size_expr, ctx);
-                format!("{io}.read_bytes({s} as usize)?.into()")
+                format!("{io}.read_bytes(({s}) as usize)?.into()")
             } else if let Some(term) = terminator {
                 format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?.into()")
             } else {
@@ -1323,7 +1386,12 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
 
             // Value calculation or parse
             if let Some(value_expr) = &inst.value_expr {
-                let expr_str = translate_expr(value_expr, &ctx);
+                let val_ctx = if let DataType::ArrayType { element, .. } = &inst.data_type {
+                    ctx.with_element_type(Some(element))
+                } else {
+                    ctx.clone()
+                };
+                let expr_str = translate_expr(value_expr, &val_ctx);
                 let val_str = match &inst.data_type {
                     DataType::UserType { .. } => {
                         format!("{}.clone()", super::translator::remove_deref(&expr_str))
@@ -1349,7 +1417,23 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     }
                     _ => {
                         let native_type = rust_field_type(&inst.data_type, current, inst_id);
-                        format!("({expr_str}) as {native_type}")
+                        let derefed = if (expr_str.starts_with("self.")
+                            || expr_str.starts_with("self_rc.")
+                            || expr_str.starts_with("_r.")
+                            || expr_str.starts_with("_prc."))
+                            && !expr_str.starts_with('*')
+                            && !expr_str.ends_with(".len()")
+                            && !expr_str.ends_with(".pos()")
+                            && !expr_str.ends_with(".size()")
+                            && !expr_str.ends_with(']')
+                            && !expr_str.ends_with('?')
+                            && !expr_str.contains(".parse")
+                        {
+                            format!("*{expr_str}")
+                        } else {
+                            expr_str
+                        };
+                        format!("({derefed}) as {native_type}")
                     }
                 };
                 w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {val_str};"));
@@ -1402,11 +1486,19 @@ fn emit_parse_instance_body(
     match &inst.data_type {
         DataType::SwitchType { switch_on, cases } => {
             let sw_type = super::translator::detect_type_approx(switch_on, ctx);
-            let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
+            let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType))
+                || cases.keys().any(|k| (k.starts_with('"') && k.ends_with('"')) || (k.starts_with('\'') && k.ends_with('\'')));
             let switch_on_expr = translate_expr(switch_on, ctx);
             let match_target = if is_str_switch {
                 let stripped = super::translator::remove_deref(&switch_on_expr);
                 format!("{stripped}.as_str()")
+            } else if (switch_on_expr.starts_with("self.")
+                || switch_on_expr.starts_with("self_rc.")
+                || switch_on_expr.starts_with("_r.")
+                || switch_on_expr.starts_with("_prc."))
+                && !switch_on_expr.starts_with('*')
+            {
+                format!("*{switch_on_expr}")
             } else {
                 switch_on_expr
             };

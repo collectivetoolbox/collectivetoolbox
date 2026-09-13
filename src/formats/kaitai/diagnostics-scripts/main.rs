@@ -221,7 +221,10 @@ encoding_rs = "0.8.35"
     let mut verified: HashSet<String> = HashSet::new();
     let mut last_errors: HashMap<String, String> = HashMap::new();
 
-    for round in 1..=5 {
+    let mut round = 0;
+    let mut tried_remaining = false;
+    loop {
+        round += 1;
         // Collect candidates for this round: not yet verified, and all direct deps verified
         let mut candidates = Vec::new();
         for (stem, info) in formats_arc.iter() {
@@ -234,18 +237,14 @@ encoding_rs = "0.8.35"
             }
         }
 
-        if candidates.is_empty() {
-            // Check if there are unverified formats with circular dependencies
-            let mut remaining = Vec::new();
+        let is_fallback_round = candidates.is_empty();
+        if is_fallback_round {
             for stem in formats_arc.keys() {
                 if !verified.contains(stem) {
-                    remaining.push(stem.clone());
+                    candidates.push(stem.clone());
                 }
             }
-            if !remaining.is_empty() {
-                // Try remaining formats including mutual dependencies
-                candidates = remaining;
-            } else {
+            if candidates.is_empty() {
                 break;
             }
         }
@@ -283,13 +282,16 @@ encoding_rs = "0.8.35"
                         // Transitive dependencies
                         let mut dep_set = HashSet::new();
                         get_transitive_deps(&stem, &formats, &mut dep_set);
+                        dep_set.remove(&stem);
+                        let mut sorted_deps: Vec<_> = dep_set.into_iter().collect();
+                        sorted_deps.sort();
 
                         // Generate wrapper
                         let mut wrap_code = String::new();
                         wrap_code.push_str("#![allow(unused_imports, non_snake_case, non_camel_case_types, irrefutable_let_patterns, unused_comparisons, dead_code, overflowing_literals)]\n");
                         wrap_code.push_str("extern crate kaitai;\nuse kaitai::*;\n\n");
                         wrap_code.push_str("pub mod super_scope {\n    use kaitai::*;\n");
-                        for dep_stem in &dep_set {
+                        for dep_stem in &sorted_deps {
                             if let Some(dep_info) = formats.get(dep_stem) {
                                 let dep_path_str = dep_info.path.display().to_string();
                                 wrap_code.push_str(&format!("    #[path = \"{dep_path_str}\"]\n    pub mod {dep_stem};\n"));
@@ -313,8 +315,8 @@ encoding_rs = "0.8.35"
                             .arg(format!("--extern=kaitai={}", kaitai_rmeta.display()))
                             .arg(format!("--extern=ctb_formats_encoding={}", ctb_enc_rmeta.display()))
                             .arg(format!("--extern=encoding_rs={}", enc_rs_rmeta.display()))
-                            .arg("--out-dir")
-                            .arg(out_dir)
+                            .arg("-o")
+                            .arg(out_dir.join(format!("lib{crate_name}.rmeta")))
                             .arg(&wrap_path)
                             .output();
 

@@ -79,6 +79,15 @@ struct UnmatchedFile {
     reason: String,
 }
 
+/// Formats explicitly skipped from import (e.g. missing declared copyright owner
+/// for proper attribution under MIT, or depending on un-attributable dependencies).
+const SKIPPED_FORMATS: &[&str] = &[
+    "bytes_with_io",
+    "pcf_font",
+    "mach_o",
+    "mach_o_fat",
+];
+
 fn check_license_match(
     licenses_dir: &Path,
     base_name: &str,
@@ -146,6 +155,15 @@ fn run() -> Result<()> {
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
+
+        if SKIPPED_FORMATS.contains(&base_name) {
+            unmatched.push(UnmatchedFile {
+                rel_path: rel_path.to_path_buf(),
+                license: None,
+                reason: "Format is explicitly excluded from import (lacks copyright owner attribution)".to_string(),
+            });
+            continue;
+        }
 
         let ksy_res = parse_ksy_file(source_path);
         let ksy = match ksy_res {

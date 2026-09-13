@@ -560,13 +560,25 @@ fn finalize_parent_types(current: &mut ClassSpec) {
     }
 }
 
+fn collect_all_spec_names(current: &ClassSpec, out: &mut Vec<Vec<String>>) {
+    out.push(current.name.clone());
+    for sub in current.subclasses.values() {
+        collect_all_spec_names(sub, out);
+    }
+}
+
 fn markup_parent_types(root: &mut ClassSpec) {
     reset_parent_types(root);
 
     let mut queue = std::collections::VecDeque::new();
-    queue.push_back(root.name.clone());
     let mut queued = std::collections::BTreeSet::new();
-    queued.insert(root.name.clone());
+    let mut all_classes = Vec::new();
+    collect_all_spec_names(root, &mut all_classes);
+    for cls in all_classes {
+        if queued.insert(cls.clone()) {
+            queue.push_back(cls);
+        }
+    }
 
     while let Some(curr_name) = queue.pop_front() {
         let (_p_name, instantiations) = {
@@ -845,7 +857,15 @@ fn resolve_class_spec(
     // Resolve params
     let mut resolved_params = Vec::new();
     for p in &ksy.params {
-        let (param_type, _) = if let Some(type_name) = &p.type_spec {
+        let (param_type, _) = if let Some(enum_name) = &p.enum_spec {
+            resolve_simple_type(
+                p.type_spec.as_deref().unwrap_or("u4"),
+                Some(enum_name),
+                meta_endian,
+                scopes,
+                registry,
+            )?
+        } else if let Some(type_name) = &p.type_spec {
             resolve_simple_type(
                 type_name,
                 None,
@@ -1119,6 +1139,31 @@ fn resolve_attr_data_type(
     Ok((final_type, raw_id, io_id, external_types))
 }
 
+fn resolve_enum_info(
+    ename: &str,
+    scopes: &[(&[String], &KsyFile)],
+) -> (Vec<String>, String, Option<Vec<String>>) {
+    if ename.contains("::") {
+        let parts: Vec<&str> = ename.split("::").collect();
+        let name = parts.last().unwrap().to_string();
+        let owner: Vec<String> = parts[..parts.len().saturating_sub(1)].iter().map(|s| (*s).to_string()).collect();
+        let mut full_path = owner.clone();
+        full_path.push(name.clone());
+        let is_external = scopes.first().map_or(true, |root| root.0 != &owner[..]);
+        let ext = if is_external { Some(full_path) } else { None };
+        (owner, name, ext)
+    } else {
+        let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
+        for (scope_name, scope_ksy) in scopes.iter().rev() {
+            if scope_ksy.enums.contains_key(ename) {
+                owner = scope_name.to_vec();
+                break;
+            }
+        }
+        (owner, ename.to_string(), None)
+    }
+}
+
 fn resolve_simple_type(
     type_str: &str,
     enum_name: Option<&str>,
@@ -1144,9 +1189,7 @@ fn resolve_simple_type(
         };
         if let Ok(count) = num_str.parse::<usize>() {
             let underlying = if count == 1 {
-                DataType::Bits1 {
-                    bit_endian,
-                }
+                DataType::Bits1 { bit_endian }
             } else {
                 DataType::Bits {
                     count,
@@ -1154,20 +1197,14 @@ fn resolve_simple_type(
                 }
             };
             if let Some(ename) = enum_name {
-                let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
-                for (scope_name, scope_ksy) in scopes.iter().rev() {
-                    if scope_ksy.enums.contains_key(ename) {
-                        owner = scope_name.to_vec();
-                        break;
-                    }
-                }
+                let (owner, name, ext) = resolve_enum_info(ename, scopes);
                 return Ok((
                     DataType::EnumType {
                         owner,
-                        name: ename.to_string(),
+                        name,
                         underlying: Some(Box::new(underlying)),
                     },
-                    None,
+                    ext,
                 ));
             }
             return Ok((underlying, None));
@@ -1221,39 +1258,27 @@ fn resolve_simple_type(
     // 2. 1-byte integer
     if clean_str == "u1" {
         if let Some(ename) = enum_name {
-            let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
-            for (scope_name, scope_ksy) in scopes.iter().rev() {
-                if scope_ksy.enums.contains_key(ename) {
-                    owner = scope_name.to_vec();
-                    break;
-                }
-            }
+            let (owner, name, ext) = resolve_enum_info(ename, scopes);
             return Ok((
                 DataType::EnumType {
                     owner,
-                    name: ename.to_string(),
+                    name,
                     underlying: Some(Box::new(DataType::Int1 { signed: false })),
                 },
-                None,
+                ext,
             ));
         }
         return Ok((DataType::Int1 { signed: false }, None));
     } else if clean_str == "s1" {
         if let Some(ename) = enum_name {
-            let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
-            for (scope_name, scope_ksy) in scopes.iter().rev() {
-                if scope_ksy.enums.contains_key(ename) {
-                    owner = scope_name.to_vec();
-                    break;
-                }
-            }
+            let (owner, name, ext) = resolve_enum_info(ename, scopes);
             return Ok((
                 DataType::EnumType {
                     owner,
-                    name: ename.to_string(),
+                    name,
                     underlying: Some(Box::new(DataType::Int1 { signed: true })),
                 },
-                None,
+                ext,
             ));
         }
         return Ok((DataType::Int1 { signed: true }, None));
@@ -1290,20 +1315,14 @@ fn resolve_simple_type(
 
     if width > 0 {
         if let Some(ename) = enum_name {
-            let mut owner = scopes.last().map_or_else(Vec::new, |s| s.0.to_vec());
-            for (scope_name, scope_ksy) in scopes.iter().rev() {
-                if scope_ksy.enums.contains_key(ename) {
-                    owner = scope_name.to_vec();
-                    break;
-                }
-            }
+            let (owner, name, ext) = resolve_enum_info(ename, scopes);
             return Ok((
                 DataType::EnumType {
                     owner,
-                    name: ename.to_string(),
+                    name,
                     underlying: Some(Box::new(DataType::IntMulti { signed, width, endian })),
                 },
-                None,
+                ext,
             ));
         }
         return Ok((DataType::IntMulti { signed, width, endian }, None));
@@ -1701,6 +1720,10 @@ fn infer_expr_type(
         Expr::UnaryOp {
             op: UnaryOp::Not, ..
         } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp {
+            op: UnaryOp::Minus,
+            operand,
+        } => infer_expr_type(operand, scopes, registry),
         Expr::IntNum(x) => {
             if *x >= 0 && *x <= 127 {
                 Some(DataType::Int1 { signed: true })
@@ -1772,7 +1795,15 @@ fn infer_expr_type(
                     }
                     if let Some(TypeSpec::Simple(s)) = &attr.type_spec {
                         if let Ok((dt, _)) = resolve_simple_type(s, None, None, scopes, registry) {
-                            return Some(dt);
+                            let final_dt = if attr.repeat.is_some() {
+                                DataType::ArrayType {
+                                    element: Box::new(dt),
+                                    repeat: RepeatMode::Eos,
+                                }
+                            } else {
+                                dt
+                            };
+                            return Some(final_dt);
                         }
                     } else if let Some(TypeSpec::Switch(sw)) = &attr.type_spec {
                         let mut combined: Option<DataType> = None;
@@ -1826,6 +1857,11 @@ fn infer_expr_type(
             }
         }
         Expr::Attribute { value, attr } => {
+            if attr == "first" || attr == "last" {
+                if let Some(DataType::ArrayType { element, .. }) = infer_expr_type(value, scopes, registry) {
+                    return Some(*element);
+                }
+            }
             if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
             }
