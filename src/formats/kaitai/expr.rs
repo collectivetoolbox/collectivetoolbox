@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(parse_expr("0b1010_0001")?, Expr::IntNum(0b1010_0001));
         assert_eq!(parse_expr("0o77")?, Expr::IntNum(0o77));
         assert_eq!(parse_expr("12_345")?, Expr::IntNum(12345));
-        assert_eq!(parse_expr("3.14")?, Expr::FloatNum(3.14));
+        assert_eq!(parse_expr("3.5")?, Expr::FloatNum(3.5));
         Ok(())
     }
 

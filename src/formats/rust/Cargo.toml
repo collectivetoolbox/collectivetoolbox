@@ -11,5 +11,7 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 include_dir = { version = "0.7.4", features = ["glob"] }
 
+check_keyword = "0.4.1"
+
 [lints]
 workspace = true

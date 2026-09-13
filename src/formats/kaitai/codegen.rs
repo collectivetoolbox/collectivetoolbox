@@ -66,16 +66,10 @@ pub fn escape_rust_keyword(name: &str) -> String {
     if name.starts_with("r#") {
         return name.to_string();
     }
-    match name {
-        "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern"
-        | "false" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" | "match"
-        | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "static"
-        | "struct" | "trait" | "true" | "type" | "unsafe" | "use" | "where"
-        | "while" | "async" | "await" | "dyn" | "abstract" | "become" | "box"
-        | "do" | "final" | "macro" | "override" | "priv" | "typeof" | "unsized"
-        | "virtual" | "yield" | "try" => format!("r#{name}"),
-        _ => name.to_string(),
+    if ctb_formats_rust::is_reserved_word(name) {
+        return format!("r#{name}");
     }
+    name
 }
 
 #[cfg(test)]

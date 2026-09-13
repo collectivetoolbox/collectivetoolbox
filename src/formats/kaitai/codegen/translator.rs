@@ -938,7 +938,8 @@ pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Optio
         return None;
     }
     let parts = if path.first() == root.name.first() {
-        path.get(1..).unwrap_or(&[])
+        // Reason for fallback: path matches root class prefix and falls back to empty remainder if exactly matching
+        path.split_first().map_or(&[][..], |(_, rest)| rest)
     } else {
         path
     };

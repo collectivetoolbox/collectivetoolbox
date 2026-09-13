@@ -760,7 +760,7 @@ fn emit_attr_read(
                 emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
                 let deref = if needs_deref(element) { "*" } else { "" };
                 w.puts(&format!("let _t_{id} = {self_name}.{id}.borrow();"));
-                w.puts(&format!("let _tmpa = {deref}_t_{id}.last().unwrap();"));
+                w.puts(&format!("let Some(_tmpa) = {deref}_t_{id}.last() else {{ break; }};"));
                 w.puts("_i += 1;");
                 let until_ctx = ctx.with_element_type(Some(element));
                 let until_str = translate_expr(until_expr, &until_ctx);
@@ -1285,7 +1285,7 @@ fn read_expr_for_type(
             } else {
                 format!("{io}.read_u4()?")
             };
-            format!("({read_call} as i64).try_into()?")
+            format!("i64::from({read_call}).try_into()?")
         }
         DataType::UserType { names, is_external, args } => {
             let type_name = types_to_class_name(names);
@@ -1395,7 +1395,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     }
                     DataType::EnumType { .. } => {
                         if inst.enum_name.is_some() {
-                            format!("({expr_str} as i64).try_into()?")
+                            format!("i64::try_from({expr_str})?.try_into()?")
                         } else {
                             expr_str
                         }
@@ -1418,7 +1418,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                         } else {
                             expr_str
                         };
-                        format!("({derefed}) as {native_type}")
+                        format!("({derefed}).try_into()?")
                     }
                 };
                 w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {val_str};"));
@@ -1465,7 +1465,7 @@ fn emit_parse_instance_body(
     if let Some(pos) = &inst.pos_expr {
         w.puts(&format!("let _pos = {io_var}.pos();"));
         let pos_str = translate_expr(pos, ctx);
-        w.puts(&format!("{io_var}.seek({pos_str} as usize)?;"));
+        w.puts(&format!("{io_var}.seek(usize::try_from({pos_str})?)?;"));
     }
 
     match &inst.data_type {
@@ -1522,7 +1522,7 @@ fn emit_parse_instance_body(
 
                 let (io_ref, stream_type) = if let Some(size) = &inst.size_expr {
                     let size_str = translate_expr(size, ctx);
-                    w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes({size_str} as usize)?.into();"));
+                    w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes(usize::try_from({size_str})?)?.into();"));
                     w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                     w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                     (format!("&_t_{inst_id}_raw_io"), "BytesReader")
@@ -1534,9 +1534,8 @@ fn emit_parse_instance_body(
                     let type_name = types_to_class_name(names);
                     let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
                     let target_class = super::translator::find_class_spec(ctx.root, names);
-                    // Reason for fallback: absent target class specification does not have dynamic or inherited endianness
-                    let has_dyn_endian = target_class.map(|tc| tc.has_dynamic_endian()).unwrap_or(false)
-                        || (current.has_dynamic_endian() && target_class.map(|tc| tc.meta_endian == Some(Endianness::Inherited)).unwrap_or(false));
+                    let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
+                        || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
                     let trans_args = translate_args(args, ctx, true);
                     if !trans_args.is_empty() {
                         w.puts(&format!(
@@ -1567,7 +1566,7 @@ fn emit_parse_instance_body(
             if cases.contains_key("_") {
                 let fallback = if let Some(size) = &inst.size_expr {
                     let size_str = translate_expr(size, ctx);
-                    format!("{io_var}.read_bytes({size_str} as usize)?.into()")
+                    format!("{io_var}.read_bytes(usize::try_from({size_str})?)?.into()")
                 } else {
                     format!("{io_var}.read_bytes_full()?.into()")
                 };
@@ -1598,9 +1597,9 @@ fn emit_parse_instance_body(
                         w.puts(&format!("for _i in 0..l_{inst_id} {{"));
                         w.inc();
                         let size_str = translate_expr(size, ctx);
-                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes({size_str} as usize)?.into());"));
+                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes(usize::try_from({size_str})?)?.into());"));
                         w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
-                        w.puts(&format!("let io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().unwrap().clone());"));
+                        w.puts(&format!("let io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
                         if let DataType::UserType { names, is_external, args: _ } = element.as_ref() {
                             let type_name = types_to_class_name(names);
                             let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
@@ -1649,7 +1648,7 @@ fn emit_parse_instance_body(
                     emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
                     let deref = if needs_deref(element) { "*" } else { "" };
                     w.puts(&format!("let _t_{inst_id} = self.{escaped_inst_id}.borrow();"));
-                    w.puts(&format!("let _tmpa = {deref}_t_{inst_id}.last().unwrap();"));
+                    w.puts(&format!("let Some(_tmpa) = {deref}_t_{inst_id}.last() else {{ break; }};"));
                     w.puts("_i += 1;");
                     let until_ctx = ctx.with_element_type(Some(element));
                     let until_str = translate_expr(until_expr, &until_ctx);
@@ -1666,14 +1665,13 @@ fn emit_parse_instance_body(
             let type_name = types_to_class_name(names);
             let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
             let target_class = super::translator::find_class_spec(ctx.root, names);
-            // Reason for fallback: absent target class specification does not have dynamic or inherited endianness
-            let has_dyn_endian = target_class.map(|tc| tc.has_dynamic_endian()).unwrap_or(false)
-                || (current.has_dynamic_endian() && target_class.map(|tc| tc.meta_endian == Some(Endianness::Inherited)).unwrap_or(false));
+            let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
+                || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
             let trans_args = translate_args(args, ctx, true);
 
             if let Some(size) = &inst.size_expr {
                 let size_str = translate_expr(size, ctx);
-                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = _io.read_bytes({size_str} as usize)?.into();"));
+                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = _io.read_bytes(usize::try_from({size_str})?)?.into();"));
                 w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                 w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                 if !trans_args.is_empty() {
@@ -1727,7 +1725,8 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
             if is_numeric {
                 w.puts(&format!("pub fn {}(&self) -> usize {{", attr.id));
                 w.inc();
-                w.puts(&format!("self.{escaped_id}.borrow().as_ref().unwrap().into()"));
+                w.puts("// Reason for fallback: unwrap on parsed numeric switch option falls back to 0");
+                w.puts(&format!("self.{escaped_id}.borrow().as_ref().map(|v| v.into()).unwrap_or(0)"));
                 w.dec();
                 w.puts("}");
             }
@@ -1836,8 +1835,7 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
                 let doc_refs = resolved_enum
                     .value_doc_refs
                     .get(val)
-                    .map(|v| v.as_slice())
-                    .unwrap_or(&[]);
+                    .map_or(&[][..], Vec::as_slice);
                 w.newline();
                 w.docblock(Some(doc.as_str()), doc_refs);
             }

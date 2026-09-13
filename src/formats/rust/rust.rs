@@ -26,10 +26,21 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-static RUST_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+// static RUST_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
-pub(crate) fn get_rust_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&RUST_DATA_DIR, key)
+// pub(crate) fn get_rust_data(key: &str) -> Option<Vec<u8>> {
+//     get_embedded_asset(&RUST_DATA_DIR, key)
+// }
+
+use check_keyword::CheckKeyword;
+
+/// Checks whether a string is a reserved keyword in Rust.
+#[must_use]
+pub fn is_reserved_word<T>(word: &T) -> bool
+where
+    T: AsRef<str>,
+{
+    word.as_ref().is_keyword()
 }
 
 #[cfg(test)]

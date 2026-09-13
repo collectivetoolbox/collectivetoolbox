@@ -4,3 +4,4 @@ pub use super::*;
 
 #[path = "windows/windows_systemtime.generated.rs"]
 pub mod windows_systemtime;
+pub use windows_systemtime::*;

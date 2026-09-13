@@ -55,7 +55,7 @@ use walkdir::WalkDir;
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Import licensed Kaitai Struct format specifications")]
 struct Cli {
-    /// Path to the kaitai_struct_formats directory.
+    /// Path to the `kaitai_struct_formats` directory.
     #[arg(value_name = "FORMATS_DIR")]
     formats_dir: PathBuf,
 

@@ -570,7 +570,8 @@ pub trait KStream {
                     buf.push(c);
                 }
                 if !consume {
-                    self.get_state_mut().pos = self.get_state_mut().pos.saturating_sub(1);
+                    let mut state = self.get_state_mut();
+                    state.pos = state.pos.saturating_sub(1);
                 }
                 return Ok(buf);
             }
@@ -700,7 +701,8 @@ impl KStream for BytesReader {
             .buf
             .borrow_mut()
             .read_exact(&mut buf[..])?;
-        self.get_state_mut().pos = self.get_state_mut().pos.saturating_add(len);
+        let mut state = self.get_state_mut();
+        state.pos = state.pos.saturating_add(len);
         Ok(buf)
     }
 
@@ -713,7 +715,8 @@ impl KStream for BytesReader {
             .buf
             .borrow_mut()
             .read_to_end(&mut buf)?;
-        self.get_state_mut().pos = self.get_state_mut().pos.saturating_add(readed);
+        let mut state = self.get_state_mut();
+        state.pos = state.pos.saturating_add(readed);
         Ok(buf)
     }
 }
@@ -722,8 +725,11 @@ impl KStream for BytesReader {
 /// padding character.
 pub fn bytes_strip_right(bytes: &[u8], pad: u8) -> Vec<u8> {
     if let Some(last_non_pad_index) = bytes.iter().rposition(|&c| c != pad) {
-        // Reason for fallback: slice within bounds of verified rposition
-        bytes.get(..=last_non_pad_index).map_or_else(Vec::new, <[u8]>::to_vec)
+        #[expect(
+            clippy::expect_used,
+            reason = "last_non_pad_index returned by rposition is provably a valid index in bytes"
+        )]
+        bytes.get(..=last_non_pad_index).expect("valid index").to_vec()
     } else {
         vec![]
     }
@@ -738,8 +744,11 @@ pub fn bytes_terminate(bytes: &[u8], term: u8, include_term: bool) -> Vec<u8> {
         } else {
             term_index
         };
-        // Reason for fallback: slice within bounds of verified position
-        bytes.get(..end).map_or_else(Vec::new, <[u8]>::to_vec)
+        #[expect(
+            clippy::expect_used,
+            reason = "end is bounded by position in bytes plus at most 1"
+        )]
+        bytes.get(..end).expect("valid range").to_vec()
     } else {
         bytes.to_vec()
     }

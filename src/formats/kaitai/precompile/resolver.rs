@@ -248,7 +248,8 @@ fn find_class_spec_mut<'a>(root: &'a mut ClassSpec, path: &[String]) -> Option<&
         return None;
     }
     let parts = if path.first() == root.name.first() {
-        path.get(1..).unwrap_or(&[])
+        // Reason for fallback: path matches root class prefix and falls back to empty remainder if exactly matching
+        path.split_first().map_or(&[][..], |(_, rest)| rest)
     } else {
         path
     };
@@ -264,7 +265,8 @@ fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a Class
         return None;
     }
     let parts = if path.first() == root.name.first() {
-        path.get(1..).unwrap_or(&[])
+        // Reason for fallback: path matches root class prefix and falls back to empty remainder if exactly matching
+        path.split_first().map_or(&[][..], |(_, rest)| rest)
     } else {
         path
     };
@@ -1426,7 +1428,7 @@ fn resolve_simple_type(
     }
 
     // 6. External user type from imports or registry
-    let ext_name = parts.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let ext_name = parts.iter().map(ToString::to_string).collect::<Vec<_>>();
     if let Some(reg) = registry {
         if parts.first().is_some_and(|first| reg.specs.contains_key(*first)) {
             return Ok((

@@ -277,7 +277,7 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                     cat_rs.push_str("pub use super::*;\n\n");
                     for (mod_name, filename) in &gen_files {
                         cat_rs.push_str(&format!(
-                            "#[path = \"{name}/{filename}\"]\npub mod {mod_name};\n"
+                            "#[path = \"{name}/{filename}\"]\npub mod {mod_name};\npub use {mod_name}::*;\n"
                         ));
                     }
                     let cat_file = generated_dir.join(format!("{name}.rs"));

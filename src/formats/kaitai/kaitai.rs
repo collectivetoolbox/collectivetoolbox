@@ -82,9 +82,6 @@ pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
 mod tests {
     use super::*;
 
-    #[path = "data/fixtures/windows_systemtime.rs"]
-    mod fixture_windows_systemtime;
-
     #[crate::ctb_test]
     fn test_parse_apple_single_double() -> anyhow::Result<()> {
         let data = get_kaitai_data("fixtures/apple_single_double.ksy")
@@ -166,9 +163,9 @@ mod tests {
             0xf4, 0x01, // msec: 500
         ];
         let stream = BytesReader::from(bytes);
-        let rc = std::rc::Rc::new(fixture_windows_systemtime::WindowsSystemtime::default());
-        let root = OptRc::from(rc.clone());
-        fixture_windows_systemtime::WindowsSystemtime::read(
+        let rc = std::rc::Rc::new(crate::generated::windows::WindowsSystemtime::default());
+        let root: OptRc<crate::generated::windows::WindowsSystemtime> = OptRc::from(rc.clone());
+        crate::generated::windows::WindowsSystemtime::read(
             &root,
             &stream,
             SharedType::new(rc),
