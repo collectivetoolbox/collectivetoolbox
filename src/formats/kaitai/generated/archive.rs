@@ -35,9 +35,6 @@ pub use mozilla_mar::*;
 #[path = "archive/phar_without_stub.generated.rs"]
 pub mod phar_without_stub;
 pub use phar_without_stub::*;
-#[path = "archive/rar.generated.rs"]
-pub mod rar;
-pub use rar::*;
 #[path = "archive/respack.generated.rs"]
 pub mod respack;
 pub use respack::*;

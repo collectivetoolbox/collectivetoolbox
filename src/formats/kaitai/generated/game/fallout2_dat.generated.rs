@@ -57,7 +57,7 @@ impl Fallout2Dat {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((u32::try_from((_io.size()).saturating_sub(8_usize))?).saturating_sub(*self.footer()?.index_size()))?)?;
+        _io.seek(usize::try_from(((_io.size()).saturating_sub(8_usize)).saturating_sub(usize::try_from(*self.footer()?.index_size())?))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Index>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;

@@ -1508,7 +1508,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                             && !expr_str.contains(".parse")
                             && !expr_str.contains(' ')
                             && !super::translator::is_usize_expr_str(&expr_str)
-                            && !super::translator::is_numeric_switch_call(&expr_str, ctx.root)
+                            && !super::translator::is_numeric_switch_call(&expr_str, current, ctx.root)
                         {
                             format!("*{expr_str}")
                         } else {

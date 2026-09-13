@@ -382,6 +382,9 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         Some(DataType::IntMulti { signed: false, width: 8, .. }) => {
                             format!("i64::try_from({s})?")
                         }
+                        _ if is_usize_expr_str(&s) => {
+                            format!("i64::try_from({s})?")
+                        }
                         _ => format!("i64::from({s})"),
                     }
                 }
@@ -599,7 +602,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
             return format!("float_to_int({t_val})");
         }
         if matches!(val_type, Some(DataType::CalcIntType | DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::Bits { .. })) {
-            if matches!(val_type, Some(DataType::IntMulti { signed: false, width: 8, .. })) {
+            if matches!(val_type, Some(DataType::IntMulti { signed: false, width: 8, .. })) || is_usize_expr_str(&t) {
                 return format!("i64::try_from({t})?");
             }
             return format!("i64::from({t})");
@@ -651,7 +654,15 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     } else {
         ("", "")
     };
-    let deref = !is_numeric_switch_attr(attr, ctx.root);
+    let deref = if let Some(tc) = target_class {
+        // Reason for fallback: attributes absent from the target class fall back to root-level switch lookup
+        !is_numeric_switch_in_class(attr, tc).unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
+    } else if is_self {
+        // Reason for fallback: attributes absent from current class fall back to root-level switch lookup
+        !is_numeric_switch_in_class(attr, ctx.current_class).unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
+    } else {
+        !is_numeric_switch_attr(attr, ctx.root)
+    };
     if deref {
         if t.starts_with('*') {
             format!("{t}.{escaped_attr}(){q}{unwrap}")
@@ -663,6 +674,34 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     } else {
         format!("{t}.{escaped_attr}(){q}{unwrap}")
     }
+}
+
+fn is_numeric_switch_in_class(attr_name: &str, class: &ClassSpec) -> Option<bool> {
+    for a in &class.seq {
+        if a.id == attr_name {
+            if let DataType::SwitchType { cases, .. } = &a.data_type {
+                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+            }
+            return Some(false);
+        }
+    }
+    for (id, inst) in &class.instances {
+        if id == attr_name {
+            if let DataType::SwitchType { cases, .. } = &inst.data_type {
+                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+            }
+            return Some(false);
+        }
+    }
+    for p in &class.params {
+        if p.id == attr_name {
+            if let DataType::SwitchType { cases, .. } = &p.data_type {
+                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+            }
+            return Some(false);
+        }
+    }
+    None
 }
 
 fn find_first_member_type<'a>(attr_name: &str, class: &'a ClassSpec) -> Option<&'a DataType> {
@@ -722,10 +761,44 @@ fn is_lossless_integer_conversion(from: &DataType, to: &DataType) -> bool {
     }
 }
 
+fn strip_matched_parens(mut s: &str) -> &str {
+    s = s.trim();
+    while s.starts_with('(') && s.ends_with(')') {
+        let mut depth = 0_usize;
+        let mut matches_outer = true;
+        for (i, c) in s.char_indices() {
+            if c == '(' {
+                depth = depth.saturating_add(1);
+            } else if c == ')' {
+                depth = depth.saturating_sub(1);
+                if depth == 0 && i < s.len().saturating_sub(1) {
+                    matches_outer = false;
+                    break;
+                }
+            }
+        }
+        if matches_outer && depth == 0 {
+            if let Some(inner) = s.strip_prefix('(').and_then(|t| t.strip_suffix(')')) {
+                s = inner.trim();
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    s
+}
+
 pub(crate) fn is_usize_expr_str(s: &str) -> bool {
-    let trimmed = s.trim();
+    let trimmed = strip_matched_parens(s);
     if trimmed == "_i" || trimmed == "(_i)" {
         return true;
+    }
+    if let Some(num) = trimmed.strip_suffix("_usize") {
+        if num.chars().all(|c| c.is_ascii_digit() || c == '_') {
+            return true;
+        }
     }
     if trimmed.contains("to_i32(")
         || trimmed.contains("to_i64(")
@@ -736,14 +809,14 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
     {
         return false;
     }
-    if (trimmed.ends_with("._io().pos()")
-        || trimmed.ends_with("._io.pos()")
-        || trimmed.ends_with("_io.pos()")
-        || trimmed.ends_with("io.pos()")
-        || trimmed.ends_with("._io().size()")
-        || trimmed.ends_with("._io.size()")
-        || trimmed.ends_with("_io.size()")
-        || trimmed.ends_with("io.size()"))
+    if (trimmed.contains("._io().pos()")
+        || trimmed.contains("._io.pos()")
+        || trimmed.contains("_io.pos()")
+        || trimmed.contains("io.pos()")
+        || trimmed.contains("._io().size()")
+        || trimmed.contains("._io.size()")
+        || trimmed.contains("_io.size()")
+        || trimmed.contains("io.size()"))
         && !trimmed.contains(".value()")
     {
         return true;
@@ -754,31 +827,30 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
     {
         return true;
     }
-    if let Some(inner) = trimmed.strip_prefix('(').and_then(|t| t.strip_suffix(')')) {
-        if inner.contains(".saturating_") || inner.contains(".wrapping_") || inner.contains(".checked_") {
-            return is_usize_expr_str(inner);
-        }
-    }
-    if trimmed.contains(".saturating_") || trimmed.contains(".wrapping_") || trimmed.contains(".checked_") {
-        if let Some(idx) = trimmed
-            .find(".saturating_")
-            .or_else(|| trimmed.find(".wrapping_"))
-            .or_else(|| trimmed.find(".checked_"))
-        {
-            let receiver = &trimmed[..idx];
-            return is_usize_expr_str(receiver);
-        }
+    if let Some(idx) = trimmed
+        .find(".saturating_")
+        .or_else(|| trimmed.find(".wrapping_"))
+        .or_else(|| trimmed.find(".checked_"))
+    {
+        let Some(prefix) = trimmed.get(..idx) else { return false; };
+        let prefix = prefix.trim();
+        // Reason for fallback: prefix without a trailing try operator remains unchanged
+        let receiver = strip_matched_parens(prefix.strip_suffix('?').unwrap_or(prefix));
+        return is_usize_expr_str(receiver);
     }
     false
 }
 
-pub(crate) fn is_numeric_switch_call(expr_str: &str, root: &ClassSpec) -> bool {
+pub(crate) fn is_numeric_switch_call(expr_str: &str, current_class: &ClassSpec, root: &ClassSpec) -> bool {
     if let Some(s) = expr_str.strip_suffix("()") {
-        let attr = if let Some(idx) = s.rfind('.') {
-            &s[idx.saturating_add(1)..]
+        let attr = if let Some((_, rest)) = s.rsplit_once('.') {
+            rest
         } else {
             s
         };
+        if let Some(is_switch) = is_numeric_switch_in_class(attr, current_class) {
+            return is_switch;
+        }
         return is_numeric_switch_attr(attr, root);
     }
     false
@@ -875,6 +947,7 @@ fn translate_bin_op(
         ) {
             DataType::CalcIntType
         } else {
+            // Reason for fallback: unknown left operand type defaults to standard integer calculation type
             lt.clone().unwrap_or(DataType::CalcIntType)
         };
         let l_typed = widen_expr(left, &l, lt.as_ref(), &shift_target, ctx);
@@ -1125,6 +1198,30 @@ fn translate_if_exp(
             let combined = combine_types(t_type, f_type);
             let t_val = widen_expr(if_true, &true_raw, Some(t_type), &combined, ctx);
             let f_val = widen_expr(if_false, &false_raw, Some(f_type), &combined, ctx);
+            return format!("if {cond_str} {{ {t_val} }} else {{ {f_val} }}");
+        }
+    }
+
+    let t_is_bool = matches!(t_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) || true_raw == "true" || true_raw == "false";
+    let f_is_bool = matches!(f_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) || false_raw == "true" || false_raw == "false";
+    if !t_is_bool && !f_is_bool {
+        let t_is_usize = is_usize_expr_str(&true_raw);
+        let f_is_usize = is_usize_expr_str(&false_raw);
+        if t_is_usize != f_is_usize {
+            let t_val = if t_is_usize && !f_is_usize {
+                true_raw
+            } else if !t_is_usize && f_is_usize {
+                format!("usize::try_from({true_raw})?")
+            } else {
+                true_raw
+            };
+            let f_val = if f_is_usize && !t_is_usize {
+                false_raw
+            } else if !f_is_usize && t_is_usize {
+                format!("usize::try_from({false_raw})?")
+            } else {
+                false_raw
+            };
             return format!("if {cond_str} {{ {t_val} }} else {{ {f_val} }}");
         }
     }

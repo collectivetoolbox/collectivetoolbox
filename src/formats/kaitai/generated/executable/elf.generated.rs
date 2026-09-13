@@ -7920,7 +7920,7 @@ impl Elf_EndianElf_VerdefSection {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
+        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }
@@ -8456,7 +8456,7 @@ impl Elf_EndianElf_VerneedSection {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
+        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }

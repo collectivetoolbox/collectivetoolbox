@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-3.0-or-later AND MIT AND BSD-3-Clause AND Unlicense AND WTFPL
 // SPDX-License-Identifier for parts derived from kaitai_struct_compiler: GPL-3.0-or-later AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from kaitai_struct_formats: CC0-1.0 AND Unlicense AND WTFPL
+// SPDX-License-Identifier for parts derived from kaitai_struct_tests: MIT
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
