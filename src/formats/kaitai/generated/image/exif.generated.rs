@@ -1914,8 +1914,8 @@ impl KStruct for Exif_ExifBody_Doubles {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f8le()? } else { _io.read_f8be()? });
         }
         Ok(())
@@ -1964,8 +1964,8 @@ impl KStruct for Exif_ExifBody_Floats {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f4le()? } else { _io.read_f4be()? });
         }
         Ok(())
@@ -2020,8 +2020,8 @@ impl KStruct for Exif_ExifBody_Ifd {
         let _io = io;
         *self_rc.num_fields.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.fields.borrow_mut() = Vec::new();
-        let l_fields = *self_rc.num_fields();
-        for _i in 0..l_fields {
+        let l_fields = usize::try_from(*self_rc.num_fields())?;
+        for _i in 0_usize..l_fields {
             let f = |t : &mut Exif_ExifBody_IfdField| Ok(t.set_endian(*self_rc._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_IfdField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.fields.borrow_mut().push(t);
@@ -2603,8 +2603,8 @@ impl KStruct for Exif_ExifBody_Longs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? });
         }
         Ok(())
@@ -2739,8 +2739,8 @@ impl KStruct for Exif_ExifBody_Rationals {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             let f = |t : &mut Exif_ExifBody_Rational| Ok(t.set_endian(*self_rc._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Rational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.values.borrow_mut().push(t);
@@ -2791,8 +2791,8 @@ impl KStruct for Exif_ExifBody_Sbytes {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_s1()?);
         }
         Ok(())
@@ -2841,8 +2841,8 @@ impl KStruct for Exif_ExifBody_Shorts {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? });
         }
         Ok(())
@@ -2891,8 +2891,8 @@ impl KStruct for Exif_ExifBody_Slongs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? });
         }
         Ok(())
@@ -3026,8 +3026,8 @@ impl KStruct for Exif_ExifBody_Srationals {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             let f = |t : &mut Exif_ExifBody_Srational| Ok(t.set_endian(*self_rc._is_le.borrow()));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Srational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.values.borrow_mut().push(t);
@@ -3078,8 +3078,8 @@ impl KStruct for Exif_ExifBody_Sshorts {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? });
         }
         Ok(())

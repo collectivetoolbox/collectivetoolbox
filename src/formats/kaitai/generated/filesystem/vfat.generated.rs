@@ -57,8 +57,8 @@ impl Vfat {
         _io.seek(usize::from(*self.boot_sector().pos_fats()?))?;
         *self.fats_raw.borrow_mut() = Vec::new();
         *self.fats.borrow_mut() = Vec::new();
-        let l_fats = *self.boot_sector().bpb().num_fats();
-        for _i in 0..l_fats {
+        let l_fats = usize::try_from(*self.boot_sector().bpb().num_fats())?;
+        for _i in 0_usize..l_fats {
             self.fats_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.boot_sector().size_fat()?)?)?.into());
             let fats_raw = self.fats_raw.borrow();
             let _io_fats_raw = BytesReader::from(fats_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -832,8 +832,8 @@ impl KStruct for Vfat_RootDirectory {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.records.borrow_mut() = Vec::new();
-        let l_records = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.boot_sector().bpb().max_root_dir_rec();
-        for _i in 0..l_records {
+        let l_records = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.boot_sector().bpb().max_root_dir_rec())?;
+        for _i in 0_usize..l_records {
             let t = Self::read_into::<_, Vfat_RootDirectoryRec>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }

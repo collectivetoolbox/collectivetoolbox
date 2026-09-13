@@ -42,8 +42,8 @@ impl KStruct for Zchunk {
         *self_rc.dict.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header_rest().index().len_dict().value()?)?)?;
         if !(*self_rc.lead().is_detached_header()?) {
             *self_rc.chunks.borrow_mut() = Vec::new();
-            let l_chunks = self_rc.header_rest().index().chunks_metadata().len();
-            for _i in 0..l_chunks {
+            let l_chunks = usize::try_from(self_rc.header_rest().index().chunks_metadata().len())?;
+            for _i in 0_usize..l_chunks {
                 self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
             }
         }
@@ -422,7 +422,7 @@ impl Zchunk_CompressedInteger {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (u64::try_from(((((((((((((((((((*self.groups().get(0_usize).ok_or(KError::CastError)?.value()) | (if *self.len()? >= 2 { (*self.groups().get(1_usize).ok_or(KError::CastError)?.value()).wrapping_shl(7_u32) } else { 0_u64 }))) | (if *self.len()? >= 3 { (*self.groups().get(2_usize).ok_or(KError::CastError)?.value()).wrapping_shl(14_u32) } else { 0_u64 }))) | (if *self.len()? >= 4 { (*self.groups().get(3_usize).ok_or(KError::CastError)?.value()).wrapping_shl(21_u32) } else { 0_u64 }))) | (if *self.len()? >= 5 { (*self.groups().get(4_usize).ok_or(KError::CastError)?.value()).wrapping_shl(28_u32) } else { 0_u64 }))) | (if *self.len()? >= 6 { (*self.groups().get(5_usize).ok_or(KError::CastError)?.value()).wrapping_shl(35_u32) } else { 0_u64 }))) | (if *self.len()? >= 7 { (*self.groups().get(6_usize).ok_or(KError::CastError)?.value()).wrapping_shl(42_u32) } else { 0_u64 }))) | (if *self.len()? >= 8 { (*self.groups().get(7_usize).ok_or(KError::CastError)?.value()).wrapping_shl(49_u32) } else { 0_u64 }))) | (if *self.len()? >= 9 { (*self.groups().get(8_usize).ok_or(KError::CastError)?.value()).wrapping_shl(56_u32) } else { 0_u64 }))) | (if *self.len()? >= 10 { (*self.groups().get(9_usize).ok_or(KError::CastError)?.value()).wrapping_shl(63_u32) } else { 0_u64 })))?).try_into()?;
+        *self.value.borrow_mut() = (u64::try_from(((((((((((((((((((*self.groups().get(0_usize).ok_or(KError::CastError)?.value()) | (u64::try_from(if *self.len()? >= 2 { (i32::try_from(*self.groups().get(1_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(7_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 3 { (i32::try_from(*self.groups().get(2_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(14_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 4 { (i32::try_from(*self.groups().get(3_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(21_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 5 { (i32::try_from(*self.groups().get(4_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(28_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 6 { (i32::try_from(*self.groups().get(5_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(35_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 7 { (i32::try_from(*self.groups().get(6_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(42_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 8 { (i32::try_from(*self.groups().get(7_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(49_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 9 { (i32::try_from(*self.groups().get(8_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(56_u32) } else { 0_i32 })?))) | (u64::try_from(if *self.len()? >= 10 { (i32::try_from(*self.groups().get(9_usize).ok_or(KError::CastError)?.value())?).wrapping_shl(63_u32) } else { 0_i32 })?)))?).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -771,8 +771,8 @@ impl KStruct for Zchunk_Index {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_uncompressed_dict.borrow_mut() = t;
         *self_rc.chunks_metadata.borrow_mut() = Vec::new();
-        let l_chunks_metadata = *self_rc.num_data_chunks()?;
-        for _i in 0..l_chunks_metadata {
+        let l_chunks_metadata = usize::try_from(*self_rc.num_data_chunks()?)?;
+        for _i in 0_usize..l_chunks_metadata {
             let f = |t : &mut Zchunk_Chunk| Ok(t.set_params((*self_rc.chunk_checksum_type().len_checksum()?).try_into().map_err(|_| KError::CastError)?, *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_data_streams()?, *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_uncompressed_source()?));
             let t = Self::read_into_with_init::<_, Zchunk_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.chunks_metadata.borrow_mut().push(t);
@@ -976,7 +976,7 @@ impl KStruct for Zchunk_Preface {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.compression_type_int.borrow_mut() = t;
         let _tmpa = &*self_rc.compression_type_int();
-        if !( (((*_tmpa.value()? as i32) == (i64::from(&Zchunk_CompressionTypes::None) as i32)) || ((*_tmpa.value()? as i32) == (i64::from(&Zchunk_CompressionTypes::Zstd) as i32))) ) {
+        if !( (((*_tmpa.value()? as i64) == (i64::from(&Zchunk_CompressionTypes::None) as i64)) || ((*_tmpa.value()? as i64) == (i64::from(&Zchunk_CompressionTypes::Zstd) as i64))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/2".to_string() }));
         }
         if *self_rc.has_optional_elements()? {
@@ -989,8 +989,8 @@ impl KStruct for Zchunk_Preface {
         }
         if *self_rc.has_optional_elements()? {
             *self_rc.optional_elements.borrow_mut() = Vec::new();
-            let l_optional_elements = *self_rc.num_optional_elements().value()?;
-            for _i in 0..l_optional_elements {
+            let l_optional_elements = usize::try_from(*self_rc.num_optional_elements().value()?)?;
+            for _i in 0_usize..l_optional_elements {
                 let t = Self::read_into::<_, Zchunk_OptionalElement>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.optional_elements.borrow_mut().push(t);
             }

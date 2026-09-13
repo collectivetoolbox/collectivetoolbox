@@ -4204,7 +4204,7 @@ impl KStruct for Png_SpltEntry {
 impl Png_SpltEntry {
 }
 impl Png_SpltEntry {
-    pub fn red(&self) -> usize {
+    pub fn red(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.red.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -4213,7 +4213,7 @@ impl Png_SpltEntry {
     }
 }
 impl Png_SpltEntry {
-    pub fn green(&self) -> usize {
+    pub fn green(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.green.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -4222,7 +4222,7 @@ impl Png_SpltEntry {
     }
 }
 impl Png_SpltEntry {
-    pub fn blue(&self) -> usize {
+    pub fn blue(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.blue.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -4237,7 +4237,7 @@ impl Png_SpltEntry {
  * `_parent.sample_depth` is 16) means fully opaque.
  */
 impl Png_SpltEntry {
-    pub fn alpha(&self) -> usize {
+    pub fn alpha(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.alpha.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }

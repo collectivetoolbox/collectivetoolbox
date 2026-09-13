@@ -151,8 +151,8 @@ impl Ext2_Bgd {
         let _pos = _io.pos();
         _io.seek(usize::try_from((*self.inode_table_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.inodes.borrow_mut() = Vec::new();
-        let l_inodes = *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group();
-        for _i in 0..l_inodes {
+        let l_inodes = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group())?;
+        for _i in 0_usize..l_inodes {
             let t = Self::read_into::<_, Ext2_Inode>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.inodes.borrow_mut().push(t);
         }
@@ -228,8 +228,8 @@ impl KStruct for Ext2_BlockGroup {
         let t = Self::read_into::<_, Ext2_SuperBlockStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.super_block.borrow_mut() = t;
         *self_rc.block_groups.borrow_mut() = Vec::new();
-        let l_block_groups = *self_rc.super_block().block_group_count()?;
-        for _i in 0..l_block_groups {
+        let l_block_groups = usize::try_from(*self_rc.super_block().block_group_count()?)?;
+        for _i in 0_usize..l_block_groups {
             let t = Self::read_into::<_, Ext2_Bgd>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block_groups.borrow_mut().push(t);
         }
@@ -559,8 +559,8 @@ impl KStruct for Ext2_Inode {
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.osd1.borrow_mut() = _io.read_u4le()?;
         *self_rc.block.borrow_mut() = Vec::new();
-        let l_block = 15;
-        for _i in 0..l_block {
+        let l_block = usize::try_from(15)?;
+        for _i in 0_usize..l_block {
             let t = Self::read_into::<_, Ext2_BlockPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block.borrow_mut().push(t);
         }
@@ -841,8 +841,8 @@ impl KStruct for Ext2_SuperBlockStruct {
         *self_rc.journal_dev.borrow_mut() = _io.read_u4le()?;
         *self_rc.last_orphan.borrow_mut() = _io.read_u4le()?;
         *self_rc.hash_seed.borrow_mut() = Vec::new();
-        let l_hash_seed = 4;
-        for _i in 0..l_hash_seed {
+        let l_hash_seed = usize::try_from(4)?;
+        for _i in 0_usize..l_hash_seed {
             self_rc.hash_seed.borrow_mut().push(_io.read_u4le()?);
         }
         *self_rc.def_hash_version.borrow_mut() = _io.read_u1()?;

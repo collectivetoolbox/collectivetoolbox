@@ -73,26 +73,26 @@ impl KStruct for QuakeMdl {
         let t = Self::read_into::<_, QuakeMdl_MdlHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.skins.borrow_mut() = Vec::new();
-        let l_skins = *self_rc.header().num_skins();
-        for _i in 0..l_skins {
+        let l_skins = usize::try_from(*self_rc.header().num_skins())?;
+        for _i in 0_usize..l_skins {
             let t = Self::read_into::<_, QuakeMdl_MdlSkin>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.skins.borrow_mut().push(t);
         }
         *self_rc.texture_coordinates.borrow_mut() = Vec::new();
-        let l_texture_coordinates = *self_rc.header().num_verts();
-        for _i in 0..l_texture_coordinates {
+        let l_texture_coordinates = usize::try_from(*self_rc.header().num_verts())?;
+        for _i in 0_usize..l_texture_coordinates {
             let t = Self::read_into::<_, QuakeMdl_MdlTexcoord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.texture_coordinates.borrow_mut().push(t);
         }
         *self_rc.triangles.borrow_mut() = Vec::new();
-        let l_triangles = *self_rc.header().num_tris();
-        for _i in 0..l_triangles {
+        let l_triangles = usize::try_from(*self_rc.header().num_tris())?;
+        for _i in 0_usize..l_triangles {
             let t = Self::read_into::<_, QuakeMdl_MdlTriangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
         *self_rc.frames.borrow_mut() = Vec::new();
-        let l_frames = *self_rc.header().num_frames();
-        for _i in 0..l_frames {
+        let l_frames = usize::try_from(*self_rc.header().num_frames())?;
+        for _i in 0_usize..l_frames {
             let t = Self::read_into::<_, QuakeMdl_MdlFrame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.frames.borrow_mut().push(t);
         }
@@ -172,14 +172,14 @@ impl KStruct for QuakeMdl_MdlFrame {
         }
         if *self_rc.r#type() != 0 {
             *self_rc.time.borrow_mut() = Vec::new();
-            let l_time = *self_rc.r#type();
-            for _i in 0..l_time {
+            let l_time = usize::try_from(*self_rc.r#type())?;
+            for _i in 0_usize..l_time {
                 self_rc.time.borrow_mut().push(_io.read_f4le()?);
             }
         }
         *self_rc.frames.borrow_mut() = Vec::new();
-        let l_frames = *self_rc.num_simple_frames()?;
-        for _i in 0..l_frames {
+        let l_frames = usize::try_from(*self_rc.num_simple_frames()?)?;
+        for _i in 0_usize..l_frames {
             let t = Self::read_into::<_, QuakeMdl_MdlSimpleFrame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.frames.borrow_mut().push(t);
         }
@@ -470,8 +470,8 @@ impl KStruct for QuakeMdl_MdlSimpleFrame {
         *self_rc.bbox_max.borrow_mut() = t;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(16_usize)?, 0), 0, false), "ASCII")?;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_verts();
-        for _i in 0..l_vertices {
+        let l_vertices = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_verts())?;
+        for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
@@ -542,15 +542,15 @@ impl KStruct for QuakeMdl_MdlSkin {
         }
         if *self_rc.group() != 0 {
             *self_rc.frame_times.borrow_mut() = Vec::new();
-            let l_frame_times = *self_rc.num_frames();
-            for _i in 0..l_frame_times {
+            let l_frame_times = usize::try_from(*self_rc.num_frames())?;
+            for _i in 0_usize..l_frame_times {
                 self_rc.frame_times.borrow_mut().push(_io.read_f4le()?);
             }
         }
         if *self_rc.group() != 0 {
             *self_rc.group_texture_data.borrow_mut() = Vec::new();
-            let l_group_texture_data = *self_rc.num_frames();
-            for _i in 0..l_group_texture_data {
+            let l_group_texture_data = usize::try_from(*self_rc.num_frames())?;
+            for _i in 0_usize..l_group_texture_data {
                 self_rc.group_texture_data.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().skin_size()?)?)?);
             }
         }
@@ -682,8 +682,8 @@ impl KStruct for QuakeMdl_MdlTriangle {
         let _io = io;
         *self_rc.faces_front.borrow_mut() = _io.read_s4le()?;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = 3;
-        for _i in 0..l_vertices {
+        let l_vertices = usize::try_from(3)?;
+        for _i in 0_usize..l_vertices {
             self_rc.vertices.borrow_mut().push(_io.read_s4le()?);
         }
         Ok(())
@@ -732,8 +732,8 @@ impl KStruct for QuakeMdl_MdlVertex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = 3;
-        for _i in 0..l_values {
+        let l_values = usize::try_from(3)?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc.normal_index.borrow_mut() = _io.read_u1()?;

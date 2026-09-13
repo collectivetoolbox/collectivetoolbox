@@ -52,15 +52,15 @@ impl KStruct for MozillaMar {
         *self_rc.file_size.borrow_mut() = _io.read_u8be()?;
         *self_rc.len_signatures.borrow_mut() = _io.read_u4be()?;
         *self_rc.signatures.borrow_mut() = Vec::new();
-        let l_signatures = *self_rc.len_signatures();
-        for _i in 0..l_signatures {
+        let l_signatures = usize::try_from(*self_rc.len_signatures())?;
+        for _i in 0_usize..l_signatures {
             let t = Self::read_into::<_, MozillaMar_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.signatures.borrow_mut().push(t);
         }
         *self_rc.len_additional_sections.borrow_mut() = _io.read_u4be()?;
         *self_rc.additional_sections.borrow_mut() = Vec::new();
-        let l_additional_sections = *self_rc.len_additional_sections();
-        for _i in 0..l_additional_sections {
+        let l_additional_sections = usize::try_from(*self_rc.len_additional_sections())?;
+        for _i in 0_usize..l_additional_sections {
             let t = Self::read_into::<_, MozillaMar_AdditionalSection>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.additional_sections.borrow_mut().push(t);
         }

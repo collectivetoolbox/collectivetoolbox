@@ -50,8 +50,8 @@ impl KStruct for SystemdJournal {
         let t = Self::read_into::<_, SystemdJournal_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.objects.borrow_mut() = Vec::new();
-        let l_objects = *self_rc.header().num_objects();
-        for _i in 0..l_objects {
+        let l_objects = usize::try_from(*self_rc.header().num_objects())?;
+        for _i in 0_usize..l_objects {
             let t = Self::read_into::<_, SystemdJournal_JournalObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.objects.borrow_mut().push(t);
         }
@@ -640,7 +640,7 @@ impl KStruct for SystemdJournal_JournalObject {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((8_i32).saturating_sub(i32::try_from(_io.pos())?)), 8_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(((8_usize).saturating_sub(_io.pos())).checked_rem(8_usize).ok_or(KError::CastError)?)?)?;
         *self_rc.object_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(6_usize)?;

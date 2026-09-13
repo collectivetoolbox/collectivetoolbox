@@ -63,9 +63,9 @@ impl KStruct for JavaClass {
         }
         *self_rc.constant_pool_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.constant_pool.borrow_mut() = Vec::new();
-        let l_constant_pool = (i32::from(*self_rc.constant_pool_count())).saturating_sub(1_i32);
-        for _i in 0..l_constant_pool {
-            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if _i != 0 { *self_rc.constant_pool().get(usize::try_from((_i).saturating_sub(1_i32))?).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
+        let l_constant_pool = usize::try_from((i32::from(*self_rc.constant_pool_count())).saturating_sub(1_i32))?;
+        for _i in 0_usize..l_constant_pool {
+            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if _i != 0 { *self_rc.constant_pool().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
             let t = Self::read_into_with_init::<_, JavaClass_ConstantPoolEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.constant_pool.borrow_mut().push(t);
         }
@@ -74,28 +74,28 @@ impl KStruct for JavaClass {
         *self_rc.super_class.borrow_mut() = _io.read_u2be()?;
         *self_rc.interfaces_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.interfaces.borrow_mut() = Vec::new();
-        let l_interfaces = *self_rc.interfaces_count();
-        for _i in 0..l_interfaces {
+        let l_interfaces = usize::try_from(*self_rc.interfaces_count())?;
+        for _i in 0_usize..l_interfaces {
             self_rc.interfaces.borrow_mut().push(_io.read_u2be()?);
         }
         *self_rc.fields_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.fields.borrow_mut() = Vec::new();
-        let l_fields = *self_rc.fields_count();
-        for _i in 0..l_fields {
+        let l_fields = usize::try_from(*self_rc.fields_count())?;
+        for _i in 0_usize..l_fields {
             let t = Self::read_into::<_, JavaClass_FieldInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.fields.borrow_mut().push(t);
         }
         *self_rc.methods_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.methods.borrow_mut() = Vec::new();
-        let l_methods = *self_rc.methods_count();
-        for _i in 0..l_methods {
+        let l_methods = usize::try_from(*self_rc.methods_count())?;
+        for _i in 0_usize..l_methods {
             let t = Self::read_into::<_, JavaClass_MethodInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.methods.borrow_mut().push(t);
         }
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes.borrow_mut() = Vec::new();
-        let l_attributes = *self_rc.attributes_count();
-        for _i in 0..l_attributes {
+        let l_attributes = usize::try_from(*self_rc.attributes_count())?;
+        for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
@@ -417,15 +417,15 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
         *self_rc.code.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.code_length())?)?;
         *self_rc.exception_table_length.borrow_mut() = _io.read_u2be()?;
         *self_rc.exception_table.borrow_mut() = Vec::new();
-        let l_exception_table = *self_rc.exception_table_length();
-        for _i in 0..l_exception_table {
+        let l_exception_table = usize::try_from(*self_rc.exception_table_length())?;
+        for _i in 0_usize..l_exception_table {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.exception_table.borrow_mut().push(t);
         }
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes.borrow_mut() = Vec::new();
-        let l_attributes = *self_rc.attributes_count();
-        for _i in 0..l_attributes {
+        let l_attributes = usize::try_from(*self_rc.attributes_count())?;
+        for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
@@ -609,8 +609,8 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
         let _io = io;
         *self_rc.number_of_exceptions.borrow_mut() = _io.read_u2be()?;
         *self_rc.exceptions.borrow_mut() = Vec::new();
-        let l_exceptions = *self_rc.number_of_exceptions();
-        for _i in 0..l_exceptions {
+        let l_exceptions = usize::try_from(*self_rc.number_of_exceptions())?;
+        for _i in 0_usize..l_exceptions {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.exceptions.borrow_mut().push(t);
         }
@@ -730,8 +730,8 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
         let _io = io;
         *self_rc.line_number_table_length.borrow_mut() = _io.read_u2be()?;
         *self_rc.line_number_table.borrow_mut() = Vec::new();
-        let l_line_number_table = *self_rc.line_number_table_length();
-        for _i in 0..l_line_number_table {
+        let l_line_number_table = usize::try_from(*self_rc.line_number_table_length())?;
+        for _i in 0_usize..l_line_number_table {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.line_number_table.borrow_mut().push(t);
         }
@@ -1597,8 +1597,8 @@ impl KStruct for JavaClass_FieldInfo {
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes.borrow_mut() = Vec::new();
-        let l_attributes = *self_rc.attributes_count();
-        for _i in 0..l_attributes {
+        let l_attributes = usize::try_from(*self_rc.attributes_count())?;
+        for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
@@ -2142,8 +2142,8 @@ impl KStruct for JavaClass_MethodInfo {
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.attributes.borrow_mut() = Vec::new();
-        let l_attributes = *self_rc.attributes_count();
-        for _i in 0..l_attributes {
+        let l_attributes = usize::try_from(*self_rc.attributes_count())?;
+        for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }

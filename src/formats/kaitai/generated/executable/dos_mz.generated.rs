@@ -63,8 +63,8 @@ impl DosMz {
             let _pos = io.pos();
             io.seek(usize::from(*self.header().mz().ofs_relocations()))?;
             *self.relocations.borrow_mut() = Vec::new();
-            let l_relocations = *self.header().mz().num_relocations();
-            for _i in 0..l_relocations {
+            let l_relocations = usize::try_from(*self.header().mz().num_relocations())?;
+            for _i in 0_usize..l_relocations {
                 let t = Self::read_into::<_, DosMz_Relocation>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 self.relocations.borrow_mut().push(t);
             }
@@ -117,7 +117,7 @@ impl KStruct for DosMz_ExeHeader {
         let _io = io;
         let t = Self::read_into::<_, DosMz_MzHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mz.borrow_mut() = t;
-        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.mz().len_header()?).saturating_sub(0))?)?;
+        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.mz().len_header()?).saturating_sub(0_i32))?)?;
         Ok(())
     }
 }

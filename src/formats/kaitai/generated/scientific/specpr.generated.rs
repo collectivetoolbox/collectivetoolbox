@@ -180,8 +180,8 @@ impl KStruct for Specpr_DataContinuation {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.cdata.borrow_mut() = Vec::new();
-        let l_cdata = 383;
-        for _i in 0..l_cdata {
+        let l_cdata = usize::try_from(383)?;
+        for _i in 0_usize..l_cdata {
             self_rc.cdata.borrow_mut().push(_io.read_f4be()?);
         }
         Ok(())
@@ -273,8 +273,8 @@ impl KStruct for Specpr_DataInitial {
         *self_rc.irmas.borrow_mut() = _io.read_s4be()?;
         *self_rc.revs.borrow_mut() = _io.read_s4be()?;
         *self_rc.iband.borrow_mut() = Vec::new();
-        let l_iband = 2;
-        for _i in 0..l_iband {
+        let l_iband = usize::try_from(2)?;
+        for _i in 0_usize..l_iband {
             self_rc.iband.borrow_mut().push(_io.read_s4be()?);
         }
         *self_rc.irwav.borrow_mut() = _io.read_s4be()?;
@@ -283,8 +283,8 @@ impl KStruct for Specpr_DataInitial {
         *self_rc.itpntr.borrow_mut() = _io.read_s4be()?;
         *self_rc.ihist.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(60_usize)?, 32), "UTF-8")?;
         *self_rc.mhist.borrow_mut() = Vec::new();
-        let l_mhist = 4;
-        for _i in 0..l_mhist {
+        let l_mhist = usize::try_from(4)?;
+        for _i in 0_usize..l_mhist {
             self_rc.mhist.borrow_mut().push(bytes_to_str(&_io.read_bytes(74_usize)?, "UTF-8")?);
         }
         *self_rc.nruns.borrow_mut() = _io.read_s4be()?;
@@ -300,8 +300,8 @@ impl KStruct for Specpr_DataInitial {
         *self_rc.timint.borrow_mut() = _io.read_f4be()?;
         *self_rc.tempd.borrow_mut() = _io.read_f4be()?;
         *self_rc.data.borrow_mut() = Vec::new();
-        let l_data = 256;
-        for _i in 0..l_data {
+        let l_data = usize::try_from(256)?;
+        for _i in 0_usize..l_data {
             self_rc.data.borrow_mut().push(_io.read_f4be()?);
         }
         Ok(())
@@ -646,7 +646,7 @@ impl Specpr_Icflag {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = i64::try_from((((if *self.text() { 1 } else { 0 })).saturating_mul(1_i32)).saturating_add(((if *self.continuation() { 1 } else { 0 })).saturating_mul(2_i32)))?.try_into()?;
+        *self.r#type.borrow_mut() = i64::try_from((((if *self.text() { 1_i32 } else { 0_i32 })).saturating_mul(1_i32)).saturating_add(((if *self.continuation() { 1_i32 } else { 0_i32 })).saturating_mul(2_i32)))?.try_into()?;
         Ok(self.r#type.borrow())
     }
 }

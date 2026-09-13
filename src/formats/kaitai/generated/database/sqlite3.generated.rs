@@ -408,8 +408,8 @@ impl KStruct for Sqlite3_BtreePage {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
         }
         *self_rc.cells.borrow_mut() = Vec::new();
-        let l_cells = *self_rc.num_cells();
-        for _i in 0..l_cells {
+        let l_cells = usize::try_from(*self_rc.num_cells())?;
+        for _i in 0_usize..l_cells {
             let t = Self::read_into::<_, Sqlite3_RefCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.cells.borrow_mut().push(t);
         }
@@ -606,8 +606,8 @@ impl KStruct for Sqlite3_CellPayload {
         let t = Self::read_into::<_, Sqlite3_Serials>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.column_serials.borrow_mut() = t;
         *self_rc.column_contents.borrow_mut() = Vec::new();
-        let l_column_contents = self_rc.column_serials().entries().len();
-        for _i in 0..l_column_contents {
+        let l_column_contents = usize::try_from(self_rc.column_serials().entries().len())?;
+        for _i in 0_usize..l_column_contents {
             let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.clone()));
             let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.column_contents.borrow_mut().push(t);
@@ -905,7 +905,7 @@ impl Sqlite3_ColumnContent {
 impl Sqlite3_ColumnContent {
 }
 impl Sqlite3_ColumnContent {
-    pub fn as_int(&self) -> usize {
+    pub fn as_int(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.as_int.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }

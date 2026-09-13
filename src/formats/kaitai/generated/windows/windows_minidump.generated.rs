@@ -78,8 +78,8 @@ impl WindowsMinidump {
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_streams())?)?;
         *self.streams.borrow_mut() = Vec::new();
-        let l_streams = *self.num_streams();
-        for _i in 0..l_streams {
+        let l_streams = usize::try_from(*self.num_streams())?;
+        for _i in 0_usize..l_streams {
             let t = Self::read_into::<_, WindowsMinidump_Dir>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.streams.borrow_mut().push(t);
         }
@@ -584,8 +584,8 @@ impl KStruct for WindowsMinidump_ExceptionRecord {
         *self_rc.num_params.borrow_mut() = _io.read_u4le()?;
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
         *self_rc.params.borrow_mut() = Vec::new();
-        let l_params = 15;
-        for _i in 0..l_params {
+        let l_params = usize::try_from(15)?;
+        for _i in 0_usize..l_params {
             self_rc.params.borrow_mut().push(_io.read_u8le()?);
         }
         Ok(())
@@ -814,8 +814,8 @@ impl KStruct for WindowsMinidump_Memory64List {
         *self_rc.num_mem_ranges.borrow_mut() = _io.read_u8le()?;
         *self_rc.ofs_base.borrow_mut() = _io.read_u8le()?;
         *self_rc.mem_ranges.borrow_mut() = Vec::new();
-        let l_mem_ranges = *self_rc.num_mem_ranges();
-        for _i in 0..l_mem_ranges {
+        let l_mem_ranges = usize::try_from(*self_rc.num_mem_ranges())?;
+        for _i in 0_usize..l_mem_ranges {
             let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor64>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.mem_ranges.borrow_mut().push(t);
         }
@@ -978,8 +978,8 @@ impl KStruct for WindowsMinidump_MemoryList {
         let _io = io;
         *self_rc.num_mem_ranges.borrow_mut() = _io.read_u4le()?;
         *self_rc.mem_ranges.borrow_mut() = Vec::new();
-        let l_mem_ranges = *self_rc.num_mem_ranges();
-        for _i in 0..l_mem_ranges {
+        let l_mem_ranges = usize::try_from(*self_rc.num_mem_ranges())?;
+        for _i in 0_usize..l_mem_ranges {
             let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.mem_ranges.borrow_mut().push(t);
         }
@@ -1476,8 +1476,8 @@ impl KStruct for WindowsMinidump_ThreadList {
         let _io = io;
         *self_rc.num_threads.borrow_mut() = _io.read_u4le()?;
         *self_rc.threads.borrow_mut() = Vec::new();
-        let l_threads = *self_rc.num_threads();
-        for _i in 0..l_threads {
+        let l_threads = usize::try_from(*self_rc.num_threads())?;
+        for _i in 0_usize..l_threads {
             let t = Self::read_into::<_, WindowsMinidump_Thread>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.threads.borrow_mut().push(t);
         }

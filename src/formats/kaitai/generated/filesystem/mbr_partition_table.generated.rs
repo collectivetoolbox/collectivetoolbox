@@ -44,8 +44,8 @@ impl KStruct for MbrPartitionTable {
         let _io = io;
         *self_rc.bootstrap_code.borrow_mut() = _io.read_bytes(446_usize)?;
         *self_rc.partitions.borrow_mut() = Vec::new();
-        let l_partitions = 4;
-        for _i in 0..l_partitions {
+        let l_partitions = usize::try_from(4)?;
+        for _i in 0_usize..l_partitions {
             let t = Self::read_into::<_, MbrPartitionTable_PartitionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }

@@ -47,8 +47,8 @@ impl KStruct for GranTurismoVol {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
         *self_rc.offsets.borrow_mut() = Vec::new();
-        let l_offsets = *self_rc.num_files();
-        for _i in 0..l_offsets {
+        let l_offsets = usize::try_from(*self_rc.num_files())?;
+        for _i in 0_usize..l_offsets {
             self_rc.offsets.borrow_mut().push(_io.read_u4le()?);
         }
         Ok(())
@@ -66,8 +66,8 @@ impl GranTurismoVol {
         let _pos = _io.pos();
         _io.seek(usize::try_from(((*self.ofs_dir()?) & (4294965248_u32)))?)?;
         *self.files.borrow_mut() = Vec::new();
-        let l_files = *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries();
-        for _i in 0..l_files {
+        let l_files = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries())?;
+        for _i in 0_usize..l_files {
             let t = Self::read_into::<_, GranTurismoVol_FileInfo>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.files.borrow_mut().push(t);
         }

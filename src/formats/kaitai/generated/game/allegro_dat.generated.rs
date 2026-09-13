@@ -53,8 +53,8 @@ impl KStruct for AllegroDat {
         }
         *self_rc.num_objects.borrow_mut() = _io.read_u4be()?;
         *self_rc.objects.borrow_mut() = Vec::new();
-        let l_objects = *self_rc.num_objects();
-        for _i in 0..l_objects {
+        let l_objects = usize::try_from(*self_rc.num_objects())?;
+        for _i in 0_usize..l_objects {
             let t = Self::read_into::<_, AllegroDat_DatObject>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.objects.borrow_mut().push(t);
         }
@@ -332,8 +332,8 @@ impl KStruct for AllegroDat_DatFont16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = 95;
-        for _i in 0..l_chars {
+        let l_chars = usize::try_from(95)?;
+        for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(16_usize)?);
         }
         Ok(())
@@ -384,8 +384,8 @@ impl KStruct for AllegroDat_DatFont39 {
         let _io = io;
         *self_rc.num_ranges.borrow_mut() = _io.read_s2be()?;
         *self_rc.ranges.borrow_mut() = Vec::new();
-        let l_ranges = *self_rc.num_ranges();
-        for _i in 0..l_ranges {
+        let l_ranges = usize::try_from(*self_rc.num_ranges())?;
+        for _i in 0_usize..l_ranges {
             let t = Self::read_into::<_, AllegroDat_DatFont39_Range>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ranges.borrow_mut().push(t);
         }
@@ -494,8 +494,8 @@ impl KStruct for AllegroDat_DatFont39_Range {
         *self_rc.start_char.borrow_mut() = _io.read_u4be()?;
         *self_rc.end_char.borrow_mut() = _io.read_u4be()?;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = ((*self_rc.end_char()).saturating_sub(*self_rc.start_char())).saturating_add(1_u32);
-        for _i in 0..l_chars {
+        let l_chars = usize::try_from(((*self_rc.end_char()).saturating_sub(*self_rc.start_char())).saturating_add(1_u32))?;
+        for _i in 0_usize..l_chars {
             let t = Self::read_into::<_, AllegroDat_DatFont39_FontChar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chars.borrow_mut().push(t);
         }
@@ -567,8 +567,8 @@ impl KStruct for AllegroDat_DatFont8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars.borrow_mut() = Vec::new();
-        let l_chars = 95;
-        for _i in 0..l_chars {
+        let l_chars = usize::try_from(95)?;
+        for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(8_usize)?);
         }
         Ok(())

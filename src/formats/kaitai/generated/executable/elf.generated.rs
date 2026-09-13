@@ -4648,8 +4648,8 @@ impl Elf_EndianElf {
         _io.seek(usize::try_from(self.ofs_program_headers())?)?;
         *self.program_headers_raw.borrow_mut() = Vec::new();
         *self.program_headers.borrow_mut() = Vec::new();
-        let l_program_headers = *self.num_program_headers();
-        for _i in 0..l_program_headers {
+        let l_program_headers = usize::try_from(*self.num_program_headers())?;
+        for _i in 0_usize..l_program_headers {
             self.program_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.program_header_size()))?.into());
             let program_headers_raw = self.program_headers_raw.borrow();
             let _io_program_headers_raw = BytesReader::from(program_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -4672,8 +4672,8 @@ impl Elf_EndianElf {
         _io.seek(usize::try_from(self.ofs_section_headers())?)?;
         *self.section_headers_raw.borrow_mut() = Vec::new();
         *self.section_headers.borrow_mut() = Vec::new();
-        let l_section_headers = *self.num_section_headers();
-        for _i in 0..l_section_headers {
+        let l_section_headers = usize::try_from(*self.num_section_headers())?;
+        for _i in 0_usize..l_section_headers {
             self.section_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.section_header_size()))?.into());
             let section_headers_raw = self.section_headers_raw.borrow();
             let _io_section_headers_raw = BytesReader::from(section_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -4721,7 +4721,7 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
-    pub fn entry_point(&self) -> usize {
+    pub fn entry_point(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.entry_point.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -4730,7 +4730,7 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
-    pub fn ofs_program_headers(&self) -> usize {
+    pub fn ofs_program_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.ofs_program_headers.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -4739,7 +4739,7 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
-    pub fn ofs_section_headers(&self) -> usize {
+    pub fn ofs_section_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.ofs_section_headers.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -5203,9 +5203,9 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, 0, false);
-        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_name()))), 4_i64))?)?;
+        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_name()))), 4_i64))?)?;
         *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
-        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_descriptor()))), 4_i64))?)?;
+        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -5560,7 +5560,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
-    pub fn tag(&self) -> usize {
+    pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.tag.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -5569,7 +5569,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
-    pub fn value_or_ptr(&self) -> usize {
+    pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.value_or_ptr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6141,7 +6141,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn ofs_body(&self) -> usize {
+    pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.ofs_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6150,7 +6150,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn virt_addr(&self) -> usize {
+    pub fn virt_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.virt_addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6159,7 +6159,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn phys_addr(&self) -> usize {
+    pub fn phys_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.phys_addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6168,7 +6168,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn len_body(&self) -> usize {
+    pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.len_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6177,7 +6177,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn memory_size(&self) -> usize {
+    pub fn memory_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.memory_size.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6191,7 +6191,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
-    pub fn align(&self) -> usize {
+    pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.align.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6530,7 +6530,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
 impl Elf_EndianElf_RelocationSectionEntry {
 }
 impl Elf_EndianElf_RelocationSectionEntry {
-    pub fn offset(&self) -> usize {
+    pub fn offset(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.offset.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6539,7 +6539,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
     }
 }
 impl Elf_EndianElf_RelocationSectionEntry {
-    pub fn info(&self) -> usize {
+    pub fn info(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.info.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -6548,7 +6548,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
     }
 }
 impl Elf_EndianElf_RelocationSectionEntry {
-    pub fn addend(&self) -> usize {
+    pub fn addend(&self) -> i64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.addend.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7235,7 +7235,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn flags(&self) -> usize {
+    pub fn flags(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.flags.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7244,7 +7244,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn addr(&self) -> usize {
+    pub fn addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7253,7 +7253,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn ofs_body(&self) -> usize {
+    pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.ofs_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7262,7 +7262,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn len_body(&self) -> usize {
+    pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.len_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7281,7 +7281,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn align(&self) -> usize {
+    pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.align.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7290,7 +7290,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    pub fn entry_size(&self) -> usize {
+    pub fn entry_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.entry_size.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7616,7 +7616,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_ShDynamicSectionEntry {
-    pub fn tag(&self) -> usize {
+    pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.tag.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7625,7 +7625,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_ShDynamicSectionEntry {
-    pub fn value_or_ptr(&self) -> usize {
+    pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.value_or_ptr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -7920,7 +7920,7 @@ impl Elf_EndianElf_VerdefSection {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
+        *self.num_entries.borrow_mut() = (self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }
@@ -8456,7 +8456,7 @@ impl Elf_EndianElf_VerneedSection {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
+        *self.num_entries.borrow_mut() = (self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }

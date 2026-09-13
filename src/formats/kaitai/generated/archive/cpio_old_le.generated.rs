@@ -306,7 +306,7 @@ impl CpioOldLe_FourByteUnsignedInteger {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((i32::from(*self.least_significant_bits())).saturating_add((*self.most_significant_bits()).wrapping_shl(16_u32))).try_into()?;
+        *self.value.borrow_mut() = ((i32::from(*self.least_significant_bits())).saturating_add((i32::from(*self.most_significant_bits())).wrapping_shl(16_u32))).try_into()?;
         Ok(self.value.borrow())
     }
 }

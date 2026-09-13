@@ -65,7 +65,7 @@ impl KStruct for Rpm {
         let f = |t : &mut Rpm_Header| Ok(t.set_params(true));
         let t = Self::read_into_with_init::<_, Rpm_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.signature.borrow_mut() = t;
-        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 8_i64))?)?;
+        *self_rc.signature_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(_io.pos()))), 8_i64))?)?;
         if *self_rc.ofs_header()? < 0 {
             *self_rc.unnamed3.borrow_mut() = _io.read_bytes(0_usize)?;
         }
@@ -76,9 +76,9 @@ impl KStruct for Rpm {
             *self_rc.unnamed5.borrow_mut() = _io.read_bytes(0_usize)?;
         }
         *self_rc.signature_tags_steps.borrow_mut() = Vec::new();
-        let l_signature_tags_steps = *self_rc.signature().header_record().num_index_records();
-        for _i in 0..l_signature_tags_steps {
-            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { -(1) } else { *self_rc.signature_tags_steps().get(usize::try_from((_i).saturating_sub(1_i32))?).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
+        let l_signature_tags_steps = usize::try_from(*self_rc.signature().header_record().num_index_records())?;
+        for _i in 0_usize..l_signature_tags_steps {
+            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { -(1) } else { *self_rc.signature_tags_steps().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Rpm_SignatureTagsStep>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.signature_tags_steps.borrow_mut().push(t);
         }
@@ -1854,8 +1854,8 @@ impl KStruct for Rpm_Header {
         let t = Self::read_into::<_, Rpm_HeaderRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_record.borrow_mut() = t;
         *self_rc.index_records.borrow_mut() = Vec::new();
-        let l_index_records = *self_rc.header_record().num_index_records();
-        for _i in 0..l_index_records {
+        let l_index_records = usize::try_from(*self_rc.header_record().num_index_records())?;
+        for _i in 0_usize..l_index_records {
             let t = Self::read_into::<_, Rpm_HeaderIndexRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.index_records.borrow_mut().push(t);
         }
@@ -2422,8 +2422,8 @@ impl KStruct for Rpm_RecordTypeBin {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = 1;
-        for _i in 0..l_values {
+        let l_values = usize::try_from(1)?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.len_value())?)?);
         }
         Ok(())
@@ -2476,8 +2476,8 @@ impl KStruct for Rpm_RecordTypeString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = 1;
-        for _i in 0..l_values {
+        let l_values = usize::try_from(1)?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
         Ok(())
@@ -2521,8 +2521,8 @@ impl KStruct for Rpm_RecordTypeStringArray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
         Ok(())
@@ -2576,8 +2576,8 @@ impl KStruct for Rpm_RecordTypeUint16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u2be()?);
         }
         Ok(())
@@ -2631,8 +2631,8 @@ impl KStruct for Rpm_RecordTypeUint32 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u4be()?);
         }
         Ok(())
@@ -2686,8 +2686,8 @@ impl KStruct for Rpm_RecordTypeUint64 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u8be()?);
         }
         Ok(())
@@ -2741,8 +2741,8 @@ impl KStruct for Rpm_RecordTypeUint8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = *self_rc.num_values();
-        for _i in 0..l_values {
+        let l_values = usize::try_from(*self_rc.num_values())?;
+        for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }
         Ok(())

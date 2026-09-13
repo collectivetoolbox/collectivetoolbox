@@ -45,7 +45,8 @@ pub fn float_to_int<F: Into<f64>>(f: F) -> i64 {
     let res = f.into() as i64;
     res
 }
-use one of the float conversion helpers from utilities?
+use one of the float conversion helpers from utilities? Also the     clippy::as_conversions,
+            clippy::cast_possible_truncation, cast_precision_loss allows
 
 - Kaitai should use Result (bail on violated invariants) and remove all panicking code
 

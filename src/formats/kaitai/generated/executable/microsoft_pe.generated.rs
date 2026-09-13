@@ -530,8 +530,8 @@ impl MicrosoftPe_CoffHeader {
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.pointer_to_symbol_table())?)?;
         *self.symbol_table.borrow_mut() = Vec::new();
-        let l_symbol_table = *self.number_of_symbols();
-        for _i in 0..l_symbol_table {
+        let l_symbol_table = usize::try_from(*self.number_of_symbols())?;
+        for _i in 0_usize..l_symbol_table {
             let t = Self::read_into::<_, MicrosoftPe_CoffSymbol>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.symbol_table.borrow_mut().push(t);
         }
@@ -1677,8 +1677,8 @@ impl KStruct for MicrosoftPe_PeHeader {
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.optional_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
-        let l_sections = *self_rc.coff_hdr().number_of_sections();
-        for _i in 0..l_sections {
+        let l_sections = usize::try_from(*self_rc.coff_hdr().number_of_sections())?;
+        for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, MicrosoftPe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }

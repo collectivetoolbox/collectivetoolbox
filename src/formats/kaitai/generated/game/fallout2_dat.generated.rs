@@ -43,7 +43,7 @@ impl Fallout2Dat {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(8_i32))?)?;
+        _io.seek(usize::try_from((_io.size()).saturating_sub(8_usize))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Footer>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -57,7 +57,7 @@ impl Fallout2Dat {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((u32::try_from((i32::try_from(_io.size())?).saturating_sub(8_i32))?).saturating_sub(*self.footer()?.index_size()))?)?;
+        _io.seek(usize::try_from((u32::try_from((_io.size()).saturating_sub(8_usize))?).saturating_sub(*self.footer()?.index_size()))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Index>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -297,8 +297,8 @@ impl KStruct for Fallout2Dat_Index {
         let _io = io;
         *self_rc.file_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.files.borrow_mut() = Vec::new();
-        let l_files = *self_rc.file_count();
-        for _i in 0..l_files {
+        let l_files = usize::try_from(*self_rc.file_count())?;
+        for _i in 0_usize..l_files {
             let t = Self::read_into::<_, Fallout2Dat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }

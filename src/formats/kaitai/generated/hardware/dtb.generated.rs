@@ -278,7 +278,7 @@ impl KStruct for Dtb_FdtBeginNode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -484,7 +484,7 @@ impl KStruct for Dtb_FdtProp {
         *self_rc.len_property.borrow_mut() = _io.read_u4be()?;
         *self_rc.ofs_name.borrow_mut() = _io.read_u4be()?;
         *self_rc.property.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_property())?)?;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(_io.pos()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(_io.pos()))), 4_i64))?)?;
         Ok(())
     }
 }

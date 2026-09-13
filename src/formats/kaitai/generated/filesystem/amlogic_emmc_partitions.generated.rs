@@ -55,8 +55,8 @@ impl KStruct for AmlogicEmmcPartitions {
         *self_rc.num_partitions.borrow_mut() = _io.read_s4le()?;
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
         *self_rc.partitions.borrow_mut() = Vec::new();
-        let l_partitions = *self_rc.num_partitions();
-        for _i in 0..l_partitions {
+        let l_partitions = usize::try_from(*self_rc.num_partitions())?;
+        for _i in 0_usize..l_partitions {
             let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }

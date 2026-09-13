@@ -1005,7 +1005,7 @@ impl Code6502_Operation {
     }
 }
 impl Code6502_Operation {
-    pub fn args(&self) -> usize {
+    pub fn args(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.args.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }

@@ -428,7 +428,7 @@ impl CreativeVoiceFile_Block {
         }
         self.f_body_size.set(true);
         if *self.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
-            *self.body_size.borrow_mut() = ((i32::from(*self.body_size1())).saturating_add((*self.body_size2()).wrapping_shl(16_u32))).try_into()?;
+            *self.body_size.borrow_mut() = ((i32::from(*self.body_size1())).saturating_add((i32::from(*self.body_size2())).wrapping_shl(16_u32))).try_into()?;
         }
         Ok(self.body_size.borrow())
     }

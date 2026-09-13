@@ -1149,7 +1149,7 @@ impl KStruct for Bson_String {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((i32::try_from(*self_rc.len())?).saturating_sub(1_i32))?)?, "UTF-8")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(1_i32))?)?, "UTF-8")?;
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/string/seq/2".to_string() }));
@@ -1277,7 +1277,7 @@ impl Bson_U3 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((((i32::from(*self.b1())) | ((*self.b2()).wrapping_shl(8_u32)))) | ((*self.b3()).wrapping_shl(16_u32)))).try_into()?;
+        *self.value.borrow_mut() = (((((i32::from(*self.b1())) | ((i32::from(*self.b2())).wrapping_shl(8_u32)))) | ((i32::from(*self.b3())).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

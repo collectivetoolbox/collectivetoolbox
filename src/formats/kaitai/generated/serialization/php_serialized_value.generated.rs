@@ -652,8 +652,8 @@ impl KStruct for PhpSerializedValue_CountPrefixedMapping {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/count_prefixed_mapping/seq/1".to_string() }));
         }
         *self_rc.entries.borrow_mut() = Vec::new();
-        let l_entries = *self_rc.num_entries()?;
-        for _i in 0..l_entries {
+        let l_entries = usize::try_from(*self_rc.num_entries()?)?;
+        for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, PhpSerializedValue_MappingEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }

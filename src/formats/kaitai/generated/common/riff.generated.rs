@@ -193,7 +193,7 @@ impl KStruct for Riff_Chunk {
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, Riff_Chunk_Slot>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_slot.borrow_mut() = t;
-        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((u32::try_from(*self_rc.len())?).checked_rem(2_u32).ok_or(KError::CastError)?)?)?;
+        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).checked_rem(2_u32).ok_or(KError::CastError)?)?)?;
         Ok(())
     }
 }
@@ -681,7 +681,6 @@ impl Riff_ListChunkData {
                         let t = Self::read_into::<BytesReader, Riff_ChunkType>(&_t_subchunks_raw_io, Some(self._root.clone()), None)?.into();
                         self.subchunks.borrow_mut().push(t);
                     }
-                    _ => {}
                 }
                 _i = _i.saturating_add(1);
             }

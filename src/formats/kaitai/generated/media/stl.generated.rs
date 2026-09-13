@@ -52,8 +52,8 @@ impl KStruct for Stl {
         *self_rc.header.borrow_mut() = _io.read_bytes(80_usize)?;
         *self_rc.num_triangles.borrow_mut() = _io.read_u4le()?;
         *self_rc.triangles.borrow_mut() = Vec::new();
-        let l_triangles = *self_rc.num_triangles();
-        for _i in 0..l_triangles {
+        let l_triangles = usize::try_from(*self_rc.num_triangles())?;
+        for _i in 0_usize..l_triangles {
             let t = Self::read_into::<_, Stl_Triangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
@@ -117,8 +117,8 @@ impl KStruct for Stl_Triangle {
         let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.normal.borrow_mut() = t;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = 3;
-        for _i in 0..l_vertices {
+        let l_vertices = usize::try_from(3)?;
+        for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }

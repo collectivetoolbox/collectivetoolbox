@@ -80,8 +80,8 @@ impl KStruct for PharWithoutStub {
         let t = Self::read_into::<_, PharWithoutStub_Manifest>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.manifest.borrow_mut() = t;
         *self_rc.files.borrow_mut() = Vec::new();
-        let l_files = *self_rc.manifest().num_files();
-        for _i in 0..l_files {
+        let l_files = usize::try_from(*self_rc.manifest().num_files())?;
+        for _i in 0_usize..l_files {
             self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(usize::try_from(_i)?).ok_or(KError::CastError)?.len_data_compressed())?)?);
         }
         if *self_rc.manifest().flags().has_signature()? {
@@ -682,8 +682,8 @@ impl KStruct for PharWithoutStub_Manifest {
             *self_rc.metadata.borrow_mut() = t;
         }
         *self_rc.file_entries.borrow_mut() = Vec::new();
-        let l_file_entries = *self_rc.num_files();
-        for _i in 0..l_file_entries {
+        let l_file_entries = usize::try_from(*self_rc.num_files())?;
+        for _i in 0_usize..l_file_entries {
             let t = Self::read_into::<_, PharWithoutStub_FileEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.file_entries.borrow_mut().push(t);
         }
@@ -874,7 +874,7 @@ impl KStruct for PharWithoutStub_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((i32::try_from(_io.size())?).saturating_sub(i32::try_from(_io.pos())?)).saturating_sub(8_i32))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((_io.size()).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x42u8, 0x4du8, 0x42u8]) {

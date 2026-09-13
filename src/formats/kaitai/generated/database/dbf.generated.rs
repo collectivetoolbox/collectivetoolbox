@@ -49,8 +49,8 @@ impl KStruct for Dbf {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
         *self_rc.records.borrow_mut() = Vec::new();
-        let l_records = *self_rc.header1().num_records();
-        for _i in 0..l_records {
+        let l_records = usize::try_from(*self_rc.header1().num_records())?;
+        for _i in 0_usize..l_records {
             let t = Self::read_into::<_, Dbf_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
@@ -569,8 +569,8 @@ impl KStruct for Dbf_Record {
         let _io = io;
         *self_rc.deleted.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.record_fields.borrow_mut() = Vec::new();
-        let l_record_fields = self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().len();
-        for _i in 0..l_record_fields {
+        let l_record_fields = usize::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().len())?;
+        for _i in 0_usize..l_record_fields {
             self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(usize::try_from(_i)?).ok_or(KError::CastError)?.length()))?);
         }
         Ok(())

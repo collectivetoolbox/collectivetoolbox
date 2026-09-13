@@ -44,8 +44,8 @@ impl KStruct for Ico {
         }
         *self_rc.num_images.borrow_mut() = _io.read_u2le()?;
         *self_rc.images.borrow_mut() = Vec::new();
-        let l_images = *self_rc.num_images();
-        for _i in 0..l_images {
+        let l_images = usize::try_from(*self_rc.num_images())?;
+        for _i in 0_usize..l_images {
             let t = Self::read_into::<_, Ico_IconDirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }

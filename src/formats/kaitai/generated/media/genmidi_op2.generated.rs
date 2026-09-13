@@ -50,14 +50,14 @@ impl KStruct for GenmidiOp2 {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc.instruments.borrow_mut() = Vec::new();
-        let l_instruments = 175;
-        for _i in 0..l_instruments {
+        let l_instruments = usize::try_from(175)?;
+        for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, GenmidiOp2_InstrumentEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
         *self_rc.instrument_names.borrow_mut() = Vec::new();
-        let l_instrument_names = 175;
-        for _i in 0..l_instrument_names {
+        let l_instrument_names = usize::try_from(175)?;
+        for _i in 0_usize..l_instrument_names {
             self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(32_usize)?, 0), 0, false), "UTF-8")?);
         }
         Ok(())
@@ -194,8 +194,8 @@ impl KStruct for GenmidiOp2_InstrumentEntry {
         *self_rc.finetune.borrow_mut() = _io.read_u1()?;
         *self_rc.note.borrow_mut() = _io.read_u1()?;
         *self_rc.instruments.borrow_mut() = Vec::new();
-        let l_instruments = 2;
-        for _i in 0..l_instruments {
+        let l_instruments = usize::try_from(2)?;
+        for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, GenmidiOp2_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }

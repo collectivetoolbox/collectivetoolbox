@@ -44,8 +44,8 @@ impl KStruct for AndroidDto {
         let t = Self::read_into::<_, AndroidDto_DtTableHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.entries.borrow_mut() = Vec::new();
-        let l_entries = *self_rc.header().dt_entry_count();
-        for _i in 0..l_entries {
+        let l_entries = usize::try_from(*self_rc.header().dt_entry_count())?;
+        for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, AndroidDto_DtTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
@@ -104,8 +104,8 @@ impl KStruct for AndroidDto_DtTableEntry {
         *self_rc.id.borrow_mut() = _io.read_u4be()?;
         *self_rc.rev.borrow_mut() = _io.read_u4be()?;
         *self_rc.custom.borrow_mut() = Vec::new();
-        let l_custom = 4;
-        for _i in 0..l_custom {
+        let l_custom = usize::try_from(4)?;
+        for _i in 0_usize..l_custom {
             self_rc.custom.borrow_mut().push(_io.read_u4be()?);
         }
         Ok(())

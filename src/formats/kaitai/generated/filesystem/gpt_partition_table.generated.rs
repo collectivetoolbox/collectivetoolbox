@@ -50,7 +50,7 @@ impl GptPartitionTable {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?))?)?;
+        io.seek(usize::try_from((_io.size()).saturating_sub(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.backup.borrow_mut() = t;
         io.seek(_pos)?;
@@ -237,8 +237,8 @@ impl GptPartitionTable_PartitionHeader {
         io.seek(usize::try_from((*self.entries_start()).saturating_mul(u64::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         *self.entries_raw.borrow_mut() = Vec::new();
         *self.entries.borrow_mut() = Vec::new();
-        let l_entries = *self.entries_count();
-        for _i in 0..l_entries {
+        let l_entries = usize::try_from(*self.entries_count())?;
+        for _i in 0_usize..l_entries {
             self.entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entries_size())?)?.into());
             let entries_raw = self.entries_raw.borrow();
             let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());

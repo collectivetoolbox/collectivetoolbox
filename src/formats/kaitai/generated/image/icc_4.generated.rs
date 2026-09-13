@@ -2076,8 +2076,8 @@ impl KStruct for Icc4_TagTable {
         let _io = io;
         *self_rc.tag_count.borrow_mut() = _io.read_u4be()?;
         *self_rc.tags.borrow_mut() = Vec::new();
-        let l_tags = *self_rc.tag_count();
-        for _i in 0..l_tags {
+        let l_tags = usize::try_from(*self_rc.tag_count())?;
+        for _i in 0_usize..l_tags {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tags.borrow_mut().push(t);
         }
@@ -5183,8 +5183,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
         *self_rc.number_of_device_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc.colorant_and_phosphor_encoding.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.ciexy_coordinates_per_channel.borrow_mut() = Vec::new();
-        let l_ciexy_coordinates_per_channel = *self_rc.number_of_device_channels();
-        for _i in 0..l_ciexy_coordinates_per_channel {
+        let l_ciexy_coordinates_per_channel = usize::try_from(*self_rc.number_of_device_channels())?;
+        for _i in 0_usize..l_ciexy_coordinates_per_channel {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ciexy_coordinates_per_channel.borrow_mut().push(t);
         }
@@ -5415,8 +5415,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
         }
         *self_rc.count_of_colorants.borrow_mut() = _io.read_u4be()?;
         *self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut() = Vec::new();
-        let l_numbers_of_colorants_in_order_of_printing = *self_rc.count_of_colorants();
-        for _i in 0..l_numbers_of_colorants_in_order_of_printing {
+        let l_numbers_of_colorants_in_order_of_printing = usize::try_from(*self_rc.count_of_colorants())?;
+        for _i in 0_usize..l_numbers_of_colorants_in_order_of_printing {
             self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut().push(_io.read_u1()?);
         }
         Ok(())
@@ -5630,8 +5630,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
         }
         *self_rc.count_of_colorants.borrow_mut() = _io.read_u4be()?;
         *self_rc.colorants.borrow_mut() = Vec::new();
-        let l_colorants = *self_rc.count_of_colorants();
-        for _i in 0..l_colorants {
+        let l_colorants = usize::try_from(*self_rc.count_of_colorants())?;
+        for _i in 0_usize..l_colorants {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colorants.borrow_mut().push(t);
         }
@@ -5688,8 +5688,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc.padding.borrow_mut() = Vec::new();
-        let l_padding = (32_i32).saturating_sub(i32::try_from(self_rc.name().len())?);
-        for _i in 0..l_padding {
+        let l_padding = usize::try_from((32_usize).saturating_sub(self_rc.name().len()))?;
+        for _i in 0_usize..l_padding {
             self_rc.padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
         if !self_rc.padding().iter().all(|_x| *_x == vec![0x0u8]) {
@@ -5909,8 +5909,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
         *self_rc.number_of_entries.borrow_mut() = _io.read_u4be()?;
         if *self_rc.number_of_entries() > 1 {
             *self_rc.curve_values.borrow_mut() = Vec::new();
-            let l_curve_values = *self_rc.number_of_entries();
-            for _i in 0..l_curve_values {
+            let l_curve_values = usize::try_from(*self_rc.number_of_entries())?;
+            for _i in 0_usize..l_curve_values {
                 self_rc.curve_values.borrow_mut().push(_io.read_u2be()?);
             }
         }
@@ -7060,8 +7060,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_16_type/seq/4".to_string() }));
         }
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
-        let l_encoded_e_parameters = 9;
-        for _i in 0..l_encoded_e_parameters {
+        let l_encoded_e_parameters = usize::try_from(9)?;
+        for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
         *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u2be()?;
@@ -7180,8 +7180,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_8_type/seq/4".to_string() }));
         }
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
-        let l_encoded_e_parameters = 9;
-        for _i in 0..l_encoded_e_parameters {
+        let l_encoded_e_parameters = usize::try_from(9)?;
+        for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
         *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u4be()?;
@@ -7842,8 +7842,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
         *self_rc.number_of_records.borrow_mut() = _io.read_u4be()?;
         *self_rc.record_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.records.borrow_mut() = Vec::new();
-        let l_records = *self_rc.number_of_records();
-        for _i in 0..l_records {
+        let l_records = usize::try_from(*self_rc.number_of_records())?;
+        for _i in 0_usize..l_records {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
@@ -7991,8 +7991,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc.number_of_processing_elements.borrow_mut() = _io.read_u4be()?;
         *self_rc.process_element_positions_table.borrow_mut() = Vec::new();
-        let l_process_element_positions_table = *self_rc.number_of_processing_elements();
-        for _i in 0..l_process_element_positions_table {
+        let l_process_element_positions_table = usize::try_from(*self_rc.number_of_processing_elements())?;
+        for _i in 0_usize..l_process_element_positions_table {
             let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.process_element_positions_table.borrow_mut().push(t);
         }
@@ -8155,8 +8155,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         *self_rc.number_of_device_coordinates_for_each_named_colour.borrow_mut() = _io.read_u4be()?;
         *self_rc.prefix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc.prefix_for_each_colour_name_padding.borrow_mut() = Vec::new();
-        let l_prefix_for_each_colour_name_padding = (32_i32).saturating_sub(i32::try_from(self_rc.prefix_for_each_colour_name().len())?);
-        for _i in 0..l_prefix_for_each_colour_name_padding {
+        let l_prefix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.prefix_for_each_colour_name().len()))?;
+        for _i in 0_usize..l_prefix_for_each_colour_name_padding {
             self_rc.prefix_for_each_colour_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
         if !self_rc.prefix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
@@ -8164,16 +8164,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         }
         *self_rc.suffix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc.suffix_for_each_colour_name_padding.borrow_mut() = Vec::new();
-        let l_suffix_for_each_colour_name_padding = (32_i32).saturating_sub(i32::try_from(self_rc.suffix_for_each_colour_name().len())?);
-        for _i in 0..l_suffix_for_each_colour_name_padding {
+        let l_suffix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.suffix_for_each_colour_name().len()))?;
+        for _i in 0_usize..l_suffix_for_each_colour_name_padding {
             self_rc.suffix_for_each_colour_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
         if !self_rc.suffix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/7".to_string() }));
         }
         *self_rc.named_colour_definitions.borrow_mut() = Vec::new();
-        let l_named_colour_definitions = *self_rc.count_of_named_colours();
-        for _i in 0..l_named_colour_definitions {
+        let l_named_colour_definitions = usize::try_from(*self_rc.count_of_named_colours())?;
+        for _i in 0_usize..l_named_colour_definitions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.named_colour_definitions.borrow_mut().push(t);
         }
@@ -8261,8 +8261,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         let _io = io;
         *self_rc.root_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc.root_name_padding.borrow_mut() = Vec::new();
-        let l_root_name_padding = (32_i32).saturating_sub(i32::try_from(self_rc.root_name().len())?);
-        for _i in 0..l_root_name_padding {
+        let l_root_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.root_name().len()))?;
+        for _i in 0_usize..l_root_name_padding {
             self_rc.root_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
         if !self_rc.root_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
@@ -8271,8 +8271,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         *self_rc.pcs_coordinates.borrow_mut() = _io.read_bytes(6_usize)?;
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour() > 0 {
             *self_rc.device_coordinates.borrow_mut() = Vec::new();
-            let l_device_coordinates = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour();
-            for _i in 0..l_device_coordinates {
+            let l_device_coordinates = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())?;
+            for _i in 0_usize..l_device_coordinates {
                 self_rc.device_coordinates.borrow_mut().push(_io.read_u2be()?);
             }
         }
@@ -9497,8 +9497,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
         }
         *self_rc.number_of_description_structures.borrow_mut() = _io.read_u4be()?;
         *self_rc.profile_descriptions.borrow_mut() = Vec::new();
-        let l_profile_descriptions = *self_rc.number_of_description_structures();
-        for _i in 0..l_profile_descriptions {
+        let l_profile_descriptions = usize::try_from(*self_rc.number_of_description_structures())?;
+        for _i in 0_usize..l_profile_descriptions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_descriptions.borrow_mut().push(t);
         }
@@ -9717,14 +9717,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
         }
         *self_rc.number_of_structures.borrow_mut() = _io.read_u4be()?;
         *self_rc.positions_table.borrow_mut() = Vec::new();
-        let l_positions_table = *self_rc.number_of_structures();
-        for _i in 0..l_positions_table {
+        let l_positions_table = usize::try_from(*self_rc.number_of_structures())?;
+        for _i in 0_usize..l_positions_table {
             let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.positions_table.borrow_mut().push(t);
         }
         *self_rc.profile_identifiers.borrow_mut() = Vec::new();
-        let l_profile_identifiers = *self_rc.number_of_structures();
-        for _i in 0..l_profile_identifiers {
+        let l_profile_identifiers = usize::try_from(*self_rc.number_of_structures())?;
+        for _i in 0_usize..l_profile_identifiers {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_identifiers.borrow_mut().push(t);
         }
@@ -10097,8 +10097,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
         *self_rc.number_of_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc.count_of_measurement_types.borrow_mut() = _io.read_u2be()?;
         *self_rc.response_curve_structure_offsets.borrow_mut() = Vec::new();
-        let l_response_curve_structure_offsets = *self_rc.count_of_measurement_types();
-        for _i in 0..l_response_curve_structure_offsets {
+        let l_response_curve_structure_offsets = usize::try_from(*self_rc.count_of_measurement_types())?;
+        for _i in 0_usize..l_response_curve_structure_offsets {
             self_rc.response_curve_structure_offsets.borrow_mut().push(_io.read_u4be()?);
         }
         *self_rc.response_curve_structures.borrow_mut() = _io.read_bytes_full()?;

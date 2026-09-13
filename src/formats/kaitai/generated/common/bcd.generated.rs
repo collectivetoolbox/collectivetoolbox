@@ -114,8 +114,8 @@ impl KStruct for Bcd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.digits.borrow_mut() = Vec::new();
-        let l_digits = *self_rc.num_digits();
-        for _i in 0..l_digits {
+        let l_digits = usize::try_from(*self_rc.num_digits())?;
+        for _i in 0_usize..l_digits {
             match *self_rc.bits_per_digit() {
                 4 => {
                     self_rc.digits.borrow_mut().push(_io.read_bits_int_be(4)?.into());

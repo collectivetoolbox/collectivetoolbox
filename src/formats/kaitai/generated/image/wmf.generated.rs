@@ -666,8 +666,8 @@ impl KStruct for Wmf_ParamsPolygon {
         let _io = io;
         *self_rc.num_points.borrow_mut() = _io.read_s2le()?;
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.num_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.num_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, Wmf_PointS>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
@@ -722,8 +722,8 @@ impl KStruct for Wmf_ParamsPolyline {
         let _io = io;
         *self_rc.num_points.borrow_mut() = _io.read_s2le()?;
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.num_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.num_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, Wmf_PointS>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }

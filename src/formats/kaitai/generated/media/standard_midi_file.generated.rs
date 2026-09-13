@@ -50,8 +50,8 @@ impl KStruct for StandardMidiFile {
         let t = Self::read_into::<_, StandardMidiFile_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc.tracks.borrow_mut() = Vec::new();
-        let l_tracks = *self_rc.hdr().num_tracks();
-        for _i in 0..l_tracks {
+        let l_tracks = usize::try_from(*self_rc.hdr().num_tracks())?;
+        for _i in 0_usize..l_tracks {
             let t = Self::read_into::<_, StandardMidiFile_Track>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tracks.borrow_mut().push(t);
         }
@@ -507,7 +507,7 @@ impl StandardMidiFile_PitchBendEvent {
             return Ok(self.bend_value.borrow());
         }
         self.f_bend_value.set(true);
-        *self.bend_value.borrow_mut() = ((((*self.b2()).wrapping_shl(7_u32)).saturating_add(i32::from(*self.b1()))).saturating_sub(16384_i32)).try_into()?;
+        *self.bend_value.borrow_mut() = ((((i32::from(*self.b2())).wrapping_shl(7_u32)).saturating_add(i32::from(*self.b1()))).saturating_sub(16384_i32)).try_into()?;
         Ok(self.bend_value.borrow())
     }
 }

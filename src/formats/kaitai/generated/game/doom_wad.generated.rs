@@ -50,8 +50,8 @@ impl DoomWad {
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.index_offset())?)?;
         *self.index.borrow_mut() = Vec::new();
-        let l_index = *self.num_index_entries();
-        for _i in 0..l_index {
+        let l_index = usize::try_from(*self.num_index_entries())?;
+        for _i in 0_usize..l_index {
             let t = Self::read_into::<_, DoomWad_IndexEntry>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.index.borrow_mut().push(t);
         }
@@ -120,8 +120,8 @@ impl KStruct for DoomWad_Blockmap {
         *self_rc.num_cols.borrow_mut() = _io.read_s2le()?;
         *self_rc.num_rows.borrow_mut() = _io.read_s2le()?;
         *self_rc.linedefs_in_block.borrow_mut() = Vec::new();
-        let l_linedefs_in_block = (*self_rc.num_cols()).saturating_mul(*self_rc.num_rows());
-        for _i in 0..l_linedefs_in_block {
+        let l_linedefs_in_block = usize::try_from((*self_rc.num_cols()).saturating_mul(*self_rc.num_rows()))?;
+        for _i in 0_usize..l_linedefs_in_block {
             let t = Self::read_into::<_, DoomWad_Blockmap_Blocklist>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.linedefs_in_block.borrow_mut().push(t);
         }
@@ -698,8 +698,8 @@ impl KStruct for DoomWad_Pnames {
         let _io = io;
         *self_rc.num_patches.borrow_mut() = _io.read_u4le()?;
         *self_rc.names.borrow_mut() = Vec::new();
-        let l_names = *self_rc.num_patches();
-        for _i in 0..l_names {
+        let l_names = usize::try_from(*self_rc.num_patches())?;
+        for _i in 0_usize..l_names {
             self_rc.names.borrow_mut().push(bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?);
         }
         Ok(())
@@ -1124,8 +1124,8 @@ impl KStruct for DoomWad_Texture12 {
         let _io = io;
         *self_rc.num_textures.borrow_mut() = _io.read_s4le()?;
         *self_rc.textures.borrow_mut() = Vec::new();
-        let l_textures = *self_rc.num_textures();
-        for _i in 0..l_textures {
+        let l_textures = usize::try_from(*self_rc.num_textures())?;
+        for _i in 0_usize..l_textures {
             let t = Self::read_into::<_, DoomWad_Texture12_TextureIndex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.textures.borrow_mut().push(t);
         }
@@ -1270,8 +1270,8 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         *self_rc.column_directory.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_patches.borrow_mut() = _io.read_u2le()?;
         *self_rc.patches.borrow_mut() = Vec::new();
-        let l_patches = *self_rc.num_patches();
-        for _i in 0..l_patches {
+        let l_patches = usize::try_from(*self_rc.num_patches())?;
+        for _i in 0_usize..l_patches {
             let t = Self::read_into::<_, DoomWad_Texture12_Patch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patches.borrow_mut().push(t);
         }

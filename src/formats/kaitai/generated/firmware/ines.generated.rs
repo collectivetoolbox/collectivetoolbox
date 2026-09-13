@@ -160,7 +160,7 @@ impl Ines_Header {
             return Ok(self.mapper.borrow());
         }
         self.f_mapper.set(true);
-        *self.mapper.borrow_mut() = (((*self.f6().lower_mapper()) | ((*self.f7().upper_mapper()).wrapping_shl(4_u32)))).try_into()?;
+        *self.mapper.borrow_mut() = (((*self.f6().lower_mapper()) | (u64::try_from((i32::try_from(*self.f7().upper_mapper())?).wrapping_shl(4_u32))?))).try_into()?;
         Ok(self.mapper.borrow())
     }
 }

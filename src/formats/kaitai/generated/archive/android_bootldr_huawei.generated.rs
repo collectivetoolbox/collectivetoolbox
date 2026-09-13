@@ -53,7 +53,7 @@ impl KStruct for AndroidBootldrHuawei {
         let _io = io;
         let t = Self::read_into::<_, AndroidBootldrHuawei_MetaHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.meta_header.borrow_mut() = t;
-        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.meta_header().len_meta_header()).saturating_sub(0))?)?;
+        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.meta_header().len_meta_header())).saturating_sub(0_i32))?)?;
         let t = Self::read_into::<_, AndroidBootldrHuawei_ImageHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
         Ok(())

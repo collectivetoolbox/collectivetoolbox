@@ -149,8 +149,8 @@ impl KStruct for AndroidBootldrQcom {
         *self_rc.ofs_img_bodies.borrow_mut() = _io.read_u4le()?;
         *self_rc.bootloader_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.img_headers.borrow_mut() = Vec::new();
-        let l_img_headers = *self_rc.num_images();
-        for _i in 0..l_img_headers {
+        let l_img_headers = usize::try_from(*self_rc.num_images())?;
+        for _i in 0_usize..l_img_headers {
             let t = Self::read_into::<_, AndroidBootldrQcom_ImgHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.img_headers.borrow_mut().push(t);
         }
@@ -169,8 +169,8 @@ impl AndroidBootldrQcom {
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_img_bodies())?)?;
         *self.img_bodies.borrow_mut() = Vec::new();
-        let l_img_bodies = *self.num_images();
-        for _i in 0..l_img_bodies {
+        let l_img_bodies = usize::try_from(*self.num_images())?;
+        for _i in 0_usize..l_img_bodies {
             let f = |t : &mut AndroidBootldrQcom_ImgBody| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, AndroidBootldrQcom_ImgBody>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.img_bodies.borrow_mut().push(t);

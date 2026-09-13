@@ -198,7 +198,7 @@ impl KStruct for Ipv4Packet_Ipv4Option {
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.len() > 2 { (i32::try_from(*self_rc.len())?).saturating_sub(2_i32) } else { 0_i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.len() > 2 { (i32::from(*self_rc.len())).saturating_sub(2_i32) } else { 0_i32 })?)?;
         Ok(())
     }
 }

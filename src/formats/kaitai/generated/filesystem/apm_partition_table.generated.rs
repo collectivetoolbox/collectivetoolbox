@@ -56,8 +56,8 @@ impl ApmPartitionTable {
         io.seek(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?)?;
         *self.partition_entries_raw.borrow_mut() = Vec::new();
         *self.partition_entries.borrow_mut() = Vec::new();
-        let l_partition_entries = *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.partition_lookup()?.number_of_partitions();
-        for _i in 0..l_partition_entries {
+        let l_partition_entries = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.partition_lookup()?.number_of_partitions())?;
+        for _i in 0_usize..l_partition_entries {
             self.partition_entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into());
             let partition_entries_raw = self.partition_entries_raw.borrow();
             let _io_partition_entries_raw = BytesReader::from(partition_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());

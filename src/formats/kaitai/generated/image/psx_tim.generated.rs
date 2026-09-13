@@ -184,7 +184,7 @@ impl KStruct for PsxTim_Bitmap {
         *self_rc.origin_y.borrow_mut() = _io.read_u2le()?;
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((u32::try_from(*self_rc.len())?).saturating_sub(12_u32))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(12_u32))?)?;
         Ok(())
     }
 }

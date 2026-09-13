@@ -743,8 +743,8 @@ impl KStruct for Jpeg_SegmentSof0 {
         *self_rc.image_width.borrow_mut() = _io.read_u2be()?;
         *self_rc.num_components.borrow_mut() = _io.read_u1()?;
         *self_rc.components.borrow_mut() = Vec::new();
-        let l_components = *self_rc.num_components();
-        for _i in 0..l_components {
+        let l_components = usize::try_from(*self_rc.num_components())?;
+        for _i in 0_usize..l_components {
             let t = Self::read_into::<_, Jpeg_SegmentSof0_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.components.borrow_mut().push(t);
         }
@@ -897,8 +897,8 @@ impl KStruct for Jpeg_SegmentSos {
         let _io = io;
         *self_rc.num_components.borrow_mut() = _io.read_u1()?;
         *self_rc.components.borrow_mut() = Vec::new();
-        let l_components = *self_rc.num_components();
-        for _i in 0..l_components {
+        let l_components = usize::try_from(*self_rc.num_components())?;
+        for _i in 0_usize..l_components {
             let t = Self::read_into::<_, Jpeg_SegmentSos_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.components.borrow_mut().push(t);
         }

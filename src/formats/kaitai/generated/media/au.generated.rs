@@ -68,7 +68,7 @@ impl Au {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = (if *self.header().data_size() == 4294967295 { (u32::try_from(_io.size())?).saturating_sub(*self.ofs_data()) } else { *self.header().data_size() }).try_into()?;
+        *self.len_data.borrow_mut() = (if *self.header().data_size() == 4294967295 { (_io.size()).saturating_sub(usize::try_from(*self.ofs_data())?) } else { *self.header().data_size() }).try_into()?;
         Ok(self.len_data.borrow())
     }
 }

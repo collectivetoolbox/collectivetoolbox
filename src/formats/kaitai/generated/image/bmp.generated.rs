@@ -713,7 +713,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.bottom_up.borrow());
         }
         self.f_bottom_up.set(true);
-        *self.bottom_up.borrow_mut() = (*self.image_height_raw() > 0).try_into()?;
+        *self.bottom_up.borrow_mut() = (self.image_height_raw() > 0).try_into()?;
         Ok(self.bottom_up.borrow())
     }
     pub fn extends_bitmap_info(
@@ -768,7 +768,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { -(to_i64(self.image_height_raw())) } else { i32::try_from(self.image_height_raw())? }).try_into()?;
+        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { -(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
         Ok(self.image_height.borrow())
     }
     pub fn is_color_mask_here(
@@ -810,7 +810,7 @@ impl Bmp_BitmapHeader {
  * Image width, px
  */
 impl Bmp_BitmapHeader {
-    pub fn image_width(&self) -> usize {
+    pub fn image_width(&self) -> u32 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.image_width.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -823,7 +823,7 @@ impl Bmp_BitmapHeader {
  * Image height, px (positive => bottom-up image, negative => top-down image)
  */
 impl Bmp_BitmapHeader {
-    pub fn image_height_raw(&self) -> usize {
+    pub fn image_height_raw(&self) -> i32 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.image_height_raw.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -1340,7 +1340,7 @@ impl Bmp_BitmapV5Extension {
         if *self.has_profile()? {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((0).saturating_add(*self.ofs_profile()))?)?;
+            io.seek(usize::try_from((u32::try_from(0_i32)?).saturating_add(*self.ofs_profile()))?)?;
             match *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.bitmap_v4_ext().color_space_type() == Bmp_ColorSpace::ProfileLinked {
                 true => {
                     *self.profile_data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_profile())?)?.into();
@@ -1554,8 +1554,8 @@ impl KStruct for Bmp_ColorTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = if  ((*self_rc.num_colors() > 0) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? };
-        for _i in 0..l_colors {
+        let l_colors = usize::try_from(if  ((*self_rc.num_colors() > 0) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? })?;
+        for _i in 0_usize..l_colors {
             let f = |t : &mut Bmp_RgbRecord| Ok(t.set_params(*self_rc.has_reserved_field()));
             let t = Self::read_into_with_init::<_, Bmp_RgbRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.colors.borrow_mut().push(t);
@@ -1588,7 +1588,7 @@ impl Bmp_ColorTable {
             return Ok(self.num_colors_present.borrow());
         }
         self.f_num_colors_present.set(true);
-        *self.num_colors_present.borrow_mut() = ((i32::try_from(_io.size())?).checked_div(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }).ok_or(KError::CastError)?).try_into()?;
+        *self.num_colors_present.borrow_mut() = ((_io.size()).checked_div(usize::try_from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 })?).ok_or(KError::CastError)?).try_into()?;
         Ok(self.num_colors_present.borrow())
     }
 }

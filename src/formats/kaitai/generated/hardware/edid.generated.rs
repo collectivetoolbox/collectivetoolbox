@@ -76,8 +76,8 @@ impl KStruct for Edid {
         let t = Self::read_into::<_, Edid_EstTimingsInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.est_timings.borrow_mut() = t;
         *self_rc.std_timings.borrow_mut() = Vec::new();
-        let l_std_timings = 8;
-        for _i in 0..l_std_timings {
+        let l_std_timings = usize::try_from(8)?;
+        for _i in 0_usize..l_std_timings {
             let t = Self::read_into::<_, Edid_StdTiming>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.std_timings.borrow_mut().push(t);
         }
@@ -414,7 +414,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_x_int.borrow());
         }
         self.f_blue_x_int.set(true);
-        *self.blue_x_int.borrow_mut() = (((u64::try_from((*self.blue_x_9_2()).wrapping_shl(2_u32))?) | (*self.blue_x_1_0()))).try_into()?;
+        *self.blue_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.blue_x_9_2())).wrapping_shl(2_u32))?) | (*self.blue_x_1_0()))).try_into()?;
         Ok(self.blue_x_int.borrow())
     }
 
@@ -440,7 +440,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.blue_y_int.borrow());
         }
         self.f_blue_y_int.set(true);
-        *self.blue_y_int.borrow_mut() = (((u64::try_from((*self.blue_y_9_2()).wrapping_shl(2_u32))?) | (*self.blue_y_1_0()))).try_into()?;
+        *self.blue_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.blue_y_9_2())).wrapping_shl(2_u32))?) | (*self.blue_y_1_0()))).try_into()?;
         Ok(self.blue_y_int.borrow())
     }
 
@@ -466,7 +466,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_x_int.borrow());
         }
         self.f_green_x_int.set(true);
-        *self.green_x_int.borrow_mut() = (((u64::try_from((*self.green_x_9_2()).wrapping_shl(2_u32))?) | (*self.green_x_1_0()))).try_into()?;
+        *self.green_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.green_x_9_2())).wrapping_shl(2_u32))?) | (*self.green_x_1_0()))).try_into()?;
         Ok(self.green_x_int.borrow())
     }
 
@@ -492,7 +492,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.green_y_int.borrow());
         }
         self.f_green_y_int.set(true);
-        *self.green_y_int.borrow_mut() = (((u64::try_from((*self.green_y_9_2()).wrapping_shl(2_u32))?) | (*self.green_y_1_0()))).try_into()?;
+        *self.green_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.green_y_9_2())).wrapping_shl(2_u32))?) | (*self.green_y_1_0()))).try_into()?;
         Ok(self.green_y_int.borrow())
     }
 
@@ -518,7 +518,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_x_int.borrow());
         }
         self.f_red_x_int.set(true);
-        *self.red_x_int.borrow_mut() = (((u64::try_from((*self.red_x_9_2()).wrapping_shl(2_u32))?) | (*self.red_x_1_0()))).try_into()?;
+        *self.red_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.red_x_9_2())).wrapping_shl(2_u32))?) | (*self.red_x_1_0()))).try_into()?;
         Ok(self.red_x_int.borrow())
     }
 
@@ -544,7 +544,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.red_y_int.borrow());
         }
         self.f_red_y_int.set(true);
-        *self.red_y_int.borrow_mut() = (((u64::try_from((*self.red_y_9_2()).wrapping_shl(2_u32))?) | (*self.red_y_1_0()))).try_into()?;
+        *self.red_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.red_y_9_2())).wrapping_shl(2_u32))?) | (*self.red_y_1_0()))).try_into()?;
         Ok(self.red_y_int.borrow())
     }
 
@@ -570,7 +570,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_x_int.borrow());
         }
         self.f_white_x_int.set(true);
-        *self.white_x_int.borrow_mut() = (((u64::try_from((*self.white_x_9_2()).wrapping_shl(2_u32))?) | (*self.white_x_1_0()))).try_into()?;
+        *self.white_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.white_x_9_2())).wrapping_shl(2_u32))?) | (*self.white_x_1_0()))).try_into()?;
         Ok(self.white_x_int.borrow())
     }
 
@@ -596,7 +596,7 @@ impl Edid_ChromacityInfo {
             return Ok(self.white_y_int.borrow());
         }
         self.f_white_y_int.set(true);
-        *self.white_y_int.borrow_mut() = (((u64::try_from((*self.white_y_9_2()).wrapping_shl(2_u32))?) | (*self.white_y_1_0()))).try_into()?;
+        *self.white_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.white_y_9_2())).wrapping_shl(2_u32))?) | (*self.white_y_1_0()))).try_into()?;
         Ok(self.white_y_int.borrow())
     }
 }

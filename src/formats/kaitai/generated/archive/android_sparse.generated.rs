@@ -49,8 +49,8 @@ impl KStruct for AndroidSparse {
         let t = Self::read_into::<_, AndroidSparse_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.chunks.borrow_mut() = Vec::new();
-        let l_chunks = *self_rc.header().num_chunks();
-        for _i in 0..l_chunks {
+        let l_chunks = usize::try_from(*self_rc.header().num_chunks())?;
+        for _i in 0_usize..l_chunks {
             let t = Self::read_into::<_, AndroidSparse_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }

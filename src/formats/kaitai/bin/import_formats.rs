@@ -82,10 +82,10 @@ struct UnmatchedFile {
 /// Formats explicitly skipped from import (e.g. missing declared copyright owner
 /// for proper attribution under MIT, or depending on un-attributable dependencies).
 const SKIPPED_FORMATS: &[&str] = &[
-    "bytes_with_io",
-    "pcf_font",
-    "mach_o",
-    "mach_o_fat",
+    "rar", // FIXME broken https://github.com/kaitai-io/kaitai_struct_formats/issues/773,
+
+    "pcf_font", // depends on MIT bytes_with_io missing attribution info
+    "mach_o_fat" // depends on MIT mach_o missing attribution info
 ];
 
 fn check_license_match(

@@ -223,7 +223,7 @@ impl SshPublicKey_Bignum2 {
             return Ok(self.length_in_bits.borrow());
         }
         self.f_length_in_bits.set(true);
-        *self.length_in_bits.borrow_mut() = (((u32::try_from(*self.len())?).saturating_sub(1_u32)).saturating_mul(8_u32)).try_into()?;
+        *self.length_in_bits.borrow_mut() = (((*self.len()).saturating_sub(1_u32)).saturating_mul(8_u32)).try_into()?;
         Ok(self.length_in_bits.borrow())
     }
 }

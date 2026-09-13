@@ -1458,8 +1458,8 @@ impl KStruct for PythonPyc27_PyObject_Tuple {
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u4le()?;
         *self_rc.items.borrow_mut() = Vec::new();
-        let l_items = *self_rc.count();
-        for _i in 0..l_items {
+        let l_items = usize::try_from(*self_rc.count())?;
+        for _i in 0_usize..l_items {
             let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.items.borrow_mut().push(t);
         }

@@ -508,33 +508,33 @@ impl KStruct for ShapefileMain_MultiPatch {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.part_types.borrow_mut() = Vec::new();
-        let l_part_types = *self_rc.number_of_parts();
-        for _i in 0..l_part_types {
+        let l_part_types = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_part_types {
             self_rc.part_types.borrow_mut().push(i64::from(_io.read_s4le()?).try_into()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
         *self_rc.z_values.borrow_mut() = Vec::new();
-        let l_z_values = *self_rc.number_of_points();
-        for _i in 0..l_z_values {
+        let l_z_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -627,8 +627,8 @@ impl KStruct for ShapefileMain_MultiPoint {
         *self_rc.bounding_box.borrow_mut() = t;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
@@ -689,16 +689,16 @@ impl KStruct for ShapefileMain_MultiPointM {
         *self_rc.bounding_box.borrow_mut() = t;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -770,23 +770,23 @@ impl KStruct for ShapefileMain_MultiPointZ {
         *self_rc.bounding_box.borrow_mut() = t;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
         *self_rc.z_values.borrow_mut() = Vec::new();
-        let l_z_values = *self_rc.number_of_points();
-        for _i in 0..l_z_values {
+        let l_z_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -1029,13 +1029,13 @@ impl KStruct for ShapefileMain_PolyLine {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
@@ -1109,21 +1109,21 @@ impl KStruct for ShapefileMain_PolyLineM {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -1208,28 +1208,28 @@ impl KStruct for ShapefileMain_PolyLineZ {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
         *self_rc.z_values.borrow_mut() = Vec::new();
-        let l_z_values = *self_rc.number_of_points();
-        for _i in 0..l_z_values {
+        let l_z_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -1320,13 +1320,13 @@ impl KStruct for ShapefileMain_Polygon {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
@@ -1400,21 +1400,21 @@ impl KStruct for ShapefileMain_PolygonM {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())
@@ -1499,28 +1499,28 @@ impl KStruct for ShapefileMain_PolygonZ {
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
         *self_rc.parts.borrow_mut() = Vec::new();
-        let l_parts = *self_rc.number_of_parts();
-        for _i in 0..l_parts {
+        let l_parts = usize::try_from(*self_rc.number_of_parts())?;
+        for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
         *self_rc.points.borrow_mut() = Vec::new();
-        let l_points = *self_rc.number_of_points();
-        for _i in 0..l_points {
+        let l_points = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
         *self_rc.z_values.borrow_mut() = Vec::new();
-        let l_z_values = *self_rc.number_of_points();
-        for _i in 0..l_z_values {
+        let l_z_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
         *self_rc.m_values.borrow_mut() = Vec::new();
-        let l_m_values = *self_rc.number_of_points();
-        for _i in 0..l_m_values {
+        let l_m_values = usize::try_from(*self_rc.number_of_points())?;
+        for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
         Ok(())

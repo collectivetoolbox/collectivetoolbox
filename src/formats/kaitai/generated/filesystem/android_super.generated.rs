@@ -785,8 +785,8 @@ impl AndroidSuper_Metadata_TableDescriptor {
         _io.seek(usize::try_from((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header_size()).saturating_add(*self.offset()))?)?;
         *self.table_raw.borrow_mut() = Vec::new();
         *self.table.borrow_mut() = Vec::new();
-        let l_table = *self.num_entries();
-        for _i in 0..l_table {
+        let l_table = usize::try_from(*self.num_entries())?;
+        for _i in 0_usize..l_table {
             self.table_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let table_raw = self.table_raw.borrow();
             let _io_table_raw = BytesReader::from(table_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -852,14 +852,14 @@ impl KStruct for AndroidSuper_Root {
         let t = Self::read_into::<_, AndroidSuper_Geometry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.backup_geometry.borrow_mut() = t;
         *self_rc.primary_metadata.borrow_mut() = Vec::new();
-        let l_primary_metadata = *self_rc.primary_geometry().metadata_slot_count();
-        for _i in 0..l_primary_metadata {
+        let l_primary_metadata = usize::try_from(*self_rc.primary_geometry().metadata_slot_count())?;
+        for _i in 0_usize..l_primary_metadata {
             let t = Self::read_into::<_, AndroidSuper_Metadata>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.primary_metadata.borrow_mut().push(t);
         }
         *self_rc.backup_metadata.borrow_mut() = Vec::new();
-        let l_backup_metadata = *self_rc.primary_geometry().metadata_slot_count();
-        for _i in 0..l_backup_metadata {
+        let l_backup_metadata = usize::try_from(*self_rc.primary_geometry().metadata_slot_count())?;
+        for _i in 0_usize..l_backup_metadata {
             let t = Self::read_into::<_, AndroidSuper_Metadata>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.backup_metadata.borrow_mut().push(t);
         }

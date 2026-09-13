@@ -297,16 +297,16 @@ impl KStruct for RtcpPayload_PacketStatusChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.t.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        if (if *self_rc.t() { 1 } else { 0 }) == 0 {
+        if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 0 {
             *self_rc.s2.borrow_mut() = _io.read_bits_int_be(2)?;
         }
-        if (if *self_rc.t() { 1 } else { 0 }) == 1 {
+        if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 1 {
             *self_rc.s1.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         }
-        if (if *self_rc.t() { 1 } else { 0 }) == 0 {
+        if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 0 {
             *self_rc.rle.borrow_mut() = _io.read_bits_int_be(13)?;
         }
-        if (if *self_rc.t() { 1 } else { 0 }) == 1 {
+        if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 1 {
             *self_rc.symbol_list.borrow_mut() = _io.read_bits_int_be(14)?;
         }
         Ok(())
@@ -321,7 +321,7 @@ impl RtcpPayload_PacketStatusChunk {
             return Ok(self.s.borrow());
         }
         self.f_s.set(true);
-        *self.s.borrow_mut() = (if (if *self.t() { 1 } else { 0 }) == 0 { *self.s2() } else { u64::try_from(if (if *self.s1() { 1 } else { 0 }) == 0 { 1_i32 } else { 0_i32 })? }).try_into()?;
+        *self.s.borrow_mut() = (if (if *self.t() { 1_i32 } else { 0_i32 }) == 0 { *self.s2() } else { u64::try_from(if (if *self.s1() { 1_i32 } else { 0_i32 }) == 0 { 1_i32 } else { 0_i32 })? }).try_into()?;
         Ok(self.s.borrow())
     }
 }
@@ -486,8 +486,8 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
         *self_rc.br_mantissa.borrow_mut() = _io.read_bits_int_be(18)?;
         io.align_to_byte()?;
         *self_rc.ssrc_list.borrow_mut() = Vec::new();
-        let l_ssrc_list = *self_rc.num_ssrc();
-        for _i in 0..l_ssrc_list {
+        let l_ssrc_list = usize::try_from(*self_rc.num_ssrc())?;
+        for _i in 0_usize..l_ssrc_list {
             self_rc.ssrc_list.borrow_mut().push(_io.read_u4be()?);
         }
         Ok(())
@@ -502,7 +502,7 @@ impl RtcpPayload_PsfbAfbRembPacket {
             return Ok(self.max_total_bitrate.borrow());
         }
         self.f_max_total_bitrate.set(true);
-        *self.max_total_bitrate.borrow_mut() = ((*self.br_mantissa()).saturating_mul((1_i32).wrapping_shl(to_shift_amt(*self.br_exp())))).try_into()?;
+        *self.max_total_bitrate.borrow_mut() = ((*self.br_mantissa()).saturating_mul(u64::try_from((1_i32).wrapping_shl(to_shift_amt(*self.br_exp())))?)).try_into()?;
         Ok(self.max_total_bitrate.borrow())
     }
 }
@@ -710,7 +710,7 @@ impl RtcpPayload_ReportBlock {
             return Ok(self.fraction_lost.borrow());
         }
         self.f_fraction_lost.set(true);
-        *self.fraction_lost.borrow_mut() = ((*self.lost_val()).wrapping_shr(24_u32)).try_into()?;
+        *self.fraction_lost.borrow_mut() = ((i32::from(*self.lost_val())).wrapping_shr(24_u32)).try_into()?;
         Ok(self.fraction_lost.borrow())
     }
 }
@@ -776,8 +776,8 @@ impl KStruct for RtcpPayload_RrPacket {
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
         *self_rc.report_block.borrow_mut() = Vec::new();
-        let l_report_block = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype();
-        for _i in 0..l_report_block {
+        let l_report_block = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?;
+        for _i in 0_usize..l_report_block {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }
@@ -1272,8 +1272,8 @@ impl KStruct for RtcpPayload_SdesPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.source_chunk.borrow_mut() = Vec::new();
-        let l_source_chunk = *self_rc.source_count()?;
-        for _i in 0..l_source_chunk {
+        let l_source_chunk = usize::try_from(*self_rc.source_count()?)?;
+        for _i in 0_usize..l_source_chunk {
             let t = Self::read_into::<_, RtcpPayload_SourceChunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.source_chunk.borrow_mut().push(t);
         }
@@ -1455,8 +1455,8 @@ impl KStruct for RtcpPayload_SrPacket {
         *self_rc.sender_packet_count.borrow_mut() = _io.read_u4be()?;
         *self_rc.sender_octet_count.borrow_mut() = _io.read_u4be()?;
         *self_rc.report_block.borrow_mut() = Vec::new();
-        let l_report_block = *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype();
-        for _i in 0..l_report_block {
+        let l_report_block = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?;
+        for _i in 0_usize..l_report_block {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }

@@ -714,7 +714,7 @@ impl KStruct for Id3v24_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?).saturating_sub(u64::try_from(_io.pos())?))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?)?).saturating_sub(_io.pos()))?)?;
         Ok(())
     }
 }
@@ -773,7 +773,7 @@ impl KStruct for Id3v24_Tag {
                 let _t_frames = self_rc.frames.borrow();
                 let Some(_tmpa) = _t_frames.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((((to_i128((u64::try_from(_io.pos())?).saturating_add(*_tmpa.size().value()?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
+                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size().value()?)?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         if !(*self_rc.header().flags().flag_footer()) {
@@ -909,7 +909,7 @@ impl Id3v24_U2beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.byte0().value()).wrapping_shl(7_u32)) | (*self.byte1().value()))).try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.byte0().value())?).wrapping_shl(7_u32))?) | (*self.byte1().value()))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -971,7 +971,7 @@ impl Id3v24_U4beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.short0().value()?).wrapping_shl(14_u32)) | (*self.short1().value()?))).try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.short0().value()?)?).wrapping_shl(14_u32))?) | (*self.short1().value()?))).try_into()?;
         Ok(self.value.borrow())
     }
 }

@@ -518,11 +518,11 @@ impl KStruct for Id3v23_Tag {
                 let _t_frames = self_rc.frames.borrow();
                 let Some(_tmpa) = _t_frames.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((((to_i128((u32::try_from(_io.pos())?).saturating_add(u32::try_from(*_tmpa.size())?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
+                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size())?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         if *self_rc.header().flags().flag_headerex() {
-            *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header_ex().padding_size()).saturating_sub(u32::try_from(_io.pos())?))?)?;
+            *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((usize::try_from(*self_rc.header_ex().padding_size())?).saturating_sub(_io.pos()))?)?;
         }
         Ok(())
     }
@@ -644,7 +644,7 @@ impl Id3v23_U2beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.byte0().value()).wrapping_shl(7_u32)) | (*self.byte1().value()))).try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.byte0().value())?).wrapping_shl(7_u32))?) | (*self.byte1().value()))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -706,7 +706,7 @@ impl Id3v23_U4beSynchsafe {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((*self.short0().value()?).wrapping_shl(14_u32)) | (*self.short1().value()?))).try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.short0().value()?)?).wrapping_shl(14_u32))?) | (*self.short1().value()?))).try_into()?;
         Ok(self.value.borrow())
     }
 }

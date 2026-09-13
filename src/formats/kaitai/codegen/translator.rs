@@ -283,6 +283,11 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     let op_type = detect_type_approx(operand, ctx);
                     if matches!(
                         op_type,
+                        Some(DataType::IntMulti { signed: false, width: 8, .. })
+                    ) {
+                        format!("-(to_i64({inner_str}))")
+                    } else if matches!(
+                        op_type,
                         Some(DataType::Int1 { signed: false }
                             | DataType::IntMulti { signed: false, .. }
                             | DataType::Bits { .. })
@@ -292,7 +297,7 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         || inner_str.ends_with(".size()")
                         || inner_str.contains(" as u")
                     {
-                        format!("-(to_i64({inner_str}))")
+                        format!("-(to_i32({inner_str}))")
                     } else {
                         format!("-({inner_str})")
                     }
@@ -387,12 +392,12 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
         Expr::ByteSizeOfType(type_id) => {
             let sz = calc_type_byte_size(&type_id.name_as_str(), ctx);
             // Reason for fallback: unknown type byte size defaults to 0 for sizeof
-            sz.unwrap_or(0).to_string()
+            format!("{}_i32", sz.unwrap_or(0))
         }
         Expr::BitSizeOfType(type_id) => {
             let sz = calc_type_byte_size(&type_id.name_as_str(), ctx);
             // Reason for fallback: unknown type bit size defaults to 0 for bitsizeof
-            sz.unwrap_or(0).saturating_mul(8).to_string()
+            format!("{}_i32", sz.unwrap_or(0).saturating_mul(8))
         }
     }
 }
@@ -417,7 +422,7 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
         "_index" => "_i".to_string(),
         "_" => "_tmpa".to_string(),
         // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-        "_sizeof" => calculate_class_seq_size(ctx.current_class).unwrap_or(0).to_string(),
+        "_sizeof" => format!("{}_i32", calculate_class_seq_size(ctx.current_class).unwrap_or(0)),
         other => {
             let self_name = ctx.self_name();
             let escaped = super::escape_rust_keyword(other);
@@ -516,11 +521,11 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         if let Expr::Name(name) = value {
             if let Some(a) = ctx.current_class.seq.iter().find(|x| x.id == *name) {
                 if let Some(sz) = calculate_attr_size(&a.data_type) {
-                    return sz.to_string();
+                    return format!("{sz}_i32");
                 }
             }
         }
-        return "0".to_string();
+        return "0_i32".to_string();
     }
     let t = translate_expr(value, ctx);
     let is_stream = t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" || t.ends_with("._io");
@@ -584,7 +589,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     }
     if attr == "to_i" {
         if matches!(val_type, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) {
-            return format!("(if {t} {{ 1 }} else {{ 0 }})");
+            return format!("(if {t} {{ 1_i32 }} else {{ 0_i32 }})");
         }
         if matches!(val_type, Some(DataType::EnumType { .. })) {
             return format!("i64::from(&{t})");
@@ -717,20 +722,64 @@ fn is_lossless_integer_conversion(from: &DataType, to: &DataType) -> bool {
     }
 }
 
-fn is_usize_expr(expr_str: &str, ctx: &TranslationContext<'_>) -> bool {
-    if expr_str.ends_with(".pos()")
-        || expr_str.ends_with(".size()")
-        || expr_str.ends_with(".len()")
+pub(crate) fn is_usize_expr_str(s: &str) -> bool {
+    let trimmed = s.trim();
+    if trimmed == "_i" || trimmed == "(_i)" {
+        return true;
+    }
+    if trimmed.contains("to_i32(")
+        || trimmed.contains("to_i64(")
+        || trimmed.contains("i32::")
+        || trimmed.contains("u32::")
+        || trimmed.contains("u64::")
+        || trimmed.contains("i64::")
+    {
+        return false;
+    }
+    if (trimmed.ends_with("._io().pos()")
+        || trimmed.ends_with("._io.pos()")
+        || trimmed.ends_with("_io.pos()")
+        || trimmed.ends_with("io.pos()")
+        || trimmed.ends_with("._io().size()")
+        || trimmed.ends_with("._io.size()")
+        || trimmed.ends_with("_io.size()")
+        || trimmed.ends_with("io.size()"))
+        && !trimmed.contains(".value()")
     {
         return true;
     }
-    if let Some(stripped) = expr_str.strip_suffix("()") {
-        let attr = if let Some(idx) = stripped.rfind('.') {
-            &stripped[idx.saturating_add(1)..]
+    if trimmed.ends_with(".len()")
+        && !trimmed.ends_with("self.len()")
+        && !trimmed.ends_with("self_rc.len()")
+    {
+        return true;
+    }
+    if let Some(inner) = trimmed.strip_prefix('(').and_then(|t| t.strip_suffix(')')) {
+        if inner.contains(".saturating_") || inner.contains(".wrapping_") || inner.contains(".checked_") {
+            return is_usize_expr_str(inner);
+        }
+    }
+    if trimmed.contains(".saturating_") || trimmed.contains(".wrapping_") || trimmed.contains(".checked_") {
+        if let Some(idx) = trimmed
+            .find(".saturating_")
+            .or_else(|| trimmed.find(".wrapping_"))
+            .or_else(|| trimmed.find(".checked_"))
+        {
+            let receiver = &trimmed[..idx];
+            return is_usize_expr_str(receiver);
+        }
+    }
+    false
+}
+
+pub(crate) fn is_numeric_switch_call(expr_str: &str, root: &ClassSpec) -> bool {
+    if let Some(s) = expr_str.strip_suffix("()") {
+        let attr = if let Some(idx) = s.rfind('.') {
+            &s[idx.saturating_add(1)..]
         } else {
-            stripped
+            s
         };
-        return is_numeric_switch_attr(attr, ctx.root);
+        return is_numeric_switch_attr(attr, root);
     }
     false
 }
@@ -752,7 +801,12 @@ fn widen_expr(
         }
         return format!("{target_ct}::try_from({n}).unwrap_or(0)");
     }
-    if is_usize_expr(expr_str, ctx) {
+    if matches!(expr, Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_)) {
+        if let Some(num_str) = expr_str.strip_suffix("_i32") {
+            return format!("{num_str}_{target_ct}");
+        }
+    }
+    if is_usize_expr_str(expr_str) {
         if target_ct == "usize" {
             return expr_str.to_string();
         }
@@ -807,34 +861,56 @@ fn translate_bin_op(
         }
     }
 
-    if op == Operator::LShift {
+    if op == Operator::LShift || op == Operator::RShift {
         let shift_amt = match right {
             Expr::IntNum(n) if *n >= 0 => format!("{n}_u32"),
             _ => format!("to_shift_amt({r})"),
         };
-        let l_typed = match left {
-            Expr::IntNum(n) => {
-                let ct = lt.as_ref().map_or("i32", kaitai_primitive_to_native);
-                format!("{n}_{ct}")
-            }
-            _ => l,
+        let shift_target = if matches!(
+            lt,
+            Some(DataType::Int1 { .. }
+                | DataType::IntMulti { width: 1..=2, .. }
+                | DataType::Bits { .. }
+                | DataType::Bits1 { .. })
+        ) {
+            DataType::CalcIntType
+        } else {
+            lt.clone().unwrap_or(DataType::CalcIntType)
         };
-        return format!("({l_typed}).wrapping_shl({shift_amt})");
+        let l_typed = widen_expr(left, &l, lt.as_ref(), &shift_target, ctx);
+        let method = if op == Operator::LShift { "wrapping_shl" } else { "wrapping_shr" };
+        return format!("({l_typed}).{method}({shift_amt})");
     }
 
-    if op == Operator::RShift {
-        let shift_amt = match right {
-            Expr::IntNum(n) if *n >= 0 => format!("{n}_u32"),
-            _ => format!("to_shift_amt({r})"),
+    let l_is_usize = is_usize_expr_str(&l);
+    let r_is_usize = is_usize_expr_str(&r);
+    if l_is_usize || r_is_usize {
+        let l_w = if let Expr::IntNum(n) = left {
+            format!("{n}_usize")
+        } else if !l_is_usize {
+            format!("usize::try_from({l})?")
+        } else {
+            l
         };
-        let l_typed = match left {
-            Expr::IntNum(n) => {
-                let ct = lt.as_ref().map_or("i32", kaitai_primitive_to_native);
-                format!("{n}_{ct}")
-            }
-            _ => l,
+        let r_w = if let Expr::IntNum(n) = right {
+            format!("{n}_usize")
+        } else if !r_is_usize {
+            format!("usize::try_from({r})?")
+        } else {
+            r
         };
-        return format!("({l_typed}).wrapping_shr({shift_amt})");
+        match op {
+            Operator::Add => return format!("({l_w}).saturating_add({r_w})"),
+            Operator::Sub => return format!("({l_w}).saturating_sub({r_w})"),
+            Operator::Mult => return format!("({l_w}).saturating_mul({r_w})"),
+            Operator::Div => return format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"),
+            Operator::Mod => return format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"),
+            Operator::BitAnd => return format!("(({l_w}) & ({r_w}))"),
+            Operator::BitOr => return format!("(({l_w}) | ({r_w}))"),
+            Operator::BitXor => return format!("(({l_w}) ^ ({r_w}))"),
+            Operator::LShift => return format!("({l_w}).wrapping_shl(to_shift_amt({r_w}))"),
+            Operator::RShift => return format!("({l_w}).wrapping_shr(to_shift_amt({r_w}))"),
+        }
     }
 
     if let (Some(t1), Some(t2)) = (&lt, &rt) {
@@ -973,14 +1049,14 @@ fn translate_compare(
     let l_is_lit = matches!(left, Expr::IntNum(_));
     let r_is_lit = matches!(right, Expr::IntNum(_));
 
-    if !l_raw.starts_with('*') && (l_raw.starts_with("self.") || l_raw.starts_with("self_rc.")) && !is_usize_expr(&l_raw, ctx) {
+    if !l_raw.starts_with('*') && (l_raw.starts_with("self.") || l_raw.starts_with("self_rc.")) && !is_usize_expr_str(&l_raw) {
         if matches!(right, Expr::List(_) | Expr::Str(_))
             || matches!(lt, Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType))
         {
             l_raw = format!("*{l_raw}");
         }
     }
-    if !r_raw.starts_with('*') && (r_raw.starts_with("self.") || r_raw.starts_with("self_rc.")) && !is_usize_expr(&r_raw, ctx) {
+    if !r_raw.starts_with('*') && (r_raw.starts_with("self.") || r_raw.starts_with("self_rc.")) && !is_usize_expr_str(&r_raw) {
         if matches!(left, Expr::List(_) | Expr::Str(_))
             || matches!(rt, Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType))
         {
@@ -1328,7 +1404,14 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             }
             None
         }
+        Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_) => Some(DataType::CalcIntType),
         Expr::Name(name) => {
+            if name == "_index" {
+                return Some(DataType::IntMulti { signed: false, width: 8, endian: None });
+            }
+            if name == "_sizeof" {
+                return Some(DataType::CalcIntType);
+            }
             if name == "_" || name == "_tmpa" {
                 if let Some(et) = ctx.element_type {
                     return Some(resolve_switch_type(et));
@@ -1400,6 +1483,19 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     return Some(DataType::CalcStrType);
                 }
             }
+            if *op == Operator::LShift || *op == Operator::RShift {
+                return if matches!(
+                    lt,
+                    Some(DataType::Int1 { .. }
+                        | DataType::IntMulti { width: 1..=2, .. }
+                        | DataType::Bits { .. }
+                        | DataType::Bits1 { .. })
+                ) {
+                    Some(DataType::CalcIntType)
+                } else {
+                    lt.or(Some(DataType::CalcIntType))
+                };
+            }
             if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
                 || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
             {
@@ -1441,7 +1537,18 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     }
                 }
             }
-            if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
+            if attr == "_sizeof" {
+                return Some(DataType::CalcIntType);
+            }
+            if attr == "to_i" {
+                if let Some(target_dt) = detect_type_approx(value, ctx) {
+                    if matches!(target_dt, DataType::EnumType { .. } | DataType::Float { .. } | DataType::CalcFloatType) {
+                        return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                    }
+                }
+                return Some(DataType::CalcIntType);
+            }
+            if attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
@@ -1461,7 +1568,18 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                         }
                     }
                 }
-                if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
+                if attr == "_sizeof" {
+                    return Some(DataType::CalcIntType);
+                }
+                if attr == "to_i" {
+                    if let Some(target_dt) = detect_type_approx(value, ctx) {
+                        if matches!(target_dt, DataType::EnumType { .. } | DataType::Float { .. } | DataType::CalcFloatType) {
+                            return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                        }
+                    }
+                    return Some(DataType::CalcIntType);
+                }
+                if attr == "length" || attr == "size" || attr == "pos" {
                     return Some(DataType::CalcIntType);
                 }
                 if attr == "to_s" || attr == "substring" || attr == "reverse" {
@@ -1520,7 +1638,6 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             }
             None
         }
-        _ => None,
     }
 }
 
@@ -1539,7 +1656,7 @@ pub(crate) fn is_copy_type(dt: &DataType) -> bool {
     )
 }
 
-fn resolve_switch_type(dt: &DataType) -> DataType {
+pub(crate) fn resolve_switch_type(dt: &DataType) -> DataType {
     if let DataType::SwitchType { cases, .. } = dt {
         let mut combined: Option<DataType> = None;
         for c in cases.values() {
@@ -1568,7 +1685,7 @@ pub(crate) fn is_numeric_type(dt: &DataType) -> bool {
     }
 }
 
-fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
+pub(crate) fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
     let t1_eff = resolve_switch_type(t1);
     let t2_eff = resolve_switch_type(t2);
     if t1_eff == t2_eff {

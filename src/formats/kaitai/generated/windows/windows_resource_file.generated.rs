@@ -129,14 +129,14 @@ impl KStruct for WindowsResourceFile_Resource {
         *self_rc.r#type.borrow_mut() = t;
         let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
-        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((4_i32).saturating_sub(i32::try_from(_io.pos())?)), 4_i64))?)?;
+        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc.format_version.borrow_mut() = _io.read_u4le()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
         *self_rc.language.borrow_mut() = _io.read_u2le()?;
         *self_rc.value_version.borrow_mut() = _io.read_u4le()?;
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
         *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
-        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((4_i32).saturating_sub(i32::try_from(_io.pos())?)), 4_i64))?)?;
+        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         Ok(())
     }
 }

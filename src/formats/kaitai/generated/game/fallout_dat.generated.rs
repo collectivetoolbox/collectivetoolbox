@@ -38,14 +38,14 @@ impl KStruct for FalloutDat {
         *self_rc.unknown2.borrow_mut() = _io.read_u4be()?;
         *self_rc.timestamp.borrow_mut() = _io.read_u4be()?;
         *self_rc.folder_names.borrow_mut() = Vec::new();
-        let l_folder_names = *self_rc.folder_count();
-        for _i in 0..l_folder_names {
+        let l_folder_names = usize::try_from(*self_rc.folder_count())?;
+        for _i in 0_usize..l_folder_names {
             let t = Self::read_into::<_, FalloutDat_Pstr>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.folder_names.borrow_mut().push(t);
         }
         *self_rc.folders.borrow_mut() = Vec::new();
-        let l_folders = *self_rc.folder_count();
-        for _i in 0..l_folders {
+        let l_folders = usize::try_from(*self_rc.folder_count())?;
+        for _i in 0_usize..l_folders {
             let t = Self::read_into::<_, FalloutDat_Folder>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.folders.borrow_mut().push(t);
         }
@@ -240,8 +240,8 @@ impl KStruct for FalloutDat_Folder {
         *self_rc.flags.borrow_mut() = _io.read_u4be()?;
         *self_rc.timestamp.borrow_mut() = _io.read_u4be()?;
         *self_rc.files.borrow_mut() = Vec::new();
-        let l_files = *self_rc.file_count();
-        for _i in 0..l_files {
+        let l_files = usize::try_from(*self_rc.file_count())?;
+        for _i in 0_usize..l_files {
             let t = Self::read_into::<_, FalloutDat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }

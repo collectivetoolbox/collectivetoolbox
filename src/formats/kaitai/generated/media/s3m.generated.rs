@@ -99,28 +99,28 @@ impl KStruct for S3m {
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.ofs_special.borrow_mut() = _io.read_u2le()?;
         *self_rc.channels.borrow_mut() = Vec::new();
-        let l_channels = 32;
-        for _i in 0..l_channels {
+        let l_channels = usize::try_from(32)?;
+        for _i in 0_usize..l_channels {
             let t = Self::read_into::<_, S3m_Channel>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.channels.borrow_mut().push(t);
         }
         *self_rc.orders.borrow_mut() = _io.read_bytes(usize::from(*self_rc.num_orders()))?;
         *self_rc.instruments.borrow_mut() = Vec::new();
-        let l_instruments = *self_rc.num_instruments();
-        for _i in 0..l_instruments {
+        let l_instruments = usize::try_from(*self_rc.num_instruments())?;
+        for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, S3m_InstrumentPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
         *self_rc.patterns.borrow_mut() = Vec::new();
-        let l_patterns = *self_rc.num_patterns();
-        for _i in 0..l_patterns {
+        let l_patterns = usize::try_from(*self_rc.num_patterns())?;
+        for _i in 0_usize..l_patterns {
             let t = Self::read_into::<_, S3m_PatternPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patterns.borrow_mut().push(t);
         }
         if *self_rc.has_custom_pan() == 252 {
             *self_rc.channel_pans.borrow_mut() = Vec::new();
-            let l_channel_pans = 32;
-            for _i in 0..l_channel_pans {
+            let l_channel_pans = usize::try_from(32)?;
+            for _i in 0_usize..l_channel_pans {
                 let t = Self::read_into::<_, S3m_ChannelPan>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.channel_pans.borrow_mut().push(t);
             }
@@ -1112,7 +1112,7 @@ impl S3m_SwappedU3 {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((i32::from(*self.lo())) | ((*self.hi()).wrapping_shl(16_u32)))).try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.lo())) | ((i32::from(*self.hi())).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

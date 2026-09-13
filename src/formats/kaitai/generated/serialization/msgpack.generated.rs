@@ -305,8 +305,8 @@ impl KStruct for Msgpack {
         }
         if *self_rc.is_array()? {
             *self_rc.array_elements.borrow_mut() = Vec::new();
-            let l_array_elements = *self_rc.num_array_elements()?;
-            for _i in 0..l_array_elements {
+            let l_array_elements = usize::try_from(*self_rc.num_array_elements()?)?;
+            for _i in 0_usize..l_array_elements {
                 let t = Self::read_into::<_, Msgpack>(&*_io, None, None)?.into();
                 self_rc.array_elements.borrow_mut().push(t);
             }
@@ -319,8 +319,8 @@ impl KStruct for Msgpack {
         }
         if *self_rc.is_map()? {
             *self_rc.map_elements.borrow_mut() = Vec::new();
-            let l_map_elements = *self_rc.num_map_elements()?;
-            for _i in 0..l_map_elements {
+            let l_map_elements = usize::try_from(*self_rc.num_map_elements()?)?;
+            for _i in 0_usize..l_map_elements {
                 let t = Self::read_into::<_, Msgpack_MapTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.map_elements.borrow_mut().push(t);
             }
@@ -749,7 +749,7 @@ impl Msgpack {
     }
 }
 impl Msgpack {
-    pub fn int_extra(&self) -> usize {
+    pub fn int_extra(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.int_extra.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }

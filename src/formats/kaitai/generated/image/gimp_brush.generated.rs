@@ -76,7 +76,7 @@ impl GimpBrush {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = (((*self.header().width()).saturating_mul(*self.header().height())).saturating_mul(u32::try_from(i64::from(&*self.header().bytes_per_pixel()))?)).try_into()?;
+        *self.len_body.borrow_mut() = ((u64::from((*self.header().width()).saturating_mul(*self.header().height()))).saturating_mul(u64::try_from(i64::from(&*self.header().bytes_per_pixel()))?)).try_into()?;
         Ok(self.len_body.borrow())
     }
 }
@@ -152,8 +152,8 @@ impl KStruct for GimpBrush_Bitmap {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.rows.borrow_mut() = Vec::new();
-        let l_rows = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().height();
-        for _i in 0..l_rows {
+        let l_rows = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().height())?;
+        for _i in 0_usize..l_rows {
             let t = Self::read_into::<_, GimpBrush_Row>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.rows.borrow_mut().push(t);
         }
@@ -333,8 +333,8 @@ impl KStruct for GimpBrush_Row {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pixels.borrow_mut() = Vec::new();
-        let l_pixels = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().width();
-        for _i in 0..l_pixels {
+        let l_pixels = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().width())?;
+        for _i in 0_usize..l_pixels {
             match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().bytes_per_pixel() {
                 GimpBrush_ColorDepth::Grayscale => {
                     let _t_pixels_raw = _io.read_bytes_full()?;

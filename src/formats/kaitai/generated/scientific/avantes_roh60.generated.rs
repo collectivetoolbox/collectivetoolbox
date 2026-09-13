@@ -77,20 +77,20 @@ impl KStruct for AvantesRoh60 {
         *self_rc.wlx3.borrow_mut() = _io.read_f4le()?;
         *self_rc.wlx4.borrow_mut() = _io.read_f4le()?;
         *self_rc.unknown2.borrow_mut() = Vec::new();
-        let l_unknown2 = 9;
-        for _i in 0..l_unknown2 {
+        let l_unknown2 = usize::try_from(9)?;
+        for _i in 0_usize..l_unknown2 {
             self_rc.unknown2.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.ipixfirst.borrow_mut() = _io.read_f4le()?;
         *self_rc.ipixlast.borrow_mut() = _io.read_f4le()?;
         *self_rc.unknown3.borrow_mut() = Vec::new();
-        let l_unknown3 = 4;
-        for _i in 0..l_unknown3 {
+        let l_unknown3 = usize::try_from(4)?;
+        for _i in 0_usize..l_unknown3 {
             self_rc.unknown3.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.spectrum.borrow_mut() = Vec::new();
-        let l_spectrum = ((float_to_int(*self_rc.ipixlast())).saturating_sub(float_to_int(*self_rc.ipixfirst()))).saturating_sub(1_i32);
-        for _i in 0..l_spectrum {
+        let l_spectrum = usize::try_from(((float_to_int(*self_rc.ipixlast())).saturating_sub(float_to_int(*self_rc.ipixfirst()))).saturating_sub(1_i64))?;
+        for _i in 0_usize..l_spectrum {
             self_rc.spectrum.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.integration_ms.borrow_mut() = _io.read_f4le()?;

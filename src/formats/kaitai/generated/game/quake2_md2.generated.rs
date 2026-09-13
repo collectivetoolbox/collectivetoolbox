@@ -224,8 +224,8 @@ from Quake anorms.h
         _io.seek(usize::try_from(*self.ofs_frames())?)?;
         *self.frames_raw.borrow_mut() = Vec::new();
         *self.frames.borrow_mut() = Vec::new();
-        let l_frames = *self.num_frames();
-        for _i in 0..l_frames {
+        let l_frames = usize::try_from(*self.num_frames())?;
+        for _i in 0_usize..l_frames {
             self.frames_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.bytes_per_frame())?)?.into());
             let frames_raw = self.frames_raw.borrow();
             let _io_frames_raw = BytesReader::from(frames_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -244,7 +244,7 @@ from Quake anorms.h
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_gl_cmds())?)?;
-        *self.gl_cmds_raw.borrow_mut() = _io.read_bytes(usize::try_from((4).saturating_mul(*self.num_gl_cmds()))?)?.into();
+        *self.gl_cmds_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_u32).saturating_mul(*self.num_gl_cmds()))?)?.into();
         let gl_cmds_raw = self.gl_cmds_raw.borrow();
         let _t_gl_cmds_raw_io = BytesReader::from(gl_cmds_raw.clone());
         let t = Self::read_into::<BytesReader, Quake2Md2_GlCmdsList>(&_t_gl_cmds_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -264,8 +264,8 @@ from Quake anorms.h
         _io.seek(usize::try_from(*self.ofs_skins())?)?;
         *self.skins_raw.borrow_mut() = Vec::new();
         *self.skins.borrow_mut() = Vec::new();
-        let l_skins = *self.num_skins();
-        for _i in 0..l_skins {
+        let l_skins = usize::try_from(*self.num_skins())?;
+        for _i in 0_usize..l_skins {
             self.skins_raw.borrow_mut().push(_io.read_bytes(64_usize)?.into());
             let skins_raw = self.skins_raw.borrow();
             let _io_skins_raw = BytesReader::from(skins_raw.last().ok_or(KError::EmptyIterator)?.clone());
@@ -284,8 +284,8 @@ from Quake anorms.h
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_tex_coords())?)?;
         *self.tex_coords.borrow_mut() = Vec::new();
-        let l_tex_coords = *self.num_tex_coords();
-        for _i in 0..l_tex_coords {
+        let l_tex_coords = usize::try_from(*self.num_tex_coords())?;
+        for _i in 0_usize..l_tex_coords {
             let t = Self::read_into::<_, Quake2Md2_TexPoint>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.tex_coords.borrow_mut().push(t);
         }
@@ -303,8 +303,8 @@ from Quake anorms.h
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_triangles())?)?;
         *self.triangles.borrow_mut() = Vec::new();
-        let l_triangles = *self.num_triangles();
-        for _i in 0..l_triangles {
+        let l_triangles = usize::try_from(*self.num_triangles())?;
+        for _i in 0_usize..l_triangles {
             let t = Self::read_into::<_, Quake2Md2_Triangle>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.triangles.borrow_mut().push(t);
         }
@@ -575,8 +575,8 @@ impl KStruct for Quake2Md2_Frame {
         *self_rc.translate.borrow_mut() = t;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "ascii")?;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.vertices_per_frame();
-        for _i in 0..l_vertices {
+        let l_vertices = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.vertices_per_frame())?;
+        for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Quake2Md2_Vertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
@@ -641,8 +641,8 @@ impl KStruct for Quake2Md2_GlCmd {
         let _io = io;
         *self_rc.cmd_num_vertices.borrow_mut() = _io.read_s4le()?;
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = *self_rc.num_vertices()?;
-        for _i in 0..l_vertices {
+        let l_vertices = usize::try_from(*self_rc.num_vertices()?)?;
+        for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Quake2Md2_GlVertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
@@ -767,8 +767,8 @@ impl KStruct for Quake2Md2_GlVertex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tex_coords_normalized.borrow_mut() = Vec::new();
-        let l_tex_coords_normalized = 2;
-        for _i in 0..l_tex_coords_normalized {
+        let l_tex_coords_normalized = usize::try_from(2)?;
+        for _i in 0_usize..l_tex_coords_normalized {
             self_rc.tex_coords_normalized.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.vertex_index.borrow_mut() = _io.read_u4le()?;
@@ -895,13 +895,13 @@ impl KStruct for Quake2Md2_Triangle {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.vertex_indices.borrow_mut() = Vec::new();
-        let l_vertex_indices = 3;
-        for _i in 0..l_vertex_indices {
+        let l_vertex_indices = usize::try_from(3)?;
+        for _i in 0_usize..l_vertex_indices {
             self_rc.vertex_indices.borrow_mut().push(_io.read_u2le()?);
         }
         *self_rc.tex_point_indices.borrow_mut() = Vec::new();
-        let l_tex_point_indices = 3;
-        for _i in 0..l_tex_point_indices {
+        let l_tex_point_indices = usize::try_from(3)?;
+        for _i in 0_usize..l_tex_point_indices {
             self_rc.tex_point_indices.borrow_mut().push(_io.read_u2le()?);
         }
         Ok(())

@@ -456,6 +456,34 @@ fn emit_switch_enum(
             }
         }
 
+        let mut combined: Option<DataType> = None;
+        for c in cases.values() {
+            combined = match combined {
+                None => Some(c.clone()),
+                Some(prev) => Some(super::translator::combine_types(&prev, c)),
+            };
+        }
+        // Reason for fallback: empty cases default to integer type
+        let resolved = combined.unwrap_or(DataType::CalcIntType);
+        let target_ret = rust_field_type(&resolved, class, attr_id);
+        if target_ret != "usize" && seen_from_from.insert(target_ret.clone()) {
+            w.puts(&format!("impl From<&{enum_name}> for {target_ret} {{"));
+            w.inc();
+            w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
+            w.inc();
+            w.puts("match e {");
+            w.inc();
+            for (v_name, _) in &variants {
+                w.puts("// Reason for fallback: invalid enum conversion to target type defaults to 0");
+                w.puts(&format!("{enum_name}::{v_name}(v) => {target_ret}::try_from(*v).unwrap_or(0),"));
+            }
+            w.dec();
+            w.puts("}");
+            w.dec();
+            w.puts("}");
+            w.dec();
+            w.puts("}");
+        }
         w.puts(&format!("impl From<&{enum_name}> for usize {{"));
         w.inc();
         w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
@@ -718,7 +746,10 @@ fn emit_read_array_element(
             w.dec();
             w.puts("}");
         }
-        w.puts("_ => {}");
+        let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
+        if !cases.contains_key("_") && !is_exhaustive_bool {
+            w.puts("_ => {}");
+        }
         w.dec();
         w.puts("}");
     } else {
@@ -768,8 +799,8 @@ fn emit_attr_read(
             RepeatMode::Expr(repeat_expr) => {
                 w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
                 let count_str = translate_expr(repeat_expr, ctx);
-                w.puts(&format!("let l_{id} = {count_str};"));
-                w.puts(&format!("for _i in 0..l_{id} {{"));
+                w.puts(&format!("let l_{id} = usize::try_from({count_str})?;"));
+                w.puts(&format!("for _i in 0_usize..l_{id} {{"));
                 w.inc();
                 emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
                 w.dec();
@@ -1475,6 +1506,9 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                             && !expr_str.ends_with(']')
                             && !expr_str.ends_with('?')
                             && !expr_str.contains(".parse")
+                            && !expr_str.contains(' ')
+                            && !super::translator::is_usize_expr_str(&expr_str)
+                            && !super::translator::is_numeric_switch_call(&expr_str, ctx.root)
                         {
                             format!("*{expr_str}")
                         } else {
@@ -1638,7 +1672,7 @@ fn emit_parse_instance_body(
                 w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"));
                 w.dec();
                 w.puts("}");
-            } else if !is_exhaustive_bool {
+            } else if !cases.contains_key("_") && !is_exhaustive_bool {
                 let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
                 if has_bytes_case {
                     let fallback = if let Some(size) = &inst.size_expr {
@@ -1671,8 +1705,8 @@ fn emit_parse_instance_body(
                         w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = Vec::new();"));
                         w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                         let count_str = translate_expr(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = {count_str};"));
-                        w.puts(&format!("for _i in 0..l_{inst_id} {{"));
+                        w.puts(&format!("let l_{inst_id} = usize::try_from({count_str})?;"));
+                        w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
                         let size_str = expr_to_usize(size, ctx);
                         w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes({size_str})?.into());"));
@@ -1694,8 +1728,8 @@ fn emit_parse_instance_body(
                     } else {
                         w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
                         let count_str = translate_expr(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = {count_str};"));
-                        w.puts(&format!("for _i in 0..l_{inst_id} {{"));
+                        w.puts(&format!("let l_{inst_id} = usize::try_from({count_str})?;"));
+                        w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
                         emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
                         w.dec();
@@ -1802,7 +1836,9 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
         if let DataType::SwitchType { cases, .. } = &attr.data_type {
             let is_numeric = !cases.is_empty() && cases.values().all(super::translator::is_numeric_type);
             if is_numeric {
-                w.puts(&format!("pub fn {}(&self) -> usize {{", attr.id));
+                let resolved = super::translator::resolve_switch_type(&attr.data_type);
+                let target_ret = rust_field_type(&resolved, current, &attr.id);
+                w.puts(&format!("pub fn {}(&self) -> {target_ret} {{", attr.id));
                 w.inc();
                 w.puts("// Reason for fallback: unwrap on parsed numeric switch option falls back to 0");
                 w.puts(&format!("self.{escaped_id}.borrow().as_ref().map(|v| v.into()).unwrap_or(0)"));

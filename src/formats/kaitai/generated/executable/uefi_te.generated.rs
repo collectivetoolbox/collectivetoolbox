@@ -54,8 +54,8 @@ impl KStruct for UefiTe {
         let t = Self::read_into::<_, UefiTe_TeHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.te_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
-        let l_sections = *self_rc.te_hdr().num_sections();
-        for _i in 0..l_sections {
+        let l_sections = usize::try_from(*self_rc.te_hdr().num_sections())?;
+        for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, UefiTe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }
@@ -233,7 +233,7 @@ impl UefiTe_Section {
         }
         self.f_body.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size()))).saturating_add(u32::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size())?))?)?;
+        _io.seek(usize::try_from((usize::try_from((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size())))?).saturating_add(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size()))?)?;
         *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size_of_raw_data())?)?;
         _io.seek(_pos)?;
         Ok(self.body.borrow())

@@ -89,8 +89,8 @@ impl KStruct for Uf2 {
         let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first_block.borrow_mut() = t;
         *self_rc.blocks.borrow_mut() = Vec::new();
-        let l_blocks = (*self_rc.first_block().num_blocks()?).saturating_sub(1_i32);
-        for _i in 0..l_blocks {
+        let l_blocks = usize::try_from((*self_rc.first_block().num_blocks()?).saturating_sub(1_i32))?;
+        for _i in 0_usize..l_blocks {
             let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
@@ -1086,7 +1086,7 @@ impl Uf2_BlockData {
         }
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_md5_checksum()? {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(24_i32))?)?;
+            _io.seek(usize::try_from((_io.size()).saturating_sub(24_usize))?)?;
             let t = Self::read_into::<_, Uf2_Md5Checksum>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.md5_checksum.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -1165,7 +1165,7 @@ impl KStruct for Uf2_ExtensionTag {
         if *self_rc.len_tag() != 0 {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
         }
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i64(*self_rc.len_tag()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from(-(to_i32(*self_rc.len_tag()))), 4_i64))?)?;
         Ok(())
     }
 }
@@ -1189,7 +1189,7 @@ impl Uf2_ExtensionTag {
             return Ok(self.min_len_tag.borrow());
         }
         self.f_min_len_tag.set(true);
-        *self.min_len_tag.borrow_mut() = ((1).saturating_add(0)).try_into()?;
+        *self.min_len_tag.borrow_mut() = ((1_i32).saturating_add(0_i32)).try_into()?;
         Ok(self.min_len_tag.borrow())
     }
 }

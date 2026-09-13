@@ -167,8 +167,8 @@ impl KStruct for MicrosoftCfb_CfbHeader {
         *self_rc.ofs_difat.borrow_mut() = _io.read_s4le()?;
         *self_rc.size_difat.borrow_mut() = _io.read_s4le()?;
         *self_rc.difat.borrow_mut() = Vec::new();
-        let l_difat = 109;
-        for _i in 0..l_difat {
+        let l_difat = usize::try_from(109)?;
+        for _i in 0_usize..l_difat {
             self_rc.difat.borrow_mut().push(_io.read_s4le()?);
         }
         Ok(())

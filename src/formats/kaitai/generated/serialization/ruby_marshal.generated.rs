@@ -250,8 +250,8 @@ impl KStruct for RubyMarshal_InstanceVar {
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_vars.borrow_mut() = t;
         *self_rc.vars.borrow_mut() = Vec::new();
-        let l_vars = *self_rc.num_vars().value()?;
-        for _i in 0..l_vars {
+        let l_vars = usize::try_from(*self_rc.num_vars().value()?)?;
+        for _i in 0_usize..l_vars {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.vars.borrow_mut().push(t);
         }
@@ -484,7 +484,7 @@ impl RubyMarshal_PackedInt {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (if *self.is_immediate()? { u32::try_from(if *self.code() < 128 { (i32::from(*self.code())).saturating_sub(5_i32) } else { (4_i32).saturating_sub(((i32::from(!(*self.code()))) & (127_i32))) })? } else { if *self.code() == 0 { 0_u32 } else { if *self.code() == 255 { (u32::try_from(self.encoded())?).saturating_sub(256_u32) } else { if *self.code() == 254 { (u32::try_from(self.encoded())?).saturating_sub(65536_u32) } else { if *self.code() == 253 { (((u32::try_from((self.encoded2()).wrapping_shl(16_u32))?) | (u32::try_from(self.encoded())?))).saturating_sub(16777216_u32) } else { if *self.code() == 3 { ((u32::try_from((self.encoded2()).wrapping_shl(16_u32))?) | (u32::try_from(self.encoded())?)) } else { u32::try_from(self.encoded())? } } } } } }).try_into()?;
+        *self.value.borrow_mut() = (if *self.is_immediate()? { u32::try_from(if *self.code() < 128 { (i32::from(*self.code())).saturating_sub(5_i32) } else { (4_i32).saturating_sub(((i32::from(!(*self.code()))) & (127_i32))) })? } else { if *self.code() == 0 { 0_u32 } else { if *self.code() == 255 { (self.encoded()).saturating_sub(256_u32) } else { if *self.code() == 254 { (self.encoded()).saturating_sub(65536_u32) } else { if *self.code() == 253 { (((u32::try_from((i32::from(self.encoded2())).wrapping_shl(16_u32))?) | (self.encoded()))).saturating_sub(16777216_u32) } else { if *self.code() == 3 { ((u32::try_from((i32::from(self.encoded2())).wrapping_shl(16_u32))?) | (self.encoded())) } else { self.encoded() } } } } } }).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -494,7 +494,7 @@ impl RubyMarshal_PackedInt {
     }
 }
 impl RubyMarshal_PackedInt {
-    pub fn encoded(&self) -> usize {
+    pub fn encoded(&self) -> u32 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.encoded.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -508,7 +508,7 @@ impl RubyMarshal_PackedInt {
  * there is no standard `u3` type in KS.
  */
 impl RubyMarshal_PackedInt {
-    pub fn encoded2(&self) -> usize {
+    pub fn encoded2(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
         self.encoded2.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
     }
@@ -852,8 +852,8 @@ impl KStruct for RubyMarshal_RubyArray {
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_elements.borrow_mut() = t;
         *self_rc.elements.borrow_mut() = Vec::new();
-        let l_elements = *self_rc.num_elements().value()?;
-        for _i in 0..l_elements {
+        let l_elements = usize::try_from(*self_rc.num_elements().value()?)?;
+        for _i in 0_usize..l_elements {
             let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.elements.borrow_mut().push(t);
         }
@@ -909,8 +909,8 @@ impl KStruct for RubyMarshal_RubyHash {
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_pairs.borrow_mut() = t;
         *self_rc.pairs.borrow_mut() = Vec::new();
-        let l_pairs = *self_rc.num_pairs().value()?;
-        for _i in 0..l_pairs {
+        let l_pairs = usize::try_from(*self_rc.num_pairs().value()?)?;
+        for _i in 0_usize..l_pairs {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.pairs.borrow_mut().push(t);
         }
@@ -1021,8 +1021,8 @@ impl KStruct for RubyMarshal_RubyStruct {
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_members.borrow_mut() = t;
         *self_rc.members.borrow_mut() = Vec::new();
-        let l_members = *self_rc.num_members().value()?;
-        for _i in 0..l_members {
+        let l_members = usize::try_from(*self_rc.num_members().value()?)?;
+        for _i in 0_usize..l_members {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.members.borrow_mut().push(t);
         }

@@ -48,8 +48,8 @@ impl KStruct for Zisofs {
         let t = Self::read_into::<_, Zisofs_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.block_pointers.borrow_mut() = Vec::new();
-        let l_block_pointers = (*self_rc.header().num_blocks()?).saturating_add(1_i32);
-        for _i in 0..l_block_pointers {
+        let l_block_pointers = usize::try_from((*self_rc.header().num_blocks()?).saturating_add(1_i32))?;
+        for _i in 0_usize..l_block_pointers {
             self_rc.block_pointers.borrow_mut().push(_io.read_u4le()?);
         }
         Ok(())
@@ -65,9 +65,9 @@ impl Zisofs {
         }
         self.f_blocks.set(true);
         *self.blocks.borrow_mut() = Vec::new();
-        let l_blocks = *self.header().num_blocks()?;
-        for _i in 0..l_blocks {
-            let f = |t : &mut Zisofs_Block| Ok(t.set_params((*(self.block_pointers().get(usize::try_from(_i)?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?, (*(self.block_pointers().get(usize::try_from((_i).saturating_add(1_i32))?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?));
+        let l_blocks = usize::try_from(*self.header().num_blocks()?)?;
+        for _i in 0_usize..l_blocks {
+            let f = |t : &mut Zisofs_Block| Ok(t.set_params((*(self.block_pointers().get(usize::try_from(_i)?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?, (*(self.block_pointers().get(usize::try_from((_i).saturating_add(1_usize))?).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Zisofs_Block>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.blocks.borrow_mut().push(t);
         }

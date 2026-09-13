@@ -46,8 +46,8 @@ impl KStruct for Xwd {
         let t = Self::read_into::<_, Xwd_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc.color_map.borrow_mut() = Vec::new();
-        let l_color_map = *self_rc.hdr().color_map_entries();
-        for _i in 0..l_color_map {
+        let l_color_map = usize::try_from(*self_rc.hdr().color_map_entries())?;
+        for _i in 0_usize..l_color_map {
             let t = Self::read_into::<_, Xwd_ColorMapEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.color_map.borrow_mut().push(t);
         }

@@ -72,7 +72,7 @@ impl KStruct for VlqBase128Le {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { *self_rc.groups().get(usize::try_from((_i).saturating_sub(1_i32))?).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { if _i == 9 { 9223372036854775808_u64 } else { (*self_rc.groups().get(usize::try_from((_i).saturating_sub(1_i32))?).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
+                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { *self_rc.groups().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { if _i == 9 { 9223372036854775808_u64 } else { (*self_rc.groups().get(usize::try_from((_i).saturating_sub(1_usize))?).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, VlqBase128Le_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();

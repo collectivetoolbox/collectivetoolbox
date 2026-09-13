@@ -42,15 +42,15 @@ impl KStruct for NtMdtPal {
         }
         *self_rc.count.borrow_mut() = _io.read_u4be()?;
         *self_rc.meta.borrow_mut() = Vec::new();
-        let l_meta = *self_rc.count();
-        for _i in 0..l_meta {
+        let l_meta = usize::try_from(*self_rc.count())?;
+        for _i in 0_usize..l_meta {
             let t = Self::read_into::<_, NtMdtPal_Meta>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.meta.borrow_mut().push(t);
         }
         *self_rc.something2.borrow_mut() = _io.read_bytes(1_usize)?;
         *self_rc.tables.borrow_mut() = Vec::new();
-        let l_tables = *self_rc.count();
-        for _i in 0..l_tables {
+        let l_tables = usize::try_from(*self_rc.count())?;
+        for _i in 0_usize..l_tables {
             let f = |t : &mut NtMdtPal_ColTable| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, NtMdtPal_ColTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.tables.borrow_mut().push(t);
@@ -124,8 +124,8 @@ impl KStruct for NtMdtPal_ColTable {
         *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::try_from(*self_rc.index())?).ok_or(KError::CastError)?.name_size()))?, "UTF-8")?;
         *self_rc.unkn1.borrow_mut() = _io.read_u2be()?;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = (i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::try_from(*self_rc.index())?).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32);
-        for _i in 0..l_colors {
+        let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::try_from(*self_rc.index())?).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
+        for _i in 0_usize..l_colors {
             let t = Self::read_into::<_, NtMdtPal_Color>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }

@@ -54,8 +54,8 @@ impl KStruct for AndroidBootldrAsus {
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
         *self_rc.reserved2.borrow_mut() = _io.read_u4le()?;
         *self_rc.images.borrow_mut() = Vec::new();
-        let l_images = 3;
-        for _i in 0..l_images {
+        let l_images = usize::try_from(3)?;
+        for _i in 0_usize..l_images {
             let t = Self::read_into::<_, AndroidBootldrAsus_Image>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }

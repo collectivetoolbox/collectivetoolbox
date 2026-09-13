@@ -67,7 +67,7 @@ impl Pcx {
         }
         if  ((*self.hdr().version() == Pcx_Versions::V30) && (*self.hdr().bits_per_pixel() == 8) && (*self.hdr().num_planes() == 1))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((i32::try_from(_io.size())?).saturating_sub(769_i32))?)?;
+            _io.seek(usize::try_from((_io.size()).saturating_sub(769_usize))?)?;
             let t = Self::read_into::<_, Pcx_TPalette256>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.palette_256.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -409,8 +409,8 @@ impl KStruct for Pcx_TPalette256 {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/t_palette_256/seq/0".to_string() }));
         }
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = 256;
-        for _i in 0..l_colors {
+        let l_colors = usize::try_from(256)?;
+        for _i in 0_usize..l_colors {
             let t = Self::read_into::<_, Pcx_Rgb>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }

@@ -55,15 +55,15 @@ impl KStruct for ChromePak {
             *self_rc.v5_part.borrow_mut() = t;
         }
         *self_rc.resources.borrow_mut() = Vec::new();
-        let l_resources = (*self_rc.num_resources()?).saturating_add(1_u32);
-        for _i in 0..l_resources {
-            let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, _i < *self_rc.num_resources()?));
+        let l_resources = usize::try_from((*self_rc.num_resources()?).saturating_add(1_u32))?;
+        for _i in 0_usize..l_resources {
+            let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, ((to_i128(_i)) < (to_i128(*self_rc.num_resources()?)))));
             let t = Self::read_into_with_init::<_, ChromePak_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.resources.borrow_mut().push(t);
         }
         *self_rc.aliases.borrow_mut() = Vec::new();
-        let l_aliases = *self_rc.num_aliases()?;
-        for _i in 0..l_aliases {
+        let l_aliases = usize::try_from(*self_rc.num_aliases()?)?;
+        for _i in 0_usize..l_aliases {
             let t = Self::read_into::<_, ChromePak_Alias>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.aliases.borrow_mut().push(t);
         }

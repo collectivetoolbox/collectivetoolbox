@@ -127,7 +127,7 @@ impl AndroidImg {
         self.f_dtb_img.set(true);
         if  ((*self.header_version() > 1) && (*self.dtb().size() > 0))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(u32::try_from(*self.ramdisk().size())?)).saturating_add(u32::try_from(*self.second().size())?)).saturating_add(u32::try_from(*self.recovery_dtbo().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.second().size())).saturating_add(*self.recovery_dtbo().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.dtb().size())?)?;
             _io.seek(_pos)?;
         }
@@ -189,7 +189,7 @@ impl AndroidImg {
         self.f_ramdisk_img.set(true);
         if *self.ramdisk().size() > 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            _io.seek(usize::try_from((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.ramdisk().size())?)?;
             _io.seek(_pos)?;
         }
@@ -236,7 +236,7 @@ impl AndroidImg {
         self.f_second_img.set(true);
         if *self.second().size() > 0 {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(u32::try_from(*self.kernel().size())?)).saturating_add(u32::try_from(*self.ramdisk().size())?)).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.second().size())?)?;
             _io.seek(_pos)?;
         }

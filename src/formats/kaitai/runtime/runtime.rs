@@ -844,6 +844,12 @@ pub fn to_i64<T: TryInto<i64>>(val: T) -> i64 {
     val.try_into().unwrap_or(0)
 }
 
+/// Converts an integer of any width safely to i32.
+pub fn to_i32<T: TryInto<i32>>(val: T) -> i32 {
+    // Reason for fallback: out of range integer defaults to 0
+    val.try_into().unwrap_or(0)
+}
+
 /// Safely converts a shift amount to u32 for bitwise shift operations.
 pub fn to_shift_amt<T: TryInto<u32>>(val: T) -> u32 {
     // Reason for fallback: out of range bitwise shift amount defaults to 0

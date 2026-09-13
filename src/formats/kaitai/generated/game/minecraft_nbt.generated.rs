@@ -635,7 +635,7 @@ impl MinecraftNbt_TagCompound {
             return Ok(self.dump_num_tags.borrow());
         }
         self.f_dump_num_tags.set(true);
-        *self.dump_num_tags.borrow_mut() = ((i32::try_from(self.tags().len())?).saturating_sub(if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { 1_i32 } else { 0_i32 })).try_into()?;
+        *self.dump_num_tags.borrow_mut() = ((self.tags().len()).saturating_sub(usize::try_from(if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { 1_i32 } else { 0_i32 })?)).try_into()?;
         Ok(self.dump_num_tags.borrow())
     }
 }
@@ -678,8 +678,8 @@ impl KStruct for MinecraftNbt_TagIntArray {
         let _io = io;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
         *self_rc.tags.borrow_mut() = Vec::new();
-        let l_tags = *self_rc.num_tags();
-        for _i in 0..l_tags {
+        let l_tags = usize::try_from(*self_rc.num_tags())?;
+        for _i in 0_usize..l_tags {
             self_rc.tags.borrow_mut().push(_io.read_s4be()?);
         }
         Ok(())
@@ -925,8 +925,8 @@ impl KStruct for MinecraftNbt_TagList {
         *self_rc.tags_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
         *self_rc.tags.borrow_mut() = Vec::new();
-        let l_tags = *self_rc.num_tags();
-        for _i in 0..l_tags {
+        let l_tags = usize::try_from(*self_rc.num_tags())?;
+        for _i in 0_usize..l_tags {
             match *self_rc.tags_type() {
                 MinecraftNbt_Tag::Byte => {
                     self_rc.tags.borrow_mut().push(_io.read_s1()?.into());
@@ -1039,8 +1039,8 @@ impl KStruct for MinecraftNbt_TagLongArray {
         let _io = io;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
         *self_rc.tags.borrow_mut() = Vec::new();
-        let l_tags = *self_rc.num_tags();
-        for _i in 0..l_tags {
+        let l_tags = usize::try_from(*self_rc.num_tags())?;
+        for _i in 0_usize..l_tags {
             self_rc.tags.borrow_mut().push(_io.read_s8be()?);
         }
         Ok(())
