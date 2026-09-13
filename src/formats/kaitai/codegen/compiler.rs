@@ -1401,7 +1401,6 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                         }
                     }
                     _ => {
-                        let native_type = rust_field_type(&inst.data_type, current, inst_id);
                         let derefed = if (expr_str.starts_with("self.")
                             || expr_str.starts_with("self_rc.")
                             || expr_str.starts_with("_r.")

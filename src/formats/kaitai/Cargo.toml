@@ -29,6 +29,7 @@ kaitai = { path = "runtime" }
 [build-dependencies]
 anyhow = "1.0.100"
 ctb-build-support = { path = "../../build_support" }
+ctb-formats-rust = { path = "../rust" }
 indexmap = { version = "2.14.0", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.34"

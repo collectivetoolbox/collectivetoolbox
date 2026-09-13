@@ -162,7 +162,7 @@ fn run() -> Result<()> {
             unmatched.push(UnmatchedFile {
                 rel_path: rel_path.to_path_buf(),
                 license: None,
-                reason: "Format is explicitly excluded from import (lacks copyright owner attribution)".to_string(),
+                reason: "Format is explicitly excluded from import (MIT dependency lacks copyright owner attribution)".to_string(),
             });
             continue;
         }

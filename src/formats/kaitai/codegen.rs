@@ -69,7 +69,7 @@ pub fn escape_rust_keyword(name: &str) -> String {
     if ctb_formats_rust::is_reserved_word(name) {
         return format!("r#{name}");
     }
-    name
+    name.to_string()
 }
 
 #[cfg(test)]

@@ -38,7 +38,7 @@ use check_keyword::CheckKeyword;
 #[must_use]
 pub fn is_reserved_word<T>(word: &T) -> bool
 where
-    T: AsRef<str>,
+    T: ?Sized + AsRef<str>,
 {
     word.as_ref().is_keyword()
 }
