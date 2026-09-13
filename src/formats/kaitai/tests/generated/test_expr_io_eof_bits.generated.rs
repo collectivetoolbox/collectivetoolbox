@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_io_eof_bits::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_io_eof_bits() -> KResult<()> {
@@ -82,10 +83,10 @@ fn test_expr_io_eof_bits() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoEofBits> = ExprIoEofBits::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.foo(), "0x01_42_f");
+    assert_eq!(*r.foo(), 5167);
     assert_eq!(*r.bar(), 15);
-    assert_eq!(*r.baz(), "null");
-    assert_eq!(*r.align(), "[].as<bytes>");
-    assert_eq!(*r.qux(), "null");
+    assert!(r.baz().is_none());
+    assert_eq!(*r.align(), Vec::<u8>::new());
+    assert!(r.qux().is_none());
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::valid_fail_repeat_expr::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_valid_fail_repeat_expr() -> KResult<()> {

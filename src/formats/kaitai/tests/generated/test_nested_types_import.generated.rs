@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nested_types_import::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nested_types_import() -> KResult<()> {
@@ -87,11 +88,11 @@ fn test_nested_types_import() -> KResult<()> {
     assert_eq!(*r.b().value_b(), 67);
     assert_eq!(*r.b().a_cc().value_cc(), 75);
     assert_eq!(*r.b().a_c_d().value_d(), 45);
-    assert_eq!(*r.a_cc()._parent(), "null");
-    assert_eq!(*r.a_cc()._root(), "null");
-    assert_eq!(*r.a_c_d()._parent(), "null");
-    assert_eq!(*r.a_c_d()._root(), "null");
-    assert_eq!(*r.b()._parent(), "null");
-    assert_eq!(*r.b()._root(), "null");
+    assert!(r.a_cc()._parent().is_none());
+    assert!(r.a_cc()._root().is_none());
+    assert!(r.a_c_d()._parent().is_none());
+    assert!(r.a_c_d()._root().is_none());
+    assert!(r.b()._parent().is_none());
+    assert!(r.b()._root().is_none());
     Ok(())
 }

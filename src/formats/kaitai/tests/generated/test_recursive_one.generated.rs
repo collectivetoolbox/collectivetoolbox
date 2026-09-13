@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::recursive_one::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_recursive_one() -> KResult<()> {

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_if::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_if() -> KResult<()> {
@@ -83,11 +84,11 @@ fn test_enum_if() -> KResult<()> {
     let r: OptRc<EnumIf> = EnumIf::read_into(&_io, None, None)?;
 
     assert_eq!(*r.op1().opcode(), EnumIf_Opcodes::AString);
-    assert_eq!(*r.op1().arg_str().str(), "\"foo\"");
+    assert_eq!(*r.op1().arg_str().str(), "foo");
     assert_eq!(*r.op2().opcode(), EnumIf_Opcodes::ATuple);
     assert_eq!(*r.op2().arg_tuple().num1(), 66);
     assert_eq!(*r.op2().arg_tuple().num2(), 67);
     assert_eq!(*r.op3().opcode(), EnumIf_Opcodes::AString);
-    assert_eq!(*r.op3().arg_str().str(), "\"bar\"");
+    assert_eq!(*r.op3().arg_str().str(), "bar");
     Ok(())
 }

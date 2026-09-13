@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_to_i_class_border_1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_to_i_class_border_1() -> KResult<()> {

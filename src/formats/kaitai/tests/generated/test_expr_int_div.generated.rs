@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_int_div::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_int_div() -> KResult<()> {

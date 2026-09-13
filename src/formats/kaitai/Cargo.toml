@@ -40,7 +40,10 @@ serde_yaml = "0.9.34"
 walkdir = "2.5.0"
 
 [dev-dependencies]
+anyhow = "1.0.100"
+ctb-utilities = { path = "../../utilities" }
 kaitai = { path = "runtime" }
+tracing = "0.1.41"
 
 [lints]
 workspace = true

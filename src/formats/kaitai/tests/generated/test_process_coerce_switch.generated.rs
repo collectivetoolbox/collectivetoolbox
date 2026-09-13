@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_coerce_switch::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_coerce_switch() -> KResult<()> {

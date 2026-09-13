@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_deep::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_deep() -> KResult<()> {
@@ -82,7 +83,7 @@ fn test_enum_deep() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumDeep> = EnumDeep::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1(), enum_deep::container1::animal::cat);
-    assert_eq!(*r.pet_2(), enum_deep::container1::container2::animal::hare);
+    assert_eq!(*r.pet_1(), EnumDeep_Container1_Animal::Cat);
+    assert_eq!(*r.pet_2(), EnumDeep_Container1_Container2_Animal::Hare);
     Ok(())
 }

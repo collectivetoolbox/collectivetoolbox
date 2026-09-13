@@ -113,12 +113,12 @@ impl KStruct for ValidShort {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/4".to_string() }));
         }
         *self_rc.uint32.borrow_mut() = _io.read_u4le()?;
-        let expected: u32 = (4294967295).try_into()?;
+        let expected: u32 = (4294967295_i64).try_into()?;
         if !(*self_rc.uint32() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/5".to_string() }));
         }
         *self_rc.uint64.borrow_mut() = _io.read_u8le()?;
-        let expected: u64 = (18446744073709551615).try_into()?;
+        let expected: u64 = (18446744073709551615_i128).try_into()?;
         if !(*self_rc.uint64() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }

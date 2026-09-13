@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_bits::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_bits() -> KResult<()> {
@@ -86,8 +87,8 @@ fn test_expr_bits() -> KResult<()> {
     assert_eq!(*r.enum_seq(), ExprBits_Items::Foo);
     assert_eq!(*r.byte_size(), vec![0x66u8, 0x6fu8]);
     assert_eq!(r.repeat_expr().len(), 2);
-    assert_eq!(*r.repeat_expr()[0], 111);
-    assert_eq!(*r.repeat_expr()[1], 98);
+    assert_eq!(r.repeat_expr()[0], 111);
+    assert_eq!(r.repeat_expr()[1], 98);
     assert_eq!(*r.switch_on_type(), 97);
     assert_eq!(*r.switch_on_endian().foo(), 29184);
     assert_eq!(*r.enum_inst()?, ExprBits_Items::Bar);

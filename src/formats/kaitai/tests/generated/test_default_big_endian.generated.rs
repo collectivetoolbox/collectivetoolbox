@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::default_big_endian::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_default_big_endian() -> KResult<()> {

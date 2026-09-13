@@ -102,7 +102,7 @@ impl ExprIntDiv {
             return Ok(self.div_neg_const.borrow());
         }
         self.f_div_neg_const.set(true);
-        *self.div_neg_const.borrow_mut() = (((0_i32).saturating_sub(to_i32(9837))).checked_div(13_i32).ok_or(KError::CastError)?).try_into()?;
+        *self.div_neg_const.borrow_mut() = (div_floor(i64::from((0_i32).saturating_sub(to_i32(9837))), 13_i64)?).try_into()?;
         Ok(self.div_neg_const.borrow())
     }
     pub fn div_neg_seq(
@@ -113,7 +113,7 @@ impl ExprIntDiv {
             return Ok(self.div_neg_seq.borrow());
         }
         self.f_div_neg_seq.set(true);
-        *self.div_neg_seq.borrow_mut() = ((*self.int_s()).checked_div(13_i32).ok_or(KError::CastError)?).try_into()?;
+        *self.div_neg_seq.borrow_mut() = (div_floor(i64::from(*self.int_s()), 13_i64)?).try_into()?;
         Ok(self.div_neg_seq.borrow())
     }
     pub fn div_pos_const(
@@ -124,7 +124,7 @@ impl ExprIntDiv {
             return Ok(self.div_pos_const.borrow());
         }
         self.f_div_pos_const.set(true);
-        *self.div_pos_const.borrow_mut() = ((9837_i32).checked_div(13_i32).ok_or(KError::CastError)?).try_into()?;
+        *self.div_pos_const.borrow_mut() = (div_floor(9837_i64, 13_i64)?).try_into()?;
         Ok(self.div_pos_const.borrow())
     }
     pub fn div_pos_seq(

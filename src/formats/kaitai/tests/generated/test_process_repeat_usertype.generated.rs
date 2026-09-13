@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_repeat_usertype::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_repeat_usertype() -> KResult<()> {

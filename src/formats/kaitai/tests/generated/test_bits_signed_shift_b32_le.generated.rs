@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_signed_shift_b32_le::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_signed_shift_b32_le() -> KResult<()> {

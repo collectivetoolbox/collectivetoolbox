@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::meta_xref::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_meta_xref() -> KResult<()> {

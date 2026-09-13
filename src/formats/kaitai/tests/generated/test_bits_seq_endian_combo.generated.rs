@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_seq_endian_combo::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_seq_endian_combo() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_bits_seq_endian_combo() -> KResult<()> {
     let r: OptRc<BitsSeqEndianCombo> = BitsSeqEndianCombo::read_into(&_io, None, None)?;
 
     assert_eq!(*r.be1(), 59);
-    assert_eq!(*r.be2(), "0b00_10111011");
+    assert_eq!(*r.be2(), 187);
     assert_eq!(*r.le3(), 163);
     assert_eq!(*r.be4(), 20);
     assert_eq!(*r.le5(), 10);

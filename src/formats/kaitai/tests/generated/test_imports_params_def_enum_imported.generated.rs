@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::imports_params_def_enum_imported::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_imports_params_def_enum_imported() -> KResult<()> {
@@ -83,8 +84,8 @@ fn test_imports_params_def_enum_imported() -> KResult<()> {
     let r: OptRc<ImportsParamsDefEnumImported> = ImportsParamsDefEnumImported::read_into(&_io, None, None)?;
 
     assert_eq!(*r.one().pet_1(), Enum0_Animal::Cat);
-    assert_eq!(*r.one().pet_2(), enum_deep::container1::container2::animal::hare);
+    assert_eq!(*r.one().pet_2(), EnumDeep_Container1_Container2_Animal::Hare);
     assert_eq!(*r.two().pet_1_param(), Enum0_Animal::Cat);
-    assert_eq!(*r.two().pet_2_param(), enum_deep::container1::container2::animal::hare);
+    assert_eq!(*r.two().pet_2_param(), EnumDeep_Container1_Container2_Animal::Hare);
     Ok(())
 }

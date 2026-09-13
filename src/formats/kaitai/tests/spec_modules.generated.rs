@@ -52,18 +52,10 @@ mod test_bytes_pad_term_equal;
 mod test_bytes_pad_term_roundtrip;
 #[path = "generated/test_bytes_pad_term_zero_size.generated.rs"]
 mod test_bytes_pad_term_zero_size;
-#[path = "generated/test_cast_nested.generated.rs"]
-mod test_cast_nested;
-#[path = "generated/test_cast_to_top.generated.rs"]
-mod test_cast_to_top;
 #[path = "generated/test_combine_bool.generated.rs"]
 mod test_combine_bool;
-#[path = "generated/test_combine_bytes.generated.rs"]
-mod test_combine_bytes;
 #[path = "generated/test_combine_enum.generated.rs"]
 mod test_combine_enum;
-#[path = "generated/test_combine_str.generated.rs"]
-mod test_combine_str;
 #[path = "generated/test_debug_0.generated.rs"]
 mod test_debug_0;
 #[path = "generated/test_debug_array_user.generated.rs"]
@@ -74,20 +66,10 @@ mod test_debug_array_user_current_excluded;
 mod test_debug_array_user_eof_exception;
 #[path = "generated/test_debug_enum_name.generated.rs"]
 mod test_debug_enum_name;
-#[path = "generated/test_debug_switch_user.generated.rs"]
-mod test_debug_switch_user;
 #[path = "generated/test_default_big_endian.generated.rs"]
 mod test_default_big_endian;
 #[path = "generated/test_default_bit_endian_mod.generated.rs"]
 mod test_default_bit_endian_mod;
-#[path = "generated/test_default_endian_expr_exception.generated.rs"]
-mod test_default_endian_expr_exception;
-#[path = "generated/test_default_endian_expr_inherited.generated.rs"]
-mod test_default_endian_expr_inherited;
-#[path = "generated/test_default_endian_expr_is_be.generated.rs"]
-mod test_default_endian_expr_is_be;
-#[path = "generated/test_default_endian_expr_is_le.generated.rs"]
-mod test_default_endian_expr_is_le;
 #[path = "generated/test_default_endian_mod.generated.rs"]
 mod test_default_endian_mod;
 #[path = "generated/test_docstrings.generated.rs"]
@@ -102,36 +84,24 @@ mod test_enum_0;
 mod test_enum_1;
 #[path = "generated/test_enum_deep.generated.rs"]
 mod test_enum_deep;
-#[path = "generated/test_enum_deep_literals.generated.rs"]
-mod test_enum_deep_literals;
 #[path = "generated/test_enum_fancy.generated.rs"]
 mod test_enum_fancy;
 #[path = "generated/test_enum_if.generated.rs"]
 mod test_enum_if;
-#[path = "generated/test_enum_import_literals.generated.rs"]
-mod test_enum_import_literals;
 #[path = "generated/test_enum_import_seq.generated.rs"]
 mod test_enum_import_seq;
 #[path = "generated/test_enum_int_range_s.generated.rs"]
 mod test_enum_int_range_s;
 #[path = "generated/test_enum_int_range_u.generated.rs"]
 mod test_enum_int_range_u;
-#[path = "generated/test_enum_invalid.generated.rs"]
-mod test_enum_invalid;
 #[path = "generated/test_enum_long_range_s.generated.rs"]
 mod test_enum_long_range_s;
-#[path = "generated/test_enum_long_range_u.generated.rs"]
-mod test_enum_long_range_u;
 #[path = "generated/test_enum_negative.generated.rs"]
 mod test_enum_negative;
 #[path = "generated/test_enum_of_value_inst.generated.rs"]
 mod test_enum_of_value_inst;
 #[path = "generated/test_enum_to_i.generated.rs"]
 mod test_enum_to_i;
-#[path = "generated/test_enum_to_i_class_border_1.generated.rs"]
-mod test_enum_to_i_class_border_1;
-#[path = "generated/test_enum_to_i_invalid.generated.rs"]
-mod test_enum_to_i_invalid;
 #[path = "generated/test_eof_exception_bits_be.generated.rs"]
 mod test_eof_exception_bits_be;
 #[path = "generated/test_eof_exception_bits_be2.generated.rs"]
@@ -162,42 +132,22 @@ mod test_expr_1;
 mod test_expr_2;
 #[path = "generated/test_expr_3.generated.rs"]
 mod test_expr_3;
-#[path = "generated/test_expr_array.generated.rs"]
-mod test_expr_array;
-#[path = "generated/test_expr_bits.generated.rs"]
-mod test_expr_bits;
-#[path = "generated/test_expr_bytes_cmp.generated.rs"]
-mod test_expr_bytes_cmp;
 #[path = "generated/test_expr_bytes_non_literal.generated.rs"]
 mod test_expr_bytes_non_literal;
 #[path = "generated/test_expr_bytes_ops.generated.rs"]
 mod test_expr_bytes_ops;
-#[path = "generated/test_expr_calc_array_ops.generated.rs"]
-mod test_expr_calc_array_ops;
 #[path = "generated/test_expr_enum.generated.rs"]
 mod test_expr_enum;
-#[path = "generated/test_expr_fstring_0.generated.rs"]
-mod test_expr_fstring_0;
 #[path = "generated/test_expr_if_int_eq.generated.rs"]
 mod test_expr_if_int_eq;
 #[path = "generated/test_expr_if_int_ops.generated.rs"]
 mod test_expr_if_int_ops;
 #[path = "generated/test_expr_int_div.generated.rs"]
 mod test_expr_int_div;
-#[path = "generated/test_expr_io_eof.generated.rs"]
-mod test_expr_io_eof;
-#[path = "generated/test_expr_io_eof_bits.generated.rs"]
-mod test_expr_io_eof_bits;
-#[path = "generated/test_expr_io_pos.generated.rs"]
-mod test_expr_io_pos;
 #[path = "generated/test_expr_io_pos_bits.generated.rs"]
 mod test_expr_io_pos_bits;
-#[path = "generated/test_expr_io_ternary.generated.rs"]
-mod test_expr_io_ternary;
 #[path = "generated/test_expr_mod.generated.rs"]
 mod test_expr_mod;
-#[path = "generated/test_expr_ops_parens.generated.rs"]
-mod test_expr_ops_parens;
 #[path = "generated/test_expr_sizeof_type_0.generated.rs"]
 mod test_expr_sizeof_type_0;
 #[path = "generated/test_expr_sizeof_type_1.generated.rs"]
@@ -208,8 +158,6 @@ mod test_expr_sizeof_value_0;
 mod test_expr_sizeof_value_sized;
 #[path = "generated/test_expr_str_encodings.generated.rs"]
 mod test_expr_str_encodings;
-#[path = "generated/test_expr_str_ops.generated.rs"]
-mod test_expr_str_ops;
 #[path = "generated/test_expr_to_i_trailing.generated.rs"]
 mod test_expr_to_i_trailing;
 #[path = "generated/test_fixed_contents.generated.rs"]
@@ -222,32 +170,16 @@ mod test_float_to_i;
 mod test_floating_points;
 #[path = "generated/test_hello_world.generated.rs"]
 mod test_hello_world;
-#[path = "generated/test_if_instances.generated.rs"]
-mod test_if_instances;
 #[path = "generated/test_if_struct.generated.rs"]
 mod test_if_struct;
-#[path = "generated/test_if_values.generated.rs"]
-mod test_if_values;
 #[path = "generated/test_imports0.generated.rs"]
 mod test_imports0;
-#[path = "generated/test_imports_abs.generated.rs"]
-mod test_imports_abs;
 #[path = "generated/test_imports_abs_abs.generated.rs"]
 mod test_imports_abs_abs;
 #[path = "generated/test_imports_abs_rel.generated.rs"]
 mod test_imports_abs_rel;
-#[path = "generated/test_imports_cast_to_imported.generated.rs"]
-mod test_imports_cast_to_imported;
-#[path = "generated/test_imports_cast_to_imported2.generated.rs"]
-mod test_imports_cast_to_imported2;
 #[path = "generated/test_imports_circular_a.generated.rs"]
 mod test_imports_circular_a;
-#[path = "generated/test_imports_params_def_array_usertype_imported.generated.rs"]
-mod test_imports_params_def_array_usertype_imported;
-#[path = "generated/test_imports_params_def_enum_imported.generated.rs"]
-mod test_imports_params_def_enum_imported;
-#[path = "generated/test_imports_params_def_usertype_imported.generated.rs"]
-mod test_imports_params_def_usertype_imported;
 #[path = "generated/test_imports_rel_1.generated.rs"]
 mod test_imports_rel_1;
 #[path = "generated/test_index_sizes.generated.rs"]
@@ -266,8 +198,6 @@ mod test_instance_in_repeat_until;
 mod test_instance_in_sized;
 #[path = "generated/test_instance_io_user.generated.rs"]
 mod test_instance_io_user;
-#[path = "generated/test_instance_io_user_earlier.generated.rs"]
-mod test_instance_io_user_earlier;
 #[path = "generated/test_instance_std.generated.rs"]
 mod test_instance_std;
 #[path = "generated/test_instance_std_array.generated.rs"]
@@ -280,8 +210,6 @@ mod test_integers;
 mod test_integers_double_overflow;
 #[path = "generated/test_integers_min_max.generated.rs"]
 mod test_integers_min_max;
-#[path = "generated/test_io_local_var.generated.rs"]
-mod test_io_local_var;
 #[path = "generated/test_js_signed_right_shift.generated.rs"]
 mod test_js_signed_right_shift;
 #[path = "generated/test_meta_tags.generated.rs"]
@@ -294,22 +222,10 @@ mod test_multiple_use;
 mod test_name_clash_import_vs_inst;
 #[path = "generated/test_nav_parent.generated.rs"]
 mod test_nav_parent;
-#[path = "generated/test_nav_parent2.generated.rs"]
-mod test_nav_parent2;
-#[path = "generated/test_nav_parent3.generated.rs"]
-mod test_nav_parent3;
-#[path = "generated/test_nav_parent_false.generated.rs"]
-mod test_nav_parent_false;
 #[path = "generated/test_nav_parent_false2.generated.rs"]
 mod test_nav_parent_false2;
 #[path = "generated/test_nav_parent_override.generated.rs"]
 mod test_nav_parent_override;
-#[path = "generated/test_nav_parent_recursive.generated.rs"]
-mod test_nav_parent_recursive;
-#[path = "generated/test_nav_parent_switch.generated.rs"]
-mod test_nav_parent_switch;
-#[path = "generated/test_nav_parent_switch_cast.generated.rs"]
-mod test_nav_parent_switch_cast;
 #[path = "generated/test_nav_parent_vs_value_inst.generated.rs"]
 mod test_nav_parent_vs_value_inst;
 #[path = "generated/test_nav_root.generated.rs"]
@@ -320,58 +236,32 @@ mod test_nav_root_recursive;
 mod test_nested_same_name;
 #[path = "generated/test_nested_same_name2.generated.rs"]
 mod test_nested_same_name2;
-#[path = "generated/test_nested_type_param.generated.rs"]
-mod test_nested_type_param;
 #[path = "generated/test_nested_types.generated.rs"]
 mod test_nested_types;
 #[path = "generated/test_nested_types2.generated.rs"]
 mod test_nested_types2;
 #[path = "generated/test_nested_types3.generated.rs"]
 mod test_nested_types3;
-#[path = "generated/test_nested_types_import.generated.rs"]
-mod test_nested_types_import;
 #[path = "generated/test_non_standard.generated.rs"]
 mod test_non_standard;
-#[path = "generated/test_opaque_external_type.generated.rs"]
-mod test_opaque_external_type;
 #[path = "generated/test_optional_id.generated.rs"]
 mod test_optional_id;
-#[path = "generated/test_params_call.generated.rs"]
-mod test_params_call;
-#[path = "generated/test_params_call_extra_parens.generated.rs"]
-mod test_params_call_extra_parens;
 #[path = "generated/test_params_enum.generated.rs"]
 mod test_params_enum;
-#[path = "generated/test_params_pass_array_int.generated.rs"]
-mod test_params_pass_array_int;
-#[path = "generated/test_params_pass_array_io.generated.rs"]
-mod test_params_pass_array_io;
-#[path = "generated/test_params_pass_array_str.generated.rs"]
-mod test_params_pass_array_str;
-#[path = "generated/test_params_pass_array_struct.generated.rs"]
-mod test_params_pass_array_struct;
-#[path = "generated/test_params_pass_array_usertype.generated.rs"]
-mod test_params_pass_array_usertype;
 #[path = "generated/test_params_pass_bool.generated.rs"]
 mod test_params_pass_bool;
 #[path = "generated/test_params_pass_io.generated.rs"]
 mod test_params_pass_io;
-#[path = "generated/test_params_pass_struct.generated.rs"]
-mod test_params_pass_struct;
 #[path = "generated/test_params_pass_usertype.generated.rs"]
 mod test_params_pass_usertype;
 #[path = "generated/test_position_abs.generated.rs"]
 mod test_position_abs;
 #[path = "generated/test_position_in_seq.generated.rs"]
 mod test_position_in_seq;
-#[path = "generated/test_position_to_end.generated.rs"]
-mod test_position_to_end;
 #[path = "generated/test_process_bytes_pad_term.generated.rs"]
 mod test_process_bytes_pad_term;
 #[path = "generated/test_process_coerce_bytes.generated.rs"]
 mod test_process_coerce_bytes;
-#[path = "generated/test_process_coerce_switch.generated.rs"]
-mod test_process_coerce_switch;
 #[path = "generated/test_process_coerce_usertype1.generated.rs"]
 mod test_process_coerce_usertype1;
 #[path = "generated/test_process_coerce_usertype2.generated.rs"]
@@ -406,8 +296,6 @@ mod test_process_xor4_value;
 mod test_process_xor_const;
 #[path = "generated/test_process_xor_value.generated.rs"]
 mod test_process_xor_value;
-#[path = "generated/test_recursive_one.generated.rs"]
-mod test_recursive_one;
 #[path = "generated/test_repeat_eos_bits_b1.generated.rs"]
 mod test_repeat_eos_bits_b1;
 #[path = "generated/test_repeat_eos_bits_b4.generated.rs"]
@@ -448,14 +336,6 @@ mod test_repeat_until_bytes;
 mod test_repeat_until_bytes_pad;
 #[path = "generated/test_repeat_until_bytes_pad_term.generated.rs"]
 mod test_repeat_until_bytes_pad_term;
-#[path = "generated/test_repeat_until_calc_array_type.generated.rs"]
-mod test_repeat_until_calc_array_type;
-#[path = "generated/test_repeat_until_complex.generated.rs"]
-mod test_repeat_until_complex;
-#[path = "generated/test_repeat_until_s4.generated.rs"]
-mod test_repeat_until_s4;
-#[path = "generated/test_repeat_until_sized.generated.rs"]
-mod test_repeat_until_sized;
 #[path = "generated/test_repeat_until_term_bytes.generated.rs"]
 mod test_repeat_until_term_bytes;
 #[path = "generated/test_repeat_until_term_struct.generated.rs"]
@@ -498,40 +378,10 @@ mod test_str_pad_term_zero_size;
 mod test_struct_pad_term;
 #[path = "generated/test_struct_pad_term_equal.generated.rs"]
 mod test_struct_pad_term_equal;
-#[path = "generated/test_switch_bytearray.generated.rs"]
-mod test_switch_bytearray;
-#[path = "generated/test_switch_else_only.generated.rs"]
-mod test_switch_else_only;
 #[path = "generated/test_switch_integers.generated.rs"]
 mod test_switch_integers;
-#[path = "generated/test_switch_integers2.generated.rs"]
-mod test_switch_integers2;
-#[path = "generated/test_switch_manual_enum.generated.rs"]
-mod test_switch_manual_enum;
-#[path = "generated/test_switch_manual_enum_invalid.generated.rs"]
-mod test_switch_manual_enum_invalid;
-#[path = "generated/test_switch_manual_enum_invalid_else.generated.rs"]
-mod test_switch_manual_enum_invalid_else;
-#[path = "generated/test_switch_manual_int.generated.rs"]
-mod test_switch_manual_int;
-#[path = "generated/test_switch_manual_int_else.generated.rs"]
-mod test_switch_manual_int_else;
-#[path = "generated/test_switch_manual_int_size.generated.rs"]
-mod test_switch_manual_int_size;
-#[path = "generated/test_switch_manual_int_size_else.generated.rs"]
-mod test_switch_manual_int_size_else;
-#[path = "generated/test_switch_manual_int_size_eos.generated.rs"]
-mod test_switch_manual_int_size_eos;
-#[path = "generated/test_switch_manual_str.generated.rs"]
-mod test_switch_manual_str;
-#[path = "generated/test_switch_manual_str_else.generated.rs"]
-mod test_switch_manual_str_else;
 #[path = "generated/test_switch_multi_bool_ops.generated.rs"]
 mod test_switch_multi_bool_ops;
-#[path = "generated/test_switch_repeat_expr.generated.rs"]
-mod test_switch_repeat_expr;
-#[path = "generated/test_switch_repeat_expr_invalid.generated.rs"]
-mod test_switch_repeat_expr_invalid;
 #[path = "generated/test_term_bytes.generated.rs"]
 mod test_term_bytes;
 #[path = "generated/test_term_bytes2.generated.rs"]
@@ -574,8 +424,6 @@ mod test_type_int_unary_op;
 mod test_type_ternary;
 #[path = "generated/test_type_ternary_2nd_falsy.generated.rs"]
 mod test_type_ternary_2nd_falsy;
-#[path = "generated/test_type_ternary_opaque.generated.rs"]
-mod test_type_ternary_opaque;
 #[path = "generated/test_user_type.generated.rs"]
 mod test_user_type;
 #[path = "generated/test_valid_eq_str_encodings.generated.rs"]
@@ -632,8 +480,6 @@ mod test_valid_not_parsed_if;
 mod test_valid_optional_id;
 #[path = "generated/test_valid_short.generated.rs"]
 mod test_valid_short;
-#[path = "generated/test_valid_switch.generated.rs"]
-mod test_valid_switch;
 #[path = "generated/test_yaml_ints.generated.rs"]
 mod test_yaml_ints;
 #[path = "generated/test_zlib_surrounded.generated.rs"]

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::debug_0::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_debug_0() -> KResult<()> {
@@ -84,8 +85,8 @@ fn test_debug_0() -> KResult<()> {
 
     assert_eq!(*r.one(), 80);
     assert_eq!(r.array_of_ints().len(), 3);
-    assert_eq!(*r.array_of_ints()[0], 65);
-    assert_eq!(*r.array_of_ints()[1], 67);
-    assert_eq!(*r.array_of_ints()[2], 75);
+    assert_eq!(r.array_of_ints()[0], 65);
+    assert_eq!(r.array_of_ints()[1], 67);
+    assert_eq!(r.array_of_ints()[2], 75);
     Ok(())
 }

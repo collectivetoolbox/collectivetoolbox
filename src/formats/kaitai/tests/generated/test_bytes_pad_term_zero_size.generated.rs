@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bytes_pad_term_zero_size::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bytes_pad_term_zero_size() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_bytes_pad_term_zero_size() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BytesPadTermZeroSize> = BytesPadTermZeroSize::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_pad(), "[].as<bytes>");
-    assert_eq!(*r.str_term(), "[].as<bytes>");
-    assert_eq!(*r.str_term_and_pad(), "[].as<bytes>");
-    assert_eq!(*r.str_term_include(), "[].as<bytes>");
+    assert_eq!(*r.str_pad(), Vec::<u8>::new());
+    assert_eq!(*r.str_term(), Vec::<u8>::new());
+    assert_eq!(*r.str_term_and_pad(), Vec::<u8>::new());
+    assert_eq!(*r.str_term_include(), Vec::<u8>::new());
     Ok(())
 }

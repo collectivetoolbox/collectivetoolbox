@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_user_array::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_user_array() -> KResult<()> {

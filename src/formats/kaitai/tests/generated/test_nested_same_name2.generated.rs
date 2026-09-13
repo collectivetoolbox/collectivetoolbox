@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nested_same_name2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nested_same_name2() -> KResult<()> {

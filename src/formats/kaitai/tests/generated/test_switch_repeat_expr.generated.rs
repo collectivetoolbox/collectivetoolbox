@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_repeat_expr::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_repeat_expr() -> KResult<()> {
@@ -83,9 +84,9 @@ fn test_switch_repeat_expr() -> KResult<()> {
     let r: OptRc<SwitchRepeatExpr> = SwitchRepeatExpr::read_into(&_io, None, None)?;
 
     assert_eq!(r.codes().len(), 3);
-    assert_eq!(*r.codes()[0], 1);
-    assert_eq!(*r.codes()[1], 7);
-    assert_eq!(*r.codes()[2], 2);
+    assert_eq!(r.codes()[0], 1);
+    assert_eq!(r.codes()[1], 7);
+    assert_eq!(r.codes()[2], 2);
     assert_eq!(*r.body()[0].as_ref().context("Missing optional field")?.first(), vec![0x40u8, 0x40u8, 0x04u8, 0x37u8]);
     assert_eq!(*r.body()[1].as_ref().context("Missing optional field")?.second(), vec![0x13u8, 0x00u8, 0x00u8, 0x08u8]);
     assert_eq!(*r.body()[2].as_ref().context("Missing optional field")?.first(), vec![0x37u8, 0x13u8, 0x00u8, 0x00u8]);

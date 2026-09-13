@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::yaml_ints::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_yaml_ints() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_yaml_ints() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<YamlInts> = YamlInts::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.test_u4_dec()?, "0xffffffff");
-    assert_eq!(*r.test_u4_hex()?, "0xffffffff");
-    assert_eq!(*r.test_u8_dec()?, "0xffffffffffffffff");
-    assert_eq!(*r.test_u8_hex()?, "0xffffffffffffffff");
+    assert_eq!(*r.test_u4_dec()?, 4294967295);
+    assert_eq!(*r.test_u4_hex()?, 4294967295);
+    assert_eq!(*r.test_u8_dec()?, 18446744073709551615_u64);
+    assert_eq!(*r.test_u8_hex()?, 18446744073709551615_u64);
     Ok(())
 }

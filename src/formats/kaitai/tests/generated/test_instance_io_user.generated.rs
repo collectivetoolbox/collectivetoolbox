@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_io_user::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_io_user() -> KResult<()> {
@@ -83,8 +84,8 @@ fn test_instance_io_user() -> KResult<()> {
     let r: OptRc<InstanceIoUser> = InstanceIoUser::read_into(&_io, None, None)?;
 
     assert_eq!(*r.qty_entries(), 3);
-    assert_eq!(*r.entries()[0].name(), "\"the\"");
-    assert_eq!(*r.entries()[1].name(), "\"rainy\"");
-    assert_eq!(*r.entries()[2].name(), "\"day it is\"");
+    assert_eq!(*r.entries()[0].name()?, "the");
+    assert_eq!(*r.entries()[1].name()?, "rainy");
+    assert_eq!(*r.entries()[2].name()?, "day it is");
     Ok(())
 }

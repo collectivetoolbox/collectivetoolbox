@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_1() -> KResult<()> {
@@ -84,7 +85,7 @@ fn test_expr_1() -> KResult<()> {
 
     assert_eq!(*r.len_of_1(), 10);
     assert_eq!(*r.len_of_1_mod()?, 8);
-    assert_eq!(*r.str1(), "\"Some ASC\"");
+    assert_eq!(*r.str1(), "Some ASC");
     assert_eq!(*r.str1_len()?, 8);
     Ok(())
 }

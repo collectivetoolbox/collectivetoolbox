@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::multiple_use::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_multiple_use() -> KResult<()> {
@@ -83,6 +84,6 @@ fn test_multiple_use() -> KResult<()> {
     let r: OptRc<MultipleUse> = MultipleUse::read_into(&_io, None, None)?;
 
     assert_eq!(*r.t1().first_use().value(), 32);
-    assert_eq!(*r.t2().second_use().value(), 32);
+    assert_eq!(*r.t2().second_use()?.value(), 32);
     Ok(())
 }

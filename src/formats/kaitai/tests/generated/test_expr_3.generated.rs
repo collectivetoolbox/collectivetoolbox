@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_3::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_3() -> KResult<()> {
@@ -83,9 +84,9 @@ fn test_expr_3() -> KResult<()> {
     let r: OptRc<Expr3> = Expr3::read_into(&_io, None, None)?;
 
     assert_eq!(*r.one(), 80);
-    assert_eq!(*r.two(), "\"ACK\"");
-    assert_eq!(*r.three()?, "\"@ACK\"");
-    assert_eq!(*r.four()?, "\"_ACK_\"");
+    assert_eq!(*r.two(), "ACK");
+    assert_eq!(*r.three()?, "@ACK");
+    assert_eq!(*r.four()?, "_ACK_");
     assert_eq!(*r.is_str_eq()?, true);
     assert_eq!(*r.is_str_ne()?, false);
     assert_eq!(*r.is_str_lt()?, true);

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::term_strz2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_term_strz2() -> KResult<()> {
@@ -82,8 +83,8 @@ fn test_term_strz2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TermStrz2> = TermStrz2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1(), "\"foo\"");
-    assert_eq!(*r.s2(), "\"bar|\"");
-    assert_eq!(*r.s3(), "\"baz\"");
+    assert_eq!(*r.s1(), "foo");
+    assert_eq!(*r.s2(), "bar|");
+    assert_eq!(*r.s3(), "baz");
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::floating_points::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_floating_points() -> KResult<()> {
@@ -82,13 +83,13 @@ fn test_floating_points() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<FloatingPoints> = FloatingPoints::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.single_value(), "0.5.as<f4>");
-    assert_eq!(*r.single_value_be(), "0.5.as<f4>");
+    assert_eq!(*r.single_value(), 0.5_f32);
+    assert_eq!(*r.single_value_be(), 0.5_f32);
     assert_eq!(*r.double_value(), 0.25);
     assert_eq!(*r.double_value_be(), 0.25);
     assert_eq!(*r.approximate_value(), 1.2345);
     assert_eq!(*r.single_value_plus_int()?, 1.5);
-    assert_eq!(*r.single_value_plus_float()?, 1);
+    assert_eq!(*r.single_value_plus_float()?, 1.0);
     assert_eq!(*r.double_value_plus_float()?, 0.3);
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nav_parent2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nav_parent2() -> KResult<()> {
@@ -84,13 +85,13 @@ fn test_nav_parent2() -> KResult<()> {
 
     assert_eq!(*r.ofs_tags(), 8);
     assert_eq!(*r.num_tags(), 2);
-    assert_eq!(*r.tags()[0].name(), "\"RAHC\"");
+    assert_eq!(*r.tags()[0].name(), "RAHC");
     assert_eq!(*r.tags()[0].ofs(), 32);
     assert_eq!(*r.tags()[0].num_items(), 3);
-    assert_eq!(*r.tags()[0].tag_content().content(), "\"foo\"");
-    assert_eq!(*r.tags()[1].name(), "\"RAHC\"");
+    assert_eq!(*r.tags()[0].tag_content()?.content(), "foo");
+    assert_eq!(*r.tags()[1].name(), "RAHC");
     assert_eq!(*r.tags()[1].ofs(), 35);
     assert_eq!(*r.tags()[1].num_items(), 6);
-    assert_eq!(*r.tags()[1].tag_content().content(), "\"barbaz\"");
+    assert_eq!(*r.tags()[1].tag_content()?.content(), "barbaz");
     Ok(())
 }

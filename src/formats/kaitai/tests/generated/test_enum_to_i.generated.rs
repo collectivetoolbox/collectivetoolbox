@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_to_i::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_to_i() -> KResult<()> {
@@ -85,7 +86,7 @@ fn test_enum_to_i() -> KResult<()> {
     assert_eq!(*r.pet_1(), EnumToI_Animal::Cat);
     assert_eq!(*r.pet_2(), EnumToI_Animal::Chicken);
     assert_eq!(*r.pet_1_i()?, 7);
-    assert_eq!(*r.pet_1_i_to_s()?, "\"7\"");
+    assert_eq!(*r.pet_1_i_to_s()?, "7");
     assert_eq!(*r.pet_1_mod()?, 32775);
     assert_eq!(*r.one_lt_two()?, true);
     assert_eq!(*r.pet_1_eq_int()?, true);

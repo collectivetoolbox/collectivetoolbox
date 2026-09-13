@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::default_endian_expr_inherited::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_default_endian_expr_inherited() -> KResult<()> {
@@ -86,16 +87,16 @@ fn test_default_endian_expr_inherited() -> KResult<()> {
     assert_eq!(*r.docs()[0].main().insides().some_int(), 66);
     assert_eq!(*r.docs()[0].main().insides().more().some_int1(), 16896);
     assert_eq!(*r.docs()[0].main().insides().more().some_int2(), 66);
-    assert_eq!(*r.docs()[0].main().insides().more().some_inst(), 66);
+    assert_eq!(*r.docs()[0].main().insides().more().some_inst()?, 66);
     assert_eq!(*r.docs()[1].indicator(), vec![0x4du8, 0x4du8]);
     assert_eq!(*r.docs()[1].main().insides().some_int(), 66);
     assert_eq!(*r.docs()[1].main().insides().more().some_int1(), 66);
     assert_eq!(*r.docs()[1].main().insides().more().some_int2(), 16896);
-    assert_eq!(*r.docs()[1].main().insides().more().some_inst(), 1107296256);
+    assert_eq!(*r.docs()[1].main().insides().more().some_inst()?, 1107296256);
     assert_eq!(*r.docs()[2].indicator(), vec![0x58u8, 0x58u8]);
     assert_eq!(*r.docs()[2].main().insides().some_int(), 66);
     assert_eq!(*r.docs()[2].main().insides().more().some_int1(), 66);
     assert_eq!(*r.docs()[2].main().insides().more().some_int2(), 16896);
-    assert_eq!(*r.docs()[2].main().insides().more().some_inst(), 1107296256);
+    assert_eq!(*r.docs()[2].main().insides().more().some_inst()?, 1107296256);
     Ok(())
 }

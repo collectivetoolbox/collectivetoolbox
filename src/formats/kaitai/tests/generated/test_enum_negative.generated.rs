@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_negative::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_negative() -> KResult<()> {

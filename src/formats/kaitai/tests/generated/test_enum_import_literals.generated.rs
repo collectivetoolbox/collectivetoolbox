@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_import_literals::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_import_literals() -> KResult<()> {
@@ -84,6 +85,6 @@ fn test_enum_import_literals() -> KResult<()> {
 
     assert_eq!(*r.pet_1_to_i()?, 7);
     assert_eq!(*r.pet_1_eq()?, true);
-    assert_eq!(*r.pet_2()?, enum_deep::container1::container2::animal::hare);
+    assert_eq!(*r.pet_2()?, EnumDeep_Container1_Container2_Animal::Hare);
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::type_ternary_opaque::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_type_ternary_opaque() -> KResult<()> {

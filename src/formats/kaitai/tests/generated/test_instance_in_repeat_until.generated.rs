@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_in_repeat_until::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_in_repeat_until() -> KResult<()> {
@@ -83,10 +84,10 @@ fn test_instance_in_repeat_until() -> KResult<()> {
     let r: OptRc<InstanceInRepeatUntil> = InstanceInRepeatUntil::read_into(&_io, None, None)?;
 
     assert_eq!(r.entries().len(), 5);
-    assert_eq!(*r.entries()[0], 66);
-    assert_eq!(*r.entries()[1], 0);
-    assert_eq!(*r.entries()[2], 4919);
-    assert_eq!(*r.entries()[3], 0);
-    assert_eq!(*r.entries()[4], -1);
+    assert_eq!(r.entries()[0], 66);
+    assert_eq!(r.entries()[1], 0);
+    assert_eq!(r.entries()[2], 4919);
+    assert_eq!(r.entries()[3], 0);
+    assert_eq!(r.entries()[4], -1);
     Ok(())
 }

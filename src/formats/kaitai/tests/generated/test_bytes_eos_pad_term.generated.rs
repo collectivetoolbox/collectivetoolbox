@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bytes_eos_pad_term::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bytes_eos_pad_term() -> KResult<()> {

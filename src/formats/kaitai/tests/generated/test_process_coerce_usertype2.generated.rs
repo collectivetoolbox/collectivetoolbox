@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_coerce_usertype2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_coerce_usertype2() -> KResult<()> {
@@ -83,8 +84,8 @@ fn test_process_coerce_usertype2() -> KResult<()> {
     let r: OptRc<ProcessCoerceUsertype2> = ProcessCoerceUsertype2::read_into(&_io, None, None)?;
 
     assert_eq!(*r.records()[0].flag(), 0);
-    assert_eq!(*r.records()[0].buf().value(), 1094795585);
+    assert_eq!(*r.records()[0].buf()?.value(), 1094795585);
     assert_eq!(*r.records()[1].flag(), 1);
-    assert_eq!(*r.records()[1].buf().value(), 1111638594);
+    assert_eq!(*r.records()[1].buf()?.value(), 1111638594);
     Ok(())
 }

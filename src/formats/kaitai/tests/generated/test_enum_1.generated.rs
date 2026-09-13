@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_1() -> KResult<()> {
@@ -82,7 +83,7 @@ fn test_enum_1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<Enum1> = Enum1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.main().submain().pet_1(), enum_1::main_obj::animal::cat);
-    assert_eq!(*r.main().submain().pet_2(), enum_1::main_obj::animal::chicken);
+    assert_eq!(*r.main().submain().pet_1(), Enum1_MainObj_Animal::Cat);
+    assert_eq!(*r.main().submain().pet_2(), Enum1_MainObj_Animal::Chicken);
     Ok(())
 }

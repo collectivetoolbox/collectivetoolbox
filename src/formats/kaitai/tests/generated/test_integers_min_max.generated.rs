@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::integers_min_max::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_integers_min_max() -> KResult<()> {

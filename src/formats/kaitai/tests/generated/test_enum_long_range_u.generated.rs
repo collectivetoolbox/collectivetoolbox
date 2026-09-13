@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_long_range_u::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_long_range_u() -> KResult<()> {

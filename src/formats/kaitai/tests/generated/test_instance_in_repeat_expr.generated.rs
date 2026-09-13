@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_in_repeat_expr::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_in_repeat_expr() -> KResult<()> {

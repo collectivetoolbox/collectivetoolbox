@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_enum::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_enum() -> KResult<()> {
@@ -83,13 +84,13 @@ fn test_switch_manual_enum() -> KResult<()> {
     let r: OptRc<SwitchManualEnum> = SwitchManualEnum::read_into(&_io, None, None)?;
 
     assert_eq!(r.opcodes().len(), 4);
-    assert_eq!(*r.opcodes()[0].code(), switch_manual_enum::opcode::code_enum::strval);
-    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "\"foobar\"");
-    assert_eq!(*r.opcodes()[1].code(), switch_manual_enum::opcode::code_enum::intval);
+    assert_eq!(*r.opcodes()[0].code(), SwitchManualEnum_Opcode_CodeEnum::Strval);
+    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "foobar");
+    assert_eq!(*r.opcodes()[1].code(), SwitchManualEnum_Opcode_CodeEnum::Intval);
     assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.value(), 66);
-    assert_eq!(*r.opcodes()[2].code(), switch_manual_enum::opcode::code_enum::intval);
+    assert_eq!(*r.opcodes()[2].code(), SwitchManualEnum_Opcode_CodeEnum::Intval);
     assert_eq!(*r.opcodes()[2].body().as_ref().context("Missing optional field")?.value(), 55);
-    assert_eq!(*r.opcodes()[3].code(), switch_manual_enum::opcode::code_enum::strval);
-    assert_eq!(*r.opcodes()[3].body().as_ref().context("Missing optional field")?.value(), "\"\"");
+    assert_eq!(*r.opcodes()[3].code(), SwitchManualEnum_Opcode_CodeEnum::Strval);
+    assert_eq!(*r.opcodes()[3].body().as_ref().context("Missing optional field")?.value(), "");
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_sizeof_value_0::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_sizeof_value_0() -> KResult<()> {
@@ -82,8 +83,8 @@ fn test_expr_sizeof_value_0() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprSizeofValue0> = ExprSizeofValue0::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.self_sizeof()?, "1 + 4 + 2 + 2");
-    assert_eq!(*r.sizeof_block()?, "1 + 4 + 2");
+    assert_eq!(*r.self_sizeof()?, 9);
+    assert_eq!(*r.sizeof_block()?, 7);
     assert_eq!(*r.sizeof_block_a()?, 1);
     assert_eq!(*r.sizeof_block_b()?, 4);
     assert_eq!(*r.sizeof_block_c()?, 2);

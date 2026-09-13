@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::params_pass_bool::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_params_pass_bool() -> KResult<()> {

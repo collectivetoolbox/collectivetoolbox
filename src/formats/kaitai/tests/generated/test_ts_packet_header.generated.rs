@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::ts_packet_header::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_ts_packet_header() -> KResult<()> {

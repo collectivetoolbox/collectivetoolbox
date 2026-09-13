@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_eos::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_eos() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_str_eos() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEos> = StrEos::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str(), "\"foo|bar|baz@\"");
+    assert_eq!(*r.str(), "foo|bar|baz@");
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::imports_params_def_usertype_imported::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_imports_params_def_usertype_imported() -> KResult<()> {

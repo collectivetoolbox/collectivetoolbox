@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::optional_id::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_optional_id() -> KResult<()> {

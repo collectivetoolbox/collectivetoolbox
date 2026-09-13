@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_unaligned_b64_be::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_unaligned_b64_be() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_bits_unaligned_b64_be() -> KResult<()> {
     let r: OptRc<BitsUnalignedB64Be> = BitsUnalignedB64Be::read_into(&_io, None, None)?;
 
     assert_eq!(*r.a(), true);
-    assert_eq!(*r.b(), "0b1101100_10111011_10100011_00010100_10001010_11010100_11001100_00110100_1");
-    assert_eq!(*r.c(), "0b000_1110");
+    assert_eq!(*r.b(), 15670070570729969769_u64);
+    assert_eq!(*r.c(), 14);
     Ok(())
 }

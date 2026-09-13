@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_n_struct::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_n_struct() -> KResult<()> {

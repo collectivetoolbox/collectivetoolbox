@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_encodings::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_encodings() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_str_encodings() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEncodings> = StrEncodings::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str1(), "\"Some ASCII\"");
-    assert_eq!(*r.str2(), "\"こんにちは\"");
-    assert_eq!(*r.str3(), "\"こんにちは\"");
-    assert_eq!(*r.str4(), "\"░▒▓\"");
+    assert_eq!(*r.str1(), "Some ASCII");
+    assert_eq!(*r.str2(), "こんにちは");
+    assert_eq!(*r.str3(), "こんにちは");
+    assert_eq!(*r.str4(), "░▒▓");
     Ok(())
 }

@@ -98,7 +98,7 @@ impl YamlInts {
             return Ok(self.test_u4_dec.borrow());
         }
         self.f_test_u4_dec.set(true);
-        *self.test_u4_dec.borrow_mut() = (4294967295).try_into()?;
+        *self.test_u4_dec.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_dec.borrow())
     }
     pub fn test_u4_hex(
@@ -109,7 +109,7 @@ impl YamlInts {
             return Ok(self.test_u4_hex.borrow());
         }
         self.f_test_u4_hex.set(true);
-        *self.test_u4_hex.borrow_mut() = (4294967295).try_into()?;
+        *self.test_u4_hex.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_hex.borrow())
     }
     pub fn test_u8_dec(
@@ -120,7 +120,7 @@ impl YamlInts {
             return Ok(self.test_u8_dec.borrow());
         }
         self.f_test_u8_dec.set(true);
-        *self.test_u8_dec.borrow_mut() = (18446744073709551615).try_into()?;
+        *self.test_u8_dec.borrow_mut() = (18446744073709551615_i128).try_into()?;
         Ok(self.test_u8_dec.borrow())
     }
     pub fn test_u8_hex(
@@ -131,7 +131,7 @@ impl YamlInts {
             return Ok(self.test_u8_hex.borrow());
         }
         self.f_test_u8_hex.set(true);
-        *self.test_u8_hex.borrow_mut() = (18446744073709551615).try_into()?;
+        *self.test_u8_hex.borrow_mut() = (18446744073709551615_i128).try_into()?;
         Ok(self.test_u8_hex.borrow())
     }
 }

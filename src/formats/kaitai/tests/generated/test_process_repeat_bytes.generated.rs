@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_repeat_bytes::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_repeat_bytes() -> KResult<()> {
@@ -82,7 +83,7 @@ fn test_process_repeat_bytes() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatBytes> = ProcessRepeatBytes::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.bufs()[0], vec![0x72u8, 0x25u8, 0x3du8, 0x8au8, 0x14u8]);
-    assert_eq!(*r.bufs()[1], vec![0x4au8, 0x52u8, 0xaau8, 0x10u8, 0x44u8]);
+    assert_eq!(r.bufs()[0], vec![0x72u8, 0x25u8, 0x3du8, 0x8au8, 0x14u8]);
+    assert_eq!(r.bufs()[1], vec![0x4au8, 0x52u8, 0xaau8, 0x10u8, 0x44u8]);
     Ok(())
 }

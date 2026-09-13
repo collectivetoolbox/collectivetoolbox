@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_byte_aligned_eof_be::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_byte_aligned_eof_be() -> KResult<()> {
@@ -83,6 +84,6 @@ fn test_bits_byte_aligned_eof_be() -> KResult<()> {
     let r: OptRc<BitsByteAlignedEofBe> = BitsByteAlignedEofBe::read_into(&_io, None, None)?;
 
     assert_eq!(*r.prebuf(), vec![0x12u8, 0x34u8, 0x56u8, 0x78u8, 0x12u8, 0x34u8, 0x56u8, 0x78u8]);
-    assert_eq!(*r.bits(), "0b0000_0000_0001_0010_0011_0100_0101_011");
+    assert_eq!(*r.bits(), 596523);
     Ok(())
 }

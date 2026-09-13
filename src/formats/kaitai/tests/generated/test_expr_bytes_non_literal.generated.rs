@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_bytes_non_literal::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_bytes_non_literal() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_expr_bytes_non_literal() -> KResult<()> {
     let r: OptRc<ExprBytesNonLiteral> = ExprBytesNonLiteral::read_into(&_io, None, None)?;
 
     assert_eq!(r.calc_bytes()?.len(), 2);
-    assert_eq!(*r.calc_bytes()?[0], 255);
-    assert_eq!(*r.calc_bytes()?[1], 1);
+    assert_eq!(r.calc_bytes()?[0], 255);
+    assert_eq!(r.calc_bytes()?[1], 1);
     Ok(())
 }

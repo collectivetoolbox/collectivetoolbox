@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::user_type::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_user_type() -> KResult<()> {

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::position_abs::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_position_abs() -> KResult<()> {
@@ -83,6 +84,6 @@ fn test_position_abs() -> KResult<()> {
     let r: OptRc<PositionAbs> = PositionAbs::read_into(&_io, None, None)?;
 
     assert_eq!(*r.index_offset(), 32);
-    assert_eq!(*r.index()?.entry(), "\"foo\"");
+    assert_eq!(*r.index()?.entry(), "foo");
     Ok(())
 }

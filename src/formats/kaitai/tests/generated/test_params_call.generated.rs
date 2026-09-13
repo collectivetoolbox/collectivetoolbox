@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::params_call::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_params_call() -> KResult<()> {
@@ -82,8 +83,8 @@ fn test_params_call() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsCall> = ParamsCall::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf1().body(), "\"foo|b\"");
-    assert_eq!(*r.buf2().body(), "\"ar|ba\"");
+    assert_eq!(r.buf1().body(), "foo|b");
+    assert_eq!(r.buf2().body(), "ar|ba");
     assert_eq!(*r.buf2().trailer(), 122);
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::valid_fail_eq_bytes::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_valid_fail_eq_bytes() -> KResult<()> {

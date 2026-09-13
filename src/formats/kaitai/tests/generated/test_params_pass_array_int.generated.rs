@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::params_pass_array_int::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_params_pass_array_int() -> KResult<()> {
@@ -83,11 +84,11 @@ fn test_params_pass_array_int() -> KResult<()> {
     let r: OptRc<ParamsPassArrayInt> = ParamsPassArrayInt::read_into(&_io, None, None)?;
 
     assert_eq!(r.pass_ints().nums().len(), 3);
-    assert_eq!(*r.pass_ints().nums()[0], 513);
-    assert_eq!(*r.pass_ints().nums()[1], 1027);
-    assert_eq!(*r.pass_ints().nums()[2], 1541);
+    assert_eq!(r.pass_ints().nums()[0], 513);
+    assert_eq!(r.pass_ints().nums()[1], 1027);
+    assert_eq!(r.pass_ints().nums()[2], 1541);
     assert_eq!(r.pass_ints_calc().nums().len(), 2);
-    assert_eq!(*r.pass_ints_calc().nums()[0], 27643);
-    assert_eq!(*r.pass_ints_calc().nums()[1], 7);
+    assert_eq!(r.pass_ints_calc().nums()[0], 27643);
+    assert_eq!(r.pass_ints_calc().nums()[1], 7);
     Ok(())
 }

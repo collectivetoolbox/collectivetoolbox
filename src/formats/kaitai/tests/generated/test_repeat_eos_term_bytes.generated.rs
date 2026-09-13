@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_eos_term_bytes::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_eos_term_bytes() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_repeat_eos_term_bytes() -> KResult<()> {
     let r: OptRc<RepeatEosTermBytes> = RepeatEosTermBytes::read_into(&_io, None, None)?;
 
     assert_eq!(r.records().len(), 2);
-    assert_eq!(*r.records()[0], vec![0x09u8, 0xacu8, 0x8du8, 0x8du8, 0xedu8, 0xbau8, 0x7bu8, 0x93u8, 0x63u8, 0x23u8, 0x01u8, 0x2au8, 0x34u8, 0xb2u8]);
-    assert_eq!(*r.records()[1], vec![0x39u8, 0xb2u8]);
+    assert_eq!(r.records()[0], vec![0x09u8, 0xacu8, 0x8du8, 0x8du8, 0xedu8, 0xbau8, 0x7bu8, 0x93u8, 0x63u8, 0x23u8, 0x01u8, 0x2au8, 0x34u8, 0xb2u8]);
+    assert_eq!(r.records()[1], vec![0x39u8, 0xb2u8]);
     Ok(())
 }

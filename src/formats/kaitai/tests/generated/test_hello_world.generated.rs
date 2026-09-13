@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::hello_world::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_hello_world() -> KResult<()> {

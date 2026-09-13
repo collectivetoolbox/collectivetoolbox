@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_int_size_eos::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_int_size_eos() -> KResult<()> {
@@ -84,13 +85,13 @@ fn test_switch_manual_int_size_eos() -> KResult<()> {
 
     assert_eq!(r.chunks().len(), 4);
     assert_eq!(*r.chunks()[0].code(), 17);
-    assert_eq!(*r.chunks()[0].body().body().as_ref().context("Missing optional field")?.title(), "\"Stuff\"");
-    assert_eq!(*r.chunks()[0].body().body().as_ref().context("Missing optional field")?.author(), "\"Me\"");
+    assert_eq!(*r.chunks()[0].body().body().as_ref().context("Missing optional field")?.title(), "Stuff");
+    assert_eq!(*r.chunks()[0].body().body().as_ref().context("Missing optional field")?.author(), "Me");
     assert_eq!(*r.chunks()[1].code(), 34);
     assert_eq!(*r.chunks()[1].body().body().as_ref().context("Missing optional field")?.entries(), vec!['AAAA', 'BBBB', 'CCCC']);
     assert_eq!(*r.chunks()[2].code(), 51);
-    assert_eq!(*r.chunks()[2].body().body().as_ref().context("Missing optional field")?, "[0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80].as<bytes>");
+    assert_eq!(*r.chunks()[2].body().body().as_ref().context("Missing optional field")?, vec![0x10u8, 0x20u8, 0x30u8, 0x40u8, 0x50u8, 0x60u8, 0x70u8, 0x80u8]);
     assert_eq!(*r.chunks()[3].code(), 255);
-    assert_eq!(*r.chunks()[3].body().body().as_ref().context("Missing optional field")?, "[].as<bytes>");
+    assert_eq!(*r.chunks()[3].body().body().as_ref().context("Missing optional field")?, Vec::<u8>::new());
     Ok(())
 }

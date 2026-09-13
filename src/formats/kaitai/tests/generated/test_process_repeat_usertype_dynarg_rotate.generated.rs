@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_repeat_usertype_dynarg_rotate::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_repeat_usertype_dynarg_rotate() -> KResult<()> {
@@ -88,10 +89,10 @@ fn test_process_repeat_usertype_dynarg_rotate() -> KResult<()> {
     assert_eq!(*r.blocks_ror()[1].a(), 16584);
     assert_eq!(*r.blocks_ror()[2].a(), 22810);
     assert_eq!(*r.blocks_b().dummy(), 178);
-    assert_eq!(*r.blocks_b().blocks_rol_0_b(), 108);
-    assert_eq!(*r.blocks_b().blocks_rol_1_b(), 234);
-    assert_eq!(*r.blocks_b().blocks_ror_0_b(), 108);
-    assert_eq!(*r.blocks_b().blocks_ror_1_b(), 138);
-    assert_eq!(*r.blocks_b().blocks_ror_2_b(), 156);
+    assert_eq!(*r.blocks_b().blocks_rol_0_b()?, 108);
+    assert_eq!(*r.blocks_b().blocks_rol_1_b()?, 234);
+    assert_eq!(*r.blocks_b().blocks_ror_0_b()?, 108);
+    assert_eq!(*r.blocks_b().blocks_ror_1_b()?, 138);
+    assert_eq!(*r.blocks_b().blocks_ror_2_b()?, 156);
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_int_else::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_int_else() -> KResult<()> {
@@ -84,7 +85,7 @@ fn test_switch_manual_int_else() -> KResult<()> {
 
     assert_eq!(r.opcodes().len(), 4);
     assert_eq!(*r.opcodes()[0].code(), 83);
-    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "\"foo\"");
+    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "foo");
     assert_eq!(*r.opcodes()[1].code(), 88);
     assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.filler(), 66);
     assert_eq!(*r.opcodes()[2].code(), 89);

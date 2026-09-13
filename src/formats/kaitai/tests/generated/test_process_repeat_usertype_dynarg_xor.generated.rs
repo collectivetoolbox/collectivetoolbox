@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_repeat_usertype_dynarg_xor::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_repeat_usertype_dynarg_xor() -> KResult<()> {
@@ -82,10 +83,10 @@ fn test_process_repeat_usertype_dynarg_xor() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatUsertypeDynargXor> = ProcessRepeatUsertypeDynargXor::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.blocks()[0].a(), "0x8a3d_2572");
-    assert_eq!(*r.blocks()[1].a(), "0x0fb5_4d55");
+    assert_eq!(*r.blocks()[0].a(), 2319263090);
+    assert_eq!(*r.blocks()[1].a(), 263540053);
     assert_eq!(*r.blocks_b().dummy(), 209);
-    assert_eq!(*r.blocks_b().blocks_0_b(), 20);
-    assert_eq!(*r.blocks_b().blocks_1_b(), 91);
+    assert_eq!(*r.blocks_b().blocks_0_b()?, 20);
+    assert_eq!(*r.blocks_b().blocks_1_b()?, 91);
     Ok(())
 }

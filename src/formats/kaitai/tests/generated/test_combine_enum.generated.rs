@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::combine_enum::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_combine_enum() -> KResult<()> {

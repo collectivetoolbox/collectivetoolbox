@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_pad_term_empty::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_pad_term_empty() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_str_pad_term_empty() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrPadTermEmpty> = StrPadTermEmpty::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_pad(), "\"\"");
-    assert_eq!(*r.str_term(), "\"\"");
-    assert_eq!(*r.str_term_and_pad(), "\"\"");
-    assert_eq!(*r.str_term_include(), "\"@\"");
+    assert_eq!(*r.str_pad(), "");
+    assert_eq!(*r.str_term(), "");
+    assert_eq!(*r.str_term_and_pad(), "");
+    assert_eq!(*r.str_term_include(), "@");
     Ok(())
 }

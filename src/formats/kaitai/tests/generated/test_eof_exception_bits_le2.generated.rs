@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::eof_exception_bits_le2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_eof_exception_bits_le2() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_eof_exception_bits_le2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let res: KResult<OptRc<EofExceptionBitsLe2>> = EofExceptionBitsLe2::read_into(&_io, None, None);
     let err = res.expect_err("expected Err, but got Ok");
-    assert!(matches!(err, KError::Io(..) | KError::ValidationFailed(..)), "expected EOF/Io error, got: {:?}", err);
+    assert!(matches!(err, KError::Eof { .. } | KError::IoError { .. } | KError::ValidationFailed(..)), "expected EOF/Io error, got: {:?}", err);
     Ok(())
 }

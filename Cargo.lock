@@ -3025,6 +3025,7 @@ dependencies = [
  "kaitai",
  "serde",
  "serde_yaml",
+ "tracing",
  "unicode-segmentation",
  "walkdir",
 ]

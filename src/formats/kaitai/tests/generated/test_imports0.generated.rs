@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::imports0::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_imports0() -> KResult<()> {

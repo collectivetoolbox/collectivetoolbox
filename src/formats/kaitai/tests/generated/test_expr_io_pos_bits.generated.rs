@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_io_pos_bits::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_io_pos_bits() -> KResult<()> {
@@ -83,8 +84,8 @@ fn test_expr_io_pos_bits() -> KResult<()> {
     let r: OptRc<ExprIoPosBits> = ExprIoPosBits::read_into(&_io, None, None)?;
 
     assert_eq!(*r.foo(), 7);
-    assert_eq!(*r.bar(), "0b0_1100");
+    assert_eq!(*r.bar(), 12);
     assert_eq!(*r.baz(), true);
-    assert_eq!(*r.qux(), "0b011_1011");
+    assert_eq!(*r.qux(), 59);
     Ok(())
 }

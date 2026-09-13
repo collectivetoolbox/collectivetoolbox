@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::position_in_seq::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_position_in_seq() -> KResult<()> {

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::if_struct::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_if_struct() -> KResult<()> {
@@ -83,14 +84,14 @@ fn test_if_struct() -> KResult<()> {
     let r: OptRc<IfStruct> = IfStruct::read_into(&_io, None, None)?;
 
     assert_eq!(*r.op1().opcode(), 83);
-    assert_eq!(*r.op1().arg_tuple(), "null");
-    assert_eq!(*r.op1().arg_str().str(), "\"foo\"");
+    assert!(r.op1().arg_tuple().is_none());
+    assert_eq!(*r.op1().arg_str().str(), "foo");
     assert_eq!(*r.op2().opcode(), 84);
     assert_eq!(*r.op2().arg_tuple().num1(), 66);
     assert_eq!(*r.op2().arg_tuple().num2(), 67);
-    assert_eq!(*r.op2().arg_str(), "null");
+    assert!(r.op2().arg_str().is_none());
     assert_eq!(*r.op3().opcode(), 83);
-    assert_eq!(*r.op3().arg_tuple(), "null");
-    assert_eq!(*r.op3().arg_str().str(), "\"bar\"");
+    assert!(r.op3().arg_tuple().is_none());
+    assert_eq!(*r.op3().arg_str().str(), "bar");
     Ok(())
 }

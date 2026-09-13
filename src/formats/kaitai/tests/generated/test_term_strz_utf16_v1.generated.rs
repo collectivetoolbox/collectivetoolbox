@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::term_strz_utf16_v1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_term_strz_utf16_v1() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_term_strz_utf16_v1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TermStrzUtf16V1> = TermStrzUtf16V1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1(), "\"aȀb\"");
-    assert_eq!(*r.s2(), "\"cȀd\"");
+    assert_eq!(*r.s1(), "aȀb");
+    assert_eq!(*r.s2(), "cȀd");
     assert_eq!(*r.term(), 0);
-    assert_eq!(*r.s3(), "\"eȀf\\u0000\"");
+    assert_eq!(*r.s3(), "eȀf\0");
     Ok(())
 }

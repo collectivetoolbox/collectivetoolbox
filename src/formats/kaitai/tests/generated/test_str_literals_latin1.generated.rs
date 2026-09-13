@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_literals_latin1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_literals_latin1() -> KResult<()> {

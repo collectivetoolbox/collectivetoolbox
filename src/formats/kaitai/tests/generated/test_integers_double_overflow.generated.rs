@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::integers_double_overflow::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_integers_double_overflow() -> KResult<()> {
@@ -86,9 +87,9 @@ fn test_integers_double_overflow() -> KResult<()> {
     assert_eq!(*r.signed_safe_min_le(), -9007199254740991);
     assert_eq!(*r.signed_safe_max_be(), 9007199254740991);
     assert_eq!(*r.signed_safe_max_le(), 9007199254740991);
-    assert_eq!(*r.signed_unsafe_neg_be().to_s(), "\"-9007199254740993\"");
-    assert_eq!(*r.signed_unsafe_neg_le().to_s(), "\"-9007199254740993\"");
-    assert_eq!(*r.signed_unsafe_pos_be().to_s(), "\"9007199254740993\"");
-    assert_eq!(*r.signed_unsafe_pos_be().to_s(), "\"9007199254740993\"");
+    assert_eq!(r.signed_unsafe_neg_be().to_string(), "-9007199254740993");
+    assert_eq!(r.signed_unsafe_neg_le().to_string(), "-9007199254740993");
+    assert_eq!(r.signed_unsafe_pos_be().to_string(), "9007199254740993");
+    assert_eq!(r.signed_unsafe_pos_be().to_string(), "9007199254740993");
     Ok(())
 }

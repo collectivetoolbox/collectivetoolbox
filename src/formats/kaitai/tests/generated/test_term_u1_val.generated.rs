@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::term_u1_val::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_term_u1_val() -> KResult<()> {
@@ -83,6 +84,6 @@ fn test_term_u1_val() -> KResult<()> {
     let r: OptRc<TermU1Val> = TermU1Val::read_into(&_io, None, None)?;
 
     assert_eq!(*r.foo(), vec![0x0au8, 0x00u8, 0x53u8, 0x6fu8, 0x6du8, 0x65u8, 0x20u8, 0x41u8, 0x53u8, 0x43u8, 0x49u8, 0x49u8, 0x0fu8, 0x00u8]);
-    assert_eq!(*r.bar(), "\"こんに\"");
+    assert_eq!(*r.bar(), "こんに");
     Ok(())
 }

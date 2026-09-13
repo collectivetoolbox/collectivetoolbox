@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_unaligned_b32_le::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_unaligned_b32_le() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_bits_unaligned_b32_le() -> KResult<()> {
     let r: OptRc<BitsUnalignedB32Le> = BitsUnalignedB32Le::read_into(&_io, None, None)?;
 
     assert_eq!(*r.a(), false);
-    assert_eq!(*r.b(), "0b0_00010100_10100011_10111011_1110110");
-    assert_eq!(*r.c(), "0b1000_101");
+    assert_eq!(*r.b(), 173137398);
+    assert_eq!(*r.c(), 69);
     Ok(())
 }

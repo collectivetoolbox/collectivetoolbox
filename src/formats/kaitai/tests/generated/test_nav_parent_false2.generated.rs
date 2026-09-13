@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nav_parent_false2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nav_parent_false2() -> KResult<()> {

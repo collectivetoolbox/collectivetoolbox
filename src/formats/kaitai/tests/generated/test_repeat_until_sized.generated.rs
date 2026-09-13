@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_until_sized::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_until_sized() -> KResult<()> {
@@ -84,10 +85,10 @@ fn test_repeat_until_sized() -> KResult<()> {
 
     assert_eq!(r.records().len(), 3);
     assert_eq!(*r.records()[0].marker(), 232);
-    assert_eq!(*r.records()[0].body(), 2863311546);
+    assert_eq!(r.records()[0].body(), 2863311546);
     assert_eq!(*r.records()[1].marker(), 250);
-    assert_eq!(*r.records()[1].body(), 2863315102);
+    assert_eq!(r.records()[1].body(), 2863315102);
     assert_eq!(*r.records()[2].marker(), 170);
-    assert_eq!(*r.records()[2].body(), 1431655765);
+    assert_eq!(r.records()[2].body(), 1431655765);
     Ok(())
 }

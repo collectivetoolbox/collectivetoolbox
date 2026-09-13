@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_calc_array_ops::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_calc_array_ops() -> KResult<()> {
@@ -89,16 +90,16 @@ fn test_expr_calc_array_ops() -> KResult<()> {
     assert_eq!(*r.int_array_min()?, 10);
     assert_eq!(*r.int_array_max()?, 1000);
     assert_eq!(*r.double_array_size()?, 5);
-    assert_eq!(*r.double_array_first()?, 10);
-    assert_eq!(*r.double_array_mid()?, 25);
+    assert_eq!(*r.double_array_first()?, 10.0);
+    assert_eq!(*r.double_array_mid()?, 25.0);
     assert_eq!(*r.double_array_last()?, 3.14159);
     assert_eq!(*r.double_array_min()?, 3.14159);
-    assert_eq!(*r.double_array_max()?, 100);
+    assert_eq!(*r.double_array_max()?, 100.0);
     assert_eq!(*r.str_array_size()?, 4);
-    assert_eq!(*r.str_array_first()?, "\"un\"");
-    assert_eq!(*r.str_array_mid()?, "\"deux\"");
-    assert_eq!(*r.str_array_last()?, "\"quatre\"");
-    assert_eq!(*r.str_array_min()?, "\"deux\"");
-    assert_eq!(*r.str_array_max()?, "\"un\"");
+    assert_eq!(*r.str_array_first()?, "un");
+    assert_eq!(*r.str_array_mid()?, "deux");
+    assert_eq!(*r.str_array_last()?, "quatre");
+    assert_eq!(*r.str_array_min()?, "deux");
+    assert_eq!(*r.str_array_max()?, "un");
     Ok(())
 }

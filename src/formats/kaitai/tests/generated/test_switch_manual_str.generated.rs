@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_str::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_str() -> KResult<()> {
@@ -83,13 +84,13 @@ fn test_switch_manual_str() -> KResult<()> {
     let r: OptRc<SwitchManualStr> = SwitchManualStr::read_into(&_io, None, None)?;
 
     assert_eq!(r.opcodes().len(), 4);
-    assert_eq!(*r.opcodes()[0].code(), "\"S\"");
-    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "\"foobar\"");
-    assert_eq!(*r.opcodes()[1].code(), "\"I\"");
+    assert_eq!(*r.opcodes()[0].code(), "S");
+    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "foobar");
+    assert_eq!(*r.opcodes()[1].code(), "I");
     assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.value(), 66);
-    assert_eq!(*r.opcodes()[2].code(), "\"I\"");
+    assert_eq!(*r.opcodes()[2].code(), "I");
     assert_eq!(*r.opcodes()[2].body().as_ref().context("Missing optional field")?.value(), 55);
-    assert_eq!(*r.opcodes()[3].code(), "\"S\"");
-    assert_eq!(*r.opcodes()[3].body().as_ref().context("Missing optional field")?.value(), "\"\"");
+    assert_eq!(*r.opcodes()[3].code(), "S");
+    assert_eq!(*r.opcodes()[3].body().as_ref().context("Missing optional field")?.value(), "");
     Ok(())
 }

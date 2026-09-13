@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_integers::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_integers() -> KResult<()> {
@@ -84,12 +85,12 @@ fn test_switch_integers() -> KResult<()> {
 
     assert_eq!(r.opcodes().len(), 4);
     assert_eq!(*r.opcodes()[0].code(), 1);
-    assert_eq!(*r.opcodes()[0].body(), 7);
+    assert_eq!(r.opcodes()[0].body(), 7);
     assert_eq!(*r.opcodes()[1].code(), 2);
-    assert_eq!(*r.opcodes()[1].body(), 16448);
+    assert_eq!(r.opcodes()[1].body(), 16448);
     assert_eq!(*r.opcodes()[2].code(), 4);
-    assert_eq!(*r.opcodes()[2].body(), 4919);
+    assert_eq!(r.opcodes()[2].body(), 4919);
     assert_eq!(*r.opcodes()[3].code(), 8);
-    assert_eq!(*r.opcodes()[3].body(), 4919);
+    assert_eq!(r.opcodes()[3].body(), 4919);
     Ok(())
 }

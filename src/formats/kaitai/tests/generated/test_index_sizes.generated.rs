@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::index_sizes::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_index_sizes() -> KResult<()> {
@@ -83,11 +84,11 @@ fn test_index_sizes() -> KResult<()> {
     let r: OptRc<IndexSizes> = IndexSizes::read_into(&_io, None, None)?;
 
     assert_eq!(*r.qty(), 3);
-    assert_eq!(*r.sizes()[0], 1);
-    assert_eq!(*r.sizes()[1], 8);
-    assert_eq!(*r.sizes()[2], 4);
-    assert_eq!(*r.bufs()[0], "\"A\"");
-    assert_eq!(*r.bufs()[1], "\"BBBBBBBB\"");
-    assert_eq!(*r.bufs()[2], "\"CCCC\"");
+    assert_eq!(r.sizes()[0], 1);
+    assert_eq!(r.sizes()[1], 8);
+    assert_eq!(r.sizes()[2], 4);
+    assert_eq!(r.bufs()[0], "A");
+    assert_eq!(r.bufs()[1], "BBBBBBBB");
+    assert_eq!(r.bufs()[2], "CCCC");
     Ok(())
 }

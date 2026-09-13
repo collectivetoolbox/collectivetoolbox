@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::default_bit_endian_mod::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_default_bit_endian_mod() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_default_bit_endian_mod() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DefaultBitEndianMod> = DefaultBitEndianMod::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.main().one(), "0b1_01010000");
-    assert_eq!(*r.main().two(), "0b01000011_0100000");
-    assert_eq!(*r.main().nest().two(), "0x2d_4b");
-    assert_eq!(*r.main().nest_be().two(), "0x31_ff");
+    assert_eq!(*r.main().one(), 336);
+    assert_eq!(*r.main().two(), 8608);
+    assert_eq!(*r.main().nest().two(), 11595);
+    assert_eq!(*r.main().nest_be().two(), 12799);
     Ok(())
 }

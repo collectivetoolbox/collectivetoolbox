@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_n_bytes_pad_term::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_n_bytes_pad_term() -> KResult<()> {
@@ -83,8 +84,8 @@ fn test_repeat_n_bytes_pad_term() -> KResult<()> {
     let r: OptRc<RepeatNBytesPadTerm> = RepeatNBytesPadTerm::read_into(&_io, None, None)?;
 
     assert_eq!(r.records().len(), 3);
-    assert_eq!(*r.records()[0], vec![0xe8u8, 0xbau8]);
-    assert_eq!(*r.records()[1], vec![0xfau8, 0x9eu8, 0xb8u8]);
-    assert_eq!(*r.records()[2], vec![0xaau8, 0x55u8]);
+    assert_eq!(r.records()[0], vec![0xe8u8, 0xbau8]);
+    assert_eq!(r.records()[1], vec![0xfau8, 0x9eu8, 0xb8u8]);
+    assert_eq!(r.records()[2], vec![0xaau8, 0x55u8]);
     Ok(())
 }

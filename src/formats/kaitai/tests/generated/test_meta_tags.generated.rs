@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::meta_tags::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_meta_tags() -> KResult<()> {

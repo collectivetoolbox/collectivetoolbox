@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_str_ops::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_str_ops() -> KResult<()> {
@@ -82,19 +83,19 @@ fn test_expr_str_ops() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprStrOps> = ExprStrOps::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), "\"foo|b\"");
+    assert_eq!(*r.one(), "foo|b");
     assert_eq!(*r.one_len()?, 5);
-    assert_eq!(*r.one_rev()?, "\"b|oof\"");
-    assert_eq!(*r.one_substr_0_to_3()?, "\"foo\"");
-    assert_eq!(*r.one_substr_2_to_5()?, "\"o|b\"");
-    assert_eq!(*r.one_substr_3_to_3()?, "\"\"");
-    assert_eq!(*r.one_substr_0_to_0()?, "\"\"");
-    assert_eq!(*r.two()?, "\"0123456789\"");
+    assert_eq!(*r.one_rev()?, "b|oof");
+    assert_eq!(*r.one_substr_0_to_3()?, "foo");
+    assert_eq!(*r.one_substr_2_to_5()?, "o|b");
+    assert_eq!(*r.one_substr_3_to_3()?, "");
+    assert_eq!(*r.one_substr_0_to_0()?, "");
+    assert_eq!(*r.two()?, "0123456789");
     assert_eq!(*r.two_len()?, 10);
-    assert_eq!(*r.two_rev()?, "\"9876543210\"");
-    assert_eq!(*r.two_substr_0_to_7()?, "\"0123456\"");
-    assert_eq!(*r.two_substr_4_to_10()?, "\"456789\"");
-    assert_eq!(*r.two_substr_0_to_10()?, "\"0123456789\"");
+    assert_eq!(*r.two_rev()?, "9876543210");
+    assert_eq!(*r.two_substr_0_to_7()?, "0123456");
+    assert_eq!(*r.two_substr_4_to_10()?, "456789");
+    assert_eq!(*r.two_substr_0_to_10()?, "0123456789");
     assert_eq!(*r.to_i_attr()?, 9173);
     assert_eq!(*r.to_i_r10()?, -72);
     assert_eq!(*r.to_i_r2()?, 86);

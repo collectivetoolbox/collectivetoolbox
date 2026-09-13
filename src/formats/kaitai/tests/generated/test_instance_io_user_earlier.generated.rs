@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_io_user_earlier::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_io_user_earlier() -> KResult<()> {
@@ -83,18 +84,18 @@ fn test_instance_io_user_earlier() -> KResult<()> {
     let r: OptRc<InstanceIoUserEarlier> = InstanceIoUserEarlier::read_into(&_io, None, None)?;
 
     assert_eq!(*r.sized_a().content(), 83);
-    assert_eq!(*r.into_a().inst().content(), 102);
-    assert_eq!(*r.a_mid()?, "0x6f_6f");
-    assert_eq!(*r.into_a().inst().last(), 0);
-    assert_eq!(*r.sized_a().last(), 88);
+    assert_eq!(*r.into_a().inst()?.content(), 102);
+    assert_eq!(*r.a_mid()?, 28527);
+    assert_eq!(*r.into_a().inst()?.last()?, 0);
+    assert_eq!(*r.sized_a().last()?, 88);
     assert_eq!(*r.sized_b().content(), 66);
-    assert_eq!(*r.into_b().inst().content(), 0);
-    assert_eq!(*r.b_mid()?, "0x00_00");
-    assert_eq!(*r.into_b().inst().last(), 89);
-    assert_eq!(*r.sized_b().last(), 254);
+    assert_eq!(*r.into_b().inst()?.content(), 0);
+    assert_eq!(*r.b_mid()?, 0);
+    assert_eq!(*r.into_b().inst()?.last()?, 89);
+    assert_eq!(*r.sized_b().last()?, 254);
     assert_eq!(*r.into_b().indicator(), 202);
     assert_eq!(*r.into_a_skipped().indicator(), 0);
-    assert_eq!(r.into_a_skipped().inst()._io().len(), 0);
+    assert_eq!(r.into_a_skipped().inst()?._io().len(), 0);
     assert_eq!(*r.into_a().indicator(), 0);
     assert_eq!(*r.into_a().bar(), 73);
     assert_eq!(*r.last_accessor().v(), 7);

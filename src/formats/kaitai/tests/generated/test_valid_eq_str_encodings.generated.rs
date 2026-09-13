@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::valid_eq_str_encodings::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_valid_eq_str_encodings() -> KResult<()> {

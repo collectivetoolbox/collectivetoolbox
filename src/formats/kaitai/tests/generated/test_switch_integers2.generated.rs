@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_integers2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_integers2() -> KResult<()> {
@@ -86,6 +87,6 @@ fn test_switch_integers2() -> KResult<()> {
     assert_eq!(*r.len(), 7);
     assert_eq!(*r.ham(), vec![0x02u8, 0x40u8, 0x40u8, 0x04u8, 0x37u8, 0x13u8, 0x00u8]);
     assert_eq!(*r.padding(), 0);
-    assert_eq!(*r.len_mod_str()?, "\"13\"");
+    assert_eq!(*r.len_mod_str()?, "13");
     Ok(())
 }

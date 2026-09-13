@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::cast_nested::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_cast_nested() -> KResult<()> {
@@ -82,8 +83,8 @@ fn test_cast_nested() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CastNested> = CastNested::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.opcodes_0_str()?.value(), "\"foobar\"");
-    assert_eq!(*r.opcodes_0_str_value()?, "\"foobar\"");
+    assert_eq!(*r.opcodes_0_str()?.value(), "foobar");
+    assert_eq!(*r.opcodes_0_str_value()?, "foobar");
     assert_eq!(*r.opcodes_1_int()?.value(), 66);
     assert_eq!(*r.opcodes_1_int_value()?, 66);
     Ok(())

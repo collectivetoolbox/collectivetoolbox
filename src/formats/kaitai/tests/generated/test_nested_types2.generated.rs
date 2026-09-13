@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nested_types2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nested_types2() -> KResult<()> {

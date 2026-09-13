@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_if_int_ops::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_if_int_ops() -> KResult<()> {

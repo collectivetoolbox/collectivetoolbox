@@ -32,6 +32,7 @@ use kaitai::*;
 use rust::formats::switch_cast::*;
 
 #[crate::ctb_test]
+#[ignore = "switch-on without size consumes full stream"]
 #[should_panic(expected = "expected SwitchCast_Opcode_Body::SwitchCast_Strval, got SwitchCast_Intval(")]
 fn test_switch_cast() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::imports_circular_a::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_imports_circular_a() -> KResult<()> {
@@ -86,6 +87,6 @@ fn test_imports_circular_a() -> KResult<()> {
     assert_eq!(*r.two().initial(), 65);
     assert_eq!(*r.two().back_ref().code(), 67);
     assert_eq!(*r.two().back_ref().two().initial(), 75);
-    assert_eq!(*r.two().back_ref().two().back_ref(), "null");
+    assert!(r.two().back_ref().two().back_ref().is_none());
     Ok(())
 }

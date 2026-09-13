@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_eos_bits_b4::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_eos_bits_b4() -> KResult<()> {
@@ -83,9 +84,9 @@ fn test_repeat_eos_bits_b4() -> KResult<()> {
     let r: OptRc<RepeatEosBitsB4> = RepeatEosBitsB4::read_into(&_io, None, None)?;
 
     assert_eq!(r.nibbles().len(), 4);
-    assert_eq!(*r.nibbles()[0], 15);
-    assert_eq!(*r.nibbles()[1], 15);
-    assert_eq!(*r.nibbles()[2], 0);
-    assert_eq!(*r.nibbles()[3], 1);
+    assert_eq!(r.nibbles()[0], 15);
+    assert_eq!(r.nibbles()[1], 15);
+    assert_eq!(r.nibbles()[2], 0);
+    assert_eq!(r.nibbles()[3], 1);
     Ok(())
 }

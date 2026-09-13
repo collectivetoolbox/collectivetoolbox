@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::debug_array_user_eof_exception::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_debug_array_user_eof_exception() -> KResult<()> {

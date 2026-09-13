@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_int_range_s::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_int_range_s() -> KResult<()> {

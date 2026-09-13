@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::term_bytes2::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_term_bytes2() -> KResult<()> {

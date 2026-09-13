@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::docstrings_docref_multi::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_docstrings_docref_multi() -> KResult<()> {

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_byte_aligned::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_byte_aligned() -> KResult<()> {
@@ -87,11 +88,11 @@ fn test_bits_byte_aligned() -> KResult<()> {
     assert_eq!(*r.two(), 2);
     assert_eq!(*r.three(), false);
     assert_eq!(*r.byte_2(), vec![0x4bu8]);
-    assert_eq!(*r.four(), "0b00101101_001100");
-    assert_eq!(*r.byte_3().inner(), "0b11111111_11111111_010");
+    assert_eq!(*r.four(), 2892);
+    assert_eq!(*r.byte_3().inner(), 524282);
     assert_eq!(*r.full_byte(), 65);
     assert_eq!(*r.byte_4(), 67);
-    assert_eq!(*r.five(), "0b01001011_00101101_010101");
+    assert_eq!(*r.five(), 1231701);
     assert_eq!(*r.bytes_term(), vec![0x2du8, 0x44u8, 0x45u8]);
     assert_eq!(*r.six(), 70);
     Ok(())

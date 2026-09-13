@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::enum_to_i_invalid::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_enum_to_i_invalid() -> KResult<()> {
@@ -85,7 +86,7 @@ fn test_enum_to_i_invalid() -> KResult<()> {
     assert_eq!(*r.pet_1(), EnumToIInvalid_Animal::Dog);
     assert_eq!(*r.pet_2(), 111);
     assert_eq!(*r.pet_2_i()?, 111);
-    assert_eq!(*r.pet_2_i_to_s()?, "\"111\"");
+    assert_eq!(*r.pet_2_i_to_s()?, "111");
     assert_eq!(*r.pet_2_mod()?, 32879);
     assert_eq!(*r.one_lt_two()?, true);
     assert_eq!(*r.pet_2_eq_int_t()?, true);

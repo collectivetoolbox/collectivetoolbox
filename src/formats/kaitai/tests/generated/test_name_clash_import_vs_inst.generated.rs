@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::name_clash_import_vs_inst::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_name_clash_import_vs_inst() -> KResult<()> {

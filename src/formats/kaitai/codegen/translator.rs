@@ -167,7 +167,15 @@ fn is_switch_type(expr: &Expr, ctx: &TranslationContext<'_>) -> bool {
 #[must_use]
 pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
     match expr {
-        Expr::IntNum(n) => n.to_string(),
+        Expr::IntNum(n) => {
+            if *n >= i128::from(i32::MIN) && *n <= i128::from(i32::MAX) {
+                n.to_string()
+            } else if *n >= i128::from(i64::MIN) && *n <= i128::from(i64::MAX) {
+                format!("{n}_i64")
+            } else {
+                format!("{n}_i128")
+            }
+        }
         Expr::FloatNum(f) => {
             let s = f.to_string();
             if s.contains('.') {
@@ -1097,6 +1105,13 @@ fn translate_bin_op(
             return format!("modulo({l_w}, {r_w})");
         }
 
+        if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::Div {
+            let i64_dt = DataType::IntMulti { signed: true, width: 8, endian: None };
+            let l_w = widen_expr(left, &l, Some(t1), &i64_dt, ctx);
+            let r_w = widen_expr(right, &r, Some(t2), &i64_dt, ctx);
+            return format!("div_floor({l_w}, {r_w})?");
+        }
+
         if is_numeric_type(t1) && is_numeric_type(t2) {
             let combined = combine_types(t1, t2);
             let l_w = widen_expr(left, &l, Some(t1), &combined, ctx);
@@ -1127,7 +1142,15 @@ fn translate_bin_op(
         Operator::Add => format!("({l_w}).saturating_add({r_w})"),
         Operator::Sub => format!("({l_w}).saturating_sub({r_w})"),
         Operator::Mult => format!("({l_w}).saturating_mul({r_w})"),
-        Operator::Div => format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"),
+        Operator::Div => {
+            let is_l_neg = matches!(left, Expr::IntNum(n) if *n < 0);
+            let is_r_neg = matches!(right, Expr::IntNum(n) if *n < 0);
+            if is_l_neg || is_r_neg {
+                format!("div_floor(i64::from({l_w}), i64::from({r_w}))?")
+            } else {
+                format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?")
+            }
+        }
         Operator::Mod => format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"),
         Operator::BitAnd => format!("(({l_w}) & ({r_w}))"),
         Operator::BitOr => format!("(({l_w}) | ({r_w}))"),

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_eos_pad_term_equal::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_eos_pad_term_equal() -> KResult<()> {
@@ -82,9 +83,9 @@ fn test_str_eos_pad_term_equal() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEosPadTermEqual> = StrEosPadTermEqual::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1().value(), "\"str1\"");
-    assert_eq!(*r.s2().value(), "\"str2foo@\"");
-    assert_eq!(*r.s3().value(), "\"str\"");
-    assert_eq!(*r.s4().value(), "\"str4baz@.\"");
+    assert_eq!(*r.s1().value(), "str1");
+    assert_eq!(*r.s2().value(), "str2foo@");
+    assert_eq!(*r.s3().value(), "str");
+    assert_eq!(*r.s4().value(), "str4baz@.");
     Ok(())
 }

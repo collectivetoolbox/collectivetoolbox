@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_xor_value::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_xor_value() -> KResult<()> {

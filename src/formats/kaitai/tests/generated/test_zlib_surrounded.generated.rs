@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::zlib_surrounded::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_zlib_surrounded() -> KResult<()> {

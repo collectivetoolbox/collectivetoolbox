@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::bits_signed_res_b32_be::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_bits_signed_res_b32_be() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_bits_signed_res_b32_be() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsSignedResB32Be> = BitsSignedResB32Be::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.a(), "0xffff_ffff");
+    assert_eq!(*r.a(), 4294967295);
     Ok(())
 }

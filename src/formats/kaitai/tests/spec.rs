@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Test harness module wrapper"
 )]
 
-use ctb_utilities::*;
+pub use ctb_utilities::*;
 extern crate ctb_formats_kaitai as rust;
 extern crate kaitai;
 

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_eos_u4::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_eos_u4() -> KResult<()> {
@@ -83,9 +84,9 @@ fn test_repeat_eos_u4() -> KResult<()> {
     let r: OptRc<RepeatEosU4> = RepeatEosU4::read_into(&_io, None, None)?;
 
     assert_eq!(r.numbers().len(), 4);
-    assert_eq!(*r.numbers()[0], 0);
-    assert_eq!(*r.numbers()[1], 66);
-    assert_eq!(*r.numbers()[2], 66);
-    assert_eq!(*r.numbers()[3], 2069);
+    assert_eq!(r.numbers()[0], 0);
+    assert_eq!(r.numbers()[1], 66);
+    assert_eq!(r.numbers()[2], 66);
+    assert_eq!(r.numbers()[3], 2069);
     Ok(())
 }

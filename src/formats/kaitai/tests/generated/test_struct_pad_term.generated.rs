@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::struct_pad_term::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_struct_pad_term() -> KResult<()> {

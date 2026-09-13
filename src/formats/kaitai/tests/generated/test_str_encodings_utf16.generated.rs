@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_encodings_utf16::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_encodings_utf16() -> KResult<()> {
@@ -84,9 +85,9 @@ fn test_str_encodings_utf16() -> KResult<()> {
 
     assert_eq!(*r.len_be(), 12);
     assert_eq!(*r.be_bom_removed().bom(), 65279);
-    assert_eq!(*r.be_bom_removed().str(), "\"こんにちは\"");
+    assert_eq!(*r.be_bom_removed().str(), "こんにちは");
     assert_eq!(*r.len_le(), 12);
     assert_eq!(*r.le_bom_removed().bom(), 65279);
-    assert_eq!(*r.le_bom_removed().str(), "\"こんにちは\"");
+    assert_eq!(*r.le_bom_removed().str(), "こんにちは");
     Ok(())
 }

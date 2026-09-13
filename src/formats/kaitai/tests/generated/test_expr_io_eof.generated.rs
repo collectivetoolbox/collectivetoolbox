@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_io_eof::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_io_eof() -> KResult<()> {
@@ -83,7 +84,7 @@ fn test_expr_io_eof() -> KResult<()> {
     let r: OptRc<ExprIoEof> = ExprIoEof::read_into(&_io, None, None)?;
 
     assert_eq!(*r.substream1().one(), 1262698832);
-    assert_eq!(*r.substream1().two(), "null");
+    assert!(r.substream1().two().is_none());
     assert_eq!(*r.substream2().one(), 4294914349);
     assert_eq!(*r.substream2().two(), 1262698832);
     Ok(())

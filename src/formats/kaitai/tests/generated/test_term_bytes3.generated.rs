@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::term_bytes3::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_term_bytes3() -> KResult<()> {
@@ -84,6 +85,6 @@ fn test_term_bytes3() -> KResult<()> {
 
     assert_eq!(*r.s1(), vec![0x66u8, 0x6fu8, 0x6fu8]);
     assert_eq!(*r.s2(), vec![0x7cu8, 0x62u8, 0x61u8, 0x72u8, 0x7cu8, 0x62u8, 0x61u8, 0x7au8]);
-    assert_eq!(*r.s3(), "[].as<bytes>");
+    assert_eq!(*r.s3(), Vec::<u8>::new());
     Ok(())
 }

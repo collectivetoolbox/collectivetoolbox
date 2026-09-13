@@ -244,69 +244,201 @@ pub fn transform_test_content(src_name: &str, content: &str) -> Result<String> {
     Ok(out)
 }
 
+fn find_child_type<'a>(k: &'a KsyFile, field: &str) -> Option<&'a KsyFile> {
+    if let Some(child) = k.types.get(field) {
+        return Some(child);
+    }
+    if let Some(attr) = k.seq.iter().find(|a| a.id.as_deref() == Some(field)) {
+        if let Some(crate::spec::TypeSpec::Simple(tname)) = &attr.type_spec {
+            if let Some(child) = k.types.get(tname) {
+                return Some(child);
+            }
+        }
+    }
+    if let Some(inst) = k.instances.get(field) {
+        if let Some(crate::spec::TypeSpec::Simple(tname)) = &inst.type_spec {
+            if let Some(child) = k.types.get(tname) {
+                return Some(child);
+            }
+        }
+    }
+    None
+}
+
+fn is_instance_field(k: Option<&KsyFile>, field: &str, root_ksy: Option<&KsyFile>) -> bool {
+    if let Some(curr) = k {
+        if curr.instances.contains_key(field) {
+            return true;
+        }
+    }
+    if let Some(root) = root_ksy {
+        if root.instances.contains_key(field) {
+            return true;
+        }
+        for sub in root.types.values() {
+            if sub.instances.contains_key(field) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Formats a `.kst` expected value into a Rust expression string.
 #[must_use]
 pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) -> String {
     match expected {
+        serde_yaml::Value::Null => "None".to_string(),
         serde_yaml::Value::Bool(b) => b.to_string(),
         serde_yaml::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
+            if n.is_f64() {
+                if let Some(f) = n.as_f64() {
+                    if f.fract() == 0.0 {
+                        format!("{f:.1}")
+                    } else {
+                        format!("{f}")
+                    }
+                } else {
+                    format!("{n}")
+                }
+            } else if let Some(i) = n.as_i64() {
                 format!("{i}")
             } else if let Some(u) = n.as_u64() {
                 format!("{u}")
-            } else if let Some(f) = n.as_f64() {
-                format!("{f}")
             } else {
                 format!("{n}")
             }
         }
         serde_yaml::Value::String(s) => {
-            let trimmed = s.trim();
-            if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let mut trimmed = s.trim();
+            if trimmed == "[].as<bytes>" {
+                return "Vec::<u8>::new()".to_string();
+            }
+            if let Some(without_bytes) = trimmed.strip_suffix(".as<bytes>") {
+                trimmed = without_bytes.trim();
+            }
+            if trimmed.ends_with(".as<f4>") {
+                let num = trimmed.strip_suffix(".as<f4>").unwrap_or(trimmed);
+                return format!("{num}_f32");
+            }
+            if trimmed.ends_with(".as<f8>") {
+                let num = trimmed.strip_suffix(".as<f8>").unwrap_or(trimmed);
+                return format!("{num}_f64");
+            }
+
+            if trimmed == "null" {
+                "None".to_string()
+            } else if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+                let clean = trimmed.replace('_', "");
+                if let Ok(val) = u128::from_str_radix(&clean[2..], 16) {
+                    if val > u128::from(u64::MAX) {
+                        format!("{val}_u128")
+                    } else if val > u128::from(u32::MAX) {
+                        format!("{val}_u64")
+                    } else {
+                        format!("{val}")
+                    }
+                } else {
+                    trimmed.to_string()
+                }
+            } else if trimmed.starts_with("-0x") || trimmed.starts_with("-0X") {
+                let clean = trimmed.replace('_', "");
+                if let Ok(val) = i128::from_str_radix(&clean[3..], 16) {
+                    format!("-{val}")
+                } else {
+                    trimmed.to_string()
+                }
+            } else if trimmed.starts_with("0b") || trimmed.starts_with("0B") {
+                let clean = trimmed.replace('_', "");
+                if let Ok(val) = u128::from_str_radix(&clean[2..], 2) {
+                    if val > u128::from(u64::MAX) {
+                        format!("{val}_u128")
+                    } else if val > u128::from(u32::MAX) {
+                        format!("{val}_u64")
+                    } else {
+                        format!("{val}")
+                    }
+                } else {
+                    trimmed.to_string()
+                }
+            } else if trimmed.starts_with("0o") || trimmed.starts_with("0O") {
+                let clean = trimmed.replace('_', "");
+                if let Ok(val) = u128::from_str_radix(&clean[2..], 8) {
+                    format!("{val}")
+                } else {
+                    trimmed.to_string()
+                }
+            } else if trimmed == "-0" {
+                "0".to_string()
+            } else if trimmed == "-0.0" {
+                "-0.0_f64".to_string()
+            } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
                 let inner = trimmed
                     .strip_prefix('[')
                     .and_then(|str_val| str_val.strip_suffix(']'))
                     // Reason for fallback: default to empty slice if inner array contents are missing
                     .unwrap_or("");
-                let items: Vec<String> = inner
-                    .split(',')
-                    .map(|item| {
-                        let item = item.trim();
-                        if item.starts_with("0x") || item.starts_with("0X") {
-                            format!("{item}u8")
-                        } else if let Ok(num) = item.parse::<u8>() {
-                            format!("{num}u8")
-                        } else {
-                            item.to_string()
-                        }
-                    })
-                    .collect();
-                format!("vec![{}]", items.join(", "))
+                if inner.trim().is_empty() {
+                    "Vec::<u8>::new()".to_string()
+                } else {
+                    let items: Vec<String> = inner
+                        .split(',')
+                        .map(|item| {
+                            let item = item.trim();
+                            if item.starts_with("0x") || item.starts_with("0X") {
+                                format!("{item}u8")
+                            } else if let Ok(num) = item.parse::<u8>() {
+                                format!("{num}u8")
+                            } else {
+                                item.to_string()
+                            }
+                        })
+                        .collect();
+                    format!("vec![{}]", items.join(", "))
+                }
+            } else if trimmed.contains('+')
+                && trimmed
+                    .chars()
+                    .all(|c| c.is_ascii_digit() || c == '+' || c.is_whitespace())
+            {
+                let sum: i64 = trimmed
+                    .split('+')
+                    .filter_map(|part| part.trim().parse::<i64>().ok())
+                    .fold(0i64, |acc, x| acc.saturating_add(x));
+                format!("{sum}")
             } else if s.contains("::") {
                 let parts: Vec<&str> = s.split("::").collect();
-                if let [p0, p1, p2] = parts.as_slice() {
-                    let fmt = to_upper_camel_case(p0);
-                    let enum_name = to_upper_camel_case(p1);
-                    let variant = to_upper_camel_case(p2);
-                    format!("{fmt}_{enum_name}::{variant}")
-                } else if let [p0, p1] = parts.as_slice() {
-                    let fmt = to_upper_camel_case(current_format);
-                    let enum_name = to_upper_camel_case(p0);
-                    let variant = to_upper_camel_case(p1);
-                    format!("{fmt}_{enum_name}::{variant}")
-                } else {
-                    s.clone()
+                let variant = to_upper_camel_case(parts.last().copied().unwrap_or(""));
+                let mut type_parts: Vec<&str> = parts[..parts.len().saturating_sub(1)].to_vec();
+                if type_parts.len() == 1 {
+                    type_parts.insert(0, current_format);
                 }
+                let type_name = type_parts
+                    .iter()
+                    .map(|p| to_upper_camel_case(p))
+                    .collect::<Vec<_>>()
+                    .join("_");
+                format!("{type_name}::{variant}")
+            } else if (trimmed.starts_with('"') && trimmed.ends_with('"'))
+                || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+            {
+                let unquoted = &trimmed[1..trimmed.len().saturating_sub(1)];
+                let rust_str = unquoted.replace("\\u0000", "\\0");
+                format!("\"{rust_str}\"")
             } else {
                 format!("{s:?}")
             }
         }
         serde_yaml::Value::Sequence(seq) => {
-            let items: Vec<String> = seq
-                .iter()
-                .map(|v| format_expected_expr(v, current_format))
-                .collect();
-            format!("vec![{}]", items.join(", "))
+            if seq.is_empty() {
+                "Vec::<u8>::new()".to_string()
+            } else {
+                let items: Vec<String> = seq
+                    .iter()
+                    .map(|v| format_expected_expr(v, current_format))
+                    .collect();
+                format!("vec![{}]", items.join(", "))
+            }
         }
         _ => format!("{expected:?}"),
     }
@@ -330,12 +462,14 @@ pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
             continue;
         }
 
+        if *part == "to_s" {
+            call_chain.push_str(".to_string()");
+            continue;
+        }
+
         if let Some((field_name, rest)) = part.split_once('[') {
             if let Some((index_str, _)) = rest.split_once(']') {
-                let is_inst = current_ksy
-                    .map(|k| k.instances.contains_key(field_name))
-                    // Reason for fallback: unknown attribute context defaults to sequence field access
-                    .unwrap_or(false);
+                let is_inst = is_instance_field(current_ksy, field_name, ksy);
 
                 if is_inst {
                     call_chain.push_str(&format!(".{field_name}()?[{index_str}]"));
@@ -344,9 +478,8 @@ pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
                 }
 
                 if let Some(k) = current_ksy {
-                    if let Some(child_file) = k.types.get(field_name) {
-                        current_ksy = Some(child_file);
-                    }
+                    current_ksy = find_child_type(k, field_name)
+                        .or_else(|| ksy.and_then(|r| find_child_type(r, field_name)));
                 }
                 continue;
             }
@@ -357,10 +490,7 @@ pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
             continue;
         }
 
-        let is_inst = current_ksy
-            .map(|k| k.instances.contains_key(*part))
-            // Reason for fallback: unknown attribute context defaults to sequence field access
-            .unwrap_or(false);
+        let is_inst = is_instance_field(current_ksy, part, ksy);
 
         if is_inst {
             call_chain.push_str(&format!(".{part}()?"));
@@ -369,13 +499,16 @@ pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
         }
 
         if let Some(k) = current_ksy {
-            if let Some(child_file) = k.types.get(*part) {
-                current_ksy = Some(child_file);
-            }
+            current_ksy = find_child_type(k, part)
+                .or_else(|| ksy.and_then(|r| find_child_type(r, part)));
         }
     }
 
-    if is_len {
+    let ends_with_index = call_chain.ends_with(']');
+    let is_body_value = actual.ends_with(".body") || actual == "body";
+    let is_to_string = call_chain.ends_with(".to_string()");
+
+    if is_len || ends_with_index || is_body_value || is_to_string {
         format!("r{call_chain}")
     } else {
         format!("*r{call_chain}")
@@ -422,7 +555,8 @@ pub fn synthesize_test_from_kst(
     out.push_str("use anyhow::Context;\n");
     out.push_str("use std::fs;\n");
     out.push_str("use kaitai::*;\n");
-    out.push_str(&format!("use rust::formats::{mod_name}::*;\n\n"));
+    out.push_str(&format!("use rust::formats::{mod_name}::*;\n"));
+    out.push_str("use rust::test_formats::*;\n\n");
 
     out.push_str("#[crate::ctb_test]\n");
     out.push_str(&format!("fn test_{mod_name}() -> KResult<()> {{\n"));
@@ -447,7 +581,7 @@ pub fn synthesize_test_from_kst(
         if exc_name.starts_with("Validation") {
             out.push_str("    assert!(matches!(err, KError::ValidationFailed(..)), \"expected validation error, got: {:?}\", err);\n");
         } else if exc_name.contains("EndOfStream") || exc_name.contains("Eof") || exc_name.contains("Eos") {
-            out.push_str("    assert!(matches!(err, KError::Io(..) | KError::ValidationFailed(..)), \"expected EOF/Io error, got: {:?}\", err);\n");
+            out.push_str("    assert!(matches!(err, KError::Eof { .. } | KError::IoError { .. } | KError::ValidationFailed(..)), \"expected EOF/Io error, got: {:?}\", err);\n");
         } else if exc_name.contains("UndecidedEndianness") {
             out.push_str("    assert!(matches!(err, KError::UndecidedEndianness { .. }), \"expected UndecidedEndianness error, got: {:?}\", err);\n");
         } else {
@@ -487,7 +621,12 @@ pub fn synthesize_test_from_kst(
             if let Some(expected_val) = &assert.expected {
                 let actual_expr = format_actual_expr(&actual_str, ksy.as_ref());
                 let expected_expr = format_expected_expr(expected_val, mod_name);
-                out.push_str(&format!("    assert_eq!({actual_expr}, {expected_expr});\n"));
+                if expected_expr == "None" {
+                    let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
+                    out.push_str(&format!("    assert!({actual}.is_none());\n"));
+                } else {
+                    out.push_str(&format!("    assert_eq!({actual_expr}, {expected_expr});\n"));
+                }
             }
         }
     }

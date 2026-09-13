@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::str_encodings_escaping_to_s::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_str_encodings_escaping_to_s() -> KResult<()> {

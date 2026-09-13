@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::combine_str::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_combine_str() -> KResult<()> {
@@ -82,20 +83,20 @@ fn test_combine_str() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CombineStr> = CombineStr::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_term(), "\"foo\"");
-    assert_eq!(*r.str_limit(), "\"bar|\"");
-    assert_eq!(*r.str_eos(), "\"baz@\"");
-    assert_eq!(*r.str_calc()?, "\"bar\"");
-    assert_eq!(*r.str_calc_bytes()?, "\"baz\"");
-    assert_eq!(*r.term_or_limit()?, "\"foo\"");
-    assert_eq!(*r.term_or_eos()?, "\"baz@\"");
-    assert_eq!(*r.term_or_calc()?, "\"foo\"");
-    assert_eq!(*r.term_or_calc_bytes()?, "\"baz\"");
-    assert_eq!(*r.limit_or_eos()?, "\"bar|\"");
-    assert_eq!(*r.limit_or_calc()?, "\"bar\"");
-    assert_eq!(*r.limit_or_calc_bytes()?, "\"bar|\"");
-    assert_eq!(*r.eos_or_calc()?, "\"bar\"");
-    assert_eq!(*r.eos_or_calc_bytes()?, "\"baz@\"");
-    assert_eq!(*r.calc_or_calc_bytes()?, "\"baz\"");
+    assert_eq!(*r.str_term(), "foo");
+    assert_eq!(*r.str_limit(), "bar|");
+    assert_eq!(*r.str_eos(), "baz@");
+    assert_eq!(*r.str_calc()?, "bar");
+    assert_eq!(*r.str_calc_bytes()?, "baz");
+    assert_eq!(*r.term_or_limit()?, "foo");
+    assert_eq!(*r.term_or_eos()?, "baz@");
+    assert_eq!(*r.term_or_calc()?, "foo");
+    assert_eq!(*r.term_or_calc_bytes()?, "baz");
+    assert_eq!(*r.limit_or_eos()?, "bar|");
+    assert_eq!(*r.limit_or_calc()?, "bar");
+    assert_eq!(*r.limit_or_calc_bytes()?, "bar|");
+    assert_eq!(*r.eos_or_calc()?, "bar");
+    assert_eq!(*r.eos_or_calc_bytes()?, "baz@");
+    assert_eq!(*r.calc_or_calc_bytes()?, "baz");
     Ok(())
 }

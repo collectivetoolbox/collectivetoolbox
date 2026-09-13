@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::position_to_end::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_position_to_end() -> KResult<()> {

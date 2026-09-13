@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::float_to_i::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_float_to_i() -> KResult<()> {

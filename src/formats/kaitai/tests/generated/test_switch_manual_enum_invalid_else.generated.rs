@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_enum_invalid_else::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_enum_invalid_else() -> KResult<()> {
@@ -85,7 +86,7 @@ fn test_switch_manual_enum_invalid_else() -> KResult<()> {
     assert_eq!(r.opcodes().len(), 2);
     assert_eq!(*r.opcodes()[0].code(), 255);
     assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), 123);
-    assert_eq!(*r.opcodes()[1].code(), switch_manual_enum_invalid_else::opcode::code_enum::foo);
+    assert_eq!(*r.opcodes()[1].code(), SwitchManualEnumInvalidElse_Opcode_CodeEnum::Foo);
     assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.value(), 123);
     Ok(())
 }

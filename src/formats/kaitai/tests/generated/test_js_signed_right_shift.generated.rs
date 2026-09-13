@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::js_signed_right_shift::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_js_signed_right_shift() -> KResult<()> {

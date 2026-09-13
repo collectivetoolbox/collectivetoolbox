@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_manual_enum_invalid::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_manual_enum_invalid() -> KResult<()> {
@@ -84,8 +85,8 @@ fn test_switch_manual_enum_invalid() -> KResult<()> {
 
     assert_eq!(r.opcodes().len(), 2);
     assert_eq!(*r.opcodes()[0].code(), 255);
-    assert_eq!(*r.opcodes()[0].body(), "null");
-    assert_eq!(*r.opcodes()[1].code(), switch_manual_enum_invalid::opcode::code_enum::foo);
-    assert_eq!(*r.opcodes()[1].body(), "null");
+    assert!(r.opcodes()[0].body().is_none());
+    assert_eq!(*r.opcodes()[1].code(), SwitchManualEnumInvalid_Opcode_CodeEnum::Foo);
+    assert!(r.opcodes()[1].body().is_none());
     Ok(())
 }

@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::io_local_var::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_io_local_var() -> KResult<()> {

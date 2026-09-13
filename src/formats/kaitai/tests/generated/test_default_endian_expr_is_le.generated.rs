@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::default_endian_expr_is_le::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_default_endian_expr_is_le() -> KResult<()> {

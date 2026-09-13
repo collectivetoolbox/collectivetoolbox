@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::default_endian_expr_is_be::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_default_endian_expr_is_be() -> KResult<()> {
@@ -86,19 +87,19 @@ fn test_default_endian_expr_is_be() -> KResult<()> {
     assert_eq!(*r.docs()[0].main().some_int(), 66);
     assert_eq!(*r.docs()[0].main().some_int_be(), 66);
     assert_eq!(*r.docs()[0].main().some_int_le(), 66);
-    assert_eq!(*r.docs()[0].main().inst_int(), 66);
-    assert_eq!(*r.docs()[0].main().inst_sub().foo(), 66);
+    assert_eq!(*r.docs()[0].main().inst_int()?, 66);
+    assert_eq!(*r.docs()[0].main().inst_sub()?.foo(), 66);
     assert_eq!(*r.docs()[1].indicator(), vec![0x4du8, 0x4du8]);
     assert_eq!(*r.docs()[1].main().some_int(), 66);
     assert_eq!(*r.docs()[1].main().some_int_be(), 66);
     assert_eq!(*r.docs()[1].main().some_int_le(), 66);
-    assert_eq!(*r.docs()[1].main().inst_int(), 1107296256);
-    assert_eq!(*r.docs()[1].main().inst_sub().foo(), 1107296256);
+    assert_eq!(*r.docs()[1].main().inst_int()?, 1107296256);
+    assert_eq!(*r.docs()[1].main().inst_sub()?.foo(), 1107296256);
     assert_eq!(*r.docs()[2].indicator(), vec![0x58u8, 0x58u8]);
     assert_eq!(*r.docs()[2].main().some_int(), 1107296256);
     assert_eq!(*r.docs()[2].main().some_int_be(), 66);
     assert_eq!(*r.docs()[2].main().some_int_le(), 66);
-    assert_eq!(*r.docs()[2].main().inst_int(), 66);
-    assert_eq!(*r.docs()[2].main().inst_sub().foo(), 66);
+    assert_eq!(*r.docs()[2].main().inst_int()?, 66);
+    assert_eq!(*r.docs()[2].main().inst_sub()?.foo(), 66);
     Ok(())
 }

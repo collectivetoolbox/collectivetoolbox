@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::zlib_with_header_78::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_zlib_with_header_78() -> KResult<()> {

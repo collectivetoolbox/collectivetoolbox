@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::if_values::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_if_values() -> KResult<()> {
@@ -83,10 +84,10 @@ fn test_if_values() -> KResult<()> {
     let r: OptRc<IfValues> = IfValues::read_into(&_io, None, None)?;
 
     assert_eq!(*r.codes()[0].opcode(), 80);
-    assert_eq!(*r.codes()[0].half_opcode(), 40);
+    assert_eq!(*r.codes()[0].half_opcode()?, 40);
     assert_eq!(*r.codes()[1].opcode(), 65);
-    assert_eq!(*r.codes()[1].half_opcode(), "null");
+    assert!(r.codes()[1].half_opcode()?.is_none());
     assert_eq!(*r.codes()[2].opcode(), 67);
-    assert_eq!(*r.codes()[2].half_opcode(), "null");
+    assert!(r.codes()[2].half_opcode()?.is_none());
     Ok(())
 }

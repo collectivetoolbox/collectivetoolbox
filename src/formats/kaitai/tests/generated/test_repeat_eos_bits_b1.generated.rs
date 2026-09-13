@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_eos_bits_b1::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_eos_bits_b1() -> KResult<()> {
@@ -83,21 +84,21 @@ fn test_repeat_eos_bits_b1() -> KResult<()> {
     let r: OptRc<RepeatEosBitsB1> = RepeatEosBitsB1::read_into(&_io, None, None)?;
 
     assert_eq!(r.bits().len(), 16);
-    assert_eq!(*r.bits()[0], true);
-    assert_eq!(*r.bits()[1], true);
-    assert_eq!(*r.bits()[2], true);
-    assert_eq!(*r.bits()[3], true);
-    assert_eq!(*r.bits()[4], true);
-    assert_eq!(*r.bits()[5], true);
-    assert_eq!(*r.bits()[6], true);
-    assert_eq!(*r.bits()[7], true);
-    assert_eq!(*r.bits()[8], false);
-    assert_eq!(*r.bits()[9], false);
-    assert_eq!(*r.bits()[10], false);
-    assert_eq!(*r.bits()[11], false);
-    assert_eq!(*r.bits()[12], false);
-    assert_eq!(*r.bits()[13], false);
-    assert_eq!(*r.bits()[14], false);
-    assert_eq!(*r.bits()[15], true);
+    assert_eq!(r.bits()[0], true);
+    assert_eq!(r.bits()[1], true);
+    assert_eq!(r.bits()[2], true);
+    assert_eq!(r.bits()[3], true);
+    assert_eq!(r.bits()[4], true);
+    assert_eq!(r.bits()[5], true);
+    assert_eq!(r.bits()[6], true);
+    assert_eq!(r.bits()[7], true);
+    assert_eq!(r.bits()[8], false);
+    assert_eq!(r.bits()[9], false);
+    assert_eq!(r.bits()[10], false);
+    assert_eq!(r.bits()[11], false);
+    assert_eq!(r.bits()[12], false);
+    assert_eq!(r.bits()[13], false);
+    assert_eq!(r.bits()[14], false);
+    assert_eq!(r.bits()[15], true);
     Ok(())
 }

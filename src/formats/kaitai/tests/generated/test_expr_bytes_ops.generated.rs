@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::expr_bytes_ops::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_expr_bytes_ops() -> KResult<()> {
@@ -86,17 +87,17 @@ fn test_expr_bytes_ops() -> KResult<()> {
     assert_eq!(*r.one_first()?, 1);
     assert_eq!(*r.one_mid()?, 66);
     assert_eq!(*r.one_last()?, 255);
-    assert_eq!(*r.one_last()?.to_s(), "\"255\"");
+    assert_eq!(r.one_last()?.to_string(), "255");
     assert_eq!(*r.one_min()?, 1);
     assert_eq!(*r.one_max()?, 255);
-    assert_eq!(*r.one_max()?.to_s(), "\"255\"");
+    assert_eq!(r.one_max()?.to_string(), "255");
     assert_eq!(*r.two_size()?, 3);
     assert_eq!(*r.two_first()?, 65);
     assert_eq!(*r.two_mid()?, 255);
-    assert_eq!(*r.two_mid()?.to_s(), "\"255\"");
+    assert_eq!(r.two_mid()?.to_string(), "255");
     assert_eq!(*r.two_last()?, 75);
     assert_eq!(*r.two_min()?, 65);
     assert_eq!(*r.two_max()?, 255);
-    assert_eq!(*r.two_max()?.to_s(), "\"255\"");
+    assert_eq!(r.two_max()?.to_string(), "255");
     Ok(())
 }

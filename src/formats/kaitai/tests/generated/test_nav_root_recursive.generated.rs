@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::nav_root_recursive::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_nav_root_recursive() -> KResult<()> {
@@ -85,6 +86,6 @@ fn test_nav_root_recursive() -> KResult<()> {
     assert_eq!(*r.value(), 255);
     assert_eq!(*r.next().value(), 1);
     assert_eq!(*r.next().root_value()?, 255);
-    assert_eq!(*r.next().next(), "null");
+    assert!(r.next().next().is_none());
     Ok(())
 }

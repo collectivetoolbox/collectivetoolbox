@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::switch_else_only::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_switch_else_only() -> KResult<()> {

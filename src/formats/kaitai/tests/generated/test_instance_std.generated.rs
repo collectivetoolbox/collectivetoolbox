@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::instance_std::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_instance_std() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_instance_std() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<InstanceStd> = InstanceStd::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.header()?, "\"Some \"");
+    assert_eq!(*r.header()?, "Some ");
     Ok(())
 }

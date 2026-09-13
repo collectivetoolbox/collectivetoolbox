@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::imports_abs_rel::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_imports_abs_rel() -> KResult<()> {

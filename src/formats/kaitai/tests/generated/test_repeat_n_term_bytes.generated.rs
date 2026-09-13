@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::repeat_n_term_bytes::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_repeat_n_term_bytes() -> KResult<()> {
@@ -83,13 +84,13 @@ fn test_repeat_n_term_bytes() -> KResult<()> {
     let r: OptRc<RepeatNTermBytes> = RepeatNTermBytes::read_into(&_io, None, None)?;
 
     assert_eq!(r.records1().len(), 2);
-    assert_eq!(*r.records1()[0], vec![0xe8u8, 0xbau8]);
-    assert_eq!(*r.records1()[1], "[].as<bytes>");
+    assert_eq!(r.records1()[0], vec![0xe8u8, 0xbau8]);
+    assert_eq!(r.records1()[1], Vec::<u8>::new());
     assert_eq!(r.records2().len(), 2);
-    assert_eq!(*r.records2()[0], vec![0xaau8]);
-    assert_eq!(*r.records2()[1], vec![0xfau8, 0x9eu8, 0xb8u8, 0xaau8]);
+    assert_eq!(r.records2()[0], vec![0xaau8]);
+    assert_eq!(r.records2()[1], vec![0xfau8, 0x9eu8, 0xb8u8, 0xaau8]);
     assert_eq!(r.records3().len(), 2);
-    assert_eq!(*r.records3()[0], vec![0xaau8, 0xaau8]);
-    assert_eq!(*r.records3()[1], "[].as<bytes>");
+    assert_eq!(r.records3()[0], vec![0xaau8, 0xaau8]);
+    assert_eq!(r.records3()[1], Vec::<u8>::new());
     Ok(())
 }

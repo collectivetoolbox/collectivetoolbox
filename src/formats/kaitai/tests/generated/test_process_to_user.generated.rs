@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::process_to_user::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_process_to_user() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_process_to_user() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessToUser> = ProcessToUser::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf1().str(), "\"Hello\"");
+    assert_eq!(*r.buf1().str(), "Hello");
     Ok(())
 }

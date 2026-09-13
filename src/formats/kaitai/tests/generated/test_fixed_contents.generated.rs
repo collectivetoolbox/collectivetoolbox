@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::fixed_contents::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_fixed_contents() -> KResult<()> {

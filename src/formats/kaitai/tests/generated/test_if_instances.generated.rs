@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::if_instances::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_if_instances() -> KResult<()> {
@@ -82,6 +83,6 @@ fn test_if_instances() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<IfInstances> = IfInstances::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.never_happens()?, "null");
+    assert!(r.never_happens()?.is_none());
     Ok(())
 }

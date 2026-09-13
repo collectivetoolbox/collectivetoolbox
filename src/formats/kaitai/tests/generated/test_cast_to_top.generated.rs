@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::cast_to_top::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_cast_to_top() -> KResult<()> {

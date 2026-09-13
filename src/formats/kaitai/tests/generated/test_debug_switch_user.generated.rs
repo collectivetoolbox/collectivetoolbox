@@ -74,6 +74,7 @@ use anyhow::Context;
 use std::fs;
 use kaitai::*;
 use rust::formats::debug_switch_user::*;
+use rust::test_formats::*;
 
 #[crate::ctb_test]
 fn test_debug_switch_user() -> KResult<()> {

@@ -897,6 +897,21 @@ pub fn modulo(a: i64, b: i64) -> i64 {
     a.rem_euclid(b)
 }
 
+/// Performs integer division with floor rounding (towards negative infinity),
+/// matching Kaitai Struct language specification semantics.
+pub fn div_floor(a: i64, b: i64) -> KResult<i64> {
+    if b == 0 {
+        return Err(KError::CastError);
+    }
+    let d = a.checked_div(b).ok_or(KError::CastError)?;
+    let r = a.checked_rem(b).ok_or(KError::CastError)?;
+    if (r > 0 && b < 0) || (r < 0 && b > 0) {
+        Ok(d.saturating_sub(1))
+    } else {
+        Ok(d)
+    }
+}
+
 /// Extracts a substring slice safely without panicking on out-of-bounds or invalid UTF-8 boundaries.
 pub fn substring<I1: TryInto<usize>, I2: TryInto<usize>>(s: &str, from: I1, to: I2) -> &str {
     let Ok(from) = from.try_into() else { return ""; };
