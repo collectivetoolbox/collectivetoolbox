@@ -45,6 +45,10 @@ use std::borrow::Cow;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
+#[path = "spec/kst.rs"]
+pub mod kst;
+pub use kst::*;
+
 /// A value that can be deserialized from either a single string or a list of
 /// strings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

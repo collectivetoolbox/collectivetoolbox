@@ -10,6 +10,10 @@ crate-type = ["lib"]
 name = "import-kaitai-formats"
 path = "bin/import_formats.rs"
 
+[[bin]]
+name = "generate-kaitai-tests"
+path = "bin/generate_tests.rs"
+
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }

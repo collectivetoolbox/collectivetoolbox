@@ -34,6 +34,9 @@ Copyright (c) 2011-2017 Lightbend, Inc.
 See full license information for Kaitai Struct compiler at the end of this file.
 */
 
+// Parts derived from kaitai_struct_tests (see full license information at the end of this file):
+// Copyright (c) 2019 Kaitai Project
+
 // See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
 
 //! Kaitai Struct compiler and runtime integration for format specifications.
