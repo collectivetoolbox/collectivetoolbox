@@ -70,6 +70,7 @@ fn find_files(
                 || name == Some("node_modules")
                 || name == Some("reference-implementations")
                 || name == Some("patches")
+                || name == Some("construct")
             {
                 continue;
             }

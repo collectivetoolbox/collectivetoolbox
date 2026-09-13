@@ -84,11 +84,15 @@ fn main() -> Result<()> {
     let default_formats_dir = manifest_dir.join("kaitai_struct_tests/formats");
     let default_out_dir = manifest_dir.join("kaitai_struct_tests/spec/rust/tests");
 
+    // Reason for fallback: default test specification directory when not specified
     let kst_dir = cli.kst_dir.unwrap_or(default_kst_dir);
+    // Reason for fallback: default format definition directory when not specified
     let formats_dir = cli.formats_dir.unwrap_or(default_formats_dir);
+    // Reason for fallback: default test output directory when not specified
     let out_dir = cli.out_dir.unwrap_or(default_out_dir);
     let cache_file = cli
         .cache_file
+        // Reason for fallback: default build cache file inside output directory
         .unwrap_or_else(|| out_dir.join(".build_cache"));
 
     let stats = if kst_dir.is_dir() && cli.tests_dir.is_none() {
@@ -105,6 +109,7 @@ fn main() -> Result<()> {
             cli.force,
         )?
     } else {
+        // Reason for fallback: default source test directory when not specified
         let tests_dir = cli.tests_dir.unwrap_or_else(|| out_dir.clone());
         log!(
             "Regenerating Kaitai tests from {} into {}",
