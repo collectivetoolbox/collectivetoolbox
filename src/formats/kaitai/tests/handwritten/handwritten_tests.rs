@@ -20,15 +20,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Handwritten Kaitai Struct integration tests adapted from upstream.
 
-#[path = "handwritten/test_opaque_external_type_02_parent.rs"]
+#[path = "test_opaque_external_type_02_parent.rs"]
 mod test_opaque_external_type_02_parent;
-#[path = "handwritten/test_opaque_with_param.rs"]
+#[path = "test_opaque_with_param.rs"]
 mod test_opaque_with_param;
-#[path = "handwritten/test_params_def.rs"]
+#[path = "test_params_def.rs"]
 mod test_params_def;
-#[path = "handwritten/test_str_literals.rs"]
+#[path = "test_str_literals.rs"]
 mod test_str_literals;
-#[path = "handwritten/test_switch_cast.rs"]
+#[path = "test_switch_cast.rs"]
 mod test_switch_cast;
-#[path = "handwritten/test_to_string_custom.rs"]
+#[path = "test_to_string_custom.rs"]
 mod test_to_string_custom;

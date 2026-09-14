@@ -31,6 +31,7 @@ pub use ctb_utilities::*;
 extern crate ctb_formats_kaitai as rust;
 extern crate kaitai;
 
+#[path = "handwritten/handwritten_tests.rs"]
 mod handwritten;
 
-include!("spec_modules.generated.rs");
+include!("generated/spec_modules.generated.rs");
